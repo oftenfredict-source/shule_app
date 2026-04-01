@@ -24,6 +24,8 @@ class Fee extends Model
         'display_order', // NEW - for sorting priority
         'duration',
         'description',
+        'sms_assignment_template', // Added
+        'sms_reminder_template',   // Added
         'status',
         'allow_installments',
         'default_installment_type',
@@ -61,5 +63,10 @@ class Fee extends Model
     public function otherFeeDetails()
     {
         return $this->hasMany(OtherFeeDetail::class, 'feeID', 'feeID');
+    }
+
+    public function feeConditions()
+    {
+        return $this->hasMany(FeeCondition::class, 'feeID', 'feeID');
     }
 }

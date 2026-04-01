@@ -1,0 +1,237 @@
+        // Agreement Modal Logic
+        let classStudentsForAgreement = [];
+        let classFeesForAgreement = [];
+
+        $(document).on('click', '#openAgreementModalBtn', function() {
+            $('#agreementModal').modal('show');
+        });
+
+        $('#agreement_class_select').on('change', function() {
+            const classID = $(this).val();
+            if (!classID) {
+                $('#agreement_placeholder').removeClass('d-none');
+                $('#agreement_results_container').addClass('d-none');
+                $('#agreement_search_block, #agreement_save_actions').addClass('d-none');
+                return;
+            }
+
+            $('#agreement_target_class_name').text($(this).find('option:selected').text());
+            showOverlay("Loading data...");
+
+            // Fetch students and fees in parallel
+            Promise.all([
+                $.get("{{ url('get_class_students') }}/" + classID),
+                $.get("{{ url('get_class_fees') }}/" + classID)
+            ]).then(([studentsRes, feesRes]) => {
+                hideOverlay();
+                classStudentsForAgreement = studentsRes.students || [];
+                classFeesForAgreement = feesRes.fees || [];
+                
+                $('#agreement_student_count').text(classStudentsForAgreement.length + ' Students');
+                $('#agreement_placeholder').addClass('d-none');
+                $('#agreement_results_container').removeClass('d-none');
+                $('#agreement_search_block, #agreement_save_actions').removeClass('d-none');
+                
+                renderAgreementStudents(classStudentsForAgreement);
+            }).catch(err => {
+                hideOverlay();
+                Swal.fire('Error', 'Failed to load class data', 'error');
+            });
+        });
+
+        function renderAgreementStudents(students) {
+            const container = $('#agreement_students_list');
+            container.empty();
+
+            if (students.length === 0) {
+                container.html('<div class="alert alert-info border-0 rounded-0">No students found matching your search.</div>');
+                return;
+            }
+
+            students.forEach(student => {
+                const name = `${student.first_name} ${student.middle_name || ''} ${student.last_name}`;
+                const card = `
+                    <div class="student-agreement-card border bg-white mb-2 p-0 overflow-hidden shadow-sm" data-id="${student.studentID}">
+                        <div class="p-3 d-flex align-items-center justify-content-between cursor-pointer student-header" style="background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input student-check" type="checkbox" data-id="${student.studentID}">
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-dark">${name}</h6>
+                                    <small class="text-muted">Adm No: ${student.admission_number || 'N/A'}</small>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="badge bg-white text-primary-custom border border-primary-custom small d-none" id="agreement_count_${student.studentID}">0 Agreements</span>
+                                <i class="bi bi-chevron-down text-muted transition-icon"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="student-details p-3 border-top" style="display: none; background: #fafafa;">
+                            <p class="small fw-bold text-primary-custom mb-3 border-bottom pb-1">
+                                <i class="bi bi-list-check me-1"></i> Class Fees - Select to Override
+                            </p>
+                            <div class="row g-2">
+                                ${classFeesForAgreement.map(fee => `
+                                    <div class="col-12 fee-agreement-line mb-1 border bg-white transition-all">
+                                        <div class="d-flex justify-content-between align-items-center p-2 cursor-pointer fee-toggle-header">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-caret-right-fill text-primary-custom me-2 fee-caret"></i>
+                                                <span class="small fw-bold text-dark">${fee.fee_name}</span>
+                                            </div>
+                                            <span class="badge bg-light text-dark border extra-small">Std: TZS ${parseFloat(fee.amount).toLocaleString()}</span>
+                                        </div>
+                                        
+                                        <div class="fee-input-section p-3 border-top bg-light" style="display: none;">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white text-primary-custom border-primary-custom fw-bold">Agreed Amount (TZS)</span>
+                                                <input type="number" class="form-control border-primary-custom agreed-amount-input" 
+                                                       data-student-id="${student.studentID}" 
+                                                       data-fee-id="${fee.feeID}" 
+                                                       placeholder="Enter negotiated amount..." 
+                                                       min="0" step="1000">
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                                <small class="text-muted extra-small"><i class="bi bi-info-circle me-1"></i> Custom price for this student only.</small>
+                                                <button type="button" class="btn btn-sm btn-link text-danger p-0 extra-small clear-agreement-btn">Clear</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.append(card);
+            });
+        }
+
+        // Toggle student cards
+        $(document).on('click', '.student-header', function(e) {
+            if ($(e.target).hasClass('form-check-input')) return;
+            
+            const card = $(this).closest('.student-agreement-card');
+            const details = card.find('.student-details');
+            const icon = $(this).find('.transition-icon');
+            const checkbox = card.find('.student-check');
+
+            details.slideToggle(200);
+            icon.toggleClass('bi-chevron-down bi-chevron-up');
+            
+            // Auto check if opening
+            if (details.css('display') === 'none') {
+                checkbox.prop('checked', true);
+            }
+        });
+
+        // Toggle Fee sections
+        $(document).on('click', '.fee-toggle-header', function() {
+            const section = $(this).closest('.fee-agreement-line').find('.fee-input-section');
+            const caret = $(this).find('.fee-caret');
+            
+            section.slideToggle(150);
+            caret.toggleClass('bi-caret-right-fill bi-caret-down-fill text-primary-custom text-dark');
+            $(this).closest('.fee-agreement-line').toggleClass('border-primary-custom shadow-sm');
+        });
+
+        $(document).on('click', '.clear-agreement-btn', function() {
+            $(this).closest('.fee-input-section').find('.agreed-amount-input').val('');
+            updateAgreementBadgeInternal($(this).closest('.student-agreement-card'));
+        });
+
+        $(document).on('input', '.agreed-amount-input', function() {
+            updateAgreementBadgeInternal($(this).closest('.student-agreement-card'));
+        });
+
+        function updateAgreementBadgeInternal(card) {
+            const studentID = card.data('id');
+            const count = card.find('.agreed-amount-input').filter(function() { return $(this).val() !== ''; }).length;
+            const badge = $(`#agreement_count_${studentID}`);
+            
+            if (count > 0) {
+                badge.removeClass('d-none').text(`${count} Agreement${count > 1 ? 's' : ''}`);
+            } else {
+                badge.addClass('d-none');
+            }
+        }
+
+        $(document).on('change', '.student-check', function() {
+            const details = $(this).closest('.student-agreement-card').find('.student-details');
+            if ($(this).is(':checked')) {
+                details.slideDown(200);
+            } else {
+                details.slideUp(200);
+            }
+        });
+
+        $('#agreement_student_search').on('input', function() {
+            const term = $(this).val().toLowerCase();
+            const filtered = classStudentsForAgreement.filter(s => 
+                (s.first_name + ' ' + (s.middle_name || '') + ' ' + s.last_name).toLowerCase().includes(term) ||
+                (s.admission_number || '').toLowerCase().includes(term)
+            );
+            renderAgreementStudents(filtered);
+        });
+
+        $('#save_agreements_btn').on('click', function() {
+            const agreements = [];
+            $('.agreed-amount-input').each(function() {
+                const val = $(this).val();
+                if (val !== '' && val !== null) {
+                    agreements.push({
+                        studentID: $(this).data('student-id'),
+                        feeID: $(this).data('fee-id'),
+                        amount: val
+                    });
+                }
+            });
+
+            if (agreements.length === 0) {
+                Swal.fire('Info', 'No agreed amounts entered to save.', 'info');
+                return;
+            }
+
+            const saveBtn = $(this);
+            const originalText = saveBtn.html();
+
+            saveBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...');
+            showOverlay("Saving...");
+
+            $.ajax({
+                url: "{{ route('store_fee_agreements') }}",
+                method: 'POST',
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    agreements: agreements,
+                    schoolID: "{{ session('schoolID') }}"
+                },
+                success: function(response) {
+                    hideOverlay();
+                    saveBtn.prop('disabled', false).html(originalText);
+                    if (response.success) {
+                        Swal.fire({
+                            title: 'Agreements Saved!',
+                            text: response.message || 'Balances updated.',
+                            icon: 'success',
+                            confirmButtonColor: '#940000'
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    hideOverlay();
+                    saveBtn.prop('disabled', false).html(originalText);
+                    Swal.fire('Error', 'Failed to save. ' + (xhr.responseJSON?.message || ''), 'error');
+                }
+            });
+        });
+    }
+
+    // Init
+    if (typeof jQuery !== 'undefined') {
+        $(document).ready(initFeesManagement);
+    } else {
+        window.addEventListener('load', () => { if (typeof jQuery !== 'undefined') initFeesManagement(); });
+    }
+})();
+</script>

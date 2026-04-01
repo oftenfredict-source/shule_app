@@ -32,6 +32,12 @@ class Payment extends Model
         'payment_date',
         'payment_reference',
         'notes',
+        'sponsor_amount_required',
+        'sponsor_amount_paid',
+        'sponsor_balance',
+        'parent_amount_required',
+        'parent_amount_paid',
+        'parent_balance',
     ];
 
     protected $casts = [
@@ -44,6 +50,12 @@ class Payment extends Model
         'can_start_school' => 'boolean',
         'sms_sent_at' => 'datetime',
         'payment_date' => 'datetime',
+        'sponsor_amount_required' => 'decimal:2',
+        'sponsor_amount_paid' => 'decimal:2',
+        'sponsor_balance' => 'decimal:2',
+        'parent_amount_required' => 'decimal:2',
+        'parent_amount_paid' => 'decimal:2',
+        'parent_balance' => 'decimal:2',
     ];
 
     // Relationships

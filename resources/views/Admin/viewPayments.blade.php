@@ -7,6 +7,17 @@
 @endif
 
 <style>
+    @import url('https://fonts.cdnfonts.com/css/century-gothic');
+
+    body {
+        font-family: 'Century Gothic', sans-serif !important;
+        background-color: #FFFFFF !important;
+    }
+
+    * {
+        border-radius: 0 !important;
+    }
+
     .bg-primary-custom {
         background-color: #940000 !important;
     }
@@ -17,102 +28,194 @@
         background-color: #940000;
         border-color: #940000;
         color: #ffffff;
+        font-weight: 600;
     }
     .btn-primary-custom:hover {
-        background-color: #b30000;
-        border-color: #b30000;
+        background-color: #7a0000;
+        border-color: #7a0000;
         color: #ffffff;
+        box-shadow: 0 4px 8px rgba(148, 0, 0, 0.2);
     }
+    
+    .card {
+        border: 1px solid #FFF5F5 !important;
+        background-color: #FFFFFF !important;
+        box-shadow: 0 4px 6px -1px rgba(148, 0, 0, 0.05) !important;
+    }
+
+    .card-header-gradient {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+        border-bottom: 2px solid #940000 !important;
+        color: #940000 !important;
+        font-weight: bold;
+    }
+
+    /* Modal Styling */
+    .modal-header {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+        border-bottom: 3px solid #940000 !important;
+        color: #940000 !important;
+    }
+    .modal-title {
+        font-weight: bold !important;
+        color: #940000 !important;
+        font-family: 'Century Gothic', sans-serif !important;
+    }
+    .modal-content {
+        border-radius: 0 !important;
+        border: none !important;
+        overflow: hidden;
+    }
+
+    /* Tabs Styling */
+    .nav-pills .nav-link {
+        color: #940000 !important;
+        font-weight: bold;
+        border: 1px solid #FFF5F5;
+        margin-right: 5px;
+        background-color: #FFFFFF;
+    }
+    .nav-pills .nav-link.active {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+        border: 1px solid #940000 !important;
+        color: #940000 !important;
+        box-shadow: 0 2px 4px rgba(148, 0, 0, 0.1);
+    }
+    .nav-pills .nav-link:hover:not(.active) {
+        background-color: #FFF5F5 !important;
+    }
+
+    /* Statistics Backgrounds */
+    .stat-card-accent {
+        background-color: #FFF5F5 !important;
+        border-left: 4px solid #940000 !important;
+    }
+
     .student-photo {
         width: 40px;
         height: 40px;
-        border-radius: 50%;
+        border-radius: 0;
         object-fit: cover;
         border: 2px solid #940000;
     }
     .student-photo-placeholder {
         width: 40px;
         height: 40px;
-        border-radius: 50%;
+        border-radius: 0;
         display: flex;
         align-items: center;
         justify-content: center;
+        background-color: #940000;
         color: white;
         font-weight: bold;
         font-size: 16px;
         border: 2px solid #940000;
-    }
-    .photo-container {
-        position: relative;
-        display: inline-block;
     }
     .control-number {
         font-family: 'Courier New', monospace;
         font-weight: 700;
         color: #940000;
     }
-    .view-more-details {
-        display: none;
+    #paymentsTable th {
+        background-color: #FFF5F5;
+        color: #940000;
+        font-weight: bold;
+        border-bottom: 2px solid #940000;
     }
-    /* Ensure table fits without horizontal scroll */
-    #paymentsTable {
-        font-size: 0.9rem;
-        width: 100% !important;
-        table-layout: fixed;
-    }
-    #paymentsTable th,
-    #paymentsTable td {
-        padding: 8px 10px;
-        vertical-align: middle;
-        word-wrap: break-word;
-    }
-    #paymentsTable th:nth-child(1),
-    #paymentsTable td:nth-child(1) {
-        width: 30%;
-    }
-    #paymentsTable th:nth-child(2),
-    #paymentsTable td:nth-child(2) {
-        width: 15%;
-        text-align: center;
-    }
-    #paymentsTable th:nth-child(3),
-    #paymentsTable td:nth-child(3) {
-        width: 20%;
-        text-align: right;
-    }
-    #paymentsTable th:nth-child(4),
-    #paymentsTable td:nth-child(4) {
-        width: 20%;
-        text-align: right;
-    }
-    #paymentsTable th:nth-child(5),
-    #paymentsTable td:nth-child(5) {
-        width: 15%;
-        text-align: center;
-    }
-    #paymentsTable th:nth-child(8),
-    #paymentsTable td:nth-child(8) {
-        width: 10%;
-    }
-    #paymentsTable th:nth-child(9),
-    #paymentsTable td:nth-child(9) {
-        width: 10%;
-    }
-    #paymentsTable .btn-group-sm .btn {
-        padding: 0.2rem 0.4rem;
-        font-size: 0.875rem;
-    }
-    @media (max-width: 768px) {
-        #paymentsTable {
-            font-size: 0.8rem;
-        }
-        #paymentsTable th,
-        #paymentsTable td {
-            padding: 6px 8px;
-        }
+    .badge-primary-custom {
+        background-color: #FFF5F5;
+        color: #940000;
+        border: 1px solid #940000;
     }
     .border-primary-custom {
         border: 1px solid #940000 !important;
+    }
+    
+    .form-control:focus {
+        border-color: #940000;
+        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
+    }
+    
+    /* Mobile Responsive DataTables Cards */
+    @media screen and (max-width: 767px) {
+        #paymentsTable thead, #paymentsTable tfoot {
+            display: none;
+        }
+        #paymentsTable, #paymentsTable tbody, #paymentsTable tr, #paymentsTable td {
+            display: block;
+            width: 100%;
+        }
+        #paymentsTable tr {
+            margin-bottom: 20px;
+            border: 1px solid #FFF5F5 !important;
+            border-left: 5px solid #940000 !important;
+            box-shadow: 0 4px 6px -1px rgba(148, 0, 0, 0.1) !important;
+            background-color: #ffffff;
+            border-radius: 4px;
+        }
+        #paymentsTable td {
+            text-align: right !important;
+            padding-left: 50% !important;
+            position: relative;
+            border: none;
+            border-bottom: 1px solid #f9f9f9;
+            min-height: 40px;
+        }
+        #paymentsTable td:last-child {
+            border-bottom: 0;
+            text-align: center !important;
+            padding-left: 15px !important;
+            padding-bottom: 15px;
+            padding-top: 15px;
+        }
+        #paymentsTable td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 15px;
+            width: 45%;
+            padding-right: 10px;
+            text-align: left;
+            font-weight: bold;
+            color: #940000;
+            top: 50%;
+            transform: translateY(-50%);
+            white-space: nowrap;
+        }
+        #paymentsTable td:last-child::before {
+            display: none;
+        }
+        .dataTables_wrapper .row {
+            margin: 0 !important;
+        }
+        .dataTables_wrapper .col-sm-12 {
+            padding: 0 !important;
+        }
+        #paymentsTable .d-flex.align-items-center {
+            justify-content: flex-end;
+            text-align: right;
+        }
+        #paymentsTable .bill-container {
+            text-align: right;
+        }
+        body, html {
+            overflow-x: hidden;
+        }
+        .stat-card-accent h4, .stat-card-accent h3 {
+            font-size: 1.15rem !important;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .stat-card-accent h6 {
+            font-size: 0.75rem !important;
+        }
+        #statisticsCards > div, #amountSummary > div {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+        }
+        #statisticsCards.row, #amountSummary.row {
+            margin-left: -8px;
+            margin-right: -8px;
+        }
     }
 </style>
 
@@ -148,20 +251,23 @@
 
             <!-- Page Header -->
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body bg-primary-custom text-white rounded">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">
-                            <i class="bi bi-credit-card"></i> Payments & Control Numbers
+                <div class="card-body bg-primary-custom text-white rounded shadow" style="background: linear-gradient(135deg, #940000 0%, #7a0000 100%) !important;">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                        <h4 class="mb-0 fw-bold text-center text-md-start mb-3 mb-md-0">
+                            <i class="bi bi-credit-card me-2"></i> Payments Management & Control Numbers
                         </h4>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-light text-primary-custom fw-bold" type="button" id="generateControlNumbersBtn">
-                                <i class="bi bi-key"></i> Generate Control Numbers
+                        <div class="d-flex flex-wrap justify-content-center gap-2">
+                            <button class="btn btn-light text-primary-custom fw-bold shadow-sm" type="button" id="generateControlNumbersBtn">
+                                <i class="bi bi-key"></i> Generate CN
                             </button>
-                            <button class="btn btn-light text-primary-custom fw-bold" type="button" id="sendSMSBtn">
-                                <i class="bi bi-send-check"></i> Send Control Numbers
+                            <button class="btn btn-light text-primary-custom fw-bold shadow-sm" type="button" id="sendSMSBtn">
+                                <i class="bi bi-send-check"></i> Send CN
                             </button>
-                            <button class="btn btn-light text-warning fw-bold" type="button" id="sendDebtRemindersBtn">
-                                <i class="bi bi-bell-fill"></i> Send Debt Reminders
+                            <button class="btn btn-light text-primary-custom fw-bold shadow-sm" type="button" id="sendDebtRemindersBtn">
+                                <i class="bi bi-bell-fill"></i> Send Reminders
+                            </button>
+                            <button class="btn btn-light text-primary-custom fw-bold shadow-sm" type="button" id="exportFilteredPdfBtn">
+                                <i class="bi bi-file-earmark-pdf"></i> Export PDF
                             </button>
                         </div>
                     </div>
@@ -170,43 +276,43 @@
 
             <!-- Statistics Cards -->
             <div class="row mb-4" id="statisticsCards">
-                <div class="col-md-2" style="flex: 0 0 20%; max-width: 20%;">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">Pending</h6>
-                            <h3 class="mb-0 text-warning" id="statPendingPayments">0</h3>
+                <div class="col-6 col-md-4 col-lg mb-3">
+                    <div class="card border-0 shadow-sm stat-card-accent h-100">
+                        <div class="card-body p-3">
+                            <h6 class="text-muted mb-2 small fw-bold">Pending</h6>
+                            <h4 class="mb-0 text-dark fw-bold" id="statPendingPayments">0</h4>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-2" style="flex: 0 0 20%; max-width: 20%;">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">Incomplete</h6>
-                            <h3 class="mb-0 text-info" id="statIncompletePayments">0</h3>
+                <div class="col-6 col-md-4 col-lg mb-3">
+                    <div class="card border-0 shadow-sm stat-card-accent h-100">
+                        <div class="card-body p-3">
+                            <h6 class="text-muted mb-2 small fw-bold">Incomplete</h6>
+                            <h4 class="mb-0 text-dark fw-bold" id="statIncompletePayments">0</h4>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-2" style="flex: 0 0 20%; max-width: 20%;">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">Fully Paid</h6>
-                            <h3 class="mb-0 text-success" id="statPaidPayments">0</h3>
+                <div class="col-6 col-md-4 col-lg mb-3">
+                    <div class="card border-0 shadow-sm stat-card-accent h-100">
+                        <div class="card-body p-3">
+                            <h6 class="text-muted mb-2 small fw-bold">Fully Paid</h6>
+                            <h4 class="mb-0 text-dark fw-bold" id="statPaidPayments">0</h4>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-2" style="flex: 0 0 20%; max-width: 20%;">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">Overpaid</h6>
-                            <h3 class="mb-0 text-primary-custom" id="statOverpaidPayments">0</h3>
+                <div class="col-6 col-md-6 col-lg mb-3">
+                    <div class="card border-0 shadow-sm stat-card-accent h-100">
+                        <div class="card-body p-3">
+                            <h6 class="text-muted mb-2 small fw-bold">Overpaid</h6>
+                            <h4 class="mb-0 text-dark fw-bold" id="statOverpaidPayments">0</h4>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-2" style="flex: 0 0 20%; max-width: 20%;">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">Total Balance</h6>
-                            <h3 class="mb-0 text-danger" id="statTotalBalance">TZS 0</h3>
+                <div class="col-12 col-md-6 col-lg mb-3">
+                    <div class="card border-0 shadow-sm stat-card-accent h-100">
+                        <div class="card-body p-3">
+                            <h6 class="text-muted mb-2 small fw-bold">Total Balance</h6>
+                            <h4 class="mb-0 text-primary-custom fw-bold" id="statTotalBalance">0</h4>
                         </div>
                     </div>
                 </div>
@@ -214,27 +320,27 @@
 
             <!-- Amount Summary -->
             <div class="row mb-4" id="amountSummary">
-                <div class="col-md-4">
-                    <div class="card border-0 shadow-sm">
+                <div class="col-12 col-md-4 mb-3 mb-md-0">
+                    <div class="card border-0 shadow-sm stat-card-accent h-100">
                         <div class="card-body">
-                            <h6 class="text-muted mb-2">Total Amount Required</h6>
-                            <h3 class="mb-0 text-primary-custom" id="statTotalRequired">TZS 0.00</h3>
+                            <h6 class="text-muted mb-2 fw-bold">Total Amount Required</h6>
+                            <h3 class="mb-0 text-dark fw-bold" id="statTotalRequired">TZS 0.00</h3>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card border-0 shadow-sm">
+                <div class="col-12 col-md-4 mb-3 mb-md-0">
+                    <div class="card border-0 shadow-sm stat-card-accent h-100">
                         <div class="card-body">
-                            <h6 class="text-muted mb-2">Total Amount Paid</h6>
-                            <h3 class="mb-0 text-success" id="statTotalPaid">TZS 0.00</h3>
+                            <h6 class="text-muted mb-2 fw-bold">Total Amount Paid</h6>
+                            <h3 class="mb-0 text-dark fw-bold" id="statTotalPaid">TZS 0.00</h3>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card border-0 shadow-sm">
+                <div class="col-12 col-md-4">
+                    <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #940000 0%, #7a0000 100%) !important; color: white !important;">
                         <div class="card-body">
-                            <h6 class="text-muted mb-2">Outstanding Balance</h6>
-                            <h3 class="mb-0 text-danger" id="statOutstandingBalance">TZS 0.00</h3>
+                            <h6 class="text-white-50 mb-2 fw-bold">Outstanding Balance</h6>
+                            <h3 class="mb-0 text-white fw-bold" id="statOutstandingBalance">TZS 0.00</h3>
                         </div>
                     </div>
                 </div>
@@ -402,11 +508,11 @@
 <div class="modal fade" id="viewMoreModal" tabindex="-1" aria-labelledby="viewMoreModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 95%; width: 1200px;">
         <div class="modal-content">
-            <div class="modal-header bg-primary-custom text-white">
+            <div class="modal-header">
                 <h5 class="modal-title" id="viewMoreModalLabel">
-                    <i class="bi bi-eye"></i> Payment Details
+                    <i class="bi bi-eye me-2"></i> Student Payment Details
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -417,11 +523,11 @@
                         <div class="student-photo-modal-container">
                             <img id="view_student_photo" src="" alt="Student Photo" 
                                 class="img-thumbnail" 
-                                style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; display: none;"
+                                style="width: 100px; height: 100px; object-fit: cover; border-radius: 0; display: none;"
                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                             <div id="view_student_photo_placeholder" 
                                 class="student-photo-placeholder d-none" 
-                                style="width: 100px; height: 100px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 36px; font-weight: bold; color: white; margin: 0 auto;">
+                                style="width: 100px; height: 100px; border-radius: 0; display: none; align-items: center; justify-content: center; font-size: 36px; font-weight: bold; color: white; margin: 0 auto;">
                             </div>
                         </div>
                     </div>
@@ -430,8 +536,8 @@
                         <p class="mb-0 text-muted"> <i class="bi bi-book"></i> <span id="view_student_class">-</span> | <i class="bi bi-person-badge"></i> <span id="view_student_admission">-</span></p>
                     </div>
                     <div class="col-md-4 text-end">
-                        <div class="p-2 bg-light rounded border">
-                            <small class="text-muted d-block">Control Number</small>
+                        <div class="p-2 stat-card-accent rounded border">
+                            <small class="text-muted d-block font-weight-bold">Control Number</small>
                             <span class="h5 mb-0 text-primary-custom fw-bold" id="view_control_number">-</span>
                         </div>
                     </div>
@@ -440,42 +546,42 @@
                 <!-- Payment Summary Dashboard -->
                 <div class="row mb-4 g-2">
                     <div class="col">
-                        <div class="card border-0 bg-light h-100">
+                        <div class="card border-0 stat-card-accent h-100">
                             <div class="card-body p-2 text-center">
-                                <small class="text-muted d-block mb-1" style="font-size: 0.75rem;">Fee Required</small>
-                                <h6 class="mb-0 text-primary-custom fw-bold" id="view_total_fee_required">0.00</h6>
+                                <small class="text-muted d-block mb-1 font-weight-bold" style="font-size: 0.75rem;">Fee Required</small>
+                                <h6 class="mb-0 text-dark fw-bold" id="view_total_fee_required">0.00</h6>
                             </div>
                         </div>
                     </div>
                     <div class="col">
-                        <div class="card border-0 bg-light h-100">
+                        <div class="card border-0 stat-card-accent h-100">
                             <div class="card-body p-2 text-center">
-                                <small class="text-muted d-block mb-1" style="font-size: 0.75rem;">Total Paid</small>
-                                <h6 class="mb-0 text-success fw-bold" id="view_total_paid">0.00</h6>
+                                <small class="text-muted d-block mb-1 font-weight-bold" style="font-size: 0.75rem;">Total Paid</small>
+                                <h6 class="mb-0 text-dark fw-bold" id="view_total_paid">0.00</h6>
                             </div>
                         </div>
                     </div>
                     <div class="col">
-                        <div class="card border-0 bg-light h-100">
+                        <div class="card border-0 stat-card-accent h-100">
                             <div class="card-body p-2 text-center">
-                                <small class="text-muted d-block mb-1" style="font-size: 0.75rem;">Bill Balance</small>
-                                <h6 class="mb-0 text-danger fw-bold" id="view_bill_balance">0.00</h6>
+                                <small class="text-muted d-block mb-1 font-weight-bold" style="font-size: 0.75rem;">Bill Balance</small>
+                                <h6 class="mb-0 text-dark fw-bold" id="view_bill_balance">0.00</h6>
                             </div>
                         </div>
                     </div>
                     <div class="col">
-                        <div class="card border-0 bg-light h-100">
+                        <div class="card border-0 stat-card-accent h-100">
                             <div class="card-body p-2 text-center">
-                                <small class="text-muted d-block mb-1" style="font-size: 0.75rem;">Prev. Year Debt</small>
-                                <h6 class="mb-0 text-warning fw-bold" id="view_old_debt">0.00</h6>
+                                <small class="text-muted d-block mb-1 font-weight-bold" style="font-size: 0.75rem;">Prev. Year Debt</small>
+                                <h6 class="mb-0 text-dark fw-bold" id="view_old_debt">0.00</h6>
                             </div>
                         </div>
                     </div>
                     <div class="col">
-                        <div class="card border-0 bg-primary-custom text-white h-100">
+                        <div class="card border-0 bg-primary-custom text-white h-100 shadow-sm" style="background: linear-gradient(135deg, #940000 0%, #7a0000 100%) !important;">
                             <div class="card-body p-2 text-center">
-                                <small class="d-block mb-1" style="font-size: 0.75rem;">Total Outstanding</small>
-                                <h6 class="mb-0 fw-bold" id="view_total_outstanding">0.00</h6>
+                                <small class="d-block mb-1 text-white-50 font-weight-bold" style="font-size: 0.75rem;">Total Outstanding</small>
+                                <h6 class="mb-0 fw-bold text-white" id="view_total_outstanding">0.00</h6>
                             </div>
                         </div>
                     </div>
@@ -483,9 +589,9 @@
 
                 <!-- Sponsorship Information (Hidden by default) -->
                 <div id="sponsorInfoSection" class="mb-4" style="display: none;">
-                    <div class="card border-primary-custom shadow-sm bg-light">
-                        <div class="card-header bg-primary-custom text-white py-1 px-3">
-                            <small class="fw-bold"><i class="bi bi-shield-check me-2"></i> Sponsorship Information</small>
+                    <div class="card border shadow-sm mb-3">
+                        <div class="card-header card-header-gradient py-1 px-3">
+                            <small class="fw-bold"><i class="bi bi-shield-check me-2"></i> Sponsorship Summary</small>
                         </div>
                         <div class="card-body py-2 px-3">
                             <div class="row align-items-center">
@@ -502,7 +608,53 @@
                                 <div class="col-md-4 text-end">
                                     <small class="text-muted d-block">Sponsor Component</small>
                                     <h5 class="mb-0 text-success fw-bold" id="view_sponsor_amount">0.00/=</h5>
-                                    <small class="text-muted" style="font-size: 0.7rem;">(Calculated from total fees)</small>
+                                    <small class="text-muted" style="font-size: 0.7rem;">(Fee amount assigned to sponsor)</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Split Portions Tracking -->
+                    <div class="row g-2" id="splitBillPortionsSection">
+                        <div class="col-md-6">
+                            <div class="card border-info h-100 bg-light-info">
+                                <div class="card-header py-1 bg-info text-white">
+                                    <small class="fw-bold">Sponsor Portion</small>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span>Required:</span>
+                                        <span class="fw-bold" id="view_sponsor_req_val">0/=</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span>Paid:</span>
+                                        <span class="fw-bold text-success" id="view_sponsor_paid_val">0/=</span>
+                                    </div>
+                                    <div class="border-top pt-1 mt-1 d-flex justify-content-between small">
+                                        <span>Balance:</span>
+                                        <span class="fw-bold text-danger" id="view_sponsor_bal_val">0/=</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-secondary h-100 bg-light">
+                                <div class="card-header py-1 bg-secondary text-white">
+                                    <small class="fw-bold">Parent Portion</small>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span>Required:</span>
+                                        <span class="fw-bold" id="view_parent_req_val">0/=</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span>Paid:</span>
+                                        <span class="fw-bold text-success" id="view_parent_paid_val">0/=</span>
+                                    </div>
+                                    <div class="border-top pt-1 mt-1 d-flex justify-content-between small">
+                                        <span>Balance:</span>
+                                        <span class="fw-bold text-danger" id="view_parent_bal_val">0/=</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -561,10 +713,10 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-danger" id="modalExportPdfBtn">
-                    <i class="bi bi-file-earmark-pdf"></i> Export PDF
+                <button type="button" class="btn btn-primary-custom" id="modalExportPdfBtn">
+                    <i class="bi bi-file-earmark-pdf"></i> Export Details
                 </button>
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                <button type="button" class="btn btn-light text-primary-custom border" data-dismiss="modal">
                     <i class="bi bi-x-circle"></i> Close
                 </button>
             </div>
@@ -576,11 +728,11 @@
 <div class="modal fade" id="updatePaymentModal" tabindex="-1" aria-labelledby="updatePaymentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-primary-custom text-white">
+            <div class="modal-header">
                 <h5 class="modal-title" id="updatePaymentModalLabel">
-                    <i class="bi bi-pencil"></i> Update Payment
+                    <i class="bi bi-arrow-repeat me-2"></i> Update Balances
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -611,12 +763,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                        <i class="bi bi-x-circle"></i> Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary-custom">
-                        <i class="bi bi-save"></i> Update Payment
-                    </button>
+                    <button type="button" class="btn btn-light text-primary-custom border" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom">Update Balances</button>
                 </div>
             </form>
         </div>
@@ -627,11 +775,11 @@
 <div class="modal fade" id="recordPaymentModal" tabindex="-1" aria-labelledby="recordPaymentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white">
+            <div class="modal-header">
                 <h5 class="modal-title" id="recordPaymentModalLabel">
-                    <i class="bi bi-cash-coin"></i> Record Payment
+                    <i class="bi bi-cash-coin me-2"></i> Record Payment
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -644,20 +792,36 @@
                         <input type="text" class="form-control" id="record_control_number" readonly>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Fee Type</label>
-                        <input type="text" class="form-control" id="record_fee_type" readonly>
+                        <label class="form-label fw-bold">Select Fee to Pay <span class="text-danger">*</span></label>
+                        <select name="fee_id" id="record_fee_id" class="form-select" required>
+                            <option value="any">Pay to Any Fee (Automatic Priority)</option>
+                        </select>
+                        <small class="text-muted">Choose a specific fee or pay generally</small>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Amount Required</label>
-                        <input type="text" class="form-control" id="record_amount_required" readonly>
+                    <div id="selected_fee_details" style="display: none;">
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Fee Required</label>
+                                <input type="text" class="form-control form-control-sm bg-light" id="selected_fee_required" readonly>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Fee Balance</label>
+                                <input type="text" class="form-control form-control-sm bg-light text-danger fw-bold" id="selected_fee_balance" readonly>
+                                <input type="hidden" id="selected_fee_balance_raw">
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Amount Already Paid</label>
-                        <input type="text" class="form-control" id="record_amount_paid" readonly>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Balance</label>
-                        <input type="text" class="form-control" id="record_balance" readonly>
+                    <div class="mb-3" id="overall_payment_details">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Total Required</label>
+                                <input type="text" class="form-control form-control-sm bg-light" id="record_amount_required" readonly>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Total Balance</label>
+                                <input type="text" class="form-control form-control-sm bg-light text-danger fw-bold" id="record_balance" readonly>
+                            </div>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Payment Method <span class="text-danger">*</span></label>
@@ -666,6 +830,21 @@
                             <option value="Bank">Bank</option>
                         </select>
                         <small class="text-muted">Select payment method</small>
+                    </div>
+                    <div class="mb-3" id="record_payment_by_container">
+                        <label class="form-label fw-bold">Paid By <span class="text-danger">*</span></label>
+                        <select name="payment_by" id="record_payment_by" class="form-select" required>
+                            <option value="Parent">Parent / Student</option>
+                            <option value="Sponsor">Sponsor</option>
+                        </select>
+                        <div class="mt-2 p-2 bg-light border rounded" id="payer_balance_detail_section">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted"><span id="payer_label_name">Parent</span>'s Remaining Debt:</small>
+                                <span class="fw-bold text-primary-custom" id="current_payer_balance_val">0.00/=</span>
+                                <input type="hidden" id="current_payer_balance_raw">
+                            </div>
+                        </div>
+                        <small class="text-muted">Specify who made this payment</small>
                     </div>
                     <div class="mb-3" id="record_bank_name_container" style="display: none;">
                         <label class="form-label fw-bold">Bank Name <span class="text-danger">*</span></label>
@@ -693,11 +872,11 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <button type="button" class="btn btn-light text-primary-custom border" data-dismiss="modal">
                         <i class="bi bi-x-circle"></i> Cancel
                     </button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-save"></i> Record Payment
+                    <button type="submit" class="btn btn-primary-custom">
+                        <i class="bi bi-save"></i> Save Payment
                     </button>
                 </div>
             </form>
@@ -709,11 +888,11 @@
 <div class="modal fade" id="viewPaymentRecordsModal" tabindex="-1" aria-labelledby="viewPaymentRecordsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <div class="modal-header bg-info text-white">
+            <div class="modal-header">
                 <h5 class="modal-title" id="viewPaymentRecordsModalLabel">
-                    <i class="bi bi-eye"></i> Payment Records
+                    <i class="bi bi-eye me-2"></i> Payment Records
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -735,7 +914,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                <button type="button" class="btn btn-primary-custom" data-dismiss="modal">
                     <i class="bi bi-x-circle"></i> Close
                 </button>
             </div>
@@ -747,9 +926,9 @@
 <div class="modal fade" id="editPaymentRecordModal" tabindex="-1" aria-labelledby="editPaymentRecordModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-warning text-dark">
+            <div class="modal-header">
                 <h5 class="modal-title" id="editPaymentRecordModalLabel">
-                    <i class="bi bi-pencil-square"></i> Edit Payment Record
+                    <i class="bi bi-pencil-square me-2"></i> Edit Record
                 </h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -798,6 +977,34 @@
 </div>
 
 <!-- Core dependencies wait and load -->
+    <!-- ADDING DOWNLOAD PROGRESS MODAL -->
+    <div class="modal fade" id="downloadProgressModal" data-backdrop="static" tabindex="-1" style="z-index: 10000;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 0 !important;">
+                <div class="modal-body p-4 text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-file-pdf text-danger animate-pulse" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="mb-4" id="pdfProgressTitle" style="color: #940000; font-weight: bold; font-family: 'Century Gothic', sans-serif;">Generatig Payment Report</h5>
+                    <div class="progress mb-2" style="height: 12px; border-radius: 0 !important;">
+                        <div id="pdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" 
+                            role="progressbar" style="width: 0%; border-radius: 0 !important;"></div>
+                    </div>
+                    <div id="pdfProgressPercent" class="font-weight-bold text-muted" style="font-size: 14px;">0%</div>
+                    <p class="mt-3 text-muted small">Tafadhali subiri kidogo wakati tunaandaa ripoti yako rasmi.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .animate-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
 <script>
 (function() {
     var scripts = [
@@ -1042,11 +1249,11 @@
                                     'title="View More Details"><i class="bi bi-eye"></i> Details</button>';
 
                                 html += '<tr>' +
-                                    '<td>' + col1 + '</td>' +
-                                    '<td>' + colType + '</td>' +
-                                    '<td class="text-end">' + col2 + '</td>' +
-                                    '<td class="text-end">' + col3 + '</td>' +
-                                    '<td class="text-center">' + col4 + '</td>' +
+                                    '<td data-label="Student">' + col1 + '</td>' +
+                                    '<td data-label="Payment Type" class="text-end">' + colType + '</td>' +
+                                    '<td data-label="Bill Summary" class="text-end">' + col2 + '</td>' +
+                                    '<td data-label="Status" class="text-end">' + col3 + '</td>' +
+                                    '<td data-label="Actions" class="text-center">' + col4 + '</td>' +
                                     '</tr>';
                             });
                         } else {
@@ -1089,7 +1296,16 @@
                             var table = $('#paymentsTable').DataTable({
                                 destroy: true, // Allow re-initialization by destroying previous instance
                                 dom: 'Bfrtip',
-                                buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
+                                buttons: [
+                                    'copy', 'csv', 'excel',
+                                    {
+                                        text: 'PDF',
+                                        action: function ( e, dt, node, config ) {
+                                            $('#exportFilteredPdfBtn').trigger('click');
+                                        }
+                                    },
+                                    'print'
+                                ],
                                 pageLength: 10,
                                 lengthMenu: [[5, 10, 25, 50, 100, -1], [5, 10, 25, 50, 100, "All"]],
                                 order: [[0, 'asc']],
@@ -1150,28 +1366,65 @@
             loadPaymentsData();
         });
         
-        // Export filtered PDF
-        $('#openReportBtn').on('click', function() {
-            var year = $('#filterYear').val();
-            var classID = $('#filterClass').val();
-            var subclassID = $('#filterSubclass').val();
-            var studentStatus = $('#filterStatus').val();
-            var paymentStatus = $('#filterPaymentStatus').val();
-            var searchStudentName = $('#searchStudentName').val();
-            var sponsorshipFilter = $('#filterSponsorship').val();
+        // Export filtered PDF (Standardized AJAX Method)
+        $('#exportFilteredPdfBtn').on('click', function() {
+            const year = $('#filterYear').val();
+            const class_id = $('#filterClass').val();
+            const subclass_id = $('#filterSubclass').val();
+            const student_status = $('#filterStatus').val();
+            const payment_status = $('#filterPaymentStatus').val();
+            const search_student_name = $('#searchStudentName').val();
 
-            var params = new URLSearchParams();
-            if (year) params.append('year', year);
-            if (classID) params.append('class_id', classID);
-            if (subclassID) params.append('subclass_id', subclassID);
-            if (studentStatus) params.append('student_status', studentStatus);
-            if (paymentStatus) params.append('payment_status', paymentStatus);
-            if (searchStudentName) params.append('search_student_name', searchStudentName);
-            if (sponsorshipFilter) params.append('sponsorship_filter', sponsorshipFilter);
+            let url = '{{ route("admin.export_filtered_payments_pdf") }}';
+            url += `?year=${year}&class_id=${class_id}&subclass_id=${subclass_id}&student_status=${student_status}&payment_status=${payment_status}&search_student_name=${search_student_name}`;
 
-            var reportUrl = '{{ url('payments/report') }}';
-            var finalUrl = reportUrl + (params.toString() ? ('?' + params.toString()) : '');
-            window.location.href = finalUrl;
+            $('#pdfProgressTitle').text('Generating Payments Report');
+            $('#downloadProgressModal').modal('show');
+            $('#pdfProgressBar').css('width', '0%');
+            $('#pdfProgressPercent').text('0%');
+
+            let progress = 0;
+            const interval = setInterval(() => {
+                if (progress < 95) {
+                    let inc = 2 + Math.random() * 5;
+                    progress += inc;
+                    if (progress > 95) progress = 95;
+                    $('#pdfProgressBar').css('width', progress + '%');
+                    $('#pdfProgressPercent').text(Math.round(progress) + '%');
+                }
+            }, 400);
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Download failed');
+                    return response.blob();
+                })
+                .then(blob => {
+                    clearInterval(interval);
+                    $('#pdfProgressBar').css('width', '100%');
+                    $('#pdfProgressPercent').text('100%');
+                    
+                    setTimeout(() => {
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = downloadUrl;
+                        a.download = `Payments_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(downloadUrl);
+                        document.body.removeChild(a);
+                        
+                        setTimeout(() => {
+                            $('#downloadProgressModal').modal('hide');
+                        }, 500);
+                    }, 400);
+                })
+                .catch(err => {
+                    clearInterval(interval);
+                    $('#downloadProgressModal').modal('hide');
+                    Swal.fire('Error', 'PDF generation failed. Please try again.', 'error');
+                });
         });
 
         // Load initial data
@@ -1181,28 +1434,43 @@
         // FEE SMS MODAL — shared for "Send Control Numbers" + "Debt Reminders"
         // Same UX as result_management.blade.php smsProgressModal
         // ====================================================================
-        let feeIsSendingSms  = false;
-        let feeStopSms       = false;
-        let feeSmsType       = 'control_number'; // 'control_number' | 'debt_reminder'
+        let feeIsSendingSms    = false;
+        let feeStopSms         = false;
+        let feeSmsType         = 'control_number'; // 'control_number' | 'debt_reminder'
+        let feeRecipientType   = 'parent';        // 'parent' | 'sponsor'
+        let feeSmsYear         = null;
 
         function feeUpdateSelectedCount() {
             const count = $('.fee-parent-checkbox:checked').length;
-            $('#feeSelectedCount').text('Wapokeaji: ' + count);
+            $('#feeSelectedCount').text('Recipients: ' + count);
             $('#feeStartSendingSms').prop('disabled', count === 0);
         }
 
         function openFeeSmsModal(type, year, sponsorshipFilter) {
             feeSmsType = type;
+            feeSmsYear = year;
+            feeRecipientType = 'parent'; // Reset to parent by default
 
             // Set modal title & description
             if (type === 'debt_reminder') {
-                $('#feeSmsModalTitle').text('Tuma Kumbusho la Deni');
-                $('#feeSmsModalDesc').text('Orodha ya wazazi/sponsors wenye bakaa ya malipo. Unaweza kuchagua wote au baadhi.');
+                $('#feeSmsModalTitle').text('Send Debt Reminder');
+                $('#feeSmsModalDesc').text('List of parents/sponsors with outstanding balances. Select all or individual ones.');
+                $('#feeSmsTabs').show(); // Show tabs for debt reminders
             } else {
-                $('#feeSmsModalTitle').text('Tuma Control Numbers SMS');
-                $('#feeSmsModalDesc').text('Orodha ya wazazi/sponsors watakaopokea SMS ya Control Number. Chagua kisha bonyeza "Anza Kutuma".');
+                $('#feeSmsModalTitle').text('Send Control Numbers SMS');
+                $('#feeSmsModalDesc').text('List of parents to receive Control Number SMS.');
+                $('#feeSmsTabs').hide(); // Hide tabs for CN (mostly for parents)
             }
 
+            // Reset tabs UI
+            $('#parent-sms-tab').addClass('active').attr('aria-selected', 'true');
+            $('#sponsor-sms-tab').removeClass('active').attr('aria-selected', 'false');
+
+            loadFeeRecipients();
+            $('#feeSmsProgressModal').modal('show');
+        }
+
+        function loadFeeRecipients() {
             // Reset modal state
             $('#feeSmsLoadingState').removeClass('d-none');
             $('#feeSmsRecipientsSection').addClass('d-none');
@@ -1211,23 +1479,40 @@
             $('#feeSmsDeliverySummary').empty();
             $('#feeSmsProgressText').text('0 / 0');
             $('#feeSelectAllParents').prop('checked', false);
-            $('#feeStartSendingSms').prop('disabled', true).html('<i class="bi bi-send"></i> Anza Kutuma SMS');
-            $('#feeBtnCancelSms').prop('disabled', false).text('Ghairi');
+            $('#feeStartSendingSms').prop('disabled', true).html('<i class="bi bi-send"></i> Start Sending SMS');
+            $('#feeBtnCancelSms').prop('disabled', false).text('Cancel');
             $('.fee-parent-checkbox, #feeSelectAllParents').prop('disabled', false);
             feeIsSendingSms = false;
             feeStopSms      = false;
 
-            // Show modal
-            $('#feeSmsProgressModal').modal('show');
+            // Update table header based on recipient type
+            const headerRow = $('#feeSmsTableHeader');
+            if (feeRecipientType === 'sponsor') {
+                headerRow.html(`
+                    <th style="width:40px;"></th>
+                    <th>Sponsor Name</th>
+                    <th>Students</th>
+                    <th>Phone</th>
+                    <th>Debt (TZS)</th>
+                    <th class="text-center" style="width:110px;">Status</th>
+                `);
+            } else {
+                headerRow.html(`
+                    <th style="width:40px;"></th>
+                    <th>Recipient (Parent)</th>
+                    <th>Phone</th>
+                    <th>Debt (TZS)</th>
+                    <th class="text-center" style="width:110px;">Status</th>
+                `);
+            }
 
-            // Load recipients from server
             $.ajax({
                 url: '{{ route("get_fee_sms_recipients") }}',
                 method: 'GET',
                 data: {
-                    type: type,
-                    year: year,
-                    sponsorship_filter: sponsorshipFilter || ''
+                    type: feeSmsType,
+                    year: feeSmsYear,
+                    recipient_type: feeRecipientType
                 },
                 success: function(response) {
                     $('#feeSmsLoadingState').addClass('d-none');
@@ -1235,7 +1520,8 @@
                     list.empty();
 
                     if (!response.success || !response.recipients || response.recipients.length === 0) {
-                        list.html('<tr><td colspan="4" class="text-center text-muted py-3">Hakuna wapokeaji waliokutikana.</td></tr>');
+                        const colspan = feeRecipientType === 'sponsor' ? 5 : 5;
+                        list.html(`<tr><td colspan="${colspan}" class="text-center text-muted py-3">No recipients found in this tab.</td></tr>`);
                         $('#feeSmsRecipientsSection').removeClass('d-none');
                         return;
                     }
@@ -1243,24 +1529,32 @@
                     response.recipients.forEach(function(r, idx) {
                         const hasPhone   = r.phone && r.phone.length > 0;
                         const disabledAt = hasPhone ? '' : 'disabled="disabled"';
-                        const checkId    = 'fee_chk_' + r.paymentID + '_' + idx;
+                        const checkId    = 'fee_chk_' + (r.paymentID || r.sponsorID) + '_' + idx;
                         const statusHtml = hasPhone
-                            ? '<span class="fee-status-marker text-muted small">Inasubiri</span>'
-                            : '<span class="text-danger small">Hana Simu</span>';
+                            ? '<span class="fee-status-marker text-muted small">Pending</span>'
+                            : '<span class="text-danger small">No Phone</span>';
 
-                        list.append(`
-                            <tr data-payment-id="${r.paymentID}" data-phone="${r.phone || ''}">
-                                <td class="text-center">
-                                    <div class="custom-control custom-checkbox">
-                                        <input type="checkbox" class="custom-control-input fee-parent-checkbox" id="${checkId}" ${disabledAt}>
-                                        <label class="custom-control-label" for="${checkId}">&nbsp;&nbsp;&nbsp;</label>
-                                    </div>
-                                </td>
-                                <td>${r.recipientLabel}</td>
-                                <td>${r.phone || '<span class="text-muted">-</span>'}</td>
-                                <td class="text-center fee-status-col">${statusHtml}</td>
-                            </tr>
-                        `);
+                        let rowHtml = `<tr data-payment-id="${r.paymentID || ''}" data-sponsor-id="${r.sponsorID || ''}" data-phone="${r.phone || ''}">
+                            <td class="text-center">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input fee-parent-checkbox" id="${checkId}" ${disabledAt}>
+                                    <label class="custom-control-label" for="${checkId}">&nbsp;&nbsp;&nbsp;</label>
+                                </div>
+                            </td>
+                            <td>${r.recipientLabel}</td>`;
+                        
+                        if (feeRecipientType === 'sponsor') {
+                            rowHtml += `<td>${r.studentCount || 0}</td>`;
+                            rowHtml += `<td>${r.phone || '<span class="text-muted">-</span>'}</td>`;
+                        } else {
+                            rowHtml += `<td>${r.phone || '<span class="text-muted">-</span>'}</td>`;
+                        }
+
+                        rowHtml += `<td>${parseFloat(r.balance || 0).toLocaleString()}</td>
+                            <td class="text-center fee-status-col">${statusHtml}</td>
+                        </tr>`;
+
+                        list.append(rowHtml);
                     });
 
                     feeUpdateSelectedCount();
@@ -1268,12 +1562,21 @@
                 },
                 error: function(xhr) {
                     $('#feeSmsLoadingState').addClass('d-none');
-                    const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Imeshindwa kupakua orodha.';
-                    $('#feeSmsRecipientsList').html(`<tr><td colspan="4" class="text-center text-danger py-3">${msg}</td></tr>`);
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to download list.';
+                    $('#feeSmsRecipientsList').html(`<tr><td colspan="5" class="text-center text-danger py-3">${msg}</td></tr>`);
                     $('#feeSmsRecipientsSection').removeClass('d-none');
                 }
             });
         }
+
+        // Tab Change Handler
+        $(document).on('click', '#feeSmsTabs .nav-link', function(e) {
+            e.preventDefault();
+            if (feeIsSendingSms) return;
+            
+            feeRecipientType = $(this).data('type');
+            loadFeeRecipients();
+        });
 
         // Select All toggle
         $('#feeSelectAllParents').on('change', function() {
@@ -1290,20 +1593,20 @@
             if (selectedRows.length === 0) return;
 
             const confirmed = await Swal.fire({
-                title: 'Tuma SMS?',
-                text: `Unataka kutuma SMS kwa wapokeaji ${selectedRows.length}.`,
+                title: 'Send SMS?',
+                text: `Do you want to send SMS to ${selectedRows.length} recipients.`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#940000',
-                confirmButtonText: 'Ndiyo, Tuma Sasa',
-                cancelButtonText: 'Ghairi'
+                confirmButtonText: 'Yes, Send Now',
+                cancelButtonText: 'Cancel'
             });
             if (!confirmed.isConfirmed) return;
 
             feeIsSendingSms = true;
             feeStopSms      = false;
 
-            $('#feeStartSendingSms').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Inatuma...');
+            $('#feeStartSendingSms').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Sending...');
             $('#feeBtnCancelSms').prop('disabled', true);
             $('.fee-parent-checkbox, #feeSelectAllParents').prop('disabled', true);
             $('#feeSmsProgressArea').removeClass('d-none');
@@ -1320,7 +1623,8 @@
 
                 const row       = $(selectedRows[i]);
                 const statusCol = row.find('.fee-status-col');
-                const paymentID = row.data('payment-id');
+                const pID       = row.data('payment-id');
+                const sID       = row.data('sponsor-id');
 
                 // Show spinner on this row
                 statusCol.html('<div class="spinner-border spinner-border-sm text-primary" role="status"></div>');
@@ -1330,8 +1634,11 @@
                         url: '{{ route("send_single_fee_sms") }}',
                         type: 'POST',
                         data: {
-                            paymentID: paymentID,
+                            paymentID: pID,
+                            sponsorID: sID,
                             type: feeSmsType,
+                            recipient_type: feeRecipientType,
+                            year: feeSmsYear,
                             _token: $('meta[name="csrf-token"]').attr('content')
                         }
                     });
@@ -1353,17 +1660,17 @@
                 $('#feeSmsProgressBar').css('width', percent + '%').text(percent + '%');
                 $('#feeSmsProgressText').text(`${current} / ${total}`);
                 $('#feeSmsDeliverySummary').html(
-                    `<span class="text-success font-weight-bold">${delivered} Zimetumwa</span> | <span class="text-danger font-weight-bold">${failed} Zimefeli</span>`
+                    `<span class="text-success font-weight-bold">${delivered} Sent</span> | <span class="text-danger font-weight-bold">${failed} Failed</span>`
                 );
             }
 
             feeIsSendingSms = false;
-            $('#feeStartSendingSms').html('<i class="bi bi-check-all"></i> Imekamilika').prop('disabled', true);
-            $('#feeBtnCancelSms').prop('disabled', false).text('Funga');
+            $('#feeStartSendingSms').html('<i class="bi bi-check-all"></i> Completed').prop('disabled', true);
+            $('#feeBtnCancelSms').prop('disabled', false).text('Close');
 
             Swal.fire({
-                title: 'SMS Zimekamilika!',
-                text: `Zimetumwa: ${delivered}, Zimefeli: ${failed}`,
+                title: 'SMS Completed!',
+                text: `Sent: ${delivered}, Failed: ${failed}`,
                 icon: delivered > 0 ? 'success' : 'info',
                 confirmButtonColor: '#940000'
             });
@@ -1381,868 +1688,86 @@
             openFeeSmsModal('debt_reminder', $('#filterYear').val(), '');
         });
 
-        // Function to generate PDF Invoice using jsPDF
-        function generatePaymentInvoicePDF(data) {
-            // Check if jsPDF is available
-            var jsPDFLib = window.jspdf || window.jsPDF;
-            var JSPDF = null;
-
-            if (jsPDFLib && jsPDFLib.jsPDF) {
-                JSPDF = jsPDFLib.jsPDF;
-            } else if (typeof jsPDF !== 'undefined') {
-                JSPDF = jsPDF;
-            } else if (typeof window.jsPDF !== 'undefined') {
-                JSPDF = window.jsPDF;
-            }
-
-            if (!JSPDF) {
-                Swal.fire('Error', 'PDF library not loaded. Please refresh the page.', 'error');
+        // New AJAX Handler for Individual Student Export (Standardized Server-Side)
+        $(document).on('click', '.btn-export-pdf, #modalExportPdfBtn', function(e) {
+            e.preventDefault();
+            
+            const btn = $('#viewMoreModal').data('view-more-btn');
+            if (!btn) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'Could not identify student for export. Please close and re-open details.',
+                    confirmButtonColor: '#940000'
+                });
                 return;
             }
 
-            try {
-                var doc = new JSPDF('p', 'mm', 'a4');
-                var pageWidth = doc.internal.pageSize.getWidth();
-                var pageHeight = doc.internal.pageSize.getHeight();
-                var margin = 15;
-                var tableWidth = pageWidth - (margin * 2); // Total table width
-                var yPos = margin;
-                var lineHeight = 7;
-                var currentYear = new Date().getFullYear();
-
-                // Load school logo if available
-                var logoPromise = Promise.resolve(null);
-                if (data.schoolLogo) {
-                    logoPromise = new Promise(function(resolve) {
-                        var img = new Image();
-                        img.crossOrigin = 'anonymous';
-                        img.onload = function() {
-                            resolve(img);
-                        };
-                        img.onerror = function() {
-                            console.log('Logo load error, continuing without logo');
-                            resolve(null);
-                        };
-                        img.src = data.schoolLogo + (data.schoolLogo.indexOf('?') > -1 ? '&' : '?') + 't=' + Date.now();
-                    });
-                }
-
-                logoPromise.then(function(logoImg) {
-                    // Header Section - Logo centered at top
-                    yPos = margin;
-                    
-                    // Logo (centered)
-                    if (logoImg) {
-                        try {
-                            var logoWidth = 40;
-                            var logoHeight = (logoImg.height * logoWidth) / logoImg.width;
-                            var logoX = (pageWidth - logoWidth) / 2; // Center horizontally
-                            doc.addImage(logoImg, 'PNG', logoX, yPos, logoWidth, logoHeight);
-                            yPos += logoHeight + 5;
-                        } catch(e) {
-                            console.log('Error adding logo:', e);
-                        }
-                    }
-                    
-                    // School Name (centered, below logo)
-                    doc.setFontSize(16);
-                    doc.setTextColor(148, 0, 0); // #940000
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(data.schoolName || 'School Name', pageWidth / 2, yPos, { align: 'center' });
-                    yPos += 10;
-                    
-                    // Invoice Title
-                    doc.setFillColor(148, 0, 0);
-                    doc.rect(margin, yPos, pageWidth - (margin * 2), 10, 'F');
-                    doc.setTextColor(255, 255, 255);
-                    doc.setFontSize(14);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('STUDENT FEES PAYMENT INVOICE (' + currentYear + ')', pageWidth / 2, yPos + 6, { align: 'center' });
-                    yPos += 15;
-                    
-                    // Student Information Section with Photo
-                    // Load student photo
-                    var studentPhotoPromise = Promise.resolve(null);
-                    if (data.studentPhoto) {
-                        studentPhotoPromise = new Promise(function(resolve) {
-                            var studentImg = new Image();
-                            studentImg.crossOrigin = 'anonymous';
-                            studentImg.onload = function() {
-                                resolve(studentImg);
-                            };
-                            studentImg.onerror = function() {
-                                resolve(null);
-                            };
-                            studentImg.src = data.studentPhoto + (data.studentPhoto.indexOf('?') > -1 ? '&' : '?') + 't=' + Date.now();
-                        });
-                    }
-                    
-                    studentPhotoPromise.then(function(studentImg) {
-                        // Student Photo (left side)
-                        if (studentImg) {
-                            try {
-                                var photoWidth = 30;
-                                var photoHeight = (studentImg.height * photoWidth) / studentImg.width;
-                                doc.addImage(studentImg, 'PNG', margin, yPos, photoWidth, photoHeight);
-                            } catch(e) {
-                                console.log('Error adding student photo:', e);
-                            }
-                        }
-                        
-                        // Student Name and Class (next to photo)
-                        var textX = margin + (studentImg ? 35 : 0);
-                        doc.setFontSize(12);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(148, 0, 0);
-                        doc.text(data.studentName || 'Student Name', textX, yPos + 5);
-                    
-                        doc.setFontSize(10);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setTextColor(0, 0, 0);
-                    if (data.studentClass) {
-                            doc.text('Class: ' + data.studentClass, textX, yPos + 10);
-                        }
-                        
-                        yPos += (studentImg ? Math.max(30, 15) : 15);
-                        
-                        // Payment Summary Section
-                    if (data.payments && data.payments.length > 0) {
-                        var tuitionPayments = data.payments.filter(function(p) { return p.is_required; });
-                            var otherPayments = data.payments.filter(function(p) { return !p.is_required; });
-                            
-                            // Calculate totals from payments array - always calculate to ensure accuracy (including debt)
-                            var tuitionBaseRequired = tuitionPayments.reduce(function(sum, p) { 
-                                return sum + parseFloat(p.amount_required || p.amountRequired || 0); 
-                            }, 0);
-                            var tuitionDebt = tuitionPayments.reduce(function(sum, p) { 
-                                return sum + parseFloat(p.debt || 0); 
-                            }, 0);
-                            var tuitionRequired = tuitionPayments.reduce(function(sum, p) { 
-                                return sum + parseFloat(p.total_required || (p.amount_required || p.amountRequired || 0) + (p.debt || 0)); 
-                            }, 0);
-                            
-                            var tuitionPaid = tuitionPayments.reduce(function(sum, p) { 
-                                var paid = parseFloat(p.amount_paid || p.amountPaid || 0);
-                                // If amount_paid is 0, try payment_records
-                                if (paid === 0 && p.payment_records && p.payment_records.length > 0) {
-                                    paid = p.payment_records.reduce(function(prSum, pr) { 
-                                        return prSum + parseFloat(pr.paid_amount || 0); 
-                                    }, 0);
-                                }
-                                return sum + paid;
-                            }, 0);
-                            
-                            var tuitionBalance = tuitionPayments.reduce(function(sum, p) { 
-                                var bal = parseFloat(p.balance || 0);
-                                if (bal === 0) {
-                                    var req = parseFloat(p.amount_required || p.amountRequired || 0);
-                                    var paid = parseFloat(p.amount_paid || p.amountPaid || 0);
-                                    if (paid === 0 && p.payment_records && p.payment_records.length > 0) {
-                                        paid = p.payment_records.reduce(function(prSum, pr) { 
-                                            return prSum + parseFloat(pr.paid_amount || 0); 
-                                        }, 0);
-                                    }
-                                    bal = req - paid;
-                                }
-                                return sum + bal;
-                            }, 0);
-                            
-                            var otherBaseRequired = otherPayments.reduce(function(sum, p) { 
-                                return sum + parseFloat(p.amount_required || p.amountRequired || 0); 
-                            }, 0);
-                            var otherDebt = otherPayments.reduce(function(sum, p) { 
-                                return sum + parseFloat(p.debt || 0); 
-                            }, 0);
-                            var otherRequired = otherPayments.reduce(function(sum, p) { 
-                                return sum + parseFloat(p.total_required || (p.amount_required || p.amountRequired || 0) + (p.debt || 0)); 
-                            }, 0);
-                            
-                            var otherPaid = otherPayments.reduce(function(sum, p) { 
-                                var paid = parseFloat(p.amount_paid || p.amountPaid || 0);
-                                // If amount_paid is 0, try payment_records
-                                if (paid === 0 && p.payment_records && p.payment_records.length > 0) {
-                                    paid = p.payment_records.reduce(function(prSum, pr) { 
-                                        return prSum + parseFloat(pr.paid_amount || 0); 
-                                    }, 0);
-                                }
-                                return sum + paid;
-                            }, 0);
-                            
-                            var otherBalance = otherPayments.reduce(function(sum, p) { 
-                                var bal = parseFloat(p.balance || 0);
-                                if (bal === 0) {
-                                    var req = parseFloat(p.amount_required || p.amountRequired || 0);
-                                    var paid = parseFloat(p.amount_paid || p.amountPaid || 0);
-                                    if (paid === 0 && p.payment_records && p.payment_records.length > 0) {
-                                        paid = p.payment_records.reduce(function(prSum, pr) { 
-                                            return prSum + parseFloat(pr.paid_amount || 0); 
-                                        }, 0);
-                                    }
-                                    bal = req - paid;
-                                }
-                                return sum + bal;
-                            }, 0);
-                            
-                            // Use data object totals if available and more accurate
-                            if (data.tuitionPaid !== undefined && data.tuitionPaid !== null && parseFloat(data.tuitionPaid) > 0) {
-                                tuitionPaid = parseFloat(data.tuitionPaid);
-                            }
-                            if (data.otherPaid !== undefined && data.otherPaid !== null && parseFloat(data.otherPaid) > 0) {
-                                otherPaid = parseFloat(data.otherPaid);
-                            }
-                            if (data.tuitionBaseRequired !== undefined && data.tuitionBaseRequired !== null && parseFloat(data.tuitionBaseRequired) > 0) {
-                                tuitionBaseRequired = parseFloat(data.tuitionBaseRequired);
-                            }
-                            if (data.tuitionDebt !== undefined && data.tuitionDebt !== null) {
-                                tuitionDebt = parseFloat(data.tuitionDebt);
-                            }
-                            if (data.tuitionRequired !== undefined && data.tuitionRequired !== null && parseFloat(data.tuitionRequired) > 0) {
-                                tuitionRequired = parseFloat(data.tuitionRequired);
-                            }
-                            if (data.otherBaseRequired !== undefined && data.otherBaseRequired !== null && parseFloat(data.otherBaseRequired) > 0) {
-                                otherBaseRequired = parseFloat(data.otherBaseRequired);
-                            }
-                            if (data.otherDebt !== undefined && data.otherDebt !== null) {
-                                otherDebt = parseFloat(data.otherDebt);
-                            }
-                             if (data.otherRequired !== undefined && data.otherRequired !== null && parseFloat(data.otherRequired) > 0) {
-                                 otherRequired = parseFloat(data.otherRequired);
-                             }
-                             
-                             // Add Control Number at the top of the invoice
-                             if (data.payments && data.payments.length > 0) {
-                                 doc.setFontSize(10);
-                                 doc.setFont('helvetica', 'bold');
-                                 doc.setTextColor(0, 0, 0);
-                                 var controlNo = data.controlNumber || (data.payments[0] && data.payments[0].control_number) || 'N/A';
-                                 doc.text('Control Number: ' + controlNo, pageWidth - margin, yPos + 10, { align: 'right' });
-                             }
-                            
-                            // Recalculate balances (using total_required which includes debt)
-                            tuitionBalance = tuitionRequired - tuitionPaid;
-                            otherBalance = otherRequired - otherPaid;
-                            
-                            // Calculate total debt and total base required
-                            var totalBaseRequired = tuitionBaseRequired + otherBaseRequired;
-                            var totalDebt = tuitionDebt + otherDebt;
-                            
-                            // Payment Summary - Use totals from data if available, otherwise use calculated
-                            // Prioritize data from data object (passed from modal) over calculated values
-                            var overallRequired = 0;
-                            var overallPaid = 0;
-                            var overallBalance = 0;
-                            
-                            if (data.totalRequired !== undefined && data.totalRequired !== null) {
-                                overallRequired = parseFloat(data.totalRequired);
-                            } else {
-                                overallRequired = tuitionRequired + otherRequired;
-                            }
-                            
-                            if (data.totalPaid !== undefined && data.totalPaid !== null) {
-                                overallPaid = parseFloat(data.totalPaid);
-                            } else {
-                                overallPaid = tuitionPaid + otherPaid;
-                            }
-                            
-                            if (data.totalBalance !== undefined && data.totalBalance !== null) {
-                                overallBalance = parseFloat(data.totalBalance);
-                            } else {
-                                overallBalance = tuitionBalance + otherBalance;
-                            }
-                            
-                            // Debug: Log values to console
-                            console.log('PDF Summary - overallRequired:', overallRequired, 'overallPaid:', overallPaid, 'overallBalance:', overallBalance);
-                            console.log('PDF Summary - data.totalPaid:', data.totalPaid, 'data.tuitionPaid:', data.tuitionPaid, 'data.otherPaid:', data.otherPaid);
-                            console.log('PDF Summary - calculated tuitionPaid:', tuitionPaid, 'otherPaid:', otherPaid);
-                            
-                            // Determine overall status
-                            var overallStatus = 'Pending';
-                            if (overallBalance <= 0 && overallPaid > 0) {
-                                overallStatus = overallPaid > overallRequired ? 'Overpaid' : 'Paid';
-                            } else if (overallPaid > 0 && overallBalance > 0) {
-                                overallStatus = 'Incomplete Payment';
-                            } else if (overallPaid > 0 && overallPaid < overallRequired) {
-                                overallStatus = 'Partial';
-                            }
-                            
-                            doc.setFontSize(12);
-                            doc.setFont('helvetica', 'bold');
-                            doc.setTextColor(148, 0, 0);
-                            doc.text('Payment Summary', pageWidth / 2, yPos, { align: 'center' });
-                    yPos += 7;
-                    
-                            doc.autoTable({
-                                head: [['Required Amount (TZS)', 'Debt (TZS)', 'Total Required (TZS)', 'Paid Amount (TZS)', 'Bill Balance (TZS)', 'Status']],
-                                body: [[
-                                    parseFloat(totalBaseRequired).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                    parseFloat(totalDebt).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                    parseFloat(overallRequired).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                    parseFloat(overallPaid).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                    parseFloat(overallBalance).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                    overallStatus
-                                ]],
-                                startY: yPos,
-                                tableWidth: tableWidth,
-                                styles: { 
-                                    fontSize: 8,
-                                    cellPadding: 2,
-                                    lineColor: [0, 0, 0],
-                                    lineWidth: 0.1,
-                                    overflow: 'linebreak',
-                                    cellWidth: 'wrap'
-                                },
-                                headStyles: {
-                                    fillColor: [148, 0, 0],
-                                    textColor: 255,
-                                    fontStyle: 'bold',
-                                    fontSize: 8,
-                                    halign: 'center'
-                                },
-                                columnStyles: {
-                                    0: { halign: 'right', cellWidth: tableWidth * 0.18, fontStyle: 'bold' },
-                                    1: { halign: 'right', cellWidth: tableWidth * 0.15, textColor: [255, 193, 7], fontStyle: 'bold' },
-                                    2: { halign: 'right', cellWidth: tableWidth * 0.18, fontStyle: 'bold' },
-                                    3: { halign: 'right', cellWidth: tableWidth * 0.18, textColor: [40, 167, 69], fontStyle: 'bold' },
-                                    4: { halign: 'right', cellWidth: tableWidth * 0.18, textColor: [220, 53, 69], fontStyle: 'bold' },
-                                    5: { cellWidth: tableWidth * 0.13, halign: 'center', fontStyle: 'bold', fontSize: 7 }
-                                },
-                                margin: { left: margin, right: margin },
-                                theme: 'grid'
-                            });
-                            
-                            yPos = doc.lastAutoTable.finalY + 15;
-                            
-                            // Tuition Fees Table
-                        if (tuitionPayments.length > 0) {
-                                // Check if need new page
-                                if (yPos > pageHeight - 50) {
-                                    doc.addPage();
-                                    yPos = margin;
-                                }
-                                
-                                // Table with title row
-                                var tuitionTableData = [];
-                            tuitionPayments.forEach(function(payment) {
-                                    // Debug: Log payment object
-                                    console.log('Tuition Payment object:', payment);
-                                    
-                                    // Ensure amount_paid is properly parsed - check multiple possible field names
-                                    var amountPaid = 0;
-                                    if (payment.amount_paid !== undefined && payment.amount_paid !== null) {
-                                        amountPaid = parseFloat(payment.amount_paid);
-                                    } else if (payment.amountPaid !== undefined && payment.amountPaid !== null) {
-                                        amountPaid = parseFloat(payment.amountPaid);
-                                    }
-                                    
-                                    // If still 0, try to calculate from payment records if available
-                                    if (amountPaid === 0 && payment.payment_records && payment.payment_records.length > 0) {
-                                        amountPaid = payment.payment_records.reduce(function(sum, pr) { return sum + parseFloat(pr.paid_amount || 0); }, 0);
-                                    }
-                                    
-                                    var baseAmount = parseFloat(payment.amount_required || payment.amountRequired || 0);
-                                    var debt = parseFloat(payment.debt || 0);
-                                    var totalRequired = parseFloat(payment.total_required || baseAmount + debt);
-                                    var balance = parseFloat(payment.balance || 0);
-                                    
-                                    // Recalculate balance if needed
-                                    if (balance === 0 && totalRequired > 0) {
-                                        balance = totalRequired - amountPaid;
-                                    }
-                                    
-                                    console.log('Tuition Payment - baseAmount:', baseAmount, 'debt:', debt, 'totalRequired:', totalRequired, 'amountPaid:', amountPaid, 'balance:', balance);
-                                    
-                                    tuitionTableData.push([
-                                        p.fee_name || 'Mandatory Fee',
-                                        totalRequired.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                        debt.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                        totalRequired.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                        amountPaid.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                        balance.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/='
-                                    ]);
-                                });
-                                
-                                // Title as caption (centered above table)
-                                doc.setTextColor(148, 0, 0);
-                                doc.setFontSize(12);
-                                doc.setFont('helvetica', 'bold');
-                                doc.text('School Fee', pageWidth / 2, yPos, { align: 'center' });
-                    yPos += 7;
-                    
-                                doc.autoTable({
-                                    head: [['Fee Name', 'Required Amount (TZS)', 'Debt (TZS)', 'Total Required (TZS)', 'Paid Amount (TZS)', 'Bill Balance (TZS)']],
-                                    body: tuitionTableData,
-                                    startY: yPos,
-                                    tableWidth: tableWidth,
-                                    styles: { 
-                                        fontSize: 8,
-                                        cellPadding: 2,
-                                        lineColor: [0, 0, 0],
-                                        lineWidth: 0.1,
-                                        overflow: 'linebreak',
-                                        cellWidth: 'wrap'
-                                    },
-                                    headStyles: {
-                                        fillColor: [148, 0, 0],
-                                        textColor: 255,
-                                        fontStyle: 'bold',
-                                        fontSize: 8,
-                                        halign: 'center'
-                                    },
-                                    columnStyles: {
-                                        0: { cellWidth: tableWidth * 0.18, halign: 'center', fontSize: 7 },
-                                        1: { halign: 'right', cellWidth: tableWidth * 0.16, fontSize: 7 },
-                                        2: { halign: 'right', cellWidth: tableWidth * 0.14, textColor: [255, 193, 7], fontSize: 7 },
-                                        3: { halign: 'right', cellWidth: tableWidth * 0.16, fontStyle: 'bold', fontSize: 7 },
-                                        4: { halign: 'right', cellWidth: tableWidth * 0.16, textColor: [40, 167, 69], fontSize: 7 },
-                                        5: { halign: 'right', cellWidth: tableWidth * 0.16, textColor: [220, 53, 69], fontSize: 7 }
-                                    },
-                                    margin: { left: margin, right: margin },
-                                    theme: 'grid'
-                                });
-                                
-                                yPos = doc.lastAutoTable.finalY + 10;
-                            }
-                            
-                            // Other Fees Table
-                        if (otherPayments.length > 0) {
-                                // Check if need new page
-                                if (yPos > pageHeight - 50) {
-                                doc.addPage();
-                                yPos = margin;
-                            }
-                            
-                                // Table with title row
-                                var otherTableData = [];
-                            otherPayments.forEach(function(payment) {
-                                    // Debug: Log payment object
-                                    console.log('Other Payment object:', payment);
-                                    
-                                    // Ensure amount_paid is properly parsed - check multiple possible field names
-                                    var amountPaid = 0;
-                                    if (payment.amount_paid !== undefined && payment.amount_paid !== null) {
-                                        amountPaid = parseFloat(payment.amount_paid);
-                                    } else if (payment.amountPaid !== undefined && payment.amountPaid !== null) {
-                                        amountPaid = parseFloat(payment.amountPaid);
-                                    }
-                                    
-                                    // If still 0, try to calculate from payment records if available
-                                    if (amountPaid === 0 && payment.payment_records && payment.payment_records.length > 0) {
-                                        amountPaid = payment.payment_records.reduce(function(sum, pr) { return sum + parseFloat(pr.paid_amount || 0); }, 0);
-                                    }
-                                    
-                                    var baseAmount = parseFloat(payment.amount_required || payment.amountRequired || 0);
-                                    var debt = parseFloat(payment.debt || 0);
-                                    var totalRequired = parseFloat(payment.total_required || baseAmount + debt);
-                                    var balance = parseFloat(payment.balance || 0);
-                                    
-                                    // Recalculate balance if needed
-                                    if (balance === 0 && totalRequired > 0) {
-                                        balance = totalRequired - amountPaid;
-                                    }
-                                    
-                                    console.log('Other Payment - baseAmount:', baseAmount, 'debt:', debt, 'totalRequired:', totalRequired, 'amountPaid:', amountPaid, 'balance:', balance);
-                                    
-                                    otherTableData.push([
-                                        p.fee_name || 'Contribution',
-                                        totalRequired.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                        debt.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                        totalRequired.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                        amountPaid.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                        balance.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/='
-                                    ]);
-                                });
-                                
-                                // Title as caption (centered above table)
-                            doc.setTextColor(148, 0, 0);
-                                doc.setFontSize(12);
-                                doc.setFont('helvetica', 'bold');
-                                doc.text('Other Contribution', pageWidth / 2, yPos, { align: 'center' });
-                                yPos += 7;
-                                
-                                doc.autoTable({
-                                    head: [['Fee Name', 'Required Amount (TZS)', 'Debt (TZS)', 'Total Required (TZS)', 'Paid Amount (TZS)', 'Bill Balance (TZS)']],
-                                    body: otherTableData,
-                                    startY: yPos,
-                                    tableWidth: tableWidth,
-                                    styles: { 
-                                        fontSize: 8,
-                                        cellPadding: 2,
-                                        lineColor: [0, 0, 0],
-                                        lineWidth: 0.1,
-                                        overflow: 'linebreak',
-                                        cellWidth: 'wrap'
-                                    },
-                                    headStyles: {
-                                        fillColor: [148, 0, 0],
-                                        textColor: 255,
-                                        fontStyle: 'bold',
-                                        fontSize: 8,
-                                        halign: 'center'
-                                    },
-                                    columnStyles: {
-                                        0: { cellWidth: tableWidth * 0.18, halign: 'center', fontSize: 7 },
-                                        1: { halign: 'right', cellWidth: tableWidth * 0.16, fontSize: 7 },
-                                        2: { halign: 'right', cellWidth: tableWidth * 0.14, textColor: [255, 193, 7], fontSize: 7 },
-                                        3: { halign: 'right', cellWidth: tableWidth * 0.16, fontStyle: 'bold', fontSize: 7 },
-                                        4: { halign: 'right', cellWidth: tableWidth * 0.16, textColor: [40, 167, 69], fontSize: 7 },
-                                        5: { halign: 'right', cellWidth: tableWidth * 0.16, textColor: [220, 53, 69], fontSize: 7 }
-                                    },
-                                    margin: { left: margin, right: margin },
-                                    theme: 'grid'
-                                });
-                                
-                                yPos = doc.lastAutoTable.finalY + 10;
-                        }
-
-                        // NEW: Transaction History Table
-                        if (data.paymentRecords && data.paymentRecords.length > 0) {
-                            var historyTableData = [];
-                            data.paymentRecords.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date)).forEach(function(record) {
-                                historyTableData.push([
-                                    record.payment_date || 'N/A',
-                                    parseFloat(record.paid_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=',
-                                    record.payment_source || 'N/A',
-                                    record.reference_number || '-',
-                                    record.is_verified ? 'Verified' : 'Unverified'
-                                ]);
-                            });
-
-                            doc.setTextColor(148, 0, 0);
-                            doc.setFontSize(12);
-                            doc.setFont('helvetica', 'bold');
-                            doc.text('Transaction History', pageWidth / 2, yPos, { align: 'center' });
-                            yPos += 7;
-
-                            doc.autoTable({
-                                head: [['Date', 'Amount (TZS)', 'Method', 'Reference', 'Status']],
-                                body: historyTableData,
-                                startY: yPos,
-                                tableWidth: tableWidth,
-                                styles: { fontSize: 8, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1 },
-                                headStyles: { fillColor: [148, 0, 0], textColor: 255, fontStyle: 'bold', halign: 'center' },
-                                columnStyles: {
-                                    0: { halign: 'center' },
-                                    1: { halign: 'right' },
-                                    2: { halign: 'center' },
-                                    3: { halign: 'center' },
-                                    4: { halign: 'center' }
-                                },
-                                margin: { left: margin, right: margin },
-                                theme: 'grid'
-                            });
-
-                            yPos = doc.lastAutoTable.finalY + 10;
-                        }
-                    }
-                    
-                    // Footer
-                    var totalPages = doc.internal.getNumberOfPages();
-                    for (var i = 1; i <= totalPages; i++) {
-                        doc.setPage(i);
-                        doc.setFontSize(8);
-                        doc.setFont('helvetica', 'italic');
-                        doc.setTextColor(100, 100, 100);
-                        doc.text('Generated on: ' + new Date().toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'}), pageWidth / 2, pageHeight - 10, { align: 'center' });
-                        doc.setFont('helvetica', 'bold');
-                        doc.setTextColor(148, 0, 0);
-                        doc.text('Powered by: EmCa Technologies LTD', pageWidth / 2, pageHeight - 5, { align: 'center' });
-                    }
-                    
-                    // Save PDF
-                        var filename = 'Payment_Invoice_' + (data.studentName || 'student').replace(/\s+/g, '_') + '_' + currentYear + '.pdf';
-                        doc.save(filename);
-                        
-                        Swal.close();
-                    });
-                    
-                    // Footer
-                    var totalPages = doc.internal.getNumberOfPages();
-                    for (var i = 1; i <= totalPages; i++) {
-                        doc.setPage(i);
-                        doc.setFontSize(8);
-                        doc.setFont('helvetica', 'italic');
-                        doc.setTextColor(100, 100, 100);
-                        doc.text('Generated on: ' + new Date().toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'}), pageWidth / 2, pageHeight - 10, { align: 'center' });
-                        doc.setFont('helvetica', 'bold');
-                        doc.setTextColor(148, 0, 0);
-                        doc.text('Powered by: EmCa Technologies LTD', pageWidth / 2, pageHeight - 5, { align: 'center' });
-                    }
-                    
-                    // Save PDF
-                    var filename = 'Payment_Invoice_' + (data.studentName || 'student').replace(/\s+/g, '_') + '_' + currentYear + '.pdf';
-                    doc.save(filename);
-                    
-                    Swal.close();
-                }).catch(function(error) {
-                    console.error('PDF generation error:', error);
-                    Swal.fire('Error', 'Failed to generate PDF: ' + error.message, 'error');
-                });
-            } catch (error) {
-                console.error('PDF generation error:', error);
-                Swal.fire('Error', 'Failed to generate PDF: ' + error.message, 'error');
-            }
-        }
-        
-        // Helper function to format currency
-        function formatCurrency(amount) {
-            return parseFloat(amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        }
-
-        // Export PDF Invoice
-        $(document).on('click', '#exportInvoiceBtn', function(e) {
-            e.preventDefault();
+            const studentID = btn.data('student-id');
+            const studentName = btn.data('student-name') || 'Student';
             
-            Swal.fire({
-                title: 'Export Payment Invoice',
-                text: 'Please select a student from the table and click "View More", then use the export option.',
-                icon: 'info',
-                confirmButtonColor: '#940000'
-            });
+            if (!studentID) {
+                Swal.fire('Error', 'Missing student ID.', 'error');
+                return;
+            }
+
+            let url = '{{ url("export_payment_invoice_pdf") }}/' + studentID;
+
+            $('#pdfProgressTitle').text('Generating Student Invoice');
+            $('#downloadProgressModal').modal('show');
+            $('#pdfProgressBar').css('width', '0%');
+            $('#pdfProgressPercent').text('0%');
+
+            let progress = 0;
+            const interval = setInterval(() => {
+                if (progress < 95) {
+                    progress += (2 + Math.random() * 5);
+                    if (progress > 95) progress = 95;
+                    $('#pdfProgressBar').css('width', progress + '%');
+                    $('#pdfProgressPercent').text(Math.round(progress) + '%');
+                }
+            }, 300);
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Download failed');
+                    return response.blob();
+                })
+                .then(blob => {
+                    clearInterval(interval);
+                    $('#pdfProgressBar').css('width', '100%');
+                    $('#pdfProgressPercent').text('100%');
+                    
+                    setTimeout(() => {
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = downloadUrl;
+                        a.download = `Invoice_${studentName.replace(/\s+/g, '_')}_${new Date().getFullYear()}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(downloadUrl);
+                        document.body.removeChild(a);
+                        
+                        setTimeout(() => {
+                            $('#downloadProgressModal').modal('hide');
+                        }, 500);
+                    }, 400);
+                })
+                .catch(err => {
+                    clearInterval(interval);
+                    $('#downloadProgressModal').modal('hide');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Export Failed',
+                        text: 'Failed to generate PDF invoice. Please try again.',
+                        confirmButtonColor: '#940000'
+                    });
+                });
         });
 
         // Add export button to view more modal
-        $(document).on('click', '.view-more-btn', function(e) {
-            // Store student data for export
-            setTimeout(function() {
-                if ($('#viewMoreModal .btn-export-pdf').length === 0) {
-                    const exportBtn = '<button type="button" class="btn btn-primary-custom btn-export-pdf">' +
-                        '<i class="bi bi-file-earmark-pdf"></i> Export PDF Invoice' +
-                        '</button>';
-                    $('#viewMoreModal .modal-footer').prepend(exportBtn);
-                }
-            }, 100);
-        });
 
-        // Export PDF from modal
-        $(document).on('click', '.btn-export-pdf', function(e) {
-            e.preventDefault();
-            
-            // Get data from modal
-            const studentName = $('#view_student_name').text();
-            const studentClass = $('#view_student_class').text();
-            
-            // Get student photo
-            const studentPhotoImg = $('#view_student_photo');
-            const studentPhotoPlaceholder = $('#view_student_photo_placeholder');
-            let studentPhoto = '';
-            let studentPhotoFirstLetter = '';
-            let studentPhotoPlaceholderColor = '#940000';
-            
-            if (studentPhotoImg.is(':visible') && studentPhotoImg.attr('src')) {
-                studentPhoto = studentPhotoImg.attr('src');
-            } else if (studentPhotoPlaceholder.is(':visible')) {
-                studentPhotoFirstLetter = studentPhotoPlaceholder.text();
-                studentPhotoPlaceholderColor = studentPhotoPlaceholder.css('background-color') || '#940000';
-            }
-            
-            // Get payments and totals from view-more-btn data - use the button that opened this modal
-            const viewBtn = $('#viewMoreModal').data('view-more-btn');
-            let payments = [];
-            let totals = {};
-            
-            try {
-                // Try to get from stored button reference
-                if (viewBtn && viewBtn.length > 0) {
-                    const paymentsData = viewBtn.data('payments');
-                    const totalsData = viewBtn.data('totals');
-                    if (paymentsData) {
-                        payments = typeof paymentsData === 'string' ? JSON.parse(paymentsData) : paymentsData;
-                    }
-                    if (totalsData) {
-                        totals = typeof totalsData === 'string' ? JSON.parse(totalsData) : totalsData;
-                    }
-                } else {
-                    // Fallback: get from first view-more-btn
-                    const firstBtn = $('.view-more-btn').first();
-                    const paymentsData = firstBtn.data('payments');
-                    const totalsData = firstBtn.data('totals');
-                    if (paymentsData) {
-                        payments = typeof paymentsData === 'string' ? JSON.parse(paymentsData) : paymentsData;
-                    }
-                    if (totalsData) {
-                        totals = typeof totalsData === 'string' ? JSON.parse(totalsData) : totalsData;
-                    }
-                }
-                
-                // Extract payments data from modal tables if available (more accurate)
-                const tuitionTable = $('#tuitionFeesContent table tbody tr');
-                const otherFeesTable = $('#otherFeesContent table tbody tr');
-                
-                // Re-extract payments from modal tables for accuracy
-                if (tuitionTable.length > 0 || otherFeesTable.length > 0) {
-                    payments = [];
-                    
-                    // Extract from tuition fees table (with Debt and Total Required columns)
-                    tuitionTable.each(function() {
-                        const row = $(this);
-                        const controlNumber = row.find('.control-number').text() || row.find('td').eq(0).text().trim();
-                        // Column order: Control Number (0), Required Amount (1), Debt (2), Total Required (3), Paid Amount (4), Bill Balance (5)
-                        const requiredText = row.find('td').eq(1).text().replace(/[^\d.]/g, '');
-                        const debtText = row.find('td').eq(2).text().replace(/[^\d.]/g, '');
-                        const totalRequiredText = row.find('td').eq(3).text().replace(/[^\d.]/g, '');
-                        const paidText = row.find('td').eq(4).text().replace(/[^\d.]/g, '');
-                        const balanceText = row.find('td').eq(5).text().replace(/[^\d.]/g, '');
-                        
-                        if (controlNumber && controlNumber !== 'N/A' && controlNumber !== '') {
-                            payments.push({
-                                fee_type: 'Tuition Fees',
-                                control_number: controlNumber,
-                                amount_required: parseFloat(requiredText) || 0,
-                                debt: parseFloat(debtText) || 0,
-                                total_required: parseFloat(totalRequiredText) || (parseFloat(requiredText) || 0) + (parseFloat(debtText) || 0),
-                                amount_paid: parseFloat(paidText) || 0,
-                                balance: parseFloat(balanceText) || 0
-                            });
-                        }
-                    });
-                    
-                    // Extract from other fees table (with Debt and Total Required columns)
-                    otherFeesTable.each(function() {
-                        const row = $(this);
-                        const controlNumber = row.find('.control-number').text() || row.find('td').eq(0).text().trim();
-                        // Column order: Control Number (0), Required Amount (1), Debt (2), Total Required (3), Paid Amount (4), Bill Balance (5)
-                        const requiredText = row.find('td').eq(1).text().replace(/[^\d.]/g, '');
-                        const debtText = row.find('td').eq(2).text().replace(/[^\d.]/g, '');
-                        const totalRequiredText = row.find('td').eq(3).text().replace(/[^\d.]/g, '');
-                        const paidText = row.find('td').eq(4).text().replace(/[^\d.]/g, '');
-                        const balanceText = row.find('td').eq(5).text().replace(/[^\d.]/g, '');
-                        
-                        if (controlNumber && controlNumber !== 'N/A' && controlNumber !== '') {
-                            payments.push({
-                                fee_type: 'Other Fees',
-                                control_number: controlNumber,
-                                amount_required: parseFloat(requiredText) || 0,
-                                debt: parseFloat(debtText) || 0,
-                                total_required: parseFloat(totalRequiredText) || (parseFloat(requiredText) || 0) + (parseFloat(debtText) || 0),
-                                amount_paid: parseFloat(paidText) || 0,
-                                balance: parseFloat(balanceText) || 0
-                            });
-                        }
-                    });
-                    
-                    // Recalculate totals from extracted payments (including debt and total_required)
-                    const tuitionPayments = payments.filter(p => p.fee_type === 'Tuition Fees');
-                    const otherFeePayments = payments.filter(p => p.fee_type === 'Other Fees');
-                    
-                    const tuitionBaseRequired = tuitionPayments.reduce((sum, p) => sum + (p.amount_required || 0), 0);
-                    const tuitionDebt = tuitionPayments.reduce((sum, p) => sum + (p.debt || 0), 0);
-                    const tuitionTotalRequired = tuitionPayments.reduce((sum, p) => sum + (p.total_required || (p.amount_required || 0) + (p.debt || 0)), 0);
-                    
-                    const otherBaseRequired = otherFeePayments.reduce((sum, p) => sum + (p.amount_required || 0), 0);
-                    const otherDebt = otherFeePayments.reduce((sum, p) => sum + (p.debt || 0), 0);
-                    const otherTotalRequired = otherFeePayments.reduce((sum, p) => sum + (p.total_required || (p.amount_required || 0) + (p.debt || 0)), 0);
-                    
-                    totals = {
-                        tuition_base_required: tuitionBaseRequired,
-                        tuition_debt: tuitionDebt,
-                        tuition_required: tuitionTotalRequired,
-                        tuition_paid: tuitionPayments.reduce((sum, p) => sum + (p.amount_paid || 0), 0),
-                        tuition_balance: tuitionPayments.reduce((sum, p) => sum + (p.balance || 0), 0),
-                        other_base_required: otherBaseRequired,
-                        other_debt: otherDebt,
-                        other_required: otherTotalRequired,
-                        other_paid: otherFeePayments.reduce((sum, p) => sum + (p.amount_paid || 0), 0),
-                        other_balance: otherFeePayments.reduce((sum, p) => sum + (p.balance || 0), 0),
-                        total_base_required: tuitionBaseRequired + otherBaseRequired,
-                        total_debt: tuitionDebt + otherDebt,
-                        total_required: tuitionTotalRequired + otherTotalRequired,
-                        total_paid: (tuitionPayments.reduce((sum, p) => sum + (p.amount_paid || 0), 0) + 
-                                    otherFeePayments.reduce((sum, p) => sum + (p.amount_paid || 0), 0)),
-                        total_balance: (tuitionPayments.reduce((sum, p) => sum + (p.balance || 0), 0) + 
-                                       otherFeePayments.reduce((sum, p) => sum + (p.balance || 0), 0))
-                    };
-                }
-                
-                console.log('PDF Export - Payments:', payments);
-                console.log('PDF Export - Totals:', totals);
-            } catch(e) {
-                console.error('Error parsing payments data:', e);
-            }
-            
-            // Get school info - we'll need to fetch this or get from page
-            // For now, we'll use placeholders or fetch from server
-            Swal.fire({
-                title: 'Generating PDF...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-            
-            // Fetch school info via AJAX
-            $.ajax({
-                url: '{{ route("get_school_details") ?? "/get_school_details" }}',
-                method: 'GET',
-                dataType: 'json',
-                success: function(schoolResponse) {
-                    const school = schoolResponse.school || {};
-                    
-                    const pdfData = {
-                        studentName: studentName,
-                        studentClass: studentClass,
-                        studentPhoto: studentPhoto,
-                        studentPhotoFirstLetter: studentPhotoFirstLetter,
-                        studentPhotoPlaceholderColor: studentPhotoPlaceholderColor,
-                        payments: payments,
-                        tuitionBaseRequired: totals.tuition_base_required || 0,
-                        tuitionDebt: totals.tuition_debt || 0,
-                        tuitionRequired: totals.tuition_required || 0,
-                        tuitionPaid: totals.tuition_paid || 0,
-                        tuitionBalance: totals.tuition_balance || 0,
-                        otherBaseRequired: totals.other_base_required || 0,
-                        otherDebt: totals.other_debt || 0,
-                        otherRequired: totals.other_required || 0,
-                        otherPaid: totals.other_paid || 0,
-                        otherBalance: totals.other_balance || 0,
-                        totalBaseRequired: totals.total_base_required || 0,
-                        totalDebt: totals.total_debt || 0,
-                        totalRequired: totals.total_required || 0,
-                        totalPaid: totals.total_paid || 0,
-                        totalBalance: totals.total_balance || 0,
-                        schoolName: school.school_name || 'School Name',
-                        schoolReg: school.registration_number || '',
-                        schoolPhone: school.phone || '',
-                        schoolEmail: school.email || '',
-                        schoolLogo: school.school_logo || null
-                    };
-                    
-                    generatePaymentInvoicePDF(pdfData);
-                },
-                error: function() {
-                    // Use default values if school fetch fails
-                    const pdfData = {
-                        studentName: studentName,
-                        studentClass: studentClass,
-                        studentPhoto: studentPhoto,
-                        studentPhotoFirstLetter: studentPhotoFirstLetter,
-                        studentPhotoPlaceholderColor: studentPhotoPlaceholderColor,
-                        payments: payments,
-                        tuitionBaseRequired: totals.tuition_base_required || 0,
-                        tuitionDebt: totals.tuition_debt || 0,
-                        tuitionRequired: totals.tuition_required || 0,
-                        tuitionPaid: totals.tuition_paid || 0,
-                        tuitionBalance: totals.tuition_balance || 0,
-                        otherBaseRequired: totals.other_base_required || 0,
-                        otherDebt: totals.other_debt || 0,
-                        otherRequired: totals.other_required || 0,
-                        otherPaid: totals.other_paid || 0,
-                        otherBalance: totals.other_balance || 0,
-                        totalBaseRequired: totals.total_base_required || 0,
-                        totalDebt: totals.total_debt || 0,
-                        totalRequired: totals.total_required || 0,
-                        totalPaid: totals.total_paid || 0,
-                        totalBalance: totals.total_balance || 0,
-                        schoolName: 'School Name',
-                        schoolReg: '',
-                        schoolPhone: '',
-                        schoolEmail: '',
-                        schoolLogo: null
-                    };
-                    
-                    generatePaymentInvoicePDF(pdfData);
-                }
-            });
-        });
         
         // CSRF Token setup
         $.ajaxSetup({
@@ -2483,18 +2008,34 @@
                 $('#view_sponsor_email').text(sponsor.email || 'N/A');
                 $('#view_sponsor_percentage').text((sponsor.percentage || 0) + '%');
                 
-                // Use pre-calculated values from totals if available
-                const sponsorAmount = totals.sponsor_amount || 0;
-                $('#view_sponsor_amount').text(sponsorAmount.toLocaleString() + '/=');
+                // Calculate display-only sponsor coverage amount
+                const sponsorDisplayAmount = (totalRequired * (sponsor.percentage || 0)) / 100;
+                $('#view_sponsor_amount').text(sponsorDisplayAmount.toLocaleString() + '/=');
                 
-                // Optionally show original total if needed
-                if (totals.original_total) {
-                     $('#view_total_fee_required').html('<span class="text-muted small me-1" style="text-decoration: line-through;">' + totals.original_total.toLocaleString() + '</span> ' + totalRequired.toLocaleString() + '/=');
-                }
-                
+                // Real split data from database
+                const sponsorReq = parseFloat(payment.sponsor_amount_required || 0);
+                const sponsorPaid = parseFloat(payment.sponsor_amount_paid || 0);
+                const sponsorBal = parseFloat(payment.sponsor_balance || 0);
+                const parentReq = parseFloat(payment.parent_amount_required || 0);
+                const parentPaid = parseFloat(payment.parent_amount_paid || 0);
+                const parentBal = parseFloat(payment.parent_balance || 0);
+
+                $('#view_sponsor_req_val').text(sponsorReq.toLocaleString() + '/=');
+                $('#view_sponsor_paid_val').text(sponsorPaid.toLocaleString() + '/=');
+                $('#view_sponsor_bal_val').text(sponsorBal.toLocaleString() + '/=');
+
+                $('#view_parent_req_val').text(parentReq.toLocaleString() + '/=');
+                $('#view_parent_paid_val').text(parentPaid.toLocaleString() + '/=');
+                $('#view_parent_bal_val').text(parentBal.toLocaleString() + '/=');
+
+                // If sponsorship is 100% or 0%, we can hide the breakdown or just show it accurately.
+                // The user said "100% acha kama ilivyosasa", so maybe hide breakdown if 100%?
+                // Actually showing it accurately is better.
+                $('#splitBillPortionsSection').show();
                 sponsorInfoSection.show();
             } else {
                 sponsorInfoSection.hide();
+                $('#splitBillPortionsSection').hide();
                 // Reset Total Fee Required display if previously modified
                 $('#view_total_fee_required').text(totalRequired.toLocaleString() + '/=');
             }
@@ -2509,6 +2050,8 @@
                     'data-amount-required="' + (payment.amount_required || 0) + '" ' +
                     'data-amount-paid="' + (payment.amount_paid || 0) + '" ' +
                     'data-balance="' + (payment.balance || 0) + '" ' +
+                    'data-is-sponsored="' + (sponsorData ? 'yes' : 'no') + '" ' +
+                    'data-payment=\'' + JSON.stringify(payment).replace(/'/g, "&#39;") + '\' ' +
                     'data-fee-type="Unified Payment" ' +
                     'title="Record Payment">' +
                     '<i class="bi bi-cash-coin me-2"></i> Record New Payment' +
@@ -2725,53 +2268,6 @@
             $('#viewMoreModal').modal('show');
         });
 
-        // Modal Export PDF Click Handler
-        $(document).on('click', '#modalExportPdfBtn', function() {
-            const btn = $('#viewMoreModal').data('view-more-btn');
-            if (!btn) return;
-
-            const studentName = btn.data('student-name');
-            const studentAdmission = btn.data('student-admission');
-            const studentClass = btn.data('student-class');
-            const studentPhoto = btn.data('student-photo');
-            
-            let payment = {};
-            try {
-                const paymentData = btn.data('payment');
-                payment = typeof paymentData === 'string' ? JSON.parse(paymentData) : paymentData;
-            } catch(e) {
-                console.error('Error parsing payment data for PDF:', e);
-            }
-
-            // Prepare data for PDF generation
-            const pdfData = {
-                schoolName: '{{ $school->school_name ?? "School Name" }}',
-                schoolLogo: '{{ $school->logo ? asset("storage/" . $school->logo) : "" }}',
-                studentName: studentName,
-                studentAdmission: studentAdmission,
-                studentClass: studentClass,
-                studentPhoto: studentPhoto,
-                controlNumber: payment.control_number || 'N/A',
-                totalRequired: payment.amount_required || 0,
-                totalPaid: payment.amount_paid || 0,
-                totalBalance: payment.balance || 0,
-                tuitionPaid: payment.amount_paid || 0,
-                otherPaid: 0,
-                payments: payment.fee_payments || [],
-                paymentRecords: payment.payment_records || []
-            };
-
-            Swal.fire({
-                title: 'Generating PDF...',
-                html: 'Please wait while we prepare your invoice',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            generatePaymentInvoicePDF(pdfData);
-        });
 
         // Record Payment Button Click Handler
         $(document).on('click', '.record-payment-btn', function(e) {
@@ -2782,28 +2278,151 @@
             const paymentID = btn.data('payment-id');
             const controlNumber = btn.data('control-number');
             const amountRequired = btn.data('amount-required');
-            const amountPaid = btn.data('amount-paid');
             const balance = btn.data('balance');
-            const feeType = btn.data('fee-type');
+            const isSponsored = btn.data('is-sponsored');
             
+            // Get raw payment data to access fee_payments
+            let payment = {};
+            try {
+                const pData = btn.data('payment');
+                payment = typeof pData === 'string' ? JSON.parse(pData) : pData;
+            } catch(e) { console.error(e); }
+
             // Set modal fields
             $('#record_payment_id').val(paymentID);
             $('#record_control_number').val(controlNumber);
-            $('#record_fee_type').val(feeType);
-            $('#record_amount_required').val(parseFloat(amountRequired || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=');
-            $('#record_amount_paid').val(parseFloat(amountPaid || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=');
-            $('#record_balance').val(parseFloat(balance || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=');
-            $('#record_paid_amount').val('');
+            
+            // Populate Fee Dropdown
+            const feeSelect = $('#record_fee_id');
+            feeSelect.find('option:not([value="any"])').remove();
+            
+            if (payment && payment.fee_payments) {
+                payment.fee_payments.forEach(fp => {
+                    const optionText = `${fp.fee_name} (Bal: ${parseFloat(fp.balance).toLocaleString()}/=)`;
+                    const option = $('<option></option>')
+                        .attr('value', fp.feeID)
+                        .attr('data-required', fp.fee_total_amount)
+                        .attr('data-balance', fp.balance)
+                        .text(optionText);
+                    feeSelect.append(option);
+                });
+            }
+            feeSelect.val('any').trigger('change');
+
+            $('#record_amount_required').val(parseFloat(amountRequired || 0).toLocaleString() + '/=');
+            $('#record_balance').val(parseFloat(balance || 0).toLocaleString() + '/=');
+            
+            $('#record_paid_amount').val('').removeClass('is-invalid');
             $('#record_reference_number').val('');
             $('#record_payment_date').val(new Date().toISOString().split('T')[0]);
             $('#record_payment_source').val('Cash');
+            $('#record_payment_by').val('Parent');
             $('#record_bank_name').val('');
             $('#record_notes').val('');
+
+            // Store split balances in modal for real-time validation
+            $('#recordPaymentModal').data('sponsor-balance', parseFloat(payment.sponsor_balance || 0));
+            $('#recordPaymentModal').data('parent-balance', parseFloat(payment.parent_balance || 0));
+
+            // Hide/Show Payment By field
+            if (isSponsored === 'yes') {
+                $('#record_payment_by_container').show();
+                $('#record_payment_by').val('Parent').trigger('change');
+            } else {
+                $('#record_payment_by_container').hide();
+                $('#record_payment_by').val('Parent'); // Still set for backend
+                $('#payer_balance_detail_section').hide();
+            }
             
             // Reset form state
             togglePaymentMethodFields('Cash');
-            
             $('#recordPaymentModal').modal('show');
+        });
+
+        // Fee Selection Change Handler
+        $(document).on('change', '#record_fee_id', function() {
+            const selectedOption = $(this).find('option:selected');
+            const feeID = $(this).val();
+            
+            $('#record_paid_amount').val('').removeClass('is-invalid');
+
+            if (feeID === 'any') {
+                $('#selected_fee_details').hide();
+                $('#overall_payment_details').show();
+            } else {
+                const req = parseFloat(selectedOption.data('required') || 0);
+                const bal = parseFloat(selectedOption.data('balance') || 0);
+                
+                $('#selected_fee_required').val(req.toLocaleString() + '/=');
+                $('#selected_fee_balance').val(bal.toLocaleString() + '/=');
+                $('#selected_fee_balance_raw').val(bal);
+                
+                $('#selected_fee_details').show();
+                $('#overall_payment_details').hide();
+            }
+        });
+
+        // Payer Selection Change Handler
+        $(document).on('change', '#record_payment_by', function() {
+            const payer = $(this).val();
+            const sponsorBal = parseFloat($('#recordPaymentModal').data('sponsor-balance') || 0);
+            const parentBal = parseFloat($('#recordPaymentModal').data('parent-balance') || 0);
+            
+            $('#record_paid_amount').val('').removeClass('is-invalid');
+
+            if (payer === 'Sponsor') {
+                $('#payer_label_name').text('Sponsor');
+                $('#current_payer_balance_val').text(sponsorBal.toLocaleString() + '/=');
+                $('#current_payer_balance_raw').val(sponsorBal);
+            } else {
+                $('#payer_label_name').text('Parent');
+                $('#current_payer_balance_val').text(parentBal.toLocaleString() + '/=');
+                $('#current_payer_balance_raw').val(parentBal);
+            }
+            
+            if ($('#record_payment_by_container').is(':visible')) {
+                $('#payer_balance_detail_section').show();
+            }
+        });
+
+        // Real-time Validation for Paid Amount
+        $(document).on('input', '#record_paid_amount', function() {
+            const amount = parseFloat($(this).val() || 0);
+            const feeID = $('#record_fee_id').val();
+            const isSponsoredView = $('#record_payment_by_container').is(':visible');
+            
+            let limit = 0;
+            let limitLabel = "";
+
+            if (feeID === 'any') {
+                const balanceText = $('#record_balance').val() || "0";
+                limit = parseFloat(balanceText.replace(/[^0-9.]/g, ''));
+                limitLabel = "Total Balance";
+            } else {
+                limit = parseFloat($('#selected_fee_balance_raw').val() || 0);
+                limitLabel = "Fee Balance";
+            }
+
+            // Check against Payer Limit if sponsorship applies
+            if (isSponsoredView) {
+                const payerLimit = parseFloat($('#current_payer_balance_raw').val() || 0);
+                if (payerLimit < limit) {
+                    limit = payerLimit;
+                    limitLabel = $('#record_payment_by').val() + "'s Remaining Obligation";
+                }
+            }
+
+            if (amount > limit) {
+                $(this).addClass('is-invalid');
+                const feedback = `Amount cannot exceed ${limitLabel} (${limit.toLocaleString()}/=)`;
+                if (!$(this).next('.invalid-feedback').length) {
+                    $(this).after(`<div class="invalid-feedback">${feedback}</div>`);
+                } else {
+                    $(this).next('.invalid-feedback').text(feedback);
+                }
+            } else {
+                $(this).removeClass('is-invalid');
+            }
         });
 
         // Toggle payment method fields
@@ -2942,6 +2561,7 @@
                             html += '<th>Payment Date</th>';
                             html += '<th>Paid Amount (TZS)</th>';
                             html += '<th>Payment Method</th>';
+                            html += '<th>Paid By</th>';
                             html += '<th>Reference Number</th>';
                             html += '<th>Status</th>';
                             html += '<th>Notes</th>';
@@ -2958,6 +2578,7 @@
                                 html += '<td>' + (record.payment_date || 'N/A') + '</td>';
                                 html += '<td class="text-end text-success fw-bold">' + parseFloat(record.paid_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=</td>';
                                 html += '<td><span class="badge ' + (record.payment_source === 'Bank' ? 'bg-primary' : 'bg-success') + '">' + (record.payment_source || 'N/A') + '</span></td>';
+                                html += '<td><span class="badge ' + (record.payment_by === 'Sponsor' ? 'bg-info' : 'bg-light text-dark border') + '">' + (record.payment_by || 'Parent') + '</span></td>';
                                 html += '<td>' + (record.reference_number || 'N/A') + '</td>';
                                 html += '<td class="text-center">';
                                 if (record.is_verified) {
@@ -3019,7 +2640,7 @@
                             html += '<tr>';
                             html += '<th colspan="2" class="text-end">Total Paid:</th>';
                             html += '<th class="text-end text-success fw-bold">' + totalPaid.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '/=</th>';
-                            html += '<th colspan="4"></th>';
+                            html += '<th colspan="6"></th>';
                             html += '</tr>';
                             html += '</tfoot>';
                             html += '</table>';
@@ -3555,70 +3176,88 @@
 <div class="modal fade" id="feeSmsProgressModal" tabindex="-1" role="dialog" aria-labelledby="feeSmsProgressModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary-custom text-white">
+            <div class="modal-header">
                 <h5 class="modal-title" id="feeSmsProgressModalLabel">
-                    <i class="bi bi-send-check"></i> <span id="feeSmsModalTitle">Send SMS</span>
+                    <i class="bi bi-send-check me-2"></i> <span id="feeSmsModalTitle">Send SMS</span>
                 </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info border-0 shadow-sm mb-3" id="feeSmsInfoAlert">
-                    <i class="bi bi-info-circle-fill"></i> <span id="feeSmsModalDesc">Chagua wazazi/sponsors wa kupokea SMS.</span>
+                    <i class="bi bi-info-circle-fill"></i> <span id="feeSmsModalDesc">Select parents/sponsors to receive SMS.</span>
                 </div>
+
+                <!-- Recipient Tabs -->
+                <ul class="nav nav-pills nav-fill mb-3" id="feeSmsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-bold" id="parent-sms-tab" data-toggle="tab" data-target="#parent-sms" type="button" role="tab" data-type="parent">
+                            <i class="bi bi-people-fill"></i> Parents
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold" id="sponsor-sms-tab" data-toggle="tab" data-target="#sponsor-sms" type="button" role="tab" data-type="sponsor">
+                            <i class="bi bi-award-fill"></i> Sponsors
+                        </button>
+                    </li>
+                </ul>
 
                 <!-- Loading state -->
                 <div id="feeSmsLoadingState" class="text-center py-4">
                     <div class="spinner-border text-primary" role="status"></div>
-                    <p class="mt-2 text-muted">Inapakua orodha ya wapokeaji...</p>
+                    <p class="mt-2 text-muted">Downloading recipient list...</p>
                 </div>
 
                 <!-- Recipients table (hidden until loaded) -->
                 <div id="feeSmsRecipientsSection" class="d-none">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input" id="feeSelectAllParents">
-                            <label class="custom-control-label font-weight-bold" for="feeSelectAllParents">Select All</label>
-                        </div>
-                        <span class="badge badge-primary" id="feeSelectedCount" style="font-size: 0.95rem;">Wapokeaji: 0</span>
-                    </div>
+                    <div class="tab-content" id="feeSmsTabContent">
+                        <div class="tab-pane fade show active" id="parent-sms" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="feeSelectAllParents">
+                                    <label class="custom-control-label font-weight-bold" for="feeSelectAllParents">Select All</label>
+                                </div>
+                                <span class="badge badge-primary-custom" id="feeSelectedCount" style="font-size: 0.95rem;">Recipients: 0</span>
+                            </div>
 
-                    <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
-                        <table class="table table-sm table-hover" id="feeSmsTable">
-                            <thead class="bg-light sticky-top">
-                                <tr>
-                                    <th style="width:40px;"></th>
-                                    <th>Mpokeaji</th>
-                                    <th>Simu</th>
-                                    <th class="text-center" style="width:110px;">Hali</th>
-                                </tr>
-                            </thead>
-                            <tbody id="feeSmsRecipientsList">
-                                <!-- Populated via JS -->
-                            </tbody>
-                        </table>
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-sm table-hover border" id="feeSmsTable">
+                                    <thead class="bg-light sticky-top">
+                                        <tr id="feeSmsTableHeader">
+                                            <th style="width:40px;"></th>
+                                            <th>Recipient</th>
+                                            <th>Phone</th>
+                                            <th class="text-center" style="width:110px;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="feeSmsRecipientsList">
+                                        <!-- Populated via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Progress section (hidden until sending) -->
                     <div id="feeSmsProgressArea" class="mt-3 d-none">
                         <hr>
                         <div class="d-flex justify-content-between mb-1">
-                            <span class="font-weight-bold text-primary-custom">Maendeleo ya Kutuma</span>
+                            <span class="font-weight-bold text-primary-custom">Sending Progress</span>
                             <span id="feeSmsProgressText" class="small">0 / 0</span>
                         </div>
-                        <div class="progress" style="height: 24px; border-radius: 12px; border: 1px solid #ddd;">
+                        <div class="progress" style="height: 24px; border-radius: 0; border: 1px solid #ddd;">
                             <div id="feeSmsProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success"
-                                 role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                 role="progressbar" style="width: 0%; border-radius: 0;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                         </div>
                         <div id="feeSmsDeliverySummary" class="text-center small mt-2"></div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal" id="feeBtnCancelSms">Ghairi</button>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light text-primary-custom border" data-dismiss="modal" id="feeBtnCancelSms">Cancel</button>
                 <button type="button" class="btn btn-primary-custom" id="feeStartSendingSms" disabled>
-                    <i class="bi bi-send"></i> Anza Kutuma SMS
+                    <i class="bi bi-send"></i> Start Sending SMS
                 </button>
             </div>
         </div>

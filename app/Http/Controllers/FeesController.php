@@ -13,6 +13,9 @@ use App\Models\Attendance;
 use App\Models\School;
 use App\Models\Fee;
 use App\Models\FeeInstallment;
+use App\Models\FeeCondition;
+use App\Models\StudentFeeCondition;
+use App\Models\FeeAgreement;
 use App\Models\OtherFeeDetail;
 use App\Models\Payment;
 use App\Models\PaymentRecord;
@@ -216,6 +219,8 @@ class FeesController extends Controller
                     'display_order' => $index,
                     'duration' => $request->duration,
                     'description' => $feeData['description'] ?? null,
+                    'sms_assignment_template' => $request->input('sms_assignment_template'),
+                    'sms_reminder_template' => $request->input('sms_reminder_template'),
                     'status' => 'Active',
                     'allow_installments' => $request->has('allow_installments'),
                     'default_installment_type' => $request->input('default_installment_type'),
@@ -240,6 +245,22 @@ class FeesController extends Controller
                         ]);
                     }
                 }
+
+                // Handle Multiple Fee Conditions if provided
+                if (isset($feeData['conditions']) && is_array($feeData['conditions'])) {
+                    foreach ($feeData['conditions'] as $condData) {
+                        FeeCondition::create([
+                            'schoolID' => $schoolID,
+                            'feeID' => $fee->feeID,
+                            'condition_name' => $condData['name'] ?? 'Discount',
+                            'discount_amount' => $condData['amount'] ?? 0,
+                            'discount_type' => $condData['type'] ?? 'Fixed',
+                            'description' => $condData['description'] ?? null, // Added description
+                            'status' => 'Active',
+                        ]);
+                    }
+                }
+
                 $createdFees[] = $fee;
             }
 
@@ -296,19 +317,74 @@ class FeesController extends Controller
             ->orderBy('display_order')
             ->get();
 
-        // 2. Calculate totals
-        $totalAmount = $fees->sum('amount');
-        $mustPayAmount = $fees->where('must_start_pay', true)->sum('amount');
+        // 2. Calculate totals with potential discounts
+        $totalAmount = 0;
+        $mustPayAmount = 0;
+
+        foreach ($fees as $fee) {
+            $effectiveAmount = $fee->amount;
+            $feeNameNote = '';
+
+            // Check for student-specific Agreement (Highest Priority)
+            $agreement = FeeAgreement::where('studentID', $student->studentID)
+                ->where('feeID', $fee->feeID)
+                ->where('academic_yearID', $academicYearID)
+                ->where('status', 'Active')
+                ->first();
+
+            if ($agreement) {
+                $effectiveAmount = $agreement->agreed_amount;
+                $feeNameNote = ' (Agreement)';
+            } else {
+                // Check for student-specific condition/discount for this fee
+                $studentCondition = StudentFeeCondition::where('studentID', $student->studentID)
+                    ->where('feeID', $fee->feeID)
+                    ->where('status', 'Active')
+                    ->first();
+
+                if ($studentCondition) {
+                    $condition = FeeCondition::find($studentCondition->conditionID);
+                    if ($condition && $condition->status === 'Active') {
+                        $discount = $condition->discount_amount;
+                        if ($condition->discount_type === 'Percentage') {
+                            $effectiveAmount -= ($effectiveAmount * $discount / 100);
+                        } else {
+                            $effectiveAmount -= $discount;
+                        }
+                        $feeNameNote = ' (Discount)';
+                    }
+                }
+            }
+
+            $effectiveAmount = max(0, $effectiveAmount);
+            $totalAmount += $effectiveAmount;
+            if ($fee->must_start_pay) {
+                $mustPayAmount += $effectiveAmount;
+            }
+
+            // Temporarily store effective amount on the model for step 4
+            $fee->calculated_amount = $effectiveAmount;
+            $fee->calculated_name = $fee->fee_name . $feeNameNote;
+        }
 
         $previousYearBalance = $this->getPreviousYearBalance($student->studentID, $schoolID);
         $debt = $previousYearBalance['school_fee_balance'] + $previousYearBalance['other_contribution_balance'];
 
         $totalRequiredAmount = $totalAmount + $debt;
 
-        // Apply sponsorship discount if applicable
-        if ($student->sponsor_id && $student->sponsorship_percentage > 0) {
-            $sponsorshipDiscount = ($totalRequiredAmount * $student->sponsorship_percentage) / 100;
-            $totalRequiredAmount = $totalRequiredAmount - $sponsorshipDiscount;
+        // Calculate split portions for sponsorship
+        $sponsorPercentage = (float)($student->sponsorship_percentage ?? 0);
+        $sponsorAmountReq = 0;
+        $parentAmountReq = $totalRequiredAmount;
+
+        if ($student->sponsor_id && $sponsorPercentage > 0) {
+            if ($sponsorPercentage >= 100) {
+                $sponsorAmountReq = $totalRequiredAmount;
+                $parentAmountReq = 0;
+            } else {
+                $sponsorAmountReq = ($totalRequiredAmount * $sponsorPercentage) / 100;
+                $parentAmountReq = $totalRequiredAmount - $sponsorAmountReq;
+            }
         }
 
         // 3. Get existing control number or generate new one
@@ -332,15 +408,28 @@ class FeesController extends Controller
                 'required_fees_amount' => $mustPayAmount,
                 'required_fees_paid' => 0,
                 'can_start_school' => $mustPayAmount <= 0,
-                'payment_status' => 'Pending'
+                'payment_status' => 'Pending',
+                'sponsor_amount_required' => $sponsorAmountReq,
+                'sponsor_amount_paid' => 0,
+                'sponsor_balance' => $sponsorAmountReq,
+                'parent_amount_required' => $parentAmountReq,
+                'parent_amount_paid' => 0,
+                'parent_balance' => $parentAmountReq,
             ]);
         } else {
             // Update existing bill if fees changed
+            $newSponsorBalance = $sponsorAmountReq - ($payment->sponsor_amount_paid ?? 0);
+            $newParentBalance = $parentAmountReq - ($payment->parent_amount_paid ?? 0);
+
             $payment->update([
                 'amount_required' => $totalRequiredAmount,
                 'balance' => $totalRequiredAmount - $payment->amount_paid,
                 'debt' => $debt,
                 'required_fees_amount' => $mustPayAmount,
+                'sponsor_amount_required' => $sponsorAmountReq,
+                'sponsor_balance' => $newSponsorBalance,
+                'parent_amount_required' => $parentAmountReq,
+                'parent_balance' => $newParentBalance,
             ]);
         }
 
@@ -357,18 +446,19 @@ class FeesController extends Controller
                     'studentID' => $student->studentID,
                     'paymentID' => $payment->paymentID,
                     'feeID' => $fee->feeID,
-                    'fee_name' => $fee->fee_name,
-                    'fee_total_amount' => $fee->amount,
+                    'fee_name' => $fee->calculated_name ?? $fee->fee_name,
+                    'fee_total_amount' => $fee->calculated_amount,
                     'amount_paid' => 0,
-                    'balance' => $fee->amount,
+                    'balance' => $fee->calculated_amount,
                     'is_required' => $fee->must_start_pay,
                     'display_order' => $fee->display_order,
                 ]);
             } else {
                 $sfp->update([
                     'paymentID' => $payment->paymentID,
-                    'fee_total_amount' => $fee->amount,
-                    'balance' => $fee->amount - $sfp->amount_paid,
+                    'fee_name' => $fee->calculated_name ?? $fee->fee_name,
+                    'fee_total_amount' => $fee->calculated_amount,
+                    'balance' => $fee->calculated_amount - $sfp->amount_paid,
                     'is_required' => $fee->must_start_pay,
                     'display_order' => $fee->display_order,
                 ]);
@@ -411,6 +501,10 @@ class FeesController extends Controller
         'default_installment_type' => 'nullable|in:Semester,Month,Two Months,Term,Quarter,One-time',
         'number_of_installments' => 'nullable|integer|min:1|max:12',
         'allow_partial_payment' => 'nullable|boolean',
+        'has_condition' => 'nullable|boolean',
+        'condition_name' => 'nullable|string|required_if:has_condition,true',
+        'discount_amount' => 'nullable|numeric|min:0|required_if:has_condition,true',
+        'discount_type' => 'nullable|in:Fixed,Percentage',
     ]);
 
     if ($validator->fails()) {
@@ -433,11 +527,50 @@ class FeesController extends Controller
             'payment_deadline_date' => $request->payment_deadline_date,
             'duration' => $request->duration,
             'description' => $request->description,
+            'sms_assignment_template' => $request->sms_assignment_template,
+            'sms_reminder_template' => $request->sms_reminder_template,
             'allow_installments' => $request->has('allow_installments'),
             'default_installment_type' => $request->input('default_installment_type'),
             'number_of_installments' => $request->input('number_of_installments'),
             'allow_partial_payment' => $request->has('allow_partial_payment'),
         ]);
+
+        // Handle Fee Condition updates (Multiple)
+        if ($request->has('conditions') && is_array($request->conditions)) {
+            // First, deactivate all existing conditions for this fee
+            FeeCondition::where('feeID', $fee->feeID)->update(['status' => 'Inactive']);
+            
+            foreach ($request->conditions as $condData) {
+                if (!isset($condData['name']) || empty($condData['name'])) continue;
+
+                if (isset($condData['id']) && !empty($condData['id'])) {
+                    // Update existing
+                    FeeCondition::where('conditionID', $condData['id'])
+                        ->where('feeID', $fee->feeID)
+                        ->update([
+                            'condition_name' => $condData['name'],
+                            'discount_amount' => $condData['amount'] ?? 0,
+                            'discount_type' => $condData['type'] ?? 'Fixed',
+                            'description' => $condData['description'] ?? null, // Added description
+                            'status' => 'Active',
+                        ]);
+                } else {
+                    // Create new
+                    FeeCondition::create([
+                        'schoolID' => $schoolID,
+                        'feeID' => $fee->feeID,
+                        'condition_name' => $condData['name'],
+                        'discount_amount' => $condData['amount'] ?? 0,
+                        'discount_type' => $condData['type'] ?? 'Fixed',
+                        'description' => $condData['description'] ?? null, // Added description
+                        'status' => 'Active',
+                    ]);
+                }
+            }
+        } else {
+            // No conditions provided - deactivate all
+            FeeCondition::where('feeID', $fee->feeID)->update(['status' => 'Inactive']);
+        }
 
         // Delete existing installments and create new ones if allowed
         FeeInstallment::where('feeID', $fee->feeID)->delete();
@@ -459,16 +592,27 @@ class FeesController extends Controller
             }
         }
 
-        // Update bills for this class
-        $this->generateBillsForClass($request->classID, $schoolID);
+            // Handle student assignments for removed conditions
+            $deactivatedCondIDs = FeeCondition::where('schoolID', $schoolID)
+                ->where('feeID', $feeID)
+                ->where('status', 'Deactivated')
+                ->pluck('conditionID');
+            
+            if ($deactivatedCondIDs->isNotEmpty()) {
+                StudentFeeCondition::whereIn('conditionID', $deactivatedCondIDs)
+                    ->update(['status' => 'Inactive']);
+            }
 
-        DB::commit();
+            // Update bills for this class to reflect any changes in conditions/discounts
+            $this->generateBillsForClass($fee->classID, $schoolID);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Fee updated successfully',
-            'fee' => $fee->load(['class', 'installments'])
-        ], 200);
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Fee updated successfully. Bills recalculated for the class.',
+                'fee' => $fee->load(['class', 'installments', 'feeConditions'])
+            ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -499,14 +643,35 @@ class FeesController extends Controller
             ], 404);
         }
 
+        DB::beginTransaction();
         try {
+            $classID = $fee->classID;
+            
+            // 1. Deactivate related Agreements
+            FeeAgreement::where('feeID', $feeID)->update(['status' => 'Inactive']);
+
+            // 2. Deactivate related Student Conditions
+            $conditionIDs = FeeCondition::where('feeID', $feeID)->pluck('conditionID');
+            if ($conditionIDs->isNotEmpty()) {
+                StudentFeeCondition::whereIn('conditionID', $conditionIDs)
+                    ->update(['status' => 'Inactive']);
+            }
+
+            // 3. Delete the fee itself (soft delete or regular delete depending on model setup, 
+            // the existing code uses delete())
             $fee->delete();
+
+            // 4. Update bills for the entire class
+            $this->generateBillsForClass($classID, $schoolID);
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Fee deleted successfully'
+                'message' => 'Fee deleted successfully. All student bills for ' . $fee->class->class_name . ' have been updated.'
             ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete fee: ' . $e->getMessage()
@@ -564,7 +729,7 @@ class FeesController extends Controller
 
         $fee = Fee::where('feeID', $feeID)
             ->where('schoolID', $schoolID)
-            ->with(['class', 'installments', 'otherFeeDetails'])
+            ->with(['class', 'installments', 'otherFeeDetails', 'feeConditions'])
             ->first();
 
         if (!$fee) {
@@ -816,15 +981,9 @@ class FeesController extends Controller
                 $requiredAmount = $payment ? $payment->required_fees_amount : 0;
                 $canStartSchool = $payment ? $payment->can_start_school : false;
 
-                // Calculate sponsorship amounts if applicable
+                // No calculation for sponsorAmount is required as sponsors do not adjust 'totalRequiredAmount'
                 $originalTotal = $totalRequired;
                 $sponsorAmount = 0;
-                if ($payment && $student->sponsor_id && $student->sponsorship_percentage > 0) {
-                    // Original total is the sum of fee amounts + debt
-                    $baseFeesSum = $payment->fee_payments ? $payment->fee_payments->sum('fee_total_amount') : 0;
-                    $originalTotal = $baseFeesSum + ($payment->debt ?? 0);
-                    $sponsorAmount = $originalTotal - $totalRequired;
-                }
 
                 $filteredData[] = [
                     'index' => $index++,
@@ -1282,60 +1441,63 @@ class FeesController extends Controller
 
         $type              = $request->input('type', 'control_number'); // 'control_number' | 'debt_reminder'
         $requestedYear     = $request->input('year');
-        $sponsorshipFilter = $request->input('sponsorship_filter', '');
+        $recipientType     = $request->input('recipient_type', 'parent'); // 'parent' | 'sponsor'
 
         try {
             $academicYearID = $this->getCurrentAcademicYearID($schoolID, $requestedYear);
-
-            $query = Payment::where('schoolID', $schoolID)
-                ->where('academic_yearID', $academicYearID)
-                ->with(['student.parent', 'student.sponsor']);
-
-            if ($type === 'debt_reminder') {
-                $query->where('balance', '>', 0);
-            }
-
-            // Sponsorship filter
-            if ($sponsorshipFilter === 'sponsored') {
-                $query->whereHas('student', fn($q) => $q->whereNotNull('sponsor_id')->where('sponsorship_percentage', '>', 0));
-            } elseif ($sponsorshipFilter === 'self') {
-                $query->whereHas('student', fn($q) => $q->whereNull('sponsor_id')->orWhere('sponsorship_percentage', '<=', 0));
-            }
-
-            $payments = $query->get();
-
             $recipients = [];
-            foreach ($payments as $payment) {
-                $student = $payment->student;
-                if (!$student) continue;
 
-                $parent  = $student->parent  ?? null;
-                $sponsor = $student->sponsor ?? null;
-                $p       = (float)($student->sponsorship_percentage ?? 0);
+            if ($recipientType === 'sponsor') {
+                // Better approach: Join tables and group by sponsor
+                $recipients = Payment::join('students', 'payments.studentID', '=', 'students.studentID')
+                    ->join('sponsors', 'students.sponsor_id', '=', 'sponsors.sponsorID')
+                    ->where('payments.schoolID', $schoolID)
+                    ->where('payments.sponsor_balance', '>', 0)
+                    ->select(
+                        'sponsors.sponsorID',
+                        'sponsors.sponsor_name as recipientLabel',
+                        'sponsors.phone',
+                        DB::raw('COUNT(DISTINCT payments.studentID) as studentCount'),
+                        DB::raw('SUM(payments.sponsor_balance) as balance')
+                    )
+                    ->groupBy('sponsors.sponsorID', 'sponsors.sponsor_name', 'sponsors.phone')
+                    ->get()
+                    ->map(function($item) {
+                        $item->type = 'sponsor';
+                        return $item;
+                    })
+                    ->toArray();
+            } else {
+                // Default: Parent
+                $query = Payment::where('schoolID', $schoolID)
+                    ->where('academic_yearID', $academicYearID)
+                    ->with(['student.parent', 'student.sponsor']);
 
-                $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
-                $balance     = $payment->balance ?? 0;
-                $cn          = $payment->control_number ?? '';
-
-                // Determine phone to display (sponsor first if auto)
-                $phone = null;
-                $recipientLabel = 'Parent of ' . $studentName;
-                if ($p > 0 && $sponsor && $sponsor->phone) {
-                    $phone          = $sponsor->phone;
-                    $recipientLabel = 'Sponsor of ' . $studentName;
-                } elseif ($parent && $parent->phone) {
-                    $phone          = $parent->phone;
-                    $recipientLabel = 'Parent of ' . $studentName;
+                if ($type === 'debt_reminder') {
+                    // For debt reminders, only show those where parent actually owes money
+                    // EXCLUDE: 100% sponsored students, and parents with 0 balance
+                    $query->whereHas('student', fn($q) => $q->where('sponsorship_percentage', '<', 100))
+                          ->where('parent_balance', '>', 0);
                 }
 
-                $recipients[] = [
-                    'paymentID'      => $payment->paymentID,
-                    'recipientLabel' => $recipientLabel,
-                    'studentName'    => $studentName,
-                    'phone'          => $phone ?? '',
-                    'balance'        => $balance,
-                    'controlNumber'  => $cn,
-                ];
+                $payments = $query->get();
+
+                foreach ($payments as $payment) {
+                    $student = $payment->student;
+                    if (!$student) continue;
+
+                    $parent = $student->parent ?? null;
+                    $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
+                    
+                    $recipients[] = [
+                        'paymentID'      => $payment->paymentID,
+                        'recipientLabel' => 'Parent of ' . $studentName,
+                        'studentName'    => $studentName,
+                        'phone'          => $parent->phone ?? '',
+                        'balance'        => $payment->parent_balance,
+                        'type'           => 'parent'
+                    ];
+                }
             }
 
             return response()->json(['success' => true, 'recipients' => $recipients]);
@@ -1359,68 +1521,90 @@ class FeesController extends Controller
             return response()->json(['success' => false, 'message' => 'Access denied'], 403);
         }
 
-        $paymentID = $request->input('paymentID');
-        $type      = $request->input('type', 'control_number'); // 'control_number' | 'debt_reminder'
+        $paymentID     = $request->input('paymentID');
+        $sponsorID     = $request->input('sponsorID');
+        $type          = $request->input('type', 'control_number'); // 'control_number' | 'debt_reminder'
+        $recipientType = $request->input('recipient_type', 'parent');
+        $year          = $request->input('year');
 
         try {
-            $payment = Payment::where('paymentID', $paymentID)
-                ->where('schoolID', $schoolID)
-                ->with(['student.parent', 'student.sponsor', 'school'])
-                ->first();
+            $school = \App\Models\School::find($schoolID);
+            $schoolName = $school->school_name ?? 'School';
+            $academicYearID = $this->getCurrentAcademicYearID($schoolID, $year);
 
-            if (!$payment) {
-                return response()->json(['success' => false, 'message' => 'Payment not found'], 404);
-            }
-
-            $student = $payment->student;
-            $parent  = $student ? $student->parent  : null;
-            $sponsor = $student ? $student->sponsor : null;
-            $school  = $payment->school;
-
-            if (!$student) {
-                return response()->json(['success' => false, 'message' => 'Student not found'], 404);
-            }
-
-            $studentName    = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
-            $cn             = $payment->control_number ?? '';
-            $p              = (float)($student->sponsorship_percentage ?? 0);
-            $balance        = number_format($payment->balance ?? 0, 0);
-            $totalAmount    = number_format($payment->amount_required ?? 0, 0);
-            $requiredAmount = number_format($payment->required_fees_amount ?? 0, 0);
-
-            // Determine phone (sponsor first if sponsored)
-            $phone = null;
-            if ($p > 0 && $sponsor && $sponsor->phone) {
-                $phone = $sponsor->phone;
-            } elseif ($parent && $parent->phone) {
-                $phone = $parent->phone;
-            }
-
-            if (!$phone) {
-                return response()->json(['success' => false, 'message' => 'No phone number found'], 404);
-            }
-
-            // Build message based on type
-            if ($type === 'debt_reminder') {
-                $message = "Mzazi wa {$studentName} unakumbushwa kulipa deni, sh {$balance}, control number {$cn}. Lipa kuepuka usumbufu.";
-            } else {
-                // control_number
-                if ($p > 0) {
-                    $sponsorShare  = number_format(round($payment->amount_required * $p / 100), 0);
-                    $parentShare   = number_format(max(0, ($payment->amount_required ?? 0) - round(($payment->amount_required ?? 0) * $p / 100)), 0);
-                    $message = "Mzazi wa {$studentName}, CN: {$cn}. Jumla TZS {$totalAmount}, ulipe TZS {$parentShare} (mdhamini TZS {$sponsorShare}). Kuanza: TZS {$requiredAmount}.";
-                } else {
-                    $message = "Mzazi wa {$studentName}, amepangiwa CN: {$cn}. Kiasi: TZS {$totalAmount}, kuanza: TZS {$requiredAmount}. Lipa kuepuka usumbufu.";
+            if ($recipientType === 'sponsor') {
+                if (!$sponsorID) {
+                    return response()->json(['success' => false, 'message' => 'Missing sponsor ID']);
                 }
-            }
 
-            $smsResult = $this->smsService->sendSms($phone, $message);
+                $sponsor = \App\Models\Sponsor::where('sponsorID', $sponsorID)->where('schoolID', $schoolID)->first();
+                if (!$sponsor || !$sponsor->phone) {
+                    return response()->json(['success' => false, 'message' => 'Sponsor not found or no phone'], 404);
+                }
 
-            if ($smsResult['success']) {
-                $payment->update(['sms_sent' => 'Yes', 'sms_sent_at' => now()]);
-                return response()->json(['success' => true, 'message' => 'SMS sent successfully.']);
+                $debtInfo = Payment::join('students', 'payments.studentID', '=', 'students.studentID')
+                    ->where('payments.schoolID', $schoolID)
+                    ->where('students.sponsor_id', $sponsorID)
+                    ->where('payments.sponsor_balance', '>', 0)
+                    ->selectRaw('COUNT(DISTINCT payments.studentID) as count, SUM(payments.sponsor_balance) as total')
+                    ->first();
+
+                $count = $debtInfo->count ?? 0;
+                $totalDebt = $debtInfo->total ?? 0;
+                if ($count <= 0) {
+                    return response()->json(['success' => false, 'message' => 'Huyu mdhamini hana deni kwa sasa.']);
+                }
+
+                $formattedAmount = number_format($totalDebt);
+                $message = "{$schoolName}: Unakumbushwa kulipa deni la wanafunzi {$count} kiasi cha Sh {$formattedAmount}. Tafadhali wahi kukamilisha malipo. Ahsante.";
+                $phone = $sponsor->phone;
+
+                $smsResult = $this->smsService->sendSms($phone, $message);
+                if ($smsResult['success']) {
+                    return response()->json(['success' => true]);
+                }
+                return response()->json(['success' => false, 'message' => $smsResult['message'] ?? 'SMS failed']);
+
             } else {
-                return response()->json(['success' => false, 'message' => $smsResult['message'] ?? 'SMS failed.']);
+                // Parent case
+                $payment = Payment::where('paymentID', $paymentID)
+                    ->where('schoolID', $schoolID)
+                    ->with(['student.parent', 'student.sponsor'])
+                    ->first();
+
+                if (!$payment || !$payment->student || !$payment->student->parent || !$payment->student->parent->phone) {
+                    return response()->json(['success' => false, 'message' => 'Recipient not found'], 404);
+                }
+
+                $student = $payment->student;
+                $phone = $student->parent->phone;
+                $p = (float)($student->sponsorship_percentage ?? 0);
+                $cn = $payment->control_number;
+
+                if ($type === 'debt_reminder') {
+                    $balanceStr = number_format($payment->parent_balance);
+                    $message = "{$schoolName}: Unakumbushwa kulipa deni la Ada kiasi cha Sh {$balanceStr}. Tafadhali wahi kulipa mapema. Ahsante.";
+                } else {
+                    // control_number SMS (keep existing logic but respect shorter templates if possible)
+                    $totalAmount = number_format($payment->amount_required, 0);
+                    if ($p > 0) {
+                        $parentShare = number_format(max(0, $payment->amount_required - ($payment->amount_required * $p / 100)), 0);
+                        $message = "{$schoolName}: Mzazi wa {$student->first_name}, CN: {$cn}. Jumla Sh {$totalAmount}, sehemu yako Sh {$parentShare}. Ahsante.";
+                    } else {
+                        $message = "{$schoolName}: Mzazi wa {$student->first_name}, Control Number: {$cn}. Kiasi: Sh {$totalAmount}. Ahsante.";
+                    }
+                }
+
+                if (strlen($message) > 160) {
+                    $message = substr($message, 0, 157) . '...';
+                }
+
+                $smsResult = $this->smsService->sendSms($phone, $message);
+                if ($smsResult['success']) {
+                    $payment->update(['sms_sent' => 'Yes', 'sms_sent_at' => now()]);
+                    return response()->json(['success' => true]);
+                }
+                return response()->json(['success' => false, 'message' => $smsResult['message'] ?? 'SMS failed']);
             }
 
         } catch (\Exception $e) {
@@ -1616,13 +1800,13 @@ class FeesController extends Controller
                 ->first();
 
             if (!$student) {
-                return redirect()->back()->with('error', 'Student not found');
+                return response()->json(['error' => 'Student not found'], 404);
             }
 
             // Get school information
             $school = School::find($schoolID);
             if (!$school) {
-                return redirect()->back()->with('error', 'School not found');
+                return response()->json(['error' => 'School not found'], 404);
             }
 
             // Get active academic year
@@ -1718,7 +1902,7 @@ class FeesController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error generating payment invoice PDF: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to generate PDF: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to generate PDF: ' . $e->getMessage()], 500);
         }
     }
 
@@ -1737,9 +1921,11 @@ class FeesController extends Controller
         try {
             $rules = [
                 'paymentID' => 'required|exists:payments,paymentID',
+                'fee_id' => 'nullable', // Use 'any' or a specific ID
                 'paid_amount' => 'required|numeric|min:0.01',
                 'payment_date' => 'required|date',
                 'payment_source' => 'required|in:Cash,Bank',
+                'payment_by' => 'required|in:Parent,Sponsor',
                 'notes' => 'nullable|string',
             ];
 
@@ -1766,12 +1952,15 @@ class FeesController extends Controller
 
             $paymentRecord = PaymentRecord::create([
                 'paymentID' => $payment->paymentID,
+                'feeID' => ($request->fee_id && $request->fee_id !== 'any') ? $request->fee_id : null,
                 'paid_amount' => $request->paid_amount,
                 'payment_date' => $request->payment_date,
                 'payment_source' => $request->payment_source,
+                'payment_by' => $request->payment_by ?? 'Parent',
                 'reference_number' => $request->reference_number,
                 'bank_name' => $request->bank_name,
                 'notes' => $request->notes,
+                'is_verified' => true, // Assuming auto-verified on manual entry
             ]);
 
             // Allocate payment across fees
@@ -1818,37 +2007,66 @@ class FeesController extends Controller
      */
     private function allocatePayment($payment)
     {
-        $totalPaid = PaymentRecord::where('paymentID', $payment->paymentID)
+        // 1. Fetch all verified records for this payment
+        $allRecords = PaymentRecord::where('paymentID', $payment->paymentID)
             ->where('is_verified', true)
-            ->sum('paid_amount') ?? 0;
-        $remainingToAllocate = $totalPaid;
+            ->get();
 
-        // Get all student fee payments, ordered by priority (must_start_pay) and display_order
+        $totalPaid = $allRecords->sum('paid_amount');
+        $sponsorPaid = $allRecords->where('payment_by', 'Sponsor')->sum('paid_amount');
+        $parentPaid = $allRecords->where('payment_by', 'Parent')->sum('paid_amount');
+
+        // 2. Fetch all student fee lines with priority info
         $fee_payments = StudentFeePayment::where('paymentID', $payment->paymentID)
             ->join('fees', 'student_fee_payments.feeID', '=', 'fees.feeID')
-            ->select('student_fee_payments.*', 'fees.must_start_pay', 'fees.display_order')
+            ->select('student_fee_payments.*', 'fees.must_start_pay', 'fees.display_order', 'fees.fee_name')
             ->orderBy('fees.must_start_pay', 'desc')
             ->orderBy('fees.display_order', 'asc')
             ->get();
 
-        foreach ($fee_payments as $feePayment) {
-            $amountToAllocate = min($remainingToAllocate, $feePayment->fee_total_amount);
-            $feePayment->update([
-                'amount_paid' => $amountToAllocate,
-                'balance' => $feePayment->fee_total_amount - $amountToAllocate
-            ]);
-            $remainingToAllocate -= $amountToAllocate;
+        // 3. Reset internal balances for fresh allocation
+        foreach ($fee_payments as $fp) {
+            $fp->amount_paid = 0;
+            $fp->balance = $fp->fee_total_amount;
         }
 
-        // Update overall payment record totals
-        $requiredPaid = StudentFeePayment::where('paymentID', $payment->paymentID)
-            ->join('fees', 'student_fee_payments.feeID', '=', 'fees.feeID')
-            ->where('fees.must_start_pay', 1)
-            ->sum('student_fee_payments.amount_paid') ?? 0;
+        // 4. Phase 1: Targeted Payments (Specific Fee selected)
+        $targetedRecords = $allRecords->whereNotNull('feeID');
+        foreach ($targetedRecords as $record) {
+            $target = $fee_payments->where('feeID', $record->feeID)->first();
+            if ($target) {
+                $target->amount_paid += $record->paid_amount;
+                $target->balance = max(0, $target->fee_total_amount - $target->amount_paid);
+            }
+        }
 
-        $balance = $payment->amount_required - $totalPaid;
+        // 5. Phase 2: General Payments (Pay to Any Fee)
+        $generalAmount = $allRecords->whereNull('feeID')->sum('paid_amount');
+        $remainingGeneral = $generalAmount;
+
+        foreach ($fee_payments as $fp) {
+            if ($remainingGeneral <= 0) break;
+
+            $currentFeeBalance = $fp->fee_total_amount - $fp->amount_paid;
+            if ($currentFeeBalance <= 0) continue;
+
+            $allocation = min($remainingGeneral, $currentFeeBalance);
+            $fp->amount_paid += $allocation;
+            $fp->balance = max(0, $fp->fee_total_amount - $fp->amount_paid);
+            $remainingGeneral -= $allocation;
+        }
+
+        // 6. Persist changes to student_fee_payments
+        foreach ($fee_payments as $fp) {
+            $fp->save();
+        }
+
+        // 7. Recalculate summary metrics
+        $requiredPaid = $fee_payments->where('must_start_pay', 1)->sum('amount_paid');
+        $totalBalance = max(0, $payment->amount_required - $totalPaid);
+        
         $paymentStatus = 'Pending';
-        if ($balance <= 0) {
+        if ($totalBalance <= 0) {
             $paymentStatus = $totalPaid > $payment->amount_required ? 'Overpaid' : 'Paid';
         } elseif ($totalPaid > 0) {
             $paymentStatus = 'Incomplete Payment';
@@ -1858,11 +2076,14 @@ class FeesController extends Controller
 
         $payment->update([
             'amount_paid' => $totalPaid,
-            'balance' => $balance,
+            'balance' => $totalBalance,
             'required_fees_paid' => $requiredPaid,
             'can_start_school' => $canStartSchool,
             'payment_status' => $paymentStatus,
-            'payment_date' => now(),
+            'sponsor_amount_paid' => $sponsorPaid,
+            'sponsor_balance' => max(0, $payment->sponsor_amount_required - $sponsorPaid),
+            'parent_amount_paid' => $parentPaid,
+            'parent_balance' => max(0, $payment->parent_amount_required - $parentPaid),
         ]);
     }
 
@@ -1907,6 +2128,7 @@ class FeesController extends Controller
                     'reference_number' => $record->reference_number,
                     'payment_date' => $record->payment_date ? $record->payment_date->format('Y-m-d') : null,
                     'payment_source' => $record->payment_source,
+                    'payment_by' => $record->payment_by,
                     'bank_name' => $record->bank_name,
                     'notes' => $record->notes,
                     'is_verified' => $record->is_verified,
@@ -2062,6 +2284,64 @@ class FeesController extends Controller
     /**
      * Export filtered payments as PDF
      */
+    /**
+     * Export Fees Structure PDF
+     */
+    public function exportFeesStructurePdf(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['error' => 'Session expired'], 401);
+        }
+
+        try {
+            $classID = $request->query('classID');
+            $year = date('Y');
+
+            $school = School::find($schoolID);
+            
+            $query = ClassModel::where('schoolID', $schoolID)
+                ->with(['fees' => function($q) {
+                    $q->where('status', 'Active')->orderBy('display_order');
+                }, 'fees.installments', 'fees.otherFeeDetails']);
+
+            if ($classID) {
+                $query->where('classID', $classID);
+            }
+
+            $classes = $query->get();
+
+            $data = [
+                'school' => $school,
+                'classes' => $classes,
+                'year' => $year,
+                'title' => 'OFFICIAL FEES STRUCTURE - ' . $year
+            ];
+
+            // Method 1: Try using the facade
+            try {
+                $pdf = PDF::loadView('Admin.pdf.fees_structure_pdf', $data);
+                $pdf->setPaper('A4', 'portrait');
+                $filename = 'Fees_Structure_' . $year . '.pdf';
+                return $pdf->download($filename);
+            } catch (\Exception $e) {
+                // Fallback to direct Dompdf if facade fails
+                $dompdf = new \Dompdf\Dompdf();
+                $html = view('Admin.pdf.fees_structure_pdf', $data)->render();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'portrait');
+                $dompdf->render();
+                return response()->streamDownload(function() use ($dompdf) {
+                    echo $dompdf->output();
+                }, 'Fees_Structure_' . $year . '.pdf', ['Content-Type' => 'application/pdf']);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error exporting fees structure PDF: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to generate PDF: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function exportFilteredPaymentsPDF(Request $request)
     {
         $schoolID = Session::get('schoolID');
@@ -2212,6 +2492,8 @@ class FeesController extends Controller
                         'class' => $studentClass,
                         'status' => $student->status,
                         'photo' => $student->photo ? asset('userImages/' . $student->photo) : null,
+                        'sponsorship_percentage' => $student->sponsorship_percentage,
+                        'sponsor_name' => $student->sponsor ? $student->sponsor->sponsor_name : null,
                     ],
                     'payment' => $payment,
                     'feeBreakdown' => $feeBreakdown,
@@ -2356,6 +2638,287 @@ class FeesController extends Controller
             return response()->json(['success' => true, 'message' => 'Payment verification deleted!']);
 
         } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get conditions for a class
+     */
+    public function get_class_conditions($classID)
+    {
+        $schoolID = Session::get('schoolID');
+        $conditions = FeeCondition::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->whereHas('fee', function($q) use ($classID) {
+                $q->where('classID', $classID);
+            })
+            ->with(['fee', 'studentConditions' => function($q) {
+                $q->select('conditionID', 'studentID');
+            }])
+            ->get();
+            
+        $conditions->each(function($cond) {
+            $cond->assigned_student_ids = $cond->studentConditions->pluck('studentID');
+            unset($cond->studentConditions);
+        });
+            
+        return response()->json([
+            'success' => true,
+            'conditions' => $conditions
+        ]);
+    }
+
+    /**
+     * Get students for condition assignment
+     */
+    public function get_class_students($classID)
+    {
+        $schoolID = Session::get('schoolID');
+        $students = Student::where('schoolID', $schoolID)
+            ->whereHas('subclass', function($q) use ($classID) {
+                $q->where('classID', $classID);
+            })
+            ->where('status', 'Active')
+            ->select('studentID', 'first_name', 'middle_name', 'last_name', 'admission_number', 'sponsor_id', 'sponsorship_percentage')
+            ->orderBy('first_name')
+            ->get();
+            
+        return response()->json([
+            'success' => true,
+            'students' => $students
+        ]);
+    }
+
+    public function get_class_fees($classID)
+    {
+        $schoolID = Session::get('schoolID');
+        $fees = Fee::where('schoolID', $schoolID)
+            ->where('classID', $classID)
+            ->where('status', 'Active')
+            ->orderBy('display_order')
+            ->get();
+            
+        return response()->json([
+            'success' => true,
+            'fees' => $fees
+        ]);
+    }
+
+    public function get_existing_agreements($classID)
+    {
+        $schoolID = Session::get('schoolID');
+        $academicYearID = $this->getCurrentAcademicYearID($schoolID);
+
+        $agreements = FeeAgreement::where('schoolID', $schoolID)
+            ->where('academic_yearID', $academicYearID)
+            ->whereHas('student.subclass', function($q) use ($classID) {
+                $q->where('classID', $classID);
+            })
+            ->where('status', 'Active')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'agreements' => $agreements
+        ]);
+    }
+
+    /**
+     * Store custom fee agreements
+     */
+    public function store_fee_agreements(Request $request)
+    {
+        $schoolID = $request->schoolID ?: Session::get('schoolID');
+        $academicYearID = $this->getCurrentAcademicYearID($schoolID);
+        $agreements = $request->agreements;
+
+        if (empty($agreements)) {
+            return response()->json(['success' => false, 'message' => 'No agreements provided'], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            $studentIDsAffected = [];
+
+            foreach ($agreements as $ag) {
+                FeeAgreement::updateOrCreate(
+                    [
+                        'schoolID' => $schoolID,
+                        'studentID' => $ag['studentID'],
+                        'feeID' => $ag['feeID'],
+                        'academic_yearID' => $academicYearID,
+                    ],
+                    [
+                        'agreed_amount' => $ag['amount'],
+                        'status' => 'Active'
+                    ]
+                );
+
+                $studentIDsAffected[] = $ag['studentID'];
+            }
+
+            DB::commit();
+
+            // Regenerate bills for affected students
+            $uniqueStudentIDs = array_unique($studentIDsAffected);
+            foreach ($uniqueStudentIDs as $studentID) {
+                $student = Student::find($studentID);
+                if ($student) {
+                    $this->generateStudentBill($student, $academicYearID, $schoolID);
+                }
+            }
+
+            return response()->json([
+                'success' => true, 
+                'message' => count($agreements) . ' Agreements saved and bills updated.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false, 
+                'message' => 'Failed to save agreements: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Assign students to a Sponsor
+     */
+    public function assign_sponsor_students(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $academicYearID = $this->getCurrentAcademicYearID($schoolID);
+        
+        $sponsorID = $request->input('sponsorID');
+        $classID = $request->input('classID');
+        $assignments = $request->input('assignments', []); // array of {studentID, percentage}
+
+        if (!$sponsorID || !$classID) {
+            return response()->json(['success' => false, 'message' => 'Missing sponsor or class context'], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+            
+            // 1. Unassign students in this class who were previously assigned to this sponsor but are no longer in the list (unchecked)
+            $keepStudentIDs = array_column($assignments, 'studentID');
+            
+            $studentsToUnassign = Student::where('schoolID', $schoolID)
+                ->where('sponsor_id', $sponsorID)
+                ->whereHas('subclass', function($q) use ($classID) {
+                    $q->where('classID', $classID);
+                })
+                ->whereNotIn('studentID', $keepStudentIDs)
+                ->get();
+
+            foreach ($studentsToUnassign as $student) {
+                // Remove sponsor info
+                $student->update([
+                    'sponsor_id' => null,
+                    'sponsorship_percentage' => 0
+                ]);
+                $this->generateStudentBill($student, $academicYearID, $schoolID);
+            }
+
+            // 2. Assign/update the provided students
+            foreach ($assignments as $ag) {
+                $student = Student::find($ag['studentID']);
+                if ($student) {
+                    $student->update([
+                        'sponsor_id' => $sponsorID,
+                        'sponsorship_percentage' => $ag['percentage'] ?? 0
+                    ]);
+                    $this->generateStudentBill($student, $academicYearID, $schoolID);
+                }
+            }
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Sponsorship assignments updated successfully.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Assign Sponsor error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update sponsorship assignments: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Assign students to fee conditions
+     */
+    public function assign_students_to_conditions(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $classID = $request->input('classID');
+        $studentIDs = $request->input('studentIDs', []);
+        $conditionIDs = $request->input('conditionIDs', []);
+
+        if (empty($studentIDs) || empty($conditionIDs)) {
+            return response()->json(['success' => false, 'message' => 'Select at least one student and one condition'], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+            
+            $academicYearID = $this->getCurrentAcademicYearID($schoolID);
+            $affectedStudentIDs = [];
+
+            foreach ($conditionIDs as $conditionID) {
+                $condition = FeeCondition::find($conditionID);
+                if (!$condition) continue;
+
+                foreach ($studentIDs as $studentID) {
+                    // Check if student already has this EXACT condition active for this fee
+                    $alreadyAssigned = StudentFeeCondition::where([
+                        'studentID' => $studentID,
+                        'conditionID' => $conditionID,
+                        'feeID' => $condition->feeID,
+                        'status' => 'Active'
+                    ])->exists();
+                    
+                    if (!$alreadyAssigned) {
+                        StudentFeeCondition::updateOrCreate(
+                            [
+                                'schoolID' => $schoolID,
+                                'studentID' => $studentID,
+                                'feeID' => $condition->feeID,
+                            ],
+                            [
+                                'conditionID' => $conditionID,
+                                'academic_yearID' => $academicYearID,
+                                'status' => 'Active'
+                            ]
+                        );
+                        $affectedStudentIDs[] = $studentID;
+                    }
+                }
+            }
+
+            // Only regenerate bills for students whose condition was actually added or changed
+            $uniqueAffected = array_unique($affectedStudentIDs);
+            if (!empty($uniqueAffected)) {
+                $studentsToUpdate = Student::whereIn('studentID', $uniqueAffected)->get();
+                foreach ($studentsToUpdate as $student) {
+                    $this->generateStudentBill($student, $academicYearID, $schoolID);
+                }
+            }
+
+            DB::commit();
+            
+            $msg = count($uniqueAffected) > 0 
+                ? 'Assignments saved and bills updated for ' . count($uniqueAffected) . ' students.' 
+                : 'Selected students were already assigned. No changes needed.';
+
+            return response()->json(['success' => true, 'message' => $msg]);
+        } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }

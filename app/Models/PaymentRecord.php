@@ -14,10 +14,12 @@ class PaymentRecord extends Model
 
     protected $fillable = [
         'paymentID',
+        'feeID',
         'paid_amount',
         'reference_number',
         'payment_date',
         'payment_source',
+        'payment_by',
         'bank_name',
         'notes',
         'is_verified',

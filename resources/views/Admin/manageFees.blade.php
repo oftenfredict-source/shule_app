@@ -16,25 +16,56 @@
 @endphp
 
 <style>
-    /* Color scheme for #940000 */
+    * {
+        font-family: 'Century Gothic', 'CenturyGothic', 'AppleGothic', sans-serif;
+        border-radius: 0 !important;
+    }
+    :root {
+        --primary-custom: #940000;
+        --secondary-custom: #FFF5F5;
+        --accent-soft: #FFF5F5;
+        --header-gradient: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+    }
+    body {
+        background-color: #FFFFFF !important;
+        color: #333;
+    }
     .bg-primary-custom {
-        background-color: #940000 !important;
+        background-color: var(--primary-custom) !important;
     }
     .text-primary-custom {
-        color: #940000 !important;
+        color: var(--primary-custom) !important;
     }
     .border-primary-custom {
-        border-color: #940000 !important;
+        border-color: var(--primary-custom) !important;
     }
     .btn-primary-custom {
-        background-color: #940000;
-        border-color: #940000;
-        color: #ffffff;
+        background-color: var(--primary-custom);
+        border-color: var(--primary-custom);
+        color: white;
     }
     .btn-primary-custom:hover {
-        background-color: #b30000;
-        border-color: #b30000;
-        color: #ffffff;
+        background-color: #7a0000;
+        border-color: #7a0000;
+        color: white;
+    }
+    .card {
+        background-color: #FFFFFF !important;
+        border-radius: 0 !important;
+    }
+    .card-header {
+        background: var(--header-gradient) !important;
+        border-bottom: 1px solid var(--primary-custom);
+        border-radius: 0 !important;
+    }
+    .card-header h4, .card-header h5, .card-header h6 {
+        color: var(--primary-custom);
+        font-weight: bold;
+    }
+    .badge-primary-custom {
+        background-color: var(--primary-custom);
+        color: white;
+        border-radius: 0 !important;
     }
     .form-control:focus, .form-select:focus {
         border-color: #940000;
@@ -43,7 +74,7 @@
     .widget-card {
         transition: transform 0.2s, box-shadow 0.2s;
         cursor: pointer;
-        border-radius: 10px;
+        border-radius: 0 !important;
     }
     .widget-card:hover {
         transform: translateY(-5px);
@@ -58,6 +89,15 @@
     }
     .fee-widget.other {
         border-left-color: #ffc107;
+    }
+    .bg-light-info {
+        background-color: var(--accent-soft) !important;
+    }
+    .border-info {
+        border-color: var(--primary-custom) !important;
+    }
+    .text-info {
+        color: var(--primary-custom) !important;
     }
     .fee-amount {
         font-size: 1.8rem;
@@ -86,7 +126,7 @@
     .loading-spinner {
         background: white;
         padding: 2rem;
-        border-radius: 10px;
+        border-radius: 0 !important;
         text-align: center;
     }
     /* Table Styling Improvements */
@@ -160,15 +200,48 @@
     .fee-breakdown-item:last-child {
         border-bottom: none;
     }
+
+    /* Modal Scrollbar & Overflow Styling */
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+        padding: 1.5rem;
+    }
+
+    /* Custom Scrollbar for a premium look */
+    .modal-body::-webkit-scrollbar, 
+    .table-responsive::-webkit-scrollbar,
+    #agreement_students_list::-webkit-scrollbar {
+        width: 8px;
+    }
+    .modal-body::-webkit-scrollbar-track,
+    .table-responsive::-webkit-scrollbar-track,
+    #agreement_students_list::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    .modal-body::-webkit-scrollbar-thumb,
+    .table-responsive::-webkit-scrollbar-thumb,
+    #agreement_students_list::-webkit-scrollbar-thumb {
+        background: #940000;
+        border-radius: 0;
+    }
+    .modal-body::-webkit-scrollbar-thumb:hover,
+    .table-responsive::-webkit-scrollbar-thumb:hover,
+    #agreement_students_list::-webkit-scrollbar-thumb:hover {
+        background: #7a0000;
+    }
+    .agreement-students-list {
+        max-height: 500px;
+        overflow-y: auto;
+        padding-right: 5px;
+    }
 </style>
 
 <!-- Bootstrap Icons -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<!-- jsPDF for PDF export -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
 <!-- SheetJS for Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -198,23 +271,49 @@
             <!-- Page Header -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body bg-primary-custom text-white rounded">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">
+                    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3">
+                        <h4 class="mb-0 text-center text-xl-start">
                             <i class="bi bi-cash-stack"></i> Manage Fees
                         </h4>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-light text-primary-custom fw-bold" type="button" id="exportPdfBtn">
-                                <i class="bi bi-file-pdf"></i> Export PDF
+                        <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-xl-end w-100 w-xl-auto">
+                            <button class="btn btn-light text-primary-custom fw-bold flex-grow-1 flex-md-grow-0" type="button" id="exportPdfBtn">
+                                <i class="bi bi-file-pdf"></i> PDF
                             </button>
-                            <button class="btn btn-light text-primary-custom fw-bold" type="button" id="exportExcelBtn">
-                                <i class="bi bi-file-excel"></i> Export Excel
+                            <button class="btn btn-light text-primary-custom fw-bold flex-grow-1 flex-md-grow-0" type="button" id="exportExcelBtn">
+                                <i class="bi bi-file-excel"></i> Excel
                             </button>
-                            <a href="{{ route('view_payments') }}" class="btn btn-light text-primary-custom fw-bold">
-                                <i class="bi bi-credit-card"></i> View Payments & Control Numbers
+                            <a href="{{ route('view_payments') }}" class="btn btn-light text-primary-custom fw-bold flex-grow-1 flex-md-grow-0 text-center">
+                                <i class="bi bi-credit-card"></i> Payments
                             </a>
-                            <button class="btn btn-light text-primary-custom fw-bold" type="button" id="openAddFeeModalBtn">
-                                <i class="bi bi-plus-circle"></i> Assign Fee to Class
+                            <button class="btn btn-light text-primary-custom fw-bold flex-grow-1 flex-md-grow-0" type="button" id="openAddFeeModalBtn">
+                                <i class="bi bi-plus-circle"></i> Create Fee
                             </button>
+                            
+                            <!-- Dropdown for conditions -->
+                            <div class="dropdown flex-grow-1 flex-md-grow-0">
+                                <button class="btn btn-light text-primary-custom fw-bold w-100 dropdown-toggle" type="button" id="advancedSetupBtn" data-bs-toggle="dropdown" data-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-gear-fill"></i> Setup & Overrides
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end border-primary-custom shadow-sm" aria-labelledby="advancedSetupBtn">
+                                    <li>
+                                        <button class="dropdown-item fw-bold text-dark py-2" type="button" id="openConditionModalBtn">
+                                            <i class="bi bi-tags text-primary-custom me-2"></i> Discounts (Conditions)
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider text-muted"></li>
+                                    <li>
+                                        <button class="dropdown-item fw-bold text-dark py-2" type="button" id="openAgreementModalBtn">
+                                            <i class="bi bi-handshake-fill text-primary-custom me-2"></i> Student Agreements
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider text-muted"></li>
+                                    <li>
+                                        <button class="dropdown-item fw-bold text-dark py-2" type="button" id="openSponsorModalBtn">
+                                            <i class="bi bi-person-heart text-primary-custom me-2"></i> Assign Sponsors
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -507,7 +606,7 @@
 
 <!-- Edit Fee Modal -->
 <div class="modal fade" id="editFeeModal" tabindex="-1" aria-labelledby="editFeeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="editFeeModalLabel">
@@ -579,6 +678,31 @@
                             <option value="One-time">One-time</option>
                         </select>
                         <small class="text-muted">Default duration for this fee (usually Year for annual fees)</small>
+                    </div>
+
+                    <!-- Fee Condition Fields -->
+                    <div class="mb-3">
+                        <hr>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="edit_has_conditions" value="1">
+                            <label class="form-check-label fw-bold" for="edit_has_conditions">
+                                <i class="bi bi-tags-fill text-primary-custom"></i> Define Fee Conditions (Discounts)
+                            </label>
+                        </div>
+                        <small class="text-muted text-primary-custom">Manage specific discount conditions for this fee</small>
+                    </div>
+                    
+                    <div id="edit_conditions_details" style="display: none;" class="mb-3">
+                        <div class="card border-primary-custom bg-light-info">
+                            <div class="card-body">
+                                <div id="edit_conditions_container">
+                                    <!-- Conditions rows will be added here -->
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary-custom mt-2" id="add_edit_condition_btn">
+                                    <i class="bi bi-plus-circle-fill"></i> Add New Condition
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Installment Options -->
@@ -712,12 +836,361 @@
         <div class="spinner-border text-primary-custom" role="status" style="width: 3rem; height: 3rem;">
             <span class="sr-only">Loading...</span>
         </div>
-        <p class="mt-3 mb-0 fw-bold text-primary-custom">Saving...</p>
+        <p class="mt-3 mb-0 fw-bold text-primary-custom loading-text">Saving...</p>
+    </div>
+</div>
+
+<!-- Fee Agreement Modal -->
+<div class="modal fade" id="agreementModal" tabindex="-1" aria-labelledby="agreementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-primary-custom text-white border-0">
+                <h5 class="modal-title fw-bold" id="agreementModalLabel">
+                    <i class="bi bi-handshake me-2"></i> Student Fee Agreements (Special Arrangements)
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <div class="row g-4">
+                    <!-- Left Panel: Configuration -->
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm sticky-top" style="top: 20px; z-index: 1;">
+                            <div class="card-body p-4">
+                                <h6 class="fw-bold text-primary-custom mb-3 border-bottom pb-2">
+                                    <i class="bi bi-sliders me-2"></i> 1. Setup Class
+                                </h6>
+                                <div class="mb-4">
+                                    <label class="form-label small fw-bold text-muted">Select Class</label>
+                                    <select class="form-select border-primary-custom" id="agreement_class_select">
+                                        <option value="">Choose Class...</option>
+                                        @foreach($classes as $class)
+                                            <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div class="mb-4 d-none" id="agreement_search_block">
+                                    <label class="form-label small fw-bold text-muted">2. Find Student</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white border-end-0 border-primary-custom"><i class="bi bi-search"></i></span>
+                                        <input type="text" id="agreement_student_search" class="form-control border-start-0 border-primary-custom" placeholder="Name or Adm No...">
+                                    </div>
+                                </div>
+
+                                <div class="mt-5 border-top pt-3 text-center d-none" id="agreement_save_actions">
+                                    <p class="text-muted small mb-3">Any changes to agreements will automatically update student balances.</p>
+                                    <button type="button" class="btn btn-primary-custom w-100 fw-bold py-2 shadow-sm" id="save_agreements_btn">
+                                        <i class="bi bi-save2 me-2"></i> Save All Agreements
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Student List & Fee Options -->
+                    <div class="col-md-8">
+                        <div id="agreement_placeholder" class="text-center py-5 bg-white border border-dashed rounded">
+                            <i class="bi bi-mortarboard text-muted" style="font-size: 3rem;"></i>
+                            <p class="mt-3 text-muted">Select a class to view students and manage agreements.</p>
+                        </div>
+
+                        <div id="agreement_results_container" class="d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0 text-primary-custom"><i class="bi bi-people me-2"></i> Students in <span id="agreement_target_class_name">Class</span></h6>
+                                <span class="badge bg-primary-custom rounded-0" id="agreement_student_count">0 Students</span>
+                            </div>
+                            
+                            <div class="agreement-students-list" id="agreement_students_list">
+                                <!-- Student rows will be injected here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Sponsor Modal -->
+<div class="modal fade" id="assignSponsorModal" tabindex="-1" aria-labelledby="assignSponsorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title" id="assignSponsorModalLabel">
+                    <i class="bi bi-person-heart"></i> Assign Student Sponsors
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="assignSponsorForm">
+                @csrf
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Left Panel: Select Sponsor & Class -->
+                        <div class="col-md-4 border-end">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">1. Select Sponsor</label>
+                                <div class="input-group">
+                                    <select name="sponsorID" id="sponsor_select" class="form-select" required>
+                                        <option value="">Loading sponsors...</option>
+                                    </select>
+                                    <button class="btn btn-outline-secondary" type="button" id="addNewSponsorBtn" title="Register New Sponsor">
+                                        <i class="bi bi-plus-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">2. Select Class</label>
+                                <select name="classID" id="sponsor_class_select" class="form-select" required disabled>
+                                    <option value="">Choose class...</option>
+                                    @foreach($classes as $class)
+                                        <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Panel: Student Selection -->
+                        <div class="col-md-8">
+                            <div id="sponsor_students_container" style="display: none;">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <label class="form-label fw-bold mb-0">3. Select Students & Set %</label>
+                                    <div class="input-group input-group-sm w-50">
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                        <input type="text" id="sponsor_student_search" class="form-control" placeholder="Search student...">
+                                    </div>
+                                </div>
+                                
+                                <div class="table-responsive agreement-students-list">
+                                    <table class="table table-sm table-hover border">
+                                        <thead class="bg-light sticky-top">
+                                            <tr>
+                                                <th width="40" class="text-center align-middle">
+                                                    <div class="d-flex justify-content-center align-items-center m-0 p-0">
+                                                        <input class="form-check-input m-0 shadow-none" type="checkbox" id="selectAllSponsorStudents" style="position: static; transform: scale(1.1);">
+                                                    </div>
+                                                </th>
+                                                <th>Student Name</th>
+                                                <th>ADM No.</th>
+                                                <th style="min-width: 100px;">Coverage %</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sponsor_students_list">
+                                            <!-- Dynamic Students -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="mt-3 p-3 bg-light rounded border">
+                                    <h6 class="small fw-bold mb-2">Selection Status:</h6>
+                                    <div id="selected_sponsor_count" class="badge bg-primary-custom mb-2">
+                                        0 students assigned
+                                    </div>
+                                    <p class="text-muted small mb-0">Unchecking a student will remove them from this sponsor.</p>
+                                </div>
+                            </div>
+                            
+                            <div id="no_sponsor_class_placeholder" class="text-center py-5 text-muted">
+                                <i class="bi bi-arrow-left-circle display-4"></i>
+                                <p class="mt-2 text-center w-100">Please select a sponsor and a class to view students.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary-custom" id="saveSponsorAssignmentBtn" disabled>
+                        <i class="bi bi-save"></i> Save Assignments
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Sponsor Modal (Inline) -->
+<div class="modal fade" id="addSponsorInlineModal" tabindex="-1" aria-labelledby="addSponsorInlineModalLabel" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title" id="addSponsorInlineModalLabel">
+                    <i class="bi bi-plus-circle"></i> Register New Sponsor
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="addSponsorInlineForm">
+                @csrf
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="inline_sponsor_name" class="form-label">Sponsor Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="inline_sponsor_name" name="sponsor_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="inline_description" class="form-label">Description</label>
+                        <textarea class="form-control" id="inline_description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="inline_contact_person" class="form-label">Contact Person</label>
+                            <input type="text" class="form-control" id="inline_contact_person" name="contact_person">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="inline_phone" class="form-label">Phone</label>
+                            <div class="input-group">
+                                <span class="input-group-text">255</span>
+                                <input type="text" class="form-control" id="inline_phone" name="phone" placeholder="7XXXXXXXX" pattern="[0-9]{9}" maxlength="9">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="inline_email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="inline_email" name="email">
+                        </div>
+                        <input type="hidden" name="status" value="Active">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom" id="submitInlineSponsorBtn">
+                        <i class="bi bi-check-circle"></i> Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="assignConditionModal" tabindex="-1" aria-labelledby="assignConditionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title" id="assignConditionModalLabel">
+                    <i class="bi bi-tags"></i> Assign Fee Condition & Discount
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="assignConditionForm">
+                @csrf
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Left Panel: Select Class & Conditions -->
+                        <div class="col-md-4 border-end">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">1. Select Class</label>
+                                <select name="classID" id="condition_class_select" class="form-select" required>
+                                    <option value="">Choose class...</option>
+                                    @foreach($classes as $class)
+                                        <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            
+                            <div id="conditions_container" style="display: none;">
+                                <label class="form-label fw-bold mt-3">2. Select Conditions (Discounts)</label>
+                                <div id="class_conditions_list" class="list-group">
+                                    <!-- Dynamic Conditions -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Panel: Student Selection -->
+                        <div class="col-md-8">
+                            <div id="students_selection_container" style="display: none;">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <label class="form-label fw-bold mb-0">3. Select Students for this Discount</label>
+                                    <div class="input-group input-group-sm w-50">
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                        <input type="text" id="student_search_input" class="form-control" placeholder="Search student name...">
+                                    </div>
+                                </div>
+                                
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-sm table-hover border">
+                                        <thead class="bg-light sticky-top">
+                                            <tr>
+                                                <th width="40">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="selectAllStudents">
+                                                    </div>
+                                                </th>
+                                                <th>Student Name</th>
+                                                <th>ADM No.</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="students_list_body">
+                                            <!-- Dynamic Students -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="mt-3 p-3 bg-light rounded border">
+                                    <h6 class="small fw-bold mb-2">Selected Students:</h6>
+                                    <div id="selected_students_sum" class="mb-2">
+                                        <span id="selected_students_count" class="badge bg-primary-custom">0 students selected</span>
+                                    </div>
+                                    <div id="selected_students_names" class="small text-muted" style="max-height: 60px; overflow-y: auto;">
+                                        None selected
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="no_class_placeholder" class="text-center py-5 text-muted">
+                                <i class="bi bi-arrow-left-circle display-4"></i>
+                                <p class="mt-2 text-center w-100">Please select a class first to see conditions and students.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary-custom" id="saveConditionBtn" disabled>
+                        <i class="bi bi-save"></i> Save Condition Assignment
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
 @include('includes.footer')
 
+    <!-- ADDING DOWNLOAD PROGRESS MODAL -->
+    <div class="modal fade" id="downloadProgressModal" data-backdrop="static" tabindex="-1" style="z-index: 10000;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 0 !important;">
+                <div class="modal-body p-4 text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-file-pdf text-danger animate-pulse" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="mb-4" style="color: #940000; font-weight: bold; font-family: 'Century Gothic', sans-serif;">Generating Fees Structure Report</h5>
+                    <div class="progress mb-2" style="height: 12px; border-radius: 0 !important;">
+                        <div id="pdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" 
+                            role="progressbar" style="width: 0%; border-radius: 0 !important;"></div>
+                    </div>
+                    <div id="pdfProgressPercent" class="font-weight-bold text-muted" style="font-size: 14px;">0%</div>
+                    <p class="mt-3 text-muted small">Sawa, tafadhali subiri kidogo wakati tunaandaa ripoti yako ya ada.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .animate-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
 <script>
 // Wait for jQuery and Bootstrap to be loaded
 (function() {
@@ -779,6 +1252,43 @@
         
         let feeRowCounter = 0;
         
+        // Condition Row Template
+        function createConditionRow(feeIndex) {
+            const condIndex = Date.now() + Math.floor(Math.random() * 1000);
+            return `
+                <div class="condition-row bg-white p-3 border rounded-0 mb-3" data-cond-id="${condIndex}">
+                    <div class="row g-2 align-items-end mb-2">
+                        <div class="col-md-5">
+                            <label class="form-label mb-1 fw-bold small text-primary-custom">Condition Name *</label>
+                            <input type="text" class="form-control form-control-sm fee-condition-name" name="fees[${feeIndex}][conditions][${condIndex}][name]" placeholder="e.g. Merit Award" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label mb-1 fw-bold small text-primary-custom">Amount *</label>
+                            <input type="number" class="form-control form-control-sm fee-discount-amount" name="fees[${feeIndex}][conditions][${condIndex}][amount]" placeholder="0.00" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label mb-1 fw-bold small text-primary-custom">Type</label>
+                            <select class="form-select form-select-sm fee-discount-type" name="fees[${feeIndex}][conditions][${condIndex}][type]">
+                                <option value="Fixed">Fixed (TZS)</option>
+                                <option value="Percentage">Percentage (%)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-condition-row" title="Delete Condition">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label mb-1 fw-bold small text-primary-custom">Description (Optional)</label>
+                            <textarea class="form-control form-control-sm" name="fees[${feeIndex}][conditions][${condIndex}][description]" rows="1" placeholder="Short description why this discount is given..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
         // Fee Row Template
         function createFeeRow() {
             feeRowCounter++;
@@ -787,7 +1297,7 @@
                     <div class="card-header bg-light d-flex justify-content-between align-items-center">
                         <strong><i class="bi bi-receipt"></i> Fee #${feeRowCounter}</strong>
                         <button type="button" class="btn btn-sm btn-danger remove-fee-row" ${feeRowCounter === 1 ? 'style="display:none;"' : ''}>
-                            <i class="bi bi-trash"></i> Remove
+                            <i class="bi bi-trash"></i> Remove Fee
                         </button>
                     </div>
                     <div class="card-body">
@@ -842,14 +1352,37 @@
                                             <div class="col-md-6">
                                                 <label class="form-label fw-bold small">Required Amount (TZS)</label>
                                                 <input type="number" class="form-control fee-deadline-amount" name="fees[${feeRowCounter}][deadline_amount]" placeholder="0.00" step="0.01" min="0">
-                                                <small class="text-muted">Amount required by deadline</small>
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label fw-bold small">Deadline Date</label>
                                                 <input type="date" class="form-control fee-deadline-date" name="fees[${feeRowCounter}][deadline_date]">
-                                                <small class="text-muted">Date to pay the amount</small>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Multi-Condition Section -->
+                            <div class="col-md-12">
+                                <hr>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input condition-toggle" type="checkbox" data-fee-index="${feeRowCounter}" id="condition_toggle_${feeRowCounter}">
+                                    <label class="form-check-label fw-bold" for="condition_toggle_${feeRowCounter}">
+                                        <i class="bi bi-tags-fill text-primary-custom"></i> Define Fee Conditions (Discounts)
+                                    </label>
+                                </div>
+                                <small class="text-muted text-primary-custom">Define one or more specific conditions for this fee</small>
+                            </div>
+                            
+                            <div class="col-12 condition-details" style="display: none;">
+                                <div class="card border-primary-custom bg-light-info">
+                                    <div class="card-body">
+                                        <div class="conditions-container" id="conditions_container_${feeRowCounter}">
+                                            <!-- Additional conditions will land here -->
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary-custom mt-2 add-condition-row-btn" data-fee-index="${feeRowCounter}">
+                                            <i class="bi bi-plus-circle-fill"></i> Add New Condition
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -912,6 +1445,48 @@
                 row.find('.fee-deadline-amount').val('');
                 row.find('.fee-deadline-date').val('');
             }
+        });
+
+        // Overlay Helpers
+        function showOverlay(text = "Loading...") {
+            $('#loadingOverlay .loading-text').text(text);
+            $('#loadingOverlay').addClass('show');
+        }
+        function hideOverlay() {
+            $('#loadingOverlay').removeClass('show');
+        }
+
+        // Toggle Condition Details
+        $(document).on('change', '.condition-toggle', function() {
+            const feeRow = $(this).closest('.fee-row');
+            const feeIndex = $(this).attr('data-fee-index');
+            const conditionDetails = feeRow.find('.condition-details');
+            const container = $(`#conditions_container_${feeIndex}`);
+            
+            if ($(this).is(':checked')) {
+                conditionDetails.slideDown();
+                if (container.children().length === 0) {
+                    container.append(createConditionRow(feeIndex));
+                }
+            } else {
+                conditionDetails.slideUp();
+                // Optional: Clear conditions if unchecked
+                // container.empty();
+            }
+        });
+
+        // Add Condition Row
+        $(document).on('click', '.add-condition-row-btn', function() {
+            const feeIndex = $(this).attr('data-fee-index');
+            const container = $(`#conditions_container_${feeIndex}`);
+            container.append(createConditionRow(feeIndex));
+        });
+
+        // Remove Condition Row
+        $(document).on('click', '.remove-condition-row', function() {
+            $(this).closest('.condition-row').fadeOut(300, function() {
+                $(this).remove();
+            });
         });
         
         // Calculate Total Fees
@@ -1269,7 +1844,7 @@
         submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...');
         
         // Show loading overlay
-        $('#loadingOverlay').addClass('show');
+        showOverlay("Saving fee...");
         
         // Disable all form inputs during submission
         modal.find('input, select, textarea').prop('disabled', true);
@@ -1286,6 +1861,7 @@
             },
             success: function(response) {
                 console.log('Server response received:', response);
+                hideOverlay();
                 
                 if (response && response.success) {
                     Swal.fire({
@@ -1337,7 +1913,7 @@
             complete: function() {
                 console.log('Request completed');
                 // Hide loading overlay
-                $('#loadingOverlay').removeClass('show');
+                hideOverlay();
                 // Re-enable form inputs
                 modal.find('input, select, textarea').prop('disabled', false);
                 submitBtn.prop('disabled', false).html(originalText);
@@ -1477,49 +2053,114 @@
         });
     });
 
+        // Condition row for edit modal
+        function createEditConditionRow(condition = null) {
+            const condId = condition ? condition.conditionID : (Date.now() + Math.floor(Math.random() * 1000));
+            return `
+                <div class="condition-row bg-white p-3 border rounded-0 mb-3" data-cond-id="${condId}">
+                    <input type="hidden" name="conditions[${condId}][id]" value="${condition ? condition.conditionID : ''}">
+                    <div class="row g-2 align-items-end mb-2">
+                        <div class="col-md-5">
+                            <label class="form-label mb-1 fw-bold small text-primary-custom">Condition Name *</label>
+                            <input type="text" class="form-control form-control-sm" name="conditions[${condId}][name]" value="${condition ? condition.condition_name : ''}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label mb-1 fw-bold small text-primary-custom">Amount *</label>
+                            <input type="number" class="form-control form-control-sm" name="conditions[${condId}][amount]" value="${condition ? condition.discount_amount : ''}" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label mb-1 fw-bold small text-primary-custom">Type</label>
+                            <select class="form-select form-select-sm" name="conditions[${condId}][type]">
+                                <option value="Fixed" ${condition && condition.discount_type === 'Fixed' ? 'selected' : ''}>Fixed</option>
+                                <option value="Percentage" ${condition && condition.discount_type === 'Percentage' ? 'selected' : ''}>Percentage</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-condition-row" title="Delete Condition">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label mb-1 fw-bold small text-primary-custom">Description (Optional)</label>
+                            <textarea class="form-control form-control-sm" name="conditions[${condId}][description]" rows="1" placeholder="Why this discount?">${condition ? (condition.description || '') : ''}</textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
     // Edit Fee Button Click
     $(document).on('click', '.edit-fee-btn', function() {
         const feeID = $(this).data('fee-id');
+        showOverlay("Loading details...");
         
-        $.ajax({
-            url: `/get_fee/${feeID}`,
-            method: 'GET',
-            success: function(response) {
-                if (response.success) {
-                    const fee = response.fee;
-                    $('#edit_fee_id').val(fee.feeID);
-                    $('#edit_fee_class_select').val(fee.classID);
-                    $('#edit_fee_name').val(fee.fee_name);
-                    $('#edit_must_start_pay').prop('checked', fee.must_start_pay == 1);
-                    $('#edit_fee_amount').val(fee.amount);
-                    $('#edit_deadline_amount').val(fee.payment_deadline_amount || '');
-                    $('#edit_deadline_date').val(fee.payment_deadline_date ? fee.payment_deadline_date.split('T')[0] : '');
-                    $('#edit_fee_duration_select').val(fee.duration);
-                    $('#edit_fee_description').val(fee.description || '');
-                    
-                    // Installment fields
-                    if (fee.allow_installments) {
-                        $('#edit_allow_installments').prop('checked', true);
-                        $('#edit_installment_options').show();
-                        $('#edit_default_installment_type').val(fee.default_installment_type || '');
-                        $('#edit_number_of_installments').val(fee.number_of_installments || '');
-                        $('#edit_allow_partial_payment').prop('checked', fee.allow_partial_payment !== false);
-                    } else {
-                        $('#edit_allow_installments').prop('checked', false);
-                        $('#edit_installment_options').hide();
-                    }
-                    
-                    $('#editFeeModal').modal('show');
+        $.get("{{ url('get_fee') }}/" + feeID, function(response) {
+            hideOverlay();
+            if (response.success) {
+                const fee = response.fee;
+                $('#edit_fee_id').val(fee.feeID);
+                $('#edit_fee_class_select').val(fee.classID);
+                $('#edit_fee_name').val(fee.fee_name);
+                $('#edit_must_start_pay').prop('checked', fee.must_start_pay == 1);
+                $('#edit_fee_amount').val(fee.amount);
+                $('#edit_deadline_amount').val(fee.payment_deadline_amount || '');
+                $('#edit_deadline_date').val(fee.payment_deadline_date);
+                $('#edit_fee_duration_select').val(fee.duration);
+                
+                // Populate Conditions
+                const editConditionsContainer = $('#edit_conditions_container');
+                editConditionsContainer.empty();
+                const activeConditions = fee.fee_conditions && fee.fee_conditions.filter(c => c.status === 'Active');
+                
+                if (activeConditions && activeConditions.length > 0) {
+                    $('#edit_has_conditions').prop('checked', true);
+                    $('#edit_conditions_details').show();
+                    activeConditions.forEach(cond => {
+                        editConditionsContainer.append(createEditConditionRow(cond));
+                    });
+                } else {
+                    $('#edit_has_conditions').prop('checked', false);
+                    $('#edit_conditions_details').hide();
                 }
-            },
-            error: function() {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error!',
-                    text: 'Failed to load fee details'
-                });
+                
+                // Handle installments checkbox
+                $('#edit_fee_description').val(fee.description || '');
+                
+                if (fee.allow_installments) {
+                    $('#edit_allow_installments').prop('checked', true);
+                    $('#edit_installment_options').show();
+                    $('#edit_default_installment_type').val(fee.default_installment_type);
+                    $('#edit_number_of_installments').val(fee.number_of_installments);
+                } else {
+                    $('#edit_allow_installments').prop('checked', false);
+                    $('#edit_installment_options').hide();
+                }
+                
+                $('#editFeeModal').modal('show');
             }
+        }).fail(function() {
+            hideOverlay();
+            Swal.fire('Error', 'Failed to load fee details', 'error');
         });
+    });
+
+    // Toggle condition in edit modal
+    $('#edit_has_conditions').on('change', function() {
+        const container = $('#edit_conditions_container');
+        if ($(this).is(':checked')) {
+            $('#edit_conditions_details').slideDown();
+            if (container.children().length === 0) {
+                container.append(createEditConditionRow());
+            }
+        } else {
+            $('#edit_conditions_details').slideUp();
+        }
+    });
+
+    $(document).on('click', '#add_edit_condition_btn', function() {
+        $('#edit_conditions_container').append(createEditConditionRow());
     });
 
     // Open Assign Fee Modal
@@ -1574,7 +2215,7 @@
         submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Updating...');
         
         // Show loading overlay
-        $('#loadingOverlay').addClass('show');
+        showOverlay("Saving changes...");
         
         // Disable all form inputs during submission
         modal.find('input, select, textarea').prop('disabled', true);
@@ -1641,7 +2282,7 @@
             complete: function() {
                 console.log('Update request completed');
                 // Hide loading overlay
-                $('#loadingOverlay').removeClass('show');
+                hideOverlay();
                 // Re-enable form inputs
                 modal.find('input, select, textarea').prop('disabled', false);
                 submitBtn.prop('disabled', false).html(originalText);
@@ -1834,162 +2475,74 @@
         });
 
         // Export PDF Function
+        // Export PDF Function (Standardized AJAX Server-Side Method)
         $(document).on('click', '#exportPdfBtn', function() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4'); // Portrait orientation
+            const classID = $('#classFilter').val() || '';
+            const className = classID ? $('#classFilter option:selected').text().trim() : 'All_Classes';
             
-            // Get school name and logo from blade variables
-            const schoolName = '{{ $schoolName }}';
-            const schoolLogo = '{{ $schoolLogo }}';
+            let url = '{{ route("admin.export_fees_structure_pdf") }}';
+            if (classID) {
+                url += '?classID=' + classID;
+            }
             
-            let yPos = 15;
-            
-            // Function to generate PDF table
-            function generatePDFTable(logoLoaded = false) {
-                // Add logo if available and loaded (center)
-                if (logoLoaded && schoolLogo && schoolLogo !== '') {
-                    yPos += 5; // Space before logo
-                }
-                
-                // Add school name (centered)
-                doc.setFontSize(16);
-                doc.setFont('helvetica', 'bold');
-                doc.text(schoolName, 105, yPos, { align: 'center' }); // Center for portrait
-                yPos += 10;
-                
-                // Add title
-                doc.setFontSize(14);
-                doc.setFont('helvetica', 'bold');
-                doc.text('FEES STRUCTURE FOR ALL CLASSES', 105, yPos, { align: 'center' });
-                yPos += 15;
-                
-                // Clone the table to manipulate it without affecting the view
-                const $tempTable = $('#feesStructureTable').clone();
-                $tempTable.attr('id', 'tempPdfTable');
-                
-                // Position off-screen but visible to DOM for autoTable to parse correctly
-                $tempTable.css({
-                    position: 'absolute',
-                    top: '-9999px',
-                    left: '-9999px',
-                    width: '1000px' // Ensure enough width
-                });
-                
-                // Append to body
-                $('body').append($tempTable);
-                
-                // Remove the "Action" column (last column)
-                // Remove header
-                $tempTable.find('thead tr th:last-child').remove();
-                
-                // Remove body/footer cells - handle colspans
-                $tempTable.find('tbody tr, tfoot tr').each(function() {
-                    const $lastCell = $(this).find('td:last-child');
-                    const colspan = parseInt($lastCell.attr('colspan')) || 1;
-                    
-                    if (colspan > 1) {
-                        $lastCell.attr('colspan', colspan - 1);
-                    } else {
-                        $lastCell.remove();
-                    }
-                });
-                
-                // Format Class Column (First column with rowspan)
-                $tempTable.find('tbody tr').each(function() {
-                     const $classCell = $(this).find('td[rowspan]');
-                     if ($classCell.length > 0) {
-                         // Extract text
-                         let fullText = $classCell.text().replace(/\s+/g, ' ').trim(); // Clean whitespace
-                         
-                         // Try to find the specific total element for better accuracy
-                         let totalAmount = $classCell.find('.text-primary-custom').text().trim();
-                         
-                         // Get class name (remove total amount from text if possible)
-                         // Simple split might be risky if "Total:" is not exact. 
-                         // Strategy: Get text of ALL child nodes that are NOT the total container.
-                         // But the text is mixed. 
-                         // Let's rely on finding 'Total:' substring.
-                         let className = fullText.split('Total:')[0].trim();
-                         
-                         // Update cell content
-                         $classCell.text(className + '\n(Total: ' + totalAmount + ')');
-                         $classCell.css('vertical-align', 'middle'); // Ensure vertical centering
-                     }
-                     
-                     // Optional: Clean up Fee Name column if needed
-                     // const $feeNameCell = $(this).find('td').eq($classCell.length > 0 ? 1 : 0);
-                });
+            // Show progress modal
+            $('#pdfProgressTitle').text('Generating Fees Structure');
+            $('#downloadProgressModal').modal('show');
+            $('#pdfProgressBar').css('width', '0%');
+            $('#pdfProgressPercent').text('0%');
 
-                // Generate PDF using the temporary table
-                doc.autoTable({
-                    html: '#tempPdfTable',
-                    startY: yPos,
-                    styles: { 
-                        fontSize: 9,
-                        cellPadding: 3,
-                        lineWidth: 0.1,
-                        valign: 'middle',
-                        halign: 'left'
-                    },
-                    headStyles: {
-                        fillColor: [148, 0, 0],
-                        textColor: 255,
-                        fontStyle: 'bold',
-                        fontSize: 10,
-                        halign: 'center'
-                    },
-                    columnStyles: {
-                        0: { cellWidth: 40, halign: 'center', fontStyle: 'bold' }, // Class 
-                        1: { cellWidth: 70 }, // Fee Name
-                        2: { cellWidth: 35, halign: 'right' }, // Amount
-                        3: { cellWidth: 45 }  // Deadline
-                    },
-                    alternateRowStyles: {
-                        fillColor: [250, 250, 250]
-                    },
-                    margin: { top: yPos, left: 10, right: 10 },
-                    didDrawPage: function (data) {
-                        // Reseting top margin. The content is already drawn. 
-                    }
-                });
-                
-                // Save PDF
-                doc.save('Fees_Structure_' + new Date().toISOString().split('T')[0] + '.pdf');
-                
-                // Cleanup temp table
-                $('#tempPdfTable').remove();
-            }
-            
-            // Load logo if available
-            if (schoolLogo && schoolLogo !== '') {
-                try {
-                    const img = new Image();
-                    img.crossOrigin = 'anonymous';
-                    img.src = schoolLogo;
+            let progress = 0;
+            const interval = setInterval(function() {
+                if (progress < 95) {
+                    let inc = 2 + Math.random() * 5;
+                    progress += inc;
+                    if (progress > 95) progress = 95;
                     
-                    img.onload = function() {
-                        try {
-                            doc.addImage(img, 'PNG', 85, yPos, 40, 20); // Centered for portrait (105 - 20 = 85)
-                            yPos += 25;
-                            generatePDFTable(true);
-                        } catch(e) {
-                            console.log('Logo add error:', e);
-                            yPos = 15;
-                            generatePDFTable(false);
-                        }
-                    };
-                    
-                    img.onerror = function() {
-                        yPos = 15;
-                        generatePDFTable(false);
-                    };
-                } catch(e) {
-                    yPos = 15;
-                    generatePDFTable(false);
+                    $('#pdfProgressBar').css('width', progress + '%');
+                    $('#pdfProgressPercent').text(Math.round(progress) + '%');
                 }
-            } else {
-                generatePDFTable(false);
-            }
+            }, 300);
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Server error: ' + response.statusText);
+                    return response.blob();
+                })
+                .then(blob => {
+                    clearInterval(interval);
+                    $('#pdfProgressBar').css('width', '100%');
+                    $('#pdfProgressPercent').text('100%');
+                    
+                    setTimeout(() => {
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = downloadUrl;
+                        
+                        const timestamp = new Date().toISOString().slice(0, 10);
+                        a.download = `Fees_Structure_${className}_${timestamp}.pdf`;
+                        
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(downloadUrl);
+                        document.body.removeChild(a);
+                        
+                        setTimeout(() => {
+                            $('#downloadProgressModal').modal('hide');
+                        }, 500);
+                    }, 400);
+                })
+                .catch(error => {
+                    clearInterval(interval);
+                    $('#downloadProgressModal').modal('hide');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Export Failed',
+                        text: 'Failed to generate PDF. ' + error.message,
+                        confirmButtonColor: '#940000'
+                    });
+                    console.error('PDF Export Error:', error);
+                });
         });
 
         // Export Excel Function
@@ -2109,17 +2662,729 @@
             // Save file
             XLSX.writeFile(wb, 'Fees_Structure_' + new Date().toISOString().split('T')[0] + '.xlsx');
         });
+
+        // ==================== FEE CONDITION MANAGEMENT ====================
+        
+        let allStudentsForClass = [];
+        let selectedStudentIDs = new Set();
+        let allConditionsData = []; // Store full condition objects including assigned students
+
+        // Open Condition Modal
+        $(document).on('click', '#openConditionModalBtn', function() {
+            $('#assignConditionModal').modal('show');
+        });
+
+        // On Class selection in Condition Modal
+        $('#condition_class_select').on('change', function() {
+            const classID = $(this).val();
+            if (!classID) {
+                $('#conditions_container, #students_selection_container').hide();
+                $('#no_class_placeholder').show();
+                return;
+            }
+
+            $('#no_class_placeholder').hide();
+            showOverlay("Loading...");
+
+            // Load Conditions and Students for this class
+            Promise.all([
+                $.get("{{ url('get_class_conditions') }}/" + classID),
+                $.get("{{ url('get_class_students') }}/" + classID)
+            ]).then(([conditionsRes, studentsRes]) => {
+                hideOverlay();
+                
+                // 1. Store and Render Conditions
+                allConditionsData = conditionsRes.conditions;
+                renderConditions(allConditionsData);
+                
+                // 2. Setup Students
+                allStudentsForClass = studentsRes.students;
+                selectedStudentIDs.clear();
+                $('#selectAllStudents').prop('checked', false);
+                renderStudents(allStudentsForClass);
+                
+                $('#conditions_container, #students_selection_container').fadeIn();
+                updateAssignmentUI();
+            }).catch(err => {
+                hideOverlay();
+                Swal.fire('Error', 'Failed to load data for this class', 'error');
+            });
+        });
+
+        function renderConditions(conditions) {
+            const container = $('#class_conditions_list');
+            container.empty();
+
+            if (!conditions || conditions.length === 0) {
+                container.append('<div class="alert alert-warning small">No conditional fees defined for this class yet. Define them in the "Assign Fee to Class" modal.</div>');
+                return;
+            }
+
+            conditions.forEach(cond => {
+                const discountText = cond.discount_type === 'Percentage' ? cond.discount_amount + '%' : 'TZS ' + parseFloat(cond.discount_amount).toLocaleString();
+                const assignedCount = cond.assigned_student_ids ? cond.assigned_student_ids.length : 0;
+                
+                container.append(`
+                    <div class="list-group-item list-group-item-action flex-column align-items-start border-info bg-light-info mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input condition-checkbox" type="checkbox" value="${cond.conditionID}" id="cond_${cond.conditionID}">
+                            <label class="form-check-label w-100" for="cond_${cond.conditionID}">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <h6 class="mb-1 fw-bold text-primary-custom small">${cond.condition_name}</h6>
+                                    <span class="badge badge-primary-custom small">${assignedCount} Assigned</span>
+                                </div>
+                                <p class="mb-1 small">
+                                    <strong>Fee:</strong> ${cond.fee.fee_name}<br>
+                                    <strong>Discount:</strong> <span class="badge bg-success">${discountText} OFF</span>
+                                </p>
+                            </label>
+                        </div>
+                    </div>
+                `);
+            });
+        }
+
+        function renderStudents(students) {
+            const body = $('#students_list_body');
+            body.empty();
+
+            if (!students || students.length === 0) {
+                body.append('<tr><td colspan="3" class="text-center py-3">No active students found in this class</td></tr>');
+                return;
+            }
+
+            students.forEach(student => {
+                const isSelected = selectedStudentIDs.has(parseInt(student.studentID));
+                body.append(`
+                    <tr>
+                        <td>
+                            <div class="form-check">
+                                <input class="form-check-input student-assignment-checkbox" type="checkbox" value="${student.studentID}" ${isSelected ? 'checked' : ''} data-name="${student.first_name} ${student.last_name}">
+                            </div>
+                        </td>
+                        <td class="small fw-bold">${student.first_name} ${student.middle_name || ''} ${student.last_name}</td>
+                        <td class="small text-muted">${student.admission_number || '-'}</td>
+                    </tr>
+                `);
+            });
+        }
+
+        // Handle Condition selection change
+        $(document).on('change', '.condition-checkbox', function() {
+            const checkedConditions = $('.condition-checkbox:checked').map(function() { return parseInt($(this).val()); }).get();
+            
+            // Clear current set and rebuild it based on all checked conditions
+            selectedStudentIDs.clear();
+            
+            checkedConditions.forEach(condID => {
+                const cond = allConditionsData.find(c => c.conditionID === condID);
+                if (cond && cond.assigned_student_ids) {
+                    cond.assigned_student_ids.forEach(sid => selectedStudentIDs.add(parseInt(sid)));
+                }
+            });
+            
+            // Re-render student list to show checked checkboxes
+            renderStudents(allStudentsForClass);
+            updateAssignmentUI();
+        });
+
+        // Student Search
+        $('#student_search_input').on('keyup', function() {
+            const term = $(this).val().toLowerCase();
+            const filtered = allStudentsForClass.filter(s => 
+                (s.first_name + ' ' + (s.middle_name || '') + ' ' + s.last_name).toLowerCase().includes(term) ||
+                (s.admission_number || '').toLowerCase().includes(term)
+            );
+            renderStudents(filtered);
+        });
+
+        // Select All Students
+        $('#selectAllStudents').on('change', function() {
+            const isChecked = $(this).is(':checked');
+            $('.student-assignment-checkbox:visible').each(function() {
+                const id = parseInt($(this).val());
+                if (isChecked) selectedStudentIDs.add(id);
+                else selectedStudentIDs.delete(id);
+                $(this).prop('checked', isChecked);
+            });
+            updateAssignmentUI();
+        });
+
+        // Individual Student Toggle
+        $(document).on('change', '.student-assignment-checkbox', function() {
+            const id = parseInt($(this).val());
+            if ($(this).is(':checked')) {
+                selectedStudentIDs.add(id);
+            } else {
+                selectedStudentIDs.delete(id);
+                $('#selectAllStudents').prop('checked', false);
+            }
+            updateAssignmentUI();
+        });
+
+        function updateAssignmentUI() {
+            const selectedCount = selectedStudentIDs.size;
+            const conditionsCount = $('.condition-checkbox:checked').length;
+            
+            $('#selected_students_count').text(`${selectedCount} students selected`);
+            
+            // Render names
+            const names = [];
+            selectedStudentIDs.forEach(id => {
+                const student = allStudentsForClass.find(s => s.studentID === id);
+                if (student) names.push(student.first_name + ' ' + student.last_name);
+            });
+            $('#selected_students_names').text(names.length > 0 ? names.join(', ') : 'None selected');
+
+            // Enable/Disable Save button
+            $('#saveConditionBtn').prop('disabled', selectedCount === 0 || conditionsCount === 0);
+        }
+
+        // Toggle condition in edit modal
+        $('#edit_has_condition').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#edit_condition_details').slideDown();
+                $('#edit_condition_name, #edit_discount_amount').prop('required', true);
+            } else {
+                $('#edit_condition_details').slideUp();
+                $('#edit_condition_name, #edit_discount_amount').prop('required', false);
+            }
+        });
+
+        // Handle Condition Form Submission
+        $('#assignConditionForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            const studentIDsArray = Array.from(selectedStudentIDs);
+            const conditionIDs = $('.condition-checkbox:checked').map(function() { return $(this).val(); }).get();
+            const classID = $('#condition_class_select').val();
+
+            $('#loadingOverlay').addClass('show');
+
+            $.ajax({
+                url: "{{ route('assign_students_to_conditions') }}",
+                type: 'POST',
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    classID: classID,
+                    studentIDs: studentIDsArray,
+                    conditionIDs: conditionIDs
+                },
+                success: function(response) {
+                    $('#loadingOverlay').removeClass('show');
+                    if (response.success) {
+                        $('#assignConditionModal').modal('hide');
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message,
+                            icon: 'success',
+                            confirmButtonColor: '#940000'
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', response.message, 'error');
+                    }
+                },
+                error: function(xhr) {
+                    $('#loadingOverlay').removeClass('show');
+                    Swal.fire('Error', 'Failed to save assignments: ' + (xhr.responseJSON?.message || 'Unknown error'), 'error');
+                }
+            });
+        });
+        // Agreement Modal Logic
+        let classStudentsForAgreement = [];
+        let classFeesForAgreement = [];
+
+        $(document).on('click', '#openAgreementModalBtn', function() {
+            $('#agreementModal').modal('show');
+        });
+
+        $('#agreement_class_select').on('change', function() {
+            const classID = $(this).val();
+            if (!classID) {
+                $('#agreement_placeholder').removeClass('d-none');
+                $('#agreement_results_container').addClass('d-none');
+                $('#agreement_search_block, #agreement_save_actions').addClass('d-none');
+                return;
+            }
+
+            $('#agreement_target_class_name').text($(this).find('option:selected').text());
+            showOverlay("Loading data...");
+
+            // Fetch students, fees and existing agreements in parallel
+            Promise.all([
+                $.get("{{ url('get_class_students') }}/" + classID),
+                $.get("{{ url('get_class_fees') }}/" + classID),
+                $.get("{{ url('get_existing_agreements') }}/" + classID)
+            ]).then(([studentsRes, feesRes, agreementsRes]) => {
+                hideOverlay();
+                classStudentsForAgreement = studentsRes.students || [];
+                classFeesForAgreement = feesRes.fees || [];
+                const existingAgreements = agreementsRes.agreements || [];
+                
+                $('#agreement_student_count').text(classStudentsForAgreement.length + ' Students');
+                $('#agreement_placeholder').addClass('d-none');
+                $('#agreement_results_container').removeClass('d-none');
+                $('#agreement_search_block, #agreement_save_actions').removeClass('d-none');
+                
+                renderAgreementStudents(classStudentsForAgreement, existingAgreements);
+            }).catch(err => {
+                hideOverlay();
+                Swal.fire('Error', 'Failed to load class data', 'error');
+            });
+        });
+
+        function renderAgreementStudents(students, existingAgreements = []) {
+            const container = $('#agreement_students_list');
+            container.empty();
+
+            if (students.length === 0) {
+                container.html('<div class="alert alert-info border-0 rounded-0">No students found matching your search.</div>');
+                return;
+            }
+
+            students.forEach(student => {
+                // Find all agreements for this student
+                const studentAgreements = existingAgreements.filter(a => String(a.studentID) === String(student.studentID));
+                const hasAgreements = studentAgreements.length > 0;
+                
+                const name = `${student.first_name} ${student.middle_name || ''} ${student.last_name}`;
+                const card = `
+                    <div class="student-agreement-card border bg-white mb-2 p-0 overflow-hidden shadow-sm" data-id="${student.studentID}">
+                        <div class="p-3 d-flex align-items-center justify-content-between cursor-pointer student-header" style="background: ${hasAgreements ? 'linear-gradient(135deg, #FFF0F0 0%, #FFFFFF 100%)' : 'linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%)'};">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input student-check" type="checkbox" data-id="${student.studentID}" ${hasAgreements ? 'checked' : ''}>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-dark">${name}</h6>
+                                    <small class="text-muted">Adm No: ${student.admission_number || 'N/A'}</small>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="badge ${hasAgreements ? 'bg-primary-custom text-white' : 'bg-white text-primary-custom border border-primary-custom'} small ${hasAgreements ? '' : 'd-none'}" id="agreement_count_${student.studentID}">${studentAgreements.length} Agreement${studentAgreements.length !== 1 ? 's' : ''}</span>
+                                <i class="bi bi-chevron-down text-muted transition-icon"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="student-details p-3 border-top" style="display: ${hasAgreements ? 'block' : 'none'}; background: #fafafa;">
+                            <p class="small fw-bold text-primary-custom mb-3 border-bottom pb-1">
+                                <i class="bi bi-list-check me-1"></i> Class Fees - Select to Override
+                            </p>
+                            <div class="row g-2">
+                                ${classFeesForAgreement.map(fee => {
+                                    const ag = studentAgreements.find(a => String(a.feeID) === String(fee.feeID));
+                                    const amount = ag ? parseFloat(ag.agreed_amount).toFixed(0) : '';
+                                    
+                                    return `
+                                        <div class="col-12 fee-agreement-line mb-1 border bg-white transition-all ${ag ? 'border-primary-custom shadow-sm' : ''}">
+                                            <div class="d-flex justify-content-between align-items-center p-2 cursor-pointer fee-toggle-header">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi ${ag ? 'bi-caret-down-fill text-dark' : 'bi-caret-right-fill text-primary-custom'} me-2 fee-caret"></i>
+                                                    <span class="small fw-bold text-dark">${fee.fee_name}</span>
+                                                </div>
+                                                <span class="badge bg-light text-dark border extra-small">Std: TZS ${parseFloat(fee.amount).toLocaleString()}</span>
+                                            </div>
+                                            
+                                            <div class="fee-input-section p-3 border-top bg-light" style="display: ${ag ? 'block' : 'none'};">
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text bg-white text-primary-custom border-primary-custom fw-bold">Agreed Amount (TZS)</span>
+                                                    <input type="number" class="form-control border-primary-custom agreed-amount-input" 
+                                                           data-student-id="${student.studentID}" 
+                                                           data-fee-id="${fee.feeID}" 
+                                                           placeholder="Enter negotiated amount..." 
+                                                           value="${amount}"
+                                                           min="0" step="1000">
+                                                </div>
+                                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                                    <small class="text-muted extra-small"><i class="bi bi-info-circle me-1"></i> Custom price for this student only.</small>
+                                                    <button type="button" class="btn btn-sm btn-link text-danger p-0 extra-small clear-agreement-btn">Clear</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.append(card);
+            });
+        }
+
+        // Toggle student cards
+        $(document).on('click', '.student-header', function(e) {
+            if ($(e.target).hasClass('form-check-input')) return;
+            
+            const card = $(this).closest('.student-agreement-card');
+            const details = card.find('.student-details');
+            const icon = $(this).find('.transition-icon');
+            const checkbox = card.find('.student-check');
+
+            details.slideToggle(200);
+            icon.toggleClass('bi-chevron-down bi-chevron-up');
+            
+            // Auto check if opening
+            if (details.css('display') === 'none') {
+                checkbox.prop('checked', true);
+            }
+        });
+
+        // Toggle Fee sections
+        $(document).on('click', '.fee-toggle-header', function() {
+            const section = $(this).closest('.fee-agreement-line').find('.fee-input-section');
+            const caret = $(this).find('.fee-caret');
+            
+            section.slideToggle(150);
+            caret.toggleClass('bi-caret-right-fill bi-caret-down-fill text-primary-custom text-dark');
+            $(this).closest('.fee-agreement-line').toggleClass('border-primary-custom shadow-sm');
+        });
+
+        $(document).on('click', '.clear-agreement-btn', function() {
+            $(this).closest('.fee-input-section').find('.agreed-amount-input').val('');
+            updateAgreementBadgeInternal($(this).closest('.student-agreement-card'));
+        });
+
+        $(document).on('input', '.agreed-amount-input', function() {
+            updateAgreementBadgeInternal($(this).closest('.student-agreement-card'));
+        });
+
+        function updateAgreementBadgeInternal(card) {
+            const studentID = card.data('id');
+            const count = card.find('.agreed-amount-input').filter(function() { return $(this).val() !== ''; }).length;
+            const badge = $(`#agreement_count_${studentID}`);
+            
+            if (count > 0) {
+                badge.removeClass('d-none').text(`${count} Agreement${count > 1 ? 's' : ''}`);
+            } else {
+                badge.addClass('d-none');
+            }
+        }
+
+        $(document).on('change', '.student-check', function() {
+            const details = $(this).closest('.student-agreement-card').find('.student-details');
+            if ($(this).is(':checked')) {
+                details.slideDown(200);
+            } else {
+                details.slideUp(200);
+            }
+        });
+
+        $('#agreement_student_search').on('input', function() {
+            const term = $(this).val().toLowerCase();
+            const filtered = classStudentsForAgreement.filter(s => 
+                (s.first_name + ' ' + (s.middle_name || '') + ' ' + s.last_name).toLowerCase().includes(term) ||
+                (s.admission_number || '').toLowerCase().includes(term)
+            );
+            renderAgreementStudents(filtered);
+        });
+
+        $('#save_agreements_btn').on('click', function() {
+            const agreements = [];
+            $('.agreed-amount-input').each(function() {
+                const val = $(this).val();
+                if (val !== '' && val !== null) {
+                    agreements.push({
+                        studentID: $(this).data('student-id'),
+                        feeID: $(this).data('fee-id'),
+                        amount: val
+                    });
+                }
+            });
+
+            if (agreements.length === 0) {
+                Swal.fire('Info', 'No agreed amounts entered to save.', 'info');
+                return;
+            }
+
+            const saveBtn = $(this);
+            const originalText = saveBtn.html();
+
+            saveBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...');
+            showOverlay("Saving...");
+
+            $.ajax({
+                url: "{{ route('store_fee_agreements') }}",
+                method: 'POST',
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    agreements: agreements,
+                    schoolID: "{{ session('schoolID') }}"
+                },
+                success: function(response) {
+                    hideOverlay();
+                    saveBtn.prop('disabled', false).html(originalText);
+                    if (response.success) {
+                        Swal.fire({
+                            title: 'Agreements Saved!',
+                            text: response.message || 'Balances updated.',
+                            icon: 'success',
+                            confirmButtonColor: '#940000'
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    hideOverlay();
+                    saveBtn.prop('disabled', false).html(originalText);
+                    Swal.fire('Error', 'Failed to save. ' + (xhr.responseJSON?.message || ''), 'error');
+                }
+            });
+        });
+
+        // ==================== SPONSOR ASSIGNMENT LOGIC ====================
+        let classStudentsForSponsor = [];
+
+        function loadSponsors(selectedId = null) {
+            $.get("{{ route('get_sponsors') }}", function(res) {
+                if (res.success) {
+                    let html = '<option value="">Choose a sponsor...</option>';
+                    res.sponsors.forEach(function(sp) {
+                        html += `<option value="${sp.sponsorID}" ${selectedId == sp.sponsorID ? 'selected' : ''}>${sp.sponsor_name} (${sp.status})</option>`;
+                    });
+                    $('#sponsor_select').html(html);
+                }
+            });
+        }
+
+        $('#openSponsorModalBtn').on('click', function(e) {
+            e.preventDefault();
+            loadSponsors();
+            // Reset modal
+            $('#sponsor_class_select').val('').prop('disabled', true);
+            $('#sponsor_students_container').hide();
+            $('#no_sponsor_class_placeholder').show();
+            // Show modal
+            $('#assignSponsorModal').modal('show');
+        });
+
+        $('#addNewSponsorBtn').on('click', function() {
+            // Option to add directly without leaving
+            $('#addSponsorInlineForm')[0].reset();
+            $('#addSponsorInlineModal').modal('show');
+        });
+
+        $('#addSponsorInlineForm').on('submit', function(e) {
+            e.preventDefault();
+            const btn = $('#submitInlineSponsorBtn');
+            const originalHtml = btn.html();
+            btn.prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Saving...');
+            
+            $.ajax({
+                url: '{{ route("sponsors.store") }}',
+                method: 'POST',
+                data: $(this).serialize(),
+                success: function(res) {
+                    btn.prop('disabled', false).html(originalHtml);
+                    if (res.success) {
+                        $('#addSponsorInlineModal').modal('hide');
+                        Swal.fire({
+                            icon: 'success', title: 'Sponsor Created',
+                            text: res.message, timer: 1500, showConfirmButton: false
+                        });
+                        // reload sponsors and select the new one
+                        loadSponsors(res.sponsor.sponsorID);
+                        $('#sponsor_class_select').prop('disabled', false);
+                    }
+                },
+                error: function(xhr) {
+                    btn.prop('disabled', false).html(originalHtml);
+                    Swal.fire('Error', xhr.responseJSON?.message || 'Failed to save sponsor', 'error');
+                }
+            });
+        });
+
+        $('#sponsor_select').on('change', function() {
+            if ($(this).val()) {
+                $('#sponsor_class_select').prop('disabled', false);
+                if ($('#sponsor_class_select').val()) {
+                    $('#sponsor_class_select').trigger('change');
+                }
+            } else {
+                $('#sponsor_class_select').val('').prop('disabled', true);
+                $('#sponsor_students_container').hide();
+                $('#no_sponsor_class_placeholder').show();
+            }
+        });
+
+        $('#sponsor_class_select').on('change', function() {
+            const classID = $(this).val();
+            const sponsorID = $('#sponsor_select').val();
+            
+            if (!classID || !sponsorID) {
+                $('#sponsor_students_container').hide();
+                $('#no_sponsor_class_placeholder').show();
+                return;
+            }
+
+            showOverlay("Loading students...");
+            $('#saveSponsorAssignmentBtn').prop('disabled', true);
+            
+            $.get("{{ url('get_class_students') }}/" + classID, function(res) {
+                hideOverlay();
+                if (res.success) {
+                    classStudentsForSponsor = res.students;
+                    renderSponsorStudents(classStudentsForSponsor, sponsorID);
+                    $('#no_sponsor_class_placeholder').hide();
+                    $('#sponsor_students_container').show();
+                    $('#saveSponsorAssignmentBtn').prop('disabled', false);
+                } else {
+                    Swal.fire('Error', 'Failed to load students', 'error');
+                }
+            }).fail(function() {
+                hideOverlay();
+                Swal.fire('Error', 'Failed to load students', 'error');
+            });
+        });
+
+        function renderSponsorStudents(students, sponsorID) {
+            const container = $('#sponsor_students_list');
+            container.empty();
+            let assignedCount = 0;
+
+            if (students.length === 0) {
+                container.html('<tr><td colspan="4" class="text-center text-muted py-3">No students found.</td></tr>');
+            } else {
+                students.forEach(function(student) {
+                    // Pre-check if assigned to THIS sponsor
+                    const isAssignedToThisSponsor = (String(student.sponsor_id) === String(sponsorID));
+                    const isAssignedToOtherSponsor = student.sponsor_id && !isAssignedToThisSponsor;
+                    
+                    if (isAssignedToThisSponsor) assignedCount++;
+                    
+                    const pct = isAssignedToThisSponsor ? student.sponsorship_percentage : 100;
+
+                    const row = `
+                        <tr class="${isAssignedToOtherSponsor ? 'table-light' : ''}">
+                            <td class="text-center align-middle">
+                                <div class="d-flex justify-content-center align-items-center m-0 p-0">
+                                    <input class="form-check-input m-0 shadow-none sponsor-student-check" 
+                                        type="checkbox" 
+                                        value="${student.studentID}" 
+                                        ${isAssignedToThisSponsor ? 'checked' : ''}
+                                        style="position: static; transform: scale(1.1);">
+                                </div>
+                            </td>
+                            <td>
+                                ${student.first_name} ${student.middle_name || ''} ${student.last_name}
+                                ${isAssignedToOtherSponsor ? '<br><small class="badge bg-warning-light text-dark extra-small">Sponsored by another</small>' : ''}
+                            </td>
+                            <td>${student.admission_number || 'N/A'}</td>
+                            <td>
+                                <div class="input-group input-group-sm flex-nowrap" style="min-width: 80px;">
+                                    <input type="number" 
+                                        class="form-control sponsor-student-pct" 
+                                        min="1" max="100" 
+                                        value="${pct}"
+                                        ${isAssignedToThisSponsor ? '' : 'disabled'}>
+                                    <span class="input-group-text px-1">%</span>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    container.append(row);
+                });
+            }
+
+            updateSponsorSelectionCount();
+        }
+
+        $(document).on('change', '.sponsor-student-check', function() {
+            const tr = $(this).closest('tr');
+            const pctInput = tr.find('.sponsor-student-pct');
+            // Toggle PCT input
+            if ($(this).is(':checked')) {
+                pctInput.prop('disabled', false);
+            } else {
+                pctInput.prop('disabled', true);
+            }
+            updateSponsorSelectionCount();
+            
+            // Uncheck SelectAll if all not selected
+            const total = $('.sponsor-student-check').length;
+            const checked = $('.sponsor-student-check:checked').length;
+            $('#selectAllSponsorStudents').prop('checked', total === checked && total > 0);
+        });
+
+        $('#selectAllSponsorStudents').on('change', function() {
+            const isChecked = $(this).is(':checked');
+            $('.sponsor-student-check').prop('checked', isChecked).trigger('change');
+        });
+
+        function updateSponsorSelectionCount() {
+            const count = $('.sponsor-student-check:checked').length;
+            $('#selected_sponsor_count').text(`${count} students assigned`);
+        }
+
+        $('#sponsor_student_search').on('input', function() {
+            const term = $(this).val().toLowerCase();
+            $('#sponsor_students_list tr').each(function() {
+                if ($(this).text().toLowerCase().indexOf(term) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        $('#assignSponsorForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            const sponsorID = $('#sponsor_select').val();
+            const classID = $('#sponsor_class_select').val();
+            const assignments = [];
+            
+            $('.sponsor-student-check:checked').each(function() {
+                const tr = $(this).closest('tr');
+                const studentID = $(this).val();
+                const pct = tr.find('.sponsor-student-pct').val() || 100;
+                
+                assignments.push({
+                    studentID: studentID,
+                    percentage: pct
+                });
+            });
+
+            const btn = $('#saveSponsorAssignmentBtn');
+            const origHtml = btn.html();
+            btn.prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Saving...');
+            showOverlay('Saving Assignments...');
+            
+            $.ajax({
+                url: "{{ route('assign_sponsor_students') }}",
+                method: "POST",
+                data: {
+                    sponsorID: sponsorID,
+                    classID: classID,
+                    assignments: assignments
+                },
+                success: function(res) {
+                    hideOverlay();
+                    btn.prop('disabled', false).html(origHtml);
+                    if (res.success) {
+                        $('#assignSponsorModal').modal('hide');
+                        Swal.fire('Success', res.message, 'success');
+                    } else {
+                        Swal.fire('Error', res.message || 'Error occurred', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    hideOverlay();
+                    btn.prop('disabled', false).html(origHtml);
+                    Swal.fire('Error', xhr.responseJSON?.message || 'An error occurred', 'error');
+                }
+            });
+        });
+
     }
 
-    // Initialize when DOM and jQuery are ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            // Wait a bit for jQuery to load from footer
-            setTimeout(initFeesManagement, 200);
-        });
+
+
+    // Init
+    if (typeof jQuery !== 'undefined') {
+        $(document).ready(initFeesManagement);
     } else {
-        // DOM is already ready, wait for jQuery
-        setTimeout(initFeesManagement, 200);
+        window.addEventListener('load', () => { if (typeof jQuery !== 'undefined') initFeesManagement(); });
     }
 })();
 </script>

@@ -813,6 +813,15 @@ Route::delete('delete_fee/{feeID}', [FeesController::class, 'delete_fee'])->name
 Route::post('toggle_fee_status/{feeID}', [FeesController::class, 'toggle_fee_status'])->name('toggle_fee_status');
 Route::get('get_fee/{feeID}', [FeesController::class, 'get_fee'])->name('get_fee');
 
+// Fee Conditions & Agreements Routes
+Route::get('get_class_conditions/{classID}', [FeesController::class, 'get_class_conditions'])->name('get_class_conditions');
+Route::get('get_class_students/{classID}', [FeesController::class, 'get_class_students'])->name('get_class_students');
+Route::get('get_class_fees/{classID}', [FeesController::class, 'get_class_fees'])->name('get_class_fees');
+Route::get('get_existing_agreements/{classID}', [FeesController::class, 'get_existing_agreements'])->name('get_existing_agreements');
+Route::post('assign_students_to_conditions', [FeesController::class, 'assign_students_to_conditions'])->name('assign_students_to_conditions');
+Route::post('store_fee_agreements', [FeesController::class, 'store_fee_agreements'])->name('store_fee_agreements');
+Route::post('assign_sponsor_students', [FeesController::class, 'assign_sponsor_students'])->name('assign_sponsor_students');
+
 //payments routes
 Route::get('view_payments', [FeesController::class, 'view_payments'])->name('view_payments');
 Route::get('get_payments_ajax', [FeesController::class, 'get_payments_ajax'])->name('get_payments_ajax');
@@ -821,7 +830,8 @@ Route::post('send_control_numbers_sms', [FeesController::class, 'send_control_nu
 Route::post('resend_control_number/{paymentID}', [FeesController::class, 'resend_control_number'])->name('resend_control_number');
 Route::post('update_payment_status/{paymentID}', [FeesController::class, 'update_payment_status'])->name('update_payment_status');
 Route::get('export_payment_invoice_pdf/{studentID}', [FeesController::class, 'exportPaymentInvoicePDF'])->name('export_payment_invoice_pdf');
-Route::post('export_filtered_payments_pdf', [FeesController::class, 'exportFilteredPaymentsPDF'])->name('export_filtered_payments_pdf');
+Route::get('admin/export_filtered_payments_pdf', [FeesController::class, 'exportFilteredPaymentsPDF'])->name('admin.export_filtered_payments_pdf');
+Route::get('admin/export-fees-structure-pdf', [FeesController::class, 'exportFeesStructurePdf'])->name('admin.export_fees_structure_pdf');
 
 // Payments Report routes (UI-only; data aggregated client-side from get_payments_ajax)
 Route::get('payments/report', function () {

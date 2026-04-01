@@ -1,230 +1,184 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Filtered Payments List</title>
+    <meta charset="utf-8">
+    <title>FILTERED PAYMENTS LIST - {{ $year }}</title>
     <style>
-        @page {
-            margin: 15mm;
-        }
-        body {
-            font-family: 'DejaVu Sans', sans-serif;
-            font-size: 10px;
-            color: #333;
-            line-height: 1.4;
-        }
-        .header {
-            margin-bottom: 20px;
-            border-bottom: 4px solid #940000;
-            padding-bottom: 15px;
-        }
-        .school-name {
-            font-size: 18px;
-            font-weight: bold;
-            color: #940000;
-            margin: 0 0 5px 0;
-            text-transform: uppercase;
-        }
-        .report-title {
-            text-align: center;
-            margin: 15px 0;
-            padding: 10px;
-            background: #940000;
-            color: white;
-            border-radius: 5px;
-            font-size: 14px;
-            font-weight: bold;
-        }
-        .filters {
-            margin: 10px 0;
-            padding: 8px;
-            background: #f8f9fa;
-            border-left: 3px solid #940000;
-            font-size: 9px;
-        }
-        .student-section {
-            margin: 20px 0;
-            page-break-inside: avoid;
-        }
-        .student-header {
-            background: #940000;
-            color: white;
-            padding: 8px;
-            font-weight: bold;
-            font-size: 11px;
-        }
-        .student-info {
-            background: #f8f9fa;
-            padding: 8px;
-            border: 1px solid #dee2e6;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
-            font-size: 8px;
-        }
-        table th {
-            background: #495057;
-            color: white;
-            padding: 6px 4px;
-            text-align: left;
-            font-weight: bold;
-            font-size: 8px;
-        }
-        table td {
-            padding: 5px 4px;
-            border: 1px solid #dee2e6;
-        }
-        table tr:nth-child(even) {
-            background: #f8f9fa;
-        }
-        .text-right {
-            text-align: right;
-        }
-        .text-center {
-            text-align: center;
-        }
-        .badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 7px;
-            font-weight: bold;
-        }
-        .badge-success {
-            background: #28a745;
-            color: white;
-        }
-        .badge-warning {
-            background: #ffc107;
-            color: #212529;
-        }
-        .badge-danger {
-            background: #dc3545;
-            color: white;
-        }
-        .badge-info {
-            background: #17a2b8;
-            color: white;
-        }
-        .badge-secondary {
-            background: #6c757d;
-            color: white;
+        @page { margin: 15mm; }
+        body { font-family: 'Helvetica', sans-serif; font-size: 11px; color: #333; line-height: 1.4; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #940000; padding-bottom: 10px; }
+        .school-name { font-size: 20px; font-weight: bold; color: #940000; text-transform: uppercase; margin-bottom: 5px; }
+        .report-title { font-size: 16px; font-weight: bold; margin-top: 10px; background: #940000; color: #fff; padding: 10px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .filters { margin-bottom: 20px; padding: 10px; background: #fdf2f2; border-left: 5px solid #940000; font-size: 10px; }
+
+        .student-section { margin-bottom: 25px; page-break-inside: avoid; border: 1px solid #eee; }
+        .student-header { background: #fdf2f2; border-bottom: 2px solid #940000; padding: 10px; font-weight: bold; font-size: 11px; color: #940000; display: table; width: 100%; box-sizing: border-box; }
+        .student-header > div { display: table-cell; vertical-align: middle; }
+        
+        table.data-table { width: 100%; border-collapse: collapse; }
+        table.data-table th { background-color: #f8f9fa; font-weight: bold; color: #940000; border-bottom: 1px solid #940000; padding: 8px; text-align: left; text-transform: uppercase; font-size: 8.5px; }
+        table.data-table td { border: 1px solid #eee; padding: 8px; font-size: 9px; }
+        
+        .amount-col { text-align: right; font-weight: bold; }
+        .total-row { background-color: #fdf2f2; font-weight: bold; }
+        
+        .badge { display: inline-block; padding: 2px 5px; font-size: 8px; text-transform: uppercase; border: 1px solid #eee; font-weight: bold; }
+        .badge-success { color: #28a745; border-color: #28a745; }
+        .badge-info { color: #17a2b8; border-color: #17a2b8; }
+        .badge-warning { color: #ffc107; border-color: #ffc107; }
+
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #eee; padding-top: 5px; }
+
+        /* ── SIGNATURE AND STAMP ─────────────────── */
+        .sig-table { width: 100%; margin-top: 40px; border-collapse: collapse; page-break-inside: avoid; }
+        .sig-table td { border: none; padding: 0; vertical-align: bottom; }
+        .stamp-cell { width: 50%; text-align: center; vertical-align: middle; }
+        .stamp-cell img { max-width: 100px; max-height: 100px; opacity: 0.85; }
+        .sign-cell { width: 45%; text-align: center; padding-bottom: 5px; }
+        .school-signature-img { height: 40px; margin-bottom: 5px; }
+        .school-signature-img img { max-width: 120px; max-height: 40px; }
+        .sig-line   { border-top: 1.5px solid #940000; width: 160px; margin: 0 auto; display: block; }
+        .sig-label  { font-size: 8.5px; color: #940000; font-weight: bold; padding-top: 5px; display: block; text-transform: uppercase; }
+
+        .watermark {
+            position: fixed; top: 45%; left: 5%; width: 100%; text-align: center;
+            opacity: 0.05; transform: rotate(-45deg); font-size: 100px; font-weight: bold;
+            color: #000; z-index: -1; text-transform: uppercase;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="school-name">{{ $school->school_name ?? 'School Name' }}</div>
-        <div style="font-size: 9px; color: #666;">
-            {{ $school->registration_number ?? '' }} | 
-            {{ $school->phone ?? '' }} | 
-            {{ $school->email ?? '' }}
-        </div>
-    </div>
+    <div class="watermark">SHULEXPERT</div>
+    
+    @php
+        if (!function_exists('getSmartBase64')) {
+            function getSmartBase64($path) {
+                if (!$path) return null;
+                $path = ltrim($path, '/');
+                $possibilities = [
+                    public_path($path),
+                    public_path('uploads/' . $path),
+                    base_path($path),
+                    base_path('public/' . $path),
+                ];
+                foreach ($possibilities as $fullPath) {
+                    if (@file_exists($fullPath) && is_file($fullPath)) {
+                        try {
+                            $data = base64_encode(file_get_contents($fullPath));
+                            $ext = pathinfo($fullPath, PATHINFO_EXTENSION);
+                            return 'data:image/' . ($ext ?: 'png') . ';base64,' . $data;
+                        } catch (\Exception $e) {}
+                    }
+                }
+                return null;
+            }
+        }
+        $schoolLogoBase64  = getSmartBase64($school->school_logo ?? '');
+        $schoolStampBase64 = getSmartBase64($school->school_stamp ?? '');
+        $schoolSignBase64  = getSmartBase64($school->school_signature ?? '');
+    @endphp
 
-    <div class="report-title">
-        FILTERED PAYMENTS REPORT - {{ $year }}
+    <div class="header">
+        @if($schoolLogoBase64)
+            <img src="{{ $schoolLogoBase64 }}" style="max-height: 70px; margin-bottom: 10px;">
+        @endif
+        <div class="school-name">{{ $school->school_name ?? 'School Name' }}</div>
+        <div style="font-size: 10px;">{{ $school->address ?? '' }}</div>
+        <div style="font-size: 10px;">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+        <div class="report-title">PAYMENTS STATUS REPORT - {{ $year }}</div>
     </div>
 
     @if(!empty($filters))
     <div class="filters">
-        <strong>Filters Applied:</strong>
-        @if($filters['class']) Class: {{ $filters['class'] }} | @endif
-        @if($filters['subclass']) Subclass: {{ $filters['subclass'] }} | @endif
-        @if($filters['status']) Status: {{ $filters['status'] }} | @endif
-        @if($filters['fee_type']) Fee Type: {{ $filters['fee_type'] }} | @endif
-        @if($filters['payment_status']) Payment Status: {{ $filters['payment_status'] }} @endif
+        <strong>Applied Filters:</strong> 
+        @if(data_get($filters, 'class')) Class: {{ data_get($filters, 'class') }} | @endif
+        @if(data_get($filters, 'subclass')) Subclass: {{ data_get($filters, 'subclass') }} | @endif
+        @if(data_get($filters, 'status')) Student Status: {{ data_get($filters, 'status') }} | @endif
+        @if(data_get($filters, 'payment_status')) Payment: {{ data_get($filters, 'payment_status') }} @endif
     </div>
     @endif
 
-    @foreach($students as $index => $studentData)
-    <div class="student-section">
-        <div class="student-header">
-            {{ $index + 1 }}. {{ $studentData['student']['first_name'] }} {{ $studentData['student']['middle_name'] }} {{ $studentData['student']['last_name'] }}
-            @if($studentData['student']['status'] === 'Graduated')
-                <span class="badge badge-secondary">Graduated</span>
-            @endif
-        </div>
-        
-        <div class="student-info">
-            <strong>Admission Number:</strong> {{ $studentData['student']['admission_number'] ?? 'N/A' }} | 
-            <strong>Class:</strong> {{ $studentData['student']['class'] }}
-        </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 35%;">Student Details</th>
+                <th style="width: 20%;">Payment Type</th>
+                <th style="width: 20%;">Bill Summary (TZS)</th>
+                <th style="width: 20%;">Balance & Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($students as $index => $studentData)
+            @php
+                $payment = $studentData['payment'];
+                
+                $required = number_format($studentData['totalRequired'] ?? 0, 0);
+                $paid = number_format($studentData['totalPaid'] ?? 0, 0);
+                $balance = number_format($studentData['totalBalance'] ?? 0, 0);
+                $status = $payment ? $payment->payment_status : 'Pending';
+                
+                $colorStatus = '#940000';
+                if($status == 'Paid') $colorStatus = '#28a745';
+                if($status == 'Incomplete Payment' || $status == 'Partial') $colorStatus = '#fd7e14';
+                
+                $sponsorPercent = data_get($studentData, 'student.sponsorship_percentage', 0);
+                $sponsorName = data_get($studentData, 'student.sponsor_name', 'Sponsor');
+                $middleName = data_get($studentData, 'student.middle_name') ? substr(data_get($studentData, 'student.middle_name'), 0, 1) . '.' : '';
+            @endphp
+            <tr>
+                <td style="text-align: center;">{{ $index + 1 }}</td>
+                <td>
+                    <strong>{{ data_get($studentData, 'student.first_name') }} {{ $middleName }} {{ data_get($studentData, 'student.last_name') }}</strong><br>
+                    <span style="color: #666; font-size: 9px;">{{ data_get($studentData, 'student.admission_number') }} | {{ data_get($studentData, 'student.class') }}</span><br>
+                    <span style="color: #666; font-size: 9px;">{{ $year }}</span>
+                </td>
+                <td>
+                    @if($sponsorPercent > 0)
+                        <span style="color: #17a2b8; font-weight: bold; font-size: 10px;">Sponsored</span><br>
+                        <span style="font-size: 8px; color: #555;">{{ $sponsorPercent }}% Cover</span><br>
+                        <span style="font-size: 8px; color: #333;">{{ $sponsorName }}</span>
+                    @else
+                        <span style="color: #6c757d; font-weight: bold; font-size: 10px;">Own Payment</span>
+                    @endif
+                </td>
+                <td>
+                    <span style="color: #444; font-size: 9px;">Required: {{ $required }}</span><br>
+                    <span style="color: #444; font-size: 9px;">Paid: {{ $paid }}</span>
+                </td>
+                <td>
+                    <strong style="font-size: 11px;">{{ $balance }}/=</strong><br>
+                    <span style="color: {{ $colorStatus }}; font-weight: bold; font-size: 9px;">{{ $status }}</span>
+                </td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
 
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 20%;">Fee Type</th>
-                    <th style="width: 15%;" class="text-right">Required Amount</th>
-                    <th style="width: 12%;" class="text-right">Debt</th>
-                    <th style="width: 15%;" class="text-right">Total Required</th>
-                    <th style="width: 15%;" class="text-right">Amount Paid</th>
-                    <th style="width: 15%;" class="text-right">Balance</th>
-                    <th style="width: 8%;" class="text-center">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>School Fee</strong></td>
-                    <td class="text-right">{{ number_format($studentData['tuitionBaseRequired'], 0) }}</td>
-                    <td class="text-right" style="color: #ffc107;">{{ number_format($studentData['tuitionDebt'], 0) }}</td>
-                    <td class="text-right"><strong>{{ number_format($studentData['tuitionRequired'], 0) }}</strong></td>
-                    <td class="text-right" style="color: #28a745;">{{ number_format($studentData['tuitionPaid'], 0) }}</td>
-                    <td class="text-right" style="color: #dc3545;">{{ number_format($studentData['tuitionBalance'], 0) }}</td>
-                    <td class="text-center">
-                        @if($studentData['tuitionBalance'] <= 0 && $studentData['tuitionPaid'] > 0)
-                            <span class="badge badge-success">Paid</span>
-                        @elseif($studentData['tuitionPaid'] > 0)
-                            <span class="badge badge-info">Incomplete</span>
-                        @else
-                            <span class="badge badge-warning">Pending</span>
-                        @endif
-                    </td>
-                </tr>
-                <tr>
-                    <td><strong>Other Contribution</strong></td>
-                    <td class="text-right">{{ number_format($studentData['otherBaseRequired'], 0) }}</td>
-                    <td class="text-right" style="color: #ffc107;">{{ number_format($studentData['otherDebt'], 0) }}</td>
-                    <td class="text-right"><strong>{{ number_format($studentData['otherRequired'], 0) }}</strong></td>
-                    <td class="text-right" style="color: #28a745;">{{ number_format($studentData['otherPaid'], 0) }}</td>
-                    <td class="text-right" style="color: #dc3545;">{{ number_format($studentData['otherBalance'], 0) }}</td>
-                    <td class="text-center">
-                        @if($studentData['otherBalance'] <= 0 && $studentData['otherPaid'] > 0)
-                            <span class="badge badge-success">Paid</span>
-                        @elseif($studentData['otherPaid'] > 0)
-                            <span class="badge badge-info">Incomplete</span>
-                        @else
-                            <span class="badge badge-warning">Pending</span>
-                        @endif
-                    </td>
-                </tr>
-                <tr style="background: #940000; color: white; font-weight: bold;">
-                    <td><strong>TOTAL</strong></td>
-                    <td class="text-right">{{ number_format($studentData['tuitionBaseRequired'] + $studentData['otherBaseRequired'], 0) }}</td>
-                    <td class="text-right">{{ number_format($studentData['tuitionDebt'] + $studentData['otherDebt'], 0) }}</td>
-                    <td class="text-right">{{ number_format($studentData['totalRequired'], 0) }}</td>
-                    <td class="text-right">{{ number_format($studentData['totalPaid'], 0) }}</td>
-                    <td class="text-right">{{ number_format($studentData['totalBalance'], 0) }}</td>
-                    <td class="text-center">
-                        @if($studentData['totalBalance'] <= 0 && $studentData['totalPaid'] > 0)
-                            <span class="badge badge-success">Paid</span>
-                        @elseif($studentData['totalPaid'] > 0)
-                            <span class="badge badge-info">Incomplete</span>
-                        @else
-                            <span class="badge badge-warning">Pending</span>
-                        @endif
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    @endforeach
+    <table class="sig-table">
+        <tr>
+            <td class="stamp-cell">
+                @if($schoolStampBase64)
+                    <img src="{{ $schoolStampBase64 }}">
+                    <div style="font-size: 8px; color: #777; margin-top: 5px;">SCHOOL OFFICIAL STAMP</div>
+                @endif
+            </td>
+            <td class="sign-cell">
+                <div class="school-signature-img">
+                    @if($schoolSignBase64)
+                        <img src="{{ $schoolSignBase64 }}">
+                    @endif
+                </div>
+                <span class="sig-line"></span>
+                <span class="sig-label">HEADMASTER'S SIGNATURE</span>
+            </td>
+        </tr>
+    </table>
 
-    <div style="margin-top: 30px; padding-top: 15px; border-top: 2px solid #dee2e6; text-align: center; font-size: 8px; color: #6c757d;">
-        Generated on: {{ date('d/m/Y H:i:s') }} | Powered by: EmCa Technologies LTD
+    <div class="footer">
+        Generated on {{ date('d/m/Y H:i:s') }} by ShuleXpert.<br>
+        Powered by EmCa Techonology &copy; {{ $year }}
     </div>
 </body>
 </html>
-
-
