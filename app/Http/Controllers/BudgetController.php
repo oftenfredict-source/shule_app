@@ -11,21 +11,37 @@ use Illuminate\Support\Facades\DB;
 
 class BudgetController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $schoolID = Session::get('schoolID');
-        $budgets = Budget::where('schoolID', $schoolID)->orderBy('fiscal_year', 'desc')->get();
+        $selectedYear = $request->get('year', date('Y'));
+        
+        $budgets = Budget::where('schoolID', $schoolID)
+            ->where('fiscal_year', $selectedYear)
+            ->orderBy('budget_category', 'asc')
+            ->get();
 
         // Calculate summary statistics
-        $currentYear = date('Y');
-        $totalAllocated = Budget::where('schoolID', $schoolID)->where('fiscal_year', $currentYear)->sum('allocated_amount');
-        $totalSpent = Budget::where('schoolID', $schoolID)->where('fiscal_year', $currentYear)->sum('spent_amount');
-        $totalRemaining = Budget::where('schoolID', $schoolID)->where('fiscal_year', $currentYear)->sum('remaining_amount');
+        $totalAllocated = Budget::where('schoolID', $schoolID)->where('fiscal_year', $selectedYear)->sum('allocated_amount');
+        $totalSpent = Budget::where('schoolID', $schoolID)->where('fiscal_year', $selectedYear)->sum('spent_amount');
+        $totalRemaining = Budget::where('schoolID', $schoolID)->where('fiscal_year', $selectedYear)->sum('remaining_amount');
+
+        // Dynamic years for filter
+        $availableYears = Budget::where('schoolID', $schoolID)
+            ->select('fiscal_year')
+            ->distinct()
+            ->orderBy('fiscal_year', 'desc')
+            ->pluck('fiscal_year')
+            ->toArray();
+        if (!in_array(date('Y'), $availableYears)) array_unshift($availableYears, date('Y'));
 
         // Get active budgets
-        $activeBudgets = Budget::where('schoolID', $schoolID)->where('status', 'Active')->count();
+        $activeBudgets = Budget::where('schoolID', $schoolID)
+            ->where('fiscal_year', $selectedYear)
+            ->where('status', 'Active')
+            ->count();
 
-        return view('accountant.budget.index', compact('budgets', 'totalAllocated', 'totalSpent', 'totalRemaining', 'activeBudgets'));
+        return view('accountant.budget.index', compact('budgets', 'totalAllocated', 'totalSpent', 'totalRemaining', 'activeBudgets', 'selectedYear', 'availableYears'));
     }
 
     public function create()

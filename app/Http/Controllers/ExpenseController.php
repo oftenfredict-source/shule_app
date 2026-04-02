@@ -10,19 +10,33 @@ use Illuminate\Support\Facades\Session;
 
 class ExpenseController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $schoolID = Session::get('schoolID');
-        $expenses = Expense::where('schoolID', $schoolID)->orderBy('date', 'desc')->get();
+        $selectedYear = $request->get('year', date('Y'));
+        
+        $expenses = Expense::where('schoolID', $schoolID)
+            ->whereYear('date', $selectedYear)
+            ->orderBy('date', 'desc')
+            ->get();
         
         // Calculate totals for dashboard cards
         $today = date('Y-m-d');
         $totalToday = Expense::where('schoolID', $schoolID)->whereDate('date', $today)->sum('amount');
         $totalWeek = Expense::where('schoolID', $schoolID)->whereBetween('date', [now()->startOfWeek(), now()->endOfWeek()])->sum('amount');
         $totalMonth = Expense::where('schoolID', $schoolID)->whereMonth('date', now()->month)->whereYear('date', now()->year)->sum('amount');
-        $totalYear = Expense::where('schoolID', $schoolID)->whereYear('date', now()->year)->sum('amount');
+        $totalYear = Expense::where('schoolID', $schoolID)->whereYear('date', $selectedYear)->sum('amount');
 
-        return view('accountant.expenses.index', compact('expenses', 'totalToday', 'totalWeek', 'totalMonth', 'totalYear'));
+        // Dynamic years for filter
+        $availableYears = Expense::where('schoolID', $schoolID)
+            ->selectRaw('YEAR(date) as year')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year')
+            ->toArray();
+        if (!in_array(date('Y'), $availableYears)) array_unshift($availableYears, date('Y'));
+
+        return view('accountant.expenses.index', compact('expenses', 'totalToday', 'totalWeek', 'totalMonth', 'totalYear', 'selectedYear', 'availableYears'));
     }
 
     public function create()

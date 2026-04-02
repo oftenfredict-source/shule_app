@@ -546,6 +546,12 @@ Route::prefix('accountant')->name('accountant.')->group(function () {
     Route::get('reports/chart-data', [AccountantReportController::class, 'getChartData'])->name('reports.chart_data');
     Route::get('reports/export/expenses', [AccountantReportController::class, 'exportExpenses'])->name('reports.export_expenses');
     Route::get('reports/export/income', [AccountantReportController::class, 'exportIncome'])->name('reports.export_income');
+    
+    // PDF Exports
+    Route::get('reports/export-pdf', [AccountantReportController::class, 'exportReportPdf'])->name('reports.export_pdf');
+    Route::get('reports/export-expenses-pdf', [AccountantReportController::class, 'exportExpensesPdf'])->name('reports.export_expenses_pdf');
+    Route::get('reports/export-income-pdf', [AccountantReportController::class, 'exportIncomePdf'])->name('reports.export_income_pdf');
+    Route::get('reports/export-budget-pdf', [AccountantReportController::class, 'exportBudgetPdf'])->name('reports.export_budget_pdf');
 });
 
 // Revenue and Expenses Routes

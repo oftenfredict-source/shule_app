@@ -602,6 +602,11 @@
                                      @endif
                                      @if($hasAccountantPermission)
                                          <li><a href="{{ route('accountant.expenses.index') }}" class="nav-link"><i class="fa fa-calculator"></i> Accountant Module</a></li>
+                                         <li><a href="{{ route('accountant.income.index') }}" class="nav-link"><i class="fa fa-usd"></i> School Income</a></li>
+                                         <li><a href="{{ route('accountant.budget.index') }}" class="nav-link"><i class="fa fa-pie-chart"></i> School Budget</a></li>
+                                         <li><a href="{{ route('accountant.expense_categories.index') }}" class="nav-link"><i class="fa fa-tags"></i> Expense Categories</a></li>
+                                         <li><a href="{{ route('accountant.income_categories.index') }}" class="nav-link"><i class="fa fa-list-alt"></i> Income Categories</a></li>
+                                         <li><a href="{{ route('accountant.reports.index') }}" class="nav-link"><i class="fa fa-line-chart"></i> Financial Reports</a></li>
                                      @endif
                                      @if($hasGoalPermission)
                                          <li><a href="{{ route('admin.goals.index') }}" class="nav-link"><i class="fa fa-bullseye"></i> Goal Management</a></li>
