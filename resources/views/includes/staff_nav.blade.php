@@ -727,6 +727,7 @@
 
                     <div class="user-menu dropdown-menu">
                         <a class="nav-link" href="{{ route('staff.profile') }}"><i class="fa fa-user"></i> My Profile</a>
+                        <a class="nav-link" href="{{ route('staff.profile') }}#change-password"><i class="fa fa-key"></i> Change Password</a>
                         <a class="nav-link" href="{{ route('logout') }}"><i class="fa fa-power-off"></i> Logout</a>
                     </div>
                 </div>

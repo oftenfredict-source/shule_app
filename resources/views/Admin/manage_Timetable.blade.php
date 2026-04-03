@@ -570,7 +570,7 @@
                                 <li>Available subjects</li>
                                 <li>Exam duration settings</li>
                                 <li>Break times</li>
-                                <li>Date range (weekends excluded)</li>
+                                <li>Date range (weekends can be included)</li>
                             </ul>
                         </div>
 
@@ -670,6 +670,24 @@
                                 </div>
                             </div>
 
+                            <!-- Weekend Inclusion -->
+                            <div class="form-group mb-3">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="include_weekends_exam" name="include_weekends">
+                                    <label class="custom-control-label font-weight-bold" for="include_weekends_exam">Include Weekends</label>
+                                </div>
+                                <div id="weekend_days_selection" class="mt-2 ml-4" style="display: none;">
+                                    <div class="custom-control custom-checkbox custom-control-inline">
+                                        <input type="checkbox" class="custom-control-input weekend-day-check" id="check_saturday" name="weekend_days[]" value="6">
+                                        <label class="custom-control-label" for="check_saturday">Saturday</label>
+                                    </div>
+                                    <div class="custom-control custom-checkbox custom-control-inline">
+                                        <input type="checkbox" class="custom-control-input weekend-day-check" id="check_sunday" name="weekend_days[]" value="0">
+                                        <label class="custom-control-label" for="check_sunday">Sunday</label>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Custom Timetable - Manual Entry -->
                             <div id="custom_timetable_section" style="display: none;">
                                 <div class="card mb-3">
@@ -749,7 +767,7 @@
                                             <ul class="mb-0">
                                                 <li>Select subjects from exam configuration</li>
                                                 <li>Distribute subjects across available days</li>
-                                                <li>Exclude weekends automatically</li>
+                                                <li>Exclude weekends (unless selected otherwise)</li>
                                                 <li>Apply break times between exams</li>
                                             </ul>
                                         </div>
@@ -5739,10 +5757,32 @@ $(function() {
         }
     });
 
+    // Weekend Inclusion Event Handlers
+    $('#include_weekends_exam').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#weekend_days_selection').slideDown();
+        } else {
+            $('#weekend_days_selection').slideUp();
+            $('.weekend-day-check').prop('checked', false);
+        }
+        if ($('#timetable_type').val() === 'school_wide') {
+            generateDaysTimetable();
+        }
+    });
+
+    $('.weekend-day-check').on('change', function() {
+        if ($('#timetable_type').val() === 'school_wide') {
+            generateDaysTimetable();
+        }
+    });
+
     // Generate days timetable based on date range
     function generateDaysTimetable() {
         const startDate = $('#exam_start_date').val();
         const endDate = $('#exam_end_date').val();
+        const includeWeekends = $('#include_weekends_exam').is(':checked');
+        const saturdayCheck = $('#check_saturday').is(':checked');
+        const sundayCheck = $('#check_sunday').is(':checked');
 
         if (!startDate || !endDate) {
             $('#days_info').show();
@@ -5761,7 +5801,6 @@ $(function() {
 
         $('#days_info').hide();
 
-        // Generate days from start to end (excluding weekends)
         const days = [];
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -5769,7 +5808,19 @@ $(function() {
 
         while (current <= end) {
             const dayOfWeek = current.getDay(); // 0 = Sunday, 6 = Saturday
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Skip weekends
+            let shouldInclude = true;
+
+            if (dayOfWeek === 0 || dayOfWeek === 6) { // It's a weekend
+                if (!includeWeekends) {
+                    shouldInclude = false;
+                } else {
+                    // Check specific weekends selected
+                    if (dayOfWeek === 6 && !saturdayCheck) shouldInclude = false;
+                    if (dayOfWeek === 0 && !sundayCheck) shouldInclude = false;
+                }
+            }
+
+            if (shouldInclude) {
                 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                 const dateStr = current.toISOString().split('T')[0];
                 const dayName = dayNames[dayOfWeek];
@@ -5783,7 +5834,7 @@ $(function() {
         }
 
         if (days.length === 0) {
-            $('#days_timetable').html('<div class="alert alert-warning">No weekdays found in the selected date range.</div>');
+            $('#days_timetable').html('<div class="alert alert-warning">No selected days found in the range.</div>');
             return;
         }
 
@@ -6557,7 +6608,10 @@ $(function() {
                     break_start_time: $('#break_start_time').val() || null,
                     break_duration: $('#break_duration').val() || 15,
                     supervisor_assignment_method: supervisorMethod,
-                    notes: $('#notes').val()
+                    notes: $('#notes').val(),
+                    include_weekends: $('#include_weekends_exam').is(':checked'),
+                    check_saturday: $('#check_saturday').is(':checked'),
+                    check_sunday: $('#check_sunday').is(':checked')
                 };
             } else {
                 // Custom/manual entry - collect days with subjects

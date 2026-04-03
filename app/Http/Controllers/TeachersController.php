@@ -1409,6 +1409,87 @@ class TeachersController extends Controller
         ]);
     }
 
+    public function downloadMyProfilePdf()
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+        $userType = Session::get('user_type');
+
+        if ($userType !== 'Teacher' || !$teacherID || !$schoolID) {
+            return redirect()->route('login')->with('error', 'Unauthorized access');
+        }
+
+        $teacher = \App\Models\Teacher::where('id', $teacherID)->where('schoolID', $schoolID)->first();
+        if (!$teacher) {
+            return redirect()->back()->with('error', 'Teacher not found');
+        }
+
+        $school = \App\Models\School::find($schoolID);
+        $logoPath = $school && $school->logo ? public_path('schoolLogos/' . $school->logo) : null;
+        $teacherImgPath = $teacher->image ? public_path('userImages/' . $teacher->image) : null;
+
+        $data = [
+            'teacher' => $teacher,
+            'school' => $school,
+            'logoPath' => $logoPath,
+            'teacherImgPath' => $teacherImgPath,
+        ];
+
+        $pdf = PDF::loadView('Admin.pdf.teacher_profile_pdf', $data);
+        return $pdf->download('Teacher_Profile_' . $teacher->first_name . '.pdf');
+    }
+
+    public function updateMyImage(Request $request)
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'teacher_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        $teacher = \App\Models\Teacher::find($teacherID);
+        if (!$teacher) {
+            return response()->json(['success' => false, 'message' => 'Teacher not found'], 404);
+        }
+
+        if ($request->hasFile('teacher_image')) {
+            $image = $request->file('teacher_image');
+            $imageName = 'teacher_' . time() . '.' . $image->getClientOriginalExtension();
+            
+            $publicPath = public_path('userImages');
+            if (!file_exists($publicPath)) {
+                mkdir($publicPath, 0777, true);
+            }
+            
+            $image->move($publicPath, $imageName);
+
+            // Delete old image if exists
+            if ($teacher->image && file_exists($publicPath . '/' . $teacher->image)) {
+                @unlink($publicPath . '/' . $teacher->image);
+            }
+
+            $teacher->image = $imageName;
+            $teacher->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile image updated successfully',
+                'image_url' => asset('userImages/' . $imageName)
+            ]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'No image file provided'], 400);
+    }
+
     public function changePassword(Request $request)
     {
         $teacherID = Session::get('teacherID');

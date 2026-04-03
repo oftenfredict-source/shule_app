@@ -198,6 +198,59 @@
         overflow-wrap: anywhere;
         vertical-align: top;
     }
+
+    /* Teacher Profile Modal Styles */
+    .teacher-profile-container {
+        font-family: "Century Gothic", Arial, sans-serif;
+    }
+    .profile-photo-wrapper {
+        position: absolute;
+        bottom: -50px;
+        left: 30px;
+        z-index: 2;
+    }
+    .profile-photo-container {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 4px solid #fff;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .profile-photo-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .photo-edit-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+        cursor: pointer;
+        color: white;
+        font-size: 1.5rem;
+    }
+    .profile-photo-container:hover .photo-edit-overlay {
+        opacity: 1;
+    }
+    .profile-photo-container:hover .photo-edit-overlay i {
+        transform: scale(1.1);
+        transition: transform 0.3s;
+    }
+    .bg-light-subtle {
+        background-color: #fcfcfc !important;
+        border: 1px solid #f0f0f0 !important;
+    }
     .teachers-table th {
         font-weight: 600;
         background: #f8f9fa;
@@ -400,147 +453,112 @@
                                             ? asset('images/female.png')
                                             : asset('images/male.png'));
                                 @endphp
-                                    <div class="p-3">
-                                    <!-- Teacher Details Card (like manage_school) -->
-                                        <div class="school-details-card">
-                                            <div class="school-header">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="school-logo-preview me-3">
-                                                        <img src="{{ $teacherImgPath }}" alt="{{ $teacher->first_name }} {{ $teacher->last_name }}">
-                                                    </div>
-                                                    <div>
-                                                        <h3 class="school-title">{{ $teacher->first_name }} {{ $teacher->middle_name }} {{ $teacher->last_name }}</h3>
-                                                        <small class="text-muted">Employee: {{ $teacher->employee_number }}</small>
+                                <div class="teacher-profile-container">
+                                    {{-- Banner Area --}}
+                                    <div class="profile-banner position-relative" style="height: 120px; background: linear-gradient(135deg, #940000 0%, #4a0000 100%); margin-bottom: 60px;">
+                                        <div class="profile-photo-wrapper">
+                                            <div class="profile-photo-container">
+                                                <img src="{{ $teacherImgPath }}" class="profile-image-show" id="profileImageShow-{{ $teacher->id }}" alt="Teacher Photo">
+                                                <div class="photo-edit-overlay" onclick="document.getElementById('profileImageInput-{{ $teacher->id }}').click()">
+                                                    <i class="bi bi-camera-fill"></i>
+                                                </div>
+                                            </div>
+                                            <input type="file" id="profileImageInput-{{ $teacher->id }}" class="d-none profile-image-input" data-teacher-id="{{ $teacher->id }}" accept="image/*">
+                                        </div>
+                                    </div>
+
+                                    <div class="px-3">
+                                        <div class="d-flex justify-content-between align-items-start mb-4">
+                                            <div>
+                                                <h3 class="fw-bold mb-1">{{ strtoupper($teacher->first_name . ' ' . $teacher->middle_name . ' ' . $teacher->last_name) }}</h3>
+                                                <p class="text-muted mb-0"><i class="bi bi-briefcase"></i> {{ $teacher->position ?? 'Teacher' }} • <i class="bi bi-person-badge"></i> {{ $teacher->employee_number }}</p>
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <a href="{{ route('admin.teacher.profile.download_pdf', $teacher->id) }}" class="btn btn-outline-danger btn-sm">
+                                                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                                                </a>
+                                                <button type="button" class="btn btn-primary-custom btn-sm inner-edit-teacher-btn" data-teacher-id="{{ $teacher->id }}">
+                                                    <i class="bi bi-pencil-square"></i> Edit Profile
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-4">
+                                            {{-- Personal Info --}}
+                                            <div class="col-md-6">
+                                                <div class="card h-100 border-0 shadow-sm bg-light-subtle">
+                                                    <div class="card-body">
+                                                        <h6 class="text-primary-custom fw-bold mb-3 border-bottom pb-2">Personal Information</h6>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Gender</label>
+                                                            <span class="fw-medium">{{ $teacher->gender }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Date of Birth</label>
+                                                            <span class="fw-medium">{{ $teacher->date_of_birth ? date('d M Y', strtotime($teacher->date_of_birth)) : 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">National ID</label>
+                                                            <span class="fw-medium">{{ $teacher->national_id }}</span>
+                                                        </div>
+                                                        <div class="mb-0">
+                                                            <label class="text-muted small d-block">Address</label>
+                                                            <span class="fw-medium">{{ $teacher->address ?? 'N/A' }}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <span class="badge {{ strtolower($teacher->status) == 'active' ? 'bg-success' : 'bg-secondary' }}">
-                                                    {{ $teacher->status }}
-                                                </span>
                                             </div>
 
-                                            <!-- Teacher Info Grid (like manage_school) -->
-                                            <div class="school-info-grid">
-                                                <div class="info-item">
-                                                    <i class="bi bi-gender-ambiguous"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Gender</div>
-                                                        <div class="info-item-value">{{ $teacher->gender }}</div>
+                                            {{-- Professional Details --}}
+                                            <div class="col-md-6">
+                                                <div class="card h-100 border-0 shadow-sm bg-light-subtle">
+                                                    <div class="card-body">
+                                                        <h6 class="text-primary-custom fw-bold mb-3 border-bottom pb-2">Professional Details</h6>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Fingerprint ID</label>
+                                                            <span class="badge bg-success">{{ $teacher->fingerprint_id ?? 'Not Assigned' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Qualification</label>
+                                                            <span class="fw-medium">{{ $teacher->qualification ?? 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Specialization</label>
+                                                            <span class="fw-medium">{{ $teacher->specialization ?? 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-0">
+                                                            <label class="text-muted small d-block">Date Hired</label>
+                                                            <span class="fw-medium">{{ $teacher->date_hired ? date('d M Y', strtotime($teacher->date_hired)) : 'N/A' }}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                            </div>
 
-                                                @if($teacher->position)
-                                                <div class="info-item">
-                                                    <i class="bi bi-briefcase"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Position</div>
-                                                        <div class="info-item-value">{{ $teacher->position }}</div>
+                                            {{-- Contact & Financial --}}
+                                            <div class="col-12">
+                                                <div class="card border-0 shadow-sm bg-light-subtle">
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-md-4 border-end">
+                                                                <label class="text-muted small d-block">Email Address</label>
+                                                                <span class="fw-medium"><i class="bi bi-envelope"></i> {{ $teacher->email }}</span>
+                                                            </div>
+                                                            <div class="col-md-4 border-end">
+                                                                <label class="text-muted small d-block">Phone Number</label>
+                                                                <span class="fw-medium"><i class="bi bi-telephone"></i> {{ $teacher->phone_number }}</span>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label class="text-muted small d-block">Bank Account</label>
+                                                                <span class="fw-medium"><i class="bi bi-bank"></i> {{ $teacher->bank_account_number ?? 'N/A' }}</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                @endif
-
-                                                <div class="info-item">
-                                                    <i class="bi bi-card-text"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">National ID</div>
-                                                        <div class="info-item-value">{{ $teacher->national_id }}</div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="info-item">
-                                                    <i class="bi bi-person-badge"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Employee Number</div>
-                                                        <div class="info-item-value">{{ $teacher->employee_number }}</div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="info-item">
-                                                    <i class="bi bi-envelope"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Email</div>
-                                                        <div class="info-item-value">{{ $teacher->email }}</div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="info-item">
-                                                    <i class="bi bi-telephone"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Phone Number</div>
-                                                        <div class="info-item-value">{{ $teacher->phone_number }}</div>
-                                                    </div>
-                                                </div>
-
-                                                                    <div class="info-item">
-                                                                        <i class="bi bi-fingerprint"></i>
-                                                                        <div class="info-item-content">
-                                                                            <div class="info-item-label">Fingerprint ID</div>
-                                                                            <div class="info-item-value">{{ $teacher->fingerprint_id ?? 'Not assigned' }}</div>
-                                                                        </div>
-                                                                    </div>
-
-                                                @if($teacher->qualification)
-                                                <div class="info-item">
-                                                    <i class="bi bi-mortarboard"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Qualification</div>
-                                                        <div class="info-item-value">{{ $teacher->qualification }}</div>
-                                                    </div>
-                                                </div>
-                                                @endif
-
-                                                @if($teacher->specialization)
-                                                <div class="info-item">
-                                                    <i class="bi bi-book"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Specialization</div>
-                                                        <div class="info-item-value">{{ $teacher->specialization }}</div>
-                                                    </div>
-                                                </div>
-                                                @endif
-
-                                                @if($teacher->experience)
-                                                <div class="info-item">
-                                                    <i class="bi bi-clock-history"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Experience</div>
-                                                        <div class="info-item-value">{{ $teacher->experience }}</div>
-                                                    </div>
-                                                </div>
-                                                @endif
-
-                                                @if($teacher->date_of_birth)
-                                                <div class="info-item">
-                                                    <i class="bi bi-calendar-event"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Date of Birth</div>
-                                                        <div class="info-item-value">{{ date('d M Y', strtotime($teacher->date_of_birth)) }}</div>
-                                                    </div>
-                                                </div>
-                                                @endif
-
-                                                @if($teacher->date_hired)
-                                                <div class="info-item">
-                                                    <i class="bi bi-calendar-check"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Date Hired</div>
-                                                        <div class="info-item-value">{{ date('d M Y', strtotime($teacher->date_hired)) }}</div>
-                                                    </div>
-                                                </div>
-                                                @endif
-
-                                                @if($teacher->address)
-                                                <div class="info-item">
-                                                    <i class="bi bi-geo-alt"></i>
-                                                    <div class="info-item-content">
-                                                        <div class="info-item-label">Address</div>
-                                                        <div class="info-item-value">{{ $teacher->address }}</div>
-                                                    </div>
-                                                </div>
-                                                @endif
-                                        </div>
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
                             </tr>
                         @endforeach
                         @endif
@@ -7106,6 +7124,69 @@
                 drawTeacherHeaderAndTable(null);
             }
         }
+        // Handle Inner Edit Teacher Button Click
+        $(document).on('click', '.inner-edit-teacher-btn', function(e) {
+            e.preventDefault();
+            var teacherId = $(this).data('teacher-id');
+            // Find and click the original edit button for this teacher to reuse logic
+            $('.edit-teacher-btn[data-teacher-id="' + teacherId + '"]').first().click();
+        });
+
+        // Handle Profile Image Upload via AJAX (Facebook style)
+        $(document).on('change', '.profile-image-input', function() {
+            var file = this.files[0];
+            if (!file) return;
+
+            var teacherId = $(this).data('teacher-id');
+            var formData = new FormData();
+            formData.append('image', file);
+            formData.append('teacher_id', teacherId);
+            formData.append('_token', '{{ csrf_token() }}');
+
+            // Show loading
+            Swal.fire({
+                title: 'Updating photo...',
+                html: 'Please wait while we upload the new profile picture.',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            $.ajax({
+                url: "{{ route('admin.teacher.profile.update_image') }}",
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Profile image updated successfully!',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    // Update the image preview in modal
+                    $('#profileImageShow-' + teacherId).attr('src', response.image_url);
+                    
+                    // Also update in the main table if possible
+                    $('table#teachersTable tbody tr').each(function() {
+                        var $row = $(this);
+                        if ($row.find('.view-teacher-btn').data('teacher-id') == teacherId) {
+                            $row.find('img').attr('src', response.image_url);
+                        }
+                    });
+                },
+                error: function(xhr) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Upload Failed',
+                        text: xhr.responseJSON ? xhr.responseJSON.error : 'An error occurred during upload.'
+                    });
+                }
+            });
+        });
+
     });
 })(jQuery);
 </script>

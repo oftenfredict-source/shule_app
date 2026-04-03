@@ -1580,11 +1580,28 @@ class TimeTableController extends Controller
             throw new \Exception('No subjects found. Please add subjects to your school first.');
         }
 
-        // Calculate available weekdays in date range
+        $includeWeekends = $request->input('include_weekends');
+        $checkSaturday = $request->input('check_saturday');
+        $checkSunday = $request->input('check_sunday');
+
+        // Calculate available days in date range (respecting weekend settings)
         $availableDays = 0;
         $tempDate = $startDate->copy();
         while ($tempDate->lte($endDate)) {
-            if (!$tempDate->isWeekend()) {
+            $isWeekend = $tempDate->isWeekend();
+            $shouldInclude = true;
+
+            if ($isWeekend) {
+                if (!$includeWeekends) {
+                    $shouldInclude = false;
+                } else {
+                    $dayOfWeek = $tempDate->dayOfWeek; // 0=Sun, 6=Sat
+                    if ($dayOfWeek == 6 && !$checkSaturday) $shouldInclude = false;
+                    if ($dayOfWeek == 0 && !$checkSunday) $shouldInclude = false;
+                }
+            }
+
+            if ($shouldInclude) {
                 $availableDays++;
             }
             $tempDate->addDay();
@@ -1628,8 +1645,21 @@ class TimeTableController extends Controller
         $subjectIndex = 0;
 
         while ($currentDate->lte($endDate) && $subjectIndex < $subjectCount) {
-            // Skip weekends
-            if ($currentDate->isWeekend()) {
+            // Check if current day should be included
+            $isWeekend = $currentDate->isWeekend();
+            $shouldInclude = true;
+
+            if ($isWeekend) {
+                if (!$includeWeekends) {
+                    $shouldInclude = false;
+                } else {
+                    $dayOfWeek = $currentDate->dayOfWeek; // 0=Sun, 6=Sat
+                    if ($dayOfWeek == 6 && !$checkSaturday) $shouldInclude = false;
+                    if ($dayOfWeek == 0 && !$checkSunday) $shouldInclude = false;
+                }
+            }
+
+            if (!$shouldInclude) {
                 $currentDate->addDay();
                 continue;
             }

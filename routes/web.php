@@ -164,7 +164,7 @@ Route::match(['get', 'post'], 'logout', [Auth::class, 'logout'])->name('logout')
 
 // Admin: Change Password
 Route::get('admin/change-password', [AdminController::class, 'changePasswordForm'])->name('admin.change_password');
-Route::post('admin/change-password', [AdminController::class, 'changePassword'])->name('admin.change_password.update');
+Route::post('admin/change-password', [AdminController::class, 'changePassword'])->name('admin.change_password.store');
 
 // Admin Routes
 Route::get('AdminDashboard', [AdminController::class, 'AdminDashboard'])->name('AdminDashboard');
@@ -226,6 +226,8 @@ Route::post('save_teachers', [ManageTeachersController::class, 'save_teachers'])
 Route::get('get_teacher/{id}', [ManageTeachersController::class, 'get_teacher'])->name('get_teacher');
 Route::post('update_teacher', [ManageTeachersController::class, 'update_teacher'])->name('update_teacher');
 Route::post('send_teacher_to_fingerprint', [ManageTeachersController::class, 'sendTeacherToFingerprint'])->name('send_teacher_to_fingerprint');
+Route::get('admin/teacher/profile/download-pdf/{id}', [ManageTeachersController::class, 'downloadTeacherProfilePdf'])->name('admin.teacher.profile.download_pdf');
+Route::post('admin/teacher/profile/update-image', [ManageTeachersController::class, 'updateTeacherImage'])->name('admin.teacher.profile.update_image');
 Route::post('send_student_to_fingerprint', [ManageClassessController::class, 'sendStudentToFingerprint'])->name('send_student_to_fingerprint');
 
 // Export teacher attendance (web routes to access session)
@@ -328,6 +330,8 @@ Route::get('teacher/get-terms-for-year', [TeachersController::class, 'getTermsFo
 Route::get('teacher/get-exams-for-year-term', [TeachersController::class, 'getExamsForYearTerm'])->name('teacher.get_exams_for_year_term');
 Route::get('teacher/get-exam-attendance-data', [TeachersController::class, 'getExamAttendanceData'])->name('teacher.get_exam_attendance_data');
 Route::get('teacher/profile', [TeachersController::class, 'profile'])->name('teacher.profile');
+Route::get('teacher/profile/download-pdf', [TeachersController::class, 'downloadMyProfilePdf'])->name('teacher.profile.download_pdf');
+Route::post('teacher/profile/update-image', [TeachersController::class, 'updateMyImage'])->name('teacher.profile.update_image');
 Route::post('teacher/change-password', [TeachersController::class, 'changePassword'])->name('teacher.change_password');
 Route::get('get_subject_students/{classSubjectID}', [TeachersController::class, 'getSubjectStudents'])->name('get_subject_students');
 Route::get('get_subject_results/{classSubjectID}', [TeachersController::class, 'getSubjectResults'])->name('get_subject_results');

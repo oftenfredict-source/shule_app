@@ -1038,7 +1038,14 @@
                         </a>
 
                         <div class="user-menu dropdown-menu">
-                            <a class="nav-link" href="{{ route('admin.change_password') }}"><i class="fa fa-lock"></i></i>Change Password</a>
+                            @php
+                                $navTeacherID = Session::get('teacherID');
+                                $navTeacher = $navTeacherID ? \App\Models\Teacher::find($navTeacherID) : null;
+                            @endphp
+                            @if($navTeacher)
+                                <a class="nav-link view-teacher-btn" href="#" data-teacher-id="{{ $navTeacher->id }}"><i class="fa fa-user"></i> View Profile</a>
+                            @endif
+                            <a class="nav-link" href="{{ route('admin.change_password') }}"><i class="fa fa-lock"></i> Change Password</a>
 
                             <!-- <a class="nav-link" href="#"><i class="fa fa-user"></i> Notifications <span class="count">13</span></a>
 

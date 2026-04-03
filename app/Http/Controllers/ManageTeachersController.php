@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
-// use Spatie\Permission\Models\Permission; // Will be enabled after package installation
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ManageTeachersController extends Controller
 {
@@ -1760,5 +1760,78 @@ class ManageTeachersController extends Controller
                 'message' => 'Exception: ' . $e->getMessage()
             ];
         }
+    }
+
+    public function updateTeacherImage(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'teacher_id' => 'required|exists:teachers,id',
+                'image' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()->first()], 422);
+            }
+
+            $teacher = Teacher::find($request->teacher_id);
+            
+            // Handle Image Upload
+            if ($request->hasFile('image')) {
+                // Determine upload path
+                $basePath = base_path();
+                $parentDir = dirname($basePath);
+                $publicHtmlPath = $parentDir . '/public_html/userImages';
+                $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
+                $localPublicPath = public_path('userImages');
+
+                if (file_exists($parentDir . '/public_html')) {
+                    $uploadPath = $publicHtmlPath;
+                } elseif (strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
+                    $uploadPath = $docRootPath;
+                } else {
+                    $uploadPath = $localPublicPath;
+                }
+
+                if (!file_exists($uploadPath)) {
+                    @mkdir($uploadPath, 0755, true);
+                }
+
+                $imageName = time().'_'.$request->file('image')->getClientOriginalName();
+                $request->file('image')->move($uploadPath, $imageName);
+                
+                $teacher->image = $imageName;
+                $teacher->save();
+                
+                return response()->json([
+                    'success' => 'Profile image updated successfully!',
+                    'image_url' => asset('userImages/' . $imageName)
+                ]);
+            }
+
+            return response()->json(['error' => 'No image uploaded.'], 400);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function downloadTeacherProfilePdf($id)
+    {
+        $teacher = Teacher::find($id);
+        if (!$teacher) {
+            return redirect()->back()->with('error', 'Teacher not found.');
+        }
+
+        $schoolID = Session::get('schoolID');
+        $school = School::find($schoolID);
+        
+        $data = [
+            'teacher' => $teacher,
+            'school' => $school,
+        ];
+
+        $pdf = Pdf::loadView('Admin.pdf.teacher_profile_pdf', $data);
+        return $pdf->download('Teacher_Profile_' . $teacher->first_name . '_' . $teacher->last_name . '.pdf');
     }
 }
