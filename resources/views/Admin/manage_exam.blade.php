@@ -1328,6 +1328,7 @@ jQuery(document).ready(function($) {
     }
 
     function renderHallRow(scope = 'create', data = {}) {
+        console.log('Rendering hall row for scope:', scope, 'with data:', data); // Debugging
         hallRowId++;
         const tbody = scope === 'create' ? $('#exam_halls_body') : $('#edit_exam_halls_body');
         const emptyRow = scope === 'create' ? $('#exam_halls_empty_row') : $('#edit_exam_halls_empty_row');
@@ -1470,10 +1471,12 @@ jQuery(document).ready(function($) {
     }
 
     // Add hall buttons
-    $('#add_exam_hall_btn').on('click', function() {
+    // Add hall buttons - using delegated events for robustness
+    $(document).on('click', '#add_exam_hall_btn', function() {
+        console.log('Add hall button clicked'); // Debugging
         renderHallRow('create');
     });
-    $('#edit_add_exam_hall_btn').on('click', function() {
+    $(document).on('click', '#edit_add_exam_hall_btn', function() {
         renderHallRow('edit');
     });
 
@@ -1515,8 +1518,10 @@ jQuery(document).ready(function($) {
     });
 
     // Handle exam category change
-    $('#exam_category').on('change', function() {
+    // Handle exam category change - using delegated event for robustness
+    $(document).on('change', '#exam_category', function() {
         const examCategory = $(this).val();
+        console.log('Exam category changed to:', examCategory); // Debugging
         
         // Reset all fields
         $('#exam_name').val('');
@@ -1556,8 +1561,9 @@ jQuery(document).ready(function($) {
             $('#student_shifting_status').prop('required', true);
         } else if (examCategory === 'test') {
             // Show test type selection dropdown
-            $('#test_type_group').show();
-            $('#test_type').prop('required', true);
+            console.log('Showing test type group'); // Debugging
+            $('#test_type_group').stop(true, true).show();
+            $('#test_type').prop('required', true).val('all_terms'); // Set default or reset
             
             // Hide exam name fields initially (will be shown based on test type)
             $('#exam_name_text_group').hide();
@@ -2010,27 +2016,33 @@ jQuery(document).ready(function($) {
         });
     }
 
-    // Helper function to fetch subclasses
-    function fetchSubclasses(classID, subclassSelect, selectedSubclassID = null) {
-        subclassSelect.html('<option value="">Loading...</option>').prop('disabled', true);
+    // Consolidated fetchSubclasses function
+    function fetchSubclasses(classID, selectElement, selectedSubclassID = null) {
+        if (!classID) {
+            selectElement.html('<option value="">Select Subclass (Optional)</option>').prop('disabled', true);
+            return;
+        }
+        
+        selectElement.html('<option value="">Loading...</option>').prop('disabled', true);
         
         $.ajax({
-            url: '/get_class_subclasses/' + classID, // Corrected URL to match web.php
+            url: '/get_class_subclasses/' + classID,
             method: 'GET',
             success: function(response) {
-                subclassSelect.html('<option value="">Select Subclass (Optional)</option>');
+                selectElement.html('<option value="">Select Subclass (Optional)</option>');
                 if (response.subclasses && response.subclasses.length > 0) {
                     response.subclasses.forEach(function(subclass) {
                         let isSelected = (selectedSubclassID && subclass.subclassID == selectedSubclassID) ? 'selected' : '';
-                        subclassSelect.append(`<option value="${subclass.subclassID}" ${isSelected}>${subclass.subclass_name}</option>`);
+                        selectElement.append(`<option value="${subclass.subclassID}" ${isSelected}>${subclass.subclass_name}</option>`);
                     });
-                    subclassSelect.prop('disabled', false);
+                    selectElement.prop('disabled', false);
                 } else {
-                    subclassSelect.append('<option value="">No subclasses found</option>');
+                    selectElement.append('<option value="">No subclasses found</option>');
                 }
             },
-            error: function() {
-                subclassSelect.html('<option value="">Error loading</option>');
+            error: function(xhr) {
+                console.error('Error fetching subclasses:', xhr);
+                selectElement.html('<option value="">Error loading</option>');
             }
         });
     }
@@ -2161,10 +2173,9 @@ jQuery(document).ready(function($) {
                 return false;
             }
         } else if (examCategory === 'special_exams') {
-        // For special exams, exam_name is already set from text input
-            // Remove exam_name_type for special exams
             formData.delete('exam_name_type');
-            // Note: exam_type is set automatically by backend controller
+            // Ensure exam_type is set for special exams
+            formData.set('exam_type', 'specific_classes_all_subjects');
         }
 
         // Collect except class IDs (for School Exams and Test)

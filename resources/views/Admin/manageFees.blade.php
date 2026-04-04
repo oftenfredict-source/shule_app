@@ -3382,7 +3382,9 @@
 
     // Init
     if (typeof jQuery !== 'undefined') {
-        $(document).ready(initFeesManagement);
+        jQuery(document).ready(function() {
+            initFeesManagement();
+        });
     } else {
         window.addEventListener('load', () => { if (typeof jQuery !== 'undefined') initFeesManagement(); });
     }

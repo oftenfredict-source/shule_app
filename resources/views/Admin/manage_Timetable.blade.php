@@ -762,14 +762,12 @@
                                             <small class="text-muted">How many exams can be scheduled per day</small>
                                         </div>
 
+                                        <div id="automaticPreviewInfo">
+                                            <!-- Success/Warning messages will appear here -->
+                                        </div>
+
                                         <div class="alert alert-info">
-                                            <i class="bi bi-info-circle"></i> System will automatically:
-                                            <ul class="mb-0">
-                                                <li>Select subjects from exam configuration</li>
-                                                <li>Distribute subjects across available days</li>
-                                                <li>Exclude weekends (unless selected otherwise)</li>
-                                                <li>Apply break times between exams</li>
-                                            </ul>
+                                            <i class="bi bi-info-circle"></i> <strong>Live Preview Mode:</strong> Changes you make above will automatically update the schedule in the manual entry cards below.
                                         </div>
                                     </div>
                                 </div>
@@ -5895,19 +5893,23 @@ $(function() {
         return `${day}/${month}/${year}`;
     }
 
-    // Add subject to a day
-    $(document).on('click', '.add-subject-btn', function() {
-        const dayIndex = $(this).data('day-index');
-        const dayCard = $(this).closest('.day-card');
-        const subjectsContainer = dayCard.find('.subjects-container');
-        const subjectCounter = subjectsContainer.children().length;
-        
-        const subjectHtml = `
-            <div class="row mb-2 subject-row" data-day-index="${dayIndex}" data-subject-index="${subjectCounter}">
+    // Debounce function
+    function debounce(func, timeout = 500) {
+        let timer;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => { func.apply(this, args); }, timeout);
+        };
+    }
+
+    // Helper to add a subject row with predefined data
+    function addSubjectRow(container, dayIndex, subjectIndex, data = null) {
+        const row = `
+            <div class="row mb-2 subject-row" data-day-index="${dayIndex}" data-subject-index="${subjectIndex}">
                 <div class="col-md-4">
                     <div class="form-group">
                         <label>Subject <span class="text-danger">*</span></label>
-                        <select class="form-control day-subject" data-day-index="${dayIndex}" data-subject-index="${subjectCounter}" required>
+                        <select class="form-control day-subject" data-day-index="${dayIndex}" data-subject-index="${subjectIndex}" required>
                             ${getSubjectOptions()}
                         </select>
                     </div>
@@ -5915,19 +5917,21 @@ $(function() {
                 <div class="col-md-3">
                     <div class="form-group">
                         <label>Start Time <span class="text-danger">*</span></label>
-                        <input type="time" class="form-control day-start-time" data-day-index="${dayIndex}" data-subject-index="${subjectCounter}" required>
+                        <input type="time" class="form-control day-start-time" data-day-index="${dayIndex}" data-subject-index="${subjectIndex}" 
+                               value="${data ? data.start_time : ''}" required>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="form-group">
                         <label>End Time <span class="text-danger">*</span></label>
-                        <input type="time" class="form-control day-end-time" data-day-index="${dayIndex}" data-subject-index="${subjectCounter}" required>
+                        <input type="time" class="form-control day-end-time" data-day-index="${dayIndex}" data-subject-index="${subjectIndex}" 
+                               value="${data ? data.end_time : ''}" required>
                     </div>
                 </div>
                 <div class="col-md-2">
                     <div class="form-group">
                         <label>&nbsp;</label>
-                        <button type="button" class="btn btn-sm btn-danger w-100 remove-subject-btn" data-day-index="${dayIndex}" data-subject-index="${subjectCounter}">
+                        <button type="button" class="btn btn-sm btn-danger w-100 remove-subject-btn" data-day-index="${dayIndex}" data-subject-index="${subjectIndex}">
                             <i class="bi bi-trash"></i> Remove
                         </button>
                     </div>
@@ -5935,7 +5939,104 @@ $(function() {
             </div>
         `;
         
-        subjectsContainer.append(subjectHtml);
+        const $row = $(row);
+        if (data && data.subjectID) {
+            $row.find('.day-subject').val(data.subjectID);
+        }
+        container.append($row);
+    }
+
+    // Trigger Automatic Preview
+    const triggerAutomaticPreview = debounce(function() {
+        // Only trigger if we are ON the automatic tab
+        if (!$('#automatic').hasClass('active')) return;
+        if ($('#timetable_type').val() !== 'school_wide') return;
+        
+        const examID = $('#examID').val();
+        const examStartDate = $('#exam_start_date').val();
+        const examEndDate = $('#exam_end_date').val();
+
+        if (!examStartDate || !examEndDate) return;
+
+        const requestData = {
+            examID: examID,
+            exam_start_date: examStartDate,
+            exam_end_date: examEndDate,
+            exam_duration: $('#exam_duration').val() || 120,
+            daily_start_time: $('#daily_start_time').val() || '08:00',
+            daily_end_time: $('#daily_end_time').val() || '12:00',
+            max_exams_per_day: $('#max_exams_per_day').val() || 2,
+            break_duration: $('#break_duration').val() || 15,
+            include_weekends: $('#include_weekends_exam').is(':checked'),
+            check_saturday: $('#check_saturday').is(':checked'),
+            check_sunday: $('#check_sunday').is(':checked')
+        };
+
+        $('#automaticPreviewInfo').html('<div class="alert alert-light text-center"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating preview...</div>');
+
+        $.ajax({
+            url: '/preview_automatic_timetable',
+            method: 'POST',
+            data: JSON.stringify(requestData),
+            contentType: 'application/json',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success && response.schedule) {
+                    // Update Warning/Status
+                    let infoHtml = '';
+                    if (response.warnings && response.warnings.length > 0) {
+                        infoHtml = `<div class="alert alert-warning py-2 mb-2"><i class="bi bi-exclamation-triangle"></i> ${response.warnings.join('<br>')}</div>`;
+                    } else {
+                        infoHtml = `<div class="alert alert-success py-2 mb-2"><i class="bi bi-check-circle"></i> Perfect! All ${response.total_count} subjects scheduled successfully.</div>`;
+                    }
+                    $('#automaticPreviewInfo').html(infoHtml);
+
+                    // Populate manual entries (SILENTLY, don't show success alert every time)
+                    generateDaysTimetable();
+                    response.schedule.forEach((daySchedule, dayIdx) => {
+                        const dayCard = $(`.day-card[data-date="${daySchedule.date}"]`);
+                        if (dayCard.length > 0) {
+                            const subjectsContainer = dayCard.find('.subjects-container');
+                            const dayIndex = dayCard.find('.add-subject-btn').first().data('day-index');
+                            daySchedule.subjects.forEach((subject, subIdx) => {
+                                addSubjectRow(subjectsContainer, dayIndex, subIdx, subject);
+                            });
+                        }
+                    });
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON ? xhr.responseJSON.error : 'Failed to generate preview.';
+                $('#automaticPreviewInfo').html(`<div class="alert alert-danger py-2 mb-2"><i class="bi bi-x-circle"></i> Error: ${error}</div>`);
+            }
+        });
+    });
+
+    // Listeners for automatic preview inputs
+    $('#automatic input').on('change input', triggerAutomaticPreview);
+    $('#exam_start_date, #exam_end_date').on('change', function() {
+        if ($('#timetable_type').val() === 'school_wide') {
+            generateDaysTimetable();
+            triggerAutomaticPreview();
+        }
+    });
+
+    // Trigger on tab switch if on school-wide
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+        if (e.target.id === 'automatic-tab' && $('#timetable_type').val() === 'school_wide') {
+            triggerAutomaticPreview();
+        }
+    });
+
+    // Refactor existing add button to use helper
+    $(document).on('click', '.add-subject-btn', function() {
+        const dayIndex = $(this).data('day-index');
+        const dayCard = $(this).closest('.day-card');
+        const subjectsContainer = dayCard.find('.subjects-container');
+        const subjectCounter = subjectsContainer.children().length;
+        addSubjectRow(subjectsContainer, dayIndex, subjectCounter);
     });
 
     // Remove subject from a day

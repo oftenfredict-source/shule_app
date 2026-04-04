@@ -1559,7 +1559,53 @@ class TimeTableController extends Controller
     /**
      * Generate automatic timetable based on settings (INTELLIGENT)
      */
+    /**
+     * Preview automatic timetable generation
+     */
+    public function previewAutomaticTimetable(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $examID = $request->input('examID');
+        $exam = Examination::find($examID);
+
+        if (!$exam) {
+            return response()->json(['error' => 'Examination not found'], 404);
+        }
+
+        try {
+            $result = $this->calculateAutomaticSchedule($schoolID, $exam, $request);
+            $days = $result['days'];
+            
+            // Add subject names for frontend display
+            foreach ($days as &$day) {
+                foreach ($day['subjects'] as &$subject) {
+                    $subjectRecord = SchoolSubject::find($subject['subjectID']);
+                    $subject['subject_name'] = $subjectRecord ? $subjectRecord->subject_name : 'N/A';
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'schedule' => $days,
+                'warnings' => $result['warnings'],
+                'scheduled_count' => $result['scheduled_count'],
+                'total_count' => $result['total_count']
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
     private function generateAutomaticTimetable($schoolID, $exam, $request)
+    {
+        $result = $this->calculateAutomaticSchedule($schoolID, $exam, $request);
+        $days = $result['days'];
+        
+        // Create timetable entries with supervisor assignment
+        return $this->createNewSchoolWideTimetable($schoolID, $exam, $days, $request);
+    }
+
+    private function calculateAutomaticSchedule($schoolID, $exam, $request)
     {
         // Get settings
         $startDate = \Carbon\Carbon::parse($request->exam_start_date);
@@ -1569,6 +1615,10 @@ class TimeTableController extends Controller
         $dailyEndTime = $request->daily_end_time;
         $maxExamsPerDay = (int) $request->max_exams_per_day;
         $breakDuration = (int) ($request->break_duration ?? 15); // minutes between exams
+        
+        $includeWeekends = $request->input('include_weekends');
+        $checkSaturday = $request->input('check_saturday');
+        $checkSunday = $request->input('check_sunday');
 
         // Get all subjects
         $subjects = $this->getExamSubjects($exam, $schoolID);
@@ -1579,10 +1629,6 @@ class TimeTableController extends Controller
         if ($subjects->isEmpty()) {
             throw new \Exception('No subjects found. Please add subjects to your school first.');
         }
-
-        $includeWeekends = $request->input('include_weekends');
-        $checkSaturday = $request->input('check_saturday');
-        $checkSunday = $request->input('check_sunday');
 
         // Calculate available days in date range (respecting weekend settings)
         $availableDays = 0;
@@ -1608,29 +1654,17 @@ class TimeTableController extends Controller
         }
 
         // Calculate daily available time for exams
-        // Parse times with today's date to ensure proper calculation
         $today = \Carbon\Carbon::today();
         $dailyStartCarbon = \Carbon\Carbon::parse($today->toDateString() . ' ' . $dailyStartTime);
         $dailyEndCarbon = \Carbon\Carbon::parse($today->toDateString() . ' ' . $dailyEndTime);
-        
-        // Use diffInMinutes with signed parameter to get correct positive value
         $dailyMinutes = $dailyStartCarbon->diffInMinutes($dailyEndCarbon, false);
-        
-        \Log::info("Daily time window: {$dailyStartTime} to {$dailyEndTime} = {$dailyMinutes} minutes (Start: {$dailyStartCarbon}, End: {$dailyEndCarbon})");
 
-        // Calculate how many exams can fit per day (with breaks)
+        // Calculate how many exams can fit per day
         $timePerExamWithBreak = $examDuration + $breakDuration;
         $maxPossibleExamsPerDay = floor($dailyMinutes / $timePerExamWithBreak);
-        
-        // Use the smaller of user's max or calculated max
         $effectiveMaxPerDay = min($maxExamsPerDay, $maxPossibleExamsPerDay);
-
-        // Calculate total capacity
         $totalCapacity = $availableDays * $effectiveMaxPerDay;
 
-        \Log::info("Timetable Calculation: Daily minutes={$dailyMinutes}, Exam duration={$examDuration}, Break={$breakDuration}, Time per exam+break={$timePerExamWithBreak}, Max possible/day={$maxPossibleExamsPerDay}, User max/day={$maxExamsPerDay}, Effective max/day={$effectiveMaxPerDay}, Available days={$availableDays}, Total capacity={$totalCapacity}, Subjects needed={$subjectCount}");
-
-        // Validate if all subjects can fit
         if ($totalCapacity < $subjectCount) {
             throw new \Exception(
                 "Cannot fit all {$subjectCount} subjects in the date range. " .
@@ -1639,13 +1673,13 @@ class TimeTableController extends Controller
             );
         }
 
-        // Generate timetable - distribute subjects evenly
+        // Distribute subjects across available days
         $days = [];
         $currentDate = $startDate->copy();
         $subjectIndex = 0;
+        $warnings = [];
 
         while ($currentDate->lte($endDate) && $subjectIndex < $subjectCount) {
-            // Check if current day should be included
             $isWeekend = $currentDate->isWeekend();
             $shouldInclude = true;
 
@@ -1665,29 +1699,22 @@ class TimeTableController extends Controller
             }
 
             $daySubjects = [];
-            // Parse current time with proper date context for this specific date
             $currentTime = \Carbon\Carbon::parse($currentDate->toDateString() . ' ' . $dailyStartTime);
             $dailyEndForThisDate = \Carbon\Carbon::parse($currentDate->toDateString() . ' ' . $dailyEndTime);
             $examsScheduledToday = 0;
 
-            // Schedule up to max exams for this day
             while ($examsScheduledToday < $maxExamsPerDay && $subjectIndex < $subjectCount) {
                 $endTime = $currentTime->copy()->addMinutes($examDuration);
-
-                // Check if exam + potential break fits before daily end time
                 $timeNeeded = $examDuration;
                 if ($examsScheduledToday < $maxExamsPerDay - 1 && $subjectIndex < $subjectCount - 1) {
-                    // Not the last exam of day or last subject overall - add break
                     $timeNeeded += $breakDuration;
                 }
 
                 $projectedEnd = $currentTime->copy()->addMinutes($timeNeeded);
                 if ($projectedEnd->gt($dailyEndForThisDate)) {
-                    // Can't fit more exams today
                     break;
                 }
 
-                // Schedule this subject
                 $daySubjects[] = [
                     'subjectID' => $subjects[$subjectIndex]->subjectID,
                     'start_time' => $currentTime->format('H:i'),
@@ -1696,17 +1723,13 @@ class TimeTableController extends Controller
 
                 $subjectIndex++;
                 $examsScheduledToday++;
-
-                // Move time forward (exam duration + break)
                 $currentTime = $endTime->copy();
                 
-                // Add break if not the last exam of the day and not the last subject
                 if ($examsScheduledToday < $maxExamsPerDay && $subjectIndex < $subjectCount) {
                     $currentTime->addMinutes($breakDuration);
                 }
             }
 
-            // Save this day if it has subjects
             if (!empty($daySubjects)) {
                 $days[] = [
                     'date' => $currentDate->format('Y-m-d'),
@@ -1718,22 +1741,21 @@ class TimeTableController extends Controller
             $currentDate->addDay();
         }
 
-        \Log::info("Successfully scheduled {$subjectIndex} subjects across " . count($days) . " days");
-
         if ($subjectIndex < $subjectCount) {
             $remaining = $subjectCount - $subjectIndex;
-            throw new \Exception(
-                "Only {$subjectIndex} out of {$subjectCount} subjects could be scheduled. " .
-                "{$remaining} subjects remaining. Please adjust your settings."
-            );
+            $warnings[] = "Only {$subjectIndex} out of {$subjectCount} scheduled. {$remaining} remaining.";
         }
 
         if (empty($days)) {
-            throw new \Exception('No timetable could be generated. Please check your date range and settings.');
+             $warnings[] = 'No timetable could be generated. Please check your date range and settings.';
         }
 
-        // Create timetable entries with supervisor assignment
-        return $this->createNewSchoolWideTimetable($schoolID, $exam, $days, $request);
+        return [
+            'days' => $days,
+            'warnings' => $warnings,
+            'scheduled_count' => $subjectIndex,
+            'total_count' => $subjectCount
+        ];
     }
 
     /**

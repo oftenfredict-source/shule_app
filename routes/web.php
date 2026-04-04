@@ -750,6 +750,7 @@ Route::put('update_exam_timetable_time/{examTimetableID}', [TimeTableController:
 Route::get('get_supervise_teachers', [TimeTableController::class, 'getSuperviseTeachers'])->name('get_supervise_teachers');
 Route::put('update_hall_supervisor/{supervisorID}', [TimeTableController::class, 'updateHallSupervisor'])->name('update_hall_supervisor');
 Route::post('shuffle_exam_timetable/{examID}', [TimeTableController::class, 'shuffleExamTimetable'])->name('shuffle_exam_timetable');
+Route::post('preview_automatic_timetable', [TimeTableController::class, 'previewAutomaticTimetable'])->name('preview_automatic_timetable');
 Route::post('swap_exam_subjects', [TimeTableController::class, 'swapExamSubjects'])->name('swap_exam_subjects');
 
 // Session Timetable Routes
