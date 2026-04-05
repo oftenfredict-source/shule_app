@@ -4888,105 +4888,139 @@ window.loadExamPapers = function(examID, search = '', status = '', week = '') {
                             const teacherName = paper.teacher ? (paper.teacher.first_name + ' ' + paper.teacher.last_name) : 'N/A';
                             const className = paper.class_subject?.class?.class_name || 'N/A';
                             const subclassName = paper.class_subject?.subclass?.subclass_name || 'N/A';
+                            const paperId = paper.exam_paperID;
+                            const statusBadge = paper.status === 'approved'
+                                ? '<span class="badge badge-success"><i class="bi bi-check-circle"></i> Approved</span>'
+                                : paper.status === 'rejected'
+                                    ? '<span class="badge badge-danger"><i class="bi bi-x-circle"></i> Rejected</span>'
+                                    : '<span class="badge badge-warning text-dark"><i class="bi bi-clock-history"></i> Pending</span>';
 
                         html += `
-                            <div class="card mb-3 exam-paper-item" data-paper-id="${paper.exam_paperID}">
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-8">
-                                            <h5 class="card-title text-primary-custom">
-                                                <i class="bi bi-file-earmark-text"></i> ${subjectName}
-                                            </h5>
-                                            <p class="mb-2">
-                                                <strong>Subject & Class:</strong> ${subjectName} - ${className} ${subclassName}<br>
-                                                <strong>Teacher:</strong> ${teacherName}<br>
-                                                ${paper.test_week ? `<strong>Week:</strong> ${paper.test_week}${paper.test_week_range ? ` (${paper.test_week_range})` : ''}<br>` : ''}
-                                                ${paper.test_date ? `<strong>Test Date:</strong> ${new Date(paper.test_date).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}<br>` : ''}
-                                                <strong>Type:</strong> <span class="badge badge-info">${paper.upload_type === 'upload' ? 'File Upload' : 'Created'}</span><br>
-                                                <strong>Approval Stage:</strong> <span class="badge badge-dark">${paper.chain_progress || 'N/A'}</span><br>
-                                                <strong>Status:</strong> <span class="badge ${paper.status === 'approved' ? 'badge-success' : (paper.status === 'rejected' ? 'badge-danger' : 'badge-warning')}">${paper.detailed_status || paper.status}</span>
-                                            </p>
-                                            ${paper.rejection_reason ? `
-                                                <div class="alert alert-danger mt-2">
-                                                    <strong><i class="bi bi-exclamation-triangle"></i> Rejection Reason / Note:</strong>
-                                                    <p class="mb-0">${paper.rejection_reason}</p>
+                            <div class="card mb-2 exam-paper-item" data-paper-id="${paperId}" style="border: 1.5px solid #940000;">
+                                <!-- Collapsed Header (always visible) -->
+                                <div class="card-body py-2 px-3" style="background: #fff;">
+                                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <div class="d-flex align-items-center gap-2" style="flex: 1; min-width: 0;">
+                                            <div class="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0"
+                                                 style="width: 36px; height: 36px; background: #f8e8e8; border: 1.5px solid #940000;">
+                                                <i class="bi bi-file-earmark-text" style="color: #940000; font-size: 1rem;"></i>
+                                            </div>
+                                            <div style="min-width: 0;">
+                                                <div class="fw-bold text-truncate" style="font-size: 0.95rem; color: #222; max-width: 220px;">
+                                                    ${subjectName}
                                                 </div>
-                                            ` : ''}
-                                            ${paper.approval_comment ? `
-                                                <div class="alert alert-success mt-2">
-                                                    <strong><i class="bi bi-check-circle"></i> Approval Comment:</strong>
-                                                    <p class="mb-0">${paper.approval_comment}</p>
+                                                <div class="text-muted" style="font-size: 0.78rem;">
+                                                    <i class="bi bi-person"></i> ${teacherName}
+                                                    &nbsp;|&nbsp; ${className} ${subclassName}
                                                 </div>
-                                            ` : ''}
-                                            <p class="mb-0 text-muted">
-                                                <small><i class="bi bi-calendar"></i> Uploaded: ${new Date(paper.created_at).toLocaleString()}</small>
-                                            </p>
-
-                                            ${renderApprovalChainMap(paper)}
-                                            
-                                            ${paper.can_view_content ? `
-                                                ${renderQuestionFormats(paper)}
-                                            ` : `
-                                                <div class="mt-3 p-3 border rounded bg-light text-center">
-                                                    <i class="bi bi-shield-lock" style="font-size: 1.5rem; color: #6c757d;"></i>
-                                                    <p class="mb-0 mt-2 text-muted small">
-                                                        Paper content is hidden. It will be visible to you once it reaches the <strong>Admin Approval</strong> stage.
-                                                    </p>
-                                                </div>
-                                            `}
+                                            </div>
                                         </div>
-                                        <div class="col-md-4 text-md-right mt-3 mt-md-0">
-                                            ${hasPermission('view_exam_papers') && paper.can_view_content ? `
-                                                <button class="btn btn-sm btn-info view-paper-btn mb-2 w-100 w-md-auto" data-paper-id="${paper.exam_paperID}" data-exam-id="${examID}" title="View Exam Paper">
-                                                    <i class="bi bi-eye"></i> View
-                                                </button><br class="d-none d-md-block">
-                                            ` : ''}
-                                            ${paper.upload_type === 'upload' && paper.file_path && paper.can_view_content ? `
-                                                <a href="/download_exam_paper/${paper.exam_paperID}" class="btn btn-sm btn-primary-custom mb-2 w-100 w-md-auto" title="Download">
-                                                    <i class="bi bi-download"></i> Download
-                                                </a><br class="d-none d-md-block">
-                                                <button class="btn btn-sm btn-success print-exam-paper-btn mb-2 w-100 w-md-auto" data-paper-id="${paper.exam_paperID}" data-class-name="${className}" data-subclass-name="${subclassName}" title="Print Exam Paper">
-                                                    <i class="bi bi-printer"></i> Print
-                                                </button><br class="d-none d-md-block">
-                                            ` : ''}
-                                            ${paper.status === 'wait_approval' || (paper.status === 'pending' && paper.can_approve) ? `
-                                                <div class="approve-reject-actions" data-paper-id="${paper.exam_paperID}">
-                                                    ${paper.can_approve ? `
-                                                        <button class="btn btn-sm btn-success show-approve-form-btn mb-2 w-100 w-md-auto" data-paper-id="${paper.exam_paperID}" data-log-id="${paper.pending_log_id}" title="Approve">
-                                                            <i class="bi bi-check-circle"></i> Approve
-                                                        </button><br class="d-none d-md-block">
-                                                        <button class="btn btn-sm btn-danger show-reject-form-btn mb-2 w-100 w-md-auto" data-paper-id="${paper.exam_paperID}" data-log-id="${paper.pending_log_id}" title="Reject">
-                                                            <i class="bi bi-x-circle"></i> Reject
-                                                        </button>
-                                                    ` : `
-                                                        <div class="small text-muted font-italic mb-2">
-                                                            <i class="bi bi-clock"></i> Currently Pending at: <br><strong>${paper.current_approver_role}</strong>
-                                                        </div>
-                                                    `}
-                                                    <div class="approve-form mt-2" id="approve-form-${paper.exam_paperID}" style="display: none;">
-                                                        <textarea class="form-control mb-2" rows="3" placeholder="Approval comment (optional)..." id="approval-comment-${paper.exam_paperID}"></textarea>
-                                                        <button class="btn btn-sm btn-success submit-approve-btn w-100" data-paper-id="${paper.exam_paperID}" data-log-id="${paper.pending_log_id}">
-                                                            <i class="bi bi-check-circle"></i> Submit Approval
-                                                        </button>
-                                                        <button class="btn btn-sm btn-secondary cancel-approve-btn w-100 mt-1" data-paper-id="${paper.exam_paperID}">
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                    <div class="reject-form mt-2" id="reject-form-${paper.exam_paperID}" style="display: none;">
-                                                        <textarea class="form-control mb-2" rows="3" placeholder="Rejection reason (required)..." id="rejection-reason-${paper.exam_paperID}" required></textarea>
-                                                        <button class="btn btn-sm btn-danger submit-reject-btn w-100" data-paper-id="${paper.exam_paperID}" data-log-id="${paper.pending_log_id}">
-                                                            <i class="bi bi-x-circle"></i> Submit Rejection
-                                                        </button>
-                                                        <button class="btn btn-sm btn-secondary cancel-reject-btn w-100 mt-1" data-paper-id="${paper.exam_paperID}">
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ` : ''}
-                                        </div>
+                                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                            ${statusBadge}
+                                            <button class="btn btn-sm toggle-paper-detail-btn"
+                                                    data-paper-id="${paperId}"
+                                                    style="background: #940000; color: #fff; border-radius: 20px; padding: 0.25rem 0.9rem; font-size: 0.82rem; font-weight: 600; border: none;">
+                                                <i class="bi bi-eye" id="toggle-icon-${paperId}"></i>
+                                                <span id="toggle-label-${paperId}">View</span>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Expandable Detail Section (hidden by default) -->
+                                <div class="paper-detail-section" id="paper-detail-${paperId}" style="display: none; border-top: 1px solid #f1d7d7; background: #fafafa;">
+                                    <div class="card-body pt-3">
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <p class="mb-2" style="font-size: 0.88rem;">
+                                                    <strong>Subject & Class:</strong> ${subjectName} - ${className} ${subclassName}<br>
+                                                    <strong>Teacher:</strong> ${teacherName}<br>
+                                                    ${paper.test_week ? `<strong>Week:</strong> ${paper.test_week}${paper.test_week_range ? ` (${paper.test_week_range})` : ''}<br>` : ''}
+                                                    ${paper.test_date ? `<strong>Test Date:</strong> ${new Date(paper.test_date).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}<br>` : ''}
+                                                    <strong>Type:</strong> <span class="badge badge-info">${paper.upload_type === 'upload' ? 'File Upload' : 'Created'}</span><br>
+                                                    <strong>Approval Stage:</strong> <span class="badge badge-dark">${paper.chain_progress || 'N/A'}</span><br>
+                                                    <strong>Status:</strong> <span class="badge ${paper.status === 'approved' ? 'badge-success' : (paper.status === 'rejected' ? 'badge-danger' : 'badge-warning')}">${paper.detailed_status || paper.status}</span>
+                                                </p>
+                                                ${paper.rejection_reason ? `
+                                                    <div class="alert alert-danger mt-2 py-2">
+                                                        <strong><i class="bi bi-exclamation-triangle"></i> Rejection Reason / Note:</strong>
+                                                        <p class="mb-0">${paper.rejection_reason}</p>
+                                                    </div>
+                                                ` : ''}
+                                                ${paper.approval_comment ? `
+                                                    <div class="alert alert-success mt-2 py-2">
+                                                        <strong><i class="bi bi-check-circle"></i> Approval Comment:</strong>
+                                                        <p class="mb-0">${paper.approval_comment}</p>
+                                                    </div>
+                                                ` : ''}
+                                                <p class="mb-2 text-muted">
+                                                    <small><i class="bi bi-calendar"></i> Uploaded: ${new Date(paper.created_at).toLocaleString()}</small>
+                                                </p>
+                                                ${renderApprovalChainMap(paper)}
+                                                ${paper.can_view_content ? `
+                                                    ${renderQuestionFormats(paper)}
+                                                ` : `
+                                                    <div class="mt-3 p-3 border rounded bg-light text-center">
+                                                        <i class="bi bi-shield-lock" style="font-size: 1.5rem; color: #6c757d;"></i>
+                                                        <p class="mb-0 mt-2 text-muted small">
+                                                            Paper content is hidden. It will be visible to you once it reaches the <strong>Admin Approval</strong> stage.
+                                                        </p>
+                                                    </div>
+                                                `}
+                                            </div>
+                                            <div class="col-md-4 text-md-right mt-3 mt-md-0">
+                                                ${hasPermission('view_exam_papers') && paper.can_view_content ? `
+                                                    <button class="btn btn-sm btn-info view-paper-btn mb-2 w-100 w-md-auto" data-paper-id="${paperId}" data-exam-id="${examID}" title="View Exam Paper">
+                                                        <i class="bi bi-eye"></i> View Paper
+                                                    </button><br class="d-none d-md-block">
+                                                ` : ''}
+                                                ${paper.upload_type === 'upload' && paper.file_path && paper.can_view_content ? `
+                                                    <a href="/download_exam_paper/${paperId}" class="btn btn-sm btn-primary-custom mb-2 w-100 w-md-auto" title="Download">
+                                                        <i class="bi bi-download"></i> Download
+                                                    </a><br class="d-none d-md-block">
+                                                    <button class="btn btn-sm btn-success print-exam-paper-btn mb-2 w-100 w-md-auto" data-paper-id="${paperId}" data-class-name="${className}" data-subclass-name="${subclassName}" title="Print Exam Paper">
+                                                        <i class="bi bi-printer"></i> Print
+                                                    </button><br class="d-none d-md-block">
+                                                ` : ''}
+                                                ${paper.status === 'wait_approval' || (paper.status === 'pending' && paper.can_approve) ? `
+                                                    <div class="approve-reject-actions" data-paper-id="${paperId}">
+                                                        ${paper.can_approve ? `
+                                                            <button class="btn btn-sm btn-success show-approve-form-btn mb-2 w-100 w-md-auto" data-paper-id="${paperId}" data-log-id="${paper.pending_log_id}" title="Approve">
+                                                                <i class="bi bi-check-circle"></i> Approve
+                                                            </button><br class="d-none d-md-block">
+                                                            <button class="btn btn-sm btn-danger show-reject-form-btn mb-2 w-100 w-md-auto" data-paper-id="${paperId}" data-log-id="${paper.pending_log_id}" title="Reject">
+                                                                <i class="bi bi-x-circle"></i> Reject
+                                                            </button>
+                                                        ` : `
+                                                            <div class="small text-muted font-italic mb-2">
+                                                                <i class="bi bi-clock"></i> Currently Pending at: <br><strong>${paper.current_approver_role}</strong>
+                                                            </div>
+                                                        `}
+                                                        <div class="approve-form mt-2" id="approve-form-${paperId}" style="display: none;">
+                                                            <textarea class="form-control mb-2" rows="3" placeholder="Approval comment (optional)..." id="approval-comment-${paperId}"></textarea>
+                                                            <button class="btn btn-sm btn-success submit-approve-btn w-100" data-paper-id="${paperId}" data-log-id="${paper.pending_log_id}">
+                                                                <i class="bi bi-check-circle"></i> Submit Approval
+                                                            </button>
+                                                            <button class="btn btn-sm btn-secondary cancel-approve-btn w-100 mt-1" data-paper-id="${paperId}">
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                        <div class="reject-form mt-2" id="reject-form-${paperId}" style="display: none;">
+                                                            <textarea class="form-control mb-2" rows="3" placeholder="Rejection reason (required)..." id="rejection-reason-${paperId}" required></textarea>
+                                                            <button class="btn btn-sm btn-danger submit-reject-btn w-100" data-paper-id="${paperId}" data-log-id="${paper.pending_log_id}">
+                                                                <i class="bi bi-x-circle"></i> Submit Rejection
+                                                            </button>
+                                                            <button class="btn btn-sm btn-secondary cancel-reject-btn w-100 mt-1" data-paper-id="${paperId}">
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             `;
                         });
 
@@ -5021,6 +5055,29 @@ window.loadExamPapers = function(examID, search = '', status = '', week = '') {
 }
 
 jQuery(function($) {
+
+// Toggle exam paper detail expand/collapse
+$(document).on('click', '.toggle-paper-detail-btn', function() {
+    const paperId = $(this).data('paper-id');
+    const $detail = $('#paper-detail-' + paperId);
+    const $icon = $('#toggle-icon-' + paperId);
+    const $label = $('#toggle-label-' + paperId);
+    const isVisible = $detail.is(':visible');
+
+    if (isVisible) {
+        $detail.slideUp(200);
+        $icon.removeClass('bi-eye-slash').addClass('bi-eye');
+        $label.text('View');
+        $(this).css('background', '#940000');
+    } else {
+        $detail.slideDown(250);
+        $icon.removeClass('bi-eye').addClass('bi-eye-slash');
+        $label.text('Hide');
+        $(this).css('background', '#6c757d');
+    }
+});
+
+
 
 // Search exam papers
 $('#search_exam_papers').on('input', function() {
