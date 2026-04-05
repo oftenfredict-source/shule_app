@@ -186,7 +186,39 @@
         </div>
     </div>
 
-    <div class="card shadow-sm">
+    <ul class="nav nav-tabs mb-3 border-bottom-0" id="approvalTabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active font-weight-bold border-top-0 border-left-0 border-right-0" id="pending-tab" data-toggle="tab" href="#pending" role="tab" aria-selected="true" style="border-bottom: 3px solid transparent;">
+                <i class="fa fa-clock-o"></i> Pending Approvals
+                <span class="badge badge-danger ml-1 rounded-circle">{{ count($pendingLogs) }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link font-weight-bold border-top-0 border-left-0 border-right-0" id="history-tab" data-toggle="tab" href="#history" role="tab" aria-selected="false" style="border-bottom: 3px solid transparent;">
+                <i class="fa fa-history"></i> Action History
+                <span class="badge badge-secondary ml-1 rounded-circle">{{ count($historyLogs) }}</span>
+            </a>
+        </li>
+    </ul>
+
+    <style>
+        .nav-tabs .nav-link.active {
+            border-bottom-color: #940000 !important;
+            color: #940000 !important;
+            background: transparent;
+        }
+        .nav-tabs .nav-link {
+            color: #6c757d;
+        }
+        .nav-tabs .nav-link:hover {
+            border-bottom-color: #ccc;
+        }
+    </style>
+
+    <div class="tab-content" id="approvalTabsContent">
+        <!-- PENDING TAB -->
+        <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+            <div class="card shadow-sm border-0">
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover align-middle" id="pendingApprovalsTable">
@@ -297,6 +329,115 @@
                 </table>
             </div>
         </div>
+    </div>
+    </div>
+        
+    <!-- HISTORY TAB -->
+    <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="historyApprovalsTable">
+                        <thead>
+                            <tr>
+                                <th width="5%">#</th>
+                                <th>Exam Details</th>
+                                <th>Subject & Class</th>
+                                <th>Teacher</th>
+                                <th>Approval Status</th>
+                                <th>Comment / Reason</th>
+                                <th>Date Acted</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($historyLogs as $index => $log)
+                                <tr>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td>
+                                        <div class="font-weight-bold">{{ $log->examPaper->examination->exam_name ?? 'N/A' }}</div>
+                                        <div class="small text-muted">{{ $log->examPaper->examination->year }} - {{ $log->examPaper->examination->term }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="text-primary-custom">{{ $log->examPaper->classSubject->subject->subject_name ?? 'N/A' }}</div>
+                                        <div class="small text-muted">{{ ($log->examPaper->classSubject->class->class_name ?? '') }} {{ ($log->examPaper->classSubject->subclass->subclass_name ?? 'N/A') }}</div>
+                                    </td>
+                                    <td>
+                                        {{ $log->examPaper->teacher->first_name ?? '' }} {{ $log->examPaper->teacher->last_name ?? '' }}
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ $log->status == 'approved' ? 'badge-success' : 'badge-danger' }} p-2">
+                                            {{ ucfirst($log->status) }} at Step {{ $log->approval_order }}
+                                        </span>
+                                        <div class="small text-muted mt-1">
+                                            @if($log->special_role_type)
+                                                ({{ ucwords(str_replace('_', ' ', $log->special_role_type)) }})
+                                            @else
+                                                ({{ $log->role->name ?? 'Unknown Role' }})
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if($log->comment)
+                                            <span class="small font-italic">"{{ $log->comment }}"</span>
+                                        @else
+                                            <span class="text-muted small">No comment</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $log->updated_at->format('d M Y H:i') }}</td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <button class="btn btn-sm btn-info btn-preview-paper mr-1" 
+                                                    data-paper-id="{{ $log->exam_paperID }}"
+                                                    data-is-history="true"
+                                                    title="Preview Paper Content">
+                                                <i class="fa fa-eye"></i> View
+                                            </button>
+                                            <a class="btn btn-sm btn-outline-secondary btn-view-chain" href="javascript:void(0)" 
+                                               data-paper-id="{{ $log->exam_paperID }}"
+                                               data-exam-id="{{ $log->examPaper->examID }}"
+                                               title="View Chain">
+                                                <i class="fa fa-list-ol"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Expandable Preview Row for History -->
+                                <tr id="history-preview-row-{{ $log->exam_paperID }}" class="bg-light preview-row" style="display: none;">
+                                    <td colspan="8">
+                                        <div class="p-3 border rounded bg-white shadow-sm mx-3 my-2">
+                                            <div class="d-flex justify-content-between align-items-start mb-3 border-bottom pb-2">
+                                                <h5 class="text-primary-custom mb-0"><i class="fa fa-file-text-o"></i> Exam Paper Preview</h5>
+                                                <button type="button" class="close btn-close-preview" data-id="history-{{ $log->exam_paperID }}">
+                                                    <span aria-hidden="true">&times;</span>
+                                                </button>
+                                            </div>
+                                            <div id="history-preview-content-{{ $log->exam_paperID }}">
+                                                <div class="text-center py-4">
+                                                    <i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i>
+                                                    <p>Loading paper content...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="text-center py-5">
+                                        <i class="fa fa-history fa-3x text-muted mb-3"></i>
+                                        <h5>No history found.</h5>
+                                        <p class="text-muted">You haven't approved or rejected any papers matching these filters.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- END TAB CONTENT -->
     </div>
 </div>
 
@@ -432,8 +573,11 @@
         // Handle Preview Paper content using event delegation
         $(document).on('click', '.btn-preview-paper', function() {
             const paperId = $(this).data('paper-id');
-            const previewRow = $('#preview-row-' + paperId);
-            const contentDiv = $('#preview-content-' + paperId);
+            const isHistory = $(this).data('is-history');
+            const prefix = isHistory ? 'history-' : '';
+            
+            const previewRow = $('#' + prefix + 'preview-row-' + paperId);
+            const contentDiv = $('#' + prefix + 'preview-content-' + paperId);
             
             if (previewRow.is(':visible')) {
                 previewRow.hide();
@@ -532,7 +676,12 @@
         // Handle close preview
         $(document).on('click', '.btn-close-preview', function() {
             const id = $(this).data('id');
-            $('#preview-row-' + id).hide();
+            const isStr = typeof id === 'string' && id.startsWith('history-');
+            if (isStr) {
+                $('#' + id.replace('history-', 'history-preview-row-')).hide();
+            } else {
+                $('#preview-row-' + id).hide();
+            }
         });
         
         // Initial week data if available
@@ -790,22 +939,40 @@
             
             btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Filtering...');
             
-            const tbody = $('#pendingApprovalsTable tbody');
-            tbody.html('<tr><td colspan="7" class="text-center py-5"><i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i></td></tr>');
+            const tbodyPending = $('#pendingApprovalsTable tbody');
+            const tbodyHistory = $('#historyApprovalsTable tbody');
+            const pendingBadge = $('#pending-tab .badge');
+            const historyBadge = $('#history-tab .badge');
+
+            tbodyPending.html('<tr><td colspan="7" class="text-center py-5"><i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i></td></tr>');
+            tbodyHistory.html('<tr><td colspan="8" class="text-center py-5"><i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i></td></tr>');
             
             $.ajax({
                 url: form.attr('action'),
                 method: 'GET',
                 data: form.serialize(),
                 success: function(response) {
+                    const parsedResponse = $(response);
                     // Extract just the tbody content from the returned HTML
-                    const newTbody = $(response).find('#pendingApprovalsTable tbody').html();
-                    tbody.html(newTbody);
+                    const newTbodyPending = parsedResponse.find('#pendingApprovalsTable tbody').html();
+                    const newTbodyHistory = parsedResponse.find('#historyApprovalsTable tbody').html();
+                    
+                    const newPendingCount = parsedResponse.find('#pending-tab .badge').text();
+                    const newHistoryCount = parsedResponse.find('#history-tab .badge').text();
+
+                    tbodyPending.html(newTbodyPending);
+                    tbodyHistory.html(newTbodyHistory);
+                    
+                    pendingBadge.text(newPendingCount);
+                    historyBadge.text(newHistoryCount);
+
                     btn.prop('disabled', false).html(origHtml);
                 },
                 error: function(xhr) {
                     btn.prop('disabled', false).html(origHtml);
-                    tbody.html('<tr><td colspan="7" class="text-center text-danger py-4">Error loading filtered data.</td></tr>');
+                    tbodyPending.html('<tr><td colspan="7" class="text-center text-danger py-4">Error loading filtered data.</td></tr>');
+                    tbodyHistory.html('<tr><td colspan="8" class="text-center text-danger py-4">Error loading filtered data.</td></tr>');
+
                     Swal.fire({
                         icon: 'error',
                         title: 'Oops...',

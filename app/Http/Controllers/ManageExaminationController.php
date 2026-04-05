@@ -5219,44 +5219,44 @@ class ManageExaminationController extends Controller
                 ->get();
         }
 
-        $query = PaperApprovalLog::with(['examPaper.teacher', 'examPaper.classSubject.subject', 'examPaper.classSubject.class', 'examPaper.classSubject.subclass', 'examPaper.examination', 'role'])
-            ->where('status', 'pending')
-            ->whereHas('examPaper.examination', function ($q) use ($schoolID, $yearFilter, $termFilter) {
-                $q->where('schoolID', $schoolID);
-                if ($yearFilter) $q->where('year', $yearFilter);
-                if ($termFilter) $q->where('term', $termFilter);
-            });
+        $baseQuery = function() use ($schoolID, $yearFilter, $termFilter) {
+            return PaperApprovalLog::with(['examPaper.teacher', 'examPaper.classSubject.subject', 'examPaper.classSubject.class', 'examPaper.classSubject.subclass', 'examPaper.examination', 'role', 'approver'])
+                ->whereHas('examPaper.examination', function ($q) use ($schoolID, $yearFilter, $termFilter) {
+                    $q->where('schoolID', $schoolID);
+                    if ($yearFilter) $q->where('year', $yearFilter);
+                    if ($termFilter) $q->where('term', $termFilter);
+                });
+        };
+
+        $query = $baseQuery()->where('status', 'pending');
+        $historyQuery = $baseQuery()->whereIn('status', ['approved', 'rejected'])->orderBy('updated_at', 'desc');
 
         // Apply remaining filters
         if ($examID) {
-            $query->whereHas('examPaper', function($q) use ($examID) {
-                $q->where('examID', $examID);
-            });
+            $query->whereHas('examPaper', function($q) use ($examID) { $q->where('examID', $examID); });
+            $historyQuery->whereHas('examPaper', function($q) use ($examID) { $q->where('examID', $examID); });
         }
         if ($classID) {
-            $query->whereHas('examPaper.classSubject', function($q) use ($classID) {
-                $q->where('classID', $classID);
-            });
+            $query->whereHas('examPaper.classSubject', function($q) use ($classID) { $q->where('classID', $classID); });
+            $historyQuery->whereHas('examPaper.classSubject', function($q) use ($classID) { $q->where('classID', $classID); });
         }
         if ($subclassID) {
-            $query->whereHas('examPaper.classSubject', function($q) use ($subclassID) {
-                $q->where('subclassID', $subclassID);
-            });
+            $query->whereHas('examPaper.classSubject', function($q) use ($subclassID) { $q->where('subclassID', $subclassID); });
+            $historyQuery->whereHas('examPaper.classSubject', function($q) use ($subclassID) { $q->where('subclassID', $subclassID); });
         }
         if ($subjectID) {
-            $query->whereHas('examPaper.classSubject', function($q) use ($subjectID) {
-                $q->where('subjectID', $subjectID);
-            });
+            $query->whereHas('examPaper.classSubject', function($q) use ($subjectID) { $q->where('subjectID', $subjectID); });
+            $historyQuery->whereHas('examPaper.classSubject', function($q) use ($subjectID) { $q->where('subjectID', $subjectID); });
         }
         if ($weekFilter) {
-            $query->whereHas('examPaper', function($q) use ($weekFilter) {
-                $q->where('test_week', $weekFilter);
-            });
+            $query->whereHas('examPaper', function($q) use ($weekFilter) { $q->where('test_week', $weekFilter); });
+            $historyQuery->whereHas('examPaper', function($q) use ($weekFilter) { $q->where('test_week', $weekFilter); });
         }
 
         if ($userType === 'Admin') {
             // Admin sees all pending approvals matching filters
             $pendingLogs = $query->get();
+            $historyLogs = $historyQuery->get();
         } elseif ($userType === 'Teacher') {
             // Get teacher's regular roles
             $roleIds = DB::table('role_user')->where('teacher_id', $teacherID)->pluck('role_id')->toArray();
@@ -5265,32 +5265,27 @@ class ManageExaminationController extends Controller
             $classTeacherSubclassIds = Subclass::where('teacherID', $teacherID)->pluck('subclassID')->toArray();
             $coordinatorClassIds = ClassModel::where('teacherID', $teacherID)->pluck('classID')->toArray();
 
-            // Find logs matching roles or special roles, then filter by teacher's specific assignments
+            // Find logs matching roles or special roles
             $pendingLogs = $query->get()->filter(function($log) use ($roleIds, $classTeacherSubclassIds, $coordinatorClassIds) {
-                if ($log->role_id) {
-                    return in_array($log->role_id, $roleIds);
-                }
-
-                if ($log->special_role_type === 'class_teacher') {
-                    return in_array($log->examPaper->classSubject->subclassID ?? 0, $classTeacherSubclassIds);
-                } elseif ($log->special_role_type === 'coordinator') {
-                    return in_array($log->examPaper->classSubject->classID ?? 0, $coordinatorClassIds);
-                }
-
+                if ($log->role_id) return in_array($log->role_id, $roleIds);
+                if ($log->special_role_type === 'class_teacher') return in_array($log->examPaper->classSubject->subclassID ?? 0, $classTeacherSubclassIds);
+                if ($log->special_role_type === 'coordinator') return in_array($log->examPaper->classSubject->classID ?? 0, $coordinatorClassIds);
                 return false;
             });
-        } elseif ($userType === 'Staff') {
-            if ($this->hasPermission('view_exam_papers')) {
-                $pendingLogs = $query->get();
-            } else {
-                $pendingLogs = collect();
-            }
+            
+            // History only ones they approved
+            $historyLogs = $historyQuery->where('approved_by', $teacherID)->get();
+        } elseif ($userType === 'Staff' && $this->hasPermission('view_exam_papers')) {
+            $pendingLogs = $query->get();
+            $historyLogs = $historyQuery->get();
         } else {
             $pendingLogs = collect();
+            $historyLogs = collect();
         }
 
         return view('Admin.exam_paper_approval', compact(
             'pendingLogs',
+            'historyLogs',
             'filter_examinations',
             'filter_classes',
             'filter_subclasses',
