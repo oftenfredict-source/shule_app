@@ -471,33 +471,45 @@
             </div>
 
             <!-- Tabs -->
-            <ul class="nav nav-tabs mb-4" id="examPapersTabs" role="tablist">
-                <li class="nav-item" role="presentation">
+            <ul class="nav nav-tabs mb-4" id="examPapersTabs" role="tablist" style="flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <li class="nav-item flex-shrink-0" role="presentation">
                     <a class="nav-link active" id="upload-tab" data-toggle="tab" href="#upload" role="tab">
-                        <i class="bi bi-cloud-upload"></i> Upload Exam Paper
+                        <i class="bi bi-cloud-upload"></i> <span>Upload Paper</span>
                     </a>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item flex-shrink-0" role="presentation">
                     <a class="nav-link" id="pending-uploads-tab" data-toggle="tab" href="#pending-uploads" role="tab">
-                        <i class="bi bi-clock-history"></i> Pending Uploads
+                        <i class="bi bi-clock-history"></i> <span>Pending</span>
                         @if($pendingSlots->count() > 0)
                             <span class="badge badge-danger ml-1">{{ $pendingSlots->count() }}</span>
                         @endif
                     </a>
                 </li>
-                <li class="nav-item" role="presentation">
+                <li class="nav-item flex-shrink-0" role="presentation">
                     <a class="nav-link" id="approved-papers-tab" data-toggle="tab" href="#approved-papers" role="tab">
-                        <i class="bi bi-check-circle"></i> Approved Papers
+                        <i class="bi bi-check-circle"></i> <span>Approved</span>
+                        @php $approvedCount = $myExamPapers ? $myExamPapers->where('status', 'approved')->count() : 0; @endphp
+                        @if($approvedCount > 0)
+                            <span class="badge badge-success ml-1">{{ $approvedCount }}</span>
+                        @endif
                     </a>
                 </li>
-                <li class="nav-item" role="presentation">
+                <li class="nav-item flex-shrink-0" role="presentation">
                     <a class="nav-link" id="rejected-papers-tab" data-toggle="tab" href="#rejected-papers" role="tab">
-                        <i class="bi bi-x-circle"></i> Rejected Papers
+                        <i class="bi bi-x-circle"></i> <span>Rejected</span>
+                        @php $rejectedCount = $myExamPapers ? $myExamPapers->where('status', 'rejected')->count() : 0; @endphp
+                        @if($rejectedCount > 0)
+                            <span class="badge badge-danger ml-1">{{ $rejectedCount }}</span>
+                        @endif
                     </a>
                 </li>
-                <li class="nav-item" role="presentation">
+                <li class="nav-item flex-shrink-0" role="presentation">
                     <a class="nav-link" id="pending-papers-tab" data-toggle="tab" href="#pending-papers" role="tab">
-                        <i class="bi bi-clock"></i> Wait Approval
+                        <i class="bi bi-clock"></i> <span>Waiting</span>
+                        @php $waitCount = $myExamPapers ? $myExamPapers->whereIn('status', ['wait_approval', 'pending'])->count() : 0; @endphp
+                        @if($waitCount > 0)
+                            <span class="badge badge-warning text-dark ml-1">{{ $waitCount }}</span>
+                        @endif
                     </a>
                 </li>
             </ul>
