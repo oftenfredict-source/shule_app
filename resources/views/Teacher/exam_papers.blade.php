@@ -514,6 +514,51 @@
                 </li>
             </ul>
 
+            <!-- Shared Filter Bar for Approved/Rejected/Waiting tabs -->
+            <div class="card border-0 shadow-sm mb-3" id="papersFilterBar" style="display:none;">
+                <div class="card-body py-2 px-3">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3 col-6">
+                            <input type="text" class="form-control form-control-sm" id="search_my_papers" placeholder="Search papers...">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <select class="form-control form-control-sm" id="filter_my_papers_exam">
+                                <option value="">All Exams</option>
+                                @if($examinations)
+                                    @foreach($examinations as $exam)
+                                        <option value="{{ $exam->examID }}">{{ $exam->exam_name }} ({{ $exam->year }})</option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <select class="form-control form-control-sm" id="filter_my_papers_term">
+                                <option value="">All Terms</option>
+                                <option value="term_1">Term 1</option>
+                                <option value="term_2">Term 2</option>
+                                <option value="term_3">Term 3</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <select class="form-control form-control-sm" id="filter_my_papers_year">
+                                <option value="">All Years</option>
+                                @php
+                                    $years = $myExamPapers ? $myExamPapers->pluck('examination.year')->unique()->filter()->sort()->reverse() : collect();
+                                @endphp
+                                @foreach($years as $yr)
+                                    <option value="{{ $yr }}">{{ $yr }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 col-12">
+                            <button class="btn btn-sm btn-outline-secondary w-100" id="clearPapersFilter">
+                                <i class="bi bi-x-circle"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="tab-content" id="examPapersTabContent">
                 <!-- Upload/Create Tab -->
                 <div class="tab-pane fade show active" id="upload" role="tabpanel">
@@ -851,7 +896,7 @@
                                                 data-week="' . $testWeek . '"
                                                 data-date="' . e($paper->test_date) . '"
                                                 data-is-rejected="1">
-                                                <i class="bi bi-pencil-square"></i> Edit
+                                                <i class="bi bi-pencil-square"></i> Edit Paper
                                             </button>';
                                 $actions .= '<button class="btn btn-sm btn-success resubmit-paper-btn"
                                                 data-paper-id="' . $paperId . '"
@@ -2479,6 +2524,66 @@ jQuery(document).ready(function($) {
         applyMyPapersFilters();
     });
 
+    // Clear filter
+    $('#clearPapersFilter').on('click', function() {
+        $('#search_my_papers').val('');
+        $('#filter_my_papers_exam').val('');
+        $('#filter_my_papers_term').val('');
+        $('#filter_my_papers_year').val('');
+        applyMyPapersFilters();
+    });
+
+    // Show/hide filter bar based on active tab (hide on Upload and Pending Uploads tabs)
+    function toggleFilterBar() {
+        const activeTab = $('#examPapersTabs .nav-link.active').attr('href');
+        if (activeTab === '#upload' || activeTab === '#pending-uploads') {
+            $('#papersFilterBar').slideUp(200);
+        } else {
+            $('#papersFilterBar').slideDown(200);
+        }
+    }
+
+    // Tab persistence: remember active tab in localStorage
+    const TAB_STORAGE_KEY = 'examPapersActiveTab';
+    
+    $('#examPapersTabs a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
+        const tabId = $(e.target).attr('href');
+        localStorage.setItem(TAB_STORAGE_KEY, tabId);
+        toggleFilterBar();
+        
+        // Badge persistence: mark tab as "seen" and hide badge permanently
+        const tabKey = 'examPapersSeen_' + tabId.replace('#', '');
+        const currentCount = $(e.target).find('.badge').text().trim();
+        if (currentCount) {
+            localStorage.setItem(tabKey, currentCount);
+        }
+        $(e.target).find('.badge').fadeOut(300);
+    });
+
+    // Restore active tab on page load
+    const savedTab = localStorage.getItem(TAB_STORAGE_KEY);
+    if (savedTab && $(savedTab).length) {
+        $(`#examPapersTabs a[href="${savedTab}"]`).tab('show');
+    }
+    toggleFilterBar();
+
+    // Badge persistence on page load: hide badges for tabs already seen with same count
+    $('#examPapersTabs .nav-link .badge').each(function() {
+        const $badge = $(this);
+        const $tab = $badge.closest('.nav-link');
+        const tabId = $tab.attr('href').replace('#', '');
+        const tabKey = 'examPapersSeen_' + tabId;
+        const seenCount = localStorage.getItem(tabKey);
+        const currentCount = $badge.text().trim();
+
+        if (seenCount && seenCount === currentCount) {
+            $badge.hide(); // Already seen - hide permanently
+        } else if (seenCount && seenCount !== currentCount) {
+            // Count changed - show new count (difference)
+            localStorage.removeItem(tabKey); // Reset so it shows again
+        }
+    });
+
     // Edit exam paper questions
     $(document).on('click', '.edit-questions-btn', function() {
         const paperID = $(this).data('paper-id');
@@ -2806,11 +2911,6 @@ jQuery(document).ready(function($) {
                 });
             }
         });
-    });
-
-    // Hide count badge when user clicks on a tab
-    $('#examPapersTabs a[data-toggle="tab"]').on('shown.bs.tab', function() {
-        $(this).find('.badge').fadeOut(300);
     });
 
 });
