@@ -851,7 +851,12 @@
                                                 data-week="' . $testWeek . '"
                                                 data-date="' . e($paper->test_date) . '"
                                                 data-is-rejected="1">
-                                                <i class="bi bi-pencil-square"></i> Edit &amp; Resend
+                                                <i class="bi bi-pencil-square"></i> Edit
+                                            </button>';
+                                $actions .= '<button class="btn btn-sm btn-success resubmit-paper-btn"
+                                                data-paper-id="' . $paperId . '"
+                                                style="font-size:0.8rem;">
+                                                <i class="bi bi-arrow-repeat"></i> Resubmit
                                             </button>';
                             } elseif (in_array($status, ['wait_approval', 'pending'])) {
                                 $actions .= '<button class="btn btn-exam-action btn-sm edit-paper-btn"
@@ -2311,8 +2316,8 @@ jQuery(document).ready(function($) {
                         }
                         
                         if (isRejected) {
-                            $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil-square"></i> Edit & Resend Exam Paper');
-                            $('#submitEditForm').html('<i class="bi bi-send"></i> Submit & Resend');
+                            $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil-square"></i> Edit Exam Paper');
+                            $('#submitEditForm').html('<i class="bi bi-check-circle"></i> Save Changes');
                         } else {
                             $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil"></i> Edit Exam Paper');
                             $('#submitEditForm').html('<i class="bi bi-check-circle"></i> Save Changes');
@@ -2444,34 +2449,28 @@ jQuery(document).ready(function($) {
 
     // Search my exam papers
     $('#search_my_papers').on('input', function() {
-        const searchTerm = $(this).val().toLowerCase();
-        $('.exam-paper-card').each(function() {
-            const text = $(this).text().toLowerCase();
-            if (text.includes(searchTerm)) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
-        });
+        applyMyPapersFilters();
     });
 
     function applyMyPapersFilters() {
-        const searchTerm = $('#search_my_papers').val().toLowerCase();
+        const searchTerm = ($('#search_my_papers').val() || '').toLowerCase();
         const term = $('#filter_my_papers_term').val();
         const year = $('#filter_my_papers_year').val();
         const examId = $('#filter_my_papers_exam').val();
 
-        $('.exam-paper-card').each(function() {
-            const text = $(this).text().toLowerCase();
-            const matchesSearch = text.includes(searchTerm);
-            const matchesTerm = !term || $(this).data('term') === term;
-            const matchesYear = !year || String($(this).data('year')) === String(year);
-            const matchesExam = !examId || String($(this).data('exam-id')) === String(examId);
+        // Apply to ALL tab panes so switching tabs also shows filtered results
+        $('.tab-pane .exam-widget-card').each(function() {
+            const $card = $(this);
+            const text = $card.text().toLowerCase();
+            const matchesSearch = !searchTerm || text.includes(searchTerm);
+            const matchesTerm = !term || $card.data('term') === term;
+            const matchesYear = !year || String($card.data('year')) === String(year);
+            const matchesExam = !examId || String($card.data('exam-id')) === String(examId);
 
             if (matchesSearch && matchesTerm && matchesYear && matchesExam) {
-                $(this).show();
+                $card.closest('.col-md-6').show();
             } else {
-                $(this).hide();
+                $card.closest('.col-md-6').hide();
             }
         });
     }
@@ -2762,6 +2761,56 @@ jQuery(document).ready(function($) {
         $(`.optional-range-item[data-wrapper-for="${target}"] .optional-total-error`).toggleClass('d-none', !hasError);
         $(`.optional-range-item[data-wrapper-for="${target}"] .optional-total-input`).toggleClass('is-invalid', hasError);
         updateTotalMarks($(target));
+    });
+
+    // Resubmit rejected exam paper
+    $(document).on('click', '.resubmit-paper-btn', function() {
+        const paperID = $(this).data('paper-id');
+        const $btn = $(this);
+
+        Swal.fire({
+            title: 'Resubmit Exam Paper?',
+            text: 'This will send the paper back into the approval queue for review.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="bi bi-arrow-repeat"></i> Yes, Resubmit'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Resubmitting...',
+                    text: 'Please wait...',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                $.ajax({
+                    url: '/resubmit_exam_paper/' + paperID,
+                    method: 'POST',
+                    data: { _token: $('meta[name="csrf-token"]').attr('content') },
+                    success: function(response) {
+                        Swal.fire('Success', response.success || 'Exam paper resubmitted successfully!', 'success').then(() => {
+                            location.reload();
+                        });
+                    },
+                    error: function(xhr) {
+                        let errorMsg = 'Failed to resubmit exam paper';
+                        if (xhr.responseJSON && xhr.responseJSON.error) {
+                            errorMsg = xhr.responseJSON.error;
+                        }
+                        Swal.fire('Error', errorMsg, 'error');
+                    }
+                });
+            }
+        });
+    });
+
+    // Hide count badge when user clicks on a tab
+    $('#examPapersTabs a[data-toggle="tab"]').on('shown.bs.tab', function() {
+        $(this).find('.badge').fadeOut(300);
     });
 
 });

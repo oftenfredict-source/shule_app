@@ -5784,9 +5784,6 @@ class ManageExaminationController extends Controller
 
             DB::beginTransaction();
 
-            $examination = $examPaper->examination;
-            $wasRejected = ($examPaper->status === 'rejected');
-
             $examPaper->test_week = $request->test_week;
             $examPaper->test_date = $request->test_date;
             $examPaper->upload_type = 'upload';
@@ -5796,7 +5793,7 @@ class ManageExaminationController extends Controller
                 Storage::disk('public')->delete($examPaper->file_path);
             }
 
-            // Clear any manual questions if we are switching to file upload
+            // Clear any manual questions if switching to file upload
             ExamPaperQuestion::where('exam_paperID', $examPaper->exam_paperID)->delete();
             ExamPaperOptionalRange::where('exam_paperID', $examPaper->exam_paperID)->delete();
 
@@ -5806,58 +5803,13 @@ class ManageExaminationController extends Controller
             $examPaper->file_path = $filePath;
             $examPaper->question_content = null;
 
-            // If it was rejected or we want to restart the chain on update
-            if ($examination && $examination->use_paper_approval) {
-                $examPaper->status = 'pending';
-                $examPaper->current_approval_order = 1;
-
-                // Get first role in the chain
-                $firstChainRole = DB::table('paper_approval_chains')
-                    ->where('examID', $examination->examID)
-                    ->where('approval_order', 1)
-                    ->first();
-
-                // Clear existing logs to restart the chain
-                DB::table('paper_approval_logs')->where('exam_paperID', $examPaper->exam_paperID)->delete();
-
-                if ($firstChainRole) {
-                    DB::table('paper_approval_logs')->insert([
-                        'exam_paperID' => $examPaper->exam_paperID,
-                        'role_id' => $firstChainRole->role_id,
-                        'special_role_type' => $firstChainRole->special_role_type,
-                        'approval_order' => 1,
-                        'status' => 'pending',
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-
-                    // Notify FIRST approvers again
-                    $this->notifyNextApprovers($examPaper, $firstChainRole);
-                } else {
-                    // Default to Admin if no chain defined
-                    DB::table('paper_approval_logs')->insert([
-                        'exam_paperID' => $examPaper->exam_paperID,
-                        'role_id' => null,
-                        'special_role_type' => 'admin_final',
-                        'approval_order' => 1,
-                        'status' => 'pending',
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-
-                    // Notify Admin
-                    $this->notifyAdminApprover($examPaper);
-                }
-            }
-
+            // Do NOT change status here - teacher must click Resubmit separately
             $examPaper->save();
 
             DB::commit();
 
-            $message = $wasRejected ? 'Exam paper re-uploaded and approval chain restarted.' : 'Exam paper updated successfully';
-
             return response()->json([
-                'success' => $message,
+                'success' => 'Exam paper updated successfully. Click Resubmit when ready to send for approval.',
                 'exam_paper' => $examPaper,
             ], 200);
 
@@ -5984,7 +5936,6 @@ class ManageExaminationController extends Controller
             }
 
             $examination = $examPaper->examination;
-            $wasRejected = ($examPaper->status === 'rejected');
 
             $descriptions = $request->input('question_descriptions', []);
             $marks = $request->input('question_marks', []);
@@ -6051,7 +6002,7 @@ class ManageExaminationController extends Controller
 
             DB::beginTransaction();
 
-            // Clear old file if we are switching to questions mode
+            // Clear old file if switching to questions mode
             if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
                 Storage::disk('public')->delete($examPaper->file_path);
                 $examPaper->file_path = null;
@@ -6085,7 +6036,55 @@ class ManageExaminationController extends Controller
                 ]);
             }
 
-            // If it was rejected or we want to restart the chain on update
+            // Do NOT change status here - teacher must click Resubmit separately
+            $examPaper->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => 'Exam paper questions updated. Click Resubmit when ready to send for approval.',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to update exam paper questions: '.$e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Resubmit a rejected exam paper — restarts the approval chain
+     */
+    public function resubmitExamPaper(Request $request, $examPaperID)
+    {
+        $teacherID = Session::get('teacherID');
+        $userType  = Session::get('user_type');
+
+        if ($userType !== 'Teacher' || !$teacherID) {
+            return response()->json(['error' => 'Access denied'], 403);
+        }
+
+        try {
+            $examPaper = ExamPaper::with('examination')
+                ->where('exam_paperID', $examPaperID)
+                ->where('teacherID', $teacherID)
+                ->firstOrFail();
+
+            if ($examPaper->status !== 'rejected') {
+                return response()->json(['error' => 'Only rejected exam papers can be resubmitted.'], 422);
+            }
+
+            // Must have content before resubmitting
+            if (!$examPaper->file_path && !ExamPaperQuestion::where('exam_paperID', $examPaperID)->exists()) {
+                return response()->json(['error' => 'Please upload a file or add questions before resubmitting.'], 422);
+            }
+
+            DB::beginTransaction();
+
+            $examination = $examPaper->examination;
+
+            // Clear rejection reason
+            $examPaper->rejection_reason = null;
+            $examPaper->approval_comment = null;
+
             if ($examination && $examination->use_paper_approval) {
                 $examPaper->status = 'pending';
                 $examPaper->current_approval_order = 1;
@@ -6096,51 +6095,50 @@ class ManageExaminationController extends Controller
                     ->where('approval_order', 1)
                     ->first();
 
-                // Clear existing logs for THIS paper to restart the chain
+                // Clear existing logs and restart
                 DB::table('paper_approval_logs')->where('exam_paperID', $examPaper->exam_paperID)->delete();
 
                 if ($firstChainRole) {
                     DB::table('paper_approval_logs')->insert([
                         'exam_paperID' => $examPaper->exam_paperID,
-                        'role_id' => $firstChainRole->role_id,
+                        'role_id'      => $firstChainRole->role_id,
                         'special_role_type' => $firstChainRole->special_role_type,
                         'approval_order' => 1,
-                        'status' => 'pending',
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'status'       => 'pending',
+                        'created_at'   => now(),
+                        'updated_at'   => now(),
                     ]);
-
-                    // Notify FIRST approvers
                     $this->notifyNextApprovers($examPaper, $firstChainRole);
                 } else {
-                    // Default to Admin if no chain defined
+                    // No approval chain defined — default to admin
                     DB::table('paper_approval_logs')->insert([
                         'exam_paperID' => $examPaper->exam_paperID,
-                        'role_id' => null,
-                        'special_role_type' => 'admin_final',
+                        'role_id'      => null,
+                        'special_role_type' => 'admin',
                         'approval_order' => 1,
-                        'status' => 'pending',
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'status'       => 'pending',
+                        'created_at'   => now(),
+                        'updated_at'   => now(),
                     ]);
-
-                    // Notify Admin
                     $this->notifyAdminApprover($examPaper);
                 }
+            } else {
+                // No approval needed - directly approve
+                $examPaper->status = 'approved';
+                $examPaper->current_approval_order = 0;
             }
 
             $examPaper->save();
-
             DB::commit();
 
-            $message = $wasRejected ? 'Exam paper questions re-submitted and approval chain restarted.' : 'Exam paper questions updated successfully.';
-
             return response()->json([
-                'success' => $message,
+                'success' => 'Exam paper resubmitted successfully. It is now in the approval queue.',
             ]);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Failed to update exam paper questions: '.$e->getMessage()], 500);
+            Log::error('Resubmit exam paper error: '.$e->getMessage());
+            return response()->json(['error' => 'Failed to resubmit exam paper: '.$e->getMessage()], 500);
         }
     }
 

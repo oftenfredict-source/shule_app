@@ -700,6 +700,7 @@ Route::post('update_exam_paper/{examPaperID}', [ManageExaminationController::cla
 Route::get('get_exam_paper_questions/{examPaperID}', [ManageExaminationController::class, 'getExamPaperQuestions'])->name('get_exam_paper_questions');
 Route::get('get_admin_exam_paper_review/{examPaperID}', [ManageExaminationController::class, 'getAdminExamPaperReview'])->name('admin.get_exam_paper_review');
 Route::post('update_exam_paper_questions/{examPaperID}', [ManageExaminationController::class, 'updateExamPaperQuestions'])->name('update_exam_paper_questions');
+Route::post('resubmit_exam_paper/{examPaperID}', [ManageExaminationController::class, 'resubmitExamPaper'])->name('resubmit_exam_paper');
 Route::post('mark_exam_paper_notifications_read', [ManageExaminationController::class, 'markExamPaperNotificationsRead'])->name('mark_exam_paper_notifications_read');
 Route::get('admin/exam-paper-notifications-count', [ManageExaminationController::class, 'getExamPaperNotificationCount'])->name('admin.exam_paper_notifications_count');
 Route::get('admin/get-recent-exam-paper-notifications', [ManageExaminationController::class, 'getRecentExamPaperNotifications'])->name('admin.get_recent_exam_paper_notifications');
