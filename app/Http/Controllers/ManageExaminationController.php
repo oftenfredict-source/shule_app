@@ -6387,10 +6387,9 @@ class ManageExaminationController extends Controller
                 if ($examPaper->teacherID == $teacherID) {
                     $canAccess = true;
                 } else {
-                    // Check if they are an approver in the chain
+                    // Check if they are an approver in the chain (pending or already processed)
                     $isApprover = DB::table('paper_approval_logs')
                         ->where('exam_paperID', $examPaperID)
-                        ->where('status', 'pending')
                         ->where(function($q) use ($teacherID) {
                             // Check regular roles
                             $roleIds = DB::table('role_user')->where('teacher_id', $teacherID)->pluck('role_id')->toArray();
