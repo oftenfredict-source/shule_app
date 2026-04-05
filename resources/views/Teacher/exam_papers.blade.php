@@ -486,8 +486,18 @@
                     </a>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <a class="nav-link" id="my-papers-tab" data-toggle="tab" href="#my-papers" role="tab">
-                        <i class="bi bi-file-earmark-text"></i> My Exam Papers
+                    <a class="nav-link" id="approved-papers-tab" data-toggle="tab" href="#approved-papers" role="tab">
+                        <i class="bi bi-check-circle"></i> Approved Papers
+                    </a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link" id="rejected-papers-tab" data-toggle="tab" href="#rejected-papers" role="tab">
+                        <i class="bi bi-x-circle"></i> Rejected Papers
+                    </a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link" id="pending-papers-tab" data-toggle="tab" href="#pending-papers" role="tab">
+                        <i class="bi bi-clock"></i> Wait Approval
                     </a>
                 </li>
             </ul>
@@ -754,52 +764,18 @@
                 </div>
 
                 <!-- My Exam Papers Tab -->
-                <div class="tab-pane fade" id="my-papers" role="tabpanel">
-                    <!-- Filters -->
-                    <div class="row mb-3">
-                        <div class="col-6 col-md-3 mb-2">
-                            <input type="text" class="form-control" id="search_my_papers" placeholder="Search...">
-                        </div>
-                        <div class="col-6 col-md-3 mb-2">
-                            <select class="form-control" id="filter_my_papers_term">
-                                <option value="">All Terms</option>
-                                @php
-                                    $myTerms = $myExamPapers ? $myExamPapers->pluck('examination.term')->filter()->unique() : collect();
-                                @endphp
-                                @foreach($myTerms as $term)
-                                    <option value="{{ $term }}">{{ ucfirst(str_replace('_', ' ', $term)) }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-6 col-md-3 mb-2">
-                            <select class="form-control" id="filter_my_papers_year">
-                                <option value="">All Years</option>
-                                @php
-                                    $myYears = $myExamPapers ? $myExamPapers->pluck('examination.year')->filter()->unique()->sort() : collect();
-                                @endphp
-                                @foreach($myYears as $year)
-                                    <option value="{{ $year }}">{{ $year }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-6 col-md-3 mb-2">
-                            <select class="form-control" id="filter_my_papers_exam">
-                                <option value="">All Exams</option>
-                                @php
-                                    $myExams = $myExamPapers ? $myExamPapers->pluck('examination')->filter()->unique('examID') : collect();
-                                @endphp
-                                @foreach($myExams as $exam)
-                                    <option value="{{ $exam->examID }}">{{ $exam->exam_name }} ({{ $exam->year }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
+                <!-- Component: Papers View Macro / Partials -->
+                @php
+                    $approvedPapers = $myExamPapers ? $myExamPapers->where('status', 'approved') : collect();
+                    $rejectedPapers = $myExamPapers ? $myExamPapers->where('status', 'rejected') : collect();
+                    $waitApprovalPapers = $myExamPapers ? $myExamPapers->whereIn('status', ['wait_approval', 'pending']) : collect();
 
-                    <!-- Papers Grid -->
-                    <div id="my_exam_papers_list">
-                        @if($myExamPapers && $myExamPapers->count() > 0)
+                    $renderPapers = function($papersCollection, $emptyText, $tabId) {
+                        ob_start();
+                        if($papersCollection->count() > 0):
+                @endphp
                             <div class="row">
-                                @foreach($myExamPapers as $paper)
+                                @foreach($papersCollection as $paper)
                                     <div class="col-md-6 col-lg-4 mb-3">
                                         <div class="exam-widget-card {{ $paper->status == 'approved' ? 'status-approved' : ($paper->status == 'rejected' ? 'status-rejected' : '') }}"
                                              data-paper-id="{{ $paper->exam_paperID }}"
@@ -818,7 +794,7 @@
                                                         @if($paper->status == 'pending' && $paper->current_approval_order)
                                                             Awaiting: {{ $paper->current_step_name }}
                                                         @else
-                                                            Pending
+                                                            Wait Approval
                                                         @endif
                                                     @elseif($paper->status == 'approved')
                                                         <i class="bi bi-check-circle"></i> Approved
@@ -878,18 +854,30 @@
 
                                             <!-- Upload date -->
                                             <p class="mb-2 text-muted" style="font-size: 0.75rem;">
-                                                <i class="bi bi-upload"></i> Submited: {{ $paper->created_at->format('M d, Y H:i') }}
+                                                <i class="bi bi-upload"></i> Submitted: {{ $paper->created_at->format('M d, Y H:i') }}
                                             </p>
 
                                             <!-- Action Buttons -->
                                             <div class="exam-card-actions">
-                                                @if(in_array($paper->status, ['wait_approval', 'pending', 'rejected']))
+                                                @if($paper->status == 'rejected')
+                                                    <!-- Show Edit option to Resend -->
+                                                    <button class="btn btn-exam-action btn-sm edit-paper-btn" 
+                                                        data-paper-id="{{ $paper->exam_paperID }}"
+                                                        data-week="{{ $paper->test_week }}"
+                                                        data-date="{{ $paper->test_date }}"
+                                                        data-is-rejected="1">
+                                                        <i class="bi bi-pencil-square"></i> Edit & Resend
+                                                    </button>
+                                                @elseif(in_array($paper->status, ['wait_approval', 'pending']))
                                                     <button class="btn btn-exam-action btn-sm edit-paper-btn" 
                                                         data-paper-id="{{ $paper->exam_paperID }}"
                                                         data-week="{{ $paper->test_week }}"
                                                         data-date="{{ $paper->test_date }}">
                                                         <i class="bi bi-pencil"></i> Edit Paper
                                                     </button>
+                                                @endif
+
+                                                @if(in_array($paper->status, ['wait_approval', 'pending', 'rejected']))
                                                     <button class="btn btn-exam-action btn-sm edit-questions-btn" 
                                                         data-paper-id="{{ $paper->exam_paperID }}"
                                                         data-week="{{ $paper->test_week }}"
@@ -897,16 +885,19 @@
                                                         <i class="bi bi-list-check"></i> Edit Questions
                                                     </button>
                                                 @endif
+
                                                 @if($paper->status == 'rejected')
                                                     <button class="btn btn-exam-action btn-sm btn-danger-outline delete-paper-btn" data-paper-id="{{ $paper->exam_paperID }}">
                                                         <i class="bi bi-trash"></i> Delete
                                                     </button>
                                                 @endif
+
                                                 @if($paper->upload_type == 'upload' && $paper->file_path)
                                                     <a href="{{ route('download_exam_paper', $paper->exam_paperID) }}" class="btn btn-exam-action btn-sm">
                                                         <i class="bi bi-download"></i> Download
                                                     </a>
                                                 @endif
+
                                                 @if(in_array($paper->status, ['pending', 'approved', 'rejected']))
                                                     <button class="btn btn-exam-action btn-sm btn-view-chain" data-paper-id="{{ $paper->exam_paperID }}" data-exam-id="{{ $paper->examID }}">
                                                         <i class="bi bi-list-ol"></i> View Chain
@@ -917,13 +908,37 @@
                                     </div>
                                 @endforeach
                             </div>
-                        @else
+                @php
+                        else:
+                @endphp
                             <div class="text-center py-5">
                                 <i class="bi bi-file-earmark-x text-muted display-4"></i>
-                                <h5 class="mt-3">No exam papers uploaded yet.</h5>
-                                <p class="text-muted">Use the Upload tab to submit your first exam paper.</p>
+                                <h5 class="mt-3">No {{ $emptyText }} found.</h5>
                             </div>
-                        @endif
+                @php
+                        endif;
+                        return ob_get_clean();
+                    };
+                @endphp
+                
+                <!-- Approved Papers Tab -->
+                <div class="tab-pane fade" id="approved-papers" role="tabpanel">
+                    <div id="approved_papers_list">
+                        {!! $renderPapers($approvedPapers, 'approved exam papers', 'approved') !!}
+                    </div>
+                </div>
+
+                <!-- Rejected Papers Tab -->
+                <div class="tab-pane fade" id="rejected-papers" role="tabpanel">
+                    <div id="rejected_papers_list">
+                         {!! $renderPapers($rejectedPapers, 'rejected exam papers', 'rejected') !!}
+                    </div>
+                </div>
+
+                <!-- Wait Approval Tab -->
+                <div class="tab-pane fade" id="pending-papers" role="tabpanel">
+                    <div id="pending_papers_list">
+                         {!! $renderPapers($waitApprovalPapers, 'pending exam papers', 'pending') !!}
                     </div>
                 </div>
             </div>
@@ -2261,6 +2276,7 @@ jQuery(document).ready(function($) {
     // Edit exam paper
     $(document).on('click', '.edit-paper-btn', function() {
         const paperID = $(this).data('paper-id');
+        const isRejected = $(this).data('is-rejected') == '1';
 
         $.ajax({
             url: '/get_my_exam_papers',
@@ -2272,6 +2288,24 @@ jQuery(document).ready(function($) {
                         $('#edit_paper_id').val(paper.exam_paperID);
                         $('#edit_test_week').val(paper.test_week);
                         $('#edit_test_date').val(paper.test_date ? paper.test_date.split('T')[0] : '');
+                        
+                        // Toggle test fields based on exam_category or name
+                        if (paper.examination && (paper.examination.exam_category === 'test' || paper.examination.exam_name.toLowerCase().includes('test'))) {
+                            $('#edit_test_week').closest('.form-group').show();
+                            $('#edit_test_date').closest('.form-group').show();
+                        } else {
+                            $('#edit_test_week').closest('.form-group').hide();
+                            $('#edit_test_date').closest('.form-group').hide();
+                        }
+                        
+                        if (isRejected) {
+                            $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil-square"></i> Edit & Resend Exam Paper');
+                            $('#submitEditForm').html('<i class="bi bi-send"></i> Submit & Resend');
+                        } else {
+                            $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil"></i> Edit Exam Paper');
+                            $('#submitEditForm').html('<i class="bi bi-check-circle"></i> Save Changes');
+                        }
+                        
                         $('#editExamPaperModal').modal('show');
                     }
                 }
@@ -2445,40 +2479,73 @@ jQuery(document).ready(function($) {
         $('#edit_questions_test_date').val(testDate);
         $('#question-rows-edit').empty();
         $('.optional-ranges-wrapper[data-wrapper-for="#question-rows-edit"]').empty();
-        $('#editExamPaperQuestionsModal').modal('show');
-
+        
+        let isRejected = false;
+        
         $.ajax({
-            url: `/get_exam_paper_questions/${paperID}`,
+            url: '/get_my_exam_papers',
             method: 'GET',
-            success: function(response) {
-                if (!response.success) {
-                    Swal.fire('Error', response.error || 'Failed to load questions', 'error');
-                    return;
+            success: function(getResp) {
+                if (getResp.success) {
+                    const paper = getResp.exam_papers.find(p => p.exam_paperID == paperID);
+                    if (paper) {
+                        isRejected = paper.status === 'rejected';
+                        
+                        // Toggle test fields based on exam_category or name
+                        if (paper.examination && (paper.examination.exam_category === 'test' || paper.examination.exam_name.toLowerCase().includes('test'))) {
+                            $('#edit_questions_test_week').closest('.col-md-6').show();
+                            $('#edit_questions_test_date').closest('.col-md-6').show();
+                        } else {
+                            $('#edit_questions_test_week').closest('.col-md-6').hide();
+                            $('#edit_questions_test_date').closest('.col-md-6').hide();
+                        }
+                        
+                        if (isRejected) {
+                            $('#editExamPaperQuestionsModal .modal-title').html('<i class="bi bi-pencil-square"></i> Edit & Resend Questions');
+                            $('#submitEditQuestionsForm').html('<i class="bi bi-send"></i> Submit & Resend');
+                        } else {
+                            $('#editExamPaperQuestionsModal .modal-title').html('<i class="bi bi-list-check"></i> Edit Exam Paper Questions');
+                            $('#submitEditQuestionsForm').html('<i class="bi bi-check-circle"></i> Save Changes');
+                        }
+                    }
                 }
+                
+                $('#editExamPaperQuestionsModal').modal('show');
 
-                const ranges = response.optional_ranges || [];
-                ranges.forEach(function(range) {
-                    addOptionalRange('#question-rows-edit');
-                    const $wrapper = $('.optional-ranges-wrapper[data-wrapper-for="#question-rows-edit"] .optional-range-item').last();
-                    $wrapper.find('.optional-total-input').val(range.total_marks);
-                    $wrapper.find('.optional-required-input').val(range.required_questions);
+                $.ajax({
+                    url: `/get_exam_paper_questions/${paperID}`,
+                    method: 'GET',
+                    success: function(response) {
+                        if (!response.success) {
+                            Swal.fire('Error', response.error || 'Failed to load questions', 'error');
+                            return;
+                        }
+
+                        const ranges = response.optional_ranges || [];
+                        ranges.forEach(function(range) {
+                            addOptionalRange('#question-rows-edit');
+                            const $wrapper = $('.optional-ranges-wrapper[data-wrapper-for="#question-rows-edit"] .optional-range-item').last();
+                            $wrapper.find('.optional-total-input').val(range.total_marks);
+                            $wrapper.find('.optional-required-input').val(range.required_questions);
+                        });
+
+                        (response.questions || []).forEach(function(question) {
+                            $('#question-rows-edit').append(buildQuestionRow('#question-rows-edit'));
+                            const $row = $('#question-rows-edit .question-row').last();
+                            $row.find('.question-description').val(question.question_description);
+                            $row.find('.question-marks').val(question.marks);
+                            $row.find('.question-optional').val(question.optional_range_number || 0);
+                        });
+
+                        refreshQuestionNumbers($('#question-rows-edit'));
+                        refreshOptionalRangeSelects($('#question-rows-edit'));
+                        updateTotalMarks($('#question-rows-edit'));
+                        toggleRemoveButtons($('#question-rows-edit'));
+                    },
+                    error: function() {
+                        Swal.fire('Error', 'Failed to load questions', 'error');
+                    }
                 });
-
-                (response.questions || []).forEach(function(question) {
-                    $('#question-rows-edit').append(buildQuestionRow('#question-rows-edit'));
-                    const $row = $('#question-rows-edit .question-row').last();
-                    $row.find('.question-description').val(question.question_description);
-                    $row.find('.question-marks').val(question.marks);
-                    $row.find('.question-optional').val(question.optional_range_number || 0);
-                });
-
-                refreshQuestionNumbers($('#question-rows-edit'));
-                refreshOptionalRangeSelects('#question-rows-edit');
-                updateTotalMarks($('#question-rows-edit'));
-                toggleRemoveButtons($('#question-rows-edit'));
-            },
-            error: function() {
-                Swal.fire('Error', 'Failed to load questions', 'error');
             }
         });
     });
