@@ -766,160 +766,160 @@
                 <!-- My Exam Papers Tab -->
                 <!-- Component: Papers View Macro / Partials -->
                 @php
-                    $approvedPapers = $myExamPapers ? $myExamPapers->where('status', 'approved') : collect();
-                    $rejectedPapers = $myExamPapers ? $myExamPapers->where('status', 'rejected') : collect();
+                    $approvedPapers     = $myExamPapers ? $myExamPapers->where('status', 'approved') : collect();
+                    $rejectedPapers     = $myExamPapers ? $myExamPapers->where('status', 'rejected') : collect();
                     $waitApprovalPapers = $myExamPapers ? $myExamPapers->whereIn('status', ['wait_approval', 'pending']) : collect();
 
                     $renderPapers = function($papersCollection, $emptyText, $tabId) {
-                        ob_start();
-                        if($papersCollection->count() > 0):
-                @endphp
-                            <div class="row">
-                                @foreach($papersCollection as $paper)
-                                    <div class="col-md-6 col-lg-4 mb-3">
-                                        <div class="exam-widget-card {{ $paper->status == 'approved' ? 'status-approved' : ($paper->status == 'rejected' ? 'status-rejected' : '') }}"
-                                             data-paper-id="{{ $paper->exam_paperID }}"
-                                             data-term="{{ $paper->examination->term ?? '' }}"
-                                             data-year="{{ $paper->examination->year ?? '' }}"
-                                             data-exam-id="{{ $paper->examID }}">
 
-                                            <!-- Top: Status badge -->
-                                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                                <span class="exam-type-badge">
-                                                    <i class="bi bi-file-earmark-text"></i> {{ ucfirst($paper->upload_type) }}
-                                                </span>
-                                                <span class="badge badge-status-{{ $paper->status }}">
-                                                    @if($paper->status == 'wait_approval' || $paper->status == 'pending')
-                                                        <i class="bi bi-clock-history"></i>
-                                                        @if($paper->status == 'pending' && $paper->current_approval_order)
-                                                            Awaiting: {{ $paper->current_step_name }}
-                                                        @else
-                                                            Wait Approval
-                                                        @endif
-                                                    @elseif($paper->status == 'approved')
-                                                        <i class="bi bi-check-circle"></i> Approved
-                                                    @else
-                                                        <i class="bi bi-x-circle"></i> Rejected
-                                                    @endif
-                                                </span>
-                                            </div>
+                        if ($papersCollection->count() === 0) {
+                            return '<div class="text-center py-5">
+                                        <i class="bi bi-file-earmark-x text-muted display-4"></i>
+                                        <h5 class="mt-3">No ' . e($emptyText) . ' found.</h5>
+                                    </div>';
+                        }
 
-                                            <!-- Exam Name -->
-                                            <h6 class="mb-2" style="font-weight: bold;">
-                                                <i class="bi bi-journal-bookmark text-primary-custom"></i>
-                                                {{ $paper->examination->exam_name ?? 'N/A' }}
-                                            </h6>
+                        $html = '<div class="row">';
+                        foreach ($papersCollection as $paper) {
+                            $status      = $paper->status;
+                            $examName    = e($paper->examination->exam_name ?? 'N/A');
+                            $subjectName = e($paper->classSubject->subject->subject_name ?? 'N/A');
+                            $uploadType  = e(ucfirst($paper->upload_type));
+                            $paperId     = $paper->exam_paperID;
+                            $examId      = $paper->examID;
+                            $term        = e($paper->examination->term ?? '');
+                            $year        = e($paper->examination->year ?? '');
+                            $testWeek    = e($paper->test_week ?? '');
+                            $testDate    = $paper->test_date ? \Carbon\Carbon::parse($paper->test_date)->format('M d, Y') : '';
+                            $submitDate  = $paper->created_at->format('M d, Y H:i');
+                            $filePath    = $paper->file_path;
 
-                                            <!-- Subject & Class -->
-                                            <p class="mb-1 text-muted" style="font-size: 0.9rem;">
-                                                <i class="bi bi-book"></i>
-                                                {{ $paper->classSubject->subject->subject_name ?? 'N/A' }}
-                                            </p>
-                                            <p class="mb-2 text-muted" style="font-size: 0.85rem;">
-                                                <i class="bi bi-people"></i>
-                                                @if($paper->classSubject->subclass)
-                                                    {{ $paper->classSubject->subclass->class->class_name ?? 'N/A' }} {{ $paper->classSubject->subclass->subclass_name }}
-                                                @else
-                                                    {{ $paper->classSubject->class->class_name ?? 'N/A' }}
-                                                @endif
-                                            </p>
+                            // Class & subclass
+                            if ($paper->classSubject && $paper->classSubject->subclass) {
+                                $classDisplay = e(($paper->classSubject->subclass->class->class_name ?? 'N/A') . ' ' . $paper->classSubject->subclass->subclass_name);
+                            } else {
+                                $classDisplay = e($paper->classSubject->class->class_name ?? 'N/A');
+                            }
 
-                                            <!-- Rejection / Approval messages -->
-                                            @if($paper->status == 'rejected' && $paper->rejection_reason)
-                                                <div class="alert alert-danger py-2 px-3 mb-2" style="font-size: 0.8rem; border-radius: 8px !important;">
-                                                    <strong><i class="bi bi-exclamation-triangle"></i> Reason:</strong>
-                                                    {{ $paper->rejection_reason }}
-                                                </div>
-                                            @endif
-                                            @if($paper->status == 'approved' && $paper->approval_comment)
-                                                <div class="alert alert-success py-2 px-3 mb-2" style="font-size: 0.8rem; border-radius: 8px !important;">
-                                                    <strong><i class="bi bi-check-circle"></i> Comment:</strong>
-                                                    {{ $paper->approval_comment }}
-                                                </div>
-                                            @endif
+                            // Status badge
+                            if ($status === 'wait_approval' || $status === 'pending') {
+                                $stepName = e($paper->current_step_name ?? '');
+                                $badgeLabel = ($status === 'pending' && $paper->current_approval_order && $stepName)
+                                    ? '<i class="bi bi-clock-history"></i> Awaiting: ' . $stepName
+                                    : '<i class="bi bi-clock-history"></i> Wait Approval';
+                            } elseif ($status === 'approved') {
+                                $badgeLabel = '<i class="bi bi-check-circle"></i> Approved';
+                            } else {
+                                $badgeLabel = '<i class="bi bi-x-circle"></i> Rejected';
+                            }
+                            $statusClass = 'badge-status-' . $status;
 
-                                            <!-- Test Week / Date -->
-                                            <div class="mb-2" style="font-size: 0.85rem;">
-                                                @if($paper->test_week)
-                                                    <span class="badge bg-light text-dark border me-1">
-                                                        <i class="bi bi-clock"></i> {{ $paper->test_week }}
-                                                    </span>
-                                                @endif
-                                                @if($paper->test_date)
-                                                    <span class="badge bg-light text-dark border">
-                                                        <i class="bi bi-calendar-event"></i> {{ \Carbon\Carbon::parse($paper->test_date)->format('M d, Y') }}
-                                                    </span>
-                                                @endif
-                                            </div>
+                            // Rejection / Approval alerts
+                            $alerts = '';
+                            if ($status === 'rejected' && $paper->rejection_reason) {
+                                $alerts .= '<div class="alert alert-danger py-2 px-3 mb-2" style="font-size:0.8rem;">
+                                                <strong><i class="bi bi-exclamation-triangle"></i> Reason:</strong> ' . e($paper->rejection_reason) . '
+                                            </div>';
+                            }
+                            if ($status === 'approved' && $paper->approval_comment) {
+                                $alerts .= '<div class="alert alert-success py-2 px-3 mb-2" style="font-size:0.8rem;">
+                                                <strong><i class="bi bi-check-circle"></i> Comment:</strong> ' . e($paper->approval_comment) . '
+                                            </div>';
+                            }
 
-                                            <!-- Upload date -->
-                                            <p class="mb-2 text-muted" style="font-size: 0.75rem;">
-                                                <i class="bi bi-upload"></i> Submitted: {{ $paper->created_at->format('M d, Y H:i') }}
-                                            </p>
+                            // Week / Date badges
+                            $weekBadge = $testWeek ? '<span class="badge bg-light text-dark border me-1"><i class="bi bi-clock"></i> ' . $testWeek . '</span>' : '';
+                            $dateBadge = $testDate ? '<span class="badge bg-light text-dark border"><i class="bi bi-calendar-event"></i> ' . $testDate . '</span>' : '';
 
-                                            <!-- Action Buttons -->
-                                            <div class="exam-card-actions">
-                                                @if($paper->status == 'rejected')
-                                                    <!-- Show Edit option to Resend -->
-                                                    <button class="btn btn-exam-action btn-sm edit-paper-btn" 
-                                                        data-paper-id="{{ $paper->exam_paperID }}"
-                                                        data-week="{{ $paper->test_week }}"
-                                                        data-date="{{ $paper->test_date }}"
-                                                        data-is-rejected="1">
-                                                        <i class="bi bi-pencil-square"></i> Edit & Resend
-                                                    </button>
-                                                @elseif(in_array($paper->status, ['wait_approval', 'pending']))
-                                                    <button class="btn btn-exam-action btn-sm edit-paper-btn" 
-                                                        data-paper-id="{{ $paper->exam_paperID }}"
-                                                        data-week="{{ $paper->test_week }}"
-                                                        data-date="{{ $paper->test_date }}">
-                                                        <i class="bi bi-pencil"></i> Edit Paper
-                                                    </button>
-                                                @endif
+                            // Action buttons
+                            $actions = '';
+                            if ($status === 'rejected') {
+                                $actions .= '<button class="btn btn-exam-action btn-sm edit-paper-btn"
+                                                data-paper-id="' . $paperId . '"
+                                                data-week="' . $testWeek . '"
+                                                data-date="' . e($paper->test_date) . '"
+                                                data-is-rejected="1">
+                                                <i class="bi bi-pencil-square"></i> Edit &amp; Resend
+                                            </button>';
+                            } elseif (in_array($status, ['wait_approval', 'pending'])) {
+                                $actions .= '<button class="btn btn-exam-action btn-sm edit-paper-btn"
+                                                data-paper-id="' . $paperId . '"
+                                                data-week="' . $testWeek . '"
+                                                data-date="' . e($paper->test_date) . '">
+                                                <i class="bi bi-pencil"></i> Edit Paper
+                                            </button>';
+                            }
+                            if (in_array($status, ['wait_approval', 'pending', 'rejected'])) {
+                                $actions .= '<button class="btn btn-exam-action btn-sm edit-questions-btn"
+                                                data-paper-id="' . $paperId . '"
+                                                data-week="' . $testWeek . '"
+                                                data-date="' . e($paper->test_date) . '">
+                                                <i class="bi bi-list-check"></i> Edit Questions
+                                            </button>';
+                            }
+                            if ($status === 'rejected') {
+                                $actions .= '<button class="btn btn-exam-action btn-sm btn-danger-outline delete-paper-btn"
+                                                data-paper-id="' . $paperId . '">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>';
+                            }
+                            if ($paper->upload_type === 'upload' && $filePath) {
+                                $downloadUrl = route('download_exam_paper', $paperId);
+                                $actions .= '<a href="' . $downloadUrl . '" class="btn btn-exam-action btn-sm">
+                                                <i class="bi bi-download"></i> Download
+                                            </a>';
+                            }
+                            if (in_array($status, ['pending', 'approved', 'rejected'])) {
+                                $actions .= '<button class="btn btn-exam-action btn-sm btn-view-chain"
+                                                data-paper-id="' . $paperId . '"
+                                                data-exam-id="' . $examId . '">
+                                                <i class="bi bi-list-ol"></i> View Chain
+                                            </button>';
+                            }
 
-                                                @if(in_array($paper->status, ['wait_approval', 'pending', 'rejected']))
-                                                    <button class="btn btn-exam-action btn-sm edit-questions-btn" 
-                                                        data-paper-id="{{ $paper->exam_paperID }}"
-                                                        data-week="{{ $paper->test_week }}"
-                                                        data-date="{{ $paper->test_date }}">
-                                                        <i class="bi bi-list-check"></i> Edit Questions
-                                                    </button>
-                                                @endif
+                            $cardClass = $status === 'approved' ? 'status-approved' : ($status === 'rejected' ? 'status-rejected' : '');
 
-                                                @if($paper->status == 'rejected')
-                                                    <button class="btn btn-exam-action btn-sm btn-danger-outline delete-paper-btn" data-paper-id="{{ $paper->exam_paperID }}">
-                                                        <i class="bi bi-trash"></i> Delete
-                                                    </button>
-                                                @endif
+                            $html .= '
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="exam-widget-card ' . $cardClass . '"
+                                     data-paper-id="' . $paperId . '"
+                                     data-term="' . $term . '"
+                                     data-year="' . $year . '"
+                                     data-exam-id="' . $examId . '">
 
-                                                @if($paper->upload_type == 'upload' && $paper->file_path)
-                                                    <a href="{{ route('download_exam_paper', $paper->exam_paperID) }}" class="btn btn-exam-action btn-sm">
-                                                        <i class="bi bi-download"></i> Download
-                                                    </a>
-                                                @endif
-
-                                                @if(in_array($paper->status, ['pending', 'approved', 'rejected']))
-                                                    <button class="btn btn-exam-action btn-sm btn-view-chain" data-paper-id="{{ $paper->exam_paperID }}" data-exam-id="{{ $paper->examID }}">
-                                                        <i class="bi bi-list-ol"></i> View Chain
-                                                    </button>
-                                                @endif
-                                            </div>
-                                        </div>
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="exam-type-badge"><i class="bi bi-file-earmark-text"></i> ' . $uploadType . '</span>
+                                        <span class="badge ' . $statusClass . '">' . $badgeLabel . '</span>
                                     </div>
-                                @endforeach
-                            </div>
-                @php
-                        else:
-                @endphp
-                            <div class="text-center py-5">
-                                <i class="bi bi-file-earmark-x text-muted display-4"></i>
-                                <h5 class="mt-3">No {{ $emptyText }} found.</h5>
-                            </div>
-                @php
-                        endif;
-                        return ob_get_clean();
+
+                                    <h6 class="mb-2" style="font-weight:bold;">
+                                        <i class="bi bi-journal-bookmark text-primary-custom"></i> ' . $examName . '
+                                    </h6>
+
+                                    <p class="mb-1 text-muted" style="font-size:0.9rem;">
+                                        <i class="bi bi-book"></i> ' . $subjectName . '
+                                    </p>
+                                    <p class="mb-2 text-muted" style="font-size:0.85rem;">
+                                        <i class="bi bi-people"></i> ' . $classDisplay . '
+                                    </p>
+
+                                    ' . $alerts . '
+
+                                    <div class="mb-2" style="font-size:0.85rem;">' . $weekBadge . $dateBadge . '</div>
+
+                                    <p class="mb-2 text-muted" style="font-size:0.75rem;">
+                                        <i class="bi bi-upload"></i> Submitted: ' . $submitDate . '
+                                    </p>
+
+                                    <div class="exam-card-actions">' . $actions . '</div>
+                                </div>
+                            </div>';
+                        }
+                        $html .= '</div>';
+                        return $html;
                     };
                 @endphp
+
                 
                 <!-- Approved Papers Tab -->
                 <div class="tab-pane fade" id="approved-papers" role="tabpanel">
