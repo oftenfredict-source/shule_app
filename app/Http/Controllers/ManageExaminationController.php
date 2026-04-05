@@ -5149,7 +5149,7 @@ class ManageExaminationController extends Controller
         $weekFilter = $request->input('week');
         if (!$weekFilter && $examID) {
             $checkExam = DB::table('examinations')->where('examID', $examID)->first();
-            if ($checkExam && in_array($checkExam->category, ['Weekly Test', 'Monthly Test'])) {
+            if ($checkExam && in_array($checkExam->exam_name, ['Weekly Test', 'Monthly Test'])) {
                 $weekFilter = "Week " . date('W');
             }
         }

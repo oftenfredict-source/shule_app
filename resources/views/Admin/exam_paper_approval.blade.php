@@ -98,7 +98,7 @@
     <!-- Filters Section -->
     <div class="card mb-4 shadow-sm">
         <div class="card-body bg-light">
-            <form action="{{ route('admin.exam_paper_approval') }}" method="GET" class="row align-items-end">
+            <form action="{{ route('admin.exam_paper_approval') }}" method="GET" class="row align-items-end" id="filterForm">
                 <div class="col-md-2">
                     <label class="small font-weight-bold">Year</label>
                     <select name="year" class="form-control">
@@ -175,7 +175,7 @@
                     </select>
                 </div>
                 <div class="col-md-12 mt-3 text-right">
-                    <button type="submit" class="btn btn-primary-custom px-4">
+                    <button type="submit" class="btn btn-primary-custom px-4" id="btnFilterApply">
                         <i class="fa fa-filter"></i> Apply Filters
                     </button>
                     <a href="{{ route('admin.exam_paper_approval') }}" class="btn btn-secondary px-4">
@@ -363,8 +363,8 @@
 
 <script>
     $(document).ready(function() {
-        // Handle Approve/Reject button clicks
-        $('.btn-approve-reject').on('click', function() {
+        // Handle Approve/Reject button clicks using event delegation
+        $(document).on('click', '.btn-approve-reject', function() {
             const paperId = $(this).data('paper-id');
             const logId = $(this).data('log-id');
             const action = $(this).data('action');
@@ -431,8 +431,8 @@
             });
         });
         
-        // Handle Preview Paper content
-        $('.btn-preview-paper').on('click', function() {
+        // Handle Preview Paper content using event delegation
+        $(document).on('click', '.btn-preview-paper', function() {
             const paperId = $(this).data('paper-id');
             const previewRow = $('#preview-row-' + paperId);
             const contentDiv = $('#preview-content-' + paperId);
@@ -695,8 +695,8 @@
             });
         });
 
-        // Handle View Chain
-        $('.btn-view-chain').on('click', function() {
+        // Handle View Chain using event delegation
+        $(document).on('click', '.btn-view-chain', function() {
             const paperId = $(this).data('paper-id');
             const examId = $(this).data('exam-id');
             
@@ -782,5 +782,40 @@
                 }
             });
         });
+
+        // Handle Form Submission via AJAX (Filtering)
+        $('#filterForm').on('submit', function(e) {
+            e.preventDefault();
+            const form = $(this);
+            const btn = $('#btnFilterApply');
+            const origHtml = btn.html();
+            
+            btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Filtering...');
+            
+            const tbody = $('#pendingApprovalsTable tbody');
+            tbody.html('<tr><td colspan="7" class="text-center py-5"><i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i></td></tr>');
+            
+            $.ajax({
+                url: form.attr('action'),
+                method: 'GET',
+                data: form.serialize(),
+                success: function(response) {
+                    // Extract just the tbody content from the returned HTML
+                    const newTbody = $(response).find('#pendingApprovalsTable tbody').html();
+                    tbody.html(newTbody);
+                    btn.prop('disabled', false).html(origHtml);
+                },
+                error: function(xhr) {
+                    btn.prop('disabled', false).html(origHtml);
+                    tbody.html('<tr><td colspan="7" class="text-center text-danger py-4">Error loading filtered data.</td></tr>');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'An error occurred while filtering. Please try again.'
+                    });
+                }
+            });
+        });
+
     });
 </script>
