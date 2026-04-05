@@ -318,7 +318,7 @@
                 
                 <div class="modal-body">
                     <div id="rejection_reason_group" style="display: none;">
-                        <label class="font-weight-bold">Rejection Reason <span class="text-danger">*</span></label>
+                        <label class="font-weight-bold">Rejection Reason (Optional)</label>
                         <textarea class="form-control" name="rejection_reason" id="rejection_reason" rows="4" placeholder="Please explain why the paper is rejected..."></textarea>
                     </div>
                     <div id="approval_comment_group">
@@ -376,13 +376,11 @@
             if (action === 'approve') {
                 $('#approvalModalTitle').text('Approve Exam Paper');
                 $('#rejection_reason_group').hide();
-                $('#rejection_reason').prop('required', false);
                 $('#approval_comment_group').show();
                 $('#submitApprovalBtn').text('Confirm Approval').removeClass('btn-danger').addClass('btn-primary-custom');
             } else {
                 $('#approvalModalTitle').text('Reject Exam Paper');
                 $('#rejection_reason_group').show();
-                $('#rejection_reason').prop('required', true);
                 $('#approval_comment_group').hide();
                 $('#submitApprovalBtn').text('Confirm Rejection').removeClass('btn-primary-custom').addClass('btn-danger');
             }

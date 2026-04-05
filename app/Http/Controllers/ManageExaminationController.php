@@ -5457,7 +5457,7 @@ class ManageExaminationController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'action' => 'required|in:approve,reject',
-            'rejection_reason' => 'required_if:action,reject|string|max:500',
+            'rejection_reason' => 'nullable|string|max:500',
             'approval_comment' => 'nullable|string|max:500',
             'paper_approval_log_id' => 'required|exists:paper_approval_logs,paper_approval_logID',
         ]);

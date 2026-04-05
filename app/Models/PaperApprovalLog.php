@@ -10,6 +10,7 @@ class PaperApprovalLog extends Model
     use HasFactory;
 
     protected $table = 'paper_approval_logs';
+    protected $primaryKey = 'paper_approval_logID';
 
     protected $fillable = [
         'exam_paperID',
