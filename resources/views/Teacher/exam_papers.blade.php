@@ -480,7 +480,7 @@
                 <li class="nav-item flex-shrink-0" role="presentation">
                     <a class="nav-link" id="pending-uploads-tab" data-toggle="tab" href="#pending-uploads" role="tab">
                         <i class="bi bi-clock-history"></i> <span>Pending</span>
-                        @if($pendingSlots->count() > 0)
+                        @if(isset($pendingSlots) && $pendingSlots->count() > 0)
                             <span class="badge badge-danger ml-1">{{ $pendingSlots->count() }}</span>
                         @endif
                     </a>
@@ -488,7 +488,9 @@
                 <li class="nav-item flex-shrink-0" role="presentation">
                     <a class="nav-link" id="approved-papers-tab" data-toggle="tab" href="#approved-papers" role="tab">
                         <i class="bi bi-check-circle"></i> <span>Approved</span>
-                        @php $approvedCount = $myExamPapers ? $myExamPapers->where('status', 'approved')->count() : 0; @endphp
+                        @php 
+                            $approvedCount = $myExamPapers ? $myExamPapers->filter(fn($p) => strtolower($p->status) == 'approved')->count() : 0; 
+                        @endphp
                         @if($approvedCount > 0)
                             <span class="badge badge-success ml-1">{{ $approvedCount }}</span>
                         @endif
@@ -497,16 +499,20 @@
                 <li class="nav-item flex-shrink-0" role="presentation">
                     <a class="nav-link" id="rejected-papers-tab" data-toggle="tab" href="#rejected-papers" role="tab">
                         <i class="bi bi-x-circle"></i> <span>Rejected</span>
-                        @php $rejectedCount = $myExamPapers ? $myExamPapers->where('status', 'rejected')->count() : 0; @endphp
+                        @php 
+                            $rejectedCount = $myExamPapers ? $myExamPapers->filter(fn($p) => strtolower($p->status) == 'rejected')->count() : 0; 
+                        @endphp
                         @if($rejectedCount > 0)
-                            <span class="badge badge-danger ml-1">{{ $rejectedCount }}</span>
+                            <span class="badge badge-danger ml-1" id="rejected-count-badge">{{ $rejectedCount }}</span>
                         @endif
                     </a>
                 </li>
                 <li class="nav-item flex-shrink-0" role="presentation">
                     <a class="nav-link" id="pending-papers-tab" data-toggle="tab" href="#pending-papers" role="tab">
                         <i class="bi bi-clock"></i> <span>Waiting</span>
-                        @php $waitCount = $myExamPapers ? $myExamPapers->whereIn('status', ['wait_approval', 'pending'])->count() : 0; @endphp
+                        @php 
+                            $waitCount = $myExamPapers ? $myExamPapers->filter(fn($p) => in_array(strtolower($p->status), ['wait_approval', 'pending']))->count() : 0; 
+                        @endphp
                         @if($waitCount > 0)
                             <span class="badge badge-warning text-dark ml-1">{{ $waitCount }}</span>
                         @endif
@@ -891,40 +897,22 @@
                             // Action buttons
                             $actions = '';
                             if ($status === 'rejected') {
-                                $actions .= '<button class="btn btn-exam-action btn-sm edit-paper-btn"
+                                $actions .= '<button type="button" class="btn btn-sm btn-danger edit-paper-btn"
                                                 data-paper-id="' . $paperId . '"
                                                 data-week="' . $testWeek . '"
                                                 data-date="' . e($paper->test_date) . '"
                                                 data-is-rejected="1">
-                                                <i class="bi bi-pencil-square"></i> Edit Paper
-                                            </button>';
-                                $actions .= '<button class="btn btn-sm btn-success resubmit-paper-btn"
-                                                data-paper-id="' . $paperId . '"
-                                                style="font-size:0.8rem;">
-                                                <i class="bi bi-arrow-repeat"></i> Resubmit
+                                                <i class="bi bi-pencil-square"></i> Edit Exam &amp; Resend
                                             </button>';
                             } elseif (in_array($status, ['wait_approval', 'pending'])) {
-                                $actions .= '<button class="btn btn-exam-action btn-sm edit-paper-btn"
+                                $actions .= '<button type="button" class="btn btn-sm btn-primary edit-paper-btn"
                                                 data-paper-id="' . $paperId . '"
                                                 data-week="' . $testWeek . '"
                                                 data-date="' . e($paper->test_date) . '">
-                                                <i class="bi bi-pencil"></i> Edit Paper
+                                                <i class="bi bi-pencil"></i> Edit Exam
                                             </button>';
                             }
-                            if (in_array($status, ['wait_approval', 'pending', 'rejected'])) {
-                                $actions .= '<button class="btn btn-exam-action btn-sm edit-questions-btn"
-                                                data-paper-id="' . $paperId . '"
-                                                data-week="' . $testWeek . '"
-                                                data-date="' . e($paper->test_date) . '">
-                                                <i class="bi bi-list-check"></i> Edit Questions
-                                            </button>';
-                            }
-                            if ($status === 'rejected') {
-                                $actions .= '<button class="btn btn-exam-action btn-sm btn-danger-outline delete-paper-btn"
-                                                data-paper-id="' . $paperId . '">
-                                                <i class="bi bi-trash"></i> Delete
-                                            </button>';
-                            }
+
                             if ($paper->upload_type === 'upload' && $filePath) {
                                 $downloadUrl = route('download_exam_paper', $paperId);
                                 $actions .= '<a href="' . $downloadUrl . '" class="btn btn-exam-action btn-sm">
@@ -1139,40 +1127,138 @@
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title">
-                    <i class="bi bi-pencil"></i> Edit Exam Paper
+                    <i class="bi bi-pencil-square"></i> Edit Exam Paper
                 </h5>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body">
-                <form id="editExamPaperForm">
+            <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+                <form id="editExamPaperForm" novalidate>
                     <input type="hidden" id="edit_paper_id" name="exam_paperID">
+                    <input type="hidden" id="edit_upload_type" name="upload_type">
+
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="edit_test_week">Test Week</label>
-                                <input type="text" class="form-control" id="edit_test_week" name="test_week" placeholder="e.g. Week 1">
+                        <div class="col-md-12 mb-3">
+                            <label for="edit_selected_exam" class="form-label">
+                                <i class="bi bi-clipboard-check"></i> Select Examination <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-control" id="edit_selected_exam" name="examID" required>
+                                <option value="">Select Examination</option>
+                                @foreach($examinations as $exam)
+                                    <option value="{{ $exam->examID }}" data-allow-no-format="{{ $exam->allow_no_format ? '1' : '0' }}">
+                                        {{ $exam->exam_name }} ({{ $exam->year }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Test Fields (Same as upload form) -->
+                    <div id="edit_test_fields_container" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_test_year" class="form-label">
+                                    <i class="bi bi-calendar"></i> Select Year <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control" id="edit_test_year" name="test_year">
+                                    @for($y = date('Y'); $y >= date('Y') - 2; $y--)
+                                        <option value="{{ $y }}">{{ $y }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_test_period" class="form-label">
+                                    <i class="bi bi-calendar-week"></i> Select Period <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control" id="edit_test_period" name="test_week">
+                                    <option value="">Select Period</option>
+                                </select>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="edit_test_date">Test Date</label>
-                                <input type="date" class="form-control" id="edit_test_date" name="test_date">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="edit_test_subject" class="form-label">
+                                    <i class="bi bi-book"></i> Select Scheduled Subject <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control" id="edit_test_subject" name="class_subjectID_test">
+                                    <option value="">Select a period first</option>
+                                </select>
                             </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="edit_exam_file">Exam Paper File <span class="text-danger">*</span></label>
-                        <input type="file" class="form-control-file" id="edit_exam_file" name="file" accept=".pdf,.doc,.docx" required>
-                        <small class="form-text text-muted">Maximum file size: 10MB. Allowed formats: PDF, DOC, DOCX</small>
+
+                    <!-- Regular Subject Selection -->
+                    <div class="row" id="edit_regular_subject_container">
+                        <div class="col-md-12 mb-3">
+                            <label for="edit_class_subject" class="form-label">
+                                <i class="bi bi-book"></i> Select Subject <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-control" id="edit_class_subject" name="class_subjectID">
+                                <option value="">Select Subject</option>
+                                @foreach($teacherSubjects as $subject)
+                                    <option value="{{ $subject->class_subjectID }}">
+                                        {{ $subject->subject->subject_name }} ({{ $subject->class->class_name }} {{ $subject->subclass ? $subject->subclass->subclass_name : '' }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
+
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="edit_exam_file" class="form-label">
+                                <i class="bi bi-file-earmark"></i> Exam Paper File <span class="text-danger">*</span>
+                            </label>
+                            <div id="current_file_info" class="mb-2 small text-info" style="display:none;"></div>
+                            <input type="file" class="form-control-file" id="edit_exam_file" name="file" accept=".pdf,.doc,.docx">
+                            <small class="form-text text-muted">Maximum file size: 10MB. Allowed formats: PDF, DOC, DOCX. Leave empty to keep current file.</small>
+                        </div>
+                    </div>
+
+                    @if(strtolower($schoolType ?? 'Secondary') === 'secondary')
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="edit_existing_upload" class="form-label">
+                                    <i class="bi bi-files"></i> Use Existing Upload (Optional)
+                                </label>
+                                <select class="form-control" id="edit_existing_upload">
+                                    <option value="">Do not use existing upload</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="edit_question-format-container" class="card border-primary-custom mt-3" style="display:none;">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h6 class="mb-1 text-primary-custom">
+                                            <i class="bi bi-list-check"></i> Question Formats & Marks (Total 100)
+                                        </h6>
+                                        <button type="button" class="btn btn-sm btn-outline-primary add-optional-range" data-target="#question-rows-edit-unified">
+                                            <i class="bi bi-plus-circle"></i> Add optional range
+                                        </button>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-primary-custom add-question-row" data-target="#question-rows-edit-unified">
+                                        <i class="bi bi-plus-circle"></i> Add Question
+                                    </button>
+                                </div>
+                                <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-edit-unified"></div>
+                                <div id="question-rows-edit-unified"></div>
+                                <div class="mt-3 border-top pt-2">
+                                    <small class="text-muted">
+                                        Total Marks: <span class="total-marks" id="edit_total_marks_display" data-total-for="#question-rows-edit-unified">0</span>/100
+                                    </small>
+                                    <div class="text-danger small mt-1 marks-warning d-none" data-warning-for="#question-rows-edit-unified" id="edit_marks_warning"></div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary-custom" id="submitEditForm">
-                    <i class="bi bi-check-circle"></i> Update
+                    <i class="bi bi-check-circle"></i> Update &amp; Resubmit
                 </button>
             </div>
         </div>
@@ -2272,10 +2358,10 @@ jQuery(document).ready(function($) {
             const optionalTotals = getOptionalTotals(targetId);
             const optionalRequiredCounts = getOptionalRequiredCounts(targetId);
             Object.keys(optionalTotals).forEach(function(rangeNumber) {
-                formData.append(`optional_ranges[${rangeNumber}]`, optionalTotals[rangeNumber]);
+                formData.append('optional_ranges[' + rangeNumber + ']', optionalTotals[rangeNumber]);
             });
             Object.keys(optionalRequiredCounts).forEach(function(rangeNumber) {
-                formData.append(`optional_required_counts[${rangeNumber}]`, optionalRequiredCounts[rangeNumber]);
+                formData.append('optional_required_counts[' + rangeNumber + ']', optionalRequiredCounts[rangeNumber]);
             });
         }
 
@@ -2335,41 +2421,153 @@ jQuery(document).ready(function($) {
         });
     }
 
-    // Edit exam paper
+    // --- NEW UNIFIED EDIT MODAL LOGIC (Aligned with Upload) ---
+
+    // Toggle fields in Edit Modal based on exam type
+    $('#edit_selected_exam').on('change', function() {
+        const examID = $(this).val();
+        const examName = $(this).find('option:selected').text();
+        const isTestType = examName.includes('Weekly Test') || examName.includes('Monthly Test');
+
+        if (isTestType) {
+            $('#edit_test_fields_container').show();
+            $('#edit_regular_subject_container').hide();
+            $('#edit_class_subject').prop('required', false);
+            $('#edit_test_subject').prop('required', true);
+            
+            const currentYear = $('#edit_test_year').val() || new Date().getFullYear();
+            loadEditPeriods(currentYear, examName.includes('Weekly Test') ? 'weekly_test' : 'monthly_test', examID);
+        } else {
+            $('#edit_test_fields_container').hide();
+            $('#edit_regular_subject_container').show();
+            $('#edit_class_subject').prop('required', true);
+            $('#edit_test_subject').prop('required', false);
+        }
+
+        const allowNoFormat = $(this).find('option:selected').data('allow-no-format') == '1';
+        $('#edit_question-format-container').toggle(!allowNoFormat);
+    });
+
+    $('#edit_test_year').on('change', function() {
+        const examName = $('#edit_selected_exam').find('option:selected').text();
+        loadEditPeriods($(this).val(), examName.includes('Weekly Test') ? 'weekly_test' : 'monthly_test', $('#edit_selected_exam').val());
+    });
+
+    $('#edit_test_period').on('change', function() {
+        loadEditScheduledSubjects($('#edit_selected_exam').val(), $(this).val());
+    });
+
+    function loadEditPeriods(year, testType, examID) {
+        $.ajax({
+            url: '/get_available_periods',
+            method: 'GET',
+            data: { year: year, test_type: testType, examID: examID },
+            success: function(response) {
+                if (response.success && response.periods) {
+                    const $select = $('#edit_test_period');
+                    $select.html('<option value="">Select Period</option>');
+                    response.periods.forEach(function(p) { $select.append('<option value="' + p.id + '">' + p.text + '</option>'); });
+                    if (window._temp_edit_week) {
+                        $select.val(window._temp_edit_week).trigger('change');
+                        delete window._temp_edit_week;
+                    }
+                }
+            }
+        });
+    }
+
+    function loadEditScheduledSubjects(examID, testWeek) {
+        $.ajax({
+            url: '/get_scheduled_subjects',
+            method: 'GET',
+            data: { examID: examID, test_week: testWeek },
+            success: function(response) {
+                if (response.success && response.subjects) {
+                    const $select = $('#edit_test_subject');
+                    $select.html('<option value="">Select Subject</option>');
+                    response.subjects.forEach(function(s) { $select.append('<option value="' + s.class_subjectID + '">' + s.subject_name + ' (' + s.class_name + ')</option>'); });
+                    if (window._temp_edit_subject) {
+                        $select.val(window._temp_edit_subject);
+                        delete window._temp_edit_subject;
+                    }
+                }
+            }
+        });
+    }
+
     $(document).on('click', '.edit-paper-btn', function() {
         const paperID = $(this).data('paper-id');
         const isRejected = $(this).data('is-rejected') == '1';
 
         $.ajax({
-            url: '/get_my_exam_papers',
+            url: '/get_exam_paper_questions/' + paperID,
             method: 'GET',
             success: function(response) {
-                if (response.success) {
-                    const paper = response.exam_papers.find(p => p.exam_paperID == paperID);
-                    if (paper) {
-                        $('#edit_paper_id').val(paper.exam_paperID);
-                        $('#edit_test_week').val(paper.test_week);
-                        $('#edit_test_date').val(paper.test_date ? paper.test_date.split('T')[0] : '');
-                        
-                        // Toggle test fields based on exam_category or name
-                        if (paper.examination && (paper.examination.exam_category === 'test' || paper.examination.exam_name.toLowerCase().includes('test'))) {
-                            $('#edit_test_week').closest('.form-group').show();
-                            $('#edit_test_date').closest('.form-group').show();
-                        } else {
-                            $('#edit_test_week').closest('.form-group').hide();
-                            $('#edit_test_date').closest('.form-group').hide();
-                        }
-                        
-                        if (isRejected) {
-                            $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil-square"></i> Edit Exam Paper');
-                            $('#submitEditForm').html('<i class="bi bi-check-circle"></i> Save Changes');
-                        } else {
-                            $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil"></i> Edit Exam Paper');
-                            $('#submitEditForm').html('<i class="bi bi-check-circle"></i> Save Changes');
-                        }
-                        
-                        $('#editExamPaperModal').modal('show');
+                if (response.success && response.exam_paper) {
+                    const paper = response.exam_paper;
+                    $('#edit_paper_id').val(paper.exam_paperID);
+                    $('#edit_upload_type').val(paper.upload_type);
+                    
+                    if (isRejected) {
+                        $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil-square"></i> Edit Exam & Resend');
+                        $('#submitEditForm').html('<i class="bi bi-send"></i> Update & Resubmit');
+                    } else {
+                        $('#editExamPaperModal .modal-title').html('<i class="bi bi-pencil"></i> Edit Exam');
+                        $('#submitEditForm').html('<i class="bi bi-check-circle"></i> Save Changes');
                     }
+
+                    $('#edit_selected_exam').val(paper.examID).trigger('change');
+
+                    const isTest = $('#edit_test_fields_container').is(':visible');
+                    if (isTest) {
+                        window._temp_edit_week = paper.test_week;
+                        window._temp_edit_subject = paper.class_subjectID;
+                    } else {
+                        $('#edit_class_subject').val(paper.class_subjectID);
+                    }
+
+                    if (paper.file_path) {
+                        const fileName = paper.file_path.split('/').pop();
+                        $('#current_file_info').text('Current file: ' + fileName).show();
+                    } else {
+                        $('#current_file_info').hide();
+                    }
+
+                    // Pre-fill Question rows using UNIVERSAL logic
+                    const $container = $('#question-rows-edit-unified');
+                    const $rangeWrapper = $('.optional-ranges-wrapper[data-wrapper-for="#question-rows-edit-unified"]');
+                    $container.empty();
+                    $rangeWrapper.empty();
+
+                    // 1. First add all optional ranges if any
+                    if (response.optional_ranges && response.optional_ranges.length > 0) {
+                        response.optional_ranges.forEach(function(range) {
+                            addOptionalRange('#question-rows-edit-unified');
+                            const $lastRange = $rangeWrapper.find('.optional-range-item').last();
+                            $lastRange.find('.optional-total-input').val(range.total_marks);
+                            $lastRange.find('.optional-required-input').val(range.required_questions);
+                        });
+                        refreshOptionalRangeSelects('#question-rows-edit-unified');
+                    }
+
+                    // 2. Add Questions
+                    if (response.questions && response.questions.length > 0) {
+                        response.questions.forEach(function(q) {
+                            const html = buildQuestionRow('#question-rows-edit-unified');
+                            $container.append(html);
+                            const $lastRow = $container.find('.question-row').last();
+                            $lastRow.find('.question-description').val(q.question_description);
+                            $lastRow.find('.question-marks').val(q.marks);
+                            $lastRow.find('.question-optional').val(q.is_optional ? q.optional_range_number : 0);
+                        });
+                    } else {
+                        // Ensure at least one row
+                        $container.append(buildQuestionRow('#question-rows-edit-unified'));
+                    }
+
+                    refreshQuestionNumbers($container);
+                    updateTotalMarks($container);
+                    $('#editExamPaperModal').modal('show');
                 }
             }
         });
@@ -2377,30 +2575,61 @@ jQuery(document).ready(function($) {
 
     $('#submitEditForm').on('click', function() {
         const paperID = $('#edit_paper_id').val();
+        const examID = $('#edit_selected_exam').val();
+        const isTest = $('#edit_test_fields_container').is(':visible');
+        const classSubjectID = isTest ? $('#edit_test_subject').val() : $('#edit_class_subject').val();
         const fileInput = $('#edit_exam_file')[0];
-
-        if (fileInput.files.length === 0) {
-            Swal.fire('Error', 'Please select a file to upload', 'error');
+        
+        if (!examID || !classSubjectID) {
+            Swal.fire('Error', 'Please select both examination and subject', 'error');
             return;
         }
 
         const formData = new FormData();
-        formData.append('upload_type', 'upload');
-        formData.append('test_week', $('#edit_test_week').val());
-        formData.append('test_date', $('#edit_test_date').val());
-        formData.append('file', fileInput.files[0]);
+        formData.append('examID', examID);
+        formData.append('class_subjectID', classSubjectID);
         formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
 
-        // Show loading progress bar
+        if (fileInput.files.length > 0) {
+            formData.append('file', fileInput.files[0]);
+        }
+        if (isTest) {
+            formData.append('test_week', $('#edit_test_period').val());
+        }
+
+        // VALIDATION & DATA COLLECTION (Aligned with main form)
+        if ($('#edit_question-format-container').is(':visible')) {
+            const $container = $('#question-rows-edit-unified');
+            const targetId = '#question-rows-edit-unified';
+            
+            const descriptions = $container.find('.question-description').map(function() { return $(this).val().trim(); }).get();
+            const marks = $container.find('.question-marks').map(function() { return $(this).val(); }).get();
+            const optionals = $container.find('.question-optional').map(function() { return parseInt($(this).val(), 10); }).get();
+            
+            if (descriptions.some(d => d === '')) { Swal.fire('Error', 'Fill all descriptions', 'error'); return; }
+            
+            const optionalTotals = getOptionalTotals(targetId);
+            const optionalRequiredCounts = getOptionalRequiredCounts(targetId);
+
+            // Append Arrays to FormData
+            descriptions.forEach(function(d) { formData.append('question_descriptions[]', d); });
+            marks.forEach(function(m) { formData.append('question_marks[]', m); });
+            optionals.forEach(function(o) { formData.append('question_optional[]', o); });
+            
+            Object.keys(optionalTotals).forEach(function(range) {
+                formData.append('optional_ranges[' + range + ']', optionalTotals[range]);
+            });
+            Object.keys(optionalRequiredCounts).forEach(function(range) {
+                formData.append('optional_required_counts[' + range + ']', optionalRequiredCounts[range]);
+            });
+        }
+
+        const isResubmit = $('#submitEditForm').text().includes('Resubmit');
         Swal.fire({
-            title: 'Updating Exam Paper...',
-            html: 'Please wait while we process your request.<br><br><b id="upload-percentage-edit">0%</b><br><div class="progress mt-2" style="height: 10px; border-radius: 5px; overflow: hidden;"><div id="upload-progress-bar-edit" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%"></div></div>',
+            title: isResubmit ? 'Updating & Resubmitting...' : 'Updating Paper...',
+            text: 'Please wait...',
             allowOutsideClick: false,
-            allowEscapeKey: false,
-            showConfirmButton: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
+            didOpen: function() { Swal.showLoading(); }
         });
 
         $.ajax({
@@ -2409,36 +2638,24 @@ jQuery(document).ready(function($) {
             data: formData,
             processData: false,
             contentType: false,
-            xhr: function() {
-                var xhr = new window.XMLHttpRequest();
-                xhr.upload.addEventListener("progress", function(evt) {
-                    if (evt.lengthComputable) {
-                        var percentComplete = evt.loaded / evt.total;
-                        percentComplete = parseInt(percentComplete * 100);
-                        $('#upload-progress-bar-edit').css('width', percentComplete + '%');
-                        $('#upload-percentage-edit').text(percentComplete + '%');
-                        if (percentComplete === 100) {
-                            Swal.update({
-                                title: 'Processing...',
-                                html: 'File uploaded. Finalizing update, please wait...'
-                            });
-                        }
-                    }
-                }, false);
-                return xhr;
-            },
             success: function(response) {
-                Swal.fire('Success', response.success || 'Exam paper updated successfully', 'success').then(() => {
-                    $('#editExamPaperModal').modal('hide');
-                    location.reload();
-                });
+                if (isResubmit) {
+                    $.ajax({
+                        url: '/resubmit_exam_paper/' + paperID,
+                        method: 'POST',
+                        data: { _token: $('meta[name="csrf-token"]').attr('content') },
+                        success: function() {
+                            Swal.fire('Success', 'Paper updated and resubmitted successfully', 'success').then(function() { location.reload(); });
+                        }
+                    });
+                } else {
+                    Swal.fire('Success', 'Paper updated successfully', 'success').then(function() { location.reload(); });
+                }
             },
             error: function(xhr) {
-                let errorMsg = 'Failed to update exam paper';
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    errorMsg = xhr.responseJSON.error;
-                }
-                Swal.fire('Error', errorMsg, 'error');
+                let msg = 'Failed to update';
+                if (xhr.responseJSON && xhr.responseJSON.error) msg = xhr.responseJSON.error;
+                Swal.fire('Error', msg, 'error');
             }
         });
     });

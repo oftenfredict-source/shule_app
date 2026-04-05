@@ -111,7 +111,8 @@ class ManageExaminationController extends Controller
                       $sq->where('status', 'pending')
                          ->where(function($fq) {
                              $fq->whereNotNull('file_path')
-                               ->orWhereNotNull('question_content');
+                               ->orWhereNotNull('question_content')
+                               ->orWhere('upload_type', 'create');
                          });
                   });
             })
@@ -4884,7 +4885,8 @@ class ManageExaminationController extends Controller
         // Filter out placeholders (empty content) - Admin only wants to see actual submissions
         $query->where(function($q) {
             $q->whereNotNull('file_path')
-              ->orWhereNotNull('question_content');
+              ->orWhereNotNull('question_content')
+              ->orWhere('upload_type', 'create');
         });
 
         if ($search) {
@@ -5765,8 +5767,14 @@ class ManageExaminationController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'upload_type' => 'required|in:upload',
-            'file' => 'required|file|mimes:pdf,doc,docx|max:10240',
+            'examID' => 'required',
+            'class_subjectID' => 'nullable',
+            'file' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+            'question_descriptions' => 'nullable|array',
+            'question_marks' => 'nullable|array',
+            'question_optional' => 'nullable|array',
+            'optional_ranges' => 'nullable|array',
+            'optional_required_counts' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -5779,45 +5787,77 @@ class ManageExaminationController extends Controller
                 ->firstOrFail();
 
             if (!in_array($examPaper->status, ['wait_approval', 'pending', 'rejected'])) {
-                return response()->json(['error' => 'You can only edit exam papers that are pending approval or rejected'], 422);
+                return response()->json(['error' => 'Unsupported status'], 422);
             }
 
             DB::beginTransaction();
 
-            $examPaper->test_week = $request->test_week;
-            $examPaper->test_date = $request->test_date;
-            $examPaper->upload_type = 'upload';
-
-            // Delete old file if exists
-            if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
-                Storage::disk('public')->delete($examPaper->file_path);
+            $examPaper->examID = $request->examID;
+            $classSubjectID = $request->class_subjectID ?: $request->class_subjectID_test;
+            if ($classSubjectID) {
+                $examPaper->class_subjectID = $classSubjectID;
+            }
+            if ($request->filled('test_week')) {
+                $examPaper->test_week = $request->test_week;
             }
 
-            // Clear any manual questions if switching to file upload
-            ExamPaperQuestion::where('exam_paperID', $examPaper->exam_paperID)->delete();
-            ExamPaperOptionalRange::where('exam_paperID', $examPaper->exam_paperID)->delete();
+            // Handle file upload
+            if ($request->hasFile('file')) {
+                if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
+                    Storage::disk('public')->delete($examPaper->file_path);
+                }
+                $file = $request->file('file');
+                $filePath = $file->storeAs('exam_papers', time().'_'.$file->getClientOriginalName(), 'public');
+                $examPaper->file_path = $filePath;
+                $examPaper->upload_type = 'upload';
+            }
 
-            $file = $request->file('file');
-            $fileName = time().'_'.$file->getClientOriginalName();
-            $filePath = $file->storeAs('exam_papers', $fileName, 'public');
-            $examPaper->file_path = $filePath;
-            $examPaper->question_content = null;
+            // Handle questions & Optional Ranges
+            if ($request->filled('question_descriptions')) {
+                $descriptions = $request->input('question_descriptions', []);
+                $marks = $request->input('question_marks', []);
+                $optionals = $request->input('question_optional', []);
+                $optionalRanges = $request->input('optional_ranges', []);
+                $optionalRequiredCounts = $request->input('optional_required_counts', []);
 
-            // Do NOT change status here - teacher must click Resubmit separately
+                // Clean existing
+                ExamPaperQuestion::where('exam_paperID', $examPaper->exam_paperID)->delete();
+                ExamPaperOptionalRange::where('exam_paperID', $examPaper->exam_paperID)->delete();
+
+                foreach ($descriptions as $index => $description) {
+                    $rangeNumber = isset($optionals[$index]) ? (int)$optionals[$index] : 0;
+                    ExamPaperQuestion::create([
+                        'exam_paperID' => $examPaper->exam_paperID,
+                        'question_number' => $index + 1,
+                        'is_optional' => $rangeNumber > 0,
+                        'optional_range_number' => $rangeNumber > 0 ? $rangeNumber : null,
+                        'question_description' => trim((string)$description),
+                        'marks' => (int)($marks[$index] ?? 0),
+                    ]);
+                }
+
+                if (is_array($optionalRanges)) {
+                    foreach ($optionalRanges as $rangeNumber => $totalMarks) {
+                        ExamPaperOptionalRange::create([
+                            'exam_paperID' => $examPaper->exam_paperID,
+                            'range_number' => (int)$rangeNumber,
+                            'total_marks' => (int)$totalMarks,
+                            'required_questions' => (int)($optionalRequiredCounts[$rangeNumber] ?? 1),
+                        ]);
+                    }
+                }
+                $examPaper->upload_type = 'create';
+            }
+
             $examPaper->save();
-
             DB::commit();
 
-            return response()->json([
-                'success' => 'Exam paper updated successfully. Click Resubmit when ready to send for approval.',
-                'exam_paper' => $examPaper,
-            ], 200);
+            return response()->json(['success' => 'Exam paper updated successfully']);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error updating exam paper: '.$e->getMessage());
-
-            return response()->json(['error' => 'Failed to update exam paper'], 500);
+            Log::error('Update exam paper error: '.$e->getMessage());
+            return response()->json(['error' => 'Failed to update: '.$e->getMessage()], 500);
         }
     }
 
@@ -5852,6 +5892,7 @@ class ManageExaminationController extends Controller
 
             return response()->json([
                 'success' => true,
+                'exam_paper' => $examPaper,
                 'questions' => $questions,
                 'optional_ranges' => $optionalRanges,
             ]);
@@ -6098,34 +6139,44 @@ class ManageExaminationController extends Controller
                 // Clear existing logs and restart
                 DB::table('paper_approval_logs')->where('exam_paperID', $examPaper->exam_paperID)->delete();
 
-                if ($firstChainRole) {
+                if (!$firstChainRole) {
+                    $examPaper->status = 'wait_approval';
+                    $examPaper->current_approval_order = 0;
+                }
+            } else {
+                $examPaper->status = 'wait_approval';
+                $examPaper->current_approval_order = 0;
+            }
+
+            // Handle logs if needed
+            DB::table('paper_approval_logs')->where('exam_paperID', $examPaper->exam_paperID)->delete();
+
+            if ($examPaper->status === 'pending' && isset($firstChainRole) && $firstChainRole) {
+                DB::table('paper_approval_logs')->insert([
+                    'exam_paperID'      => $examPaper->exam_paperID,
+                    'role_id'           => $firstChainRole->role_id,
+                    'special_role_type' => $firstChainRole->special_role_type,
+                    'approval_order'    => 1,
+                    'status'            => 'pending',
+                    'created_at'        => now(),
+                    'updated_at'        => now(),
+                ]);
+                $this->notifyNextApprovers($examPaper, $firstChainRole);
+            } elseif ($examPaper->status === 'wait_approval') {
+                // If the paper needs approval (is not no_approval_required), it MUST have a log
+                // even if no chain is found, so Academic can see it.
+                if (!$examination || !$examination->no_approval_required) {
                     DB::table('paper_approval_logs')->insert([
-                        'exam_paperID' => $examPaper->exam_paperID,
-                        'role_id'      => $firstChainRole->role_id,
-                        'special_role_type' => $firstChainRole->special_role_type,
-                        'approval_order' => 1,
-                        'status'       => 'pending',
-                        'created_at'   => now(),
-                        'updated_at'   => now(),
-                    ]);
-                    $this->notifyNextApprovers($examPaper, $firstChainRole);
-                } else {
-                    // No approval chain defined — default to admin
-                    DB::table('paper_approval_logs')->insert([
-                        'exam_paperID' => $examPaper->exam_paperID,
-                        'role_id'      => null,
+                        'exam_paperID'      => $examPaper->exam_paperID,
+                        'role_id'           => null,
                         'special_role_type' => 'admin',
-                        'approval_order' => 1,
-                        'status'       => 'pending',
-                        'created_at'   => now(),
-                        'updated_at'   => now(),
+                        'approval_order'    => 1,
+                        'status'            => 'pending',
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
                     ]);
                     $this->notifyAdminApprover($examPaper);
                 }
-            } else {
-                // No approval needed - directly approve
-                $examPaper->status = 'approved';
-                $examPaper->current_approval_order = 0;
             }
 
             $examPaper->save();
@@ -6182,7 +6233,8 @@ class ManageExaminationController extends Controller
             ->whereHas('examPaper', function($query) {
                 $query->where(function($q) {
                     $q->whereNotNull('file_path')
-                      ->orWhereNotNull('question_content');
+                      ->orWhereNotNull('question_content')
+                      ->orWhere('upload_type', 'create');
                 });
             })
             ->count();
@@ -6218,7 +6270,8 @@ class ManageExaminationController extends Controller
             ->where('exam_paper_notifications.schoolID', $schoolID)
             ->where(function($query) {
                 $query->whereNotNull('exam_papers.file_path')
-                      ->orWhereNotNull('exam_papers.question_content');
+                      ->orWhereNotNull('exam_papers.question_content')
+                      ->orWhere('exam_papers.upload_type', 'create');
             })
             ->orderBy('exam_paper_notifications.created_at', 'desc')
             ->limit(5);
@@ -6275,7 +6328,8 @@ class ManageExaminationController extends Controller
             ->where('exam_paper_notifications.is_read', 0)
             ->where(function($query) {
                 $query->whereNotNull('exam_papers.file_path')
-                      ->orWhereNotNull('exam_papers.question_content');
+                      ->orWhereNotNull('exam_papers.question_content')
+                      ->orWhere('exam_papers.upload_type', 'create');
             })
             ->groupBy('exam_papers.examID')
             ->select('exam_papers.examID', DB::raw('COUNT(*) as count'))
