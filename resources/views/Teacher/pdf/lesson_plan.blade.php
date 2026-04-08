@@ -4,168 +4,53 @@
     <meta charset="utf-8">
     <title>Lesson Plan - {{ $lessonPlan->subject }}</title>
     <style>
-        @font-face {
-            font-family: 'Century Gothic';
-            src: url('{{ public_path('fonts/century-gothic.ttf') }}') format('truetype');
-        }
+        body { font-family: 'Helvetica', sans-serif; font-size: 11px; color: #333; line-height: 1.4; padding: 0; margin: 0; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #940000; padding-bottom: 15px; }
+        .school-name { font-size: 18px; font-weight: bold; color: #940000; text-transform: uppercase; margin-bottom: 5px; }
+        .report-title { font-size: 14px; font-weight: bold; margin-top: 10px; background: #f8f9fa; padding: 5px; color: #333; border: 1px solid #eee; }
+        .school-info { font-size: 10px; color: #666; margin-bottom: 3px; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 12px; table-layout: fixed; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; word-wrap: break-word; }
+        th { background-color: #f8f9fa; font-weight: bold; color: #940000; font-size: 9px; text-transform: uppercase; }
         
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 11px;
-            margin: 0;
-            padding: 15px;
-        }
+        .nested-table { width: 100%; border-collapse: collapse; }
+        .nested-table th, .nested-table td { font-size: 8px; padding: 3px; text-align: center; border: 1px solid #ddd; }
+        .nested-table th { background-color: #f8f9fa; color: #333; }
+
+        .section-title { font-size: 11px; font-weight: bold; color: #940000; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 2px; }
+        .dotted-line { border-bottom: 1.5px dotted #940000; min-height: 25px; padding: 5px 0; margin: 5px 0; background: #fffafb; }
+
+        /* ── SIGNATURE AND STAMP ─────────────────── */
+        .sig-table { width: 100%; margin-top: 30px; border-collapse: collapse; page-break-inside: avoid; }
+        .sig-table td { border: none; padding: 10px; vertical-align: bottom; text-align: center; }
+        .stamp-cell img { max-width: 100px; max-height: 100px; }
+        .sign-cell { width: 30%; }
+        .signature-img { height: 40px; margin-bottom: 4px; }
+        .signature-img img { max-width: 120px; max-height: 40px; }
+        .sig-line { border-top: 1.5px solid #940000; width: 140px; margin: 0 auto; display: block; }
+        .sig-label { font-size: 8px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase; }
+
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #940000; border-top: 1px solid #eee; padding-top: 5px; }
         
-        .swahili-text {
-            font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .logo {
-            max-width: 80px;
-            max-height: 80px;
-            margin-bottom: 10px;
-        }
-        
-        .school-name {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #212529;
-        }
-        
-        .lesson-plan-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 5px;
-            text-decoration: underline;
-        }
-        
-        .school-type {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-            font-size: 10px;
-            table-layout: fixed; /* Ensure consistent column widths */
-        }
-        
-        table td, table th {
-            border: 1px solid #212529;
-            padding: 4px 5px;
-            text-align: left;
-            word-wrap: break-word; /* Allow text wrapping */
-            overflow-wrap: break-word; /* Additional wrapping support */
-        }
-        
-        table th {
-            background-color: #f5f5f5;
-            font-weight: bold;
-        }
-        
-        /* Column width for competence table - label column narrower, content wider */
-        table:not(.nested-table) th:first-child {
-            width: 28%; /* Label column ~28% */
-        }
-        
-        table:not(.nested-table) td:first-of-type {
-            width: 28%; /* Label column ~28% */
-        }
-        
-        table:not(.nested-table) th:not(:first-child),
-        table:not(.nested-table) td:not(:first-of-type) {
-            width: auto; /* Content columns take remaining space */
-        }
-        
-        table tbody tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        
-        .nested-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .nested-table td, .nested-table th {
-            border: 1px solid #212529;
-            padding: 3px 4px;
-            text-align: center;
-            font-size: 9px;
-        }
-        
-        .nested-table th {
-            background-color: #f5f5f5;
-        }
-        
-        .footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 9px;
-            color: #940000;
-            padding: 5px;
-            border-top: 1px solid #ddd;
-        }
-        
-        .section-title {
-            font-size: 12px;
-            font-weight: bold;
-            margin-top: 15px;
-            margin-bottom: 8px;
-        }
-        
-        .dotted-line {
-            border-bottom: 2px dotted #212529;
-            min-height: 25px;
-            padding: 5px 0;
-            margin: 5px 0;
-        }
-        
-        .signature-section {
-            margin-top: 20px;
-            margin-bottom: 10px;
-        }
-        
-        .signature-label {
-            font-weight: bold;
-            font-size: 10px;
-            margin-bottom: 5px;
-        }
-        
-        .signature-box {
-            border: 2px solid #212529;
-            min-height: 80px;
-            padding: 5px;
-            margin-bottom: 10px;
-        }
-        
-        .signature-image {
-            max-width: 100%;
-            max-height: 80px;
+        /* ── WATERMARK ─────────────────── */
+        .watermark {
+            position: fixed; top: 45%; left: 5%; width: 100%; text-align: center; opacity: 0.04;
+            transform: rotate(-45deg); font-size: 100px; font-weight: bold; color: #000; z-index: -1; text-transform: uppercase;
         }
     </style>
 </head>
 <body>
+    <div class="watermark">ShuleXpert</div>
+
     <div class="header">
         @if(isset($schoolLogoBase64) && $schoolLogoBase64)
-            <img src="{{ $schoolLogoBase64 }}" alt="School Logo" class="logo">
+            <img src="{{ $schoolLogoBase64 }}" style="max-height: 70px; margin-bottom: 8px;">
         @endif
-        @if($school && $school->school_name)
-            <div class="school-name">{{ strtoupper($school->school_name) }}</div>
-        @endif
-        <div class="lesson-plan-title">LESSON PLAN</div>
-        <div class="school-type">{{ $schoolType }}</div>
+        <div class="school-name">{{ $school->school_name ?? 'School Name' }}</div>
+        <div class="school-info">{{ $school->address ?? '' }}</div>
+        <div class="school-info">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+        <div class="report-title">LESSON PLAN REPORT - {{ $schoolType }}</div>
     </div>
     
     <table style="table-layout: auto;">
@@ -178,24 +63,24 @@
             <td style="width: 35%;">{{ $lessonPlan->year ?? date('Y') }}</td>
         </tr>
         <tr>
-            <th style="width: 12%;">TEACHER'S NAME</th>
-            <td colspan="2" class="swahili-text" style="width: 28%;">{{ $teacherName }}</td>
-            <td colspan="3" style="width: 60%;">
-                <table class="nested-table">
+            <th style="width: 15%;">TEACHER'S NAME</th>
+            <td colspan="2" class="swahili-text" style="width: 35%;">{{ $teacherName }}</td>
+            <td colspan="3" style="width: 50%; padding: 0;">
+                <table class="nested-table" style="margin: 0; width: 100%;">
                     <tr>
-                        <th colspan="3">NUMBER OF PUPILS</th>
+                        <th colspan="6" style="text-align: center;">NUMBER OF PUPILS</th>
                     </tr>
                     <tr>
-                        <th colspan="3">REGISTERED</th>
-                        <th colspan="3">PRESENT</th>
+                        <th colspan="3" style="text-align: center; width: 50%;">REGISTERED</th>
+                        <th colspan="3" style="text-align: center; width: 50%;">PRESENT</th>
                     </tr>
                     <tr>
-                        <th>GIRLS</th>
-                        <th>BOYS</th>
-                        <th>TOTAL</th>
-                        <th>GIRLS</th>
-                        <th>BOYS</th>
-                        <th>TOTAL</th>
+                        <th style="font-size: 7px;">GIRLS</th>
+                        <th style="font-size: 7px;">BOYS</th>
+                        <th style="font-size: 7px;">TOTAL</th>
+                        <th style="font-size: 7px;">GIRLS</th>
+                        <th style="font-size: 7px;">BOYS</th>
+                        <th style="font-size: 7px;">TOTAL</th>
                     </tr>
                     <tr>
                         <td>{{ $lessonPlan->registered_girls ?? 0 }}</td>
@@ -331,36 +216,45 @@
         <p style="margin: 0; padding: 3px 0; font-size: 10px;"></p>
     </div>
     
-    <div class="signature-section">
-        <table style="width: 100%; border: none;">
-            <tr>
-                <td style="width: 50%; border: none; padding: 5px;">
-                    <div class="signature-label">Subject Teacher's Signature:</div>
-                    <div class="signature-box">
-                        @if(isset($teacherSignatureBase64) && $teacherSignatureBase64)
-                            <img src="{{ $teacherSignatureBase64 }}" class="signature-image" alt="Teacher Signature">
-                        @else
-                            <div style="height: 80px;"></div>
-                        @endif
-                    </div>
-                </td>
-                <td style="width: 50%; border: none; padding: 5px;">
-                    <div class="signature-label">Academic/Supervisor's Signature:</div>
-                    <div class="signature-box">
-                        @if(isset($supervisorSignatureBase64) && $supervisorSignatureBase64)
-                            <img src="{{ $supervisorSignatureBase64 }}" class="signature-image" alt="Supervisor Signature">
-                        @else
-                            <div style="height: 80px;"></div>
-                        @endif
-                    </div>
-                </td>
-            </tr>
-        </table>
-    </div>
-    
     <div class="footer">
-        Powered by: EmCa Technologies LTD
+        Generated by ShuleXpert (School Management System), Powered By EmCa Technology &copy; {{ date('Y') }}
     </div>
+
+    <table class="sig-table">
+        <tr>
+            <td class="sign-cell" style="width: 33%;">
+                <div class="signature-img">
+                    @if(isset($teacherSignatureBase64) && $teacherSignatureBase64)
+                        <img src="{{ $teacherSignatureBase64 }}">
+                    @endif
+                </div>
+                <span class="sig-line"></span>
+                <span class="sig-label">SUBJECT TEACHER'S SIGNATURE</span>
+                <div style="font-size: 7px; margin-top: 2px;">{{ strtoupper($teacherName) }}</div>
+            </td>
+            <td class="stamp-cell" style="width: 34%;">
+                @if(isset($schoolStampBase64) && $schoolStampBase64)
+                    <img src="{{ $schoolStampBase64 }}" style="max-height: 80px;">
+                    <div style="font-size: 7px; color: #940000; font-weight: bold; margin-top: 5px;">SCHOOL OFFICIAL STAMP</div>
+                @endif
+            </td>
+            <td class="sign-cell" style="width: 33%;">
+                <div class="signature-img">
+                    @if(isset($supervisorSignatureBase64) && $supervisorSignatureBase64)
+                        <img src="{{ $supervisorSignatureBase64 }}">
+                        @if(isset($headmasterSignatureBase64) && $headmasterSignatureBase64)
+                            <div style="margin-top: -10px;">
+                                <img src="{{ $headmasterSignatureBase64 }}" style="max-width: 80px; max-height: 30px; opacity: 0.8;">
+                            </div>
+                        @endif
+                    @endif
+                </div>
+                <span class="sig-line"></span>
+                <span class="sig-label">HEADMASTER'S SIGNATURE</span>
+                <div style="font-size: 7px; margin-top: 2px;">ACADEMIC DEPARTMENT</div>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>
 

@@ -3978,24 +3978,51 @@ class TeachersController extends Controller
             ->first();
 
         if (!$scheme) {
-            return redirect()->back()->with('error', 'Scheme of work not found');
+            return response()->json(['error' => 'Scheme of work not found'], 404);
         }
 
-        $school = School::where('schoolID', Session::get('schoolID'))->first();
-        $teacher = Teacher::find($teacherID);
+        // Sort items chronologically by month
+        $monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        $scheme->setRelation('items', $scheme->items->sort(function($a, $b) use ($monthOrder) {
+            $posA = array_search($a->month, $monthOrder);
+            $posB = array_search($b->month, $monthOrder);
+            if ($posA === $posB) return $a->row_order <=> $b->row_order;
+            return ($posA === false ? 99 : $posA) <=> ($posB === false ? 99 : $posB);
+        }));
+
+        $school   = School::where('schoolID', Session::get('schoolID'))->first();
+        $teacher  = Teacher::find($teacherID);
 
         $data = [
             'scheme' => $scheme,
             'school' => $school,
-            'teacher' => $teacher
+            'teacher' => $teacher,
         ];
 
-        $pdf = PDF::loadView('Teacher.pdf.scheme_of_work', $data);
-        $pdf->setPaper('A4', 'landscape');
+        try {
+            $html = view('Teacher.pdf.scheme_of_work', $data)->render();
 
-        $filename = 'Scheme_of_Work_' . str_replace(' ', '_', $scheme->classSubject->subject->subject_name ?? 'Subject') . '_' . $scheme->year . '.pdf';
+            $options = new \Dompdf\Options();
+            $options->set('defaultFont', 'Helvetica');
+            $options->set('isRemoteEnabled', true);
+            $options->set('isHtml5ParserEnabled', true);
+            $options->setChroot(public_path());
 
-        return $pdf->download($filename);
+            $dompdf = new \Dompdf\Dompdf($options);
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'landscape');
+            $dompdf->render();
+
+            $filename = 'Scheme_of_Work_' . str_replace(' ', '_', $scheme->classSubject->subject->subject_name ?? 'Subject') . '_' . $scheme->year . '.pdf';
+
+            return response($dompdf->output(), 200, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error generating Scheme of Work PDF: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to generate PDF: ' . $e->getMessage()], 500);
+        }
     }
 
     public function exportSchemeOfWorkExcel($schemeOfWorkID)
@@ -10859,6 +10886,15 @@ class TeachersController extends Controller
                 }
             }
 
+            // Mime types for base64 conversion
+            $mimeTypes = [
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp'
+            ];
+
             // Convert signatures to base64 if they exist
             $teacherSignatureBase64 = null;
             if ($lessonPlan->teacher_signature) {
@@ -10869,13 +10905,6 @@ class TeachersController extends Controller
                     // File path - convert to base64
                     $imageData = file_get_contents($lessonPlan->teacher_signature);
                     $extension = strtolower(pathinfo($lessonPlan->teacher_signature, PATHINFO_EXTENSION));
-                    $mimeTypes = [
-                        'jpg' => 'image/jpeg',
-                        'jpeg' => 'image/jpeg',
-                        'png' => 'image/png',
-                        'gif' => 'image/gif',
-                        'webp' => 'image/webp'
-                    ];
                     $mimeType = $mimeTypes[$extension] ?? 'image/png';
                     $teacherSignatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
                 } else {
@@ -10893,18 +10922,38 @@ class TeachersController extends Controller
                     // File path - convert to base64
                     $imageData = file_get_contents($lessonPlan->supervisor_signature);
                     $extension = strtolower(pathinfo($lessonPlan->supervisor_signature, PATHINFO_EXTENSION));
-                    $mimeTypes = [
-                        'jpg' => 'image/jpeg',
-                        'jpeg' => 'image/jpeg',
-                        'png' => 'image/png',
-                        'gif' => 'image/gif',
-                        'webp' => 'image/webp'
-                    ];
                     $mimeType = $mimeTypes[$extension] ?? 'image/png';
                     $supervisorSignatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
                 } else {
                     // Assume it's already a data URL
                     $supervisorSignatureBase64 = $lessonPlan->supervisor_signature;
+                }
+            }
+
+            // Get School Stamp and Headmaster Signature if approved
+            $schoolStampBase64 = null;
+            $headmasterSignatureBase64 = null;
+            if ($lessonPlan->supervisor_signature && $school) {
+                // School Stamp
+                if ($school->school_stamp) {
+                    $stampPath = public_path($school->school_stamp);
+                    if (file_exists($stampPath)) {
+                        $imageData = file_get_contents($stampPath);
+                        $extension = strtolower(pathinfo($stampPath, PATHINFO_EXTENSION));
+                        $mimeType = $mimeTypes[$extension] ?? 'image/png';
+                        $schoolStampBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                    }
+                }
+                
+                // Headmaster Signature
+                if ($school->school_signature) {
+                    $sigPath = public_path($school->school_signature);
+                    if (file_exists($sigPath)) {
+                        $imageData = file_get_contents($sigPath);
+                        $extension = strtolower(pathinfo($sigPath, PATHINFO_EXTENSION));
+                        $mimeType = $mimeTypes[$extension] ?? 'image/png';
+                        $headmasterSignatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                    }
                 }
             }
 
@@ -10917,6 +10966,8 @@ class TeachersController extends Controller
                 'schoolLogoBase64' => $schoolLogoBase64,
                 'teacherSignatureBase64' => $teacherSignatureBase64,
                 'supervisorSignatureBase64' => $supervisorSignatureBase64,
+                'schoolStampBase64' => $schoolStampBase64,
+                'headmasterSignatureBase64' => $headmasterSignatureBase64,
             ];
 
             // Generate PDF - Use Dompdf directly to avoid GD extension issues
@@ -11229,24 +11280,25 @@ class TeachersController extends Controller
     {
         try {
             $teacherID = Session::get('teacherID');
-            $schoolID = Session::get('schoolID');
+            $schoolID  = Session::get('schoolID');
             $lessonPlanIDs = $request->input('lesson_plan_ids', []);
 
             if (!$teacherID || !$schoolID) {
-                return redirect()->back()->with('error', 'Session expired');
+                return response()->json(['error' => 'Session expired'], 401);
             }
 
             if (empty($lessonPlanIDs)) {
-                return redirect()->back()->with('error', 'No lesson plans selected');
+                return response()->json(['error' => 'No lesson plans selected'], 400);
             }
 
-            $lessonPlans = LessonPlan::whereIn('lesson_planID', $lessonPlanIDs)
+            $lessonPlans = LessonPlan::with('teacher')
+                ->whereIn('lesson_planID', $lessonPlanIDs)
                 ->where('teacherID', $teacherID)
                 ->orderBy('lesson_date', 'asc')
                 ->get();
 
             if ($lessonPlans->isEmpty()) {
-                return redirect()->back()->with('error', 'No lesson plans found');
+                return response()->json(['error' => 'No lesson plans found'], 404);
             }
 
             // Get school info
@@ -11255,23 +11307,36 @@ class TeachersController extends Controller
             $isPrimary = strpos($schoolType, 'primary') !== false || strpos($schoolType, 'pre') !== false;
             $schoolTypeDisplay = $isPrimary ? 'PRE AND PRIMARY SCHOOL' : 'SECONDARY SCHOOL';
 
-            // Prepare data for PDF
+            // Prepare data for PDF view
             $data = [
                 'lessonPlans' => $lessonPlans,
-                'school' => $school,
-                'schoolType' => $schoolTypeDisplay,
+                'school'      => $school,
+                'schoolType'  => $schoolTypeDisplay,
             ];
 
-            // Generate PDF
-            $pdf = PDF::loadView('Teacher.pdf.bulk_lesson_plans', $data);
-            $pdf->setPaper('A4', 'portrait');
+            // Render the view and generate PDF using Dompdf
+            $html = view('Teacher.pdf.bulk_lesson_plans', $data)->render();
+
+            $options = new \Dompdf\Options();
+            $options->set('defaultFont', 'Helvetica');
+            $options->set('isRemoteEnabled', true);
+            $options->set('isHtml5ParserEnabled', true);
+            $options->setChroot(public_path());
+
+            $dompdf = new \Dompdf\Dompdf($options);
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
 
             $filename = 'Lesson_Plans_Bulk_' . Carbon::now()->format('Y-m-d_His') . '.pdf';
 
-            return $pdf->download($filename);
+            return response($dompdf->output(), 200, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]);
         } catch (\Exception $e) {
             Log::error('Error downloading bulk lesson plans PDF: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to generate PDF: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to generate PDF: ' . $e->getMessage()], 500);
         }
     }
 
