@@ -992,7 +992,14 @@
                 <form id="bookForm">
                     <input type="hidden" id="bookID">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Book Type <span class="text-danger">*</span></label>
+                            <select class="form-control" id="bookType" required>
+                                <option value="Class">Class Book (Curriculum)</option>
+                                <option value="Other">Other (Story, Novel, Play, etc.)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3" id="classSelectionDiv">
                             <label class="form-label">Class <span class="text-danger">*</span></label>
                             <select class="form-control" id="bookClassID" required>
                                 <option value="">Select Class</option>
@@ -1001,7 +1008,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-6 mb-3" id="subjectSelectionDiv">
                             <label class="form-label">Subject <span class="text-danger">*</span></label>
                             <select class="form-control" id="bookSubjectID" required>
                                 <option value="">Select Subject</option>
@@ -1097,9 +1104,17 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Search Student <span class="text-danger">*</span></label>
+                        <label class="form-label">Borrower Type <span class="text-danger">*</span></label>
+                        <select class="form-control" id="borrowerType" onchange="toggleBorrowerSearch()">
+                            <option value="student">Student</option>
+                            <option value="teacher">Teacher/Staff</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="studentSearchDiv">
+                        <label class="form-label" id="borrowerSearchLabel">Search Student <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="searchStudent" placeholder="Search by name or admission number...">
                         <input type="hidden" id="borrowStudentID">
+                        <input type="hidden" id="borrowTeacherID">
                         <div id="studentResults" class="mt-2" style="max-height: 200px; overflow-y: auto; display: none;"></div>
                     </div>
                     <div class="mb-3">
@@ -1326,6 +1341,18 @@
             
             $(document).ready(function() {
                 console.log('Document ready, jQuery version:', $.fn.jquery);
+
+                // Toggle book type fields
+                $(document).on('change', '#bookType', function() {
+                    const type = $(this).val();
+                    if (type === 'Other') {
+                        $('#classSelectionDiv, #subjectSelectionDiv').hide();
+                        $('#bookClassID, #bookSubjectID').removeAttr('required').val('');
+                    } else {
+                        $('#classSelectionDiv, #subjectSelectionDiv').show();
+                        $('#bookClassID, #bookSubjectID').attr('required', 'required');
+                    }
+                });
 
                 // Sidebar menu to control tabs
                 $('.library-menu .list-group-item').on('click', function() {
@@ -1678,7 +1705,9 @@
                 const statusClass = book.is_lost ? 'lost' : (book.is_damaged ? 'damaged' : (book.is_overdue ? 'overdue' : (book.is_available ? 'available' : 'borrowed')));
                 const statusText = book.is_lost ? 'Lost' : (book.is_damaged ? 'Damaged' : (book.is_overdue ? 'Overdue' : (book.is_available ? 'Free' : 'Occupied')));
                 const occupiedBy = book.occupied_by
-                    ? `${book.occupied_by.name} (${book.occupied_by.admission_number}) - ${book.occupied_by.class_name}`
+                    ? (book.occupied_by.is_teacher
+                        ? `${book.occupied_by.name} (${book.occupied_by.admission_number}) <span class="badge badge-info" style="font-size:10px;">Staff</span> - ${book.occupied_by.class_name}`
+                        : `${book.occupied_by.name} (${book.occupied_by.admission_number}) - ${book.occupied_by.class_name}`)
                     : '-';
                 const expectedReturn = book.borrow_expected_return_date ? formatDate(book.borrow_expected_return_date) : '-';
                 const searchKey = `${book.book_title || ''} ${book.author || ''} ${book.isbn || ''}`.trim();
@@ -1977,6 +2006,7 @@
                     if (response.borrows && response.borrows.length > 0) {
                         response.borrows.forEach((borrow, index) => {
                             const student = borrow.student;
+                            const teacher = borrow.teacher;
                             const book = borrow.book;
                             const statusClass = borrow.status === 'borrowed' ? 'badge-borrowed' : 'badge-returned';
                             const statusText = borrow.status === 'borrowed' ? 'Borrowed' : 'Returned';
@@ -1986,26 +2016,27 @@
                             const expectedReturnDate = formatDate(borrow.expected_return_date);
                             const returnDate = formatDate(borrow.return_date);
                             
-                            // Get student name
-                            const studentName = student ? 
-                                (student.first_name + ' ' + (student.middle_name || '') + ' ' + student.last_name).trim() : 
-                                '-';
-                            
-                            // Get admission number
-                            const admissionNo = student ? (student.admission_number || '-') : '-';
-                            
-                            // Check if student is graduated (status not Active)
-                            const studentStatus = student ? (student.status || 'Unknown') : 'Unknown';
-                            const isGraduated = studentStatus !== 'Active';
-                            const studentNameDisplay = isGraduated ? 
-                                `${studentName} <span class="badge badge-warning" title="Graduated">Graduated</span>` : 
-                                studentName;
+                            // Determine borrower info: teacher takes priority if present
+                            let borrowerName = '-';
+                            let borrowerRef = '-';
+                            let borrowerBadge = '';
+
+                            if (teacher) {
+                                borrowerName = (teacher.first_name + ' ' + (teacher.middle_name || '') + ' ' + teacher.last_name).trim();
+                                borrowerRef = teacher.employee_number || '-';
+                                borrowerBadge = `<span class="badge badge-info ml-1" title="Staff/Teacher">Staff</span>`;
+                            } else if (student) {
+                                borrowerName = (student.first_name + ' ' + (student.middle_name || '') + ' ' + student.last_name).trim();
+                                borrowerRef = student.admission_number || '-';
+                                const isGraduated = (student.status || 'Active') !== 'Active';
+                                borrowerBadge = isGraduated ? `<span class="badge badge-warning" title="Graduated">Graduated</span>` : '';
+                            }
                             
                             html += `
                                 <tr>
                                     <td>${index + 1}</td>
-                                    <td>${studentNameDisplay}</td>
-                                    <td>${admissionNo}</td>
+                                    <td>${borrowerName} ${borrowerBadge}</td>
+                                    <td>${borrowerRef}</td>
                                     <td>${book ? book.book_title : '-'}</td>
                                     <td>${book && book.class ? book.class.class_name : '-'}</td>
                                     <td>${book && book.subject ? book.subject.subject_name : '-'}</td>
@@ -2248,47 +2279,55 @@
             return;
         }
         
-        console.log('Searching students:', search);
+        const bType = $('#borrowerType').val();
+        const url = bType === 'teacher' ? '{{ route("search_teachers") }}' : '{{ route("get_students") }}';
         
         $.ajax({
-            url: '{{ route("get_students") }}',
+            url: url,
             type: 'GET',
             data: { search: search.trim() },
             success: function(response) {
-                console.log('Students response:', response);
-                if (response.success && response.students) {
+                if (response.success) {
                     let html = '';
-                    if (response.students.length > 0) {
-                        response.students.forEach(student => {
-                            const subclass = student.subclass;
-                            const className = subclass && subclass.class ? subclass.class.class_name : '';
-                            const fullName = `${student.first_name || ''} ${student.middle_name || ''} ${student.last_name || ''}`.trim();
-                            const studentName = fullName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const items = bType === 'teacher' ? response.teachers : response.students;
+                    if (items && items.length > 0) {
+                        items.forEach(item => {
+                            let id, name, details;
+                            if (bType === 'teacher') {
+                                id = item.id;
+                                name = item.name;
+                                details = item.employee_number || 'N/A';
+                            } else {
+                                id = item.studentID;
+                                name = `${item.first_name || ''} ${item.middle_name || ''} ${item.last_name || ''}`.trim();
+                                const subclass = item.subclass;
+                                const className = subclass && subclass.class ? subclass.class.class_name : '';
+                                details = `${item.admission_number || 'N/A'} - ${className || 'N/A'}`;
+                            }
+                            
+                            const itemName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                             
                             html += `
                                 <div class="p-2 border-bottom student-option" 
-                                     onclick="selectStudent(${student.studentID}, '${studentName}')"
+                                     onclick="selectStudent(${id}, '${itemName}')"
                                      style="cursor: pointer; background-color: #f8f9fa;"
                                      onmouseover="this.style.backgroundColor='#e9ecef'"
                                      onmouseout="this.style.backgroundColor='#f8f9fa'">
-                                    <strong>${fullName}</strong><br>
-                                    <small class="text-muted">${student.admission_number || 'N/A'} - ${className || 'N/A'}</small>
+                                    <strong>${name}</strong><br>
+                                    <small class="text-muted">${details}</small>
                                 </div>
                             `;
                         });
                     } else {
-                        html = '<div class="p-2 text-muted">No students found</div>';
+                        html = `<div class="p-2 text-muted">No ${bType}s found</div>`;
                     }
                     $('#studentResults').html(html).show();
                 } else {
-                    $('#studentResults').html('<div class="p-2 text-muted">No students found</div>').show();
-                    console.error('No students in response:', response);
+                    $('#studentResults').html(`<div class="p-2 text-muted">No ${bType}s found</div>`).show();
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error searching students:', error);
-                console.error('Response:', xhr.responseText);
-                $('#studentResults').html('<div class="p-2 text-danger">Error searching students</div>').show();
+                $('#studentResults').html('<div class="p-2 text-danger">Error searching</div>').show();
             }
         });
     }
@@ -2299,8 +2338,24 @@
             return;
         }
         var $ = jQuery;
-        $('#borrowStudentID').val(studentID);
+        const bType = $('#borrowerType').val();
+        if (bType === 'teacher') {
+            $('#borrowTeacherID').val(studentID);
+            $('#borrowStudentID').val('');
+        } else {
+            $('#borrowStudentID').val(studentID);
+            $('#borrowTeacherID').val('');
+        }
         $('#searchStudent').val(name);
+        $('#studentResults').hide();
+    }
+
+    function toggleBorrowerSearch() {
+        const type = $('#borrowerType').val();
+        $('#borrowStudentID').val('');
+        $('#borrowTeacherID').val('');
+        $('#searchStudent').val('').attr('placeholder', type === 'student' ? 'Search by name or admission number...' : 'Search by name or staff number...');
+        $('#borrowerSearchLabel').html(`Search ${type.charAt(0).toUpperCase() + type.slice(1)} <span class="text-danger">*</span>`);
         $('#studentResults').hide();
     }
 
@@ -2390,14 +2445,18 @@
     }
 
     function saveBooks() {
-        if (!$('#bookClassID').val()) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a class' });
-            return;
+        const bookType = $('#bookType').val();
+        if (bookType === 'Class') {
+            if (!$('#bookClassID').val()) {
+                Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a class' });
+                return;
+            }
+            if (!$('#bookSubjectID').val()) {
+                Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a subject' });
+                return;
+            }
         }
-        if (!$('#bookSubjectID').val()) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a subject' });
-            return;
-        }
+
         if (!$('#bookTitle').val().trim()) {
             Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please enter book title' });
             return;
@@ -2443,8 +2502,9 @@
             url: '{{ route("store_book") }}',
             type: 'POST',
             data: {
-                classID: $('#bookClassID').val(),
-                subjectID: $('#bookSubjectID').val(),
+                book_type: bookType,
+                classID: bookType === 'Class' ? $('#bookClassID').val() : null,
+                subjectID: bookType === 'Class' ? $('#bookSubjectID').val() : null,
                 book_title: $('#bookTitle').val().trim(),
                 author: $('#bookAuthor').val().trim(),
                 publisher: $('#bookPublisher').val().trim(),
@@ -2494,6 +2554,8 @@
             jQuery('#bookModalTitle').html('<i class="fa fa-book"></i> Add New Book');
             jQuery('#bookForm')[0].reset();
             jQuery('#bookID').val('');
+            jQuery('#bookType').val('Class');
+            jQuery('#classSelectionDiv, #subjectSelectionDiv').show();
             jQuery('#bookStatusDiv').hide();
             jQuery('#bookSubjectID').html('<option value="">Select Subject</option>');
             jQuery('#bookClassID').val(''); // Reset class selection
@@ -2580,11 +2642,26 @@
                         setBookMode('edit');
                         $('#bookModalTitle').html('<i class="fa fa-edit"></i> Edit Book');
                         $('#bookID').val(book.bookID);
-                        $('#bookClassID').val(book.classID);
-                        loadSubjectsByClass(book.classID);
-                        setTimeout(() => {
-                            $('#bookSubjectID').val(book.subjectID);
-                        }, 500);
+                        
+                        // Set Book Type
+                        const bType = book.book_type || (book.classID ? 'Class' : 'Other');
+                        $('#bookType').val(bType);
+                        if (bType === 'Other') {
+                            $('#classSelectionDiv, #subjectSelectionDiv').hide();
+                        } else {
+                            $('#classSelectionDiv, #subjectSelectionDiv').show();
+                        }
+                        
+                        $('#bookClassID').val(book.classID || '');
+                        if (book.classID) {
+                            loadSubjectsByClass(book.classID);
+                            setTimeout(() => {
+                                $('#bookSubjectID').val(book.subjectID || '');
+                            }, 500);
+                        } else {
+                            $('#bookSubjectID').html('<option value="">Select Subject</option>');
+                        }
+                        
                         $('#bookTitle').val(book.book_title);
                         $('#bookAuthor').val(book.author || '');
                         $('#bookPublisher').val(book.publisher || '');
@@ -2616,23 +2693,27 @@
         }
         var $ = jQuery;
         
-        // Validate required fields
-        if (!$('#bookClassID').val()) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: 'Please select a class'
-            });
-            return;
-        }
+        const bookType = $('#bookType').val();
         
-        if (!$('#bookSubjectID').val()) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: 'Please select a subject'
-            });
-            return;
+        // Validate required fields
+        if (bookType === 'Class') {
+            if (!$('#bookClassID').val()) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Validation Error',
+                    text: 'Please select a class'
+                });
+                return;
+            }
+            
+            if (!$('#bookSubjectID').val()) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Validation Error',
+                    text: 'Please select a subject'
+                });
+                return;
+            }
         }
         
         if (!$('#bookTitle').val().trim()) {
@@ -2665,8 +2746,9 @@
         }
         
         const formData = {
-            classID: $('#bookClassID').val(),
-            subjectID: $('#bookSubjectID').val(),
+            book_type: bookType,
+            classID: bookType === 'Class' ? $('#bookClassID').val() : null,
+            subjectID: bookType === 'Class' ? $('#bookSubjectID').val() : null,
             book_title: $('#bookTitle').val().trim(),
             author: $('#bookAuthor').val().trim(),
             isbn: editIsbn,
@@ -2839,6 +2921,9 @@
         var $ = jQuery;
         $('#borrowForm')[0].reset();
         $('#borrowStudentID').val('');
+        $('#borrowTeacherID').val('');
+        $('#borrowerType').val('student');
+        toggleBorrowerSearch();
         $('#studentResults').hide();
         $('#borrowBookInfo').hide();
         $('#borrowIsbnError').addClass('d-none');
@@ -2848,9 +2933,8 @@
         $('#saveBorrowBtn').prop('disabled', false);
         $('#saveBorrowBtnText').text('Save');
         
-        // Clear student search
+        // Clear borrower search
         $('#searchStudent').val('');
-        $('#borrowStudentID').val('');
         $('#studentResults').html('').hide();
         
         // Ensure search event handler is attached (in case modal was recreated)
@@ -2859,7 +2943,6 @@
                 clearTimeout(window.searchTimeout);
             }
             const search = $(this).val();
-            console.log('Student search input in modal:', search);
             if (search && search.trim().length >= 2) {
                 window.searchTimeout = setTimeout(() => searchStudents(search.trim()), 300);
             } else {
@@ -3233,18 +3316,28 @@
             return;
         }
         var $ = jQuery;
+
+        const borrowerType = $('#borrowerType').val();
+        const studentID = $('#borrowStudentID').val();
+        const teacherID = $('#borrowTeacherID').val();
+        const borrowerID = borrowerType === 'teacher' ? teacherID : studentID;
+
         const formData = {
             isbn: $('#borrowISBN').val().trim(),
-            studentID: $('#borrowStudentID').val(),
+            borrower_type: borrowerType,
+            studentID: borrowerType === 'student' ? studentID : null,
+            teacherID: borrowerType === 'teacher' ? teacherID : null,
             expected_return_date: $('#expectedReturnDate').val(),
             notes: $('#borrowNotes').val()
         };
 
-        if (!formData.isbn || !formData.studentID) {
+        if (!formData.isbn || !borrowerID) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Validation Error',
-                text: 'Please enter ISBN and select a student'
+                text: borrowerType === 'teacher'
+                    ? 'Please enter ISBN and select a teacher/staff member'
+                    : 'Please enter ISBN and select a student'
             });
             return;
         }

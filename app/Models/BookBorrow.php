@@ -15,6 +15,7 @@ class BookBorrow extends Model
     protected $fillable = [
         'bookID',
         'studentID',
+        'teacherID',
         'borrow_date',
         'expected_return_date',
         'return_date',
@@ -38,5 +39,10 @@ class BookBorrow extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'studentID', 'studentID');
+    }
+
+    public function teacher()
+    {
+        return $this->belongsTo(Teacher::class, 'teacherID', 'id');
     }
 }

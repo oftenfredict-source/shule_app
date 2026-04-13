@@ -14,6 +14,7 @@ class Book extends Model
 
     protected $fillable = [
         'schoolID',
+        'book_type',
         'classID',
         'subjectID',
         'book_title',

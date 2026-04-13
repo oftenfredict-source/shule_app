@@ -816,6 +816,7 @@ Route::post('send_parent_message', [LibraryController::class, 'send_parent_messa
 Route::post('update_book_loss_payment/{lossID}', [LibraryController::class, 'update_book_loss_payment'])->name('update_book_loss_payment');
 Route::post('update_book_damage_payment/{damageID}', [LibraryController::class, 'update_book_damage_payment'])->name('update_book_damage_payment');
 Route::get('get_library_students', [LibraryController::class, 'get_library_students'])->name('get_library_students');
+Route::get('search_teachers', [LibraryController::class, 'search_teachers'])->name('search_teachers');
 
 //fees routes
 Route::get('manage_fees', [FeesController::class, 'manage_fees'])->name('manage_fees');
