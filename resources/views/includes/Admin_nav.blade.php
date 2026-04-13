@@ -105,7 +105,7 @@
 #left-panel a.nav-link.menu-active i,
 #left-panel .sidebar-links-container .nav-link.menu-active i,
 #left-panel .submenu .nav-link.menu-active i {
-    color: #666666 !important;
+    color: #940000 !important;
 }
 
 /* Active dropdown toggle */
@@ -116,7 +116,7 @@
 }
 
 #left-panel .dropdown-toggle.menu-active i {
-    color: #666666 !important;
+    color: #940000 !important;
 }
 
 /* Header icon styling */
@@ -126,20 +126,20 @@
 }
 
         .admin-sidebar-title {
-            padding: 12px 14px;
+            padding: 25px 15px;
             border-bottom: 1px solid #f0f0f0;
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            width: 100%;
         }
 
         .admin-brand-logo {
-            width: 38px;
-            height: 38px;
+            width: 100%;
+            max-width: 180px;
+            height: auto;
+            max-height: 100px;
             object-fit: contain;
-            border-radius: 6px;
-            border: 1px solid rgba(148, 0, 0, 0.15);
-            background: #fff;
         }
 
         .admin-brand-block {
@@ -219,7 +219,7 @@
 #left-panel .fa,
 #left-panel [class*="fa-"],
 #left-panel [class^="fa-"] {
-    color: #666666 !important;
+    color: #940000 !important;
     font-family: 'FontAwesome' !important;
 }
 
@@ -541,10 +541,6 @@
         <div class="navbar-header">
             <a href="{{ route('AdminDashboard') }}" class="admin-sidebar-title" style="text-decoration:none;">
                 <img src="{{ asset('images/shuleXpert.jpg') }}" alt="ShuleXpert" class="admin-brand-logo" onerror="this.onerror=null; this.src='{{ asset('images/logo.png') }}';">
-                <span class="admin-brand-block">
-                    <span class="admin-brand-text">USER TYPE</span>
-                    <span class="admin-brand-subtitle">HEAD TEACHER</span>
-                </span>
             </a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#main-menu" aria-controls="main-menu" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="nav-dot"></span>
@@ -555,16 +551,7 @@
 
         <div id="main-menu" class="main-menu collapse navbar-collapse">
             <ul class="nav navbar-nav">
-                <!-- Profile -->
-                <li class="text-center mt-3 mb-2" style="display:none;">
-                    <div class="sidebar-profile">
-                        <img src="{{ asset('images/shuleXpert.jpg') }}" alt="Admin" class="profile-image">
-                        <div class="profile-meta text-left">
-                            <div class="profile-role">User Type</div>
-                            <div class="profile-name">Administrator</div>
-                        </div>
-                    </div>
-                </li>
+
                 <!-- Sidebar Links -->
                 <li class="sidebar-links-container">
                     <ul style="list-style: none; padding: 0; margin: 0; font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;">
