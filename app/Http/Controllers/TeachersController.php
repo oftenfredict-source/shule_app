@@ -1465,16 +1465,42 @@ class TeachersController extends Controller
             $image = $request->file('teacher_image');
             $imageName = 'teacher_' . time() . '.' . $image->getClientOriginalExtension();
             
-            $publicPath = public_path('userImages');
-            if (!file_exists($publicPath)) {
-                mkdir($publicPath, 0777, true);
+            // Determine upload path - Prioritize the active application's public path
+            $localPublicPath = public_path('userImages');
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/userImages' : null;
+            
+            // Priority 1: Current Application's Public Path
+            if (is_dir($localPublicPath) || @mkdir($localPublicPath, 0777, true)) {
+                $uploadPath = $localPublicPath;
+            } 
+            // Priority 2: Server Document Root (Useful for subdomains/aliases)
+            elseif ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            }
+            // Priority 3: Fallback Logic for Parent public_html (cPanel compatible)
+            else {
+                $basePath = base_path();
+                $parentDir = dirname($basePath);
+                $publicHtmlPath = $parentDir . '/public_html/userImages';
+                
+                if (file_exists($parentDir . '/public_html')) {
+                    $uploadPath = $publicHtmlPath;
+                } elseif (isset($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
+                    $uploadPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
+                } else {
+                    $uploadPath = $localPublicPath;
+                }
+            }
+
+            if (!file_exists($uploadPath)) {
+                @mkdir($uploadPath, 0755, true);
             }
             
-            $image->move($publicPath, $imageName);
+            $image->move($uploadPath, $imageName);
 
             // Delete old image if exists
-            if ($teacher->image && file_exists($publicPath . '/' . $teacher->image)) {
-                @unlink($publicPath . '/' . $teacher->image);
+            if ($teacher->image && file_exists($uploadPath . '/' . $teacher->image)) {
+                @unlink($uploadPath . '/' . $teacher->image);
             }
 
             $teacher->image = $imageName;

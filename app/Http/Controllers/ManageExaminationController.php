@@ -4508,8 +4508,40 @@ class ManageExaminationController extends Controller
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
                 $fileName = time().'_'.$file->getClientOriginalName();
-                $filePath = $file->storeAs('exam_papers', $fileName, 'public');
-                $examPaper->file_path = $filePath;
+                
+                // Determine upload path - Prioritize the active application's public path
+                $localPublicPath = public_path('exam_papers');
+                $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/exam_papers' : null;
+                
+                // Priority 1: Current Application's Public Path
+                if (is_dir($localPublicPath) || @mkdir($localPublicPath, 0777, true)) {
+                    $uploadPath = $localPublicPath;
+                } 
+                // Priority 2: Server Document Root (Useful for subdomains/aliases)
+                elseif ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                    $uploadPath = $docRootPath;
+                }
+                // Priority 3: Fallback Logic for Parent public_html (cPanel compatible)
+                else {
+                    $basePath = base_path();
+                    $parentDir = dirname($basePath);
+                    $publicHtmlPath = $parentDir . '/public_html/exam_papers';
+                    
+                    if (file_exists($parentDir . '/public_html')) {
+                        $uploadPath = $publicHtmlPath;
+                    } elseif (isset($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
+                        $uploadPath = $_SERVER['DOCUMENT_ROOT'] . '/exam_papers';
+                    } else {
+                        $uploadPath = $localPublicPath;
+                    }
+                }
+
+                if (!file_exists($uploadPath)) {
+                    @mkdir($uploadPath, 0755, true);
+                }
+
+                $file->move($uploadPath, $fileName);
+                $examPaper->file_path = 'exam_papers/' . $fileName;
             } elseif ($reusePaper && $reusePaper->file_path) {
                 $examPaper->file_path = $reusePaper->file_path;
             }
@@ -5803,12 +5835,54 @@ class ManageExaminationController extends Controller
 
             // Handle file upload
             if ($request->hasFile('file')) {
-                if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
-                    Storage::disk('public')->delete($examPaper->file_path);
-                }
                 $file = $request->file('file');
-                $filePath = $file->storeAs('exam_papers', time().'_'.$file->getClientOriginalName(), 'public');
-                $examPaper->file_path = $filePath;
+                $fileName = time().'_'.$file->getClientOriginalName();
+
+                // Determine upload path - Prioritize the active application's public path
+                $localPublicPath = public_path('exam_papers');
+                $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/exam_papers' : null;
+                
+                // Priority 1: Current Application's Public Path
+                if (is_dir($localPublicPath) || @mkdir($localPublicPath, 0777, true)) {
+                    $uploadPath = $localPublicPath;
+                } 
+                // Priority 2: Server Document Root (Useful for subdomains/aliases)
+                elseif ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                    $uploadPath = $docRootPath;
+                }
+                // Priority 3: Fallback Logic for Parent public_html (cPanel compatible)
+                else {
+                    $basePath = base_path();
+                    $parentDir = dirname($basePath);
+                    $publicHtmlPath = $parentDir . '/public_html/exam_papers';
+                    
+                    if (file_exists($parentDir . '/public_html')) {
+                        $uploadPath = $publicHtmlPath;
+                    } elseif (isset($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
+                        $uploadPath = $_SERVER['DOCUMENT_ROOT'] . '/exam_papers';
+                    } else {
+                        $uploadPath = $localPublicPath;
+                    }
+                }
+
+                if (!file_exists($uploadPath)) {
+                    @mkdir($uploadPath, 0755, true);
+                }
+
+                // Delete old file if exists
+                if ($examPaper->file_path) {
+                    $oldFilePath = $uploadPath . '/' . basename($examPaper->file_path);
+                    if (file_exists($oldFilePath)) {
+                        @unlink($oldFilePath);
+                    }
+                    // Also check Laravel Storage just in case
+                    if (Storage::disk('public')->exists($examPaper->file_path)) {
+                        Storage::disk('public')->delete($examPaper->file_path);
+                    }
+                }
+
+                $file->move($uploadPath, $fileName);
+                $examPaper->file_path = 'exam_papers/' . $fileName;
                 $examPaper->upload_type = 'upload';
             }
 
@@ -6505,26 +6579,49 @@ class ManageExaminationController extends Controller
                 abort(403, 'You do not have permission to view this exam paper.');
             }
 
-            if (! $examPaper->file_path || ! Storage::disk('public')->exists($examPaper->file_path)) {
+            $foundPath = null;
+            $mimeType = null;
+            $fileName = $examPaper->file_path ? basename($examPaper->file_path) : 'exam_paper';
+
+            if ($examPaper->file_path) {
+                // Check all potential paths
+                $pathsToCheck = [
+                    public_path($examPaper->file_path),
+                    isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/' . $examPaper->file_path : null,
+                    Storage::disk('public')->path($examPaper->file_path),
+                ];
+
+                $basePath = base_path();
+                $parentDir = dirname($basePath);
+                $pathsToCheck[] = $parentDir . '/public_html/' . $examPaper->file_path;
+
+                foreach ($pathsToCheck as $path) {
+                    if ($path && file_exists($path)) {
+                        $foundPath = $path;
+                        break;
+                    }
+                }
+            }
+
+            if (!$foundPath) {
                 abort(404, 'File not found');
             }
 
-            $filePath = Storage::disk('public')->path($examPaper->file_path);
-            $fileName = basename($examPaper->file_path);
-            $mimeType = Storage::disk('public')->mimeType($examPaper->file_path);
+            // Detect mime type
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $foundPath);
+            finfo_close($finfo);
 
             // Check if inline display is requested (for PDF preview)
             $inline = request()->get('inline', false);
 
             if ($inline || $mimeType === 'application/pdf') {
-                // Return file with inline disposition for PDF preview
-                return response()->file($filePath, [
+                return response()->file($foundPath, [
                     'Content-Type' => $mimeType,
                     'Content-Disposition' => 'inline; filename="'.$fileName.'"',
                 ]);
             } else {
-                // Force download for other file types
-                return Storage::disk('public')->download($examPaper->file_path);
+                return response()->download($foundPath, $fileName);
             }
         } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
             // Preserve proper HTTP status codes from abort(403/404/...)

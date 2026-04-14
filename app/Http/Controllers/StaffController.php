@@ -449,9 +449,35 @@ class StaffController extends Controller
         }
 
         if ($request->hasFile('profile_image')) {
-            $uploadPath = public_path('userImages');
+            // Determine upload path - Prioritize the active application's public path
+            $localPublicPath = public_path('userImages');
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/userImages' : null;
+            
+            // Priority 1: Current Application's Public Path
+            if (is_dir($localPublicPath) || @mkdir($localPublicPath, 0777, true)) {
+                $uploadPath = $localPublicPath;
+            } 
+            // Priority 2: Server Document Root (Useful for subdomains/aliases)
+            elseif ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            }
+            // Priority 3: Fallback Logic for Parent public_html (cPanel compatible)
+            else {
+                $basePath = base_path();
+                $parentDir = dirname($basePath);
+                $publicHtmlPath = $parentDir . '/public_html/userImages';
+                
+                if (file_exists($parentDir . '/public_html')) {
+                    $uploadPath = $publicHtmlPath;
+                } elseif (isset($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
+                    $uploadPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
+                } else {
+                    $uploadPath = $localPublicPath;
+                }
+            }
+
             if (!file_exists($uploadPath)) {
-                mkdir($uploadPath, 0755, true);
+                @mkdir($uploadPath, 0755, true);
             }
 
             if ($staff->image && file_exists($uploadPath . '/' . $staff->image)) {
