@@ -9,116 +9,72 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <style>
-    /* Color scheme for #940000 */
+    /* Font Family Global */
+    body, div, h1, h2, h3, h4, h5, h6, p, span, table, button, input, select, textarea {
+        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+    }
+
+    /* Corporate Color Scheme */
     .bg-primary-custom {
-        background-color: #940000 !important;
+        background: #940000 !important;
     }
     .text-primary-custom {
         color: #940000 !important;
-    }
-    .border-primary-custom {
-        border-color: #940000 !important;
     }
     .btn-primary-custom {
         background-color: #940000;
         border-color: #940000;
         color: #ffffff;
+        border-radius: 0;
     }
     .btn-primary-custom:hover {
-        background-color: #b30000;
-        border-color: #b30000;
+        background-color: #7a0000;
+        border-color: #7a0000;
         color: #ffffff;
     }
-    .form-control:focus, .form-select:focus {
-        border-color: #940000;
-        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
+    .header-gradient {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
     }
-    .spinner-border.text-primary-custom {
-        color: #940000 !important;
+    .accent-soft-red {
+        background-color: #FFF5F5 !important;
     }
+
     .subject-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 4px 8px rgba(148, 0, 0, 0.2) !important;
+        box-shadow: 0 8px 15px rgba(148, 0, 0, 0.1) !important;
     }
-    .badge {
-        font-weight: 600;
+    
+    .setting-item {
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+        border-radius: 0;
     }
-    .card-header {
-        border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-    }
-    /* Hover effect for class subject cards */
-    #classSubjectsContent .card:hover {
+    .setting-item:hover {
+        background: #FFF5F5;
         transform: translateY(-3px);
-        box-shadow: 0 4px 12px rgba(148, 0, 0, 0.15) !important;
     }
-    
-    /* Light background for subject widget cards */
-    .subject-card .card-header.bg-primary-custom {
-        background-color: rgba(148, 0, 0, 0.08) !important;
-        border-bottom: 1px solid rgba(148, 0, 0, 0.15) !important;
-    }
-    .subject-card .card-header.bg-primary-custom,
-    .subject-card .card-header.bg-primary-custom * {
-        color: #940000 !important;
-    }
-    /* Ensure edit modal appears above view modal */
-    #editClassSubjectModal {
-        z-index: 1060 !important;
-    }
-    #editClassSubjectModal .modal-backdrop {
-        z-index: 1059 !important;
-    }
-    /* Ensure view modal has lower z-index */
-    #viewClassSubjectsModal {
-        z-index: 1055 !important;
-    }
-    #viewClassSubjectsModal .modal-backdrop {
-        z-index: 1054 !important;
-    }
-    
-    /* Ensure View Subclass Subjects Modal appears ON TOP of View Class Subjects Modal */
-    #viewSubclassSubjectsModal {
-        z-index: 1070 !important;
-    }
-    #viewSubclassSubjectsModal .modal-backdrop {
-        z-index: 1069 !important;
-    }
-    /* Scrollbar for View Class/Subclass Subjects Modals */
-    #viewClassSubjectsModal .modal-body,
-    #viewSubclassSubjectsModal .modal-body,
-    #addClassSubjectModal .modal-body,
-    #subjectElectionModal .modal-body {
-        overflow-y: auto !important;
-        max-height: 80vh;
-        scrollbar-width: thin;
-        -ms-overflow-style: scrollbar;
-    }
-    #viewClassSubjectsModal .modal-body::-webkit-scrollbar,
-    #viewSubclassSubjectsModal .modal-body::-webkit-scrollbar,
-    #addClassSubjectModal .modal-body::-webkit-scrollbar {
+
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
         width: 8px;
-        display: block !important;
     }
-    #viewClassSubjectsModal .modal-body::-webkit-scrollbar-track,
-    #viewSubclassSubjectsModal .modal-body::-webkit-scrollbar-track,
-    #addClassSubjectModal .modal-body::-webkit-scrollbar-track {
-        background: #f1f1f1;
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: whitesmoke;
     }
-    #viewClassSubjectsModal .modal-body::-webkit-scrollbar-thumb,
-    #viewSubclassSubjectsModal .modal-body::-webkit-scrollbar-thumb,
-    #addClassSubjectModal .modal-body::-webkit-scrollbar-thumb,
-    #subjectElectionModal .modal-body::-webkit-scrollbar-thumb {
-        background: #940000;
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cfcfcf;
         border-radius: 4px;
     }
-    #viewClassSubjectsModal .modal-body::-webkit-scrollbar-thumb:hover,
-    #viewSubclassSubjectsModal .modal-body::-webkit-scrollbar-thumb:hover,
-    #addClassSubjectModal .modal-body::-webkit-scrollbar-thumb:hover {
-        background: #b30000;
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #940000;
     }
-    /* Ensure SweetAlert2 appears above all modals */
-    .swal2-container {
-        z-index: 2000 !important;
+
+    .modal-content {
+        border-radius: 0 !important;
+        border: none !important;
+    }
+    .modal-header {
+        border-radius: 0 !important;
     }
 </style>
 
@@ -146,46 +102,57 @@
                 </div>
             @endif
 
-            <!-- Page Header -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body bg-primary-custom text-white rounded">
-                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-                        <h4 class="mb-0 w-100 text-center text-md-start">
-                            <i class="bi bi-book"></i> Manage Subjects
-                        </h4>
-                        @php
-                            $perms = $teacherPermissions ?? collect();
-                            $isAdmin = ($user_type ?? '') == 'Admin';
-                            
-                            // Hierarchy: If you have modify permissions, you inherently have view permissions
-                            $canViewClassSubjects = $isAdmin || $perms->intersect([
-                                'view_class_subjects', 'subject_read_only', 
-                                'subject_create', 'subject_update', 'subject_delete',
-                                'create_class_subject', 'update_class_subject', 'delete_class_subject',
-                                'create_subject', 'edit_subject', 'update_subject', 'delete_subject'
-                            ])->isNotEmpty();
+            <!-- Page Header (Expandable Pattern) -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 0; border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">MANAGE SUBJECTS</h4>
+                            <p class="text-muted mb-0 small" style="font-weight: 600;">Control school-wide curricula and teacher assignments.</p>
+                        </div>
+                        <button class="btn shadow-sm text-white" id="toggleSubjectSettingsBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 20px;">
+                            <i class="bi bi-gear-fill"></i> SETTINGS
+                        </button>
+                    </div>
 
-                            $canCreateClassSubject = $isAdmin || $perms->contains('create_class_subject') || $perms->contains('subject_create');
-                            $canCreateSubject = $isAdmin || $perms->contains('create_subject') || $perms->contains('subject_create');
-                            $canEditSubject = $isAdmin || $perms->contains('edit_subject') || $perms->contains('update_subject') || $perms->contains('subject_update');
-                            $canDeleteSubject = $isAdmin || $perms->contains('delete_subject') || $perms->contains('subject_delete');
-                            $canActivateSubject = $isAdmin || $perms->contains('activate_subject') || $perms->contains('subject_update');
-                        @endphp
-                        <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-md-end w-100">
+                    @php
+                        $perms = $teacherPermissions ?? collect();
+                        $isAdmin = ($user_type ?? '') == 'Admin';
+                        $canViewClassSubjects = $isAdmin || $perms->intersect(['view_class_subjects', 'subject_read_only', 'create_class_subject'])->isNotEmpty();
+                        $canCreateClassSubject = $isAdmin || $perms->contains('create_class_subject') || $perms->contains('subject_create');
+                        $canCreateSubject = $isAdmin || $perms->contains('create_subject') || $perms->contains('subject_create');
+                        $canEditSubject = $isAdmin || $perms->intersect(['edit_subject', 'update_subject', 'subject_update'])->isNotEmpty();
+                        $canDeleteSubject = $isAdmin || $perms->intersect(['delete_subject', 'subject_delete'])->isNotEmpty();
+                        $canActivateSubject = $isAdmin || $perms->intersect(['activate_subject', 'subject_update'])->isNotEmpty();
+                    @endphp
+
+                    <!-- Expanded Settings Section -->
+                    <div id="expandedSubjectSettings" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(148, 0, 0, 0.1); position: relative;">
+                        <button type="button" class="close" onclick="$('#expandedSubjectSettings').slideUp(300);" style="position: absolute; right: 10px; top: 10px; color: #000000; opacity: 1;">&times;</button>
+                        <div class="row text-center">
                             @if($canViewClassSubjects)
-                            <button class="btn btn-light text-primary-custom fw-bold flex-fill" id="viewClassSubjectsBtn" type="button">
-                                <i class="bi bi-eye"></i> View Class Subjects
-                            </button>
+                            <div class="col-md-4 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="viewClassSubjectsBtn_Exp">
+                                    <i class="bi bi-eye fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">VIEW CLASS SUBJECTS</h6>
+                                </a>
+                            </div>
                             @endif
                             @if($canCreateClassSubject)
-                            <button class="btn btn-light text-primary-custom fw-bold flex-fill" id="addClassSubjectBtn" type="button" data-toggle="modal" data-target="#addClassSubjectModal">
-                                <i class="bi bi-plus-circle"></i> Add Class Subject
-                            </button>
+                            <div class="col-md-4 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" data-toggle="modal" data-target="#addClassSubjectModal">
+                                    <i class="bi bi-plus-circle fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ADD CLASS SUBJECT</h6>
+                                </a>
+                            </div>
                             @endif
                             @if($canCreateSubject)
-                            <button class="btn btn-light text-primary-custom fw-bold flex-fill" id="addSchoolSubjectBtn" type="button" data-toggle="modal" data-target="#addSchoolSubjectModal">
-                                <i class="bi bi-plus-square"></i> Add School Subject
-                            </button>
+                            <div class="col-md-4">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" data-toggle="modal" data-target="#addSchoolSubjectModal">
+                                    <i class="bi bi-plus-square fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ADD SCHOOL SUBJECT</h6>
+                                </a>
+                            </div>
                             @endif
                         </div>
                     </div>
@@ -193,10 +160,10 @@
             </div>
 
             <!-- School Subjects Grid -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-primary-custom text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-book-fill"></i> School Subjects
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 0;">
+                <div class="card-header border-0 py-3" style="background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
+                    <h5 class="mb-0 font-weight-bold" style="color: #940000;">
+                        <i class="bi bi-book-fill"></i> SCHOOL SUBJECTS
                     </h5>
                 </div>
                 <div class="card-body">
@@ -765,10 +732,18 @@
         }
 
         $(document).ready(function() {
-            console.log('Document ready, jQuery version:', $.fn.jquery);
-            console.log('SweetAlert2 loaded:', typeof Swal !== 'undefined');
-            console.log('Add School Subject Form exists:', $('#addSchoolSubjectForm').length > 0);
             console.log('Add Class Subject Form exists:', $('#addClassSubjectForm').length > 0);
+
+            // Toggle logic for expanded settings
+            $('#toggleSubjectSettingsBtn').on('click', function() {
+                $('#expandedSubjectSettings').slideToggle(300);
+            });
+
+            // Re-link the expanded button to the original view subjects trigger
+            $('#viewClassSubjectsBtn_Exp').on('click', function(e) {
+                e.preventDefault();
+                $('#viewClassSubjectsBtn').click();
+            });
 
             // Store user permissions for JavaScript checks
             var userPermissions = @json($teacherPermissions ?? collect());

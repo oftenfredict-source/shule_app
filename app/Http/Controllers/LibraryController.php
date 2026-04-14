@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Crypt;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\PDF;
 use App\Services\SmsService;
+use App\Models\OtherStaff;
 
 class LibraryController extends Controller
 {
@@ -126,6 +127,7 @@ class LibraryController extends Controller
                     'subject',
                     'activeBorrows.student.subclass.class',
                     'activeBorrows.teacher',
+                    'activeBorrows.staff',
                     'activeLosses.student.subclass.class',
                     'activeDamages.student.subclass.class'
                 ])
@@ -169,6 +171,7 @@ class LibraryController extends Controller
                 $activeBorrow = $book->activeBorrows->first();
                 $student = $activeBorrow ? $activeBorrow->student : null;
                 $teacher = $activeBorrow ? $activeBorrow->teacher : null;
+                $staff = $activeBorrow ? $activeBorrow->staff : null;
                 
                 $className = '-';
                 $studentName = '';
@@ -181,9 +184,13 @@ class LibraryController extends Controller
                     $studentName = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
                     $admission = $student->admission_number ?? '-';
                 } elseif ($teacher) {
-                    $className = 'Staff/Teacher';
+                    $className = 'Teacher';
                     $studentName = trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? ''));
                     $admission = $teacher->employee_number ?? '-';
+                } elseif ($staff) {
+                    $className = 'Staff';
+                    $studentName = trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? ''));
+                    $admission = $staff->employee_number ?? '-';
                 }
 
                 $loss = $book->activeLosses->first();
@@ -207,12 +214,13 @@ class LibraryController extends Controller
                 $book->is_overdue = $activeBorrow && $activeBorrow->expected_return_date
                     ? (Carbon::parse($activeBorrow->expected_return_date)->lt(Carbon::today()))
                     : false;
-                $book->occupied_by = ($student || $teacher)
+                $book->occupied_by = ($student || $teacher || $staff)
                     ? [
                         'name' => $studentName,
                         'admission_number' => $admission,
                         'class_name' => $className,
-                        'is_teacher' => (bool)$teacher
+                        'is_teacher' => (bool)$teacher,
+                        'is_staff' => (bool)$staff
                     ]
                     : null;
                 $book->loss_info = $loss ? [
@@ -321,7 +329,7 @@ class LibraryController extends Controller
                 ], 422);
             }
 
-            $book = Book::with(['class', 'subject', 'activeBorrows.student.subclass.class', 'activeBorrows.teacher'])
+            $book = Book::with(['class', 'subject', 'activeBorrows.student.subclass.class', 'activeBorrows.teacher', 'activeBorrows.staff'])
                 ->where('schoolID', $schoolID)
                 ->where('isbn', $isbn)
                 ->first();
@@ -351,7 +359,15 @@ class LibraryController extends Controller
                         'type' => 'teacher',
                         'name' => trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? '')),
                         'ref' => $teacher->employee_number ?? '-',
-                        'class_name' => 'Staff/Teacher'
+                        'class_name' => 'Teacher'
+                    ];
+                } elseif ($activeBorrow->staff) {
+                    $staff = $activeBorrow->staff;
+                    $borrower = [
+                        'type' => 'staff',
+                        'name' => trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? '')),
+                        'ref' => $staff->employee_number ?? '-',
+                        'class_name' => 'Staff'
                     ];
                 } elseif ($activeBorrow->student) {
                     $student = $activeBorrow->student;
@@ -398,6 +414,7 @@ class LibraryController extends Controller
             $query = BookBorrow::with([
                 'student',
                 'teacher',
+                'staff',
                 'book.class',
                 'book.subject'
             ])
@@ -891,9 +908,10 @@ class LibraryController extends Controller
             // Validate input
             $validator = Validator::make($request->all(), [
                 'isbn' => 'required|string|max:50',
-                'borrower_type' => 'required|in:student,teacher',
+                'borrower_type' => 'required|in:student,teacher,staff',
                 'studentID' => 'required_if:borrower_type,student|nullable|exists:students,studentID',
                 'teacherID' => 'required_if:borrower_type,teacher|nullable|exists:teachers,id',
+                'staffID' => 'required_if:borrower_type,staff|nullable|exists:other_staff,id',
                 'expected_return_date' => 'required|date|after_or_equal:today',
                 'notes' => 'nullable|string|max:500',
             ]);
@@ -948,11 +966,14 @@ class LibraryController extends Controller
             if ($activeBorrow) {
                 $student = $activeBorrow->student;
                 $teacher = $activeBorrow->teacher;
+                $staff = $activeBorrow->staff;
                 $borrowerName = 'another person';
                 if ($student) {
                     $borrowerName = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
                 } elseif ($teacher) {
                     $borrowerName = trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? ''));
+                } elseif ($staff) {
+                    $borrowerName = trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? ''));
                 }
                 return response()->json([
                     'success' => false,
@@ -963,6 +984,7 @@ class LibraryController extends Controller
             $borrowerType = $request->input('borrower_type');
             $studentID = null;
             $teacherID = null;
+            $staffID = null;
 
             if ($borrowerType === 'student') {
                 // Verify student belongs to this school
@@ -991,7 +1013,7 @@ class LibraryController extends Controller
                         'message' => 'Student already has this book borrowed.'
                     ], 400);
                 }
-            } else {
+            } elseif ($borrowerType === 'teacher') {
                 // Verify teacher belongs to this school
                 $teacher = Teacher::where('id', $request->teacherID)
                     ->where('schoolID', $schoolID)
@@ -1018,6 +1040,33 @@ class LibraryController extends Controller
                         'message' => 'Teacher already has this book borrowed.'
                     ], 400);
                 }
+            } elseif ($borrowerType === 'staff') {
+                // Verify staff belongs to this school
+                $staff = OtherStaff::where('id', $request->staffID)
+                    ->where('schoolID', $schoolID)
+                    ->where('status', 'Active')
+                    ->first();
+
+                if (!$staff) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Staff member not found, inactive, or does not belong to this school.'
+                    ], 404);
+                }
+                $staffID = $request->staffID;
+
+                // Check if staff member already has this book borrowed
+                $existingBorrow = BookBorrow::where('bookID', $book->bookID)
+                    ->where('staffID', $staffID)
+                    ->where('status', 'borrowed')
+                    ->exists();
+
+                if ($existingBorrow) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Staff member already has this book borrowed.'
+                    ], 400);
+                }
             }
 
             DB::beginTransaction();
@@ -1027,6 +1076,7 @@ class LibraryController extends Controller
                 'bookID' => $book->bookID,
                 'studentID' => $studentID,
                 'teacherID' => $teacherID,
+                'staffID' => $staffID,
                 'borrow_date' => Carbon::now()->toDateString(),
                 'expected_return_date' => $request->expected_return_date ? Carbon::parse($request->expected_return_date)->toDateString() : null,
                 'status' => 'borrowed',
@@ -1837,6 +1887,43 @@ class LibraryController extends Controller
                 });
 
             return response()->json(['success' => true, 'teachers' => $teachers]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function search_staff(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            }
+
+            $search = $request->input('search');
+            if (!$search || strlen($search) < 2) {
+                return response()->json(['success' => true, 'staff' => []]);
+            }
+
+            $staff = OtherStaff::where('schoolID', $schoolID)
+                ->where('status', 'Active')
+                ->where(function($q) use ($search) {
+                    $q->where('first_name', 'like', "%$search%")
+                      ->orWhere('middle_name', 'like', "%$search%")
+                      ->orWhere('last_name', 'like', "%$search%")
+                      ->orWhere('employee_number', 'like', "%$search%");
+                })
+                ->limit(10)
+                ->get()
+                ->map(function($s) {
+                    return [
+                        'id' => $s->id,
+                        'name' => trim(($s->first_name ?? '') . ' ' . ($s->middle_name ?? '') . ' ' . ($s->last_name ?? '')),
+                        'employee_number' => $s->employee_number ?? 'N/A'
+                    ];
+                });
+
+            return response()->json(['success' => true, 'staff' => $staff]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }

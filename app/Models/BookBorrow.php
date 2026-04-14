@@ -16,6 +16,7 @@ class BookBorrow extends Model
         'bookID',
         'studentID',
         'teacherID',
+        'staffID',
         'borrow_date',
         'expected_return_date',
         'return_date',
@@ -44,5 +45,10 @@ class BookBorrow extends Model
     public function teacher()
     {
         return $this->belongsTo(Teacher::class, 'teacherID', 'id');
+    }
+
+    public function staff()
+    {
+        return $this->belongsTo(OtherStaff::class, 'staffID', 'id');
     }
 }

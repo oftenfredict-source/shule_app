@@ -9,478 +9,137 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <style>
+    /* Global Typography & Corporate Theme */
+    body, h1, h2, h3, h4, h5, h6, p, span, table, button, input, select, textarea, .list-group-item {
+        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+    }
+
     :root {
-        --primary-color: #940000;
-        --primary-hover: #b30000;
+        --primary-custom: #940000;
+        --secondary-custom: #FFF5F5;
+        --accent-soft: #FFF5F5;
+        --header-gradient: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
     }
 
-    body, .content, .card, .btn, .form-control, .form-select, .table, .list-group-item {
-        font-family: "Century Gothic", Arial, sans-serif;
+    .bg-primary-custom { background: #940000 !important; }
+    .text-primary-custom { color: #940000 !important; }
+    .btn-primary-custom { background: #940000; color: white; border: none; border-radius: 0; font-weight: 700; transition: all 0.3s ease; }
+    .btn-primary-custom:hover { background: #7a0000; color: white; transform: translateY(-2px); }
+    
+    .card { border-radius: 0 !important; border: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    
+    .setting-item {
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+        padding: 15px;
     }
-
-    body {
-        background-color: #ffffff;
+    .setting-item:hover {
+        background: #FFF5F5;
+        transform: translateY(-5px);
     }
-
-    .card, .alert, .btn, div, .form-control, .form-select {
-        border-radius: 0 !important;
-    }
-
-    .bg-primary-custom {
-        background-color: #940000 !important;
-    }
-    .text-primary-custom {
-        color: #940000 !important;
-    }
-    .border-primary-custom {
-        border-color: #940000 !important;
-    }
-
-    /* Statistics Cards */
-    .stat-card {
-        background: white;
-        border-radius: 10px;
-        padding: 12px 15px;
-        margin-bottom: 15px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        transition: all 0.2s ease;
-        border-top: 3px solid #e9ecef;
-    }
-
-    .stat-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        transform: translateY(-2px);
-        border-top-color: var(--primary-color);
-    }
-
-    .stat-icon {
-        width: 35px;
-        height: 35px;
-        border-radius: 6px;
+    
+    /* Stats Card Modernization */
+    .stat-card-new {
+        background: #fff;
+        border-top: 4px solid #940000;
+        padding: 20px;
+        transition: all 0.3s ease;
+        height: 100%;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: #f8f9fa;
-        color: #495057;
-        font-size: 18px;
-        margin-bottom: 8px;
+        min-height: 140px;
     }
-
-    .stat-card:hover .stat-icon {
-        background: var(--primary-color);
-        color: white;
+    .stat-card-new:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(148, 0, 0, 0.1);
+        background: #FFF5F5;
     }
-
-    .stat-number {
-        font-size: 1.4rem;
+    .stat-card-new i {
+        color: #940000;
+        margin-bottom: 15px;
+        opacity: 0.8;
+    }
+    .stat-card-new h4 {
+        color: #940000;
+        font-weight: 800;
+        margin-bottom: 5px;
+    }
+    .stat-card-new p {
+        color: #444;
         font-weight: 700;
-        color: #212529;
-        margin: 4px 0;
+        letter-spacing: 1px;
+        font-size: 11px;
     }
 
-    .stat-label {
-        font-size: 0.8rem;
-        color: #6c757d;
-        font-weight: 500;
-        margin: 0;
-    }
-
-    /* Card Styles */
-    .library-card {
-        background: white;
-        border-radius: 12px;
-        padding: 25px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        margin-bottom: 25px;
-    }
-
-    .card-header-custom {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #e9ecef;
-    }
-
-    .card-title-custom {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: #212529;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .btn-primary-custom {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-        color: white;
-    }
-
-    .btn-primary-custom:hover {
-        background-color: var(--primary-hover);
-        border-color: var(--primary-hover);
-    }
-
-    .table-responsive {
-        border-radius: 8px;
-        overflow-x: auto;
-        overflow-y: visible;
-        -webkit-overflow-scrolling: touch;
-        min-height: 0.01%;
-    }
-
-    /* Ensure table doesn't break on smaller screens */
-    @media screen and (max-width: 1200px) {
-        .table-responsive {
-            display: block;
-            width: 100%;
-            overflow-x: auto;
-            -ms-overflow-style: -ms-autohiding-scrollbar;
-        }
-        
-        .table-responsive > .table {
-            margin-bottom: 0;
-            width: 100%;
-            min-width: 1000px; /* Minimum width to force horizontal scroll */
-        }
-    }
-
-    /* Desktop and laptop - ensure horizontal scroll is visible */
-    @media screen and (min-width: 768px) {
-        .table-responsive {
-            overflow-x: auto;
-            overflow-y: visible;
-            max-width: 100%;
-        }
-        
-        #borrowsTable {
-            min-width: 1200px; /* Force horizontal scroll on desktop/laptop */
-            width: 100%;
-        }
-        
-        /* Make scrollbar more visible */
-        .table-responsive::-webkit-scrollbar {
-            height: 12px;
-        }
-        
-        .table-responsive::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        
-        .table-responsive::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
-        }
-        
-        .table-responsive::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-    }
-
-    /* Ensure borrows table container is responsive */
-    #borrowsTab .table-responsive {
-        width: 100%;
-        overflow-x: auto;
-    }
-
-    .table thead {
-        background-color: #f8f9fa;
-    }
-
-    .badge-custom {
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-weight: 500;
-    }
-
-    .badge-available {
-        background-color: #d4edda;
-        color: #155724;
-    }
-
-    .badge-issued {
-        background-color: #fff3cd;
-        color: #856404;
-    }
-
-    .badge-borrowed {
-        background-color: #f8d7da;
-        color: #721c24;
-    }
-
-    .badge-returned {
-        background-color: #d1ecf1;
-        color: #0c5460;
-    }
-
-    .badge-warning {
-        background-color: #ffc107;
-        color: #856404;
-        font-size: 0.75rem;
-        padding: 3px 8px;
-        margin-left: 5px;
-    }
-
-    /* DataTable custom styles */
-    #borrowsTable_wrapper .dataTables_filter input {
-        margin-left: 10px;
-        padding: 5px 10px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-    }
-
-    #borrowsTable_wrapper .dataTables_length select {
-        padding: 5px 10px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-    }
-
+    /* Table & UI Standardization */
+    .table-responsive { border-radius: 0; }
+    .table thead th { background: #FFF5F5; color: #940000; border-bottom: 2px solid #940000; font-weight: 700; text-transform: uppercase; font-size: 12px; }
+    
+    /* Search Filter Section */
     .search-filter-section {
         background: white;
-        border-radius: 0;
         padding: 20px;
         margin-bottom: 20px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        border-bottom: 2px solid #FFF5F5;
     }
 
     .form-label {
-        font-weight: 500;
+        font-weight: 700;
         color: #495057;
         margin-bottom: 8px;
+        font-size: 13px;
+        text-transform: uppercase;
     }
 
     .library-menu .list-group-item {
         cursor: pointer;
+        border-radius: 0 !important;
+        border: none;
         border-left: 4px solid transparent;
+        padding: 12px 20px;
+        transition: all 0.2s;
     }
     .library-menu .list-group-item.active {
         border-left-color: #940000;
         background: #fff5f5;
         color: #940000;
-        font-weight: 600;
+        font-weight: 700;
     }
 
     .library-management-body {
-        max-height: 70vh;
+        max-height: 80vh;
         overflow-y: auto;
-        overflow-x: hidden;
     }
 
-    .book-widget {
-        border-radius: 10px;
-        padding: 15px;
-        border: 2px solid #e9ecef;
-        background: #fff;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-        height: 100%;
+    /* Book & Student Widgets */
+    .book-widget, .student-widget {
+        border-radius: 0 !important;
+        border: 1px solid #eee;
+        transition: all 0.3s;
     }
+    .book-widget:hover { border-color: #940000; box-shadow: 0 5px 15px rgba(148,0,0,0.05); }
 
-    .book-widget.available {
-        border-color: #28a745;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(40, 167, 69, 0.08),
-            rgba(40, 167, 69, 0.08) 8px,
-            rgba(255, 255, 255, 0.6) 8px,
-            rgba(255, 255, 255, 0.6) 16px
-        );
-    }
+    .book-widget.available { border-left: 4px solid #28a745; background: #fafffa; }
+    .book-widget.borrowed { border-left: 4px solid #ffc107; background: #fffdf5; }
+    .book-widget.overdue { border-left: 4px solid #dc3545; background: #fffafa; }
+    .book-widget.lost { border-left: 4px solid #6f42c1; background: #f9f5ff; }
+    .book-widget.damaged { border-left: 4px solid #fd7e14; background: #fff9f5; }
 
-    .book-widget.borrowed {
-        border-color: #ffc107;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(255, 193, 7, 0.08),
-            rgba(255, 193, 7, 0.08) 8px,
-            rgba(255, 255, 255, 0.6) 8px,
-            rgba(255, 255, 255, 0.6) 16px
-        );
-    }
+    .student-widget { border: 1px solid #eee; background: #fff; }
+    .student-header { background: #940000; padding: 15px; }
+    .student-body h3 { color: #940000; font-weight: 700; margin-top: 10px; }
 
-    .book-widget.overdue {
-        border-color: #dc3545;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(220, 53, 69, 0.08),
-            rgba(220, 53, 69, 0.08) 8px,
-            rgba(255, 255, 255, 0.6) 8px,
-            rgba(255, 255, 255, 0.6) 16px
-        );
+    /* DataTable Customization */
+    .dataTables_wrapper .dataTables_filter input, 
+    .dataTables_wrapper .dataTables_length select {
+        border-radius: 0 !important;
+        border: 1px solid #940000 !important;
+        font-family: 'Century Gothic', sans-serif;
     }
-
-    .pattern-key {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        margin-right: 12px;
-    }
-
-    .pattern-swatch {
-        width: 22px;
-        height: 18px;
-        border-radius: 4px;
-        border: 2px solid #e9ecef;
-        display: inline-block;
-    }
-
-    .pattern-swatch.available {
-        border-color: #28a745;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(40, 167, 69, 0.12),
-            rgba(40, 167, 69, 0.12) 6px,
-            rgba(255, 255, 255, 0.6) 6px,
-            rgba(255, 255, 255, 0.6) 12px
-        );
-    }
-
-    .pattern-swatch.borrowed {
-        border-color: #ffc107;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(255, 193, 7, 0.12),
-            rgba(255, 193, 7, 0.12) 6px,
-            rgba(255, 255, 255, 0.6) 6px,
-            rgba(255, 255, 255, 0.6) 12px
-        );
-    }
-
-    .pattern-swatch.overdue {
-        border-color: #dc3545;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(220, 53, 69, 0.12),
-            rgba(220, 53, 69, 0.12) 6px,
-            rgba(255, 255, 255, 0.6) 6px,
-            rgba(255, 255, 255, 0.6) 12px
-        );
-    }
-
-    .book-widget.lost {
-        border-color: #6f42c1;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(111, 66, 193, 0.08),
-            rgba(111, 66, 193, 0.08) 8px,
-            rgba(255, 255, 255, 0.6) 8px,
-            rgba(255, 255, 255, 0.6) 16px
-        );
-    }
-
-    .book-widget.damaged {
-        border-color: #fd7e14;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(253, 126, 20, 0.08),
-            rgba(253, 126, 20, 0.08) 8px,
-            rgba(255, 255, 255, 0.6) 8px,
-            rgba(255, 255, 255, 0.6) 16px
-        );
-    }
-
-    .pattern-swatch.lost {
-        border-color: #6f42c1;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(111, 66, 193, 0.12),
-            rgba(111, 66, 193, 0.12) 6px,
-            rgba(255, 255, 255, 0.6) 6px,
-            rgba(255, 255, 255, 0.6) 12px
-        );
-    }
-
-    .pattern-swatch.damaged {
-        border-color: #fd7e14;
-        background: repeating-linear-gradient(
-            45deg,
-            rgba(253, 126, 20, 0.12),
-            rgba(253, 126, 20, 0.12) 6px,
-            rgba(255, 255, 255, 0.6) 6px,
-            rgba(255, 255, 255, 0.6) 12px
-        );
-    }
-
-    .student-widget {
-        width: 260px;
-        background: #ffffff;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-        font-family: Arial, sans-serif;
-        margin: 0 auto;
-    }
-
-    #studentsWidgetContainer {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-    }
-
-    #studentsWidgetContainer .student-widget-col {
-        flex: 0 0 260px;
-    }
-
-    .student-header {
-        background: #940000;
-        padding: 12px;
-        text-align: center;
-    }
-
-    .student-widget.status-occupied .student-header,
-    .student-widget.status-overdue .student-header,
-    .student-widget.status-not-due .student-header {
-        background: #940000;
-    }
-
-    .student-widget.status-lost .student-header {
-        background: #6f42c1;
-        background-image: repeating-linear-gradient(
-            45deg,
-            rgba(255, 255, 255, 0.08),
-            rgba(255, 255, 255, 0.08) 8px,
-            rgba(255, 255, 255, 0.0) 8px,
-            rgba(255, 255, 255, 0.0) 16px
-        );
-    }
-
-    .student-widget.status-damaged .student-header {
-        background: #fd7e14;
-        background-image: repeating-linear-gradient(
-            45deg,
-            rgba(255, 255, 255, 0.08),
-            rgba(255, 255, 255, 0.08) 8px,
-            rgba(255, 255, 255, 0.0) 8px,
-            rgba(255, 255, 255, 0.0) 16px
-        );
-    }
-
-    .student-widget.status-overdue .student-body .return-date {
-        color: #dc3545;
-    }
-
-    .student-header img {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        border: 3px solid #fff;
-        object-fit: cover;
-    }
-
-    .student-body {
-        padding: 10px;
-        text-align: center;
-    }
-
-    .student-body h3 {
-        color: #940000;
-        margin-bottom: 5px;
-        font-size: 18px;
-        font-weight: 700;
-    }
+    .page-item.active .page-link { background-color: #940000; border-color: #940000; }
+    .page-link { color: #940000; }
 
     .student-body .form {
         font-weight: bold;
@@ -499,96 +158,99 @@
     }
 </style>
 
-<div class="breadcrumbs">
-    <div class="col-sm-4">
-        <div class="page-header float-left">
-            <div class="page-title">
-                <h1>Manage Library</h1>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="content mt-3">
-    <div class="row mb-3">
-        <div class="col-sm-6 col-lg-3">
-            <div class="card text-white bg-flat-color-1">
+    <!-- Header Section (Expandable Pattern) -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm" style="border-radius: 0; border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
                 <div class="card-body">
-                    <div class="float-right mt-1">
-                        <i class="fa fa-book fa-2x"></i>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">MANAGE LIBRARY RESOURCES</h4>
+                            <p class="text-muted mb-0 small" style="font-weight: 600;">Monitor book circulation, inventory health, and student borrowing activities.</p>
+                        </div>
+                        <button class="btn shadow-sm text-white" id="toggleLibrarySettingsBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 20px;">
+                            <i class="fa fa-cog text-white"></i> SETTINGS
+                        </button>
                     </div>
-                    <h4 class="mb-0">
-                        <span class="count" id="totalBooks">{{ $totalBooks ?? 0 }}</span>
-                    </h4>
-                    <p class="text-light">Total Books</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card text-white bg-success">
-                <div class="card-body">
-                    <div class="float-right mt-1">
-                        <i class="fa fa-check fa-2x"></i>
+
+                    <!-- Expanded Settings Section -->
+                    <div id="expandedLibrarySettings" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(148, 0, 0, 0.1); position: relative;">
+                        <button type="button" class="close" onclick="$('#expandedLibrarySettings').slideUp(300);" style="position: absolute; right: 10px; top: 10px; color: #000000; opacity: 1;">&times;</button>
+                        <div class="row text-center">
+                            <div class="col-md-3 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="addBookBtnExp">
+                                    <i class="fa fa-plus-circle fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ADD NEW BOOK</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-3 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="borrowBookBtnExp">
+                                    <i class="fa fa-hand-paper-o fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">BORROW BOOK</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-3 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" onclick="$('[data-target=\'#borrowsTab\']').click()">
+                                    <i class="fa fa-list-ul fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">VIEW RECORDS</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" onclick="$('[data-target=\'#statisticsTab\']').click()">
+                                    <i class="fa fa-chart-line fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">INVENTORY STATS</h6>
+                                </a>
+                            </div>
+                        </div>
                     </div>
-                    <h4 class="mb-0 text-white">
-                        <span class="count" id="availableBooks">{{ $availableBooks ?? 0 }}</span>
-                    </h4>
-                    <p class="text-white opacity-8">Available Books</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card text-white bg-flat-color-2">
-                <div class="card-body">
-                    <div class="float-right mt-1">
-                        <i class="fa fa-hand-paper-o fa-2x"></i>
-                    </div>
-                    <h4 class="mb-0">
-                        <span class="count" id="issuedBooks">{{ $issuedBooks ?? 0 }}</span>
-                    </h4>
-                    <p class="text-light">Borrowed Books</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card text-white bg-danger">
-                <div class="card-body">
-                    <div class="float-right mt-1">
-                        <i class="fa fa-exclamation-triangle fa-2x text-white"></i>
-                    </div>
-                    <h4 class="mb-0 text-white">
-                        <span class="count" id="overdueBooks">{{ $overdueBooks ?? 0 }}</span>
-                    </h4>
-                    <p class="text-white opacity-8">Overdue Books</p>
                 </div>
             </div>
         </div>
     </div>
-    <div class="row mb-3">
-        <div class="col-sm-6 col-lg-3">
-            <div class="card text-white bg-flat-color-5">
-                <div class="card-body">
-                    <div class="float-right mt-1">
-                        <i class="fa fa-ban fa-2x text-white"></i>
-                    </div>
-                    <h4 class="mb-0 text-white">
-                        <span class="count" id="lostBooks">{{ $lostBooks ?? 0 }}</span>
-                    </h4>
-                    <p class="text-white opacity-8">Lost Books</p>
-                </div>
+
+    <!-- Quick Stats Section -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="stat-card-new shadow-sm text-center">
+                <i class="fa fa-book fa-2x"></i>
+                <h4 class="mb-0">{{ $totalBooks ?? 0 }}</h4>
+                <p class="mb-0">TOTAL BOOKS</p>
             </div>
         </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card text-white bg-warning">
-                <div class="card-body">
-                    <div class="float-right mt-1">
-                        <i class="fa fa-wrench fa-2x text-white"></i>
-                    </div>
-                    <h4 class="mb-0 text-white">
-                        <span class="count" id="damagedBooks">{{ $damagedBooks ?? 0 }}</span>
-                    </h4>
-                    <p class="text-white opacity-8">Damaged Books</p>
-                </div>
+        <div class="col">
+            <div class="stat-card-new shadow-sm text-center">
+                <i class="fa fa-check-circle fa-2x"></i>
+                <h4 class="mb-0">{{ $availableBooks ?? 0 }}</h4>
+                <p class="mb-0">AVAILABLE</p>
+            </div>
+        </div>
+        <div class="col">
+            <div class="stat-card-new shadow-sm text-center">
+                <i class="fa fa-hand-holding fa-2x"></i>
+                <h4 class="mb-0">{{ $issuedBooks ?? 0 }}</h4>
+                <p class="mb-0">BORROWED</p>
+            </div>
+        </div>
+        <div class="col">
+            <div class="stat-card-new shadow-sm text-center">
+                <i class="fa fa-clock fa-2x"></i>
+                <h4 class="mb-0">{{ $overdueBooks ?? 0 }}</h4>
+                <p class="mb-0">OVERDUE</p>
+            </div>
+        </div>
+        <div class="col">
+            <div class="stat-card-new shadow-sm text-center">
+                <i class="fa fa-times-circle fa-2x"></i>
+                <h4 class="mb-0">{{ $lostBooks ?? 0 }}</h4>
+                <p class="mb-0">LOST</p>
+            </div>
+        </div>
+        <div class="col">
+            <div class="stat-card-new shadow-sm text-center">
+                <i class="fa fa-wrench fa-2x"></i>
+                <h4 class="mb-0">{{ $damagedBooks ?? 0 }}</h4>
+                <p class="mb-0">DAMAGED</p>
             </div>
         </div>
     </div>
@@ -1107,7 +769,8 @@
                         <label class="form-label">Borrower Type <span class="text-danger">*</span></label>
                         <select class="form-control" id="borrowerType" onchange="toggleBorrowerSearch()">
                             <option value="student">Student</option>
-                            <option value="teacher">Teacher/Staff</option>
+                            <option value="teacher">Teacher</option>
+                            <option value="staff">Staff</option>
                         </select>
                     </div>
                     <div class="mb-3" id="studentSearchDiv">
@@ -1115,6 +778,7 @@
                         <input type="text" class="form-control" id="searchStudent" placeholder="Search by name or admission number...">
                         <input type="hidden" id="borrowStudentID">
                         <input type="hidden" id="borrowTeacherID">
+                        <input type="hidden" id="borrowStaffID">
                         <div id="studentResults" class="mt-2" style="max-height: 200px; overflow-y: auto; display: none;"></div>
                     </div>
                     <div class="mb-3">
@@ -1568,7 +1232,25 @@
             }
             isbnCheckTimeout = setTimeout(() => lookupBookByIsbn(isbn), 300);
         });
-            });
+
+        });
+
+        // Toggle logic for expanded library settings
+        $(document).on('click', '#toggleLibrarySettingsBtn', function(e) {
+            e.preventDefault();
+            $('#expandedLibrarySettings').slideToggle(300);
+        });
+
+        // Link expanded buttons to original functions
+        $(document).on('click', '#addBookBtnExp', function(e) {
+            e.preventDefault();
+            showAddBookModal();
+        });
+
+        $(document).on('click', '#borrowBookBtnExp', function(e) {
+            e.preventDefault();
+            showBorrowBookModal();
+        });
         }
         
         // Start initialization
@@ -1706,8 +1388,10 @@
                 const statusText = book.is_lost ? 'Lost' : (book.is_damaged ? 'Damaged' : (book.is_overdue ? 'Overdue' : (book.is_available ? 'Free' : 'Occupied')));
                 const occupiedBy = book.occupied_by
                     ? (book.occupied_by.is_teacher
-                        ? `${book.occupied_by.name} (${book.occupied_by.admission_number}) <span class="badge badge-info" style="font-size:10px;">Staff</span> - ${book.occupied_by.class_name}`
-                        : `${book.occupied_by.name} (${book.occupied_by.admission_number}) - ${book.occupied_by.class_name}`)
+                        ? `${book.occupied_by.name} (${book.occupied_by.admission_number}) <span class="badge badge-info" style="font-size:10px;">Teacher</span> - ${book.occupied_by.class_name}`
+                        : (book.occupied_by.is_staff 
+                            ? `${book.occupied_by.name} (${book.occupied_by.admission_number}) <span class="badge badge-secondary" style="font-size:10px;">Staff</span> - ${book.occupied_by.class_name}`
+                            : `${book.occupied_by.name} (${book.occupied_by.admission_number}) - ${book.occupied_by.class_name}`))
                     : '-';
                 const expectedReturn = book.borrow_expected_return_date ? formatDate(book.borrow_expected_return_date) : '-';
                 const searchKey = `${book.book_title || ''} ${book.author || ''} ${book.isbn || ''}`.trim();
@@ -2007,6 +1691,7 @@
                         response.borrows.forEach((borrow, index) => {
                             const student = borrow.student;
                             const teacher = borrow.teacher;
+                            const staff = borrow.staff;
                             const book = borrow.book;
                             const statusClass = borrow.status === 'borrowed' ? 'badge-borrowed' : 'badge-returned';
                             const statusText = borrow.status === 'borrowed' ? 'Borrowed' : 'Returned';
@@ -2016,7 +1701,7 @@
                             const expectedReturnDate = formatDate(borrow.expected_return_date);
                             const returnDate = formatDate(borrow.return_date);
                             
-                            // Determine borrower info: teacher takes priority if present
+                            // Determine borrower info
                             let borrowerName = '-';
                             let borrowerRef = '-';
                             let borrowerBadge = '';
@@ -2024,7 +1709,11 @@
                             if (teacher) {
                                 borrowerName = (teacher.first_name + ' ' + (teacher.middle_name || '') + ' ' + teacher.last_name).trim();
                                 borrowerRef = teacher.employee_number || '-';
-                                borrowerBadge = `<span class="badge badge-info ml-1" title="Staff/Teacher">Staff</span>`;
+                                borrowerBadge = `<span class="badge badge-info ml-1" title="Teacher">Teacher</span>`;
+                            } else if (staff) {
+                                borrowerName = (staff.first_name + ' ' + (staff.middle_name || '') + ' ' + staff.last_name).trim();
+                                borrowerRef = staff.employee_number || '-';
+                                borrowerBadge = `<span class="badge badge-secondary ml-1" title="Staff">Staff</span>`;
                             } else if (student) {
                                 borrowerName = (student.first_name + ' ' + (student.middle_name || '') + ' ' + student.last_name).trim();
                                 borrowerRef = student.admission_number || '-';
@@ -2280,7 +1969,7 @@
         }
         
         const bType = $('#borrowerType').val();
-        const url = bType === 'teacher' ? '{{ route("search_teachers") }}' : '{{ route("get_students") }}';
+        const url = bType === 'teacher' ? '{{ route("search_teachers") }}' : (bType === 'staff' ? '{{ route("search_staff") }}' : '{{ route("get_students") }}');
         
         $.ajax({
             url: url,
@@ -2289,11 +1978,11 @@
             success: function(response) {
                 if (response.success) {
                     let html = '';
-                    const items = bType === 'teacher' ? response.teachers : response.students;
+                    const items = bType === 'teacher' ? response.teachers : (bType === 'staff' ? response.staff : response.students);
                     if (items && items.length > 0) {
                         items.forEach(item => {
                             let id, name, details;
-                            if (bType === 'teacher') {
+                            if (bType === 'teacher' || bType === 'staff') {
                                 id = item.id;
                                 name = item.name;
                                 details = item.employee_number || 'N/A';
@@ -2332,19 +2021,14 @@
         });
     }
 
-    function selectStudent(studentID, name) {
-        if (typeof jQuery === 'undefined') {
-            console.error('jQuery not loaded');
-            return;
-        }
-        var $ = jQuery;
-        const bType = $('#borrowerType').val();
-        if (bType === 'teacher') {
-            $('#borrowTeacherID').val(studentID);
-            $('#borrowStudentID').val('');
-        } else {
-            $('#borrowStudentID').val(studentID);
-            $('#borrowTeacherID').val('');
+    function selectStudent(id, name) {
+        const type = $('#borrowerType').val();
+        if (type === 'student') {
+            $('#borrowStudentID').val(id);
+        } else if (type === 'teacher') {
+            $('#borrowTeacherID').val(id);
+        } else if (type === 'staff') {
+            $('#borrowStaffID').val(id);
         }
         $('#searchStudent').val(name);
         $('#studentResults').hide();
@@ -2354,6 +2038,7 @@
         const type = $('#borrowerType').val();
         $('#borrowStudentID').val('');
         $('#borrowTeacherID').val('');
+        $('#borrowStaffID').val('');
         $('#searchStudent').val('').attr('placeholder', type === 'student' ? 'Search by name or admission number...' : 'Search by name or staff number...');
         $('#borrowerSearchLabel').html(`Search ${type.charAt(0).toUpperCase() + type.slice(1)} <span class="text-danger">*</span>`);
         $('#studentResults').hide();
@@ -2922,6 +2607,7 @@
         $('#borrowForm')[0].reset();
         $('#borrowStudentID').val('');
         $('#borrowTeacherID').val('');
+        $('#borrowStaffID').val('');
         $('#borrowerType').val('student');
         toggleBorrowerSearch();
         $('#studentResults').hide();
@@ -2937,6 +2623,9 @@
         $('#searchStudent').val('');
         $('#studentResults').html('').hide();
         
+
+
+        /* Ensure table doesn't break on smaller screens */
         // Ensure search event handler is attached (in case modal was recreated)
         $('#searchStudent').off('input').on('input', function() {
             if (window.searchTimeout) {
@@ -3320,24 +3009,40 @@
         const borrowerType = $('#borrowerType').val();
         const studentID = $('#borrowStudentID').val();
         const teacherID = $('#borrowTeacherID').val();
-        const borrowerID = borrowerType === 'teacher' ? teacherID : studentID;
+        const staffID = $('#borrowStaffID').val();
+        const expectedReturnDate = $('#expectedReturnDate').val();
+        const notes = $('#borrowNotes').val();
+
+        if (borrowerType === 'student' && !studentID) {
+            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a student' });
+            return;
+        }
+        if (borrowerType === 'teacher' && !teacherID) {
+            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a teacher' });
+            return;
+        }
+        if (borrowerType === 'staff' && !staffID) {
+            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a staff member' });
+            return;
+        }
 
         const formData = {
             isbn: $('#borrowISBN').val().trim(),
             borrower_type: borrowerType,
             studentID: borrowerType === 'student' ? studentID : null,
             teacherID: borrowerType === 'teacher' ? teacherID : null,
-            expected_return_date: $('#expectedReturnDate').val(),
-            notes: $('#borrowNotes').val()
+            staffID: borrowerType === 'staff' ? staffID : null,
+            expected_return_date: expectedReturnDate,
+            notes: notes
         };
 
-        if (!formData.isbn || !borrowerID) {
+        if (!formData.isbn || (borrowerType === 'student' && !studentID) || (borrowerType === 'teacher' && !teacherID) || (borrowerType === 'staff' && !staffID)) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Validation Error',
                 text: borrowerType === 'teacher'
-                    ? 'Please enter ISBN and select a teacher/staff member'
-                    : 'Please enter ISBN and select a student'
+                    ? 'Please enter ISBN and select a teacher'
+                    : (borrowerType === 'staff' ? 'Please enter ISBN and select a staff member' : 'Please enter ISBN and select a student')
             });
             return;
         }

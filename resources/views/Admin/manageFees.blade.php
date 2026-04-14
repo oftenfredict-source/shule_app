@@ -16,220 +16,82 @@
 @endphp
 
 <style>
-    * {
-        font-family: 'Century Gothic', 'CenturyGothic', 'AppleGothic', sans-serif;
-        border-radius: 0 !important;
+    /* Font Family Global */
+    body, div, h1, h2, h3, h4, h5, h6, p, span, table, button, input, select, textarea {
+        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
     }
+
+    /* Corporate Color Scheme */
     :root {
         --primary-custom: #940000;
         --secondary-custom: #FFF5F5;
         --accent-soft: #FFF5F5;
         --header-gradient: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
     }
-    body {
-        background-color: #FFFFFF !important;
-        color: #333;
-    }
+
     .bg-primary-custom {
-        background-color: var(--primary-custom) !important;
+        background: #940000 !important;
     }
     .text-primary-custom {
-        color: var(--primary-custom) !important;
-    }
-    .border-primary-custom {
-        border-color: var(--primary-custom) !important;
+        color: #940000 !important;
     }
     .btn-primary-custom {
-        background-color: var(--primary-custom);
-        border-color: var(--primary-custom);
-        color: white;
+        background-color: #940000;
+        border-color: #940000;
+        color: #ffffff;
+        border-radius: 0;
     }
     .btn-primary-custom:hover {
         background-color: #7a0000;
         border-color: #7a0000;
-        color: white;
+        color: #ffffff;
     }
+    .header-gradient {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+    }
+    .accent-soft-red {
+        background-color: #FFF5F5 !important;
+    }
+
     .card {
-        background-color: #FFFFFF !important;
         border-radius: 0 !important;
     }
-    .card-header {
-        background: var(--header-gradient) !important;
-        border-bottom: 1px solid var(--primary-custom);
-        border-radius: 0 !important;
-    }
-    .card-header h4, .card-header h5, .card-header h6 {
-        color: var(--primary-custom);
-        font-weight: bold;
-    }
-    .badge-primary-custom {
-        background-color: var(--primary-custom);
-        color: white;
-        border-radius: 0 !important;
-    }
-    .form-control:focus, .form-select:focus {
-        border-color: #940000;
-        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
-    }
-    .widget-card {
-        transition: transform 0.2s, box-shadow 0.2s;
-        cursor: pointer;
-        border-radius: 0 !important;
-    }
-    .widget-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(148, 0, 0, 0.2) !important;
-    }
-    .fee-widget {
-        border-left: 4px solid #940000;
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-    }
-    .fee-widget.tuition {
-        border-left-color: #28a745;
-    }
-    .fee-widget.other {
-        border-left-color: #ffc107;
-    }
-    .bg-light-info {
-        background-color: var(--accent-soft) !important;
-    }
-    .border-info {
-        border-color: var(--primary-custom) !important;
-    }
-    .text-info {
-        color: var(--primary-custom) !important;
-    }
-    .fee-amount {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #940000;
-    }
-    .fee-type-badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.75rem;
-    }
-    .loading-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-    }
-    .loading-overlay.show {
-        display: flex;
-    }
-    .loading-spinner {
-        background: white;
-        padding: 2rem;
-        border-radius: 0 !important;
-        text-align: center;
-    }
-    /* Table Styling Improvements */
-    .table-bordered {
-        border: 2px solid #dee2e6 !important;
-    }
-    .table-bordered thead th {
-        border-bottom: 2px solid #dee2e6 !important;
-        font-weight: 700;
-        color: #fff;
-        text-transform: uppercase;
-        font-size: 0.9rem;
-        padding: 12px 15px;
-    }
-    .table-bordered tbody td {
-        border: 1px solid #dee2e6;
-        padding: 12px 15px;
-        vertical-align: middle;
-    }
-    .table-bordered tfoot td {
-        border-top: 2px solid #dee2e6 !important;
-        padding: 15px;
-        font-size: 1.05rem;
-    }
-    .table-hover tbody tr:hover {
-        background-color: #f8f9fa;
-        transition: background-color 0.2s;
-    }
-    .table-success thead th {
-        background-color: #28a745 !important;
-        color: #fff;
-    }
-    .table-warning thead th {
-        background-color: #ffc107 !important;
-        color: #000;
-    }
-    .border-end {
-        border-right: 1px solid #dee2e6 !important;
-    }
-    .table tbody tr.border-top {
-        border-top: 3px solid #ffc107 !important;
-    }
-    /* New Table Structure Styling */
-    .table-primary thead th {
-        background-color: #940000 !important;
-        color: #fff;
-        font-weight: 700;
-        text-transform: uppercase;
-        font-size: 0.95rem;
-        padding: 15px;
-    }
-    .table tbody tr {
-        transition: background-color 0.2s;
-    }
-    .table tbody tr:hover {
-        background-color: #f8f9fa;
-    }
-    .table tbody td {
-        vertical-align: middle;
-        padding: 15px;
-    }
-    .table tfoot td {
-        font-size: 1.1rem;
-        padding: 15px;
-    }
-    /* Fee breakdown styling */
-    .fee-breakdown-item {
-        padding: 8px 0;
-        border-bottom: 1px solid #e9ecef;
-    }
-    .fee-breakdown-item:last-child {
-        border-bottom: none;
-    }
-
-    /* Modal Scrollbar & Overflow Styling */
-    .modal-body {
-        max-height: 70vh;
-        overflow-y: auto;
-        padding: 1.5rem;
-    }
-
-    /* Custom Scrollbar for a premium look */
-    .modal-body::-webkit-scrollbar, 
-    .table-responsive::-webkit-scrollbar,
-    #agreement_students_list::-webkit-scrollbar {
-        width: 8px;
-    }
-    .modal-body::-webkit-scrollbar-track,
-    .table-responsive::-webkit-scrollbar-track,
-    #agreement_students_list::-webkit-scrollbar-track {
-        background: #f1f1f1;
-    }
-    .modal-body::-webkit-scrollbar-thumb,
-    .table-responsive::-webkit-scrollbar-thumb,
-    #agreement_students_list::-webkit-scrollbar-thumb {
-        background: #940000;
+    
+    .setting-item {
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
         border-radius: 0;
     }
-    .modal-body::-webkit-scrollbar-thumb:hover,
-    .table-responsive::-webkit-scrollbar-thumb:hover,
-    #agreement_students_list::-webkit-scrollbar-thumb:hover {
-        background: #7a0000;
+    .setting-item:hover {
+        background: #FFF5F5;
+        transform: translateY(-3px);
     }
+
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: whitesmoke;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cfcfcf;
+        border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #940000;
+    }
+
+    .modal-content {
+        border-radius: 0 !important;
+        border: none !important;
+    }
+    
+    .table-responsive {
+        scrollbar-width: thin;
+        scrollbar-color: #940000 #f1f1f1;
+    }
+</style>
     .agreement-students-list {
         max-height: 500px;
         overflow-y: auto;
@@ -268,51 +130,66 @@
                 </div>
             @endif
 
-            <!-- Page Header -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body bg-primary-custom text-white rounded">
-                    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3">
-                        <h4 class="mb-0 text-center text-xl-start">
-                            <i class="bi bi-cash-stack"></i> Manage Fees
-                        </h4>
-                        <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-xl-end w-100 w-xl-auto">
-                            <button class="btn btn-light text-primary-custom fw-bold flex-grow-1 flex-md-grow-0" type="button" id="exportPdfBtn">
-                                <i class="bi bi-file-pdf"></i> PDF
-                            </button>
-                            <button class="btn btn-light text-primary-custom fw-bold flex-grow-1 flex-md-grow-0" type="button" id="exportExcelBtn">
-                                <i class="bi bi-file-excel"></i> Excel
-                            </button>
-                            <a href="{{ route('view_payments') }}" class="btn btn-light text-primary-custom fw-bold flex-grow-1 flex-md-grow-0 text-center">
-                                <i class="bi bi-credit-card"></i> Payments
-                            </a>
-                            <button class="btn btn-light text-primary-custom fw-bold flex-grow-1 flex-md-grow-0" type="button" id="openAddFeeModalBtn">
-                                <i class="bi bi-plus-circle"></i> Create Fee
-                            </button>
-                            
-                            <!-- Dropdown for conditions -->
-                            <div class="dropdown flex-grow-1 flex-md-grow-0">
-                                <button class="btn btn-light text-primary-custom fw-bold w-100 dropdown-toggle" type="button" id="advancedSetupBtn" data-bs-toggle="dropdown" data-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-gear-fill"></i> Setup & Overrides
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end border-primary-custom shadow-sm" aria-labelledby="advancedSetupBtn">
-                                    <li>
-                                        <button class="dropdown-item fw-bold text-dark py-2" type="button" id="openConditionModalBtn">
-                                            <i class="bi bi-tags text-primary-custom me-2"></i> Discounts (Conditions)
-                                        </button>
-                                    </li>
-                                    <li><hr class="dropdown-divider text-muted"></li>
-                                    <li>
-                                        <button class="dropdown-item fw-bold text-dark py-2" type="button" id="openAgreementModalBtn">
-                                            <i class="bi bi-handshake-fill text-primary-custom me-2"></i> Student Agreements
-                                        </button>
-                                    </li>
-                                    <li><hr class="dropdown-divider text-muted"></li>
-                                    <li>
-                                        <button class="dropdown-item fw-bold text-dark py-2" type="button" id="openSponsorModalBtn">
-                                            <i class="bi bi-person-heart text-primary-custom me-2"></i> Assign Sponsors
-                                        </button>
-                                    </li>
-                                </ul>
+            <!-- Page Header (Expandable Pattern) -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 0; border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">MANAGE FEES & FINANCIALS</h4>
+                            <p class="text-muted mb-0 small" style="font-weight: 600;">Configure institutional fee structures, installments, and payment reporting.</p>
+                        </div>
+                        <button class="btn shadow-sm text-white" id="toggleFeeSettingsBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 20px;">
+                            <i class="bi bi-gear-fill"></i> SETTINGS
+                        </button>
+                    </div>
+
+                    <!-- Expanded Settings Section -->
+                    <div id="expandedFeeSettings" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(148, 0, 0, 0.1); position: relative;">
+                        <button type="button" class="close" onclick="$('#expandedFeeSettings').slideUp(300);" style="position: absolute; right: 10px; top: 10px; color: #000000; opacity: 1;">&times;</button>
+                        <div class="row text-center">
+                            <div class="col-md-3 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openAddFeeModalBtn_Exp">
+                                    <i class="bi bi-plus-circle-fill fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">CREATE FEE</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-3 border-right">
+                                <a href="{{ route('view_payments') }}" class="text-decoration-none d-block py-3 setting-item">
+                                    <i class="bi bi-credit-card fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">PAYMENTS</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-3 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openConditionModalBtn_Exp">
+                                    <i class="bi bi-tags-fill fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">DISCOUNTS</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openAgreementModalBtn_Exp">
+                                    <i class="bi bi-handshake-fill fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">AGREEMENTS</h6>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-3 pt-3 border-top">
+                            <div class="col-md-4 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openSponsorModalBtn_Exp">
+                                    <i class="bi bi-person-heart fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ASSIGN SPONSORS</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-4 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="exportPdfBtn_Exp">
+                                    <i class="bi bi-file-pdf fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">EXPORT PDF</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="exportExcelBtn_Exp">
+                                    <i class="bi bi-file-excel fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">EXPORT EXCEL</h6>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -1211,6 +1088,19 @@
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             }
         });
+
+        // Toggle logic for expanded settings
+        $(document).on('click', '#toggleFeeSettingsBtn', function() {
+            $('#expandedFeeSettings').slideToggle(300);
+        });
+
+        // Re-link expanded buttons to original triggers
+        $(document).on('click', '#openAddFeeModalBtn_Exp', function(e) { e.preventDefault(); $('#openAddFeeModalBtn').click(); });
+        $(document).on('click', '#openConditionModalBtn_Exp', function(e) { e.preventDefault(); $('#openConditionModalBtn').click(); });
+        $(document).on('click', '#openAgreementModalBtn_Exp', function(e) { e.preventDefault(); $('#openAgreementModalBtn').click(); });
+        $(document).on('click', '#openSponsorModalBtn_Exp', function(e) { e.preventDefault(); $('#openSponsorModalBtn').click(); });
+        $(document).on('click', '#exportPdfBtn_Exp', function(e) { e.preventDefault(); $('#exportPdfBtn').click(); });
+        $(document).on('click', '#exportExcelBtn_Exp', function(e) { e.preventDefault(); $('#exportExcelBtn').click(); });
 
         // Open Add Fee Modal Button Click Handler
         $(document).on('click', '#openAddFeeModalBtn', function(e) {

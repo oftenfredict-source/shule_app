@@ -7,266 +7,73 @@
 @endif
 
 <style>
-    /* Minimal custom CSS - only for #940000 color scheme */
+    /* Font Family Global */
+    body, div, h1, h2, h3, h4, h5, h6, p, span, table, button, input, select, textarea {
+        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+    }
+
+    /* Corporate Color Scheme */
     .bg-primary-custom {
-        background-color: #940000 !important;
+        background: #940000 !important;
     }
     .text-primary-custom {
         color: #940000 !important;
-    }
-    .border-primary-custom {
-        border-color: #940000 !important;
     }
     .btn-primary-custom {
         background-color: #940000;
         border-color: #940000;
         color: #ffffff;
+        border-radius: 0;
     }
     .btn-primary-custom:hover {
-        background-color: #b30000;
-        border-color: #b30000;
+        background-color: #7a0000;
+        border-color: #7a0000;
         color: #ffffff;
     }
-    .form-control:focus, .form-select:focus {
-        border-color: #940000;
-        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
+    .header-gradient {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+    }
+    .accent-soft-red {
+        background-color: #FFF5F5 !important;
+    }
+
+    .class-card {
+        transition: 0.3s;
+        border-radius: 0 !important;
+    }
+    .class-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(148, 0, 0, 0.1) !important;
     }
     
-    /* Light background for widget cards */
-    .class-card .card-header.bg-primary-custom,
-    .subclass-card .card-header.bg-primary-custom {
-        background-color: rgba(148, 0, 0, 0.08) !important;
-        border-bottom: 1px solid rgba(148, 0, 0, 0.15) !important;
+    .setting-item {
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+        border-radius: 0;
     }
-    .class-card .card-header.bg-primary-custom,
-    .class-card .card-header.bg-primary-custom *,
-    .subclass-card .card-header.bg-primary-custom,
-    .subclass-card .card-header.bg-primary-custom * {
-        color: #940000 !important;
+    .setting-item:hover {
+        background: #FFF5F5;
+        transform: translateY(-3px);
     }
 
-    /* Hide scrollbar for edit subclass modal body */
-    #editSubclassModal .modal-body::-webkit-scrollbar {
-        display: none;
-    }
-
-    /* Ensure edit subclass modal appears on top */
-    #editSubclassModal {
-        z-index: 1060 !important;
-    }
-    #editSubclassModal .modal-backdrop {
-        z-index: 1059 !important;
-    }
-
-    /* Add Subclass Modal - Ensure scrollable body and visible footer */
-    #addSubclassModal .modal-dialog {
-        max-height: 90vh;
-        margin: 1.75rem auto;
-    }
-
-    #addSubclassModal .modal-content {
-        max-height: 90vh;
-        display: flex;
-        flex-direction: column;
-    }
-
-    #addSubclassModal .modal-body {
-        overflow-y: auto;
-        overflow-x: hidden;
-        max-height: calc(90vh - 150px);
-        padding: 1rem;
-    }
-
-    #addSubclassModal .modal-footer {
-        flex-shrink: 0;
-        border-top: 1px solid #dee2e6;
-        padding: 0.75rem;
-        background-color: #f8f9fa;
-    }
-
-    /* Custom scrollbar for add subclass modal */
-    #addSubclassModal .modal-body::-webkit-scrollbar {
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
         width: 8px;
     }
-
-    #addSubclassModal .modal-body::-webkit-scrollbar-track {
-        background: #f1f1f1;
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: whitesmoke;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cfcfcf;
         border-radius: 4px;
     }
-
-    #addSubclassModal .modal-body::-webkit-scrollbar-thumb {
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: #940000;
-        border-radius: 4px;
     }
 
-    #addSubclassModal .modal-body::-webkit-scrollbar-thumb:hover {
-        background: #b30000;
-    }
-
-    /* Select2 Custom Styles */
-    .select2-container {
-        z-index: 9999 !important;
-    }
-
-    .select2-dropdown {
-        z-index: 9999 !important;
-    }
-
-    .select2-container--bootstrap-5 .select2-selection {
-        min-height: 38px;
-    }
-
-    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
-        line-height: 36px;
-    }
-
-    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
-        height: 36px;
-    }
-
-    /* Mobile Responsive Styles */
-    @media (max-width: 768px) {
-        .container-fluid {
-            padding-left: 10px;
-            padding-right: 10px;
-        }
-
-        .card-header h4 {
-            font-size: 1.1rem;
-        }
-
-        .subclass-card .card-header h5 {
-            font-size: 1rem;
-        }
-
-        .subclass-card .card-body {
-            padding: 0.75rem !important;
-        }
-
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-        }
-
-        .action-btn-icon {
-            padding: 0.2rem 0.4rem !important;
-            font-size: 0.7rem !important;
-            min-width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .action-btn-icon i {
-            font-size: 0.85rem;
-        }
-
-        .action-buttons-group {
-            gap: 0.25rem !important;
-        }
-
-        .modal-dialog {
-            margin: 0.5rem;
-        }
-
-        .modal-content {
-            border-radius: 0.5rem;
-        }
-
-        .table-responsive {
-            font-size: 0.85rem;
-        }
-
-        .table th, .table td {
-            padding: 0.5rem 0.25rem;
-            white-space: nowrap;
-        }
-
-        .badge {
-            font-size: 0.7rem;
-            padding: 0.25em 0.5em;
-        }
-
-        .page-header-buttons {
-            flex-direction: row;
-            flex-wrap: wrap;
-            gap: 0.5rem !important;
-            justify-content: flex-start;
-        }
-
-        .page-header-action-btn {
-            flex: 0 0 auto;
-            white-space: nowrap;
-            padding: 0.375rem 0.75rem;
-            font-size: 0.75rem;
-        }
-
-        .page-header-action-btn i {
-            font-size: 0.9rem;
-        }
-    }
-
-    @media (max-width: 576px) {
-        .action-btn-icon {
-            padding: 0.15rem 0.3rem !important;
-            font-size: 0.65rem !important;
-            min-width: 28px;
-            height: 28px;
-        }
-
-        .action-btn-icon i {
-            font-size: 0.75rem;
-        }
-
-        .action-buttons-group {
-            gap: 0.2rem !important;
-        }
-
-        .page-header-action-btn {
-            padding: 0.3rem 0.6rem;
-            font-size: 0.7rem;
-        }
-
-        .page-header-action-btn i {
-            font-size: 0.85rem;
-        }
-
-        .page-header-buttons {
-            gap: 0.4rem !important;
-        }
-
-        .subclass-card .card-footer {
-            padding: 0.5rem !important;
-        }
-
-        .subclass-card .card-footer .d-flex {
-            gap: 0.5rem !important;
-        }
-
-        .modal-dialog {
-            margin: 0.25rem;
-        }
-
-        .modal-body {
-            padding: 1rem;
-        }
-
-        .form-label {
-            font-size: 0.9rem;
-        }
-
-        .table {
-            font-size: 0.8rem;
-        }
-
-        .table th, .table td {
-            padding: 0.4rem 0.2rem;
-        }
-    }
-    /* Ensure SweetAlert2 appears above all modals */
-    .swal2-container {
-        z-index: 2000 !important;
+    .modal-content {
+        border-radius: 0 !important;
+        border: none !important;
     }
 </style>
 
@@ -370,45 +177,72 @@
         </div>
     @endif
 
-    <!-- Page Header -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body bg-primary-custom text-white rounded">
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
-                <h4 class="mb-2 mb-md-0">
-                    <i class="bi bi-building"></i> <span class="d-none d-sm-inline">Manage Classes & Subclasses</span><span class="d-sm-none">Classes</span>
-                </h4>
-                <div class="d-flex flex-row flex-wrap gap-2 page-header-buttons">
+    <!-- Page Header (Expandable Pattern) -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 0; border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">MANAGE CLASSES & SUBCLASSES</h4>
+                    <p class="text-muted mb-0 small" style="font-weight: 600;">Define institutional structure, streams, and academic grading models.</p>
+                </div>
+                <button class="btn shadow-sm text-white" id="toggleClassesSettingsBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 20px;">
+                    <i class="bi bi-gear-fill"></i> SETTINGS
+                </button>
+            </div>
+
+            <!-- Expanded Settings Section -->
+            <div id="expandedClassesSettings" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(148, 0, 0, 0.1); position: relative;">
+                <button type="button" class="close" onclick="$('#expandedClassesSettings').slideUp(300);" style="position: absolute; right: 10px; top: 10px; color: #000000; opacity: 1;">&times;</button>
+                <div class="row text-center">
                     @if($canViewClasses)
-                    <button class="btn btn-light text-primary-custom fw-bold btn-sm page-header-action-btn" id="viewClassesBtn" type="button">
-                        <i class="bi bi-grid-3x3-gap"></i> <span class="d-none d-md-inline">View Classes</span><span class="d-md-none">Classes</span>
-                    </button>
+                    <div class="col-md-2 border-right">
+                        <a href="#" class="text-decoration-none d-block py-3 setting-item" id="viewClassesBtn_Exp">
+                            <i class="bi bi-grid-3x3-gap fa-2x mb-2" style="color: #940000;"></i>
+                            <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">VIEW CLASSES</h6>
+                        </a>
+                    </div>
                     @endif
                     @if($canViewClassGrading)
-                    <button class="btn btn-light text-primary-custom fw-bold btn-sm page-header-action-btn" id="viewClassGradingBtn" type="button">
-                        <i class="bi bi-award"></i> <span class="d-none d-md-inline">View Class Grading</span><span class="d-md-none">Grading</span>
-                    </button>
+                    <div class="col-md-2 border-right">
+                        <a href="#" class="text-decoration-none d-block py-3 setting-item" id="viewClassGradingBtn_Exp">
+                            <i class="bi bi-award fa-2x mb-2" style="color: #940000;"></i>
+                            <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">GRADING</h6>
+                        </a>
+                    </div>
                     @endif
                     @if(isset($school_details) && $school_details->school_type == 'Secondary')
-                    @if($canViewCombies)
-                    <button class="btn btn-light text-primary-custom fw-bold btn-sm page-header-action-btn" id="viewCombiesBtn" type="button" data-toggle="modal" data-target="#viewCombiesModal">
-                        <i class="bi bi-eye"></i> <span class="d-none d-md-inline">View Combies</span><span class="d-md-none">Combies</span>
-                    </button>
-                    @endif
-                    @if($canCreateCombie)
-                    <button class="btn btn-light text-primary-custom fw-bold btn-sm page-header-action-btn" id="addCombieBtn" type="button" data-toggle="modal" data-target="#addCombieModal">
-                        <i class="bi bi-layers"></i> <span class="d-none d-md-inline">Add Combies</span><span class="d-md-none">Add</span>
-                    </button>
-                    @endif
+                        @if($canViewCombies)
+                        <div class="col-md-2 border-right">
+                            <a href="#" class="text-decoration-none d-block py-3 setting-item" data-toggle="modal" data-target="#viewCombiesModal">
+                                <i class="bi bi-eye fa-2x mb-2" style="color: #940000;"></i>
+                                <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">VIEW COMBIES</h6>
+                            </a>
+                        </div>
+                        @endif
+                        @if($canCreateCombie)
+                        <div class="col-md-2 border-right">
+                            <a href="#" class="text-decoration-none d-block py-3 setting-item" data-toggle="modal" data-target="#addCombieModal">
+                                <i class="bi bi-layers fa-2x mb-2" style="color: #940000;"></i>
+                                <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ADD COMBIES</h6>
+                            </a>
+                        </div>
+                        @endif
                     @endif
                     @if($canCreateSubclass)
-                    <button class="btn btn-light text-primary-custom fw-bold btn-sm page-header-action-btn" id="addSubclassBtn" type="button" data-toggle="modal" data-target="#addSubclassModal">
-                        <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">Add Subclass</span><span class="d-md-none">Subclass</span>
-                    </button>
+                    <div class="col-md-2 border-right">
+                        <a href="#" class="text-decoration-none d-block py-3 setting-item" data-toggle="modal" data-target="#addSubclassModal">
+                            <i class="bi bi-plus-circle fa-2x mb-2" style="color: #940000;"></i>
+                            <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ADD SUBCLASS</h6>
+                        </a>
+                    </div>
                     @endif
                     @if($canCreateClass)
-                    <button class="btn btn-light text-primary-custom fw-bold btn-sm page-header-action-btn" id="addClassBtn" type="button" data-toggle="modal" data-target="#addClassModal">
-                        <i class="bi bi-plus-square"></i> <span class="d-none d-md-inline">Add Class</span><span class="d-md-none">Class</span>
-                    </button>
+                    <div class="col-md-2">
+                        <a href="#" class="text-decoration-none d-block py-3 setting-item" data-toggle="modal" data-target="#addClassModal">
+                            <i class="bi bi-plus-square fa-2x mb-2" style="color: #940000;"></i>
+                            <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ADD CLASS</h6>
+                        </a>
+                    </div>
                     @endif
                 </div>
             </div>
@@ -1759,6 +1593,22 @@
         $(document).ready(function() {
             // Initialize Select2 on all select elements with search
             initializeSelect2();
+
+            // Toggle logic for expanded settings
+            $('#toggleClassesSettingsBtn').on('click', function() {
+                $('#expandedClassesSettings').slideToggle(300);
+            });
+
+            // Re-link expanded buttons to original triggers
+            $('#viewClassesBtn_Exp').on('click', function(e) {
+                e.preventDefault();
+                $('#viewClassesBtn').click();
+            });
+
+            $('#viewClassGradingBtn_Exp').on('click', function(e) {
+                e.preventDefault();
+                $('#viewClassGradingBtn').click();
+            });
         });
 
         // Re-initialize Select2 when modals are shown

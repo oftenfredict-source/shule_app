@@ -246,17 +246,20 @@ class ManageStudentController extends Controller
             // Handle Image Upload
             $imageName = null;
             if ($request->hasFile('photo')) {
-                // Determine upload path - Prioritize public_html for cPanel
+                // Determine upload path - Prioritize the current active public directory
+                $localPublicPath = public_path('userImages');
+                $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
                 $basePath = base_path();
                 $parentDir = dirname($basePath);
                 $publicHtmlPath = $parentDir . '/public_html/userImages';
-                $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
-                $localPublicPath = public_path('userImages');
 
-                if (file_exists($parentDir . '/public_html')) {
-                    $uploadPath = $publicHtmlPath;
+                // We prioritize the path that matches our current environment
+                if (file_exists($localPublicPath) || is_dir($localPublicPath)) {
+                    $uploadPath = $localPublicPath;
                 } elseif (strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
                     $uploadPath = $docRootPath;
+                } elseif (file_exists($parentDir . '/public_html')) {
+                    $uploadPath = $publicHtmlPath;
                 } else {
                     $uploadPath = $localPublicPath;
                 }
@@ -528,13 +531,14 @@ class ManageStudentController extends Controller
         $studentImgPath = null;
         if ($student->photo) {
             $filename = $student->photo;
+            $localPath = public_path('userImages/' . $filename);
+            $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages/' . $filename;
             $basePath = base_path();
             $parentDir = dirname($basePath);
             $publicHtmlPath = $parentDir . '/public_html/userImages/' . $filename;
-            $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages/' . $filename;
-            $localPath = public_path('userImages/' . $filename);
 
-            if (file_exists($publicHtmlPath) || file_exists($docRootPath) || file_exists($localPath)) {
+            // Check existence in order of likelihood for the current environment
+            if (file_exists($localPath) || file_exists($docRootPath) || file_exists($publicHtmlPath)) {
                 $studentImgPath = asset('userImages/' . $filename);
             }
         }
@@ -697,17 +701,19 @@ class ManageStudentController extends Controller
             // Handle Image Upload
             $imageName = $student->photo; // Keep existing photo
             if ($request->hasFile('photo')) {
-                // Determine upload path - Prioritize public_html for cPanel
+                // Determine upload path - Prioritize the current active public directory
+                $localPublicPath = public_path('userImages');
+                $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
                 $basePath = base_path();
                 $parentDir = dirname($basePath);
                 $publicHtmlPath = $parentDir . '/public_html/userImages';
-                $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
-                $localPublicPath = public_path('userImages');
 
-                if (file_exists($parentDir . '/public_html')) {
-                    $uploadPath = $publicHtmlPath;
+                if (file_exists($localPublicPath) || is_dir($localPublicPath)) {
+                    $uploadPath = $localPublicPath;
                 } elseif (strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
                     $uploadPath = $docRootPath;
+                } elseif (file_exists($parentDir . '/public_html')) {
+                    $uploadPath = $publicHtmlPath;
                 } else {
                     $uploadPath = $localPublicPath;
                 }

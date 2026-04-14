@@ -40,6 +40,7 @@ use App\Http\Controllers\IncomeCategoryController;
 use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\GoalManagementController;
 use App\Http\Controllers\SuperAdminController;
+use App\Http\Controllers\CharacterAssessmentController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 
@@ -694,6 +695,18 @@ Route::get('get_school_exams_for_term_list', [ResultManagementController::class,
 Route::get('get_tests_for_term_list', [ResultManagementController::class, 'getTestsForTermList'])->name('get_tests_for_term_list');
 Route::get('check_exam_ca_exists', [ResultManagementController::class, 'checkExamCaExists'])->name('check_exam_ca_exists');
 
+// Character Assessment Management
+Route::get('character_assessment', [CharacterAssessmentController::class, 'index'])->name('character_assessment');
+Route::post('store_assessment_category', [CharacterAssessmentController::class, 'store_category'])->name('store_assessment_category');
+Route::post('update_assessment_category/{id}', [CharacterAssessmentController::class, 'update_category'])->name('update_assessment_category');
+Route::delete('delete_assessment_category/{id}', [CharacterAssessmentController::class, 'delete_category'])->name('delete_assessment_category');
+Route::post('store_assessment_choice', [CharacterAssessmentController::class, 'store_choice'])->name('store_assessment_choice');
+Route::post('update_assessment_choice/{id}', [CharacterAssessmentController::class, 'update_choice'])->name('update_assessment_choice');
+Route::delete('delete_assessment_choice/{id}', [CharacterAssessmentController::class, 'delete_choice'])->name('delete_assessment_choice');
+Route::get('get_assessment_timetables', [CharacterAssessmentController::class, 'get_timetables'])->name('get_assessment_timetables');
+Route::post('store_assessment_timetable', [CharacterAssessmentController::class, 'store_timetable'])->name('store_assessment_timetable');
+Route::delete('delete_assessment_timetable/{id}', [CharacterAssessmentController::class, 'delete_timetable'])->name('delete_assessment_timetable');
+
 // Exam Papers Routes
 Route::post('store_exam_paper', [ManageExaminationController::class, 'storeExamPaper'])->name('store_exam_paper');
 Route::post('update_exam_paper/{examPaperID}', [ManageExaminationController::class, 'updateExamPaper'])->name('update_exam_paper');
@@ -817,6 +830,16 @@ Route::post('update_book_loss_payment/{lossID}', [LibraryController::class, 'upd
 Route::post('update_book_damage_payment/{damageID}', [LibraryController::class, 'update_book_damage_payment'])->name('update_book_damage_payment');
 Route::get('get_library_students', [LibraryController::class, 'get_library_students'])->name('get_library_students');
 Route::get('search_teachers', [LibraryController::class, 'search_teachers'])->name('search_teachers');
+Route::get('search_staff', [LibraryController::class, 'search_staff'])->name('search_staff');
+
+// Character Assessment Routes
+Route::get('character_assessment', [CharacterAssessmentController::class, 'index'])->name('character_assessment');
+Route::post('store_assessment_category', [CharacterAssessmentController::class, 'store_category'])->name('store_assessment_category');
+Route::post('update_assessment_category/{id}', [CharacterAssessmentController::class, 'update_category'])->name('update_assessment_category');
+Route::delete('delete_assessment_category/{id}', [CharacterAssessmentController::class, 'delete_category'])->name('delete_assessment_category');
+Route::post('store_assessment_choice', [CharacterAssessmentController::class, 'store_choice'])->name('store_assessment_choice');
+Route::post('update_assessment_choice/{id}', [CharacterAssessmentController::class, 'update_choice'])->name('update_assessment_choice');
+Route::delete('delete_assessment_choice/{id}', [CharacterAssessmentController::class, 'delete_choice'])->name('delete_assessment_choice');
 
 //fees routes
 Route::get('manage_fees', [FeesController::class, 'manage_fees'])->name('manage_fees');

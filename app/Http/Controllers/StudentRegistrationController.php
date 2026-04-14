@@ -517,10 +517,12 @@ class StudentRegistrationController extends Controller
                 $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
                 $localPublicPath = public_path('userImages');
 
-                if (file_exists($parentDir . '/public_html')) {
-                    $uploadPath = $publicHtmlPath;
+                if (file_exists($localPublicPath) || is_dir($localPublicPath)) {
+                    $uploadPath = $localPublicPath;
                 } elseif (strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
                     $uploadPath = $docRootPath;
+                } elseif (file_exists($parentDir . '/public_html')) {
+                    $uploadPath = $publicHtmlPath;
                 } else {
                     $uploadPath = $localPublicPath;
                 }
