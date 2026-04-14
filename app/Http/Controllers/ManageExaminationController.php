@@ -4509,30 +4509,17 @@ class ManageExaminationController extends Controller
                 $file = $request->file('file');
                 $fileName = time().'_'.$file->getClientOriginalName();
                 
-                // Determine upload path - Prioritize the active application's public path
-                $localPublicPath = public_path('exam_papers');
-                $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/exam_papers' : null;
+                // Determine upload path - Prioritize the directory where index.php is located
+                $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+                $uploadPath = $scriptDir . '/exam_papers';
                 
-                // Priority 1: Current Application's Public Path
-                if (is_dir($localPublicPath) || @mkdir($localPublicPath, 0777, true)) {
-                    $uploadPath = $localPublicPath;
-                } 
-                // Priority 2: Server Document Root (Useful for subdomains/aliases)
-                elseif ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
-                    $uploadPath = $docRootPath;
-                }
-                // Priority 3: Fallback Logic for Parent public_html (cPanel compatible)
-                else {
-                    $basePath = base_path();
-                    $parentDir = dirname($basePath);
-                    $publicHtmlPath = $parentDir . '/public_html/exam_papers';
-                    
-                    if (file_exists($parentDir . '/public_html')) {
-                        $uploadPath = $publicHtmlPath;
-                    } elseif (isset($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
-                        $uploadPath = $_SERVER['DOCUMENT_ROOT'] . '/exam_papers';
+                // If scriptDir doesn't exist or isn't writable, fallback to other common paths
+                if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+                    $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/exam_papers' : null;
+                    if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                        $uploadPath = $docRootPath;
                     } else {
-                        $uploadPath = $localPublicPath;
+                        $uploadPath = public_path('exam_papers');
                     }
                 }
 
@@ -5838,30 +5825,17 @@ class ManageExaminationController extends Controller
                 $file = $request->file('file');
                 $fileName = time().'_'.$file->getClientOriginalName();
 
-                // Determine upload path - Prioritize the active application's public path
-                $localPublicPath = public_path('exam_papers');
-                $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/exam_papers' : null;
+                // Determine upload path - Prioritize the directory where index.php is located
+                $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+                $uploadPath = $scriptDir . '/exam_papers';
                 
-                // Priority 1: Current Application's Public Path
-                if (is_dir($localPublicPath) || @mkdir($localPublicPath, 0777, true)) {
-                    $uploadPath = $localPublicPath;
-                } 
-                // Priority 2: Server Document Root (Useful for subdomains/aliases)
-                elseif ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
-                    $uploadPath = $docRootPath;
-                }
-                // Priority 3: Fallback Logic for Parent public_html (cPanel compatible)
-                else {
-                    $basePath = base_path();
-                    $parentDir = dirname($basePath);
-                    $publicHtmlPath = $parentDir . '/public_html/exam_papers';
-                    
-                    if (file_exists($parentDir . '/public_html')) {
-                        $uploadPath = $publicHtmlPath;
-                    } elseif (isset($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
-                        $uploadPath = $_SERVER['DOCUMENT_ROOT'] . '/exam_papers';
+                // If scriptDir doesn't exist or isn't writable, fallback to other common paths
+                if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+                    $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/exam_papers' : null;
+                    if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                        $uploadPath = $docRootPath;
                     } else {
-                        $uploadPath = $localPublicPath;
+                        $uploadPath = public_path('exam_papers');
                     }
                 }
 
@@ -6585,7 +6559,10 @@ class ManageExaminationController extends Controller
 
             if ($examPaper->file_path) {
                 // Check all potential paths
+                $scriptPath = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) . '/' . $examPaper->file_path : null;
+
                 $pathsToCheck = [
+                    $scriptPath,
                     public_path($examPaper->file_path),
                     isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/' . $examPaper->file_path : null,
                     Storage::disk('public')->path($examPaper->file_path),

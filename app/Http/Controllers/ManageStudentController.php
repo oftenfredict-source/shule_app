@@ -246,25 +246,20 @@ class ManageStudentController extends Controller
             // Handle Image Upload
             $imageName = null;
             if ($request->hasFile('photo')) {
-                // Determine upload path - Prioritize the current active public directory
-                $localPublicPath = public_path('userImages');
-                $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
-                $basePath = base_path();
-                $parentDir = dirname($basePath);
-                $publicHtmlPath = $parentDir . '/public_html/userImages';
-
-                // We prioritize the path that matches our current environment
-                if (file_exists($localPublicPath) || is_dir($localPublicPath)) {
-                    $uploadPath = $localPublicPath;
-                } elseif (strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
-                    $uploadPath = $docRootPath;
-                } elseif (file_exists($parentDir . '/public_html')) {
-                    $uploadPath = $publicHtmlPath;
-                } else {
-                    $uploadPath = $localPublicPath;
+                // Determine upload path - Prioritize the directory where index.php is located
+                $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+                $uploadPath = $scriptDir . '/userImages';
+                
+                // If scriptDir doesn't exist or isn't writable, fallback to other common paths
+                if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+                    $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/userImages' : null;
+                    if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                        $uploadPath = $docRootPath;
+                    } else {
+                        $uploadPath = public_path('userImages');
+                    }
                 }
 
-                // Create directory if it doesn't exist
                 if (!file_exists($uploadPath)) {
                     @mkdir($uploadPath, 0755, true);
                 }
@@ -531,14 +526,15 @@ class ManageStudentController extends Controller
         $studentImgPath = null;
         if ($student->photo) {
             $filename = $student->photo;
+            $scriptPath = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) . '/userImages/' . $filename : null;
             $localPath = public_path('userImages/' . $filename);
-            $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages/' . $filename;
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/userImages/' . $filename : null;
             $basePath = base_path();
             $parentDir = dirname($basePath);
             $publicHtmlPath = $parentDir . '/public_html/userImages/' . $filename;
 
             // Check existence in order of likelihood for the current environment
-            if (file_exists($localPath) || file_exists($docRootPath) || file_exists($publicHtmlPath)) {
+            if (($scriptPath && file_exists($scriptPath)) || file_exists($localPath) || ($docRootPath && file_exists($docRootPath)) || file_exists($publicHtmlPath)) {
                 $studentImgPath = asset('userImages/' . $filename);
             }
         }
@@ -701,21 +697,18 @@ class ManageStudentController extends Controller
             // Handle Image Upload
             $imageName = $student->photo; // Keep existing photo
             if ($request->hasFile('photo')) {
-                // Determine upload path - Prioritize the current active public directory
-                $localPublicPath = public_path('userImages');
-                $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
-                $basePath = base_path();
-                $parentDir = dirname($basePath);
-                $publicHtmlPath = $parentDir . '/public_html/userImages';
-
-                if (file_exists($localPublicPath) || is_dir($localPublicPath)) {
-                    $uploadPath = $localPublicPath;
-                } elseif (strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
-                    $uploadPath = $docRootPath;
-                } elseif (file_exists($parentDir . '/public_html')) {
-                    $uploadPath = $publicHtmlPath;
-                } else {
-                    $uploadPath = $localPublicPath;
+                // Determine upload path - Prioritize the directory where index.php is located
+                $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+                $uploadPath = $scriptDir . '/userImages';
+                
+                // If scriptDir doesn't exist or isn't writable, fallback to other common paths
+                if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+                    $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/userImages' : null;
+                    if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                        $uploadPath = $docRootPath;
+                    } else {
+                        $uploadPath = public_path('userImages');
+                    }
                 }
 
                 if (!file_exists($uploadPath)) {

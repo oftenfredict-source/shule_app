@@ -510,21 +510,18 @@ class StudentRegistrationController extends Controller
             // Store student photo if provided - save to public/userImages/
             $photoPath = null;
             if ($request->hasFile('student_photo')) {
-                // Determine upload path - Prioritize public_html for cPanel
-                $basePath = base_path();
-                $parentDir = dirname($basePath);
-                $publicHtmlPath = $parentDir . '/public_html/userImages';
-                $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages';
-                $localPublicPath = public_path('userImages');
-
-                if (file_exists($localPublicPath) || is_dir($localPublicPath)) {
-                    $uploadPath = $localPublicPath;
-                } elseif (strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
-                    $uploadPath = $docRootPath;
-                } elseif (file_exists($parentDir . '/public_html')) {
-                    $uploadPath = $publicHtmlPath;
-                } else {
-                    $uploadPath = $localPublicPath;
+                // Determine upload path - Prioritize the directory where index.php is located
+                $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+                $uploadPath = $scriptDir . '/userImages';
+                
+                // If scriptDir doesn't exist or isn't writable, fallback to other common paths
+                if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+                    $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/userImages' : null;
+                    if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                        $uploadPath = $docRootPath;
+                    } else {
+                        $uploadPath = public_path('userImages');
+                    }
                 }
                 
                 if (!file_exists($uploadPath)) {
