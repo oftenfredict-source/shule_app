@@ -707,6 +707,19 @@ Route::get('get_assessment_timetables', [CharacterAssessmentController::class, '
 Route::post('store_assessment_timetable', [CharacterAssessmentController::class, 'store_timetable'])->name('store_assessment_timetable');
 Route::delete('delete_assessment_timetable/{id}', [CharacterAssessmentController::class, 'delete_timetable'])->name('delete_assessment_timetable');
 
+// Admin Character Assessment Dashboard/Report Routes
+Route::get('get_timetables_by_term', [CharacterAssessmentController::class, 'get_timetables_by_term'])->name('admin.character.timetables_by_term');
+Route::get('get_classes_by_timetable', [CharacterAssessmentController::class, 'get_classes_by_timetable'])->name('admin.character.classes_by_timetable');
+Route::get('get_assessment_report_data', [CharacterAssessmentController::class, 'get_report_data'])->name('admin.character.report_data');
+Route::get('download_student_assessment_pdf', [CharacterAssessmentController::class, 'download_pdf'])->name('admin.character.download_pdf');
+Route::get('download_student_assessment_excel', [CharacterAssessmentController::class, 'download_excel'])->name('admin.character.download_excel');
+
+// Teacher Character Assessment Routes
+Route::get('teacher/character-assessment', [CharacterAssessmentController::class, 'teacher_index'])->name('teacher.character_assessment');
+Route::get('teacher/get-assessment-students', [CharacterAssessmentController::class, 'get_assessment_students'])->name('teacher.get_assessment_students');
+Route::post('teacher/store-student-assessment', [CharacterAssessmentController::class, 'store_student_assessment'])->name('teacher.store_student_assessment');
+Route::get('teacher/get-student-assessment-history', [CharacterAssessmentController::class, 'get_student_assessment_history'])->name('teacher.get_student_assessment_history');
+
 // Exam Papers Routes
 Route::post('store_exam_paper', [ManageExaminationController::class, 'storeExamPaper'])->name('store_exam_paper');
 Route::post('update_exam_paper/{examPaperID}', [ManageExaminationController::class, 'updateExamPaper'])->name('update_exam_paper');

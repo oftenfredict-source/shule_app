@@ -113,4 +113,9 @@ class Student extends Model
     {
         return $this->belongsTo(Sponsor::class, 'sponsor_id', 'sponsorID');
     }
+
+    public function characterAssessments()
+    {
+        return $this->hasMany(StudentCharacterAssessment::class, 'studentID', 'studentID');
+    }
 }

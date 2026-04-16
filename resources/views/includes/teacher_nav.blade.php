@@ -508,6 +508,21 @@
                         @endif
 
                         <li><a href="{{ route('teachersDashboard') }}" class="nav-link"><i class="fa fa-building"></i> Dashboard</a></li>
+                        
+                        @php
+                            $activeAssessmentAssignment = \App\Models\CharacterAssessmentAssignment::where('teacherID', $teacherID)
+                                ->whereHas('timetable', function($q) {
+                                    $today = \Carbon\Carbon::now();
+                                    $q->where('start_date', '<=', $today)
+                                      ->where('end_date', '>=', $today);
+                                })
+                                ->exists();
+                        @endphp
+
+                        @if($activeAssessmentAssignment)
+                            <li><a href="{{ route('teacher.character_assessment') }}" class="nav-link"><i class="fa fa-shield"></i> Character Assessment</a></li>
+                        @endif
+
                         <li><a href="{{ route('teacher.duty_book') }}" class="nav-link"><i class="fa fa-book"></i> Duty Book</a></li>
 
                         <!-- Teaching Activities -->

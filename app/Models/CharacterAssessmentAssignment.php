@@ -15,7 +15,12 @@ class CharacterAssessmentAssignment extends Model
         'timetableID',
         'classID',
         'subclassID',
-        'teacherID'
+        'teacherID',
+        'selected_categories'
+    ];
+
+    protected $casts = [
+        'selected_categories' => 'array'
     ];
 
     public function timetable()

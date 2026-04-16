@@ -33,4 +33,9 @@ class CharacterAssessmentTimetable extends Model
     {
         return $this->belongsTo(AcademicYear::class, 'academic_yearID', 'academic_yearID');
     }
+
+    public function termDetails()
+    {
+        return $this->belongsTo(Term::class, 'term', 'termID');
+    }
 }
