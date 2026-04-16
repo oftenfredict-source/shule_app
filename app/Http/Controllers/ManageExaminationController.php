@@ -5007,13 +5007,10 @@ class ManageExaminationController extends Controller
                 }
             }
 
-            // Determine if content (file/questions) is visible
             $canViewContent = true;
+            // Admin can always view content.
             if ($currentUserType === 'Admin') {
-                // Admin only sees paper content if fully approved or it's the final admin step
-                if ($paper->status !== 'approved' && (!$pendingLog || $pendingLog->special_role_type !== 'admin')) {
-                    $canViewContent = false;
-                }
+                $canViewContent = true;
             }
 
             // Construct full chain map for UI
@@ -5914,14 +5911,16 @@ class ManageExaminationController extends Controller
         $teacherID = Session::get('teacherID');
         $userType = Session::get('user_type');
 
-        if ($userType !== 'Teacher' || ! $teacherID) {
+        if ($userType !== 'Teacher' && $userType !== 'Admin') {
             return response()->json(['error' => 'Access denied'], 403);
         }
 
         try {
-            $examPaper = ExamPaper::where('exam_paperID', $examPaperID)
-                ->where('teacherID', $teacherID)
-                ->firstOrFail();
+            $query = ExamPaper::where('exam_paperID', $examPaperID);
+            if ($userType !== 'Admin') {
+                $query->where('teacherID', $teacherID);
+            }
+            $examPaper = $query->firstOrFail();
 
             $questions = ExamPaperQuestion::where('exam_paperID', $examPaper->exam_paperID)
                 ->orderBy('question_number')
@@ -5997,7 +5996,7 @@ class ManageExaminationController extends Controller
         $teacherID = Session::get('teacherID');
         $userType = Session::get('user_type');
 
-        if ($userType !== 'Teacher' || ! $teacherID) {
+        if ($userType !== 'Teacher' && $userType !== 'Admin') {
             return response()->json(['error' => 'Access denied'], 403);
         }
 
@@ -6016,12 +6015,14 @@ class ManageExaminationController extends Controller
         }
 
         try {
-            $examPaper = ExamPaper::where('exam_paperID', $examPaperID)
-                ->where('teacherID', $teacherID)
-                ->firstOrFail();
+            $query = ExamPaper::where('exam_paperID', $examPaperID);
+            if ($userType !== 'Admin') {
+                $query->where('teacherID', $teacherID);
+            }
+            $examPaper = $query->firstOrFail();
 
-            if (!in_array($examPaper->status, ['wait_approval', 'pending', 'rejected'])) {
-                return response()->json(['error' => 'You can only edit questions for pending or rejected papers'], 422);
+            if (!in_array($examPaper->status, ['wait_approval', 'pending', 'rejected', 'approved'])) {
+                return response()->json(['error' => 'You can only edit questions for pending, rejected, or approved papers'], 422);
             }
 
             $examination = $examPaper->examination;

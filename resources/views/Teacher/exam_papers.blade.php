@@ -712,12 +712,7 @@
                                             </div>
                                             <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-main"></div>
                                             <div id="question-rows-main"></div>
-                                            <div class="form-check mb-3 mt-3">
-                                                <input class="form-check-input" type="checkbox" name="apply_to_all_subjects" id="apply_all_main" value="1">
-                                                <label class="form-check-label text-primary-custom" for="apply_all_main">
-                                                    <strong><i class="bi bi-megaphone"></i> Apply this question format to all subjects in this examination</strong>
-                                                </label>
-                                            </div>
+
                                             <div class="mt-2 text-muted small">
                                                 <small class="text-muted">
                                                     Total Marks: <span class="total-marks" data-total-for="#question-rows-main">0</span>/100
@@ -919,6 +914,15 @@
                                                 <i class="bi bi-download"></i> Download
                                             </a>';
                             }
+
+                            if ($status === 'approved') {
+                                $actions .= '<button type="button" class="btn btn-sm btn-info edit-questions-btn"
+                                                data-paper-id="' . $paperId . '"
+                                                data-week="' . $testWeek . '"
+                                                data-date="' . e($paper->test_date) . '">
+                                                <i class="bi bi-list-check"></i> Edit Questions
+                                            </button>';
+                            }
                             if (in_array($status, ['pending', 'approved', 'rejected'])) {
                                 $actions .= '<button class="btn btn-exam-action btn-sm btn-view-chain"
                                                 data-paper-id="' . $paperId . '"
@@ -1094,12 +1098,7 @@
                                 </div>
                                 <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-modal"></div>
                                 <div id="question-rows-modal"></div>
-                                <div class="form-check mb-3 mt-3">
-                                    <input class="form-check-input" type="checkbox" name="apply_to_all_subjects" id="apply_all_modal" value="1">
-                                    <label class="form-check-label text-primary-custom" for="apply_all_modal">
-                                        <strong><i class="bi bi-megaphone"></i> Apply this question format to all subjects in this examination</strong>
-                                    </label>
-                                </div>
+
                                 <div class="mt-2 text-muted small">
                                     <small class="text-muted">
                                         Total Marks: <span class="total-marks" data-total-for="#question-rows-modal">0</span>/100

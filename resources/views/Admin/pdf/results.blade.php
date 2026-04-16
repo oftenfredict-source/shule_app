@@ -429,6 +429,32 @@
         <p style="color:#940000; font-style:italic; margin-top:10px;">No result data found for this student.</p>
     @endif
 
+    {{-- Character & Behavioral Assessment --}}
+    @if(isset($characterAssessments) && isset($characterAssessments[$student->studentID]) && count($characterAssessments[$student->studentID]) > 0)
+        <div class="section-title">Character & Behavioral Assessment</div>
+        <table class="data" style="margin-bottom: 5px;">
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Assessment Category</th>
+                    <th style="width: 60%;" class="tc">Rating</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($characterAssessments[$student->studentID] as $idx => $ca)
+                    <tr class="{{ $idx % 2 == 0 ? '' : 'even' }}">
+                        <td>{{ $ca->category->name }}</td>
+                        <td class="tc">
+                            <span class="bold" style="color:#940000; font-size:8.5px;">{{ $ca->choice->choice_name ?? 'N/A' }}</span>
+                            @if($ca->description)
+                                <br><span style="font-size:7px; font-style:italic; color:#555;">{{ $ca->description }}</span>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
     <table class="sig-table">
         <tr>
             <td class="stamp-cell">
@@ -770,7 +796,7 @@
                 })->sortBy('weight')->pluck('s');
 
                 // Helper block for rendering the table
-                $renderTableItems = function($studentsList, $resultsData, $filters) {
+                $renderTableItems = function($studentsList, $resultsData, $filters, $characterAssessments) {
                     $html = '';
                     $pos = 1;
                     foreach($studentsList as $index => $student) {
@@ -799,6 +825,15 @@
                             }
                             $subText = implode(', ', $subjStrs);
 
+                            // Character Assessment Summary
+                            $caSummary = '—';
+                            if (isset($characterAssessments) && isset($characterAssessments[$student->studentID])) {
+                                $caSummary = $characterAssessments[$student->studentID]->map(function($ca) {
+                                    $catName = substr($ca->category->name, 0, 8);
+                                    return $catName . ':' . ($ca->choice->choice_name ?? 'N/A');
+                                })->implode(' | ');
+                            }
+
                             $cls = ($pos % 2 == 0) ? 'even' : '';
                             $name = trim($student->first_name . ' ' . ($student->middle_name ?? '') . ' ' . $student->last_name);
 
@@ -807,6 +842,7 @@
                                 <td class="bold" style="font-size:7.5px;">'.$name.'</td>
                                 <td style="font-size:7px;">'.$cn.'</td>
                                 <td style="font-size:7px; line-height:1.2;">'.$subText.'</td>
+                                <td style="font-size:6.5px; color:#555; line-height:1.1;">'.$caSummary.'</td>
                                 <td class="tc bold">'.$divstr.'</td>
                             </tr>';
                             $pos++;
@@ -830,14 +866,15 @@
                         <thead>
                             <tr>
                                 <th style="width:5%" class="tc">Pos</th>
-                                <th style="width:18%">Student Name</th>
-                                <th style="width:12%">Class</th>
-                                <th style="width:60%">Subject</th>
+                                <th style="width:16%">Student Name</th>
+                                <th style="width:8%">Class</th>
+                                <th style="width:40%">Subject Performances</th>
+                                <th style="width:26%">Behavior / Character</th>
                                 <th style="width:5%" class="tc">Div/Gr</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {!! $renderTableItems($subclassStudents, $resultsData, $filters) !!}
+                            {!! $renderTableItems($subclassStudents, $resultsData, $filters, $characterAssessments) !!}
                         </tbody>
                     </table>
                 @endforeach
@@ -846,14 +883,15 @@
                     <thead>
                         <tr>
                             <th style="width:5%" class="tc">Pos</th>
-                            <th style="width:18%">Student Name</th>
-                            <th style="width:12%">Class</th>
-                            <th style="width:60%">Subject</th>
+                            <th style="width:16%">Student Name</th>
+                            <th style="width:8%">Class</th>
+                            <th style="width:40%">Subject Performances</th>
+                            <th style="width:26%">Behavior / Character</th>
                             <th style="width:5%" class="tc">Div/Gr</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {!! $renderTableItems($classStudentsSorted, $resultsData, $filters) !!}
+                        {!! $renderTableItems($classStudentsSorted, $resultsData, $filters, $characterAssessments) !!}
                     </tbody>
                 </table>
             @endif

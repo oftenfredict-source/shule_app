@@ -19,6 +19,9 @@ use App\Models\ExamPaperOptionalRange;
 use App\Models\Teacher;
 use App\Models\TermReportDefinition;
 use App\Models\CaDefinition;
+use App\Models\AcademicYear;
+use App\Models\CharacterAssessmentTimetable;
+use App\Models\StudentCharacterAssessment;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -3175,6 +3178,7 @@ class ResultManagementController extends Controller
             ],
             'option' => $option,
             'title' => $title,
+            'characterAssessments' => $this->getLatestCharacterAssessments($students, $termFilter, $yearFilter, $schoolID),
         ];
 
         // Generate PDF
@@ -3642,6 +3646,29 @@ class ResultManagementController extends Controller
         }
 
         return response()->json(['success' => false, 'message' => 'Definition not found.']);
+    }
+
+    /**
+     * Get latest character assessments for a set of students by term/year
+     */
+    private function getLatestCharacterAssessments($students, $term, $year, $schoolID)
+    {
+        $academicYear = \App\Models\AcademicYear::where('schoolID', $schoolID)->where('year', $year)->first();
+        if (!$academicYear) return collect();
+
+        $latestTimetable = \App\Models\CharacterAssessmentTimetable::where('schoolID', $schoolID)
+            ->where('term', $term)
+            ->where('academic_yearID', $academicYear->academic_yearID)
+            ->orderBy('end_date', 'desc')
+            ->first();
+
+        if (!$latestTimetable) return collect();
+
+        return \App\Models\StudentCharacterAssessment::where('timetableID', $latestTimetable->timetableID)
+            ->whereIn('studentID', $students->pluck('studentID'))
+            ->with(['category', 'choice'])
+            ->get()
+            ->groupBy('studentID');
     }
 }
 
