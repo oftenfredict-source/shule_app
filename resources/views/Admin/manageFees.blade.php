@@ -91,11 +91,37 @@
         scrollbar-width: thin;
         scrollbar-color: #940000 #f1f1f1;
     }
-</style>
+    
     .agreement-students-list {
         max-height: 500px;
         overflow-y: auto;
         padding-right: 5px;
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.9);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        backdrop-filter: blur(3px);
+    }
+    .loading-overlay.show {
+        display: flex;
+    }
+    .loading-spinner {
+        text-align: center;
+        padding: 2rem;
+        background: white;
+        border-radius: 0;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border: 2px solid #940000;
     }
 </style>
 
@@ -149,25 +175,25 @@
                         <div class="row text-center">
                             <div class="col-md-3 border-right">
                                 <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openAddFeeModalBtn_Exp">
-                                    <i class="bi bi-plus-circle-fill fa-2x mb-2" style="color: #940000;"></i>
+                                    <i class="fa fa-plus-circle fa-2x mb-2" style="color: #940000;"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">CREATE FEE</h6>
                                 </a>
                             </div>
                             <div class="col-md-3 border-right">
                                 <a href="{{ route('view_payments') }}" class="text-decoration-none d-block py-3 setting-item">
-                                    <i class="bi bi-credit-card fa-2x mb-2" style="color: #940000;"></i>
+                                    <i class="fa fa-credit-card fa-2x mb-2" style="color: #940000;"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">PAYMENTS</h6>
                                 </a>
                             </div>
                             <div class="col-md-3 border-right">
                                 <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openConditionModalBtn_Exp">
-                                    <i class="bi bi-tags-fill fa-2x mb-2" style="color: #940000;"></i>
+                                    <i class="fa fa-tags fa-2x mb-2" style="color: #940000;"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">DISCOUNTS</h6>
                                 </a>
                             </div>
                             <div class="col-md-3">
                                 <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openAgreementModalBtn_Exp">
-                                    <i class="bi bi-handshake-fill fa-2x mb-2" style="color: #940000;"></i>
+                                    <i class="fa fa-handshake-o fa-2x mb-2" style="color: #940000;"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">AGREEMENTS</h6>
                                 </a>
                             </div>
@@ -175,19 +201,19 @@
                         <div class="row text-center mt-3 pt-3 border-top">
                             <div class="col-md-4 border-right">
                                 <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openSponsorModalBtn_Exp">
-                                    <i class="bi bi-person-heart fa-2x mb-2" style="color: #940000;"></i>
+                                    <i class="fa fa-user-circle fa-2x mb-2" style="color: #940000;"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ASSIGN SPONSORS</h6>
                                 </a>
                             </div>
                             <div class="col-md-4 border-right">
                                 <a href="#" class="text-decoration-none d-block py-3 setting-item" id="exportPdfBtn_Exp">
-                                    <i class="bi bi-file-pdf fa-2x mb-2" style="color: #940000;"></i>
+                                    <i class="fa fa-file-pdf-o fa-2x mb-2" style="color: #940000;"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">EXPORT PDF</h6>
                                 </a>
                             </div>
                             <div class="col-md-4">
                                 <a href="#" class="text-decoration-none d-block py-3 setting-item" id="exportExcelBtn_Exp">
-                                    <i class="bi bi-file-excel fa-2x mb-2" style="color: #940000;"></i>
+                                    <i class="fa fa-file-excel-o fa-2x mb-2" style="color: #940000;"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">EXPORT EXCEL</h6>
                                 </a>
                             </div>
@@ -1094,16 +1120,10 @@
             $('#expandedFeeSettings').slideToggle(300);
         });
 
-        // Re-link expanded buttons to original triggers
-        $(document).on('click', '#openAddFeeModalBtn_Exp', function(e) { e.preventDefault(); $('#openAddFeeModalBtn').click(); });
-        $(document).on('click', '#openConditionModalBtn_Exp', function(e) { e.preventDefault(); $('#openConditionModalBtn').click(); });
-        $(document).on('click', '#openAgreementModalBtn_Exp', function(e) { e.preventDefault(); $('#openAgreementModalBtn').click(); });
-        $(document).on('click', '#openSponsorModalBtn_Exp', function(e) { e.preventDefault(); $('#openSponsorModalBtn').click(); });
-        $(document).on('click', '#exportPdfBtn_Exp', function(e) { e.preventDefault(); $('#exportPdfBtn').click(); });
-        $(document).on('click', '#exportExcelBtn_Exp', function(e) { e.preventDefault(); $('#exportExcelBtn').click(); });
+
 
         // Open Add Fee Modal Button Click Handler
-        $(document).on('click', '#openAddFeeModalBtn', function(e) {
+        $(document).on('click', '#openAddFeeModalBtn, #openAddFeeModalBtn_Exp', function(e) {
             e.preventDefault();
             e.stopPropagation();
             console.log('Open modal button clicked');
@@ -2366,7 +2386,8 @@
 
         // Export PDF Function
         // Export PDF Function (Standardized AJAX Server-Side Method)
-        $(document).on('click', '#exportPdfBtn', function() {
+        $(document).on('click', '#exportPdfBtn, #exportPdfBtn_Exp', function(e) {
+            if (e) e.preventDefault();
             const classID = $('#classFilter').val() || '';
             const className = classID ? $('#classFilter option:selected').text().trim() : 'All_Classes';
             
@@ -2436,7 +2457,8 @@
         });
 
         // Export Excel Function
-        $(document).on('click', '#exportExcelBtn', function() {
+        $(document).on('click', '#exportExcelBtn, #exportExcelBtn_Exp', function(e) {
+            if (e) e.preventDefault();
             // Get school name from blade variables
             const schoolName = '{{ $schoolName }}';
             
@@ -2560,7 +2582,8 @@
         let allConditionsData = []; // Store full condition objects including assigned students
 
         // Open Condition Modal
-        $(document).on('click', '#openConditionModalBtn', function() {
+        $(document).on('click', '#openConditionModalBtn, #openConditionModalBtn_Exp', function(e) {
+            if (e) e.preventDefault();
             $('#assignConditionModal').modal('show');
         });
 
@@ -2777,8 +2800,10 @@
                     }
                 },
                 error: function(xhr) {
-                    $('#loadingOverlay').removeClass('show');
                     Swal.fire('Error', 'Failed to save assignments: ' + (xhr.responseJSON?.message || 'Unknown error'), 'error');
+                },
+                complete: function() {
+                    $('#loadingOverlay').removeClass('show');
                 }
             });
         });
@@ -2786,7 +2811,8 @@
         let classStudentsForAgreement = [];
         let classFeesForAgreement = [];
 
-        $(document).on('click', '#openAgreementModalBtn', function() {
+        $(document).on('click', '#openAgreementModalBtn, #openAgreementModalBtn_Exp', function(e) {
+            if (e) e.preventDefault();
             $('#agreementModal').modal('show');
         });
 
@@ -3015,9 +3041,12 @@
                     }
                 },
                 error: function(xhr) {
-                    hideOverlay();
                     saveBtn.prop('disabled', false).html(originalText);
                     Swal.fire('Error', 'Failed to save. ' + (xhr.responseJSON?.message || ''), 'error');
+                },
+                complete: function() {
+                    hideOverlay();
+                    saveBtn.prop('disabled', false).html(originalText);
                 }
             });
         });
@@ -3037,7 +3066,8 @@
             });
         }
 
-        $('#openSponsorModalBtn').on('click', function(e) {
+        $('#openSponsorModalBtn, #openSponsorModalBtn_Exp').on('click', function(e) {
+            if (e) e.preventDefault();
             e.preventDefault();
             loadSponsors();
             // Reset modal
@@ -3259,9 +3289,11 @@
                     }
                 },
                 error: function(xhr) {
+                    Swal.fire('Error', xhr.responseJSON?.message || 'An error occurred', 'error');
+                },
+                complete: function() {
                     hideOverlay();
                     btn.prop('disabled', false).html(origHtml);
-                    Swal.fire('Error', xhr.responseJSON?.message || 'An error occurred', 'error');
                 }
             });
         });

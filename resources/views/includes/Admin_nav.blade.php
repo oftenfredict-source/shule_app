@@ -581,7 +581,9 @@
                             <ul id="academicManagement" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
                                 <li><a href="{{ route('manageClasses') }}" class="nav-link"><i class="fa fa-columns"></i> Classes</a></li>
                                 <li><a href="{{ route('manageSubjects') }}" class="nav-link"><i class="fa fa-bookmark"></i> Subjects</a></li>
-                                <li><a href="{{ route('manage_fees') }}" class="nav-link"><i class="fa fa-money"></i> Fees</a></li>
+                                <li><a href="{{ route('manage_fees') }}" class="nav-link"><i class="fa fa-money"></i> Fees Structure</a></li>
+                                <li><a href="{{ route('view_payments') }}" class="nav-link"><i class="fa fa-credit-card"></i> Payments</a></li>
+                                <li><a href="{{ route('manage_fees') }}" class="nav-link" onclick="setTimeout(() => { $('#openAgreementModalBtn_Exp').click() }, 500);"><i class="fa fa-handshake-o"></i> Fee Agreements</a></li>
                                 <li><a href="{{ route('manage_library') }}" class="nav-link"><i class="fa fa-book"></i> Library</a></li>
                                 <li><a href="{{ route('manageResults') }}" class="nav-link"><i class="fa fa-trophy"></i> Results</a></li>
                                 <li><a href="{{ route('admin.subject_analysis') }}" class="nav-link"><i class="fa fa-line-chart"></i> Subject Analysis</a></li>
