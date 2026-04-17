@@ -928,6 +928,8 @@
                     setTimeout(initializeMenuDropdowns, 100);
                     return;
                 }
+                
+                const $ = jQuery;
 
                 const menuLinks = document.querySelectorAll('#left-panel .nav-link');
 
