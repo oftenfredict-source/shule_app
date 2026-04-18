@@ -354,13 +354,7 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <h6 class="small fw-bold">Ada Imetajwa (Fee Assigned)</h6>
-                            <div class="p-2 bg-light rounded border">
-                                <small class="text-muted">Habari [Mzazi], mwanafunzi [Jina] amepangiwa ada ya [Ada] TZS [Kiasi] kwa mwaka [Mwaka]. Tafadhali lipa kupitia Control Number: [Namba].</small>
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-12 mb-3">
                             <h6 class="small fw-bold">Kumbusho la Deni (Debt Reminder)</h6>
                             <div class="p-2 bg-light rounded border">
                                 <small class="text-muted">Ndugu [Mzazi], mwanafunzi [Jina] ana deni la ada kiasi cha TZS [Kiasi]. Tafadhali kamilisha malipo kabla ya tarehe [Tarehe] ili kuepuka usumbufu.</small>

@@ -232,6 +232,11 @@
         box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.15);
     }
 
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
     .btn-save {
         background: var(--primary-color);
         border-color: var(--primary-color);

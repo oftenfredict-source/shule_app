@@ -2059,10 +2059,10 @@
             if (isCoordinatorView && classID) {
                 // Coordinator view - redirect with classID, default main class will be pre-selected
                 // Coordinator can only choose subclass to view results
-                window.location.href = '{{ route("manageResults") }}?classID=' + classID + '&coordinator=true';
+                window.location.href = '{{ route("manageResults") }}?payload=' + btoa('classID=' + classID + '&coordinator=true');
             } else if (subclassID) {
                 // Class teacher view - redirect with subclassID parameter
-                window.location.href = '{{ route("manageResults") }}?subclassID=' + subclassID;
+                window.location.href = '{{ route("manageResults") }}?payload=' + btoa('subclassID=' + subclassID);
             } else {
                 Swal.fire('Error', 'Class ID not found', 'error');
                 return;

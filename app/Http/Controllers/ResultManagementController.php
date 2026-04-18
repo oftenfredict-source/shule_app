@@ -84,6 +84,23 @@ class ResultManagementController extends Controller
         $school = \App\Models\School::find($schoolID);
         $schoolType = $school ? $school->school_type : 'Secondary';
 
+        // Check for encoded payload and merge to request to prevent simple URL bypassing
+        $payload = $request->get('payload');
+        if ($payload) {
+            try {
+                // Decode from base64 (acts as URL obfuscation for security)
+                $decodedStr = base64_decode($payload);
+                if ($decodedStr !== false) {
+                    parse_str($decodedStr, $decodedArray);
+                    if (is_array($decodedArray)) {
+                        $request->merge($decodedArray);
+                    }
+                }
+            } catch (\Exception $e) {
+                // Ignore parsing errors
+            }
+        }
+
         // Get filter parameters
         $termFilter = $request->get('term', '');
         $yearFilter = $request->get('year', date('Y'));
@@ -167,7 +184,7 @@ class ResultManagementController extends Controller
                 // Set default filters for teacher view
                 $subclassFilter = $subclassIDParam;
                 $classFilter = $subclass->classID;
-                if ($subclass->teacherID == $teacherID && !$hasBroadResultPermission) {
+                if ($subclass->teacherID == $teacherID) {
                     $isTeacherView = true;
                 }
             } else {
@@ -211,6 +228,20 @@ class ResultManagementController extends Controller
                 // Force teacher view mode and lock filters
                 $isTeacherView = true;
                 $classFilter = $subclass->classID; // Ensure class filter matches subclass
+            }
+
+            // Priority 3: If no subclass filter is set, default to their assigned subclass to prevent dropdown from rendering
+            if (empty($subclassFilter) && !$isTeacherView) {
+                $assignedSubclass = \App\Models\Subclass::where('teacherID', $teacherID)->first();
+                if ($assignedSubclass) {
+                    $subclassFilter = $assignedSubclass->subclassID;
+                    $classFilter = $assignedSubclass->classID;
+                    $isTeacherView = true;
+                } else {
+                    return redirect()->route('AdmitedClasses')
+                        ->with('error', 'You must be assigned to a class to view this page')
+                        ->with('error_type', 'no_assigned_class');
+                }
             }
 
             // If isTeacherView is true, subclassFilter MUST be set

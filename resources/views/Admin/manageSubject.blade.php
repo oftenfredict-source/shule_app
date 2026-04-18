@@ -126,6 +126,9 @@
                         $canActivateSubject = $isAdmin || $perms->intersect(['activate_subject', 'subject_update'])->isNotEmpty();
                     @endphp
 
+                    <!-- Hidden triggers for AJAX refreshes -->
+                    <button id="viewClassSubjectsBtn" style="display: none;"></button>
+
                     <!-- Expanded Settings Section -->
                     <div id="expandedSubjectSettings" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(148, 0, 0, 0.1); position: relative;">
                         <button type="button" class="close" onclick="$('#expandedSubjectSettings').slideUp(300);" style="position: absolute; right: 10px; top: 10px; color: #000000; opacity: 1;">&times;</button>
@@ -267,7 +270,7 @@
             </div>
             <form id="addSchoolSubjectForm">
                 @csrf
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <!-- Dynamic Subjects Container -->
                     <div id="schoolSubjectsContainer">
                         <!-- First Subject Row -->
@@ -335,7 +338,7 @@
             <form id="editSchoolSubjectForm">
                 @csrf
                 <input type="hidden" name="subjectID" id="edit_subjectID">
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Name <span class="text-danger">*</span></label>
                         <input type="text" name="subject_name" id="edit_subject_name" class="form-control" placeholder="e.g., Mathematics, English, Kiswahili" required maxlength="100">
@@ -379,7 +382,7 @@
                 </button>
             </div>
             <form id="addClassSubjectForm">
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Select Subclass <span class="text-danger">*</span></label>
                         <select name="subclassID" id="class_subject_subclass_select" class="form-select" required>
@@ -506,7 +509,7 @@
                 @csrf
                 <input type="hidden" name="class_subjectID">
                 <input type="hidden" name="subclassID">
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject <span class="text-danger">*</span></label>
                         <input type="text" name="subject_name" id="edit_subject_name" class="form-control" readonly style="background-color: #e9ecef; font-weight: 600; cursor: not-allowed;" tabindex="-1">
@@ -550,7 +553,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 <!-- Search Box -->
                 <div class="mb-3" id="classSubjectsSearchContainer" style="display: none;">
                     <div class="input-group">
@@ -622,7 +625,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded border">
                     <div class="small text-muted">
                         <i class="bi bi-info-circle"></i> Use buttons to bulk select/deselect students for this subject.
@@ -671,7 +674,7 @@
             </div>
             <form id="editClassSubjectForm">
                 @csrf
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <input type="hidden" name="class_subjectID" id="edit_class_subject_id">
                     <input type="hidden" name="subclassID" id="edit_subclass_id">
 
@@ -731,6 +734,117 @@
             console.error('SweetAlert2 is not loaded!');
         }
 
+        // Store user permissions for JavaScript checks
+        var userPermissions = @json($teacherPermissions ?? collect());
+        var userType = @json($user_type ?? '');
+
+        // Helper function to check permission with hierarchy support
+        function hasPermission(permissionName) {
+            if (userType === 'Admin') {
+                return true;
+            }
+            
+            // Exact match check
+            if (userPermissions.includes(permissionName)) {
+                return true;
+            }
+            
+            // --- SUBJECT MANAGEMENT HIERARCHY ---
+            
+            // 1. Hierarchy for View Class Subjects: any modify or read_only permission grants view
+            if (permissionName === 'view_class_subjects' || permissionName === 'view_subject' || permissionName === 'subject_read_only') {
+                const viewPerms = [
+                    'subject_create', 'subject_update', 'subject_delete', 'subject_read_only',
+                    'create_subject', 'edit_subject', 'update_subject', 'delete_subject',
+                    'create_class_subject', 'update_class_subject', 'delete_class_subject',
+                    'manage_class_subject'
+                ];
+                return userPermissions.some(p => viewPerms.includes(p));
+            }
+            
+            // 2. Hierarchy for Create: subject_create or any broad modify permission
+            if (permissionName === 'create_class_subject' || permissionName === 'create_subject' || permissionName === 'subject_create') {
+                const createPerms = ['subject_create', 'subject_update', 'subject_delete'];
+                return userPermissions.some(p => createPerms.includes(p));
+            }
+            
+            // 3. Hierarchy for Update: subject_update or higher delete permission
+            if (permissionName === 'update_class_subject' || permissionName === 'edit_subject' || permissionName === 'update_subject' || permissionName === 'subject_update' || permissionName === 'activate_class_subject') {
+                const updatePerms = ['subject_update', 'subject_delete'];
+                return userPermissions.some(p => updatePerms.includes(p));
+            }
+            
+            // 4. Hierarchy for Delete: subject_delete
+            if (permissionName === 'delete_class_subject' || permissionName === 'delete_subject' || permissionName === 'subject_delete') {
+                const deletePerms = ['subject_delete'];
+                return userPermissions.some(p => deletePerms.includes(p));
+            }
+            
+            return false;
+        }
+
+        // Initialize Class Subjects Search Functionality
+        function initializeClassSubjectsSearch() {
+            var $searchInput = $('#classSubjectsSearchInput');
+            var $clearBtn = $('#clearClassSubjectsSearch');
+            var $container = $('#classSubjectsContent');
+            
+            if ($container.length === 0) return;
+            
+            // Search functionality
+            $searchInput.on('keyup', function() {
+                var searchTerm = $(this).val().toLowerCase();
+                var $cards = $container.find('.card');
+                
+                if (searchTerm === '') {
+                    $cards.closest('.col-12, .col-sm-6, .col-md-4, .col-lg-3').show();
+                    $clearBtn.prop('disabled', true);
+                } else {
+                    $clearBtn.prop('disabled', false);
+                    var visibleCount = 0;
+                    
+                    $cards.each(function() {
+                        var $card = $(this);
+                        var $col = $card.closest('.col-12, .col-sm-6, .col-md-4, .col-lg-3');
+                        // Search only in subclass name (from card header)
+                        var subclassName = $card.find('.subclass-name').data('subclass-name') || $card.find('.subclass-name').text().toLowerCase();
+                        
+                        if (subclassName && subclassName.indexOf(searchTerm) > -1) {
+                            $col.show();
+                            visibleCount++;
+                        } else {
+                            $col.hide();
+                        }
+                    });
+                    
+                    // Show message if no results
+                    if (visibleCount === 0) {
+                        if ($container.find('.no-results-message').length === 0) {
+                            $container.append('<div class="no-results-message alert alert-info mt-3"><i class="bi bi-info-circle"></i> No results found matching "' + searchTerm + '"</div>');
+                        }
+                    } else {
+                        $container.find('.no-results-message').remove();
+                    }
+                }
+            });
+            
+            // Clear search
+            $clearBtn.on('click', function() {
+                $searchInput.val('');
+                $searchInput.trigger('keyup');
+                $searchInput.focus();
+            });
+            
+            // Enable clear button on input
+            $searchInput.on('input', function() {
+                if ($(this).val().length > 0) {
+                    $clearBtn.prop('disabled', false);
+                } else {
+                    $clearBtn.prop('disabled', true);
+                }
+            });
+        }
+
         $(document).ready(function() {
             console.log('Add Class Subject Form exists:', $('#addClassSubjectForm').length > 0);
 
@@ -745,54 +859,7 @@
                 $('#viewClassSubjectsBtn').click();
             });
 
-            // Store user permissions for JavaScript checks
-            var userPermissions = @json($teacherPermissions ?? collect());
-            var userType = @json($user_type ?? '');
 
-            // Helper function to check permission with hierarchy support
-            function hasPermission(permissionName) {
-                if (userType === 'Admin') {
-                    return true;
-                }
-                
-                // Exact match check
-                if (userPermissions.includes(permissionName)) {
-                    return true;
-                }
-                
-                // --- SUBJECT MANAGEMENT HIERARCHY ---
-                
-                // 1. Hierarchy for View Class Subjects: any modify or read_only permission grants view
-                if (permissionName === 'view_class_subjects' || permissionName === 'view_subject' || permissionName === 'subject_read_only') {
-                    const viewPerms = [
-                        'subject_create', 'subject_update', 'subject_delete', 'subject_read_only',
-                        'create_subject', 'edit_subject', 'update_subject', 'delete_subject',
-                        'create_class_subject', 'update_class_subject', 'delete_class_subject',
-                        'manage_class_subject'
-                    ];
-                    return userPermissions.some(p => viewPerms.includes(p));
-                }
-                
-                // 2. Hierarchy for Create: subject_create or any broad modify permission
-                if (permissionName === 'create_class_subject' || permissionName === 'create_subject' || permissionName === 'subject_create') {
-                    const createPerms = ['subject_create', 'subject_update', 'subject_delete'];
-                    return userPermissions.some(p => createPerms.includes(p));
-                }
-                
-                // 3. Hierarchy for Update: subject_update or higher delete permission
-                if (permissionName === 'update_class_subject' || permissionName === 'edit_subject' || permissionName === 'update_subject' || permissionName === 'subject_update' || permissionName === 'activate_class_subject') {
-                    const updatePerms = ['subject_update', 'subject_delete'];
-                    return userPermissions.some(p => updatePerms.includes(p));
-                }
-                
-                // 4. Hierarchy for Delete: subject_delete
-                if (permissionName === 'delete_class_subject' || permissionName === 'delete_subject' || permissionName === 'subject_delete') {
-                    const deletePerms = ['subject_delete'];
-                    return userPermissions.some(p => deletePerms.includes(p));
-                }
-                
-                return false;
-            }
 
         // Add Another School Subject Row
         let schoolSubjectRowCount = 0;
@@ -1849,67 +1916,7 @@
             });
         });
 
-        // Initialize Class Subjects Search Functionality
-        function initializeClassSubjectsSearch() {
-            var $searchInput = $('#classSubjectsSearchInput');
-            var $clearBtn = $('#clearClassSubjectsSearch');
-            var $container = $('#classSubjectsContent');
-            
-            if ($container.length === 0) return;
-            
-            // Search functionality
-            $searchInput.on('keyup', function() {
-                var searchTerm = $(this).val().toLowerCase();
-                var $cards = $container.find('.card');
-                
-                if (searchTerm === '') {
-                    $cards.closest('.col-12, .col-sm-6, .col-md-4, .col-lg-3').show();
-                    $clearBtn.prop('disabled', true);
-                } else {
-                    $clearBtn.prop('disabled', false);
-                    var visibleCount = 0;
-                    
-                    $cards.each(function() {
-                        var $card = $(this);
-                        var $col = $card.closest('.col-12, .col-sm-6, .col-md-4, .col-lg-3');
-                        // Search only in subclass name (from card header)
-                        var subclassName = $card.find('.subclass-name').data('subclass-name') || $card.find('.subclass-name').text().toLowerCase();
-                        
-                        if (subclassName && subclassName.indexOf(searchTerm) > -1) {
-                            $col.show();
-                            visibleCount++;
-                        } else {
-                            $col.hide();
-                        }
-                    });
-                    
-                    // Show message if no results
-                    if (visibleCount === 0) {
-                        if ($container.find('.no-results-message').length === 0) {
-                            $container.append('<div class="no-results-message alert alert-info mt-3"><i class="bi bi-info-circle"></i> No results found matching "' + searchTerm + '"</div>');
-                        }
-                    } else {
-                        $container.find('.no-results-message').remove();
-                    }
-                }
-            });
-            
-            // Clear search
-            $clearBtn.on('click', function() {
-                $searchInput.val('');
-                $searchInput.trigger('keyup');
-                $searchInput.focus();
-            });
-            
-            // Enable clear button on input
-            $searchInput.on('input', function() {
-                if ($(this).val().length > 0) {
-                    $clearBtn.prop('disabled', false);
-                } else {
-                    $clearBtn.prop('disabled', true);
-                }
-            });
-        }
+
         
         // Clear search when modal is closed
         $('#viewClassSubjectsModal').on('hidden.bs.modal', function() {

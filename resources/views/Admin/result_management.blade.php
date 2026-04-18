@@ -4624,7 +4624,7 @@ $(document).ready(function() {
             // For teachers, redirect back to classManagement with subclassID
             const subclassID = $('#lockedSubclassID').val();
             if (subclassID) {
-                window.location.href = '{{ route("manageResults") }}?subclassID=' + subclassID;
+                window.location.href = '{{ route("manageResults") }}?payload=' + btoa('subclassID=' + subclassID);
             } else {
                 window.location.href = '{{ route("AdmitedClasses") }}';
             }
@@ -4757,10 +4757,11 @@ $(document).ready(function() {
 
         // Build query string
         const queryString = $.param(formData);
+        const encryptedPayload = btoa(queryString);
 
         // Make AJAX request
         $.ajax({
-            url: '{{ route("manageResults") }}?' + queryString,
+            url: '{{ route("manageResults") }}?payload=' + encryptedPayload,
             method: 'GET',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
@@ -4771,7 +4772,7 @@ $(document).ready(function() {
                 $('#filterSubmitBtn').prop('disabled', false).html('<i class="bi bi-search"></i> Filter Results');
 
                 // Update URL without reloading page
-                const newUrl = '{{ route("manageResults") }}?' + queryString;
+                const newUrl = '{{ route("manageResults") }}?payload=' + encryptedPayload;
                 window.history.pushState({path: newUrl}, '', newUrl);
 
                 // Parse the response

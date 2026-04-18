@@ -60,19 +60,18 @@ class ConfigurationController extends Controller
     $validated['two_factor_enabled'] = (bool)($request->input('two_factor_enabled', false));
     $password = 'Admin@3345';
     if ($request->hasFile('school_logo')) {
-        // Determine upload path - Prioritize public_html for cPanel
-        $basePath = base_path();
-        $parentDir = dirname($basePath);
-        $publicHtmlPath = $parentDir . '/public_html/logos';
-        $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/logos';
-        $localPublicPath = public_path('logos');
-
-        if (file_exists($parentDir . '/public_html')) {
-            $uploadPath = $publicHtmlPath;
-        } elseif (strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
-            $uploadPath = $docRootPath;
-        } else {
-            $uploadPath = $localPublicPath;
+        // Determine upload path - Robust strategy for Main Domain and Subdomains
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+        $uploadPath = $scriptDir . '/logos';
+        
+        // If scriptDir/logos doesn't exist or isn't writable, fallback to other common paths
+        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/logos' : null;
+            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            } else {
+                $uploadPath = public_path('logos');
+            }
         }
 
         if (!file_exists($uploadPath)) {

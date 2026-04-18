@@ -21,6 +21,10 @@
             border: 1px solid rgba(148, 0, 0, 0.15);
             font-weight: 700;
         }
+        .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
     </style>
 
     @if (session('success'))

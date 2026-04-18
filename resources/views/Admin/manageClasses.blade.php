@@ -136,6 +136,8 @@
     $canActivateClass = $isAdmin || $perms->intersect(['activate_class', 'update_class', 'classes_update'])->isNotEmpty();
     
     $canCreateSubclass = $isAdmin || $perms->intersect(['create_subclass', 'classes_create'])->isNotEmpty();
+    $canEditSubclass   = $isAdmin || $perms->intersect(['edit_subclass', 'update_subclass', 'classes_update'])->isNotEmpty();
+    $canDeleteSubclass = $isAdmin || $perms->intersect(['delete_subclass', 'classes_delete'])->isNotEmpty();
     $canViewStudents = $isAdmin || $perms->intersect(['view_students', 'student_read_only', 'student_create', 'student_update'])->isNotEmpty();
     $canViewClassGrading = $isAdmin || $perms->intersect(['view_grading', 'classes_read_only', 'classes_update'])->isNotEmpty();
     
@@ -176,6 +178,10 @@
             </button>
         </div>
     @endif
+
+    <!-- Hidden triggers for AJAX refreshes -->
+    <button id="viewClassesBtn" style="display: none;"></button>
+    <button id="viewClassGradingBtn" style="display: none;"></button>
 
     <!-- Page Header (Expandable Pattern) -->
     <div class="card border-0 shadow-sm mb-4" style="border-radius: 0; border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
@@ -698,7 +704,7 @@
             </div>
             <form id="addCombieForm">
                 @csrf
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Select Combination <span class="text-danger">*</span></label>
                         <select name="combie_name" id="combie_name_select" class="form-control" required>
@@ -777,7 +783,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 @if(count($combies) > 0)
                     <div class="row g-4">
                         @foreach($combies as $combie)
@@ -868,7 +874,7 @@
             <form id="editCombieForm">
                 @csrf
                 <input type="hidden" name="combieID" id="edit_combieID">
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Select Combination <span class="text-danger">*</span></label>
                         <select name="combie_name" id="edit_combie_name_select" class="form-control" required>
@@ -1157,7 +1163,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 <div id="classesContent">
                     <div class="text-center py-4">
                         <div class="spinner-border text-primary-custom" role="status">
@@ -1191,7 +1197,7 @@
             <form id="editClassForm">
                 @csrf
                 <input type="hidden" name="classID" id="edit_classID">
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Class Name <span class="text-danger">*</span></label>
                         <select name="class_name" id="edit_class_name" class="form-control" required>
@@ -1259,7 +1265,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 <div id="subjectsContent">
                     <div class="text-center py-4">
                         <div class="spinner-border text-primary-custom" role="status">
@@ -1290,7 +1296,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 <!-- Search Box -->
                 <div class="mb-3" id="classGradingSearchContainer" style="display: none;">
                     <div class="input-group">
@@ -1336,7 +1342,7 @@
             <form id="editGradeRangeForm">
                 @csrf
                 <input type="hidden" name="subclassID" id="edit_grade_subclassID">
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subclass</label>
                         <input type="text" class="form-control" id="edit_grade_subclass_name" readonly style="background-color: #e9ecef;">
@@ -1590,6 +1596,92 @@
             });
         }
 
+        // Store user permissions for JavaScript checks
+        var userPermissions = @json($teacherPermissions ?? collect());
+        var userType = @json($user_type ?? '');
+        var existingClassNames = @json($existingClassNames ?? []);
+
+        // Helper function to check permission with hierarchy support
+        function hasPermission(permissionName) {
+            if (userType === 'Admin') {
+                return true;
+            }
+            
+            // Exact match
+            if (userPermissions.includes(permissionName)) {
+                return true;
+            }
+            
+            // Hierarchy for Classes: any modify permission grants view
+            if (permissionName === 'view_classes' || permissionName === 'manage_classes') {
+                const classModifyPerms = [
+                    'classes_create', 'classes_update', 'classes_delete', 
+                    'create_class', 'edit_class', 'delete_class',
+                    'manage_classes', 'update_class'
+                ];
+                return userPermissions.some(p => classModifyPerms.includes(p));
+            }
+            
+            return false;
+        }
+
+        // Initialize Class Grading Search Functionality
+        function initializeClassGradingSearch() {
+            var $searchInput = $('#classGradingSearchInput');
+            var $clearBtn = $('#clearClassGradingSearch');
+            var $table = $('#classGradingContent table');
+
+            if ($table.length === 0) return;
+
+            // Search functionality
+            $searchInput.on('keyup', function() {
+                var searchTerm = $(this).val().toLowerCase();
+                var $rows = $table.find('tbody tr');
+
+                if (searchTerm === '') {
+                    $rows.show();
+                    $clearBtn.prop('disabled', true);
+                } else {
+                    $clearBtn.prop('disabled', false);
+                    $rows.each(function() {
+                        var $row = $(this);
+                        var text = $row.text().toLowerCase();
+                        if (text.indexOf(searchTerm) > -1) {
+                            $row.show();
+                        } else {
+                            $row.hide();
+                        }
+                    });
+
+                    // Show message if no results
+                    var visibleRows = $rows.filter(':visible').length;
+                    if (visibleRows === 0) {
+                        if ($table.next('.no-results-message').length === 0) {
+                            $table.after('<div class="no-results-message alert alert-info mt-3"><i class="bi bi-info-circle"></i> No results found matching "' + searchTerm + '"</div>');
+                        }
+                    } else {
+                        $table.next('.no-results-message').remove();
+                    }
+                }
+            });
+
+            // Clear search
+            $clearBtn.on('click', function() {
+                $searchInput.val('');
+                $searchInput.trigger('keyup');
+                $searchInput.focus();
+            });
+
+            // Enable clear button on input
+            $searchInput.on('input', function() {
+                if ($(this).val().length > 0) {
+                    $clearBtn.prop('disabled', false);
+                } else {
+                    $clearBtn.prop('disabled', true);
+                }
+            });
+        }
+
         $(document).ready(function() {
             // Initialize Select2 on all select elements with search
             initializeSelect2();
@@ -1599,15 +1691,114 @@
                 $('#expandedClassesSettings').slideToggle(300);
             });
 
-            // Re-link expanded buttons to original triggers
+            // Re-link expanded buttons to the hidden trigger buttons
             $('#viewClassesBtn_Exp').on('click', function(e) {
                 e.preventDefault();
+                $('#expandedClassesSettings').slideUp(300);
                 $('#viewClassesBtn').click();
             });
 
             $('#viewClassGradingBtn_Exp').on('click', function(e) {
                 e.preventDefault();
+                $('#expandedClassesSettings').slideUp(300);
                 $('#viewClassGradingBtn').click();
+            });
+
+            // Main Logic for View Classes
+            $(document).on('click', '#viewClassesBtn', function(e) {
+                e.preventDefault();
+                $('#viewClassesModal').modal('show');
+                $('#classesContent').html('<div class="text-center py-4"><div class="spinner-border text-primary-custom" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading classes...</p></div>');
+                
+                $.ajax({
+                    url: '{{ route("get_classes") }}',
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.success && response.classes && response.classes.length > 0) {
+                            var html = '<div class="row g-4">';
+                            response.classes.forEach(function(classItem) {
+                                html += '<div class="col-12 col-sm-6 col-md-6 col-lg-4 col-xl-3">';
+                                html += '<div class="card border-0 shadow-sm h-100 class-card">';
+                                html += '<div class="card-header bg-primary-custom text-white text-center py-3">';
+                                html += '<i class="bi bi-mortarboard-fill" style="font-size: 2.5rem;"></i>';
+                                html += '<h5 class="mb-1 fw-bold">' + classItem.class_name + '</h5>';
+                                var cs = classItem.status || 'Inactive';
+                                html += '<span class="badge ' + (cs === 'Active' ? 'bg-success' : 'bg-secondary') + '">' + cs + '</span>';
+                                html += '</div>';
+                                html += '<div class="card-body p-3">';
+                                html += '<div class="row g-2 mb-3">';
+                                html += '<div class="col-6"><div class="text-center p-2 bg-light rounded"><i class="bi bi-people-fill text-success d-block mb-1" style="font-size:1.5rem;"></i><div class="fw-bold">' + classItem.total_students + '</div><small class="text-muted">Students</small></div></div>';
+                                html += '<div class="col-6"><div class="text-center p-2 bg-light rounded"><i class="bi bi-layers-fill text-primary-custom d-block mb-1" style="font-size:1.5rem;"></i><div class="fw-bold">' + classItem.subclass_count + '</div><small class="text-muted">Subclasses</small></div></div>';
+                                html += '</div>';
+                                html += '<div class="mb-3"><div class="d-flex align-items-center justify-content-between"><span class="text-muted small"><i class="bi bi-person-badge"></i> Coordinator:</span>';
+                                html += (classItem.coordinator_name && classItem.coordinator_name !== 'Not Assigned') ? '<span class="badge bg-info text-white">' + classItem.coordinator_name + '</span>' : '<span class="badge bg-secondary">Not Assigned</span>';
+                                html += '</div></div>';
+                                html += '</div>';
+                                html += '<div class="card-footer bg-light p-2">';
+                                html += '<div class="d-flex gap-1 justify-content-end">';
+                                @if($canEditClass)
+                                    html += '<button class="btn btn-sm btn-warning text-dark edit-class-btn" data-class-id="' + classItem.classID + '" data-class-name="' + classItem.class_name + '" title="Edit"><i class="bi bi-pencil-square"></i></button>';
+                                @endif
+                                @if($canDeleteClass)
+                                    html += '<button class="btn btn-sm btn-danger delete-class-btn" data-class-id="' + classItem.classID + '" data-class-name="' + classItem.class_name + '" title="Delete"><i class="bi bi-trash-fill"></i></button>';
+                                @endif
+                                html += '</div></div>';
+                                html += '</div></div>';
+                            });
+                            html += '</div>';
+                            $('#classesContent').html(html);
+                        } else {
+                            $('#classesContent').html('<div class="text-center py-5"><i class="bi bi-inbox" style="font-size:48px;color:#940000;"></i><p class="mt-3 mb-0 text-muted">No classes found.</p></div>');
+                        }
+                    },
+                    error: function() {
+                        $('#classesContent').html('<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> Failed to load classes.</div>');
+                    }
+                });
+            });
+
+            // Main Logic for View Class Grading
+            $(document).on('click', '#viewClassGradingBtn', function(e) {
+                e.preventDefault();
+                $('#viewClassGradingModal').modal('show');
+                $('#classGradingContent').html('<div class="text-center py-4"><div class="spinner-border text-primary-custom" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading class grading information...</p></div>');
+                
+                $.ajax({
+                    url: '{{ route("get_class_grading") }}',
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.success && response.subclasses && response.subclasses.length > 0) {
+                            var isSecondary = response.school_type === 'Secondary';
+                            var headerRow = '<tr><th>#</th><th>Class</th><th>Subclass</th><th>Stream Code</th>';
+                            if (isSecondary) headerRow += '<th>Combination</th>';
+                            headerRow += '<th>First Grade</th><th>Final Grade</th><th>Grade Range</th><th>Actions</th></tr>';
+                            var html = '<div class="table-responsive"><table class="table table-hover table-striped"><thead class="bg-primary-custom text-white">' + headerRow + '</thead><tbody>';
+                            response.subclasses.forEach(function(subclass, index) {
+                                var gradeRange = (subclass.first_grade && subclass.final_grade) ? subclass.first_grade + ' - ' + subclass.final_grade : (subclass.first_grade ? subclass.first_grade + ' (only)' : (subclass.final_grade ? 'Up to ' + subclass.final_grade : '<span class="text-muted">No grade requirement</span>'));
+                                var combieDisplay = '';
+                                if (isSecondary) {
+                                    combieDisplay = subclass.combie_name ? '<span class="badge bg-info">' + subclass.combie_name + (subclass.combie_code ? ' (' + subclass.combie_code + ')' : '') + '</span>' : '<span class="text-muted">Not Assigned</span>';
+                                }
+                                html += '<tr><td>' + (index+1) + '</td><td><strong>' + subclass.class_name + '</strong></td><td>' + subclass.subclass_name + '</td><td>' + (subclass.stream_code || '-') + '</td>';
+                                if (isSecondary) html += '<td>' + combieDisplay + '</td>';
+                                html += '<td>' + (subclass.first_grade || '<span class="text-muted">-</span>') + '</td><td>' + (subclass.final_grade || '<span class="text-muted">-</span>') + '</td><td>' + gradeRange + '</td><td>';
+                                @if($canEditSubclass)
+                                    html += '<button class="btn btn-sm btn-warning edit-grade-range-btn" data-subclass-id="' + subclass.subclassID + '" data-subclass-name="' + (subclass.stream_code || subclass.subclass_name) + '" data-first-grade="' + (subclass.first_grade || '') + '" data-final-grade="' + (subclass.final_grade || '') + '" title="Edit Grade Range"><i class="bi bi-pencil-square"></i></button>';
+                                @endif
+                                html += '</td></tr>';
+                            });
+                            html += '</tbody></table></div>';
+                            $('#classGradingContent').html(html);
+                            $('#classGradingSearchContainer').show();
+                            initializeClassGradingSearch();
+                        } else {
+                            $('#classGradingContent').html('<div class="text-center py-5"><i class="bi bi-inbox" style="font-size:48px;color:#940000;"></i><p class="mt-3 mb-0 text-muted">No subclasses found.</p></div>');
+                        }
+                    },
+                    error: function() {
+                        $('#classGradingContent').html('<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> Failed to load class grading information.</div>');
+                    }
+                });
             });
         });
 
@@ -1840,36 +2031,6 @@
         $(document).ready(function() {
         console.log('Document ready, jQuery version:', $.fn.jquery);
         console.log('SweetAlert2 loaded:', typeof Swal !== 'undefined');
-
-        // Store user permissions for JavaScript checks
-        var userPermissions = @json($teacherPermissions ?? collect());
-        var userType = @json($user_type ?? '');
-        var existingClassNames = @json($existingClassNames ?? []);
-
-        // Helper function to check permission
-        // Helper function to check permission with hierarchy support
-        function hasPermission(permissionName) {
-            if (userType === 'Admin') {
-                return true;
-            }
-            
-            // Exact match
-            if (userPermissions.includes(permissionName)) {
-                return true;
-            }
-            
-            // Hierarchy for Classes: any modify permission grants view
-            if (permissionName === 'view_classes' || permissionName === 'manage_classes') {
-                const classModifyPerms = [
-                    'classes_create', 'classes_update', 'classes_delete', 
-                    'create_class', 'edit_class', 'delete_class',
-                    'manage_classes', 'update_class'
-                ];
-                return userPermissions.some(p => classModifyPerms.includes(p));
-            }
-            
-            return false;
-        }
 
         // Check if forms exist
         console.log('Add Class Form exists:', $('#addClassForm').length > 0);
@@ -3759,62 +3920,7 @@
             });
         });
 
-        // Initialize Class Grading Search Functionality
-        function initializeClassGradingSearch() {
-            var $searchInput = $('#classGradingSearchInput');
-            var $clearBtn = $('#clearClassGradingSearch');
-            var $table = $('#classGradingContent table');
 
-            if ($table.length === 0) return;
-
-            // Search functionality
-            $searchInput.on('keyup', function() {
-                var searchTerm = $(this).val().toLowerCase();
-                var $rows = $table.find('tbody tr');
-
-                if (searchTerm === '') {
-                    $rows.show();
-                    $clearBtn.prop('disabled', true);
-                } else {
-                    $clearBtn.prop('disabled', false);
-                    $rows.each(function() {
-                        var $row = $(this);
-                        var text = $row.text().toLowerCase();
-                        if (text.indexOf(searchTerm) > -1) {
-                            $row.show();
-                        } else {
-                            $row.hide();
-                        }
-                    });
-
-                    // Show message if no results
-                    var visibleRows = $rows.filter(':visible').length;
-                    if (visibleRows === 0) {
-                        if ($table.next('.no-results-message').length === 0) {
-                            $table.after('<div class="no-results-message alert alert-info mt-3"><i class="bi bi-info-circle"></i> No results found matching "' + searchTerm + '"</div>');
-                        }
-                    } else {
-                        $table.next('.no-results-message').remove();
-                    }
-                }
-            });
-
-            // Clear search
-            $clearBtn.on('click', function() {
-                $searchInput.val('');
-                $searchInput.trigger('keyup');
-                $searchInput.focus();
-            });
-
-            // Enable clear button on input
-            $searchInput.on('input', function() {
-                if ($(this).val().length > 0) {
-                    $clearBtn.prop('disabled', false);
-                } else {
-                    $clearBtn.prop('disabled', true);
-                }
-            });
-        }
 
         // Clear search when modal is closed
         $('#viewClassGradingModal').on('hidden.bs.modal', function() {

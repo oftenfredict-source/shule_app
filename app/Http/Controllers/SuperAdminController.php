@@ -194,18 +194,18 @@ class SuperAdminController extends Controller
             return response()->json(['success' => false, 'message' => 'School not found'], 404);
         }
 
-        $basePath = base_path();
-        $parentDir = dirname($basePath);
-        $publicHtmlPath = $parentDir . '/public_html/logos';
-        $docRootPath = (isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/logos' : null);
-        $localPublicPath = public_path('logos');
-
-        if (file_exists($parentDir . '/public_html')) {
-            $uploadPath = $publicHtmlPath;
-        } elseif (isset($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
-            $uploadPath = $docRootPath;
-        } else {
-            $uploadPath = $localPublicPath;
+        // Determine upload path - Robust strategy for Main Domain and Subdomains
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+        $uploadPath = $scriptDir . '/logos';
+        
+        // If scriptDir/logos doesn't exist or isn't writable, fallback to other common paths
+        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/logos' : null;
+            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            } else {
+                $uploadPath = public_path('logos');
+            }
         }
 
         if ($uploadPath && !file_exists($uploadPath)) {
@@ -214,9 +214,9 @@ class SuperAdminController extends Controller
 
         if ($school->school_logo) {
             $possibleOldPaths = [
-                $parentDir . '/public_html/' . $school->school_logo,
+                $uploadPath . '/' . basename($school->school_logo),
+                public_path($school->school_logo),
                 (isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/' . $school->school_logo : null),
-                public_path($school->school_logo)
             ];
             foreach ($possibleOldPaths as $oldPath) {
                 if ($oldPath && file_exists($oldPath)) {
@@ -264,18 +264,18 @@ class SuperAdminController extends Controller
             return response()->json(['success' => false, 'message' => 'School not found'], 404);
         }
 
-        $basePath = base_path();
-        $parentDir = dirname($basePath);
-        $publicHtmlPath = $parentDir . '/public_html/stamps';
-        $docRootPath = (isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/stamps' : null);
-        $localPublicPath = public_path('stamps');
-
-        if (file_exists($parentDir . '/public_html')) {
-            $uploadPath = $publicHtmlPath;
-        } elseif (isset($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
-            $uploadPath = $docRootPath;
-        } else {
-            $uploadPath = $localPublicPath;
+        // Determine upload path - Robust strategy for Main Domain and Subdomains
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+        $uploadPath = $scriptDir . '/stamps';
+        
+        // If scriptDir/stamps doesn't exist or isn't writable, fallback to other common paths
+        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/stamps' : null;
+            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            } else {
+                $uploadPath = public_path('stamps');
+            }
         }
 
         if ($uploadPath && !file_exists($uploadPath)) {
@@ -284,9 +284,9 @@ class SuperAdminController extends Controller
 
         if ($school->school_stamp) {
             $possibleOldPaths = [
-                $parentDir . '/public_html/' . $school->school_stamp,
+                $uploadPath . '/' . basename($school->school_stamp),
+                public_path($school->school_stamp),
                 (isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/' . $school->school_stamp : null),
-                public_path($school->school_stamp)
             ];
             foreach ($possibleOldPaths as $oldPath) {
                 if ($oldPath && file_exists($oldPath)) {
@@ -334,18 +334,18 @@ class SuperAdminController extends Controller
             return response()->json(['success' => false, 'message' => 'School not found'], 404);
         }
 
-        $basePath = base_path();
-        $parentDir = dirname($basePath);
-        $publicHtmlPath = $parentDir . '/public_html/signatures';
-        $docRootPath = (isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/signatures' : null);
-        $localPublicPath = public_path('signatures');
-
-        if (file_exists($parentDir . '/public_html')) {
-            $uploadPath = $publicHtmlPath;
-        } elseif (isset($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'public_html') !== false) {
-            $uploadPath = $docRootPath;
-        } else {
-            $uploadPath = $localPublicPath;
+        // Determine upload path - Robust strategy for Main Domain and Subdomains
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+        $uploadPath = $scriptDir . '/signatures';
+        
+        // If scriptDir/signatures doesn't exist or isn't writable, fallback to other common paths
+        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/signatures' : null;
+            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            } else {
+                $uploadPath = public_path('signatures');
+            }
         }
 
         if ($uploadPath && !file_exists($uploadPath)) {
@@ -354,9 +354,9 @@ class SuperAdminController extends Controller
 
         if ($school->school_signature) {
             $possibleOldPaths = [
-                $parentDir . '/public_html/' . $school->school_signature,
+                $uploadPath . '/' . basename($school->school_signature),
+                public_path($school->school_signature),
                 (isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/' . $school->school_signature : null),
-                public_path($school->school_signature)
             ];
             foreach ($possibleOldPaths as $oldPath) {
                 if ($oldPath && file_exists($oldPath)) {

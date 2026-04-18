@@ -25,7 +25,7 @@
 
     <!-- jQuery and Bootstrap JS (Must be loaded before other scripts) -->
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
 
     <style>
@@ -786,7 +786,7 @@
                                 $notificationCount = $notifications->count();
                             @endphp
                             <button class="btn btn-secondary dropdown-toggle position-relative" type="button"
-                                id="notification" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                id="notification" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                 style="background: transparent; border: none;">
                                 <i class="fa fa-bell-o" style="color: #666; font-size: 1.2rem;"></i>
                                 @if($notificationCount > 0)
@@ -827,7 +827,7 @@
                 <div class="col-sm-5">
 
                     <div class="user-area dropdown float-right">
-                        <a href="#" class="dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true"
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
                             aria-expanded="false">
                             <img class="user-avatar rounded-circle" src="{{ $imgPath }}" alt="User Avatar"
                                 style="width: 40px; height: 40px; object-fit: cover;">
