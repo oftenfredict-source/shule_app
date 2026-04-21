@@ -768,10 +768,19 @@
                                                         <span class="badge badge-success">{{ $result['position'] ?? 'N/A' }}</span>
                                                     </td>
                                                     <td>
-                                                        <button class="btn btn-sm btn-danger download-student-btn" data-student-id="{{ $student->studentID }}" data-type="pdf" title="Download PDF">
+                                                        <button class="btn btn-sm btn-danger download-student-btn" 
+                                                            data-student-id="{{ $student->studentID }}" 
+                                                            data-type="pdf" 
+                                                            data-teacher-name="{{ $student->subclass && $student->subclass->teacher ? $student->subclass->teacher->first_name . ' ' . $student->subclass->teacher->last_name : 'N/A' }}"
+                                                            data-teacher-sign="{{ $student->subclass && $student->subclass->teacher && $student->subclass->teacher->signature ? asset($student->subclass->teacher->signature) : '' }}"
+                                                            title="Download PDF">
                                                             <i class="bi bi-file-pdf"></i>
                                                         </button>
-                                                        <button class="btn btn-sm btn-success download-student-btn" data-student-id="{{ $student->studentID }}" data-type="excel" title="Download Excel">
+                                                        <button class="btn btn-sm btn-success download-student-btn" 
+                                                            data-student-id="{{ $student->studentID }}" 
+                                                            data-type="excel" 
+                                                            data-teacher-name="{{ $student->subclass && $student->subclass->teacher ? $student->subclass->teacher->first_name . ' ' . $student->subclass->teacher->last_name : 'N/A' }}"
+                                                            title="Download Excel">
                                                             <i class="bi bi-file-excel"></i>
                                                         </button>
                                                     </td>
@@ -3230,10 +3239,19 @@
                                         </div>
                                         <div class="card-body">
                                             <div class="d-flex justify-content-end mb-2">
-                                                <button class="btn btn-sm btn-danger download-student-btn mr-1" data-student-id="{{ $student->studentID }}" data-type="pdf" title="Download PDF">
+                                                <button class="btn btn-sm btn-danger download-student-btn mr-1" 
+                                                    data-student-id="{{ $student->studentID }}" 
+                                                    data-type="pdf" 
+                                                    data-teacher-name="{{ $student->subclass && $student->subclass->teacher ? $student->subclass->teacher->first_name . ' ' . $student->subclass->teacher->last_name : 'N/A' }}"
+                                                    data-teacher-sign="{{ $student->subclass && $student->subclass->teacher && $student->subclass->teacher->signature ? asset($student->subclass->teacher->signature) : '' }}"
+                                                    title="Download PDF">
                                                     <i class="bi bi-file-pdf"></i> PDF
                                                 </button>
-                                                <button class="btn btn-sm btn-success download-student-btn" data-student-id="{{ $student->studentID }}" data-type="excel" title="Download Excel">
+                                                <button class="btn btn-sm btn-success download-student-btn" 
+                                                    data-student-id="{{ $student->studentID }}" 
+                                                    data-type="excel" 
+                                                    data-teacher-name="{{ $student->subclass && $student->subclass->teacher ? $student->subclass->teacher->first_name . ' ' . $student->subclass->teacher->last_name : 'N/A' }}"
+                                                    title="Download Excel">
                                                     <i class="bi bi-file-excel"></i> Excel
                                                 </button>
                                             </div>
@@ -3356,6 +3374,31 @@
 
 
 <script>
+    // System-wide automatic comment generator based on performance
+    function getAutomaticComment(gradeOrDivision) {
+        if (!gradeOrDivision) return 'Progress is satisfactory. Continue working hard.';
+        let val = gradeOrDivision.toString().toUpperCase();
+        
+        // Check if it's a division (I, II, III, IV, 0, FAIL)
+        if (val === 'I') return 'Excellent performance, keep it up!';
+        if (val === 'II') return 'Very good performance. Aim higher.';
+        if (val === 'III') return 'Good performance. Put more effort.';
+        if (val === 'IV') return 'Performance is below average. Work harder.';
+        if (val === '0' || val === 'FAIL' || val === 'F') return 'Poor performance. Consult your subject teachers.';
+        
+        // Check if it's a grade (A, B, C, D, E, F)
+        switch(val) {
+            case 'A': return 'Excellent performance, keep it up!';
+            case 'B': return 'Very good performance. Aim higher.';
+            case 'C': return 'Good performance. Put more effort.';
+            case 'D': return 'Performance is below average. Work harder.';
+            case 'E': return 'Fair performance. Needs significant improvement.';
+            case 'F': return 'Poor performance. Consult your subject teachers.';
+        }
+        
+        return 'Satisfactory performance. Keep putting in effort.';
+    }
+
 $(document).ready(function() {
     console.log('Result Management page loaded');
     
@@ -3637,7 +3680,8 @@ $(document).ready(function() {
                     averageMarks: response.averageMarks || 0,
                     grade: response.grade || gradeOrDivision,
                     subjects: response.subjects || [],
-                    exams: response.exams || []
+                    exams: response.exams || [],
+                    teacher: response.teacher || null
                 };
                 
                 // Build content
@@ -3938,7 +3982,8 @@ $(document).ready(function() {
                         totalStudentsCount: response.totalStudentsCount || 0,
                         subjects: response.subjects || [],
                         position: studentPosition,
-                        gradeOrDivision: gradeOrDivision
+                        gradeOrDivision: gradeOrDivision,
+                        teacher: response.teacher || null
                     };
                     
                     // Update position in content if response has position
@@ -4124,6 +4169,26 @@ $(document).ready(function() {
                 }
                 
                 content += subjectsHtml;
+                
+                // Store student data globally for PDF export
+                window.currentReportStudentData = {
+                    studentID: response.student.studentID,
+                    studentName: (response.student.first_name + ' ' + (response.student.middle_name || '') + ' ' + response.student.last_name).trim(),
+                    studentNumber: response.student.admission_number,
+                    position: position,
+                    examName: examName,
+                    totalMarks: response.totalMarks,
+                    averageMarks: response.averageMarks,
+                    grade: response.grade,
+                    division: response.division,
+                    gradeOrDivision: response.division || response.grade,
+                    totalStudentsCount: response.totalStudentsCount,
+                    subjects: response.subjects,
+                    photo: response.student.photo,
+                    gender: response.student.gender,
+                    teacher: response.teacher || null
+                };
+
                 $('#studentDetailsContent').html(content);
                 }, 400); // end of setTimeout
             },
@@ -5338,12 +5403,14 @@ $(document).ready(function() {
         
         const type = $(this).data('type'); // pdf or excel
         const studentID = $(this).data('student-id');
+        const teacherName = $(this).data('teacher-name');
+        const teacherSignature = $(this).data('teacher-sign');
         
         // Find student row/card
         let studentRow = null;
-        if ($('#resultsTable').length > 0) {
+        if ($('#reportStudentsTable').length > 0) {
             // Term report table
-            studentRow = $('#resultsTable tbody tr').filter(function() {
+            studentRow = $('#reportStudentsTable tbody tr').filter(function() {
                 return $(this).find('.download-student-btn[data-student-id="' + studentID + '"]').length > 0;
             });
         } else {
@@ -5378,7 +5445,7 @@ $(document).ready(function() {
         const schoolSignature = '{{ $school->school_signature ? asset($school->school_signature) : "" }}';
 
         if (type === 'pdf') {
-            downloadStudentPDF(studentRow, studentID, filters, schoolName, schoolLogo, schoolStamp, schoolSignature);
+            downloadStudentPDF(studentRow, studentID, filters, schoolName, schoolLogo, schoolStamp, schoolSignature, teacherName, teacherSignature);
         } else {
             downloadStudentExcel(studentRow, studentID, filters, schoolName);
         }
@@ -5404,11 +5471,14 @@ $(document).ready(function() {
         };
 
         // Preload all images
-        const [logoImg, stampImg, signImg] = await Promise.all([
+        const [logoImg, stampImg, signImg, teacherSignImg] = await Promise.all([
             loadImage(schoolLogo),
             loadImage(schoolStamp),
-            loadImage(schoolSignature)
+            loadImage(schoolSignature),
+            loadImage(teacherSignature)
         ]);
+
+        let finalGradeForComment = '';
 
         let yPos = 15;
         
@@ -5511,8 +5581,10 @@ $(document).ready(function() {
             let grade, division;
             if (schoolType === 'Primary') {
                 grade = studentRow.find('td').eq(3).text().trim();
+                finalGradeForComment = grade;
             } else {
                 division = studentRow.find('td').eq(3).text().trim();
+                finalGradeForComment = division;
             }
             const position = studentRow.find('td').eq(4).text().trim();
 
@@ -5562,8 +5634,10 @@ $(document).ready(function() {
                 let grade, division;
                 if (schoolType === 'Primary') {
                     grade = firstExamRow.find('td').eq(3).text().trim();
+                    finalGradeForComment = grade;
                 } else {
                     division = firstExamRow.find('td').eq(2).text().trim();
+                    finalGradeForComment = division;
                 }
 
                 // Summary table FIRST (before subjects)
@@ -5644,8 +5718,43 @@ $(document).ready(function() {
                                 tableWidth: 'auto'
                             });
                             
-                            // Headmaster's Sign after subjects table
                             yPos = doc.lastAutoTable.finalY + 15;
+                            
+                            // Class Teacher Comment Section
+                            if (yPos + 40 > pageHeight - 60) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+
+                            doc.setFontSize(11);
+                            doc.setTextColor(0, 0, 0);
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('Maoni ya Mwalimu wa Darasa (Class Teacher\'s Comment):', 14, yPos);
+                            yPos += 7;
+                            
+                            doc.setFont('helvetica', 'italic');
+                            doc.setFontSize(10);
+                            const comment = getAutomaticComment(finalGradeForComment);
+                            doc.text(comment, 14, yPos);
+                            yPos += 10;
+                            
+                            // Teacher Signature Line
+                            doc.setDrawColor(0, 0, 0);
+                            doc.setLineWidth(0.3);
+                            doc.line(14, yPos + 10, 70, yPos + 10);
+                            
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('Class Teacher: ' + (teacherName || 'N/A'), 14, yPos + 15);
+                            
+                            // Draw Teacher Signature Image
+                            if (teacherSignImg) {
+                                const tsW = 35;
+                                const tsH = (teacherSignImg.height * tsW) / teacherSignImg.width;
+                                doc.addImage(teacherSignImg, 'PNG', 20, yPos - 5, tsW, tsH);
+                            }
+
+                            // Headmaster's Sign after subjects table
+                            yPos += 20;
                             doc.setDrawColor(0, 0, 255); // Blue color
                             doc.setLineWidth(0.5);
                             doc.line(pageWidth - 50, yPos, pageWidth - 10, yPos); // Signature line
@@ -6893,41 +7002,44 @@ $(document).ready(function() {
     function downloadStudentPDFFromModal(studentData) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.height;
         
         const schoolName = '{{ $school->school_name ?? "School" }}';
-        const schoolLogo = '{{ $school->school_logo ?? "" }}';
-        const schoolType = '{{ $schoolType ?? "Secondary" }}';
-        const pageWidth = doc.internal.pageSize.getWidth();
-        let yPos = 15;
+        const schoolLogo = '{{ $school->school_logo ? asset($school->school_logo) : "" }}';
+        const schoolStamp = '{{ $school->school_stamp ? asset($school->school_stamp) : "" }}';
+        const schoolSignature = '{{ $school->school_signature ? asset($school->school_signature) : "" }}';
+        const teacherName = studentData.teacher ? studentData.teacher.name : 'N/A';
+        const teacherSignature = studentData.teacher ? studentData.teacher.signature : null;
         
-        // Header: School logo (left), Student image (right), School name (center)
-        const logoWidth = 25;
-        const studentImageWidth = 30;
-        
-        // Load images asynchronously using Promise
-        const loadImage = function(src) {
-            return new Promise(function(resolve, reject) {
+        // Helper to load image
+        const loadImage = (url) => {
+            return new Promise((resolve) => {
+                if (!url) { resolve(null); return; }
                 const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = function() {
-                    resolve(img);
-                };
-                img.onerror = function() {
-                    resolve(null); // Return null if image fails to load
-                };
-                img.src = src;
+                img.crossOrigin = 'Anonymous';
+                img.onload = () => resolve(img);
+                img.onerror = () => resolve(null);
+                img.src = url;
             });
         };
         
-        // Load both images
+        // Preload all images
         const logoPromise = schoolLogo ? loadImage(schoolLogo) : Promise.resolve(null);
+        const stampPromise = schoolStamp ? loadImage(schoolStamp) : Promise.resolve(null);
+        const schoolSignPromise = schoolSignature ? loadImage(schoolSignature) : Promise.resolve(null);
+        const teacherSignPromise = teacherSignature ? loadImage(teacherSignature) : Promise.resolve(null);
         const studentImagePath = studentData.photo || 
             (studentData.gender === 'Female' ? '{{ asset("placeholder/female.png") }}' : '{{ asset("placeholder/male.png") }}');
         const studentImagePromise = loadImage(studentImagePath);
         
-        Promise.all([logoPromise, studentImagePromise]).then(function(images) {
+        Promise.all([logoPromise, studentImagePromise, stampPromise, schoolSignPromise, teacherSignPromise]).then(function(images) {
             const logoImg = images[0];
             const studentImg = images[1];
+            const stampImg = images[2];
+            const schoolSignImg = images[3];
+            const teacherSignImg = images[4];
+            let yPos = 15;
             
             // Add school logo (left)
             if (logoImg) {
@@ -7106,14 +7218,51 @@ $(document).ready(function() {
                 doc.setFont('helvetica', 'bold');
                 doc.text('Powered by: EmCa Technologies LTD', pageWidth / 2, pageHeight - 20, { align: 'center' });
                 
-                // Headmaster's Sign (Blue ink)
-                doc.setDrawColor(0, 0, 255); // Blue color
-                doc.setLineWidth(0.5);
-                doc.line(pageWidth - 50, pageHeight - 10, pageWidth - 10, pageHeight - 10); // Signature line
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 255); // Blue text
-                doc.setFont('helvetica', 'bold');
-                doc.text('Headmaster\'s Sign', pageWidth - 30, pageHeight - 5, { align: 'center' });
+            // Automatic Comment & Teacher Signature Section
+            yPos = doc.lastAutoTable.finalY + 15;
+            
+            if (yPos + 40 > pageHeight - 60) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            doc.setFontSize(11);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Maoni ya Mwalimu wa Darasa (Class Teacher\'s Comment):', 14, yPos);
+            yPos += 7;
+            
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(10);
+            const commentVal = studentData.division || studentData.grade || studentData.gradeOrDivision;
+            const comment = getAutomaticComment(commentVal);
+            doc.text(comment, 14, yPos);
+            yPos += 10;
+            
+            // Teacher Signature Line
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.3);
+            doc.line(14, yPos + 10, 70, yPos + 10);
+            
+            doc.setFont('helvetica', 'bold');
+            doc.text('Class Teacher: ' + (teacherName || 'N/A'), 14, yPos + 15);
+            
+            // Draw Teacher Signature Image
+            if (teacherSignImg) {
+                const tsW = 35;
+                const tsH = (teacherSignImg.height * tsW) / teacherSignImg.width;
+                doc.addImage(teacherSignImg, 'PNG', 20, yPos - 5, tsW, tsH);
+            }
+
+            // Headmaster's Sign
+            yPos += 20;
+            doc.setDrawColor(0, 0, 255); // Blue color
+            doc.setLineWidth(0.5);
+            doc.line(pageWidth - 50, pageHeight - 10, pageWidth - 10, pageHeight - 10); // Signature line
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 255); // Blue text
+            doc.setFont('helvetica', 'bold');
+            doc.text('Headmaster\'s Sign', pageWidth - 30, pageHeight - 5, { align: 'center' });
             }
             
             // Generate filename
@@ -7233,9 +7382,11 @@ $(document).ready(function() {
         const doc = new jsPDF('p', 'mm', 'a4');
         
         const schoolName = '{{ $school->school_name ?? "School" }}';
-        const schoolLogo = '{{ $school->school_logo ?? "" }}';
-        const schoolType = '{{ $schoolType ?? "Secondary" }}';
+        const schoolSignature = '{{ $school->school_signature ? asset($school->school_signature) : "" }}';
+        const teacherName = reportStudentData.teacher ? reportStudentData.teacher.name : 'N/A';
+        const teacherSignature = reportStudentData.teacher ? reportStudentData.teacher.signature : null;
         const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.height;
         let yPos = 15;
         
         // Header: School logo (left), Student image (right), School name (center)
@@ -7257,15 +7408,21 @@ $(document).ready(function() {
             });
         };
         
-        // Load both images
+        // Load all images
         const logoPromise = schoolLogo ? loadImage(schoolLogo) : Promise.resolve(null);
+        const stampPromise = schoolStamp ? loadImage(schoolStamp) : Promise.resolve(null);
+        const schoolSignPromise = schoolSignature ? loadImage(schoolSignature) : Promise.resolve(null);
+        const teacherSignPromise = teacherSignature ? loadImage(teacherSignature) : Promise.resolve(null);
         const studentImagePath = reportStudentData.photo || 
             (reportStudentData.gender === 'Female' ? '{{ asset("placeholder/female.png") }}' : '{{ asset("placeholder/male.png") }}');
         const studentImagePromise = loadImage(studentImagePath);
         
-        Promise.all([logoPromise, studentImagePromise]).then(function(images) {
+        Promise.all([logoPromise, studentImagePromise, stampPromise, schoolSignPromise, teacherSignPromise]).then(function(images) {
             const logoImg = images[0];
             const studentImg = images[1];
+            const stampImg = images[2];
+            const schoolSignImg = images[3];
+            const teacherSignImg = images[4];
             
             // Add school logo (left)
             if (logoImg) {
@@ -7445,14 +7602,69 @@ $(document).ready(function() {
                 doc.setFont('helvetica', 'bold');
                 doc.text('Powered by: EmCa Technologies LTD', pageWidth / 2, pageHeight - 20, { align: 'center' });
                 
-                // Headmaster's Sign (Blue ink)
-                doc.setDrawColor(0, 0, 255); // Blue color
-                doc.setLineWidth(0.5);
-                doc.line(pageWidth - 50, pageHeight - 10, pageWidth - 10, pageHeight - 10); // Signature line
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 255); // Blue text
-                doc.setFont('helvetica', 'bold');
-                doc.text('Headmaster\'s Sign', pageWidth - 30, pageHeight - 5, { align: 'center' });
+            // Teacher Comment Section
+            yPos = doc.lastAutoTable.finalY + 15;
+            
+            if (yPos + 40 > pageHeight - 65) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            doc.setFontSize(11);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Maoni ya Mwalimu wa Darasa (Class Teacher\'s Comment):', 20, yPos);
+            yPos += 7;
+            
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(10);
+            // Ensure averageGrade is available
+            const avgGradeForComment = (typeof averageGrade !== 'undefined') ? averageGrade : (reportStudentData.grade || 'C');
+            const commentReport = getAutomaticComment(avgGradeForComment);
+            doc.text(commentReport, 20, yPos);
+            yPos += 10;
+            
+            // Teacher Signature Line
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.3);
+            doc.line(20, yPos + 10, 80, yPos + 10);
+            
+            doc.setFont('helvetica', 'bold');
+            doc.text('Class Teacher: ' + (teacherName || 'N/A'), 20, yPos + 15);
+            
+            // Draw Teacher Signature Image
+            if (teacherSignImg) {
+                const tsW = 35;
+                const tsH = (teacherSignImg.height * tsW) / teacherSignImg.width;
+                doc.addImage(teacherSignImg, 'PNG', 25, yPos - 5, tsW, tsH);
+            }
+
+            // Official Stamp & Headmaster's Sign (moved down)
+            yPos += 20;
+            
+            // Draw Stamp
+            if (stampImg) {
+                const stW = 30;
+                const stH = (stampImg.height * stW) / stampImg.width;
+                doc.addImage(stampImg, 'PNG', pageWidth / 2 - 15, yPos - 15, stW, stH);
+            }
+
+            // Headmaster's Sign (Blue ink)
+            doc.setDrawColor(0, 0, 255); // Blue color
+            doc.setLineWidth(0.5);
+            doc.line(pageWidth - 80, yPos + 10, pageWidth - 20, yPos + 10); // Signature line
+            
+            // Draw School Signature
+            if (schoolSignImg) {
+                const ssW = 35;
+                const ssH = (schoolSignImg.height * ssW) / schoolSignImg.width;
+                doc.addImage(schoolSignImg, 'PNG', pageWidth - 70, yPos - 5, ssW, ssH);
+            }
+
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 255); // Blue text
+            doc.setFont('helvetica', 'bold');
+            doc.text('Headmaster\'s Sign & Stamp', pageWidth - 50, yPos + 15, { align: 'center' });
             }
             
             // Generate filename

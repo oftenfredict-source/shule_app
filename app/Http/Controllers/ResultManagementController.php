@@ -498,7 +498,7 @@ class ResultManagementController extends Controller
             // Return JSON response with subject details
             $student = Student::where('studentID', $studentIDFilter)
                 ->where('schoolID', $schoolID)
-                ->with(['subclass.class', 'oldSubclass.class'])
+                ->with(['subclass.class', 'subclass.teacher', 'oldSubclass.class', 'oldSubclass.teacher'])
                 ->first();
 
             if (!$student) {
@@ -1110,6 +1110,10 @@ class ResultManagementController extends Controller
                     'gender' => $student->gender,
                     'photo' => $studentPhoto
                 ],
+                'teacher' => [
+                    'name' => $student->subclass && $student->subclass->teacher ? $student->subclass->teacher->first_name . ' ' . $student->subclass->teacher->last_name : 'N/A',
+                    'signature' => $student->subclass && $student->subclass->teacher && $student->subclass->teacher->signature ? asset($student->subclass->teacher->signature) : null
+                ],
                 'totalMarks' => $totalMarks,
                 'averageMarks' => $averageMarks,
                 'subjectCount' => $subjectCount,
@@ -1301,7 +1305,7 @@ class ResultManagementController extends Controller
         }
 
 
-        $students = $studentQuery->with(['subclass.class', 'subclass.combie', 'parent', 'oldSubclass.class'])
+        $students = $studentQuery->with(['subclass.class', 'subclass.combie', 'subclass.teacher', 'parent', 'oldSubclass.class', 'oldSubclass.teacher'])
             ->orderBy('first_name')
             ->get();
 
@@ -3073,7 +3077,7 @@ class ResultManagementController extends Controller
         if ($option === 'single' && $studentID) {
             $students = Student::where('studentID', $studentID)
                 ->where('schoolID', $schoolID)
-                ->with(['subclass.class', 'subclass.combie', 'parent', 'oldSubclass.class'])
+                ->with(['subclass.class', 'subclass.combie', 'subclass.teacher', 'parent', 'oldSubclass.class', 'oldSubclass.teacher'])
                 ->get();
         } elseif ($option === 'class' && $classID) {
             $students = Student::where('schoolID', $schoolID)
@@ -3084,13 +3088,13 @@ class ResultManagementController extends Controller
                         $q->where('classID', $classID);
                     });
                 })
-                ->with(['subclass.class', 'subclass.combie', 'parent', 'oldSubclass.class'])
+                ->with(['subclass.class', 'subclass.combie', 'subclass.teacher', 'parent', 'oldSubclass.class', 'oldSubclass.teacher'])
                 ->orderBy('first_name')
                 ->get();
         } elseif ($option === 'subclass' && $subclassID) {
             $students = Student::where('schoolID', $schoolID)
                 ->where('subclassID', $subclassID)
-                ->with(['subclass.class', 'subclass.combie', 'parent', 'oldSubclass.class'])
+                ->with(['subclass.class', 'subclass.combie', 'subclass.teacher', 'parent', 'oldSubclass.class', 'oldSubclass.teacher'])
                 ->orderBy('first_name')
                 ->get();
         } else {
@@ -3127,7 +3131,7 @@ class ResultManagementController extends Controller
             }
 
             $students = $studentQuery
-                ->with(['subclass.class', 'subclass.combie', 'parent', 'oldSubclass.class'])
+                ->with(['subclass.class', 'subclass.combie', 'subclass.teacher', 'parent', 'oldSubclass.class', 'oldSubclass.teacher'])
                 ->orderBy('first_name')
                 ->get();
         }

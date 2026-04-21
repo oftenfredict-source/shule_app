@@ -71,12 +71,14 @@ class LibraryController extends Controller
                 $query->where('schoolID', $schoolID);
             })
             ->where('status', 'lost')
+            ->where('payment_status', 'unpaid')
             ->distinct('bookID')
             ->count('bookID');
         $damagedBooks = BookDamage::whereHas('book', function($query) use ($schoolID) {
                 $query->where('schoolID', $schoolID);
             })
             ->where('status', 'damaged')
+            ->where('payment_status', 'unpaid')
             ->distinct('bookID')
             ->count('bookID');
         
@@ -1372,8 +1374,10 @@ class LibraryController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'isbn' => 'required|string|max:50',
-                'lost_by' => 'required|in:student,other',
+                'lost_by' => 'required|in:student,teacher,staff,other',
                 'studentID' => 'nullable|exists:students,studentID',
+                'teacherID' => 'nullable|exists:teachers,id',
+                'staffID' => 'nullable|exists:other_staff,id',
                 'description' => 'nullable|string|max:1000'
             ]);
 
@@ -1396,10 +1400,13 @@ class LibraryController extends Controller
             }
 
             if ($request->lost_by === 'student' && !$request->studentID) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Student is required.'
-                ], 422);
+                return response()->json(['success' => false, 'message' => 'Student is required.'], 422);
+            }
+            if ($request->lost_by === 'teacher' && !$request->teacherID) {
+                return response()->json(['success' => false, 'message' => 'Teacher is required.'], 422);
+            }
+            if ($request->lost_by === 'staff' && !$request->staffID) {
+                return response()->json(['success' => false, 'message' => 'Staff is required.'], 422);
             }
 
             $exists = BookLoss::where('bookID', $book->bookID)
@@ -1414,9 +1421,11 @@ class LibraryController extends Controller
 
             $loss = BookLoss::create([
                 'bookID' => $book->bookID,
-                'studentID' => $request->lost_by === 'student' ? $request->studentID : null,
+                'studentID' => $request->studentID,
+                'teacherID' => $request->teacherID,
+                'staffID' => $request->staffID,
                 'lost_by' => $request->lost_by,
-                'description' => $request->description ?? null,
+                'description' => $request->notes ?? $request->description ?? null,
                 'status' => 'lost',
                 'reported_date' => Carbon::now()->toDateString()
             ]);
@@ -1484,8 +1493,10 @@ class LibraryController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'isbn' => 'required|string|max:50',
-                'damaged_by' => 'required|in:student,other',
+                'damaged_by' => 'required|in:student,teacher,staff,other',
                 'studentID' => 'nullable|exists:students,studentID',
+                'teacherID' => 'nullable|exists:teachers,id',
+                'staffID' => 'nullable|exists:other_staff,id',
                 'description' => 'nullable|string|max:1000'
             ]);
 
@@ -1508,10 +1519,13 @@ class LibraryController extends Controller
             }
 
             if ($request->damaged_by === 'student' && !$request->studentID) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Student is required.'
-                ], 422);
+                return response()->json(['success' => false, 'message' => 'Student is required.'], 422);
+            }
+            if ($request->damaged_by === 'teacher' && !$request->teacherID) {
+                return response()->json(['success' => false, 'message' => 'Teacher is required.'], 422);
+            }
+            if ($request->damaged_by === 'staff' && !$request->staffID) {
+                return response()->json(['success' => false, 'message' => 'Staff is required.'], 422);
             }
 
             $exists = BookDamage::where('bookID', $book->bookID)
@@ -1526,9 +1540,11 @@ class LibraryController extends Controller
 
             $damage = BookDamage::create([
                 'bookID' => $book->bookID,
-                'studentID' => $request->damaged_by === 'student' ? $request->studentID : null,
+                'studentID' => $request->studentID,
+                'teacherID' => $request->teacherID,
+                'staffID' => $request->staffID,
                 'damaged_by' => $request->damaged_by,
-                'description' => $request->description ?? null,
+                'description' => $request->notes ?? $request->description ?? null,
                 'status' => 'damaged',
                 'reported_date' => Carbon::now()->toDateString()
             ]);
@@ -1698,6 +1714,94 @@ class LibraryController extends Controller
                 'success' => false,
                 'message' => 'Failed to record payment: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function resolve_book_incident(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) return response()->json(['success' => false, 'message' => 'Session expired'], 400);
+
+            $type = $request->incident_type; // 'loss' or 'damage'
+            $incidentID = $request->incidentID;
+            $bookID = $request->bookID;
+            $method = $request->method; // 'returned', 'replacenew', 'cash'
+            $replacementIsbn = $request->replacement_isbn;
+            $amount = $request->amount;
+            $notes = $request->notes;
+
+            DB::beginTransaction();
+
+            $book = Book::where('bookID', $bookID)->where('schoolID', $schoolID)->first();
+            if (!$book) return response()->json(['success' => false, 'message' => 'Book not found'], 404);
+
+            if ($type === 'loss') {
+                $incident = BookLoss::find($incidentID);
+            } else {
+                $incident = BookDamage::find($incidentID);
+            }
+
+            if (!$incident) return response()->json(['success' => false, 'message' => 'Incident record not found'], 404);
+
+            if ($method === 'returned') {
+                // If returned/fixed, make book active again
+                $incident->status = ($type === 'loss' ? 'found' : 'repaired');
+                $incident->payment_status = 'paid';
+                $incident->payment_method = null;
+                $incident->description = ($incident->description ?? '') . "\n[RESOLVED: RECOVERED] " . $notes;
+                $incident->save();
+
+                $book->available_quantity = 1;
+                $book->issued_quantity = 0;
+                $book->status = 'Active';
+                $book->save();
+            } 
+            elseif ($method === 'replacenew') {
+                // Check if new ISBN already exists
+                $exists = Book::where('schoolID', $schoolID)->where('isbn', $replacementIsbn)->exists();
+                if ($exists) {
+                    return response()->json(['success' => false, 'message' => 'The new ISBN already exists in the system.'], 400);
+                }
+
+                // Mark current incident as resolved (paid via replacement)
+                // We keep status as 'lost' or 'damaged' but set payment_status to 'paid'
+                $incident->payment_status = 'paid';
+                $incident->payment_method = 'replace';
+                $incident->description = ($incident->description ?? '') . "\n[RESOLVED: REPLACED BY " . $replacementIsbn . "] " . $notes;
+                $incident->save();
+
+                // Generate a new book record (the replacement)
+                Book::create([
+                    'schoolID' => $schoolID,
+                    'book_type' => $book->book_type,
+                    'classID' => $book->classID,
+                    'subjectID' => $book->subjectID,
+                    'book_title' => $book->book_title,
+                    'author' => $book->author,
+                    'isbn' => $replacementIsbn,
+                    'publisher' => $book->publisher,
+                    'publication_year' => $book->publication_year,
+                    'total_quantity' => 1,
+                    'available_quantity' => 1,
+                    'issued_quantity' => 0,
+                    'description' => 'Replacement for lost/damaged copy (ISBN: ' . $book->isbn . ')',
+                    'status' => 'Active'
+                ]);
+            }
+            elseif ($method === 'cash') {
+                $incident->payment_status = 'paid';
+                $incident->payment_method = 'cash';
+                $incident->payment_amount = $amount;
+                $incident->description = ($incident->description ?? '') . "\n[RESOLVED: CASH PAID " . $amount . "] " . $notes;
+                $incident->save();
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Incident resolved successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 

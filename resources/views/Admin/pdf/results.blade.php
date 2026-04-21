@@ -50,6 +50,28 @@
         $schoolLogoBase64  = getSmartBase64($school->school_logo ?? '');
         $schoolStampBase64 = getSmartBase64($school->school_stamp ?? '');
         $schoolSignBase64  = getSmartBase64($school->school_signature ?? '');
+
+        if (!function_exists('getAutomaticComment')) {
+            function getAutomaticComment($gradeOrDivision) {
+                $gradeOrDivision = strtoupper(trim($gradeOrDivision));
+                
+                // Secondary School (Division I, II, III, IV, 0)
+                if (in_array($gradeOrDivision, ['I', 'DIV I', 'DIVISION I'])) return 'Excellent performance, continue with the same efforts.';
+                if (in_array($gradeOrDivision, ['II', 'DIV II', 'DIVISION II'])) return 'Very good performance, keep working hard to reach division one.';
+                if (in_array($gradeOrDivision, ['III', 'DIV III', 'DIVISION III'])) return 'Good performance, but more effort is needed to improve.';
+                if (in_array($gradeOrDivision, ['IV', 'DIV IV', 'DIVISION IV'])) return 'Average performance, you need to increase your efforts significantly.';
+                if (in_array($gradeOrDivision, ['0', 'DIV 0', 'DIVISION 0', 'FAIL'])) return 'Poor performance, you must seek academic advice and work much harder.';
+                
+                // Primary School (Grade A, B, C, D, E)
+                if ($gradeOrDivision === 'A') return 'Excellent performance, keep up the spirit.';
+                if ($gradeOrDivision === 'B') return 'Very good performance, work harder for better results.';
+                if ($gradeOrDivision === 'C') return 'Good performance, more effort is required.';
+                if ($gradeOrDivision === 'D') return 'Average ufaulu, you need to put more focus on your studies.';
+                if ($gradeOrDivision === 'E' || $gradeOrDivision === 'F') return 'Poor performance, urgent intervention and more study time needed.';
+                
+                return 'Good effort, keep working hard to improve your results.';
+            }
+        }
     @endphp
     <style>
         @page { margin: 12mm 14mm; }
@@ -59,6 +81,15 @@
             color: #1a1a1a;
             line-height: 1.4;
         }
+
+        /* ── TEACHER COMMENT ─────────────────────── */
+        .teacher-comment-box { border: 1px dashed #940000; padding: 10px; margin-top: 15px; margin-bottom: 10px; }
+        .comment-title { font-weight: bold; color: #940000; margin-bottom: 5px; text-transform: uppercase; font-size: 9.5px; }
+        .comment-text { font-style: italic; font-size: 9px; min-height: 15px; border-bottom: 1px dotted #ccc; padding-bottom: 3px; }
+        .teacher-sig-area { margin-top: 5px; }
+        .teacher-sig-img { height: 35px; margin-bottom: 3px; }
+        .teacher-sig-img img { max-width: 140px; max-height: 35px; }
+        .teacher-name { font-weight: bold; font-size: 8.5px; border-top: 1px solid #000; width: 150px; padding-top: 2px; }
 
         /* ── HEADER ─────────────────────────────── */
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
@@ -454,6 +485,35 @@
             </tbody>
         </table>
     @endif
+
+    {{-- Teacher's Comment & Signature --}}
+    @php
+        $teacher = $student->subclass->teacher ?? $student->oldSubclass->teacher ?? null;
+        $teacherName = $teacher ? $teacher->first_name . ' ' . $teacher->last_name : 'N/A';
+        $teacherSignBase64 = $teacher ? getSmartBase64($teacher->signature) : null;
+        
+        $commentVal = null;
+        if(isset($detailedSingleData)) {
+            $commentVal = $detailedSingleData['division'] ?? $detailedSingleData['grade'] ?? null;
+        } elseif($result) {
+            $reportRes = ($filters['type'] === 'report') ? $result : (is_array($result) && !empty($result) ? $result[0] : null);
+            $commentVal = $reportRes['division'] ?? $reportRes['grade'] ?? null;
+        }
+        $teacherComment = getAutomaticComment($commentVal);
+    @endphp
+    <div class="teacher-comment-box">
+        <div class="comment-title">Maoni ya Mwalimu wa Darasa (Class Teacher's Comment):</div>
+        <div class="comment-text">{{ $teacherComment }}</div>
+        
+        <div class="teacher-sig-area">
+            <div class="teacher-sig-img">
+                @if($teacherSignBase64)
+                    <img src="{{ $teacherSignBase64 }}" alt="Teacher Sign">
+                @endif
+            </div>
+            <div class="teacher-name">Class Teacher: {{ $teacherName }}</div>
+        </div>
+    </div>
 
     <table class="sig-table">
         <tr>
@@ -897,24 +957,45 @@
             @endif
 
 
+            @php
+                $bulkTeacher = null;
+                if(isset($subclassID)) {
+                    $bulkTeacher = \App\Models\Subclass::find($subclassID)->teacher ?? null;
+                } elseif(isset($filters['subclass'])) {
+                    $bulkTeacher = \App\Models\Subclass::find($filters['subclass'])->teacher ?? null;
+                }
+                $bulkTeacherName = $bulkTeacher ? $bulkTeacher->first_name . ' ' . $bulkTeacher->last_name : null;
+                $bulkTeacherSignBase64 = $bulkTeacher ? getSmartBase64($bulkTeacher->signature) : null;
+            @endphp
             <table class="sig-table">
                 <tr>
-                    <td class="stamp-cell">
-                        @if($schoolStampBase64)
-                            <img src="{{ $schoolStampBase64 }}" alt="Stamp">
+                    <td style="width: 33%; text-align: center;">
+                        @if($bulkTeacherSignBase64)
+                            <div class="teacher-sig-img" style="margin: 0 auto;">
+                                <img src="{{ $bulkTeacherSignBase64 }}" alt="Teacher Sign">
+                            </div>
                         @else
-                            <div class="placeholder-img" style="width:100px; height:100px; margin: 0 auto;">STAMP</div>
+                            <div class="placeholder-img" style="width:120px; height:35px; margin: 0 auto 4px auto;">TEACHER SIGN</div>
+                        @endif
+                        <div class="sig-line" style="width: 140px;"></div>
+                        <span class="sig-label">Class Teacher: {{ $bulkTeacherName ?? 'N/A' }}</span>
+                    </td>
+                    <td class="stamp-cell" style="width: 33%;">
+                        @if($schoolStampBase64)
+                            <img src="{{ $schoolStampBase64 }}" alt="Stamp" style="max-height: 80px;">
+                        @else
+                            <div class="placeholder-img" style="width:80px; height:80px; margin: 0 auto;">STAMP</div>
                         @endif
                     </td>
-                    <td class="sign-cell">
+                    <td class="sign-cell" style="width: 33%;">
                         @if($schoolSignBase64)
                             <div class="school-signature-img">
                                 <img src="{{ $schoolSignBase64 }}" alt="Signature">
                             </div>
                         @else
-                            <div class="placeholder-img" style="width:160px; height:40px; margin: 0 auto 4px auto;">SIGNATURE</div>
+                            <div class="placeholder-img" style="width:140px; height:35px; margin: 0 auto 4px auto;">SIGNATURE</div>
                         @endif
-                        <div class="sig-line"></div>
+                        <div class="sig-line" style="width: 140px;"></div>
                         <span class="sig-label">Headmaster's Signature</span>
                     </td>
                 </tr>
@@ -1112,24 +1193,45 @@
             @endif
         @endforeach
 
+        @php
+            $bulkTeacherAll = null;
+            if(isset($subclassID)) {
+                $bulkTeacherAll = \App\Models\Subclass::find($subclassID)->teacher ?? null;
+            } elseif(isset($filters['subclass'])) {
+                $bulkTeacherAll = \App\Models\Subclass::find($filters['subclass'])->teacher ?? null;
+            }
+            $bulkTeacherNameAll = $bulkTeacherAll ? $bulkTeacherAll->first_name . ' ' . $bulkTeacherAll->last_name : null;
+            $bulkTeacherSignBase64All = $bulkTeacherAll ? getSmartBase64($bulkTeacherAll->signature) : null;
+        @endphp
         <table class="sig-table">
             <tr>
-                <td class="stamp-cell">
-                    @if($schoolStampBase64)
-                        <img src="{{ $schoolStampBase64 }}" alt="Stamp">
+                <td style="width: 33%; text-align: center;">
+                    @if($bulkTeacherSignBase64All)
+                        <div class="teacher-sig-img" style="margin: 0 auto;">
+                            <img src="{{ $bulkTeacherSignBase64All }}" alt="Teacher Sign">
+                        </div>
                     @else
-                        <div class="placeholder-img" style="width:100px; height:100px; margin: 0 auto;">STAMP</div>
+                        <div class="placeholder-img" style="width:120px; height:35px; margin: 0 auto 4px auto;">TEACHER SIGN</div>
+                    @endif
+                    <div class="sig-line" style="width: 140px;"></div>
+                    <span class="sig-label">Class Teacher: {{ $bulkTeacherNameAll ?? 'N/A' }}</span>
+                </td>
+                <td class="stamp-cell" style="width: 33%;">
+                    @if($schoolStampBase64)
+                        <img src="{{ $schoolStampBase64 }}" alt="Stamp" style="max-height: 80px;">
+                    @else
+                        <div class="placeholder-img" style="width:80px; height:80px; margin: 0 auto;">STAMP</div>
                     @endif
                 </td>
-                <td class="sign-cell">
+                <td class="sign-cell" style="width: 33%;">
                     @if($schoolSignBase64)
                         <div class="school-signature-img">
                             <img src="{{ $schoolSignBase64 }}" alt="Signature">
                         </div>
                     @else
-                        <div class="placeholder-img" style="width:160px; height:40px; margin: 0 auto 4px auto;">SIGNATURE</div>
+                        <div class="placeholder-img" style="width:140px; height:35px; margin: 0 auto 4px auto;">SIGNATURE</div>
                     @endif
-                    <div class="sig-line"></div>
+                    <div class="sig-line" style="width: 140px;"></div>
                     <span class="sig-label">Headmaster's Signature</span>
                 </td>
             </tr>

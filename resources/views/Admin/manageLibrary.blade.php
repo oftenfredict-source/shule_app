@@ -156,430 +156,281 @@
         color: #940000;
         font-weight: bold;
     }
+
+    /* New Sidebar Layout Styles */
+    .library-main-container {
+        display: flex;
+        gap: 25px;
+        align-items: flex-start;
+    }
+    
+    .library-content-area {
+        flex-grow: 1;
+        min-width: 0;
+    }
+
+    /* Book Grid System */
+    .book-grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 20px;
+        padding: 20px 0;
+    }
+    
+    .book-card-widget {
+        background: #fff;
+        padding: 20px 15px;
+        text-align: center;
+        border: 1px solid #eee;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+    .book-card-widget:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 30px rgba(148,0,0,0.08);
+        border-color: #940000;
+    }
+    
+    .book-card-widget .book-icon {
+        font-size: 50px;
+        margin-bottom: 15px;
+        display: block;
+    }
+    
+    .book-card-widget .book-title {
+        font-size: 12px;
+        font-weight: 800;
+        color: #333;
+        display: block;
+        margin-bottom: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .book-card-widget .book-author {
+        font-size: 10px;
+        color: #777;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    /* Status Color Coding */
+    .book-status-badge {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 40px;
+        height: 40px;
+        background: #eee;
+        clip-path: polygon(100% 0, 0 0, 100% 100%);
+    }
+    
+    .book-card-widget.available { border-bottom: 4px solid #28a745; }
+    .book-card-widget.available .book-icon { color: #28a745; }
+    
+    .book-card-widget.borrowed { border-bottom: 4px solid #ffc107; }
+    .book-card-widget.borrowed .book-icon { color: #ffc107; }
+    
+    .book-card-widget.overdue { border-bottom: 4px solid #dc3545; }
+    .book-card-widget.overdue .book-icon { color: #dc3545; }
+    
+    .book-card-widget.lost { border-bottom: 4px solid #6f42c1; }
+    .book-card-widget.lost .book-icon { color: #6f42c1; }
+    
+    .book-card-widget.lost_resolved { border-bottom: 4px solid #a29bfe; background: #faf9ff; }
+    .book-card-widget.lost_resolved .book-icon { color: #a29bfe; }
+    .book-card-widget.lost_resolved .book-status-badge { background: #a29bfe; }
+    
+    .book-card-widget.damaged { border-bottom: 4px solid #fd7e14; }
+    .book-card-widget.damaged .book-icon { color: #fd7e14; }
+
+    .book-card-widget.damaged_resolved { border-bottom: 4px solid #ffbe76; background: #fffcf9; }
+    .book-card-widget.damaged_resolved .book-icon { color: #ffbe76; }
+    .book-card-widget.damaged_resolved .book-status-badge { background: #ffbe76; }
+
+    /* Graph Container */
+    .report-card {
+        background: #fff;
+        padding: 25px;
+        margin-bottom: 25px;
+        border-top: 4px solid #940000;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+
+    @media (max-width: 991px) {
+        .library-main-container {
+            flex-direction: column;
+        }
+        .library-sidebar {
+            width: 100%;
+            position: relative;
+            top: 0;
+        }
+    }
 </style>
 
 <div class="content mt-3">
-    <!-- Header Section (Expandable Pattern) -->
+    <!-- Header Section (Always Visible Actions) -->
     <div class="row mb-4">
         <div class="col-md-12">
-            <div class="card border-0 shadow-sm" style="border-radius: 0; border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
+            <div class="card border-0 shadow-sm" style="border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">MANAGE LIBRARY RESOURCES</h4>
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">LIBRARY MANAGEMENT SYSTEM</h4>
                             <p class="text-muted mb-0 small" style="font-weight: 600;">Monitor book circulation, inventory health, and student borrowing activities.</p>
                         </div>
-                        <button class="btn shadow-sm text-white" id="toggleLibrarySettingsBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 20px;">
-                            <i class="fa fa-cog text-white"></i> SETTINGS
-                        </button>
+                        <div class="col-md-6 text-right">
+                            <button class="btn shadow-sm text-white" id="toggleActionsBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 25px; transition: all 0.3s ease;">
+                                <i class="fa fa-cogs"></i> ACTION <i class="fa fa-chevron-down ml-2" id="actionChevron"></i>
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Expanded Settings Section -->
-                    <div id="expandedLibrarySettings" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(148, 0, 0, 0.1); position: relative;">
-                        <button type="button" class="close" onclick="$('#expandedLibrarySettings').slideUp(300);" style="position: absolute; right: 10px; top: 10px; color: #000000; opacity: 1;">&times;</button>
+                    <!-- Expanded Actions Section -->
+                    <div id="expandedActions" style="display: none; margin-top: 25px; padding-top: 25px; border-top: 1px solid rgba(148, 0, 0, 0.1); position: relative;">
+                        <button type="button" class="close" onclick="$('#expandedActions').slideUp(300); $('#actionChevron').removeClass('fa-chevron-up').addClass('fa-chevron-down');" style="position: absolute; right: 10px; top: 10px; color: #000; opacity: 0.5;">&times;</button>
                         <div class="row text-center">
                             <div class="col-md-3 border-right">
-                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="addBookBtnExp">
-                                    <i class="fa fa-plus-circle fa-2x mb-2" style="color: #940000;"></i>
-                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ADD NEW BOOK</h6>
+                                <a href="javascript:void(0)" class="text-decoration-none d-block py-4 setting-item" onclick="showAddBookModal()">
+                                    <i class="fa fa-plus-circle fa-2x mb-3 text-success"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f; letter-spacing: 0.5px;">ADD BOOK</h6>
                                 </a>
                             </div>
                             <div class="col-md-3 border-right">
-                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="borrowBookBtnExp">
-                                    <i class="fa fa-hand-paper-o fa-2x mb-2" style="color: #940000;"></i>
-                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">BORROW BOOK</h6>
+                                <a href="javascript:void(0)" class="text-decoration-none d-block py-4 setting-item" onclick="showBorrowBookModal()">
+                                    <i class="fa fa-hand-paper-o fa-2x mb-3 text-primary"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f; letter-spacing: 0.5px;">BORROW / LEND</h6>
                                 </a>
                             </div>
                             <div class="col-md-3 border-right">
-                                <a href="#" class="text-decoration-none d-block py-3 setting-item" onclick="$('[data-target=\'#borrowsTab\']').click()">
-                                    <i class="fa fa-list-ul fa-2x mb-2" style="color: #940000;"></i>
-                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">VIEW RECORDS</h6>
+                                <a href="javascript:void(0)" class="text-decoration-none d-block py-4 setting-item" onclick="showDamagedBookModal()">
+                                    <i class="fa fa-wrench fa-2x mb-3 text-warning"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f; letter-spacing: 0.5px;">RECORD DAMAGE</h6>
                                 </a>
                             </div>
                             <div class="col-md-3">
-                                <a href="#" class="text-decoration-none d-block py-3 setting-item" onclick="$('[data-target=\'#statisticsTab\']').click()">
-                                    <i class="fa fa-chart-line fa-2x mb-2" style="color: #940000;"></i>
-                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">INVENTORY STATS</h6>
+                                <a href="javascript:void(0)" class="text-decoration-none d-block py-4 setting-item" onclick="showLostBookModal()">
+                                    <i class="fa fa-times-circle fa-2x mb-3 text-danger"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f; letter-spacing: 0.5px;">RECORD LOSS</h6>
                                 </a>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Stats Section -->
-    <div class="row mb-4">
-        <div class="col">
-            <div class="stat-card-new shadow-sm text-center">
-                <i class="fa fa-book fa-2x"></i>
-                <h4 class="mb-0">{{ $totalBooks ?? 0 }}</h4>
-                <p class="mb-0">TOTAL BOOKS</p>
-            </div>
-        </div>
-        <div class="col">
-            <div class="stat-card-new shadow-sm text-center">
-                <i class="fa fa-check-circle fa-2x"></i>
-                <h4 class="mb-0">{{ $availableBooks ?? 0 }}</h4>
-                <p class="mb-0">AVAILABLE</p>
-            </div>
-        </div>
-        <div class="col">
-            <div class="stat-card-new shadow-sm text-center">
-                <i class="fa fa-hand-holding fa-2x"></i>
-                <h4 class="mb-0">{{ $issuedBooks ?? 0 }}</h4>
-                <p class="mb-0">BORROWED</p>
-            </div>
-        </div>
-        <div class="col">
-            <div class="stat-card-new shadow-sm text-center">
-                <i class="fa fa-clock fa-2x"></i>
-                <h4 class="mb-0">{{ $overdueBooks ?? 0 }}</h4>
-                <p class="mb-0">OVERDUE</p>
-            </div>
-        </div>
-        <div class="col">
-            <div class="stat-card-new shadow-sm text-center">
-                <i class="fa fa-times-circle fa-2x"></i>
-                <h4 class="mb-0">{{ $lostBooks ?? 0 }}</h4>
-                <p class="mb-0">LOST</p>
-            </div>
-        </div>
-        <div class="col">
-            <div class="stat-card-new shadow-sm text-center">
-                <i class="fa fa-wrench fa-2x"></i>
-                <h4 class="mb-0">{{ $damagedBooks ?? 0 }}</h4>
-                <p class="mb-0">DAMAGED</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header bg-primary-custom text-white">
-            <strong>Library Management</strong>
-        </div>
-        <div class="card-body library-management-body">
-            <div class="row">
-                <div class="col-sm-4">
-                    <div class="list-group library-menu">
-                        <a class="list-group-item active" data-target="#booksTab">
-                            <i class="fa fa-book"></i> Books
-                        </a>
-                        <a class="list-group-item" data-target="#borrowsTab">
-                            <i class="fa fa-hand-paper-o"></i> Borrow Records
-                        </a>
-                        <a class="list-group-item" data-target="#statisticsTab">
-                            <i class="fa fa-bar-chart"></i> Statistics
-                        </a>
-                        <a class="list-group-item" data-target="#lostTab">
-                            <i class="fa fa-ban"></i> Lost Books
-                        </a>
-                        <a class="list-group-item" data-target="#damagedTab">
-                            <i class="fa fa-wrench"></i> Damaged Books
-                        </a>
-                        <a class="list-group-item" data-target="#studentsTab">
-                            <i class="fa fa-users"></i> Students
-                        </a>
-                        <a class="list-group-item" data-action="add-book">
-                            <i class="fa fa-plus"></i> Add Book
-                        </a>
-                        <a class="list-group-item" data-action="borrow-book">
-                            <i class="fa fa-hand-paper-o"></i> Borrow Book
-                        </a>
-                    </div>
-                </div>
-
-                <div class="col-md-8">
-                    <!-- Search and Filter Section -->
-                    <div class="search-filter-section">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <label class="form-label"><i class="fa fa-filter"></i> Select Class</label>
-                                <select class="form-control" id="filterClass">
-                                    <option value="">All Classes</option>
-                                    @foreach($classes as $class)
-                                        <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label"><i class="fa fa-bookmark"></i> Select Subject</label>
-                                <select class="form-control" id="filterSubject">
-                                    <option value="">All Subjects</option>
-                                    @foreach($subjects as $subject)
-                                        <option value="{{ $subject->subjectID }}">{{ $subject->subject_name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label"><i class="fa fa-search"></i> Search Book</label>
-                                <input type="text" class="form-control" id="searchBook" placeholder="Search by title, author, or ISBN...">
-                            </div>
-                            <div class="col-md-12 mt-2">
-                                <button class="btn btn-primary-custom w-100" onclick="loadBooks()">
-                                    <i class="fa fa-search"></i> Search
-                                </button>
-                            </div>
+                    
+                    <!-- Quick Stats Inline -->
+                    <div class="row mt-4 no-gutters text-center border-top pt-3">
+                        <div class="col">
+                            <h6 class="text-muted small font-weight-bold mb-1">TOTAL</h6>
+                            <h5 class="text-primary-custom font-weight-bold mb-0">{{ $totalBooks ?? 0 }}</h5>
+                        </div>
+                        <div class="col border-left">
+                            <h6 class="text-muted small font-weight-bold mb-1">AVAILABLE</h6>
+                            <h5 class="text-success font-weight-bold mb-0">{{ $availableBooks ?? 0 }}</h5>
+                        </div>
+                        <div class="col border-left">
+                            <h6 class="text-muted small font-weight-bold mb-1">BORROWED</h6>
+                            <h5 class="text-warning font-weight-bold mb-0">{{ $issuedBooks ?? 0 }}</h5>
+                        </div>
+                        <div class="col border-left">
+                            <h6 class="text-muted small font-weight-bold mb-1">OVERDUE</h6>
+                            <h5 class="text-danger font-weight-bold mb-0">{{ $overdueBooks ?? 0 }}</h5>
+                        </div>
+                        <div class="col border-left">
+                            <h6 class="text-muted small font-weight-bold mb-1">LOST</h6>
+                            <h5 class="text-indigo font-weight-bold mb-0" style="color: #6f42c1;">{{ $lostBooks ?? 0 }}</h5>
+                        </div>
+                        <div class="col border-left">
+                            <h6 class="text-muted small font-weight-bold mb-1">DAMAGED</h6>
+                            <h5 class="text-orange font-weight-bold mb-0" style="color: #fd7e14;">{{ $damagedBooks ?? 0 }}</h5>
                         </div>
                     </div>
-
-                    <!-- Main Content Tabs -->
-                    <ul class="nav nav-tabs mb-3 d-none" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active" data-toggle="tab" href="#booksTab">
-                                <i class="fa fa-book"></i> Books
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-toggle="tab" href="#borrowsTab">
-                                <i class="fa fa-hand-paper-o"></i> Borrow Records
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-toggle="tab" href="#statisticsTab">
-                                <i class="fa fa-bar-chart"></i> Statistics
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-toggle="tab" href="#lostTab">
-                                <i class="fa fa-ban"></i> Lost Books
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-toggle="tab" href="#damagedTab">
-                                <i class="fa fa-wrench"></i> Damaged Books
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-toggle="tab" href="#studentsTab">
-                                <i class="fa fa-users"></i> Students
-                            </a>
-                        </li>
-                    </ul>
-
-                    <div class="tab-content">
-        <!-- Books Tab -->
-        <div class="tab-pane fade show active" id="booksTab">
-            <div class="library-card">
-                <div class="card-header-custom">
-                    <h5 class="card-title-custom">
-                        <i class="fa fa-book"></i> Books Summary
-                    </h5>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Class</th>
-                                <th>Total Books</th>
-                                <th>View</th>
-                            </tr>
-                        </thead>
-                        <tbody id="booksTableBody">
-                            <tr>
-                                <td colspan="4" class="text-center">Loading...</td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Borrows Tab -->
-        <div class="tab-pane fade" id="borrowsTab">
-            <div class="library-card">
-                <div class="card-header-custom">
-                    <h5 class="card-title-custom">
-                        <i class="fa fa-hand-paper-o"></i> Book Borrow Records
-                    </h5>
-                    <button class="btn btn-primary-custom" onclick="showBorrowBookModal()">
-                        <i class="fa fa-plus"></i> Borrow Book
+    <!-- Main Content Area -->
+    <div class="library-content-area" style="width: 100%;">
+        <!-- Filter Bar -->
+        <div class="report-card mb-4 p-3 filters-bar shadow-sm">
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label" style="font-size: 10px;">Filter by Class</label>
+                    <select class="form-control form-control-sm" id="filterClass" style="border-radius: 0; font-weight: 700;">
+                        <option value="">ALL CLASSES</option>
+                        @foreach($classes as $class)
+                            <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" style="font-size: 10px;">Filter by Subject</label>
+                    <select class="form-control form-control-sm" id="filterSubject" style="border-radius: 0; font-weight: 700;">
+                        <option value="">ALL SUBJECTS</option>
+                        @foreach($subjects as $subject)
+                            <option value="{{ $subject->subjectID }}">{{ $subject->subject_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" style="font-size: 10px;">Status</label>
+                    <select class="form-control form-control-sm" id="filterStatus" style="border-radius: 0; font-weight: 700;">
+                        <option value="">ANY STATUS</option>
+                        <option value="available">AVAILABLE</option>
+                        <option value="borrowed">BORROWED</option>
+                        <option value="overdue">OVERDUE</option>
+                        <option value="lost">LOST</option>
+                        <option value="damaged">DAMAGED</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" style="font-size: 10px;">Search Keyword</label>
+                    <input type="text" class="form-control form-control-sm" id="searchBook" placeholder="Title, ISBN, Author..." style="border-radius: 0;">
+                </div>
+                <div class="col-md-1">
+                    <button class="btn btn-primary-custom btn-sm w-100" onclick="loadBooks()">
+                        <i class="fa fa-refresh"></i>
                     </button>
                 </div>
-                <div class="mb-3">
-                    <select class="form-control" id="filterBorrowStatus" style="width: 200px; display: inline-block;">
-                        <option value="">All Status</option>
-                        <option value="borrowed">Borrowed</option>
-                        <option value="returned">Returned</option>
-                    </select>
-                    <select class="form-control ml-2" id="filterBorrowDue" style="width: 240px; display: inline-block;">
-                        <option value="">All Due Status</option>
-                        <option value="overdue">Return Date Passed</option>
-                        <option value="not_due">Return Date Not Reached</option>
-                    </select>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover" id="borrowsTable">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Student</th>
-                                <th>Admission No.</th>
-                                <th>Book</th>
-                                <th>Class</th>
-                                <th>Subject</th>
-                                <th>Borrow Date</th>
-                                <th>Expected Return</th>
-                                <th>Return Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="borrowsTableBody">
-                            <tr>
-                                <td colspan="11" class="text-center">Loading...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
 
-        <!-- Statistics Tab -->
-        <div class="tab-pane fade" id="statisticsTab">
-            <div class="library-card">
-                <div class="card-header-custom">
-                    <h5 class="card-title-custom">
-                        <i class="fa fa-bar-chart"></i> Book Statistics by Class and Subject
-                    </h5>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label">Select Class</label>
-                        <select class="form-control" id="statClass">
-                            <option value="">All Classes</option>
-                            @foreach($classes as $class)
-                                <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Select Subject</label>
-                        <select class="form-control" id="statSubject">
-                            <option value="">All Subjects</option>
-                            @foreach($subjects as $subject)
-                                <option value="{{ $subject->subjectID }}">{{ $subject->subject_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">&nbsp;</label>
-                        <button class="btn btn-primary-custom w-100" onclick="loadStatistics()">
-                            <i class="fa fa-refresh"></i> Get Statistics
-                        </button>
-                    </div>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Class</th>
-                                <th>Subject</th>
-                                <th>Total Books</th>
-                                <th>Available</th>
-                                <th>Issued</th>
-                                <th>Book Types</th>
-                            </tr>
-                        </thead>
-                        <tbody id="statisticsTableBody">
-                            <tr>
-                                <td colspan="6" class="text-center">Select class and/or subject to view statistics</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+        <!-- Books Catalog -->
+        <div class="report-card mb-0" style="border-top: none; background: transparent; padding: 0;">
+            <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white shadow-sm">
+                <h5 class="mb-0 font-weight-bold" style="color: #940000;"><i class="fa fa-th"></i> BOOKS CATALOG</h5>
+                <div class="text-muted small font-weight-bold" id="booksCountInfo">Loading inventory...</div>
             </div>
-        </div>
-        <!-- Lost Books Tab -->
-        <div class="tab-pane fade" id="lostTab">
-            <div class="library-card">
-                <div class="card-header-custom">
-                    <h5 class="card-title-custom">
-                        <i class="fa fa-ban"></i> Lost Books
-                    </h5>
-                    <button class="btn btn-primary-custom" onclick="showLostBookModal()">
-                        <i class="fa fa-plus"></i> Record Lost Book
-                    </button>
+            
+            <!-- Pattern Key Legend -->
+            <div class="mb-3 px-3 d-flex flex-wrap align-items-center bg-white p-2 border-bottom shadow-sm">
+                <span class="mr-3 small"><strong>PATTERN KEY:</strong></span>
+                <span class="mr-3 small"><i class="fa fa-circle text-success"></i> AVAILABLE</span>
+                <span class="mr-3 small"><i class="fa fa-circle text-warning"></i> OCCUPIED</span>
+                <span class="mr-3 small"><i class="fa fa-circle text-danger"></i> OVERDUE</span>
+                <span class="mr-3 small"><i class="fa fa-circle" style="color: #6f42c1;"></i> LOST</span>
+                <span class="mr-3 small"><i class="fa fa-check-circle" style="color: #a29bfe;"></i> LOST & RESOLVED</span>
+                <span class="mr-3 small"><i class="fa fa-circle" style="color: #fd7e14;"></i> DAMAGED</span>
+                <span class="mr-3 small"><i class="fa fa-check-circle" style="color: #ffbe76;"></i> DAMAGED & RESOLVED</span>
+            </div>
+
+            <div class="position-relative" style="min-height: 400px;">
+                <div id="loaderOverlay" style="display:none; position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.7); z-index: 10; align-items:center; justify-content:center;">
+                    <div class="text-center">
+                        <div class="spinner-border text-danger" role="status" style="width: 3rem; height: 3rem;"></div>
+                        <h6 class="mt-2 font-weight-bold" style="color: #940000;">SYNCING...</h6>
                     </div>
-                <div class="mb-3 d-flex flex-wrap align-items-center">
-                    <span class="me-2"><strong>Pattern Key:</strong></span>
-                    <span class="pattern-key">
-                        <span class="pattern-swatch lost"></span> Lost
-                    </span>
                 </div>
-                <div class="mb-3">
-                    <select class="form-control" id="filterLostBy" style="width: 220px; display: inline-block;">
-                        <option value="">All</option>
-                        <option value="student">Lost by Student</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="row" id="lostBooksContainer">
-                    <div class="col-12 text-center">Loading...</div>
-                </div>
-            </div>
-        </div>
-        <!-- Damaged Books Tab -->
-        <div class="tab-pane fade" id="damagedTab">
-            <div class="library-card">
-                <div class="card-header-custom">
-                    <h5 class="card-title-custom">
-                        <i class="fa fa-wrench"></i> Damaged Books
-                    </h5>
-                    <button class="btn btn-primary-custom" onclick="showDamagedBookModal()">
-                        <i class="fa fa-plus"></i> Record Damaged Book
-                    </button>
-                </div>
-                <div class="mb-3 d-flex flex-wrap align-items-center">
-                    <span class="me-2"><strong>Pattern Key:</strong></span>
-                    <span class="pattern-key">
-                        <span class="pattern-swatch damaged"></span> Damaged
-                    </span>
-                </div>
-                <div class="mb-3">
-                    <select class="form-control" id="filterDamagedBy" style="width: 220px; display: inline-block;">
-                        <option value="">All</option>
-                        <option value="student">Damaged by Student</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="row" id="damagedBooksContainer">
-                    <div class="col-12 text-center">Loading...</div>
-                </div>
-            </div>
-        </div>
-        <!-- Students Tab -->
-        <div class="tab-pane fade" id="studentsTab">
-            <div class="library-card">
-                <div class="card-header-custom">
-                    <h5 class="card-title-custom">
-                        <i class="fa fa-users"></i> Students
-                    </h5>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Filter</label>
-                    <select class="form-control" id="studentFilter" style="width: 280px; display: inline-block;">
-                        <option value="occupied">Borrowed (Not Returned)</option>
-                        <option value="overdue">Borrowed (Return Date Passed)</option>
-                        <option value="not_due">Borrowed (Return Date Not Reached)</option>
-                        <option value="lost">Lost Books</option>
-                        <option value="damaged">Damaged Books</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <input type="text" class="form-control" id="studentSearch" placeholder="Search student, class, book title, ISBN...">
-                </div>
-                <div class="mb-3">
-                    <span><strong>Total:</strong> <span id="studentFilterTotal">0</span></span>
-                </div>
-                <div class="row" id="studentsWidgetContainer">
-                    <div class="col-12 text-center">Loading...</div>
-                </div>
-            </div>
-        </div>
-                    </div>
+                <div id="booksGrid" class="book-grid-container px-2">
+                    <!-- Widgets will be loaded here -->
                 </div>
             </div>
         </div>
@@ -602,7 +453,7 @@
                 <div class="mb-3 d-flex flex-wrap align-items-center">
                     <span class="me-2"><strong>Pattern Key:</strong></span>
                     <span class="pattern-key">
-                        <span class="pattern-swatch available"></span> Free
+                        <span class="pattern-swatch available"></span> Available
                     </span>
                     <span class="pattern-key">
                         <span class="pattern-swatch borrowed"></span> Occupied
@@ -623,7 +474,7 @@
                 <div class="mb-3">
                     <select class="form-control" id="viewBooksFilter" style="width: 240px; display: inline-block;">
                         <option value="">All</option>
-                        <option value="free">Free</option>
+                        <option value="free">Available</option>
                         <option value="occupied">Occupied</option>
                         <option value="overdue">Overdue</option>
                         <option value="lost">Lost</option>
@@ -744,8 +595,8 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fa fa-hand-paper-o"></i> Azima Kitabu
+                <h5 class="modal-title font-weight-bold" style="color: #940000;">
+                    <i class="fa fa-hand-paper-o"></i> LEND / BORROW BOOK
                 </h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -753,33 +604,46 @@
             </div>
             <div class="modal-body">
                 <form id="borrowForm">
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label">Book ISBN <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="borrowISBN" required placeholder="Enter book ISBN">
-                        <small id="borrowIsbnError" class="text-danger d-none">Book not found or already borrowed.</small>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="borrowISBN" placeholder="Scan or type ISBN..." required>
+                            <div class="input-group-append d-none" id="borrowIsbnSpiner">
+                                <span class="input-group-text bg-white"><i class="fa fa-spinner fa-spin text-primary"></i></span>
+                            </div>
+                        </div>
                     </div>
                     <div class="mb-3" id="borrowBookInfo" style="display: none;">
-                        <div class="p-2 border rounded bg-light">
-                            <div><strong>Title:</strong> <span id="borrowBookTitle"></span></div>
-                            <div><strong>Class:</strong> <span id="borrowBookClass"></span></div>
-                            <div><strong>Subject:</strong> <span id="borrowBookSubject"></span></div>
+                        <div class="p-3 border rounded shadow-sm" id="borrowBookDetailCard">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong id="borrowBookTitle" class="h6 mb-0 text-primary"></strong>
+                                <span id="borrowBookStatusBadge" class="badge"></span>
+                            </div>
+                            <div class="small">
+                                <div><strong>Class:</strong> <span id="borrowBookClass"></span></div>
+                                <div><strong>Subject:</strong> <span id="borrowBookSubject"></span></div>
+                                <div id="occupiedByDiv" class="mt-2 p-2 bg-warning-light rounded d-none" style="border-left: 4px solid #ffc107;">
+                                    <i class="fa fa-user"></i> <strong>Occupied By:</strong> <span id="borrowOccupiedBy"></span>
+                                </div>
+                            </div>
                         </div>
+                        <input type="hidden" id="isBookAvailableForBorrow" value="0">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Borrower Type <span class="text-danger">*</span></label>
                         <select class="form-control" id="borrowerType" onchange="toggleBorrowerSearch()">
                             <option value="student">Student</option>
                             <option value="teacher">Teacher</option>
-                            <option value="staff">Staff</option>
+                            <option value="staff">Other Staff</option>
                         </select>
                     </div>
                     <div class="mb-3" id="studentSearchDiv">
                         <label class="form-label" id="borrowerSearchLabel">Search Student <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="searchStudent" placeholder="Search by name or admission number...">
+                        <input type="text" class="form-control" id="searchStudent" placeholder="Search by name or reference...">
                         <input type="hidden" id="borrowStudentID">
                         <input type="hidden" id="borrowTeacherID">
                         <input type="hidden" id="borrowStaffID">
-                        <div id="studentResults" class="mt-2" style="max-height: 200px; overflow-y: auto; display: none;"></div>
+                        <div id="studentResults" class="mt-2 shadow-sm border rounded bg-white" style="max-height: 200px; overflow-y: auto; display: none; position: relative; z-index: 100;"></div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Expected Return Date <span class="text-danger">*</span></label>
@@ -815,9 +679,14 @@
             </div>
             <div class="modal-body">
                 <form id="lostForm">
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label">Book ISBN <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="lostIsbn" required>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="lostIsbn" placeholder="Scan or type ISBN..." required>
+                            <div class="input-group-append d-none" id="lostIsbnSpiner">
+                                <span class="input-group-text bg-white"><i class="fa fa-spinner fa-spin text-indigo"></i></span>
+                            </div>
+                        </div>
                     </div>
                     <div class="mb-3" id="lostBookInfo" style="display:none;">
                         <div class="p-2 border rounded bg-light">
@@ -829,20 +698,24 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Lost By <span class="text-danger">*</span></label>
-                        <select class="form-control" id="lostBy">
+                        <select class="form-control" id="lostBy" onchange="toggleIncidentBy('lost')" style="font-weight: 700;">
                             <option value="student">Student</option>
-                            <option value="other">Other</option>
+                            <option value="teacher">Teacher</option>
+                            <option value="staff">Other Staff</option>
+                            <option value="other">General / Other</option>
                         </select>
                     </div>
                     <div class="mb-3" id="lostStudentSection">
-                        <label class="form-label">Search Student <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="lostStudentSearch" placeholder="Search by name or admission number...">
+                        <label class="form-label" id="lostSearchLabel">Search Student <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="lostStudentSearch" placeholder="Search by name or reference...">
                         <input type="hidden" id="lostStudentID">
-                        <div id="lostStudentResults" class="mt-2" style="max-height: 200px; overflow-y: auto; display: none;"></div>
+                        <input type="hidden" id="lostTeacherID">
+                        <input type="hidden" id="lostStaffID">
+                        <div id="lostStudentResults" class="mt-2 shadow-sm border rounded bg-white" style="max-height: 200px; overflow-y: auto; display: none; position: relative; z-index: 100;"></div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-control" id="lostDescription" rows="2"></textarea>
+                        <label class="form-label">Reason</label>
+                        <textarea class="form-control" id="lostReason" rows="2"></textarea>
                     </div>
                 </form>
             </div>
@@ -870,9 +743,14 @@
             </div>
             <div class="modal-body">
                 <form id="damagedForm">
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label">Book ISBN <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="damagedIsbn" required>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="damagedIsbn" placeholder="Scan or type ISBN..." required>
+                            <div class="input-group-append d-none" id="damagedIsbnSpiner">
+                                <span class="input-group-text bg-white"><i class="fa fa-spinner fa-spin text-orange"></i></span>
+                            </div>
+                        </div>
                     </div>
                     <div class="mb-3" id="damagedBookInfo" style="display:none;">
                         <div class="p-2 border rounded bg-light">
@@ -884,20 +762,24 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Damaged By <span class="text-danger">*</span></label>
-                        <select class="form-control" id="damagedBy">
+                        <select class="form-control" id="damagedBy" onchange="toggleIncidentBy('damaged')" style="font-weight: 700;">
                             <option value="student">Student</option>
-                            <option value="other">Other</option>
+                            <option value="teacher">Teacher</option>
+                            <option value="staff">Other Staff</option>
+                            <option value="other">General / Other</option>
                         </select>
                     </div>
                     <div class="mb-3" id="damagedStudentSection">
-                        <label class="form-label">Search Student <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="damagedStudentSearch" placeholder="Search by name or admission number...">
+                        <label class="form-label" id="damagedSearchLabel">Search Student <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="damagedStudentSearch" placeholder="Search by name or reference...">
                         <input type="hidden" id="damagedStudentID">
-                        <div id="damagedStudentResults" class="mt-2" style="max-height: 200px; overflow-y: auto; display: none;"></div>
+                        <input type="hidden" id="damagedTeacherID">
+                        <input type="hidden" id="damagedStaffID">
+                        <div id="damagedStudentResults" class="mt-2 shadow-sm border rounded bg-white" style="max-height: 200px; overflow-y: auto; display: none; position: relative; z-index: 100;"></div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea class="form-control" id="damagedDescription" rows="2"></textarea>
+                        <label class="form-label">Reason</label>
+                        <textarea class="form-control" id="damagedReason" rows="2"></textarea>
                     </div>
                 </form>
             </div>
@@ -906,6 +788,32 @@
                 <button type="button" class="btn btn-primary-custom" onclick="saveDamagedBook()">
                     <i class="fa fa-save"></i> Save
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Book Details Detail Modal (The Popup requested) -->
+<div class="modal fade" id="bookDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 0; border-top: 5px solid #940000;">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title font-weight-bold" style="color: #940000;">
+                    <i class="fa fa-book"></i> BOOK INFORMATION
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body p-0" id="bookDetailsContent">
+                <!-- Content loaded dynamically -->
+                <div class="p-5 text-center">
+                    <i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" style="border-radius: 0;">CLOSE</button>
+                <div id="bookActionFooter">
+                    <!-- Dynamic action buttons (Edit, Return, etc.) -->
+                </div>
             </div>
         </div>
     </div>
@@ -974,7 +882,59 @@
     </div>
 </div>
 
+<!-- Resolve Incident Modal -->
+<div class="modal fade" id="resolveIncidentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title font-weight-bold">
+                    <i class="fa fa-gavel"></i> RESOLVE INCIDENT
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="resolveIncidentID">
+                <input type="hidden" id="resolveIncidentType">
+                <input type="hidden" id="resolveBookID">
+
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold">Resolution Method <span class="text-danger">*</span></label>
+                    <select class="form-control" id="resolutionMethod" onchange="toggleResolutionFields()" style="font-weight: 700;">
+                        <option value="returned">Returned / Found / Fixed</option>
+                        <option value="replacenew">Replace New (Provide New ISBN)</option>
+                        <option value="cash">Cash Payment (Tsh)</option>
+                    </select>
+                </div>
+
+                <div class="mb-3 d-none" id="replacementIsbnSection">
+                    <label class="form-label font-weight-bold">New ISBN for Replacement <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="replacementIsbn" placeholder="Enter new ISBN for the new copy">
+                </div>
+
+                <div class="mb-3 d-none" id="paymentAmountSection">
+                    <label class="form-label font-weight-bold">Amount Paid (Tsh) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="paymentAmount" placeholder="Enter amount paid">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold">Resolution Notes</label>
+                    <textarea class="form-control" id="resolveNotes" rows="2" placeholder="Any additional notes..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">CLOSE</button>
+                <button type="button" class="btn btn-primary-custom" onclick="submitResolution()">
+                    <i class="fa fa-check"></i> SUBMIT RESOLUTION
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @include('includes.footer')
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- DataTables CSS -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap4.min.css">
@@ -982,2336 +942,848 @@
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<!-- DataTables JS -->
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap4.min.js"></script>
-
 <script>
-    // Wait for jQuery to be loaded
     (function() {
+        // Global State
+        let searchTimer = null;
+        let isbnCheckTimeout = null;
+        let allBooks = [];
+
         function initLibrary() {
-            // Check if jQuery is loaded
             if (typeof jQuery === 'undefined') {
-                console.error('jQuery is not loaded');
                 setTimeout(initLibrary, 100);
                 return;
             }
-            
-            // Use jQuery.noConflict if needed, or just use jQuery
             var $ = jQuery;
-            if (typeof window.$ !== 'function') {
-                window.$ = jQuery;
-            }
             
             $(document).ready(function() {
-                console.log('Document ready, jQuery version:', $.fn.jquery);
-
-                // Toggle book type fields
-                $(document).on('change', '#bookType', function() {
-                    const type = $(this).val();
-                    if (type === 'Other') {
-                        $('#classSelectionDiv, #subjectSelectionDiv').hide();
-                        $('#bookClassID, #bookSubjectID').removeAttr('required').val('');
-                    } else {
-                        $('#classSelectionDiv, #subjectSelectionDiv').show();
-                        $('#bookClassID, #bookSubjectID').attr('required', 'required');
-                    }
+                // Initialize default view
+                loadBooks();
+                loadBorrows();
+                
+                // Filter Events
+                $('#filterClass, #filterSubject, #filterStatus').on('change', function() {
+                    loadBooks();
+                });
+                
+                $('#searchBook').on('input', function() {
+                    clearTimeout(searchTimer);
+                    searchTimer = setTimeout(loadBooks, 500);
                 });
 
-                // Sidebar menu to control tabs
-                $('.library-menu .list-group-item').on('click', function() {
-                    const action = $(this).data('action');
-                    if (action === 'add-book') {
-                        showAddBookModal();
-                        return;
-                    }
-                    if (action === 'borrow-book') {
-                        showBorrowBookModal();
-                        return;
-                    }
-                    $('.library-menu .list-group-item').removeClass('active');
+                $('.filterBorrowStatusBtn').on('click', function() {
+                    $('.filterBorrowStatusBtn').removeClass('active');
                     $(this).addClass('active');
-                    const target = $(this).data('target');
-                    if (target) {
-                        const tabLink = $('.nav-tabs a[href="' + target + '"]');
-                        if (tabLink.length && typeof tabLink.tab === 'function') {
-                            tabLink.tab('show');
-                        }
-                    }
-                });
-                
-                // Load books and borrows after a short delay to ensure DOM is ready
-                setTimeout(function() {
-                    loadBooks();
                     loadBorrows();
-            loadLostBooks();
-            loadDamagedBooks();
-            loadLibraryStudents();
-                }, 100);
-        
-        // Load subjects when class changes in modal
-        $('#bookClassID').on('change', function() {
-            const classID = $(this).val();
-            console.log('Class changed in modal:', classID);
-            if (classID) {
-                loadSubjectsByClass(classID);
-            } else {
-                $('#bookSubjectID').html('<option value="">Select Subject</option>');
-            }
-        });
-        
-        // Load subjects when class changes in filter
-        $('#filterClass').on('change', function() {
-            // This is for filtering books, not for modal
-            loadBooks();
-        });
-        
-        // Test modal on page load
-        console.log('Modal element exists:', $('#bookModal').length > 0);
-
-        // Search students - use event delegation for dynamically created elements
-        // Declare searchTimeout in window scope so it's accessible everywhere
-        window.searchTimeout = null;
-        $(document).on('input', '#searchStudent', function() {
-            if (window.searchTimeout) {
-                clearTimeout(window.searchTimeout);
-            }
-            const search = $(this).val();
-            console.log('Student search input:', search);
-            if (search && search.trim().length >= 2) {
-                window.searchTimeout = setTimeout(() => searchStudents(search.trim()), 300);
-            } else {
-                $('#studentResults').hide();
-            }
-        });
-
-        // Filter borrows
-        $('#filterBorrowStatus').on('change', function() {
-            loadBorrows();
-        });
-        $('#filterBorrowDue').on('change', function() {
-            loadBorrows();
-        });
-
-        $('#filterLostBy').on('change', function() {
-            loadLostBooks();
-        });
-        $('#filterDamagedBy').on('change', function() {
-            loadDamagedBooks();
-        });
-        $('#studentFilter').on('change', function() {
-            loadLibraryStudents();
-        });
-        $('#studentSearch').on('input', function() {
-            applyStudentSearch();
-        });
-
-        $('#viewBooksFilter').on('change', function() {
-            applyViewBooksFilters();
-        });
-
-        // View books in modal
-        $(document).on('click', '.view-books-btn', function() {
-            const classID = $(this).data('class-id');
-            const className = $(this).data('class-name');
-            openBooksView(classID, className);
-        });
-
-        // ISBN realtime check for add/edit book
-        $(document).on('input', '.isbn-input', function() {
-            const isbn = $(this).val().trim();
-            const bookID = $('#bookID').val();
-            const $input = $(this);
-            if (isbnCheckTimeout) {
-                clearTimeout(isbnCheckTimeout);
-            }
-            isbnCheckTimeout = setTimeout(() => checkIsbnAvailability($input, isbn, bookID), 300);
-        });
-
-        // Add/remove ISBN rows
-        $('#addIsbnRowBtn').on('click', function() {
-            addIsbnRow();
-        });
-        $(document).on('click', '.remove-isbn-btn', function() {
-            $(this).closest('.isbn-row').remove();
-            updateIsbnRemoveButtons();
-        });
-
-        // Filter books in view modal
-        $(document).on('input', '#viewBooksSearch', function() {
-            applyViewBooksFilters();
-        });
-
-        // Toggle occupied details
-        $(document).on('click', '.toggle-occupied', function() {
-            const target = $(this).data('target');
-            $(target).toggleClass('d-none');
-        });
-
-        $(document).on('change', '.payment-method', function() {
-            const $wrapper = $(this).closest('div').parent();
-            const method = $(this).val();
-            const $amount = $wrapper.find('.payment-amount');
-            if (method === 'cash') {
-                $amount.show();
-            } else {
-                $amount.hide();
-                $amount.find('input').val('');
-            }
-        });
-
-        $('#lostBy').on('change', function() {
-            const val = $(this).val();
-            if (val === 'student') {
-                $('#lostStudentSection').show();
-            } else {
-                $('#lostStudentSection').hide();
-                $('#lostStudentID').val('');
-                $('#lostStudentSearch').val('');
-                $('#lostStudentResults').hide();
-            }
-        });
-
-        $('#damagedBy').on('change', function() {
-            const val = $(this).val();
-            if (val === 'student') {
-                $('#damagedStudentSection').show();
-            } else {
-                $('#damagedStudentSection').hide();
-                $('#damagedStudentID').val('');
-                $('#damagedStudentSearch').val('');
-                $('#damagedStudentResults').hide();
-            }
-        });
-
-        $(document).on('input', '#lostStudentSearch', function() {
-            const search = $(this).val();
-            if (window.searchTimeout) {
-                clearTimeout(window.searchTimeout);
-            }
-            if (search && search.trim().length >= 2) {
-                window.searchTimeout = setTimeout(() => searchStudentsForLoss(search.trim()), 300);
-            } else {
-                $('#lostStudentResults').hide();
-            }
-        });
-
-        $(document).on('input', '#damagedStudentSearch', function() {
-            const search = $(this).val();
-            if (window.searchTimeout) {
-                clearTimeout(window.searchTimeout);
-            }
-            if (search && search.trim().length >= 2) {
-                window.searchTimeout = setTimeout(() => searchStudentsForDamage(search.trim()), 300);
-            } else {
-                $('#damagedStudentResults').hide();
-            }
-        });
-
-        $(document).on('input', '#lostIsbn', function() {
-            const isbn = $(this).val().trim();
-            if (isbnCheckTimeout) {
-                clearTimeout(isbnCheckTimeout);
-            }
-            isbnCheckTimeout = setTimeout(() => lookupLossBookByIsbn(isbn), 300);
-        });
-
-        $(document).on('input', '#damagedIsbn', function() {
-            const isbn = $(this).val().trim();
-            if (isbnCheckTimeout) {
-                clearTimeout(isbnCheckTimeout);
-            }
-            isbnCheckTimeout = setTimeout(() => lookupDamageBookByIsbn(isbn), 300);
-        });
-
-        // Lookup book by ISBN when borrowing
-        $(document).on('input', '#borrowISBN', function() {
-            const isbn = $(this).val().trim();
-            if (isbnCheckTimeout) {
-                clearTimeout(isbnCheckTimeout);
-            }
-            isbnCheckTimeout = setTimeout(() => lookupBookByIsbn(isbn), 300);
-        });
-
-        });
-
-        // Toggle logic for expanded library settings
-        $(document).on('click', '#toggleLibrarySettingsBtn', function(e) {
-            e.preventDefault();
-            $('#expandedLibrarySettings').slideToggle(300);
-        });
-
-        // Link expanded buttons to original functions
-        $(document).on('click', '#addBookBtnExp', function(e) {
-            e.preventDefault();
-            showAddBookModal();
-        });
-
-        $(document).on('click', '#borrowBookBtnExp', function(e) {
-            e.preventDefault();
-            showBorrowBookModal();
-        });
-        }
-        
-        // Start initialization
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initLibrary);
-        } else {
-            initLibrary();
-        }
-    })();
-
-    function loadBooks() {
-        if (typeof jQuery === 'undefined') {
-            console.error('jQuery not loaded');
-            return;
-        }
-        var $ = jQuery;
-        
-        // Show loading state
-        $('#booksTableBody').html('<tr><td colspan="4" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading books...</td></tr>');
-        
-        $.ajax({
-            url: '{{ route("get_books") }}',
-            type: 'GET',
-            data: {
-                classID: $('#filterClass').val(),
-                subjectID: $('#filterSubject').val(),
-                search: $('#searchBook').val()
-            },
-            success: function(response) {
-                console.log('Books response:', response);
-                if (response.success) {
-                    let html = '';
-                    if (response.books && response.books.length > 0) {
-                        const grouped = {};
-                        response.books.forEach(book => {
-                            const classID = book.class ? book.class.classID : 'no-class';
-                            const className = book.class ? (book.class.class_name || '-') : '-';
-                            if (!grouped[classID]) {
-                                grouped[classID] = { classID: classID, className: className, total: 0 };
-                            }
-                            grouped[classID].total += 1;
-                        });
-
-                        const rows = Object.values(grouped);
-                        rows.forEach((row, index) => {
-                            html += `
-                                <tr>
-                                    <td>${index + 1}</td>
-                                    <td>${row.className}</td>
-                                    <td>${row.total}</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-primary view-books-btn" data-class-id="${row.classID}" data-class-name="${row.className}">
-                                            <i class="fa fa-eye"></i> View
-                                        </button>
-                                    </td>
-                                </tr>
-                            `;
-                        });
-                    } else {
-                        html = '<tr><td colspan="4" class="text-center">No books found</td></tr>';
-                    }
-                    $('#booksTableBody').html(html);
-                } else {
-                    $('#booksTableBody').html('<tr><td colspan="4" class="text-center">Error loading books</td></tr>');
-                    console.error('Error in response:', response);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error loading books:', error);
-                console.error('Response:', xhr.responseText);
-                $('#booksTableBody').html('<tr><td colspan="4" class="text-center">Error loading books. Please try again.</td></tr>');
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Failed to load books: ' + (xhr.responseJSON?.error || error)
                 });
-            }
-        });
-    }
 
-    function openBooksView(classID, className) {
-        if (typeof jQuery === 'undefined') {
-            console.error('jQuery not loaded');
-            return;
-        }
-        var $ = jQuery;
-        $('#viewBooksModalTitle').html('<i class="fa fa-th"></i> ' + (className || 'View Books'));
-        $('#viewBooksSearch').val('');
-        $('#viewBooksFilter').val('');
-        $('#viewBooksWidgetContainer').html('<div class="col-12 text-center">Loading...</div>');
-        const $modal = $('#viewBooksModal');
-        if ($modal.length === 0) {
-            console.error('View Books modal not found');
-            return;
-        }
-        if (typeof $modal.modal === 'function') {
-            $modal.modal('show');
-        } else {
-            $modal.css('display', 'block');
-            $modal.addClass('show');
-            $('body').addClass('modal-open');
-            $('.modal-backdrop').remove();
-            $('body').append('<div class="modal-backdrop fade show"></div>');
-        }
-
-        $.ajax({
-            url: '{{ route("get_books") }}',
-            type: 'GET',
-            data: {
-                classID: classID !== 'no-class' ? classID : '',
-                subjectID: $('#filterSubject').val(),
-                search: $('#searchBook').val()
-            },
-            success: function(response) {
-                if (response.success) {
-                    renderBooksWidgets(response.books || []);
-                } else {
-                    $('#viewBooksWidgetContainer').html('<div class="col-12 text-center">Error loading books</div>');
-                }
-            },
-            error: function() {
-                $('#viewBooksWidgetContainer').html('<div class="col-12 text-center">Error loading books</div>');
-            }
-        });
-    }
-
-    function renderBooksWidgets(books) {
-        let html = '';
-        if (!books || books.length === 0) {
-            html = '<div class="col-12 text-center">No books found</div>';
-        } else {
-            books.forEach(book => {
-                const widgetId = `occupied-${book.bookID}`;
-                const statusClass = book.is_lost ? 'lost' : (book.is_damaged ? 'damaged' : (book.is_overdue ? 'overdue' : (book.is_available ? 'available' : 'borrowed')));
-                const statusText = book.is_lost ? 'Lost' : (book.is_damaged ? 'Damaged' : (book.is_overdue ? 'Overdue' : (book.is_available ? 'Free' : 'Occupied')));
-                const occupiedBy = book.occupied_by
-                    ? (book.occupied_by.is_teacher
-                        ? `${book.occupied_by.name} (${book.occupied_by.admission_number}) <span class="badge badge-info" style="font-size:10px;">Teacher</span> - ${book.occupied_by.class_name}`
-                        : (book.occupied_by.is_staff 
-                            ? `${book.occupied_by.name} (${book.occupied_by.admission_number}) <span class="badge badge-secondary" style="font-size:10px;">Staff</span> - ${book.occupied_by.class_name}`
-                            : `${book.occupied_by.name} (${book.occupied_by.admission_number}) - ${book.occupied_by.class_name}`))
-                    : '-';
-                const expectedReturn = book.borrow_expected_return_date ? formatDate(book.borrow_expected_return_date) : '-';
-                const searchKey = `${book.book_title || ''} ${book.author || ''} ${book.isbn || ''}`.trim();
-                const filterStatus = book.is_lost ? 'lost' : (book.is_damaged ? 'damaged' : (book.is_overdue ? 'overdue' : (book.is_available ? 'free' : 'occupied')));
-                const lossInfo = book.loss_info || null;
-                const damageInfo = book.damage_info || null;
-                const lossId = `loss-${book.bookID}`;
-                const damageId = `damage-${book.bookID}`;
-                const lossPayId = `loss-pay-${book.bookID}`;
-                const damagePayId = `damage-pay-${book.bookID}`;
-
-                html += `
-                    <div class="col-md-4 mb-3 book-widget-col">
-                        <div class="book-widget ${statusClass} ${book.is_lost ? 'lost' : ''} ${book.is_damaged ? 'damaged' : ''}" data-search="${searchKey}" data-filter="${filterStatus}">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="stat-icon"><i class="fa fa-book"></i></div>
-                                <div>
-                                    <div class="fw-bold">${book.book_title || '-'}</div>
-                                    <small class="text-muted">${book.author || '-'}</small>
-                                </div>
-                            </div>
-                            <div class="mb-1"><strong>ISBN:</strong> ${book.isbn || '-'}</div>
-                            <div class="mb-1"><strong>Status:</strong> ${statusText}</div>
-                            ${book.is_lost ? `<span class="badge badge-custom" style="background:#6f42c1;color:#fff;">Lost</span>` : ''}
-                            ${book.is_damaged ? `<span class="badge badge-custom" style="background:#fd7e14;color:#fff;">Damaged</span>` : ''}
-                            <div class="mt-2">
-                                <button class="btn btn-sm btn-primary" onclick="editBook(${book.bookID})">
-                                    <i class="fa fa-edit"></i> Edit
-                                </button>
-                            </div>
-                            ${book.is_lost ? `
-                                <span class="badge badge-custom toggle-occupied" style="background:#6f42c1;color:#fff;cursor:pointer;" data-target="#${lossId}">
-                                    <i class="fa fa-caret-down"></i> Lost
-                                </span>
-                                <div id="${lossId}" class="mt-2 d-none">
-                                    <div class="mb-1"><strong>Lost By:</strong> ${lossInfo && lossInfo.lost_by ? lossInfo.lost_by : '-'}</div>
-                                    ${lossInfo && lossInfo.student ? `
-                                        <div class="mb-1"><strong>Student:</strong> ${lossInfo.student.name} (${lossInfo.student.admission_number}) - ${lossInfo.student.class_name}</div>
-                                    ` : ''}
-                                    <div class="mb-1"><strong>Description:</strong> ${lossInfo && lossInfo.description ? lossInfo.description : '-'}</div>
-                                    <div class="mb-1"><strong>Return:</strong>
-                                        ${lossInfo && lossInfo.payment_status === 'paid' ? `
-                                            <span class="badge badge-custom badge-available">Paid</span>
-                                            <small class="text-muted">(${lossInfo.payment_method === 'cash' ? 'Cash' : 'Replace'}${lossInfo.payment_method === 'cash' && lossInfo.payment_amount ? ': ' + lossInfo.payment_amount : ''})</small>
-                                        ` : `
-                                            <span class="badge badge-custom badge-issued">Unpaid</span>
-                                        `}
-                                    </div>
-                                    ${lossInfo && lossInfo.payment_status !== 'paid' ? `
-                                    <div id="${lossPayId}" class="mt-2">
-                                        <div class="mb-2">
-                                            <label class="form-label">Return Method</label>
-                                            <select class="form-control payment-method">
-                                                <option value="replace">Replace New</option>
-                                                <option value="cash">Cash</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-2 payment-amount" style="display:none;">
-                                            <label class="form-label">Amount</label>
-                                            <input type="number" class="form-control payment-amount-input" min="0" step="0.01">
-                                        </div>
-                                        <button class="btn btn-sm btn-primary" onclick="submitPayment('lost', ${lossInfo ? lossInfo.lossID : 'null'}, '#${lossPayId}')">
-                                            <i class="fa fa-save"></i> Save
-                                        </button>
-                                    </div>
-                                    ` : ''}
-                                </div>
-                            ` : ''}
-                            ${book.is_damaged ? `
-                                <span class="badge badge-custom toggle-occupied" style="background:#fd7e14;color:#fff;cursor:pointer;" data-target="#${damageId}">
-                                    <i class="fa fa-caret-down"></i> Damaged
-                                </span>
-                                <div id="${damageId}" class="mt-2 d-none">
-                                    <div class="mb-1"><strong>Damaged By:</strong> ${damageInfo && damageInfo.damaged_by ? damageInfo.damaged_by : '-'}</div>
-                                    ${damageInfo && damageInfo.student ? `
-                                        <div class="mb-1"><strong>Student:</strong> ${damageInfo.student.name} (${damageInfo.student.admission_number}) - ${damageInfo.student.class_name}</div>
-                                    ` : ''}
-                                    <div class="mb-1"><strong>Description:</strong> ${damageInfo && damageInfo.description ? damageInfo.description : '-'}</div>
-                                    <div class="mb-1"><strong>Return:</strong>
-                                        ${damageInfo && damageInfo.payment_status === 'paid' ? `
-                                            <span class="badge badge-custom badge-available">Paid</span>
-                                            <small class="text-muted">(${damageInfo.payment_method === 'cash' ? 'Cash' : 'Replace'}${damageInfo.payment_method === 'cash' && damageInfo.payment_amount ? ': ' + damageInfo.payment_amount : ''})</small>
-                                        ` : `
-                                            <span class="badge badge-custom badge-issued">Unpaid</span>
-                                        `}
-                                    </div>
-                                    ${damageInfo && damageInfo.payment_status !== 'paid' ? `
-                                    <div id="${damagePayId}" class="mt-2">
-                                        <div class="mb-2">
-                                            <label class="form-label">Return Method</label>
-                                            <select class="form-control payment-method">
-                                                <option value="replace">Replace New</option>
-                                                <option value="cash">Cash</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-2 payment-amount" style="display:none;">
-                                            <label class="form-label">Amount</label>
-                                            <input type="number" class="form-control payment-amount-input" min="0" step="0.01">
-                                        </div>
-                                        <button class="btn btn-sm btn-primary" onclick="submitPayment('damaged', ${damageInfo ? damageInfo.damageID : 'null'}, '#${damagePayId}')">
-                                            <i class="fa fa-save"></i> Save
-                                        </button>
-                                    </div>
-                                    ` : ''}
-                                </div>
-                            ` : ''}
-                            ${(!book.is_lost && !book.is_damaged && !book.is_available) ? `
-                                <span class="badge badge-custom badge-issued toggle-occupied" data-target="#${widgetId}" style="cursor:pointer;">Occupied</span>
-                                <div id="${widgetId}" class="mt-2 d-none">
-                                    <div class="mb-1"><strong>Occupied By:</strong> ${occupiedBy}</div>
-                                    <div class="mb-1"><strong>Return Date:</strong> ${expectedReturn}</div>
-                                    <button class="btn btn-sm btn-success mt-1" onclick="openReturnModalByIsbn('${book.isbn || ''}', '${book.borrow_expected_return_date || ''}')">
-                                        <i class="fa fa-check"></i> Return
-                                    </button>
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-        }
-        $('#viewBooksWidgetContainer').html(html);
-    }
-
-    function applyViewBooksFilters() {
-        const term = $('#viewBooksSearch').val().trim().toLowerCase();
-        const filter = $('#viewBooksFilter').val();
-        $('#viewBooksWidgetContainer .book-widget').each(function() {
-            const hay = ($(this).data('search') || '').toLowerCase();
-            const status = $(this).data('filter') || '';
-            const matchesSearch = hay.indexOf(term) !== -1;
-            const matchesFilter = !filter || status === filter;
-            $(this).closest('.book-widget-col').toggle(matchesSearch && matchesFilter);
-        });
-    }
-
-    function loadLibraryStudents() {
-        const filter = $('#studentFilter').val();
-        $('#studentSearch').val('');
-        $('#studentsWidgetContainer').html('<div class="col-12 text-center">Loading...</div>');
-        $.ajax({
-            url: '{{ route("get_library_students") }}',
-            type: 'GET',
-            data: { filter: filter },
-            success: function(response) {
-                if (response.success) {
-                    $('#studentFilterTotal').text(response.total || 0);
-                    renderStudentWidgets(response.items || []);
-                } else {
-                    const msg = response.message || 'Error loading students';
-                    console.error(msg);
-                    $('#studentsWidgetContainer').html('<div class="col-12 text-center">' + msg + '</div>');
-                }
-            },
-            error: function(xhr) {
-                const msg = xhr.responseJSON?.message || xhr.responseText || 'Error loading students';
-                console.error(msg);
-                $('#studentsWidgetContainer').html('<div class="col-12 text-center">' + msg + '</div>');
-            }
-        });
-    }
-
-    function renderStudentWidgets(items) {
-        let html = '';
-        if (!items || items.length === 0) {
-            html = '<div class="col-12 text-center">No records found</div>';
-        } else {
-            items.forEach(item => {
-                const student = item.student || {};
-                const book = item.book || {};
-                const gender = (student.gender || '').toLowerCase();
-                const placeholder = gender === 'female'
-                    ? '{{ asset('images/female.png') }}'
-                    : '{{ asset('images/male.png') }}';
-                const photo = student.photo || placeholder;
-                const expected = item.expected_return_date ? formatDate(item.expected_return_date) : '-';
-                const type = item.type || '';
-                const payId = `student-pay-${type}-${item.lossID || item.damageID || item.borrowID}`;
-                const searchKey = `${student.name || ''} ${student.class_name || ''} ${book.title || ''} ${book.isbn || ''}`.toLowerCase();
-                const statusClass = type === 'lost'
-                    ? 'status-lost'
-                    : type === 'damaged'
-                        ? 'status-damaged'
-                        : type === 'overdue'
-                            ? 'status-overdue'
-                            : type === 'not_due'
-                                ? 'status-not-due'
-                                : 'status-occupied';
-                html += `
-                    <div class="student-widget-col">
-                        <div class="student-widget ${statusClass}" data-search="${searchKey}">
-                            <div class="student-header">
-                                <img src="${photo}" alt="Student Photo" onerror="this.src='${placeholder}'">
-                            </div>
-                            <div class="student-body">
-                                <h3>${student.name || '-'}</h3>
-                                <p class="form">${student.class_name || '-'}</p>
-                                <div class="info">
-                                    <p><strong>Book:</strong> ${book.title || '-'}</p>
-                                    <p><strong>ISBN:</strong> ${book.isbn || '-'}</p>
-                                    ${type === 'occupied' || type === 'overdue' || type === 'not_due' ? `
-                                        <p class="return-date"><strong>Return Date:</strong> ${expected}</p>
-                                        <button class="btn btn-sm btn-success" onclick="openReturnModal(${item.borrowID}, '${item.expected_return_date || ''}')">
-                                            <i class="fa fa-check"></i> Return
-                                        </button>
-                                    ` : `
-                                        <p><strong>Return:</strong>
-                                            ${item.payment_status === 'paid' ? `
-                                                <span class="badge badge-custom badge-available">Paid</span>
-                                                <small class="text-muted">(${item.payment_method === 'cash' ? 'Cash' : 'Replace'}${item.payment_method === 'cash' && item.payment_amount ? ': ' + item.payment_amount : ''})</small>
-                                            ` : `
-                                                <span class="badge badge-custom badge-issued">Unpaid</span>
-                                                <button class="btn btn-sm btn-success ml-2 toggle-occupied" data-target="#${payId}">
-                                                    <i class="fa fa-caret-down"></i> Record Return
-                                                </button>
-                                            `}
-                                        </p>
-                                        <div id="${payId}" class="mt-2 d-none">
-                                            <div class="mb-2">
-                                                <label class="form-label">Return Method</label>
-                                                <select class="form-control payment-method">
-                                                    <option value="replace">Replace New</option>
-                                                    <option value="cash">Cash</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-2 payment-amount" style="display:none;">
-                                                <label class="form-label">Amount</label>
-                                                <input type="number" class="form-control payment-amount-input" min="0" step="0.01">
-                                            </div>
-                                            <button class="btn btn-sm btn-primary" onclick="submitPayment('${type}', ${item.lossID || item.damageID}, '#${payId}')">
-                                                <i class="fa fa-save"></i> Save
-                                            </button>
-                                        </div>
-                                    `}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-        $('#studentsWidgetContainer').html(html);
-    }
-
-    function applyStudentSearch() {
-        const term = $('#studentSearch').val().trim().toLowerCase();
-        $('#studentsWidgetContainer .student-widget').each(function() {
-            const hay = ($(this).data('search') || '').toLowerCase();
-            $(this).closest('.student-widget-col').toggle(hay.indexOf(term) !== -1);
-        });
-    }
-
-    // DataTable instance for borrows
-    let borrowsDataTable = null;
-
-    // Book add/edit state
-    let bookMode = 'add';
-    let isbnCheckTimeout = null;
-
-    // Function to format date (e.g., "17 November 2025")
-    function formatDate(dateString) {
-        if (!dateString) return '-';
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return dateString;
-        
-        const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                       'July', 'August', 'September', 'October', 'November', 'December'];
-        
-        const day = date.getDate();
-        const month = months[date.getMonth()];
-        const year = date.getFullYear();
-        
-        return `${day} ${month} ${year}`;
-    }
-
-    function loadBorrows() {
-        if (typeof jQuery === 'undefined') {
-            console.error('jQuery not loaded');
-            return;
-        }
-        var $ = jQuery;
-        
-        // Show loading state
-        $('#borrowsTableBody').html('<tr><td colspan="11" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading borrow records...</td></tr>');
-        
-        $.ajax({
-            url: '{{ route("get_book_borrows") }}',
-            type: 'GET',
-            data: {
-                status: $('#filterBorrowStatus').val(),
-                dueFilter: $('#filterBorrowDue').val()
-            },
-            success: function(response) {
-                if (response.success) {
-                    let html = '';
-                    if (response.borrows && response.borrows.length > 0) {
-                        response.borrows.forEach((borrow, index) => {
-                            const student = borrow.student;
-                            const teacher = borrow.teacher;
-                            const staff = borrow.staff;
-                            const book = borrow.book;
-                            const statusClass = borrow.status === 'borrowed' ? 'badge-borrowed' : 'badge-returned';
-                            const statusText = borrow.status === 'borrowed' ? 'Borrowed' : 'Returned';
-                            
-                            // Format dates
-                            const borrowDate = formatDate(borrow.borrow_date);
-                            const expectedReturnDate = formatDate(borrow.expected_return_date);
-                            const returnDate = formatDate(borrow.return_date);
-                            
-                            // Determine borrower info
-                            let borrowerName = '-';
-                            let borrowerRef = '-';
-                            let borrowerBadge = '';
-
-                            if (teacher) {
-                                borrowerName = (teacher.first_name + ' ' + (teacher.middle_name || '') + ' ' + teacher.last_name).trim();
-                                borrowerRef = teacher.employee_number || '-';
-                                borrowerBadge = `<span class="badge badge-info ml-1" title="Teacher">Teacher</span>`;
-                            } else if (staff) {
-                                borrowerName = (staff.first_name + ' ' + (staff.middle_name || '') + ' ' + staff.last_name).trim();
-                                borrowerRef = staff.employee_number || '-';
-                                borrowerBadge = `<span class="badge badge-secondary ml-1" title="Staff">Staff</span>`;
-                            } else if (student) {
-                                borrowerName = (student.first_name + ' ' + (student.middle_name || '') + ' ' + student.last_name).trim();
-                                borrowerRef = student.admission_number || '-';
-                                const isGraduated = (student.status || 'Active') !== 'Active';
-                                borrowerBadge = isGraduated ? `<span class="badge badge-warning" title="Graduated">Graduated</span>` : '';
-                            }
-                            
-                            html += `
-                                <tr>
-                                    <td>${index + 1}</td>
-                                    <td>${borrowerName} ${borrowerBadge}</td>
-                                    <td>${borrowerRef}</td>
-                                    <td>${book ? book.book_title : '-'}</td>
-                                    <td>${book && book.class ? book.class.class_name : '-'}</td>
-                                    <td>${book && book.subject ? book.subject.subject_name : '-'}</td>
-                                    <td>${borrowDate}</td>
-                                    <td>${expectedReturnDate}</td>
-                                    <td>${returnDate}</td>
-                                    <td><span class="badge badge-custom ${statusClass}">${statusText}</span></td>
-                                    <td>
-                                        ${borrow.status === 'borrowed' ? `
-                                            <button class="btn btn-sm btn-success" onclick="openReturnModal(${borrow.borrowID}, '${borrow.expected_return_date || ''}')" title="Return Book">
-                                                <i class="fa fa-check"></i> Return
-                                            </button>
-                                        ` : ''}
-                                    </td>
-                                </tr>
-                            `;
-                        });
-                    } else {
-                        html = '<tr><td colspan="11" class="text-center">No borrow records found</td></tr>';
-                    }
-                    $('#borrowsTableBody').html(html);
-                    
-                    // New approach to fix the DataTables re-initialization warning
-                    if ($.fn.DataTable.isDataTable('#borrowsTable')) {
-                        $('#borrowsTable').DataTable().destroy();
-                    }
-                    
-                    borrowsDataTable = $('#borrowsTable').DataTable({
-                        "order": [[6, "desc"]], // Sort by borrow date descending
-                        "pageLength": 25,
-                        "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-                        "autoWidth": false, // Let CSS control width
-                        "responsive": false, // Disable responsive mode to allow horizontal scroll
-                        "language": {
-                            "search": "Search:",
-                            "lengthMenu": "Show _MENU_ records per page",
-                            "info": "Showing _START_ to _END_ of _TOTAL_ records",
-                            "infoEmpty": "No records available",
-                            "infoFiltered": "(filtered from _MAX_ total records)",
-                            "zeroRecords": "No matching records found"
-                        },
-                        "columnDefs": [
-                            { "orderable": false, "targets": [10] } // Disable sorting on Actions column
-                        ]
+                $('#toggleActionsBtn').on('click', function() {
+                    $('#expandedActions').slideToggle(300, function() {
+                        const isVisible = $(this).is(':visible');
+                        $('#actionChevron').toggleClass('fa-chevron-up', isVisible).toggleClass('fa-chevron-down', !isVisible);
                     });
-                } else {
-                    $('#borrowsTableBody').html('<tr><td colspan="11" class="text-center">Error loading borrow records</td></tr>');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error loading borrows:', error);
-                $('#borrowsTableBody').html('<tr><td colspan="11" class="text-center">Error loading borrow records. Please try again.</td></tr>');
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Failed to load borrow records: ' + (xhr.responseJSON?.error || error)
                 });
-            }
-        });
-    }
 
-    function loadLostBooks() {
-        $.ajax({
-            url: '{{ route("get_book_losses") }}',
-            type: 'GET',
-            data: {
-                lost_by: $('#filterLostBy').val()
-            },
-            success: function(response) {
-                if (response.success) {
-                    renderLossDamageWidgets('#lostBooksContainer', response.losses || [], 'lost');
-                } else {
-                    $('#lostBooksContainer').html('<div class="col-12 text-center">Error loading lost books</div>');
-                }
-            },
-            error: function() {
-                $('#lostBooksContainer').html('<div class="col-12 text-center">Error loading lost books</div>');
-            }
-        });
-    }
+                $('#filterBorrowDue').on('change', loadBorrows);
 
-    function loadDamagedBooks() {
-        $.ajax({
-            url: '{{ route("get_book_damages") }}',
-            type: 'GET',
-            data: {
-                damaged_by: $('#filterDamagedBy').val()
-            },
-            success: function(response) {
-                if (response.success) {
-                    renderLossDamageWidgets('#damagedBooksContainer', response.damages || [], 'damaged');
-                } else {
-                    $('#damagedBooksContainer').html('<div class="col-12 text-center">Error loading damaged books</div>');
-                }
-            },
-            error: function() {
-                $('#damagedBooksContainer').html('<div class="col-12 text-center">Error loading damaged books</div>');
-            }
-        });
-    }
-
-    function renderLossDamageWidgets(container, items, type) {
-        let html = '';
-        if (!items || items.length === 0) {
-            html = '<div class="col-12 text-center">No records found</div>';
-        } else {
-            items.forEach(item => {
-                const book = item.book || {};
-                const student = item.student || null;
-                const studentName = student
-                    ? `${student.first_name || ''} ${student.middle_name || ''} ${student.last_name || ''}`.trim()
-                    : '-';
-                const className = student && student.subclass && student.subclass.class
-                    ? student.subclass.class.class_name
-                    : '-';
-                const toggleId = `${type}-${item[type === 'lost' ? 'lossID' : 'damageID']}`;
-                const byLabel = type === 'lost' ? 'Lost By' : 'Damaged By';
-                const byValue = item[type === 'lost' ? 'lost_by' : 'damaged_by'] === 'student' ? 'Student' : 'Other';
-                const paymentStatus = item.payment_status || 'unpaid';
-                const paymentMethod = item.payment_method || '';
-                const paymentAmount = item.payment_amount || '';
-                const paymentId = `${type}-pay-${item[type === 'lost' ? 'lossID' : 'damageID']}`;
-                html += `
-                    <div class="col-md-4 mb-3 book-widget-col">
-                        <div class="book-widget ${type}">
-                            <div class="d-flex align-items-center mb-2">
-                                <div class="stat-icon"><i class="fa fa-book"></i></div>
-                                <div>
-                                    <div class="fw-bold">${book.book_title || '-'}</div>
-                                    <small class="text-muted">${book.author || '-'}</small>
-                                </div>
-                            </div>
-                            <div class="mb-1"><strong>ISBN:</strong> ${book.isbn || '-'}</div>
-                            <div class="mb-1"><strong>${byLabel}:</strong> ${byValue}</div>
-                            <span class="badge badge-custom badge-issued toggle-occupied" data-target="#${toggleId}" style="cursor:pointer;">
-                                <i class="fa fa-caret-down"></i> Details
-                            </span>
-                            <div id="${toggleId}" class="mt-2 d-none">
-                                ${item[type === 'lost' ? 'lost_by' : 'damaged_by'] === 'student' ? `
-                                    <div class="mb-1"><strong>Name:</strong> ${studentName}</div>
-                                    <div class="mb-1"><strong>Class:</strong> ${className}</div>
-                                    <button class="btn btn-sm btn-primary" onclick="showParentMessageModal(${student ? student.studentID : 'null'})">
-                                        <i class="fa fa-envelope"></i> Message Parent
-                                    </button>
-                                ` : ''}
-                                <div class="mt-2"><strong>Description:</strong> ${item.description || '-'}</div>
-                                <div class="mt-2">
-                                    <strong>Return:</strong>
-                                    ${paymentStatus === 'paid' ? `
-                                        <span class="badge badge-custom badge-available">Paid</span>
-                                        <small class="text-muted">(${paymentMethod === 'cash' ? 'Cash' : 'Replace'}${paymentMethod === 'cash' && paymentAmount ? ': ' + paymentAmount : ''})</small>
-                                    ` : `
-                                        <span class="badge badge-custom badge-issued">Unpaid</span>
-                                    `}
-                                </div>
-                                ${paymentStatus !== 'paid' ? `
-                                    <div id="${paymentId}" class="mt-2">
-                                        <div class="mb-2">
-                                            <label class="form-label">Return Method</label>
-                                            <select class="form-control payment-method" data-target="#${paymentId}">
-                                                <option value="replace">Replace New</option>
-                                                <option value="cash">Cash</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-2 payment-amount" style="display:none;">
-                                            <label class="form-label">Amount</label>
-                                            <input type="number" class="form-control payment-amount-input" min="0" step="0.01">
-                                        </div>
-                                        <button class="btn btn-sm btn-primary" onclick="submitPayment('${type}', ${item[type === 'lost' ? 'lossID' : 'damageID']}, '#${paymentId}')">
-                                            <i class="fa fa-save"></i> Save
-                                        </button>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-        $(container).html(html);
-    }
-
-    function loadSubjectsByClass(classID) {
-        if (typeof jQuery === 'undefined') {
-            console.error('jQuery not loaded');
-            return;
-        }
-        var $ = jQuery;
-        
-        console.log('Loading subjects for class:', classID);
-        
-        // Show loading state
-        $('#bookSubjectID').html('<option value="">Loading subjects...</option>');
-        
-        $.ajax({
-            url: '{{ route("get_subjects_by_class") }}',
-            type: 'GET',
-            data: { classID: classID },
-            success: function(response) {
-                console.log('Subjects response:', response);
-                if (response.success && response.subjects) {
-                    let html = '<option value="">Select Subject</option>';
-                    if (response.subjects.length > 0) {
-                        response.subjects.forEach(subject => {
-                            if (subject && subject.subjectID) {
-                                html += `<option value="${subject.subjectID}">${subject.subject_name}</option>`;
-                            }
-                        });
-                    } else {
-                        html += '<option value="">No subjects found for this class</option>';
-                    }
-                    $('#bookSubjectID').html(html);
-                } else {
-                    $('#bookSubjectID').html('<option value="">No subjects found</option>');
-                    console.error('No subjects in response:', response);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error loading subjects:', error);
-                console.error('Response:', xhr.responseText);
-                $('#bookSubjectID').html('<option value="">Error loading subjects</option>');
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error loading subjects: ' + (xhr.responseJSON?.error || error)
-                });
-            }
-        });
-    }
-
-    function searchStudents(search) {
-        if (typeof jQuery === 'undefined') {
-            console.error('jQuery not loaded');
-            return;
-        }
-        var $ = jQuery;
-        
-        if (!search || search.trim().length < 2) {
-            $('#studentResults').hide();
-            return;
-        }
-        
-        const bType = $('#borrowerType').val();
-        const url = bType === 'teacher' ? '{{ route("search_teachers") }}' : (bType === 'staff' ? '{{ route("search_staff") }}' : '{{ route("get_students") }}');
-        
-        $.ajax({
-            url: url,
-            type: 'GET',
-            data: { search: search.trim() },
-            success: function(response) {
-                if (response.success) {
-                    let html = '';
-                    const items = bType === 'teacher' ? response.teachers : (bType === 'staff' ? response.staff : response.students);
-                    if (items && items.length > 0) {
-                        items.forEach(item => {
-                            let id, name, details;
-                            if (bType === 'teacher' || bType === 'staff') {
-                                id = item.id;
-                                name = item.name;
-                                details = item.employee_number || 'N/A';
-                            } else {
-                                id = item.studentID;
-                                name = `${item.first_name || ''} ${item.middle_name || ''} ${item.last_name || ''}`.trim();
-                                const subclass = item.subclass;
-                                const className = subclass && subclass.class ? subclass.class.class_name : '';
-                                details = `${item.admission_number || 'N/A'} - ${className || 'N/A'}`;
-                            }
-                            
-                            const itemName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                            
-                            html += `
-                                <div class="p-2 border-bottom student-option" 
-                                     onclick="selectStudent(${id}, '${itemName}')"
-                                     style="cursor: pointer; background-color: #f8f9fa;"
-                                     onmouseover="this.style.backgroundColor='#e9ecef'"
-                                     onmouseout="this.style.backgroundColor='#f8f9fa'">
-                                    <strong>${name}</strong><br>
-                                    <small class="text-muted">${details}</small>
-                                </div>
-                            `;
-                        });
-                    } else {
-                        html = `<div class="p-2 text-muted">No ${bType}s found</div>`;
-                    }
-                    $('#studentResults').html(html).show();
-                } else {
-                    $('#studentResults').html(`<div class="p-2 text-muted">No ${bType}s found</div>`).show();
-                }
-            },
-            error: function(xhr, status, error) {
-                $('#studentResults').html('<div class="p-2 text-danger">Error searching</div>').show();
-            }
-        });
-    }
-
-    function selectStudent(id, name) {
-        const type = $('#borrowerType').val();
-        if (type === 'student') {
-            $('#borrowStudentID').val(id);
-        } else if (type === 'teacher') {
-            $('#borrowTeacherID').val(id);
-        } else if (type === 'staff') {
-            $('#borrowStaffID').val(id);
-        }
-        $('#searchStudent').val(name);
-        $('#studentResults').hide();
-    }
-
-    function toggleBorrowerSearch() {
-        const type = $('#borrowerType').val();
-        $('#borrowStudentID').val('');
-        $('#borrowTeacherID').val('');
-        $('#borrowStaffID').val('');
-        $('#searchStudent').val('').attr('placeholder', type === 'student' ? 'Search by name or admission number...' : 'Search by name or staff number...');
-        $('#borrowerSearchLabel').html(`Search ${type.charAt(0).toUpperCase() + type.slice(1)} <span class="text-danger">*</span>`);
-        $('#studentResults').hide();
-    }
-
-    function setBookMode(mode) {
-        bookMode = mode;
-        if (mode === 'edit') {
-            $('#bookEntriesSection').show();
-            $('#saveBooksBtn').hide();
-            $('#saveBookBtn').removeClass('d-none');
-            $('#addIsbnRowBtn').hide();
-            $('#isbnList .remove-isbn-btn').addClass('d-none');
-        } else {
-            $('#bookEntriesSection').show();
-            $('#saveBooksBtn').show();
-            $('#saveBookBtn').addClass('d-none');
-            $('#addIsbnRowBtn').show();
-            updateIsbnRemoveButtons();
-        }
-    }
-
-    function resetBookForm() {
-        $('#bookTitle').val('');
-        $('#bookAuthor').val('');
-        $('#bookPublisher').val('');
-        $('#bookPublicationYear').val('');
-        $('#bookDescription').val('');
-        $('#isbnList').html(getIsbnRowHtml());
-        updateIsbnRemoveButtons();
-    }
-
-    function addIsbnRow() {
-        $('#isbnList').append(getIsbnRowHtml());
-        updateIsbnRemoveButtons();
-    }
-
-    function getIsbnRowHtml() {
-        return `
-            <div class="row align-items-end isbn-row mb-2">
-                <div class="col-md-8">
-                    <label class="form-label">ISBN <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control isbn-input" placeholder="Enter ISBN">
-                    <small class="text-danger d-none isbn-error">ISBN is already taken.</small>
-                </div>
-                <div class="col-md-4">
-                    <button type="button" class="btn btn-danger remove-isbn-btn">
-                        <i class="fa fa-trash"></i> Remove
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-
-    function updateIsbnRemoveButtons() {
-        const rows = $('#isbnList .isbn-row');
-        if (rows.length <= 1) {
-            rows.find('.remove-isbn-btn').addClass('d-none');
-            return;
-        }
-        rows.find('.remove-isbn-btn').removeClass('d-none');
-    }
-
-    function checkIsbnAvailability($input, isbn, bookID) {
-        const $error = $input.closest('.isbn-row').find('.isbn-error');
-        if (!isbn) {
-            $error.addClass('d-none');
-            $input.data('isbn-available', true);
-            return;
-        }
-        $.ajax({
-            url: '{{ route("check_isbn") }}',
-            type: 'GET',
-            data: { isbn: isbn, bookID: bookID || '' },
-            success: function(response) {
-                if (response.success && response.available) {
-                    $error.addClass('d-none');
-                    $input.data('isbn-available', true);
-                } else {
-                    $error.removeClass('d-none').text('ISBN is already taken.');
-                    $input.data('isbn-available', false);
-                }
-            },
-            error: function() {
-                $error.removeClass('d-none').text('Failed to verify ISBN.');
-                $input.data('isbn-available', false);
-            }
-        });
-    }
-
-    function saveBooks() {
-        const bookType = $('#bookType').val();
-        if (bookType === 'Class') {
-            if (!$('#bookClassID').val()) {
-                Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a class' });
-                return;
-            }
-            if (!$('#bookSubjectID').val()) {
-                Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a subject' });
-                return;
-            }
-        }
-
-        if (!$('#bookTitle').val().trim()) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please enter book title' });
-            return;
-        }
-
-        const isbnInputs = $('#isbnList .isbn-input');
-        const isbns = [];
-        let hasInvalid = false;
-        isbnInputs.each(function() {
-            const isbn = $(this).val().trim();
-            if (!isbn) {
-                hasInvalid = true;
-                return;
-            }
-            const available = $(this).data('isbn-available');
-            if (available === false) {
-                hasInvalid = true;
-                return;
-            }
-            isbns.push(isbn);
-        });
-
-        const duplicates = isbns.filter((v, i, a) => a.indexOf(v) !== i);
-        if (duplicates.length > 0) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Duplicate ISBN in list' });
-            return;
-        }
-
-        if (hasInvalid || isbns.length === 0) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please enter valid ISBN(s)' });
-            return;
-        }
-
-        const $saveBooksBtn = $('#saveBooksBtn');
-        const originalHtml = $saveBooksBtn.html();
-        $saveBooksBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
-
-        $.ajaxSetup({
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
-        });
-
-        $.ajax({
-            url: '{{ route("store_book") }}',
-            type: 'POST',
-            data: {
-                book_type: bookType,
-                classID: bookType === 'Class' ? $('#bookClassID').val() : null,
-                subjectID: bookType === 'Class' ? $('#bookSubjectID').val() : null,
-                book_title: $('#bookTitle').val().trim(),
-                author: $('#bookAuthor').val().trim(),
-                publisher: $('#bookPublisher').val().trim(),
-                publication_year: $('#bookPublicationYear').val(),
-                description: $('#bookDescription').val().trim(),
-                isbns: isbns
-            },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: response.message || 'Books added successfully',
-                        showConfirmButton: false,
-                        timer: 2000
-                    }).then(() => {
-                        $('#bookModal').modal('hide');
-                        loadBooks();
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'An error occurred' });
-                    $saveBooksBtn.prop('disabled', false).html(originalHtml);
-                }
-            },
-            error: function(xhr) {
-                let errorMessage = 'An error occurred while saving books.';
-                if (xhr.responseJSON) {
-                    errorMessage = xhr.responseJSON.message || xhr.responseJSON.error || errorMessage;
-                }
-                Swal.fire({ icon: 'error', title: 'Error', text: errorMessage });
-                $saveBooksBtn.prop('disabled', false).html(originalHtml);
-            }
-        });
-    }
-
-    function showAddBookModal() {
-        if (typeof jQuery === 'undefined') {
-            alert('jQuery is not loaded. Please refresh the page.');
-            console.error('jQuery not loaded');
-            return;
-        }
-        
-        console.log('showAddBookModal called');
-        try {
-            setBookMode('add');
-            jQuery('#bookModalTitle').html('<i class="fa fa-book"></i> Add New Book');
-            jQuery('#bookForm')[0].reset();
-            jQuery('#bookID').val('');
-            jQuery('#bookType').val('Class');
-            jQuery('#classSelectionDiv, #subjectSelectionDiv').show();
-            jQuery('#bookStatusDiv').hide();
-            jQuery('#bookSubjectID').html('<option value="">Select Subject</option>');
-            jQuery('#bookClassID').val(''); // Reset class selection
-            jQuery('#isbnList').html(getIsbnRowHtml());
-            updateIsbnRemoveButtons();
-            
-            // Reset save button state
-            jQuery('#saveBookBtn').prop('disabled', false);
-            jQuery('#saveBookBtnText').text('Save');
-            
-            // Re-attach event handler for class change (in case modal was recreated)
-            jQuery('#bookClassID').off('change').on('change', function() {
-                const classID = jQuery(this).val();
-                console.log('Class changed in modal:', classID);
-                if (classID) {
-                    loadSubjectsByClass(classID);
-                } else {
-                    jQuery('#bookSubjectID').html('<option value="">Select Subject</option>');
-                }
-            });
-            
-            // Check if modal element exists
-            var $modal = jQuery('#bookModal');
-            if ($modal.length === 0) {
-                console.error('Modal element not found!');
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Modal element not found. Please refresh the page.'
-                });
-                return;
-            }
-            
-            console.log('Showing modal...');
-            // Show modal using Bootstrap 4
-            if (typeof $modal.modal === 'function') {
-            $modal.modal('show');
-            } else {
-                $modal.css('display', 'block');
-                $modal.addClass('show');
-                jQuery('body').addClass('modal-open');
-                jQuery('.modal-backdrop').remove();
-                jQuery('body').append('<div class="modal-backdrop fade show"></div>');
-            }
-            
-            // Verify modal is shown
-            setTimeout(function() {
-                if ($modal.hasClass('show')) {
-                    console.log('Modal is now visible');
-                } else {
-                    console.error('Modal failed to show');
-                    // Try alternative method
-                    $modal.css('display', 'block');
-                    $modal.addClass('show');
-                    jQuery('body').addClass('modal-open');
-                    jQuery('.modal-backdrop').remove();
-                    jQuery('body').append('<div class="modal-backdrop fade show"></div>');
-                }
-            }, 200);
-        } catch (error) {
-            console.error('Error showing modal:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Error opening modal: ' + error.message
-            });
-        }
-    }
-
-    function editBook(bookID) {
-        if (typeof jQuery === 'undefined') {
-            console.error('jQuery not loaded');
-            return;
-        }
-        var $ = jQuery;
-        $.ajax({
-            url: '{{ route("get_books") }}',
-            type: 'GET',
-            data: {},
-            success: function(response) {
-                if (response.success) {
-                    const book = response.books.find(b => b.bookID == bookID);
-                    if (book) {
-                        setBookMode('edit');
-                        $('#bookModalTitle').html('<i class="fa fa-edit"></i> Edit Book');
-                        $('#bookID').val(book.bookID);
-                        
-                        // Set Book Type
-                        const bType = book.book_type || (book.classID ? 'Class' : 'Other');
-                        $('#bookType').val(bType);
-                        if (bType === 'Other') {
-                            $('#classSelectionDiv, #subjectSelectionDiv').hide();
-                        } else {
-                            $('#classSelectionDiv, #subjectSelectionDiv').show();
-                        }
-                        
-                        $('#bookClassID').val(book.classID || '');
-                        if (book.classID) {
-                            loadSubjectsByClass(book.classID);
-                            setTimeout(() => {
-                                $('#bookSubjectID').val(book.subjectID || '');
-                            }, 500);
-                        } else {
-                            $('#bookSubjectID').html('<option value="">Select Subject</option>');
-                        }
-                        
-                        $('#bookTitle').val(book.book_title);
-                        $('#bookAuthor').val(book.author || '');
-                        $('#bookPublisher').val(book.publisher || '');
-                        $('#bookPublicationYear').val(book.publication_year || '');
-                        $('#bookDescription').val(book.description || '');
-                        $('#bookStatus').val(book.status);
-                        $('#bookStatusDiv').show();
-                        $('#isbnList').html(getIsbnRowHtml());
-                        const $firstIsbn = $('#isbnList .isbn-input').first();
-                        $firstIsbn.val(book.isbn || '');
-                        $firstIsbn.data('isbn-available', true);
-                        updateIsbnRemoveButtons();
-                        $('#isbnList .remove-isbn-btn').addClass('d-none');
-                        $('#bookModal').modal('show');
-                    }
-                }
-            }
-        });
-    }
-
-    function saveBook() {
-        if (typeof jQuery === 'undefined') {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'jQuery is not loaded. Please refresh the page.'
-            });
-            return;
-        }
-        var $ = jQuery;
-        
-        const bookType = $('#bookType').val();
-        
-        // Validate required fields
-        if (bookType === 'Class') {
-            if (!$('#bookClassID').val()) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Validation Error',
-                    text: 'Please select a class'
-                });
-                return;
-            }
-            
-            if (!$('#bookSubjectID').val()) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Validation Error',
-                    text: 'Please select a subject'
-                });
-                return;
-            }
-        }
-        
-        if (!$('#bookTitle').val().trim()) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: 'Please enter book title'
-            });
-            return;
-        }
-        
-        const editIsbn = $('#isbnList .isbn-input').first().val().trim();
-        if (!editIsbn) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: 'Please enter ISBN'
-            });
-            return;
-        }
-
-        const available = $('#isbnList .isbn-input').first().data('isbn-available');
-        if (available === false) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: 'ISBN is already taken'
-            });
-            return;
-        }
-        
-        const formData = {
-            book_type: bookType,
-            classID: bookType === 'Class' ? $('#bookClassID').val() : null,
-            subjectID: bookType === 'Class' ? $('#bookSubjectID').val() : null,
-            book_title: $('#bookTitle').val().trim(),
-            author: $('#bookAuthor').val().trim(),
-            isbn: editIsbn,
-            publisher: $('#bookPublisher').val().trim(),
-            publication_year: $('#bookPublicationYear').val(),
-            description: $('#bookDescription').val().trim(),
-        };
-
-        const bookID = $('#bookID').val();
-        const url = bookID ? `{{ url('update_book') }}/${bookID}` : '{{ route("store_book") }}';
-        const method = 'POST';
-        const isEdit = !!bookID;
-
-        if (bookID) {
-            formData.status = $('#bookStatus').val();
-        }
-
-        // Show loading state
-        const $saveBtn = $('#saveBookBtn');
-        const $saveBtnText = $('#saveBookBtnText');
-        const originalText = $saveBtnText.text();
-        $saveBtn.prop('disabled', true);
-        $saveBtnText.html('<i class="fa fa-spinner fa-spin"></i> ' + (isEdit ? 'Updating...' : 'Saving...'));
-
-        $.ajaxSetup({
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            }
-        });
-
-        $.ajax({
-            url: url,
-            type: method,
-            data: formData,
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: response.message || (isEdit ? 'Book updated successfully' : 'Book added successfully'),
-                        showConfirmButton: false,
-                        timer: 2000
-                    }).then(() => {
-                        $('#bookModal').modal('hide');
-                        loadBooks();
-                        location.reload(); // Reload to update statistics
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: response.message || 'An error occurred'
-                    });
-                    $saveBtn.prop('disabled', false);
-                    $saveBtnText.text(originalText);
-                }
-            },
-            error: function(xhr) {
-                let errorMessage = 'An error occurred while saving the book.';
-                
-                if (xhr.responseJSON) {
-                    if (xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    } else if (xhr.responseJSON.error) {
-                        errorMessage = xhr.responseJSON.error;
-                    } else if (xhr.responseJSON.errors) {
-                        // Validation errors
-                        const errors = xhr.responseJSON.errors;
-                        const errorList = Object.values(errors).flat().join('<br>');
-                        errorMessage = errorList;
-                    }
-                } else if (xhr.responseText) {
-                    try {
-                        const response = JSON.parse(xhr.responseText);
-                        errorMessage = response.message || response.error || errorMessage;
-                    } catch (e) {
-                        errorMessage = xhr.responseText || errorMessage;
-                    }
-                }
-                
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    html: errorMessage,
-                    confirmButtonColor: '#940000'
-                });
-                $saveBtn.prop('disabled', false);
-                $saveBtnText.text(originalText);
-            }
-        });
-    }
-
-    function deleteBook(bookID) {
-        if (typeof jQuery === 'undefined') {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'jQuery is not loaded. Please refresh the page.'
-            });
-            return;
-        }
-        var $ = jQuery;
-        
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Show loading
-                Swal.fire({
-                    title: 'Deleting...',
-                    text: 'Please wait',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
+                // Modal close behavior (Reset forms)
+                $('#bookModal').on('hidden.bs.modal', function() {
+                    $('#bookForm')[0].reset();
+                    $('#bookID').val('');
+                    $('#isbnList').html(getIsbnRowHtml());
                 });
                 
-                $.ajaxSetup({
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                // Add ISBN Row logic
+                $('#addIsbnRowBtn').on('click', addIsbnRow);
+                $(document).on('click', '.remove-isbn-btn', function() {
+                    $(this).closest('.isbn-row').remove();
+                });
+
+                // Borrower type toggle
+                $('#borrowerType').on('change', toggleBorrowerSearch);
+                
+                // Student search for borrow
+                $(document).on('input', '#searchStudent', function() {
+                    const search = $(this).val();
+                    if (searchTimer) clearTimeout(searchTimer);
+                    if (search.length >= 2) {
+                        searchTimer = setTimeout(() => searchStudents(search), 300);
+                    } else {
+                        $('#studentResults').hide();
                     }
                 });
 
-                $.ajax({
-                    url: `{{ url('delete_book') }}/${bookID}`,
-                    type: 'DELETE',
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Deleted!',
-                                text: response.message || 'Book deleted successfully',
-                                showConfirmButton: false,
-                                timer: 2000
-                            }).then(() => {
-                                loadBooks();
-                                location.reload();
-                            });
-                        }
-                    },
-                    error: function(xhr) {
-                        const error = xhr.responseJSON?.error || 'An error occurred';
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: error
-                        });
+                // Incident ISBN Checkers
+                $('#lostIsbn, #damagedIsbn').on('input', function() {
+                    const isbn = $(this).val();
+                    const prefix = $(this).attr('id').replace('Isbn', '');
+                    if (isbn.length >= 1) {
+                        lookupBookByIsbn(isbn, false, prefix);
+                    } else {
+                        $(`#${prefix}BookInfo`).hide();
                     }
                 });
-            }
-        });
-    }
 
-    function showBorrowBookModal() {
-        if (typeof jQuery === 'undefined') {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'jQuery is not loaded. Please refresh the page.'
-            });
-            return;
-        }
-        var $ = jQuery;
-        $('#borrowForm')[0].reset();
-        $('#borrowStudentID').val('');
-        $('#borrowTeacherID').val('');
-        $('#borrowStaffID').val('');
-        $('#borrowerType').val('student');
-        toggleBorrowerSearch();
-        $('#studentResults').hide();
-        $('#borrowBookInfo').hide();
-        $('#borrowIsbnError').addClass('d-none');
-        $('#borrowISBN').val('');
-        
-        // Reset save button state
-        $('#saveBorrowBtn').prop('disabled', false);
-        $('#saveBorrowBtnText').text('Save');
-        
-        // Clear borrower search
-        $('#searchStudent').val('');
-        $('#studentResults').html('').hide();
-        
+                // Incident Student Searchers
+                $('#lostStudentSearch, #damagedStudentSearch').on('input', function() {
+                    const search = $(this).val();
+                    const prefix = $(this).attr('id').replace('StudentSearch', '');
+                    const type = $(`#${prefix}By`).val();
+                    if (search.length >= 2) {
+                        searchStudents(search, prefix, type);
+                    } else {
+                        $(`#${prefix}StudentResults`).hide();
+                    }
+                });
 
-
-        /* Ensure table doesn't break on smaller screens */
-        // Ensure search event handler is attached (in case modal was recreated)
-        $('#searchStudent').off('input').on('input', function() {
-            if (window.searchTimeout) {
-                clearTimeout(window.searchTimeout);
-            }
-            const search = $(this).val();
-            if (search && search.trim().length >= 2) {
-                window.searchTimeout = setTimeout(() => searchStudents(search.trim()), 300);
-            } else {
-                $('#studentResults').hide();
-            }
-        });
-        
-        $('#borrowModal').modal('show');
-    }
-
-    function lookupBookByIsbn(isbn) {
-        if (!isbn || isbn.length < 2) {
-            $('#borrowBookInfo').hide();
-            $('#borrowIsbnError').addClass('d-none');
-            return;
-        }
-        
-        $.ajax({
-            url: '{{ route("get_book_by_isbn") }}',
-            type: 'GET',
-            data: { isbn: isbn },
-            success: function(response) {
-                if (response.success && response.book) {
-                    if (!response.is_available) {
+                $('#borrowISBN').on('input', function() {
+                    const isbn = $(this).val();
+                    if (isbn.length >= 1) {
+                        lookupBookByIsbn(isbn, false, 'borrow');
+                    } else {
                         $('#borrowBookInfo').hide();
-                        const borrower = response.borrower ? response.borrower.name : 'another student';
-                        $('#borrowIsbnError').removeClass('d-none').text('Already taken by ' + borrower + '.');
-                        return;
                     }
-                    $('#borrowIsbnError').addClass('d-none');
-                    $('#borrowBookTitle').text(response.book.book_title || '-');
-                    $('#borrowBookClass').text(response.book.class ? response.book.class.class_name : '-');
-                    $('#borrowBookSubject').text(response.book.subject ? response.book.subject.subject_name : '-');
-                    $('#borrowBookInfo').show();
-                } else {
-                    $('#borrowBookInfo').hide();
-                    $('#borrowIsbnError').removeClass('d-none').text('Book not found.');
-                }
-            },
-            error: function() {
-                $('#borrowBookInfo').hide();
-                $('#borrowIsbnError').removeClass('d-none').text('Failed to lookup book.');
-            }
-        });
-    }
-
-    function showLostBookModal() {
-        $('#lostForm')[0].reset();
-        $('#lostStudentID').val('');
-        $('#lostStudentResults').html('').hide();
-        $('#lostBy').val('student');
-        $('#lostStudentSection').show();
-        $('#lostBookInfo').hide();
-        $('#lostModal').modal('show');
-    }
-
-    function showDamagedBookModal() {
-        $('#damagedForm')[0].reset();
-        $('#damagedStudentID').val('');
-        $('#damagedStudentResults').html('').hide();
-        $('#damagedBy').val('student');
-        $('#damagedStudentSection').show();
-        $('#damagedBookInfo').hide();
-        $('#damagedModal').modal('show');
-    }
-
-    function lookupLossBookByIsbn(isbn) {
-        if (!isbn) {
-            $('#lostBookInfo').hide();
-            return;
+                });
+            });
         }
-        $.ajax({
-            url: '{{ route("get_book_by_isbn") }}',
-            type: 'GET',
-            data: { isbn: isbn },
-            success: function(response) {
-                if (response.success && response.book) {
-                    $('#lostBookTitle').text(response.book.book_title || '-');
-                    $('#lostBookClass').text(response.book.class ? response.book.class.class_name : '-');
-                    $('#lostBookSubject').text(response.book.subject ? response.book.subject.subject_name : '-');
-                    $('#lostBookStatus').text(response.is_available ? 'Free' : 'Occupied');
-                    $('#lostBookInfo').show();
 
-                    if ($('#lostBy').val() === 'student' && response.borrower) {
-                        $('#lostStudentID').val(response.borrower.studentID);
-                        $('#lostStudentSearch').val(response.borrower.name);
-                        $('#lostStudentResults').hide();
-                    }
+        // --- Data Loading Functions ---
+
+        function loadBooks() {
+            const classID = $('#filterClass').val();
+            const subjectID = $('#filterSubject').val();
+            const status = $('#filterStatus').val();
+            const search = $('#searchBook').val();
+            
+            $('#loaderOverlay').css('display', 'flex').show();
+            $('#booksCountInfo').html('<i class="fa fa-spinner fa-spin mr-2"></i> SYNCING...');
+            
+            $.get('{{ route("get_books") }}', { classID, subjectID, search }, function(response) {
+                $('#loaderOverlay').hide();
+                if (response.success) {
+                    allBooks = response.books;
+                    $('#booksCountInfo').text(`Showing ${allBooks.length} Books`);
+                    renderBooksGrid(allBooks, status);
                 } else {
-                    $('#lostBookInfo').hide();
+                    $('#booksGrid').html('<div class="col-12 text-center text-danger py-5">FAILED TO LOAD RECORDS</div>');
                 }
-            },
-            error: function() {
-                $('#lostBookInfo').hide();
-            }
-        });
-    }
-
-    function lookupDamageBookByIsbn(isbn) {
-        if (!isbn) {
-            $('#damagedBookInfo').hide();
-            return;
+            }).fail(function() {
+                $('#booksGrid').html('<div class="col-12 text-center text-danger py-5">NETWORK ERROR</div>');
+            });
         }
-        $.ajax({
-            url: '{{ route("get_book_by_isbn") }}',
-            type: 'GET',
-            data: { isbn: isbn },
-            success: function(response) {
-                if (response.success && response.book) {
-                    $('#damagedBookTitle').text(response.book.book_title || '-');
-                    $('#damagedBookClass').text(response.book.class ? response.book.class.class_name : '-');
-                    $('#damagedBookSubject').text(response.book.subject ? response.book.subject.subject_name : '-');
-                    $('#damagedBookStatus').text(response.is_available ? 'Free' : 'Occupied');
-                    $('#damagedBookInfo').show();
 
-                    if ($('#damagedBy').val() === 'student' && response.borrower) {
-                        $('#damagedStudentID').val(response.borrower.studentID);
-                        $('#damagedStudentSearch').val(response.borrower.name);
-                        $('#damagedStudentResults').hide();
-                    }
-                } else {
-                    $('#damagedBookInfo').hide();
+        function renderBooksGrid(books, statusFilter) {
+            let html = '';
+            const filteredBooks = statusFilter 
+                ? books.filter(b => {
+                    const s = b.is_lost ? 'lost' : (b.is_damaged ? 'damaged' : (b.is_overdue ? 'overdue' : (b.is_available ? 'available' : 'borrowed')));
+                    return s === statusFilter;
+                })
+                : books;
+
+            if (filteredBooks.length === 0) {
+                $('#booksGrid').html('<div class="col-12 text-center py-5"><i class="fa fa-info-circle fa-2x mb-2 text-muted"></i><h6>NO BOOKS MATCH THIS CRITERIA</h6></div>');
+                return;
+            }
+
+            filteredBooks.forEach(book => {
+                let s = 'available';
+                if (book.is_lost) {
+                    s = (book.loss_info && book.loss_info.payment_status === 'paid') ? 'lost_resolved' : 'lost';
+                } else if (book.is_damaged) {
+                    s = (book.damage_info && book.damage_info.payment_status === 'paid') ? 'damaged_resolved' : 'damaged';
+                } else if (book.is_overdue) {
+                    s = 'overdue';
+                } else if (!book.is_available) {
+                    s = 'borrowed';
                 }
-            },
-            error: function() {
-                $('#damagedBookInfo').hide();
-            }
-        });
-    }
 
-    function searchStudentsForLoss(search) {
-        if (!search || search.trim().length < 2) {
-            $('#lostStudentResults').hide();
-            return;
+                const statusLabel = s.toUpperCase().replace('_', ' ');
+                
+                html += `
+                    <div class="book-card-widget ${s}" onclick="openBookDetails(${book.bookID})">
+                        <div class="book-status-badge"></div>
+                        <i class="fa fa-book book-icon"></i>
+                        <span class="book-title">${book.book_title}</span>
+                        <span class="book-author">${book.author || 'N/A'}</span>
+                        <div class="mt-3 small font-weight-bold" style="font-size: 8px; color: #999; letter-spacing: 0.5px;">
+                            ${book.isbn}
+                        </div>
+                    </div>
+                `;
+            });
+            $('#booksGrid').html(html);
         }
-        $.ajax({
-            url: '{{ route("get_students") }}',
-            type: 'GET',
-            data: { search: search.trim() },
-            success: function(response) {
-                if (response.success && response.students) {
-                    let html = '';
-                    if (response.students.length > 0) {
-                        response.students.forEach(student => {
-                            const subclass = student.subclass;
-                            const className = subclass && subclass.class ? subclass.class.class_name : '';
-                            const fullName = `${student.first_name || ''} ${student.middle_name || ''} ${student.last_name || ''}`.trim();
-                            const safeName = fullName.replace(/'/g, "\\'");
-                            html += `
-                                <div class="p-2 border-bottom student-option"
-                                     onclick="selectLostStudent(${student.studentID}, '${safeName}')"
-                                     style="cursor: pointer; background-color: #f8f9fa;"
-                                     onmouseover="this.style.backgroundColor='#e9ecef'"
-                                     onmouseout="this.style.backgroundColor='#f8f9fa'">
-                                    <strong>${fullName}</strong><br>
-                                    <small class="text-muted">${student.admission_number || 'N/A'} - ${className || 'N/A'}</small>
+
+        // --- Detail Modal (The "Popup") ---
+
+        function openBookDetails(bookID) {
+            const book = allBooks.find(b => b.bookID == bookID);
+            if (!book) return;
+
+            const s = book.is_lost ? 'lost' : (book.is_damaged ? 'damaged' : (book.is_overdue ? 'overdue' : (book.is_available ? 'available' : 'borrowed')));
+            const statusColor = book.is_lost ? '#6f42c1' : (book.is_damaged ? '#fd7e14' : (book.is_overdue ? '#dc3545' : (book.is_available ? '#28a745' : '#ffc107')));
+            
+            // Dynamic Label for Possession
+            let possessionLabel = 'POSSESSION DETAILS';
+            if (book.is_lost) possessionLabel = 'LOST BY';
+            else if (book.is_damaged) possessionLabel = 'DAMAGED BY';
+            else if (!book.is_available) possessionLabel = 'OCCUPIED BY';
+
+            let content = `
+                <div class="p-4 bg-light text-center border-bottom">
+                    <i class="fa fa-book fa-5x mb-3" style="color: ${statusColor}"></i>
+                    <h5 class="font-weight-bold mb-1" style="color: #333">${book.book_title}</h5>
+                    <p class="text-muted small font-weight-bold mb-0">${book.author || 'UNKNOWN AUTHOR'}</p>
+                </div>
+                <div class="p-4">
+                    <div class="row">
+                        <div class="col-6 mb-4">
+                            <label class="small text-muted font-weight-bold mb-1 d-block">SERIAL / ISBN</label>
+                            <span class="font-weight-bold" style="font-size: 13px;">${book.isbn}</span>
+                        </div>
+                        <div class="col-6 mb-4 text-right">
+                            <label class="small text-muted font-weight-bold mb-1 d-block">STATUS</label>
+                            <span class="badge px-3 py-2" style="background-color: ${statusColor}; color: #fff;">
+                                ${s.toUpperCase()}
+                            </span>
+                        </div>
+                        <div class="col-12 mb-4">
+                            <label class="small text-muted font-weight-bold mb-2 d-block border-bottom pb-1">${possessionLabel}</label>
+                            ${book.occupied_by ? `
+                                <div class="d-flex align-items-center p-3 bg-white border">
+                                    <div class="mr-3 text-center" style="width: 40px;">
+                                        <i class="fa fa-user-circle fa-2x text-muted"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 font-weight-bold">${book.occupied_by.name}</h6>
+                                        <small class="text-muted">${book.occupied_by.class_name} | ${book.occupied_by.admission_number}</small>
+                                    </div>
                                 </div>
-                            `;
-                        });
-                    } else {
-                        html = '<div class="p-2 text-muted">No students found</div>';
-                    }
-                    $('#lostStudentResults').html(html).show();
-                }
-            }
-        });
-    }
-
-    function searchStudentsForDamage(search) {
-        if (!search || search.trim().length < 2) {
-            $('#damagedStudentResults').hide();
-            return;
-        }
-        $.ajax({
-            url: '{{ route("get_students") }}',
-            type: 'GET',
-            data: { search: search.trim() },
-            success: function(response) {
-                if (response.success && response.students) {
-                    let html = '';
-                    if (response.students.length > 0) {
-                        response.students.forEach(student => {
-                            const subclass = student.subclass;
-                            const className = subclass && subclass.class ? subclass.class.class_name : '';
-                            const fullName = `${student.first_name || ''} ${student.middle_name || ''} ${student.last_name || ''}`.trim();
-                            const safeName = fullName.replace(/'/g, "\\'");
-                            html += `
-                                <div class="p-2 border-bottom student-option"
-                                     onclick="selectDamagedStudent(${student.studentID}, '${safeName}')"
-                                     style="cursor: pointer; background-color: #f8f9fa;"
-                                     onmouseover="this.style.backgroundColor='#e9ecef'"
-                                     onmouseout="this.style.backgroundColor='#f8f9fa'">
-                                    <strong>${fullName}</strong><br>
-                                    <small class="text-muted">${student.admission_number || 'N/A'} - ${className || 'N/A'}</small>
+                            ` : (book.loss_info && book.loss_info.student ? `
+                                <div class="d-flex align-items-center p-3 bg-white border border-danger">
+                                    <div class="mr-3 text-center" style="width: 40px;">
+                                        <i class="fa fa-user-times fa-2x text-danger"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 font-weight-bold">${book.loss_info.student.name}</h6>
+                                        <small class="text-muted">${book.loss_info.student.class_name} | ${book.loss_info.student.admission_number}</small>
+                                    </div>
                                 </div>
-                            `;
-                        });
+                            ` : (book.damage_info && book.damage_info.student ? `
+                                <div class="d-flex align-items-center p-3 bg-white border border-warning">
+                                    <div class="mr-3 text-center" style="width: 40px;">
+                                        <i class="fa fa-user fa-2x text-warning"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 font-weight-bold">${book.damage_info.student.name}</h6>
+                                        <small class="text-muted">${book.damage_info.student.class_name} | ${book.damage_info.student.admission_number}</small>
+                                    </div>
+                                </div>
+                            ` : `<div class="p-3 text-success font-weight-bold border rounded bg-white">✓ AVAILABLE IN LIBRARY</div>`))}
+                            
+                            ${book.loss_info && book.loss_info.description ? `
+                                <div class="mt-2 p-2 border-left border-danger" style="background: #fff5f5;">
+                                    <label class="small font-weight-bold mb-0 text-danger">REASON FOR LOSS:</label>
+                                    <p class="mb-0 small text-muted">${book.loss_info.description}</p>
+                                    ${book.loss_info.payment_method ? `<div class="badge badge-success mt-2">RESOLVED: ${book.loss_info.payment_method.toUpperCase()} ${book.loss_info.payment_amount ? book.loss_info.payment_amount : ''}</div>` : ''}
+                                </div>
+                            ` : ''}
+                            ${book.damage_info && book.damage_info.description ? `
+                                <div class="mt-2 p-2 border-left border-warning" style="background: #fffcf5;">
+                                    <label class="small font-weight-bold mb-0 text-warning">REASON FOR DAMAGE:</label>
+                                    <p class="mb-0 small text-muted">${book.damage_info.description}</p>
+                                    ${book.damage_info.payment_method ? `<div class="badge badge-success mt-2">RESOLVED: ${book.damage_info.payment_method.toUpperCase()} ${book.damage_info.payment_amount ? book.damage_info.payment_amount : ''}</div>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                        ${book.borrow_expected_return_date ? `
+                            <div class="col-12 mb-4">
+                                <label class="small text-muted font-weight-bold mb-1 d-block">DUE FOR RETURN ON</label>
+                                <h6 class="font-weight-bold ${book.is_overdue ? 'text-danger' : 'text-primary'}" style="letter-spacing: 0.5px;">
+                                    ${formatDate(book.borrow_expected_return_date)}
+                                </h6>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            $('#bookDetailsContent').html(content);
+            
+            let buttons = `<button class="btn btn-outline-secondary btn-sm px-3" onclick="editBook(${book.bookID})"><i class="fa fa-edit"></i> EDIT</button>`;
+            
+            if (!book.is_available && !book.is_lost && !book.is_damaged) {
+                buttons += `<button class="btn btn-success btn-sm px-3 ml-2" onclick="lookupBookByIsbn('${book.isbn}', true)"><i class="fa fa-check-circle"></i> RETURN</button>`;
+            }
+            
+            if (book.is_lost && (!book.loss_info || book.loss_info.payment_status !== 'paid')) {
+                buttons += `<button class="btn btn-indigo btn-sm px-3 ml-2 text-white" style="background: #6f42c1;" onclick="showResolveModal(${book.bookID}, 'loss')"><i class="fa fa-gavel"></i> RESOLVE LOSS</button>`;
+            }
+            
+            if (book.is_damaged && (!book.damage_info || book.damage_info.payment_status !== 'paid')) {
+                buttons += `<button class="btn btn-orange btn-sm px-3 ml-2 text-white" style="background: #fd7e14;" onclick="showResolveModal(${book.bookID}, 'damage')"><i class="fa fa-wrench"></i> RESOLVE DAMAGE</button>`;
+            }
+ 
+            if (book.is_available) {
+                buttons += `<button class="btn btn-warning btn-sm px-3 ml-2" onclick="borrowSpecificBook('${book.isbn}')"><i class="fa fa-share"></i> LEND</button>`;
+            }
+            
+            $('#bookActionFooter').html(buttons);
+            $('#bookDetailsModal').modal('show');
+        }
+
+        function borrowSpecificBook(isbn) {
+            $('#bookDetailsModal').modal('hide');
+            showBorrowBookModal(isbn);
+        }
+
+        function loadBorrows() {
+            const status = $('.filterBorrowStatusBtn.active').data('status');
+            const dueFilter = $('#filterBorrowDue').val();
+            $('#borrowsTableBody').html('<tr><td colspan="9" class="text-center py-4">LOADING CIRCULATION DATA...</td></tr>');
+            $.get('{{ route("get_book_borrows") }}', { status, dueFilter }, function(response) {
+                if (response.success) {
+                    let html = '';
+                    response.borrows.forEach((b, i) => {
+                        let borrower = b.student ? b.student.first_name + ' ' + b.student.last_name : (b.teacher ? b.teacher.first_name + ' ' + b.teacher.last_name : 'Staff');
+                        let ref = b.student ? b.student.admission_number : (b.teacher ? b.teacher.employee_number : '-');
+                        html += `<tr>
+                                    <td>${i+1}</td>
+                                    <td class="font-weight-bold">${borrower}</td>
+                                    <td>${ref}</td>
+                                    <td>${b.book.book_title}</td>
+                                    <td>${formatDate(b.borrow_date)}</td>
+                                    <td class="text-danger">${formatDate(b.expected_return_date)}</td>
+                                    <td class="text-success">${formatDate(b.return_date)}</td>
+                                    <td><span class="badge ${b.status === 'borrowed' ? 'badge-warning' : 'badge-success'}">${b.status.toUpperCase()}</span></td>
+                                    <td>${b.status === 'borrowed' ? `<button class="btn btn-xs btn-success py-1 px-2" onclick="openReturnModal(${b.borrowID}, '${b.expected_return_date}')">RETURN</button>` : '✓'}</td>
+                                </tr>`;
+                    });
+                    $('#borrowsTableBody').html(html);
+                }
+            });
+        }
+
+        function formatDate(date) {
+            if (!date) return '-';
+            return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function showBorrowBookModal(isbn = '') {
+            $('#borrowForm')[0].reset();
+            $('#borrowBookInfo').hide();
+            $('#studentResults').hide();
+            if (isbn) { 
+                $('#borrowISBN').val(isbn); 
+                lookupBookByIsbn(isbn); 
+            }
+            $('#borrowModal').modal('show');
+        }
+
+        function lookupBookByIsbn(isbn, autoReturn = false, prefix = 'borrow') {
+            if (!isbn) return;
+            $(`#${prefix}IsbnSpiner`).removeClass('d-none');
+            $.get('{{ route("get_book_by_isbn") }}', { isbn }, function(res) {
+                $(`#${prefix}IsbnSpiner`).addClass('d-none');
+                if (res.success) {
+                    const book = res.book;
+                    $(`#${prefix}BookTitle`).text(book.book_title);
+                    
+                    const className = book.class ? book.class.class_name : (book.class_name || 'N/A');
+                    const subjectName = book.subject ? book.subject.subject_name : (book.subject_name || 'N/A');
+                    
+                    $(`#${prefix}BookClass`).text(className);
+                    $(`#${prefix}BookSubject`).text(subjectName);
+                    
+                    if (prefix === 'borrow') {
+                        const isAva = res.is_available;
+                        $('#isBookAvailableForBorrow').val(isAva ? '1' : '0');
+                        
+                        const badge = $('#borrowBookStatusBadge');
+                        const card = $('#borrowBookDetailCard');
+                        const occDiv = $('#occupiedByDiv');
+                        
+                        badge.removeClass('badge-success badge-danger badge-warning');
+                        card.css('border-left', '4px solid transparent');
+                        occDiv.addClass('d-none');
+
+                        if (isAva) {
+                            badge.addClass('badge-success').text('AVAILABLE (FREE)');
+                            card.css('border-left', '4px solid #28a745');
+                        } else {
+                            badge.addClass('badge-danger').text('UNAVAILABLE');
+                            card.css('border-left', '4px solid #dc3545');
+                            if (res.borrower) {
+                                occDiv.removeClass('d-none');
+                                $('#borrowOccupiedBy').text(res.borrower.name + ' (' + res.borrower.type.toUpperCase() + ')');
+                                badge.text('OCCUPIED');
+                            } else if (book.status === 'lost') {
+                                badge.text('LOST');
+                            } else if (book.status === 'damaged') {
+                                badge.text('DAMAGED');
+                            }
+                        }
                     } else {
-                        html = '<div class="p-2 text-muted">No students found</div>';
+                        $(`#${prefix}BookStatus`).text(res.is_available ? 'AVAILABLE' : 'OCCUPIED/INACTIVE');
                     }
-                    $('#damagedStudentResults').html(html).show();
-                }
-            }
-        });
-    }
-
-    function selectLostStudent(studentID, name) {
-        $('#lostStudentID').val(studentID);
-        $('#lostStudentSearch').val(name);
-        $('#lostStudentResults').hide();
-    }
-
-    function selectDamagedStudent(studentID, name) {
-        $('#damagedStudentID').val(studentID);
-        $('#damagedStudentSearch').val(name);
-        $('#damagedStudentResults').hide();
-    }
-
-    function saveLostBook() {
-        const isbn = $('#lostIsbn').val().trim();
-        const lostBy = $('#lostBy').val();
-        const studentID = $('#lostStudentID').val();
-        const description = $('#lostDescription').val().trim();
-
-        if (!isbn) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please enter ISBN' });
-            return;
-        }
-        if (lostBy === 'student' && !studentID) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select student' });
-            return;
-        }
-
-        $.ajaxSetup({
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
-        });
-
-        $.ajax({
-            url: '{{ route("store_book_loss") }}',
-            type: 'POST',
-            data: { isbn: isbn, lost_by: lostBy, studentID: studentID, description: description },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({ icon: 'success', title: 'Success', text: response.message || 'Saved' });
-                    $('#lostModal').modal('hide');
-                    loadLostBooks();
+                    
+                    $(`#${prefix}BookInfo`).slideDown();
+                    
+                    if (autoReturn && res.borrower) {
+                        openReturnModal(res.borrower.borrowID || (book.active_borrows && book.active_borrows[0] ? book.active_borrows[0].borrowID : null), 
+                                       (book.active_borrows && book.active_borrows[0] ? book.active_borrows[0].expected_return_date : null));
+                    }
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'Failed' });
+                    $(`#${prefix}BookInfo`).hide();
                 }
-            },
-            error: function(xhr) {
-                Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.message || 'Failed' });
+            }).fail(() => $(`#${prefix}IsbnSpiner`).addClass('d-none'));
+        }
+
+        function toggleIncidentBy(prefix) {
+            const val = $(`#${prefix}By`).val();
+            $(`#${prefix}SearchLabel`).text('Search ' + val.charAt(0).toUpperCase() + val.slice(1));
+            $(`#${prefix}StudentSearch`).attr('placeholder', 'Searching for ' + val + '...');
+            
+            if (val === 'other') {
+                $(`#${prefix}StudentSection`).slideUp();
+                $(`#${prefix}StudentID, #${prefix}TeacherID, #${prefix}StaffID`).val('');
+            } else {
+                $(`#${prefix}StudentSection`).slideDown();
+                $(`#${prefix}StudentID, #${prefix}TeacherID, #${prefix}StaffID`).val('');
+                $(`#${prefix}StudentSearch`).val('');
             }
-        });
-    }
-
-    function saveDamagedBook() {
-        const isbn = $('#damagedIsbn').val().trim();
-        const damagedBy = $('#damagedBy').val();
-        const studentID = $('#damagedStudentID').val();
-        const description = $('#damagedDescription').val().trim();
-
-        if (!isbn) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please enter ISBN' });
-            return;
-        }
-        if (damagedBy === 'student' && !studentID) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select student' });
-            return;
         }
 
-        $.ajaxSetup({
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
-        });
-
-        $.ajax({
-            url: '{{ route("store_book_damage") }}',
-            type: 'POST',
-            data: { isbn: isbn, damaged_by: damagedBy, studentID: studentID, description: description },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({ icon: 'success', title: 'Success', text: response.message || 'Saved' });
-                    $('#damagedModal').modal('hide');
-                    loadDamagedBooks();
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'Failed' });
+        function searchStudents(search, prefix = '', forcedType = null) {
+            const bType = forcedType || (prefix ? 'student' : $('#borrowerType').val());
+            const resultsDiv = prefix ? `#${prefix}StudentResults` : '#studentResults';
+            const url = bType === 'teacher' ? '{{ route("search_teachers") }}' : (bType === 'staff' ? '{{ route("search_staff") }}' : '{{ route("get_students") }}');
+            
+            $.get(url, { search }, function(res) {
+                if (res.success) {
+                    let html = '';
+                    const items = bType === 'teacher' ? res.teachers : (bType === 'staff' ? res.staff : res.students);
+                    if (items.length === 0) {
+                        html = '<div class="p-3 text-center text-muted small">NO RESULTS FOUND</div>';
+                    } else {
+                        items.forEach(it => {
+                            let name = (bType === 'student' || bType === 'teacher') ? `${it.first_name} ${it.last_name}` : it.name;
+                            let sub = bType === 'student' ? (it.subclass ? it.subclass.class.class_name : 'No Class') : (it.department || (bType === 'teacher' ? 'Teaching Staff' : 'Staff'));
+                            html += `<div class="p-2 border-bottom student-search-item" style="cursor:pointer" onclick="selectStudent(${it.studentID || it.id}, '${name.replace(/'/g, "\\'")}', '${prefix}', '${bType}')">
+                                        <strong>${name}</strong><br><small class="text-muted">${sub}</small>
+                                     </div>`;
+                        });
+                    }
+                    $(resultsDiv).html(html).show();
                 }
-            },
-            error: function(xhr) {
-                Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.message || 'Failed' });
-            }
-        });
-    }
-
-    function showParentMessageModal(studentID) {
-        if (!studentID) return;
-        $('#parentMessageStudentID').val(studentID);
-        $('#parentMessageText').val('');
-        $('#parentMessageModal').modal('show');
-    }
-
-    function sendParentMessage() {
-        const studentID = $('#parentMessageStudentID').val();
-        const message = $('#parentMessageText').val().trim();
-        if (!message) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please enter message' });
-            return;
+            });
         }
-        $.ajaxSetup({
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
-        });
-        $.ajax({
-            url: '{{ route("send_parent_message") }}',
-            type: 'POST',
-            data: { studentID: studentID, message: message },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({ icon: 'success', title: 'Sent', text: response.message || 'Message sent' });
-                    $('#parentMessageModal').modal('hide');
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'Failed' });
+
+        function selectStudent(id, name, prefix = '', bType = '') {
+            if (prefix) {
+                $(`#${prefix}StudentID, #${prefix}TeacherID, #${prefix}StaffID`).val('');
+                if (bType === 'student') $(`#${prefix}StudentID`).val(id);
+                else if (bType === 'teacher') $(`#${prefix}TeacherID`).val(id);
+                else $(`#${prefix}StaffID`).val(id);
+                
+                $(`#${prefix}StudentSearch`).val(name);
+                $(`#${prefix}StudentResults`).hide();
+            } else {
+                const type = $('#borrowerType').val();
+                $('#borrowStudentID, #borrowTeacherID, #borrowStaffID').val('');
+                if (type === 'student') $('#borrowStudentID').val(id);
+                else if (type === 'teacher') $('#borrowTeacherID').val(id);
+                else $('#borrowStaffID').val(id);
+                $('#searchStudent').val(name);
+                $('#studentResults').hide();
+            }
+        }
+
+        function toggleBorrowerSearch() {
+            const type = $('#borrowerType').val();
+            const label = type.charAt(0).toUpperCase() + type.slice(1);
+            $('#borrowerSearchLabel').text('Search ' + label);
+            $('#searchStudent').attr('placeholder', 'Enter ' + type + ' name or reference...').val('');
+            $('#borrowStudentID, #borrowTeacherID, #borrowStaffID').val('');
+            $('#studentResults').hide();
+        }
+
+        function openReturnModal(id, date) {
+            $('#returnBorrowID').val(id);
+            $('#returnExpectedDate').text(formatDate(date));
+            $('#returnModal').modal('show');
+        }
+        
+        function addIsbnRow() {
+            $('#isbnList').append('<div class="row align-items-end isbn-row mb-2"><div class="col-md-9"><input type="text" class="form-control isbn-input" placeholder="ENTER SERIAL/ISBN"></div><div class="col-md-3"><button type="button" class="btn btn-danger btn-sm remove-isbn-btn"><i class="fa fa-trash"></i></button></div></div>');
+        }
+
+        function submitReturn() {
+            const borrowID = $('#returnBorrowID').val();
+            const returnDate = $('#actualReturnDate').val();
+            if (!borrowID || !returnDate) {
+                Swal.fire({ icon: 'warning', title: 'Error', text: 'Missing required return details' });
+                return;
+            }
+            $.post(`{{ url('return_book') }}/${borrowID}`, { _token: '{{ csrf_token() }}', return_date: returnDate }, function(res) {
+                if (res.success) {
+                    Swal.fire({ icon: 'success', title: 'Returned', text: 'Book returned successfully', timer: 2000, showConfirmButton: false });
+                    $('#returnModal').modal('hide');
+                    loadBorrows();
+                    loadBooks();
                 }
-            },
-            error: function(xhr) {
-                Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.message || 'Failed' });
-            }
-        });
-    }
-
-    function submitPayment(type, id, containerSelector) {
-        const $container = $(containerSelector);
-        const method = $container.find('.payment-method').val();
-        const amount = $container.find('.payment-amount-input').val();
-
-        if (method === 'cash' && (!amount || parseFloat(amount) <= 0)) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please enter payment amount' });
-            return;
+            });
         }
 
-        const url = type === 'lost'
-            ? `{{ url('update_book_loss_payment') }}/${id}`
-            : `{{ url('update_book_damage_payment') }}/${id}`;
+        function saveBorrow() {
+            const isAvailable = $('#isBookAvailableForBorrow').val();
+            if (isAvailable === '0') {
+                Swal.fire({ icon: 'error', title: 'Action Blocked', text: 'This book is not available for borrowing. It must be FREE first.' });
+                return;
+            }
 
-        $.ajaxSetup({
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
-        });
+            const isbn = $('#borrowISBN').val();
+            const type = $('#borrowerType').val();
+            const sid = $('#borrowStudentID').val();
+            const tid = $('#borrowTeacherID').val();
+            const aid = $('#borrowStaffID').val();
+            const date = $('#expectedReturnDate').val();
 
-        $.ajax({
-            url: url,
-            type: 'POST',
-            data: { payment_method: method, payment_amount: amount },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({ icon: 'success', title: 'Saved', text: response.message || 'Payment recorded' });
-                    loadLostBooks();
-                    loadDamagedBooks();
+            if (!isbn || !date || (!sid && !tid && !aid)) {
+                Swal.fire({ icon: 'warning', title: 'Error', text: 'Please fill all lending details' });
+                return;
+            }
+
+            $.post('{{ route("borrow_book") }}', { 
+                _token: '{{ csrf_token() }}', 
+                isbn, borrower_type: type, 
+                studentID: sid, teacherID: tid, staffID: aid, 
+                expected_return_date: date 
+            }, function(res) {
+                if (res.success) {
+                    Swal.fire({ icon: 'success', title: 'Borrowed', text: 'Book lent successfully', timer: 2000, showConfirmButton: false });
+                    $('#borrowModal').modal('hide');
+                    loadBorrows();
                     loadBooks();
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'Failed' });
+                    Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'Lending failed' });
                 }
-            },
-            error: function(xhr) {
-                Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.message || 'Failed' });
+            });
+        }
+        function getIsbnRowHtml() {
+            return '<div class="row align-items-end isbn-row mb-2"><div class="col-md-8"><label class="form-label">ISBN <span class="text-danger">*</span></label><input type="text" class="form-control isbn-input" placeholder="Enter ISBN"><small class="text-danger d-none isbn-error">ISBN is already taken.</small></div><div class="col-md-4"><button type="button" class="btn btn-danger remove-isbn-btn d-none"><i class="fa fa-trash"></i> Remove</button></div></div>';
+        }
+
+        function showAddBookModal() {
+            $('#bookForm')[0].reset();
+            $('#bookID').val('');
+            $('#isbnList').html(getIsbnRowHtml());
+            $('#bookEntriesSection').removeClass('d-none');
+            $('#bookModalTitle').html('<i class="fa fa-book"></i> Add New Book');
+            $('#saveBooksBtn').removeClass('d-none');
+            $('#saveBookBtn').addClass('d-none');
+            $('#bookStatusDiv').hide();
+            $('#bookModal').modal('show');
+        }
+
+        function showDamagedBookModal() {
+            $('#damagedForm')[0].reset();
+            $('#damagedBookInfo').hide();
+            $('#damagedStudentSection').hide();
+            $('#damagedModal').modal('show');
+        }
+
+        function showLostBookModal() {
+            $('#lostForm')[0].reset();
+            $('#lostBookInfo').hide();
+            $('#lostStudentSection').hide();
+            $('#lostModal').modal('show');
+        }
+
+        function saveDamagedBook() {
+            const isbn = $('#damagedIsbn').val();
+            const damaged_by = $('#damagedBy').val();
+            const studentID = $('#damagedStudentID').val();
+            const teacherID = $('#damagedTeacherID').val();
+            const staffID = $('#damagedStaffID').val();
+            const notes = $('#damagedReason').val();
+            
+            if(!isbn) {
+                Swal.fire({ icon: 'warning', title: 'Error', text: 'ISBN is required' });
+                return;
             }
-        });
-    }
-
-    function saveBorrow() {
-        if (typeof jQuery === 'undefined') {
-            alert('jQuery is not loaded. Please refresh the page.');
-            return;
-        }
-        var $ = jQuery;
-
-        const borrowerType = $('#borrowerType').val();
-        const studentID = $('#borrowStudentID').val();
-        const teacherID = $('#borrowTeacherID').val();
-        const staffID = $('#borrowStaffID').val();
-        const expectedReturnDate = $('#expectedReturnDate').val();
-        const notes = $('#borrowNotes').val();
-
-        if (borrowerType === 'student' && !studentID) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a student' });
-            return;
-        }
-        if (borrowerType === 'teacher' && !teacherID) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a teacher' });
-            return;
-        }
-        if (borrowerType === 'staff' && !staffID) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select a staff member' });
-            return;
-        }
-
-        const formData = {
-            isbn: $('#borrowISBN').val().trim(),
-            borrower_type: borrowerType,
-            studentID: borrowerType === 'student' ? studentID : null,
-            teacherID: borrowerType === 'teacher' ? teacherID : null,
-            staffID: borrowerType === 'staff' ? staffID : null,
-            expected_return_date: expectedReturnDate,
-            notes: notes
-        };
-
-        if (!formData.isbn || (borrowerType === 'student' && !studentID) || (borrowerType === 'teacher' && !teacherID) || (borrowerType === 'staff' && !staffID)) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: borrowerType === 'teacher'
-                    ? 'Please enter ISBN and select a teacher'
-                    : (borrowerType === 'staff' ? 'Please enter ISBN and select a staff member' : 'Please enter ISBN and select a student')
-            });
-            return;
-        }
-
-        if (!formData.expected_return_date) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: 'Please select expected return date'
-            });
-            return;
-        }
-
-        if (!$('#borrowBookInfo').is(':visible')) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: 'Please enter a valid ISBN'
-            });
-            return;
-        }
-
-        $.ajaxSetup({
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            if(damaged_by !== 'other' && !studentID && !teacherID && !staffID) {
+                Swal.fire({ icon: 'warning', title: 'Error', text: 'Selection is required' });
+                return;
             }
-        });
+            
+            $.post('{{ route("store_book_damage") }}', {
+                _token: '{{ csrf_token() }}',
+                isbn: isbn,
+                damaged_by: damaged_by,
+                studentID: studentID,
+                teacherID: teacherID,
+                staffID: staffID,
+                notes: notes
+            }, function(res) {
+                if(res.success) {
+                    Swal.fire({ icon: 'success', title: 'Saved', text: 'Record saved successfully', timer: 2000, showConfirmButton: false });
+                    $('#damagedModal').modal('hide');
+                    loadBooks();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'Failed to save record' });
+                }
+            });
+        }
 
-        // Show loading state
-        const $saveBorrowBtn = $('#saveBorrowBtn');
-        const $saveBorrowBtnText = $('#saveBorrowBtnText');
-        const originalBorrowBtnText = $saveBorrowBtnText.text();
-        $saveBorrowBtn.prop('disabled', true);
-        $saveBorrowBtnText.html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+        function saveLostBook() {
+            const isbn = $('#lostIsbn').val();
+            const lost_by = $('#lostBy').val();
+            const studentID = $('#lostStudentID').val();
+            const teacherID = $('#lostTeacherID').val();
+            const staffID = $('#lostStaffID').val();
+            const notes = $('#lostReason').val();
+            
+            if(!isbn) {
+                Swal.fire({ icon: 'warning', title: 'Error', text: 'ISBN is required' });
+                return;
+            }
+            if(lost_by !== 'other' && !studentID && !teacherID && !staffID) {
+                Swal.fire({ icon: 'warning', title: 'Error', text: 'Selection is required' });
+                return;
+            }
+            
+            $.post('{{ route("store_book_loss") }}', {
+                _token: '{{ csrf_token() }}',
+                isbn: isbn,
+                lost_by: lost_by,
+                studentID: studentID,
+                teacherID: teacherID,
+                staffID: staffID,
+                notes: notes
+            }, function(res) {
+                if(res.success) {
+                    Swal.fire({ icon: 'success', title: 'Saved', text: 'Record saved successfully', timer: 2000, showConfirmButton: false });
+                    $('#lostModal').modal('hide');
+                    loadBooks();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'Failed to save record' });
+                }
+            });
+        }
 
-        $.ajax({
-            url: '{{ route("borrow_book") }}',
-            type: 'POST',
-            data: formData,
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: response.message || 'Book borrowed successfully',
-                        showConfirmButton: false,
-                        timer: 2000
-                    }).then(() => {
-                        $('#borrowModal').modal('hide');
-                        loadBorrows();
-                        loadBooks();
-                        location.reload();
+        function saveBooks() {
+            const bookType = $('#bookType').val();
+            const classID = $('#bookClassID').val();
+            const subjectID = $('#bookSubjectID').val();
+            const title = $('#bookTitle').val();
+            const author = $('#bookAuthor').val();
+            const publisher = $('#bookPublisher').val();
+            const year = $('#bookPublicationYear').val();
+            const desc = $('#bookDescription').val();
+            
+            let isbns = [];
+            $('.isbn-input').each(function() {
+                if($(this).val()) isbns.push($(this).val());
+            });
+
+            if (isbns.length === 0 || !title) {
+                Swal.fire({ icon: 'warning', title: 'Error', text: 'Title and at least one ISBN are required' });
+                return;
+            }
+
+            $.post('{{ route("store_book") }}', {
+                _token: '{{ csrf_token() }}',
+                book_type: bookType,
+                classID: classID,
+                subjectID: subjectID,
+                book_title: title,
+                author: author,
+                publisher: publisher,
+                publication_year: year,
+                description: desc,
+                isbns: isbns
+            }, function(res) {
+                if(res.success) {
+                    Swal.fire({ icon: 'success', title: 'Saved', text: 'Books saved successfully', timer: 2000, showConfirmButton: false });
+                    $('#bookModal').modal('hide');
+                    loadBooks();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'Failed to save books' });
+                }
+            });
+        }
+
+        function saveBook() {
+            const bookID = $('#bookID').val();
+            const data = {
+                _token: '{{ csrf_token() }}',
+                book_type: $('#bookType').val(),
+                classID: $('#bookClassID').val(),
+                subjectID: $('#bookSubjectID').val(),
+                book_title: $('#bookTitle').val(),
+                author: $('#bookAuthor').val(),
+                publisher: $('#bookPublisher').val(),
+                publication_year: $('#bookPublicationYear').val(),
+                description: $('#bookDescription').val(),
+                status: $('#bookStatus').val(),
+                isbn: $('.isbn-input').first().val()
+            };
+
+            if (!data.book_title || !data.isbn) {
+                Swal.fire({ icon: 'warning', title: 'Error', text: 'Title and ISBN are required' });
+                return;
+            }
+
+            let url = '{{ url("update_book") }}/' + bookID;
+            $.post(url, data, function(res) {
+                if(res.success) {
+                    Swal.fire({ icon: 'success', title: 'Updated', text: 'Book updated successfully', timer: 2000, showConfirmButton: false });
+                    $('#bookModal').modal('hide');
+                    loadBooks();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'Update failed' });
+                }
+            });
+        }
+
+        function showResolveModal(bookID, type) {
+            const book = allBooks.find(b => b.bookID == bookID);
+            if (!book) return;
+
+            $('#resolveBookID').val(book.bookID);
+            $('#resolveIncidentType').val(type);
+            $('#resolveIncidentID').val(type === 'loss' ? book.loss_info.lossID : book.damage_info.damageID);
+            $('#resolutionMethod').val('returned');
+            $('#resolveNotes').val('');
+            $('#replacementIsbn').val('');
+            $('#paymentAmount').val('');
+            toggleResolutionFields();
+            $('#bookDetailsModal').modal('hide');
+            $('#resolveIncidentModal').modal('show');
+        }
+
+        function editBook(bookID) {
+            const book = allBooks.find(b => b.bookID == bookID);
+            if (!book) return;
+
+            $('#bookForm')[0].reset();
+            $('#bookID').val(book.bookID);
+            $('#bookType').val(book.book_type);
+            $('#bookClassID').val(book.classID);
+            $('#bookTitle').val(book.book_title);
+            $('#bookAuthor').val(book.author);
+            $('#bookPublisher').val(book.publisher);
+            $('#bookPublicationYear').val(book.publication_year);
+            $('#bookDescription').val(book.description);
+            $('#bookStatus').val(book.status);
+
+            // Handle Subjects (trigger change or fetch if needed)
+            if (book.classID) {
+                getSubjects(book.classID, book.subjectID);
+            }
+
+            // Single ISBN for edit mode
+            $('#isbnList').html(`
+                <div class="row align-items-end isbn-row mb-2">
+                    <div class="col-md-12">
+                        <label class="form-label">ISBN <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control isbn-input" value="${book.isbn}" required>
+                    </div>
+                </div>
+            `);
+            $('#bookEntriesSection').addClass('d-none'); // Hide add multiple during single edit
+
+            $('#bookModalTitle').text('Edit Book');
+            $('#saveBooksBtn').addClass('d-none');
+            $('#saveBookBtn').removeClass('d-none');
+            $('#bookStatusDiv').show();
+            
+            $('#bookDetailsModal').modal('hide');
+            $('#bookModal').modal('show');
+        }
+
+        function getSubjects(classID, selectedID = null) {
+            $.get('{{ route("get_subjects_by_class") }}', { classID }, function(res) {
+                if(res.success) {
+                    let html = '<option value="">Select Subject</option>';
+                    res.subjects.forEach(s => {
+                        html += `<option value="${s.subjectID}" ${selectedID == s.subjectID ? 'selected' : ''}>${s.subject_name}</option>`;
                     });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: response.message || 'An error occurred'
-                    });
-                    $saveBorrowBtn.prop('disabled', false);
-                    $saveBorrowBtnText.text(originalBorrowBtnText);
+                    $('#bookSubjectID').html(html);
                 }
-            },
-            error: function(xhr) {
-                let errorMessage = 'An error occurred while borrowing the book.';
-                
-                if (xhr.responseJSON) {
-                    if (xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    } else if (xhr.responseJSON.error) {
-                        errorMessage = xhr.responseJSON.error;
-                    } else if (xhr.responseJSON.errors) {
-                        // Validation errors
-                        const errors = xhr.responseJSON.errors;
-                        const errorList = Object.values(errors).flat().join('<br>');
-                        errorMessage = errorList;
-                    }
-                } else if (xhr.responseText) {
-                    try {
-                        const response = JSON.parse(xhr.responseText);
-                        errorMessage = response.message || response.error || errorMessage;
-                    } catch (e) {
-                        errorMessage = xhr.responseText || errorMessage;
-                    }
-                }
-                
-                console.error('Borrow error:', xhr.responseJSON || xhr.responseText);
-                
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    html: errorMessage,
-                    confirmButtonColor: '#940000'
-                });
-                $saveBorrowBtn.prop('disabled', false);
-                $saveBorrowBtnText.text(originalBorrowBtnText);
+            });
+        }
+
+        function toggleResolutionFields() {
+            const method = $('#resolutionMethod').val();
+            $('#replacementIsbnSection').toggleClass('d-none', method !== 'replacenew');
+            $('#paymentAmountSection').toggleClass('d-none', method !== 'cash');
+        }
+
+        function submitResolution() {
+            const type = $('#resolveIncidentType').val();
+            const id = $('#resolveIncidentID').val();
+            const bookID = $('#resolveBookID').val();
+            const method = $('#resolutionMethod').val();
+            const replacementIsbn = $('#replacementIsbn').val();
+            const amount = $('#paymentAmount').val();
+            const notes = $('#resolveNotes').val();
+
+            if (method === 'replacenew' && !replacementIsbn) {
+                Swal.fire({ icon: 'warning', title: 'Error', text: 'Please provide the new ISBN' });
+                return;
             }
-        });
-    }
-
-    function openReturnModal(borrowID, expectedReturnDate) {
-        $('#returnBorrowID').val(borrowID);
-        const today = new Date().toISOString().slice(0, 10);
-        $('#actualReturnDate').val(today);
-        $('#lateReason').val('');
-        $('#lateReasonSection').hide();
-        $('#returnExpectedDate').text(expectedReturnDate ? formatDate(expectedReturnDate) : 'N/A');
-        $('#returnExpectedDate').data('expected-raw', expectedReturnDate || '');
-        $('#returnModal').modal('show');
-    }
-
-    function handleReturnDateChange() {
-        const expectedText = $('#returnExpectedDate').text();
-        const expectedRaw = $('#returnExpectedDate').data('expected-raw');
-        const actual = $('#actualReturnDate').val();
-        if (!actual || !expectedRaw) {
-            $('#lateReasonSection').hide();
-            return;
-        }
-        const expected = new Date(expectedRaw);
-        const actualDate = new Date(actual);
-        if (actualDate > expected) {
-            $('#lateReasonSection').show();
-        } else {
-            $('#lateReasonSection').hide();
-            $('#lateReason').val('');
-        }
-    }
-
-    function submitReturn() {
-        const borrowID = $('#returnBorrowID').val();
-        const returnDate = $('#actualReturnDate').val();
-        const lateReason = $('#lateReason').val().trim();
-
-        if (!borrowID) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Borrow record not found' });
-            return;
-        }
-        if (!returnDate) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please select return date' });
-            return;
-        }
-                
-                $.ajaxSetup({
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
-                });
-
-                $.ajax({
-                    url: `{{ url('return_book') }}/${borrowID}`,
-                    type: 'POST',
-            data: {
-                return_date: returnDate,
-                late_reason: lateReason
-            },
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Returned!',
-                                text: response.message || 'Book returned successfully',
-                                showConfirmButton: false,
-                                timer: 2000
-                            }).then(() => {
-                        $('#returnModal').modal('hide');
-                                loadBorrows();
-                                loadBooks();
-                                location.reload();
-                            });
-                        }
-                    },
-                    error: function(xhr) {
-                        const error = xhr.responseJSON?.error || 'An error occurred';
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: error
-                        });
-                    }
-                });
-    }
-
-    function openReturnModalByIsbn(isbn, expectedReturnDate) {
-        if (!isbn) {
-            Swal.fire({ icon: 'warning', title: 'Validation Error', text: 'Invalid ISBN' });
-            return;
-        }
-        $.ajax({
-            url: '{{ route("get_book_borrows") }}',
-            type: 'GET',
-            data: { status: 'borrowed' },
-            success: function(response) {
-                if (response.success && response.borrows) {
-                    const borrow = response.borrows.find(b => b.book && b.book.isbn === isbn && b.status === 'borrowed');
-                    if (!borrow) {
-                        Swal.fire({ icon: 'warning', title: 'Not Found', text: 'Active borrow not found for this ISBN' });
-                        return;
-                    }
-                    openReturnModal(borrow.borrowID, expectedReturnDate || borrow.expected_return_date || '');
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load borrow records' });
-                }
-            },
-            error: function() {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load borrow records' });
+            if (method === 'cash' && !amount) {
+                Swal.fire({ icon: 'warning', title: 'Error', text: 'Please enter the payment amount' });
+                return;
             }
-        });
-    }
 
-    function loadStatistics() {
-        if (typeof jQuery === 'undefined') {
-            console.error('jQuery not loaded');
-            return;
-        }
-        var $ = jQuery;
-        
-        const classID = $('#statClass').val();
-        const subjectID = $('#statSubject').val();
-        
-        console.log('Loading statistics with filters - ClassID:', classID, 'SubjectID:', subjectID);
-        
-        // Show loading state
-        $('#statisticsTableBody').html('<tr><td colspan="6" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading statistics...</td></tr>');
-        
-        $.ajax({
-            url: '{{ route("get_book_statistics") }}',
-            type: 'GET',
-            data: {
-                classID: classID || '',
-                subjectID: subjectID || ''
-            },
-            success: function(response) {
-                console.log('Statistics response:', response);
-                if (response.success) {
-                    let html = '';
-                    if (response.books_by_class_subject && response.books_by_class_subject.length > 0) {
-                        response.books_by_class_subject.forEach(item => {
-                            const className = item.class ? item.class.class_name : '-';
-                            const subjectName = item.subject ? item.subject.subject_name : '-';
-                            
-                            html += `
-                                <tr>
-                                    <td>${className}</td>
-                                    <td>${subjectName}</td>
-                                    <td>${item.total || 0}</td>
-                                    <td><span class="badge badge-custom badge-available">${item.available || 0}</span></td>
-                                    <td><span class="badge badge-custom badge-issued">${item.issued || 0}</span></td>
-                                    <td>${item.book_count || 0}</td>
-                                </tr>
-                            `;
-                        });
-                    } else {
-                        html = '<tr><td colspan="6" class="text-center">No statistics found for the selected filters</td></tr>';
-                    }
-                    $('#statisticsTableBody').html(html);
+            $.post('{{ route("resolve_book_incident") }}', {
+                _token: '{{ csrf_token() }}',
+                incident_type: type,
+                incidentID: id,
+                bookID: bookID,
+                method: method,
+                replacement_isbn: replacementIsbn,
+                amount: amount,
+                notes: notes
+            }, function(res) {
+                if(res.success) {
+                    Swal.fire({ icon: 'success', title: 'Resolved', text: 'Incident has been resolved', timer: 2000, showConfirmButton: false });
+                    $('#resolveIncidentModal').modal('hide');
+                    loadBooks();
                 } else {
-                    $('#statisticsTableBody').html('<tr><td colspan="6" class="text-center">Error loading statistics</td></tr>');
-                    console.error('Error in response:', response);
+                    Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'Resolution failed' });
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error loading statistics:', error);
-                console.error('Response:', xhr.responseText);
-                $('#statisticsTableBody').html('<tr><td colspan="6" class="text-center">Error loading statistics. Please try again.</td></tr>');
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Failed to load statistics: ' + (xhr.responseJSON?.error || error)
-                });
-            }
-        });
-    }
+            });
+        }
+
+        // Global exports
+        window.openBookDetails = openBookDetails;
+        window.openReturnModal = openReturnModal;
+        window.loadBooks = loadBooks;
+        window.showBorrowBookModal = showBorrowBookModal;
+        window.showAddBookModal = showAddBookModal;
+        window.showDamagedBookModal = showDamagedBookModal;
+        window.showLostBookModal = showLostBookModal;
+        window.borrowSpecificBook = borrowSpecificBook;
+        window.selectStudent = selectStudent;
+        window.lookupBookByIsbn = lookupBookByIsbn;
+        window.saveBorrow = saveBorrow;
+        window.submitReturn = submitReturn;
+        window.saveBooks = saveBooks;
+        window.saveBook = saveBook;
+        window.saveDamagedBook = saveDamagedBook;
+        window.saveLostBook = saveLostBook;
+        window.showResolveModal = showResolveModal;
+        window.editBook = editBook;
+        window.toggleResolutionFields = toggleResolutionFields;
+        window.submitResolution = submitResolution;
+        window.toggleIncidentBy = toggleIncidentBy;
+        window.toggleBorrowerSearch = toggleBorrowerSearch;
+
+        initLibrary();
+    })();
 </script>

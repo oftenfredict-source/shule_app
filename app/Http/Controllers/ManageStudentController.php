@@ -402,6 +402,18 @@ class ManageStudentController extends Controller
             if ($request->parentID) {
                 $parent = ParentModel::find($request->parentID);
                 if ($parent && $parent->phone) {
+                    // Ensure parent has user account
+                    $existingParentUser = User::where('name', $parent->phone)->first();
+                    if (!$existingParentUser) {
+                        User::create([
+                            'name' => $parent->phone,
+                            'email' => $parent->email ?: null,
+                            'password' => Hash::make($parent->last_name),
+                            'user_type' => 'parent',
+                            'schoolID' => $schoolID
+                        ]);
+                    }
+
                     $smsService = new SmsService();
                     $studentName = $request->first_name . ' ' . ($request->middle_name ? $request->middle_name . ' ' : '') . $request->last_name;
                     $smsResult = $smsService->sendStudentCredentials(
@@ -4381,6 +4393,20 @@ class ManageStudentController extends Controller
                         ]);
                     }
                     $parentID = $parent->parentID;
+
+                    // Ensure parent has user account (Username = phone number, Password = last_name)
+                    if ($parent) {
+                        $existingUser = User::where('name', $parent->phone)->first();
+                        if (!$existingUser) {
+                            User::create([
+                                'name' => $parent->phone, 
+                                'email' => $parent->email ?: null,
+                                'password' => Hash::make($parent->last_name),
+                                'user_type' => 'parent',
+                                'schoolID' => $schoolID,
+                            ]);
+                        }
+                    }
                 }
 
                 if (empty($admissionNum)) {

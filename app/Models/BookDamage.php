@@ -15,6 +15,8 @@ class BookDamage extends Model
     protected $fillable = [
         'bookID',
         'studentID',
+        'teacherID',
+        'staffID',
         'damaged_by',
         'description',
         'status',
@@ -41,5 +43,15 @@ class BookDamage extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'studentID', 'studentID');
+    }
+
+    public function teacher()
+    {
+        return $this->belongsTo(Teacher::class, 'teacherID', 'id');
+    }
+
+    public function staff()
+    {
+        return $this->belongsTo(OtherStaff::class, 'staffID', 'id');
     }
 }

@@ -379,6 +379,40 @@ class StudentRegistrationController extends Controller
                 'registration_status' => 'Completed'
             ]);
 
+            // Create user account for student (Username = admission_number, Password = last_name)
+            $userEmail = $admissionNumber . '@student.local';
+            $emailCounter = 1;
+            while (User::where('email', $userEmail)->exists()) {
+                $userEmail = $admissionNumber . '_' . $emailCounter . '@student.local';
+                $emailCounter++;
+            }
+
+            User::create([
+                'name' => $admissionNumber,
+                'email' => $userEmail,
+                'password' => Hash::make($registration['last_name']),
+                'user_type' => 'student',
+                'schoolID' => $schoolID
+            ]);
+
+            // Ensure parent has user account (Username = phone, Password = last_name)
+            $parentID = $registration['parentID'] ?? null;
+            if ($parentID) {
+                $parent = ParentModel::find($parentID);
+                if ($parent) {
+                    $existingUser = User::where('name', $parent->phone)->first();
+                    if (!$existingUser) {
+                        User::create([
+                            'name' => $parent->phone,
+                            'email' => $parent->email ?: null,
+                            'password' => Hash::make($parent->last_name),
+                            'user_type' => 'parent',
+                            'schoolID' => $schoolID
+                        ]);
+                    }
+                }
+            }
+
             DB::commit();
 
             // Clear session

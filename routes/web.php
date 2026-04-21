@@ -841,6 +841,7 @@ Route::post('store_book_damage', [LibraryController::class, 'store_book_damage']
 Route::post('send_parent_message', [LibraryController::class, 'send_parent_message'])->name('send_parent_message');
 Route::post('update_book_loss_payment/{lossID}', [LibraryController::class, 'update_book_loss_payment'])->name('update_book_loss_payment');
 Route::post('update_book_damage_payment/{damageID}', [LibraryController::class, 'update_book_damage_payment'])->name('update_book_damage_payment');
+Route::post('resolve_book_incident', [LibraryController::class, 'resolve_book_incident'])->name('resolve_book_incident');
 Route::get('get_library_students', [LibraryController::class, 'get_library_students'])->name('get_library_students');
 Route::get('search_teachers', [LibraryController::class, 'search_teachers'])->name('search_teachers');
 Route::get('search_staff', [LibraryController::class, 'search_staff'])->name('search_staff');
