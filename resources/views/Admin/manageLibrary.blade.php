@@ -393,7 +393,7 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label" style="font-size: 10px;">Search Keyword</label>
-                    <input type="text" class="form-control form-control-sm" id="searchBook" placeholder="Title, ISBN, Author..." style="border-radius: 0;">
+                    <input type="text" class="form-control form-control-sm" id="searchBook" placeholder="Title, Unique ID, Author..." style="border-radius: 0;">
                 </div>
                 <div class="col-md-1">
                     <button class="btn btn-primary-custom btn-sm w-100" onclick="loadBooks()">
@@ -469,7 +469,7 @@
                     </span>
                 </div>
                 <div class="mb-3">
-                    <input type="text" class="form-control" id="viewBooksSearch" placeholder="Search by ISBN, title, author...">
+                    <input type="text" class="form-control" id="viewBooksSearch" placeholder="Search by Unique ID, title, author...">
                 </div>
                 <div class="mb-3">
                     <select class="form-control" id="viewBooksFilter" style="width: 240px; display: inline-block;">
@@ -557,13 +557,13 @@
                     </div>
                 </form>
                 <div id="bookEntriesSection" class="mt-3">
-                    <h6 class="mb-2">ISBN List</h6>
+                    <h6 class="mb-2">Unique ID List</h6>
                     <div id="isbnList">
                         <div class="row align-items-end isbn-row mb-2">
                             <div class="col-md-8">
-                                <label class="form-label">ISBN <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control isbn-input" placeholder="Enter ISBN">
-                                <small class="text-danger d-none isbn-error">ISBN is already taken.</small>
+                                <label class="form-label">Unique ID <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control isbn-input" placeholder="Enter Unique ID">
+                                <small class="text-danger d-none isbn-error">Unique ID is already taken.</small>
                             </div>
                             <div class="col-md-4">
                                 <button type="button" class="btn btn-danger remove-isbn-btn d-none">
@@ -605,9 +605,9 @@
             <div class="modal-body">
                 <form id="borrowForm">
                     <div class="mb-4">
-                        <label class="form-label">Book ISBN <span class="text-danger">*</span></label>
+                        <label class="form-label">Book Unique ID <span class="text-danger">*</span></label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="borrowISBN" placeholder="Scan or type ISBN..." required>
+                            <input type="text" class="form-control" id="borrowISBN" placeholder="Scan or type Unique ID..." required>
                             <div class="input-group-append d-none" id="borrowIsbnSpiner">
                                 <span class="input-group-text bg-white"><i class="fa fa-spinner fa-spin text-primary"></i></span>
                             </div>
@@ -680,9 +680,9 @@
             <div class="modal-body">
                 <form id="lostForm">
                     <div class="mb-4">
-                        <label class="form-label">Book ISBN <span class="text-danger">*</span></label>
+                        <label class="form-label">Book Unique ID <span class="text-danger">*</span></label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="lostIsbn" placeholder="Scan or type ISBN..." required>
+                            <input type="text" class="form-control" id="lostIsbn" placeholder="Scan or type Unique ID..." required>
                             <div class="input-group-append d-none" id="lostIsbnSpiner">
                                 <span class="input-group-text bg-white"><i class="fa fa-spinner fa-spin text-indigo"></i></span>
                             </div>
@@ -744,9 +744,9 @@
             <div class="modal-body">
                 <form id="damagedForm">
                     <div class="mb-4">
-                        <label class="form-label">Book ISBN <span class="text-danger">*</span></label>
+                        <label class="form-label">Book Unique ID <span class="text-danger">*</span></label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="damagedIsbn" placeholder="Scan or type ISBN..." required>
+                            <input type="text" class="form-control" id="damagedIsbn" placeholder="Scan or type Unique ID..." required>
                             <div class="input-group-append d-none" id="damagedIsbnSpiner">
                                 <span class="input-group-text bg-white"><i class="fa fa-spinner fa-spin text-orange"></i></span>
                             </div>
@@ -1368,7 +1368,7 @@
                         html = '<div class="p-3 text-center text-muted small">NO RESULTS FOUND</div>';
                     } else {
                         items.forEach(it => {
-                            let name = (bType === 'student' || bType === 'teacher') ? `${it.first_name} ${it.last_name}` : it.name;
+                            let name = it.name || `${it.first_name || ''} ${it.last_name || ''}`.trim();
                             let sub = bType === 'student' ? (it.subclass ? it.subclass.class.class_name : 'No Class') : (it.department || (bType === 'teacher' ? 'Teaching Staff' : 'Staff'));
                             html += `<div class="p-2 border-bottom student-search-item" style="cursor:pointer" onclick="selectStudent(${it.studentID || it.id}, '${name.replace(/'/g, "\\'")}', '${prefix}', '${bType}')">
                                         <strong>${name}</strong><br><small class="text-muted">${sub}</small>
@@ -1472,7 +1472,7 @@
             });
         }
         function getIsbnRowHtml() {
-            return '<div class="row align-items-end isbn-row mb-2"><div class="col-md-8"><label class="form-label">ISBN <span class="text-danger">*</span></label><input type="text" class="form-control isbn-input" placeholder="Enter ISBN"><small class="text-danger d-none isbn-error">ISBN is already taken.</small></div><div class="col-md-4"><button type="button" class="btn btn-danger remove-isbn-btn d-none"><i class="fa fa-trash"></i> Remove</button></div></div>';
+            return '<div class="row align-items-end isbn-row mb-2"><div class="col-md-8"><label class="form-label">Unique ID <span class="text-danger">*</span></label><input type="text" class="form-control isbn-input" placeholder="Enter Unique ID"><small class="text-danger d-none isbn-error">Unique ID is already taken.</small></div><div class="col-md-4"><button type="button" class="btn btn-danger remove-isbn-btn d-none"><i class="fa fa-trash"></i> Remove</button></div></div>';
         }
 
         function showAddBookModal() {
