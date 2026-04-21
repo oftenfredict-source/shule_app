@@ -99,7 +99,7 @@
                                     <label class="small font-weight-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">Academic Year</label>
                                     <select id="filterYear" class="form-control" style="border-radius:0; border:1px solid #ddd; font-weight:600;">
                                         @foreach($academicYears as $year)
-                                            <option value="{{ $year->academic_yearID }}" {{ $year->status == 'Active' ? 'selected' : '' }}>{{ $year->year_name }}</option>
+                                            <option value="{{ $year->academic_yearID }}" {{ $year->status == 'Active' ? 'selected' : '' }}>{{ $year->year_name ?: $year->year }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -490,7 +490,7 @@
                             <label class="form-label small font-weight-bold text-uppercase" style="color:#666;">Academic Year</label>
                             <select class="form-control" name="academic_yearID" id="ttYear" required style="border-radius: 0;">
                                 @foreach($academicYears as $ay)
-                                    <option value="{{ $ay->academic_yearID }}" {{ $ay->status == 'Active' ? 'selected' : '' }}>{{ $ay->year }}</option>
+                                    <option value="{{ $ay->academic_yearID }}" {{ $ay->status == 'Active' ? 'selected' : '' }}>{{ $ay->year_name ?: $ay->year }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -576,7 +576,7 @@
                     <select class="form-control form-control-sm" id="filterTtYear" onchange="loadTimetables()" style="width: 150px; border-radius: 0;">
                         <option value="">All Years</option>
                         @foreach($academicYears as $ay)
-                            <option value="{{ $ay->academic_yearID }}">{{ $ay->year }}</option>
+                            <option value="{{ $ay->academic_yearID }}" {{ $ay->status == 'Active' ? 'selected' : '' }}>{{ $ay->year_name ?: $ay->year }}</option>
                         @endforeach
                     </select>
                     <select class="form-control form-control-sm" id="filterTtTerm" onchange="loadTimetables()" style="width: 150px; border-radius: 0;">
