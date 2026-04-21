@@ -507,14 +507,14 @@
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Book Type <span class="text-danger">*</span></label>
-                            <select class="form-control" id="bookType" required>
+                            <select class="form-control" id="bookType" onchange="toggleBookTypeFields()" required>
                                 <option value="Class">Class Book (Curriculum)</option>
                                 <option value="Other">Other (Story, Novel, Play, etc.)</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3" id="classSelectionDiv">
                             <label class="form-label">Class <span class="text-danger">*</span></label>
-                            <select class="form-control" id="bookClassID" required>
+                            <select class="form-control" id="bookClassID" onchange="getSubjects(this.value)" required>
                                 <option value="">Select Class</option>
                                 @foreach($classes as $class)
                                     <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
@@ -1782,7 +1782,24 @@
         window.toggleResolutionFields = toggleResolutionFields;
         window.submitResolution = submitResolution;
         window.toggleIncidentBy = toggleIncidentBy;
+        function toggleBookTypeFields() {
+            const type = $('#bookType').val();
+            if (type === 'Other') {
+                $('#classSelectionDiv').slideUp();
+                $('#subjectSelectionDiv').slideUp();
+                $('#bookClassID').val('').prop('required', false);
+                $('#bookSubjectID').val('').prop('required', false);
+            } else {
+                $('#classSelectionDiv').slideDown();
+                $('#subjectSelectionDiv').slideDown();
+                $('#bookClassID').prop('required', true);
+                $('#bookSubjectID').prop('required', true);
+            }
+        }
+        
         window.toggleBorrowerSearch = toggleBorrowerSearch;
+        window.toggleBookTypeFields = toggleBookTypeFields;
+        window.getSubjects = getSubjects;
 
         initLibrary();
     })();
