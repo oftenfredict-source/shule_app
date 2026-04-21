@@ -640,6 +640,8 @@ Route::post('update_parent', [ManageParentsController::class, 'update_parent'])-
 Route::delete('delete_parent/{parentID}', [ManageParentsController::class, 'delete_parent'])->name('delete_parent');
 Route::get('get_parents_for_pdf/{subclassID}', [ManageParentsController::class, 'get_parents_for_pdf'])->name('get_parents_for_pdf');
 Route::get('get_parent_details/{parentID}', [ManageParentsController::class, 'get_parent_details'])->name('get_parent_details');
+Route::post('register_parent_account', [ManageParentsController::class, 'register_parent_account'])->name('register_parent_account');
+Route::post('send_password_sms', [ManageParentsController::class, 'send_parent_password'])->name('send_password_sms');
 
 // Examination Routes
 Route::get('exam_paper', [ManageExaminationController::class, 'exam_paper'])->name('exam_paper');

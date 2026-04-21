@@ -280,7 +280,11 @@ class ManageParentsController extends Controller
             ->orderBy('last_name')
             ->get();
 
-        $parents = $parents->map(function($parent) use ($subclassID) {
+        // Prefetch usernames to avoid N+1 queries for has_account
+        $parentPhones = $parents->pluck('phone')->toArray();
+        $existingUsernames = User::whereIn('name', $parentPhones)->pluck('name')->toArray();
+
+        $parents = $parents->map(function($parent) use ($subclassID, $existingUsernames) {
             // Count all students for this parent
             $studentCount = $parent->students ? $parent->students->count() : 0;
             
@@ -303,7 +307,8 @@ class ManageParentsController extends Controller
                 'gender' => $parent->gender,
                 'photo' => $parent->photo ? asset('userImages/' . $parent->photo) : null,
                 'student_count' => $studentCount,
-                'student_count_in_class' => $studentCountInClass
+                'student_count_in_class' => $studentCountInClass,
+                'has_account' => in_array($parent->phone, $existingUsernames)
             ];
         });
 
@@ -608,6 +613,59 @@ class ManageParentsController extends Controller
                 'success' => false,
                 'message' => 'Failed to fetch data: ' . $e->getMessage()
             ], 500);
+    }
+    }
+
+    public function register_parent_account(Request $request)
+    {
+        $parentID = $request->parentID;
+        $parent = ParentModel::find($parentID);
+        if (!$parent) {
+            return response()->json(['success' => false, 'message' => 'Parent not found'], 404);
+        }
+
+        $existingUser = User::where('name', $parent->phone)->first();
+        if ($existingUser) {
+            return response()->json(['success' => false, 'message' => 'User account already exists'], 400);
+        }
+
+        User::create([
+            'name' => $parent->phone,
+            'email' => $parent->email ?: null,
+            'password' => Hash::make($parent->last_name),
+            'user_type' => 'parent'
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'User account created successfully']);
+    }
+
+    public function send_parent_password(Request $request)
+    {
+        $parentID = $request->parentID;
+        $parent = ParentModel::find($parentID);
+        if (!$parent) {
+            return response()->json(['success' => false, 'message' => 'Parent not found'], 404);
+        }
+
+        $schoolID = Session::get('schoolID');
+        $school = \App\Models\School::find($schoolID);
+
+        if (!$school) {
+            return response()->json(['success' => false, 'message' => 'School information not found'], 404);
+        }
+
+        $smsService = new SmsService();
+        $smsResult = $smsService->sendParentCredentials(
+            $parent->phone,
+            $school->school_name,
+            $parent->phone,
+            $parent->last_name
+        );
+
+        if ($smsResult['success']) {
+            return response()->json(['success' => true, 'message' => 'Credentials sent successfully via SMS']);
+        } else {
+            return response()->json(['success' => false, 'message' => 'Failed to send SMS: ' . ($smsResult['message'] ?? 'Unknown error')]);
         }
     }
 }

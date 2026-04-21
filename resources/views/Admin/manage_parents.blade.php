@@ -482,17 +482,28 @@ $(document).ready(function() {
                 data: null,
                 orderable: false,
                 render: function(data, type, row) {
-                    return '<div class="d-flex justify-content-center align-items-center gap-2">' +
+                    var actions = '<div class="d-flex justify-content-center align-items-center gap-2">' +
                         '<button class="btn btn-sm btn-info text-white view-parent-btn" data-parent-id="' + row.parentID + '" title="View More">' +
                         '<i class="bi bi-eye-fill"></i>' +
-                        '</button>' +
-                        '<button class="btn btn-sm btn-warning text-dark edit-parent-btn" data-parent-id="' + row.parentID + '" title="Edit">' +
-                        '<i class="bi bi-pencil-square"></i>' +
-                        '</button>' +
-                        '<button class="btn btn-sm btn-danger text-white delete-parent-btn" data-parent-id="' + row.parentID + '" title="Delete">' +
-                        '<i class="bi bi-trash"></i>' +
-                        '</button>' +
-                        '</div>';
+                        '</button>';
+                    
+                    if (!row.has_account) {
+                        actions += '<button class="btn btn-sm btn-success text-white register-account-btn" data-parent-id="' + row.parentID + '" title="Register Account">' +
+                                   '<i class="bi bi-person-plus-fill"></i>' +
+                                   '</button>';
+                    }
+                    
+                    actions += '<button class="btn btn-sm btn-primary-custom text-white send-password-btn" data-parent-id="' + row.parentID + '" title="Send Password">' +
+                               '<i class="bi bi-key-fill"></i>' +
+                               '</button>' +
+                               '<button class="btn btn-sm btn-warning text-dark edit-parent-btn" data-parent-id="' + row.parentID + '" title="Edit">' +
+                               '<i class="bi bi-pencil-square"></i>' +
+                               '</button>' +
+                               '<button class="btn btn-sm btn-danger text-white delete-parent-btn" data-parent-id="' + row.parentID + '" title="Delete">' +
+                               '<i class="bi bi-trash"></i>' +
+                               '</button>' +
+                               '</div>';
+                    return actions;
                 }
             }
         ],
@@ -938,6 +949,88 @@ $(document).ready(function() {
                     },
                     error: function(xhr) {
                         Swal.fire('Error', xhr.responseJSON.message || 'Failed to delete parent', 'error');
+                    }
+                });
+            }
+        });
+    });
+
+    // Manage Parent Account Buttons
+    $(document).on('click', '.register-account-btn', function() {
+        var parentID = $(this).data('parent-id');
+        
+        Swal.fire({
+            title: 'Register Account?',
+            text: "This will create a user account for this parent using their phone as username.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, Register'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '{{ route("register_parent_account") }}',
+                    type: 'POST',
+                    data: { parentID: parentID },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire('Success', response.message, 'success');
+                            loadParents();
+                        } else {
+                            Swal.fire('Error', response.message, 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Error', xhr.responseJSON.message || 'Failed to register account', 'error');
+                    }
+                });
+            }
+        });
+    });
+
+    $(document).on('click', '.send-password-btn', function() {
+        var parentID = $(this).data('parent-id');
+        
+        Swal.fire({
+            title: 'Send Credentials?',
+            text: "Username and Password will be sent to the parent via SMS.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#940000',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, Send SMS'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Sending SMS...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                $.ajax({
+                    url: '{{ route("send_password_sms") }}', // Standardized name
+                    type: 'POST',
+                    data: { parentID: parentID },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire('Sent!', response.message, 'success');
+                        } else {
+                            Swal.fire('Error', response.message, 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Error', xhr.responseJSON.message || 'Failed to send credentials', 'error');
                     }
                 });
             }
