@@ -169,7 +169,10 @@ class TeacherDutyController extends Controller
                 return $item->report_date->format('Y-m-d');
             });
 
-        return view('Teacher.duty_book', compact('duties', 'monthTitle', 'fromDate', 'toDate', 'currentDuty', 'classes', 'reports'));
+        // Fetch school details for dynamic labels
+        $school_details = \App\Models\School::find($schoolID);
+
+        return view('Teacher.duty_book', compact('duties', 'monthTitle', 'fromDate', 'toDate', 'currentDuty', 'classes', 'reports', 'school_details'));
     }
 
     public function getDailyReport(Request $request)
@@ -361,10 +364,12 @@ class TeacherDutyController extends Controller
             $optionalFields = [
                 'school_environment',
                 'pupils_cleanliness',
-                'teachers_attendance',
+                'meals',
                 'timetable_status',
                 'outside_activities',
                 'special_events',
+                'english_speaking',
+                'sick_students_list',
                 'teacher_comments',
             ];
 
@@ -533,17 +538,23 @@ class TeacherDutyController extends Controller
         $weekStart = $date->copy()->startOfDay();
         $weekEnd = $date->copy()->addDays(6)->endOfDay();
 
-        foreach ($holidays as $holiday) {
-            $hStart = Carbon::parse($holiday->start_date)->startOfDay();
-            $hEnd = Carbon::parse($holiday->end_date)->endOfDay();
-
-            // If the holiday covers the START of the week or significantly overlaps
-            // More aggressive: if ANY holiday day overlaps with the week assignment
-            if ($weekStart->between($hStart, $hEnd) || $weekEnd->between($hStart, $hEnd) || ($hStart->between($weekStart, $weekEnd))) {
-                return true;
+        $holidayDaysInWeek = 0;
+        
+        for ($i = 0; $i < 7; $i++) {
+            $currentDay = $weekStart->copy()->addDays($i);
+            
+            foreach ($holidays as $holiday) {
+                $hStart = Carbon::parse($holiday->start_date)->startOfDay();
+                $hEnd = Carbon::parse($holiday->end_date)->endOfDay();
+                
+                if ($currentDay->between($hStart, $hEnd)) {
+                    $holidayDaysInWeek++;
+                    break; 
+                }
             }
         }
-        return false;
+
+        return $holidayDaysInWeek >= 4;
     }
 
     public function report()

@@ -1,27 +1,41 @@
 @include('includes.teacher_nav')
 
-<div class="breadcrumbs">
-    <div class="col-sm-6">
-        <div class="page-header float-left">
-            <div class="page-title">
-                <h1>Teacher Duty Book - <u>{{ $monthTitle }}</u></h1>
+@section('content')
+<div class="content-wrapper" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif; background-color: #FFFFFF;">
+    <div class="content mt-3">
+        <div class="animated fadeIn">
+            <!-- Header Section -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm" style="border-radius: 0; border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">Teacher Duty Book: <u>{{ $monthTitle }}</u></h4>
+                                    <p class="text-muted mb-0 small" style="font-weight: 600;">Record and Review Daily Academic Observations</p>
+                                </div>
+                                <div class="d-flex">
+                                    <button type="button" id="exportRosterBtn" data-from="{{ $fromDate }}" data-to="{{ $toDate }}" class="btn shadow-sm text-white" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 20px;">
+                                        <i class="fa fa-file-pdf-o"></i> EXPORT ROSTER
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    <div class="col-sm-6">
-        <div class="page-header float-right">
-            <div class="page-title">
-                <ol class="breadcrumb text-right">
-                    <li><a href="{{ route('teachersDashboard') }}">Dashboard</a></li>
-                    <li class="active">Duty Book</li>
-                </ol>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="content mt-3">
-    <div class="animated fadeIn">
+            <!-- Breadcrumbs -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb bg-transparent p-0 m-0" style="font-size: 13px; font-weight: 600;">
+                            <li class="breadcrumb-item"><a href="{{ route('teachersDashboard') }}" style="color: #940000;">Dashboard</a></li>
+                            <li class="breadcrumb-item active text-muted" aria-current="page">Duty Book</li>
+                        </ol>
+                    </nav>
+                </div>
+            </div>
         @if($currentDuty)
         <div class="alert alert-success shadow-sm mb-4" style="border-left: 5px solid #28a745;">
             <div class="d-flex align-items-center">
@@ -36,31 +50,34 @@
         </div>
         @endif
 
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-white py-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <strong class="card-title mb-0">My Assigned Duty Weeks</strong>
-                            <div class="d-flex align-items-center">
-                                <form action="{{ route('teacher.duty_book') }}" method="GET" class="form-inline mr-3">
-                                    <input type="date" name="from_date" class="form-control form-control-sm mr-2" value="{{ $fromDate }}">
-                                    <input type="date" name="to_date" class="form-control form-control-sm mr-2" value="{{ $toDate }}">
-                                    <button type="submit" class="btn btn-sm btn-info">Filter</button>
-                                </form>
-                                <button type="button" id="exportRosterBtn" data-from="{{ $fromDate }}" data-to="{{ $toDate }}" class="btn btn-sm btn-danger">
-                                    <i class="fa fa-file-pdf-o"></i> Export Roster
-                                </button>
-                            </div>
+                <div class="card border-0 shadow-sm mb-4" style="border-radius: 0;">
+                    <div class="card-header border-0 p-4" style="background-color: #fafafa;">
+                        <div class="d-flex justify-content-between align-items-end">
+                            <form action="{{ route('teacher.duty_book') }}" method="GET" class="row no-gutters w-75">
+                                <div class="col-md-4 mr-2">
+                                    <label class="small font-weight-bold text-muted text-uppercase mb-2">From Date</label>
+                                    <input type="date" name="from_date" class="form-control" value="{{ $fromDate }}" style="border-radius: 0;">
+                                </div>
+                                <div class="col-md-4 mr-2">
+                                    <label class="small font-weight-bold text-muted text-uppercase mb-2">To Date</label>
+                                    <input type="date" name="to_date" class="form-control" value="{{ $toDate }}" style="border-radius: 0;">
+                                </div>
+                                <div class="col-md-2 mt-auto">
+                                    <button type="submit" class="btn btn-block text-white" style="background: #940000; border-radius: 0; font-weight: 700;">FILTER</button>
+                                </div>
+                            </form>
+                            <h6 class="mb-0 font-weight-bold" style="color: #940000;"><i class="fa fa-tasks mr-2"></i>ASSIGNED WEEKS</h6>
                         </div>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table mb-0">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th>Week</th>
-                                        <th>Teachers on Duty</th>
-                                        <th>Dates</th>
-                                        <th>Action</th>
+                                <thead style="background-color: #f8f9fa;">
+                                    <tr class="small font-weight-bold text-uppercase">
+                                        <th class="py-3 px-4 border-0" style="color: #940000;">Week</th>
+                                        <th class="py-3 border-0" style="color: #940000;">Teachers on Duty</th>
+                                        <th class="py-3 border-0" style="color: #940000;">Dates</th>
+                                        <th class="py-3 px-4 border-0 text-right" style="color: #940000;">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -77,28 +94,29 @@
                                             $endDate = \Carbon\Carbon::parse($weekGroup[0]->end_date);
                                             $isActiveWeek = $todayDate->between($startDate->copy()->startOfDay(), $endDate->copy()->endOfDay());
                                         @endphp
-                                        <tr class="duty-week-row {{ $isActiveWeek ? 'table-primary active-week' : '' }}" 
+                                        <tr class="duty-week-row border-bottom {{ $isActiveWeek ? 'active-week' : '' }}" 
                                             data-start="{{ $startDate->format('Y-m-d') }}" 
                                             data-end="{{ $endDate->format('Y-m-d') }}"
-                                            style="cursor: pointer;">
-                                            <td>
-                                                Week {{ $weekCounter++ }}
-                                                @if($isActiveWeek)
-                                                    <span class="badge badge-success ml-2">ACTIVE WEEK</span>
-                                                @endif
+                                            style="cursor: pointer; {{ $isActiveWeek ? 'background-color: #FFF5F5;' : '' }}">
+                                            <td class="py-4 px-4 align-middle">
+                                                <span class="badge badge-pill px-3 py-2" style="background-color: {{ $isActiveWeek ? '#940000' : '#f8f9fa' }}; color: {{ $isActiveWeek ? '#ffffff' : '#940000' }}; font-weight: 800;">
+                                                    WEEK {{ $weekCounter++ }}
+                                                </span>
                                             </td>
-                                            <td>
-                                                @foreach($weekGroup as $duty)
-                                                    <span class="badge {{ $duty->teacherID == Session::get('teacherID') ? 'badge-primary' : 'badge-light' }} p-2 mb-1">
-                                                        <i class="fa fa-user"></i> {{ $duty->teacher ? $duty->teacher->first_name . ' ' . $duty->teacher->last_name : 'N/A' }}
-                                                    </span>
-                                                @endforeach
+                                            <td class="py-4 align-middle">
+                                                <div style="font-weight: 700; color: #2f2f2f;">
+                                                    @foreach($weekGroup as $duty)
+                                                        <span class="badge badge-light p-2 mb-1" style="font-weight: 700; {{ $duty->teacherID == Session::get('teacherID') ? 'background-color: #940000; color: #fff;' : '' }}">
+                                                            <i class="fa fa-user-circle mr-1"></i> {{ $duty->teacher ? $duty->teacher->first_name . ' ' . $duty->teacher->last_name : 'N/A' }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
                                             </td>
-                                            <td>
+                                            <td class="py-4 align-middle" style="font-weight: 600; color: #6c757d;">
                                                 {{ $startDate->format('d M') }} - {{ $endDate->format('d M Y') }}
                                             </td>
-                                            <td>
-                                                <i class="fa fa-chevron-down"></i>
+                                            <td class="py-4 px-4 align-middle text-right">
+                                                <i class="fa fa-chevron-down text-muted transition-icon"></i>
                                             </td>
                                         </tr>
                                         <!-- Expandable Day View -->
@@ -115,7 +133,11 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            @for($i = 0; $i < 5; $i++)
+                                                            @php
+                                                                $studentLabel = (isset($school_details) && $school_details->school_type == 'Secondary') ? 'Student' : 'Pupil';
+                                                                $studentsLabel = (isset($school_details) && $school_details->school_type == 'Secondary') ? 'Students' : 'Pupils';
+                                                            @endphp
+                                                            @for($i = 0; $i < 7; $i++)
                                                                 @php
                                                                     $currentDay = $startDate->copy()->addDays($i);
                                                                     $isToday = $todayDate->isSameDay($currentDay);
@@ -196,15 +218,18 @@
 @include('partials.duty_report_modal', ['classes' => $classes])
 
 <style>
-    .card-header { border-bottom: 2px solid #f8f9fa; }
+    .card { border-radius: 0; }
     .table thead th { border-top: 0; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
-    .badge { border-radius: 4px; }
-    .table-primary { background-color: rgba(0, 123, 255, 0.05) !important; }
-    .duty-week-row:hover { background-color: #f1f4f9; }
-    .active-week { border-left: 4px solid #007bff; }
-    .modal-xl { max-width: 95%; }
-    #attendance_table input { width: 50px; text-align: center; border: 1px solid #eee; padding: 2px; }
-    #attendance_table input:focus { border-color: #007bff; outline: none; box-shadow: 0 0 5px rgba(0,123,255,0.2); }
+    .badge { border-radius: 0; font-family: 'Century Gothic', sans-serif; }
+    .active-week { border-left: 5px solid #940000 !important; }
+    .duty-week-row:hover { background-color: #fafafa; }
+    .btn { border-radius: 0; font-weight: 700; }
+    .btn-info { background: #940000; border: none; }
+    .btn-info:hover { background: #7b0000; }
+    .btn-outline-info { color: #940000; border-color: #940000; }
+    .btn-outline-info:hover { background: #940000; color: #fff; }
+    .transition-icon { transition: transform 0.3s; }
+    .fa-chevron-up { transform: rotate(180deg); }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -325,10 +350,12 @@ $(document).ready(function() {
                 $('input[name="attendance_percentage"]').val(report.attendance_percentage);
                 $('input[name="school_environment"]').val(report.school_environment);
                 $('input[name="pupils_cleanliness"]').val(report.pupils_cleanliness);
-                $('textarea[name="teachers_attendance"]').val(report.teachers_attendance);
+                $('textarea[name="meals"]').val(report.meals);
                 $('input[name="timetable_status"]').val(report.timetable_status);
                 $('input[name="outside_activities"]').val(report.outside_activities);
                 $('input[name="special_events"]').val(report.special_events);
+                $('input[name="english_speaking"]').val(report.english_speaking);
+                $('textarea[name="sick_students_list"]').val(report.sick_students_list);
                 $('textarea[name="teacher_comments"]').val(report.teacher_comments);
                 
                 // Admin feedback handling
@@ -559,10 +586,12 @@ $(document).ready(function() {
             attendance_percentage: $('#attendance_percentage').val(),
             school_environment: $('input[name="school_environment"]').val(),
             pupils_cleanliness: $('input[name="pupils_cleanliness"]').val(),
-            teachers_attendance: $('textarea[name="teachers_attendance"]').val(),
+            meals: $('textarea[name="meals"]').val(),
             timetable_status: $('input[name="timetable_status"]').val(),
             outside_activities: $('input[name="outside_activities"]').val(),
             special_events: $('input[name="special_events"]').val(),
+            english_speaking: $('input[name="english_speaking"]').val(),
+            sick_students_list: $('textarea[name="sick_students_list"]').val(),
             teacher_comments: $('textarea[name="teacher_comments"]').val(),
             action: action
         };

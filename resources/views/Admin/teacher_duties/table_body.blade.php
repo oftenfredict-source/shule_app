@@ -13,42 +13,54 @@
         $assignedTeacherIds = $weekGroup->pluck('teacherID')->toArray();
         $isActive = $today->between($startDate, $endDate);
     @endphp
-    <tr id="duty-row-{{ $startDate->format('Y-m-d') }}" class="{{ $isActive ? 'table-primary active-week' : '' }} expandable-row" data-toggle="collapse" data-target="#details-{{ $startDate->format('Y-m-d') }}" style="cursor: pointer;">
-        <td>
-            <i class="fa fa-chevron-right mr-2 transition-icon"></i>
-            @if($isActive)
-                <div class="active-indicator" title="Current Active Week">
-                    <i class="fa fa-clock-o"></i> Active
+    <tr id="duty-row-{{ $startDate->format('Y-m-d') }}" class="{{ $isActive ? 'active-week' : '' }} expandable-row border-bottom" data-toggle="collapse" data-target="#details-{{ $startDate->format('Y-m-d') }}" style="cursor: pointer; {{ $isActive ? 'background-color: #FFF5F5;' : '' }}">
+        <td class="py-4 pl-4 align-middle">
+            <div class="d-flex align-items-center">
+                <i class="fa fa-chevron-right mr-3 text-muted transition-icon" style="font-size: 10px;"></i>
+                <span class="badge badge-pill px-3 py-2" style="background-color: {{ $isActive ? '#940000' : '#f8f9fa' }}; color: {{ $isActive ? '#ffffff' : '#940000' }}; font-weight: 800;">
+                    WEEK {{ ($weekCounter++) }}
+                </span>
+            </div>
+        </td>
+        <td class="py-4 align-middle">
+            <div class="d-flex align-items-center">
+                <div class="rounded-circle mr-3 d-flex align-items-center justify-content-center text-white" style="width: 32px; height: 32px; background: #940000; font-weight: 800; font-size: 11px;">
+                    {{ count($weekGroup) }}
                 </div>
-            @endif
-            {{ $weekCounter++ }}
+                <div style="font-weight: 700; color: #2f2f2f;">
+                    @foreach($weekGroup as $duty)
+                        <span class="mr-2">{{ $duty->teacher ? $duty->teacher->first_name . ' ' . $duty->teacher->last_name : 'N/A' }}{{ !$loop->last ? ',' : '' }}</span>
+                    @endforeach
+                </div>
+            </div>
         </td>
-        <td>
-            @foreach($weekGroup as $duty)
-                <span class="badge badge-info">{{ $duty->teacher ? $duty->teacher->first_name . ' ' . $duty->teacher->last_name : 'N/A' }}</span>
-            @endforeach
-        </td>
-        <td>
+        <td class="py-4 align-middle" style="font-weight: 600; color: #6c757d;">
             {{ $startDate->format('d M') }} - {{ $endDate->format('d M Y') }}
         </td>
-        <td>{{ $weekGroup[0]->term ? $weekGroup[0]->term->term_name : 'N/A' }}</td>
-        <td>
-            <div class="btn-group">
-                <button class="btn btn-sm btn-info edit-duty" 
+        <td class="py-4 pr-4 align-middle text-right">
+            <div class="btn-group shadow-sm" style="border-radius: 0; overflow: hidden;">
+                <button class="btn btn-sm edit-duty" 
+                        style="background: #ffffff; color: #940000; border: 1px solid #eee; font-weight: 700;"
                         data-start="{{ $startDate->format('Y-m-d') }}" 
                         data-teachers="{{ json_encode($assignedTeacherIds) }}">
-                    <i class="fa fa-edit"></i> Edit
+                    <i class="fa fa-pencil"></i> EDIT
                 </button>
-                <button class="btn btn-sm btn-danger delete-duty" 
+                <button class="btn btn-sm delete-duty" 
+                        style="background: #ffffff; color: #dc3545; border: 1px solid #eee; font-weight: 700;"
                         data-start="{{ $startDate->format('Y-m-d') }}" 
                         data-end="{{ $endDate->format('Y-m-d') }}">
-                    <i class="fa fa-trash"></i> Delete
+                    <i class="fa fa-trash"></i>
+                </button>
+                <button class="btn btn-sm text-white" 
+                        style="background: #2f2f2f; border: none; font-weight: 700;"
+                        type="button" data-toggle="collapse" data-target="#details-{{ $startDate->format('Y-m-d') }}">
+                    <i class="fa fa-eye"></i> LOGS
                 </button>
             </div>
         </td>
     </tr>
     <tr id="details-{{ $startDate->format('Y-m-d') }}" class="collapse bg-light">
-        <td colspan="5" class="p-0">
+        <td colspan="4" class="p-0">
             <div class="p-3">
                 <h6 class="mb-3"><i class="fa fa-calendar"></i> Daily Reports for the Week</h6>
                 <div class="table-responsive">
@@ -134,9 +146,12 @@
 
 @if($groupedDuties->isEmpty())
     <tr>
-        <td colspan="5" class="text-center py-5">
-            <i class="fa fa-info-circle fa-2x text-muted mb-2"></i>
-            <p>No duties assigned for the selected period.</p>
+        <td colspan="4" class="text-center py-5">
+            <div class="p-4 mb-3 rounded-circle mx-auto" style="background-color: #FFF5F5; width: fit-content;">
+                <i class="fa fa-calendar-times-o fa-3x" style="color: #940000;"></i>
+            </div>
+            <h5 class="font-weight-bold" style="color: #2f2f2f;">No Duty Assignments Found</h5>
+            <p class="text-muted small">Try adjusting your date filters or assign new duties above.</p>
         </td>
     </tr>
 @endif

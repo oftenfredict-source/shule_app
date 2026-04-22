@@ -11,10 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('books', function (Blueprint $table) {
-            // Drop the unique constraint on (schoolID, isbn)
-            $table->dropUnique('books_school_isbn_unique');
-        });
+        try {
+            DB::statement('ALTER TABLE books DROP INDEX books_school_isbn_unique');
+        } catch (\Exception $e) {
+            // Already dropped or doesn't exist
+        }
     }
 
     /**

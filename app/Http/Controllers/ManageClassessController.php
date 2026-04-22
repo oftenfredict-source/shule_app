@@ -219,8 +219,42 @@ class ManageClassessController extends Controller
                 ];
             });
 
-        // Get all classes for dropdown (simple list)
-        $classesForDropdown = ClassModel::where('schoolID', $schoolID)->get();
+        // Helper function for academic ordering
+        $academicOrder = function($className, $schoolType) {
+            $name = strtolower($className);
+            if ($schoolType == 'Primary') {
+                if (str_contains($name, 'baby')) return 1;
+                if (str_contains($name, 'mid')) return 2;
+                if (str_contains($name, 'top')) return 3;
+                if (str_contains($name, 'nursery')) return 4;
+                if (str_contains($name, 'standard')) {
+                    preg_match('/\d+/', $name, $matches);
+                    return 10 + ($matches[0] ?? 0);
+                }
+                return 100;
+            }
+            // Secondary
+            if (str_contains($name, 'one')) return 1;
+            if (str_contains($name, 'two')) return 2;
+            if (str_contains($name, 'three')) return 3;
+            if (str_contains($name, 'four')) return 4;
+            if (str_contains($name, 'five')) return 5;
+            if (str_contains($name, 'six')) return 6;
+            return 200;
+        };
+
+        // Sort the collection for the view
+        $schoolType = $school_details->school_type ?? 'Secondary';
+        $classes = $classes->sortBy(function($class) use ($academicOrder, $schoolType) {
+            return $academicOrder($class['class_name'], $schoolType);
+        })->values();
+
+        // Get all classes for dropdown (simple list) - also sorted
+        $classesForDropdown = ClassModel::where('schoolID', $schoolID)
+            ->get()
+            ->sortBy(function($class) use ($academicOrder, $schoolType) {
+                return $academicOrder($class->class_name, $schoolType);
+            });
 
         // Get all teachers for dropdown
         $teachers = Teacher::where('schoolID', $schoolID)->get();

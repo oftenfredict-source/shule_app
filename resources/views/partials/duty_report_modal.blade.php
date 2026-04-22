@@ -2,6 +2,9 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <style>
+    #dutyReportModal {
+        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;
+    }
     #signature-pad {
         background-color: #fff;
         border: 1px solid #eee;
@@ -17,15 +20,50 @@
         font-weight: normal;
         font-size: 0.9rem;
     }
+    #dutyReportModal .modal-content {
+        border-radius: 0;
+    }
+    #dutyReportModal .modal-header {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+        border-bottom: 1px solid rgba(148,0,0,0.1);
+    }
+    #dutyReportModal .modal-title {
+        color: #940000;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+    }
+    #dutyReportModal .card {
+        border-radius: 0;
+    }
+    #dutyReportModal #attendance_table thead th {
+        background-color: #f8f9fa;
+        color: #940000;
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.5px;
+    }
+    #dutyReportModal .btn {
+        border-radius: 0;
+        font-weight: 700;
+    }
+    #dutyReportModal .btn-primary {
+        background: #940000;
+        border: none;
+    }
+    #dutyReportModal .btn-primary:hover {
+        background: #7b0000;
+    }
 </style>
 <div class="modal fade" id="dutyReportModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title"><i class="fa fa-book mr-2"></i> Daily Duty Report</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+            <div class="modal-header d-block p-4">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: #940000; opacity: 1;">
                     <span aria-hidden="true">&times;</span>
                 </button>
+                <h5 class="modal-title mb-1"><i class="fa fa-book mr-2"></i> DAILY DUTY REPORT</h5>
+                <p class="text-muted small mb-0 font-weight-bold">Detailed observation and attendance tracking.</p>
             </div>
             <div class="modal-body p-4" style="background-color: #f4f7f6;">
                 <form id="dailyDutyForm">
@@ -36,16 +74,16 @@
 
                     <div class="card shadow-sm border-0 mb-4">
                         <div class="card-body">
-                            <div class="alert alert-info py-2 px-3 border-0 shadow-sm mb-4">
+                            <div class="py-2 px-3 border-0 mb-4" style="background-color: #FFF5F5; border-left: 4px solid #940000 !important;">
                                 <div class="row align-items-center">
                                     <div class="col-md-4">
-                                        <h6 class="mb-0"><strong>Teacher on Duty:</strong> <u id="display_teacher_name">---</u></h6>
+                                        <h6 class="mb-0" style="color: #2f2f2f;"><strong>Teacher on Duty:</strong> <u id="display_teacher_name" style="color: #940000;">---</u></h6>
                                     </div>
                                     <div class="col-md-4 text-center">
-                                        <h6 class="mb-0"><strong>Day:</strong> <span id="display_day" class="text-uppercase text-primary"></span></h6>
+                                        <h6 class="mb-0" style="color: #2f2f2f;"><strong>Day:</strong> <span id="display_day" class="text-uppercase" style="color: #940000;"></span></h6>
                                     </div>
                                     <div class="col-md-4 text-right">
-                                        <h6 class="mb-0"><strong>Date:</strong> <span id="display_date" class="font-weight-bold"></span></h6>
+                                        <h6 class="mb-0" style="color: #2f2f2f;"><strong>Date:</strong> <span id="display_date" class="font-weight-bold" style="color: #940000;"></span></h6>
                                     </div>
                                 </div>
                             </div>
@@ -134,12 +172,12 @@
                                         <input type="text" name="school_environment" class="form-control form-control-sm" placeholder="e.g. Well cleaned">
                                     </div>
                                     <div class="form-group mb-3">
-                                        <label>3. Pupil's cleanliness:</label>
+                                        <label>3. <span class="student-pupil-label">{{ (isset($school_details) && $school_details->school_type == 'Secondary') ? "Student's" : "Pupil's" }}</span> cleanliness:</label>
                                         <input type="text" name="pupils_cleanliness" class="form-control form-control-sm" placeholder="e.g. They were smart">
                                     </div>
                                     <div class="form-group mb-3">
-                                        <label>4. Teacher's attendance:</label>
-                                        <textarea name="teachers_attendance" class="form-control form-control-sm" rows="2" placeholder="i) Name... ii) Name..."></textarea>
+                                        <label>4. Meals (Chakula):</label>
+                                        <textarea name="meals" class="form-control form-control-sm" rows="2" placeholder="e.g. Chakula kiliandaliwa vizuri na wote wamekul"></textarea>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -156,7 +194,15 @@
                                         <input type="text" name="special_events" class="form-control form-control-sm">
                                     </div>
                                     <div class="form-group mb-3">
-                                        <label>8. Teachers' on duty comments:</label>
+                                        <label>8. English speaking:</label>
+                                        <input type="text" name="english_speaking" class="form-control form-control-sm" placeholder="e.g. well speakin">
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label>9. List of names of sick <span class="student-pupil-label-plural">{{ (isset($school_details) && $school_details->school_type == 'Secondary') ? "students" : "pupils" }}</span>:</label>
+                                        <textarea name="sick_students_list" class="form-control form-control-sm" rows="2" placeholder="e.g. hassani, juma"></textarea>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label>10. Teachers' on duty comments:</label>
                                         <textarea name="teacher_comments" class="form-control form-control-sm" rows="2" placeholder="Sum up the day..."></textarea>
                                     </div>
                                 </div>

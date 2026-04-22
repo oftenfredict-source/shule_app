@@ -181,20 +181,23 @@
     </table>
 
     <table class="observations-grid">
-        <tr>
+            @php
+                $studentLabel = (isset($school) && $school->school_type == 'Secondary') ? "Student's" : "Pupil's";
+                $studentsLabel = (isset($school) && $school->school_type == 'Secondary') ? "students" : "pupils";
+            @endphp
             <td>
                 <div class="obs-title">1. School Environment</div>
                 <div>{{ $report->school_environment ?: 'N/A' }}</div>
             </td>
             <td>
-                <div class="obs-title">2. Pupil's Cleanliness</div>
+                <div class="obs-title">2. {{ $studentLabel }} Cleanliness</div>
                 <div>{{ $report->pupils_cleanliness ?: 'N/A' }}</div>
             </td>
         </tr>
         <tr>
             <td>
-                <div class="obs-title">3. Staff Attendance</div>
-                <div style="white-space: pre-line;">{{ $report->teachers_attendance ?: 'N/A' }}</div>
+                <div class="obs-title">3. Meals (Chakula)</div>
+                <div style="white-space: pre-line;">{{ $report->meals ?: 'N/A' }}</div>
             </td>
             <td>
                 <div class="obs-title">4. Timetable Follow-up</div>
@@ -212,8 +215,18 @@
             </td>
         </tr>
         <tr>
+            <td>
+                <div class="obs-title">7. English speaking</div>
+                <div>{{ $report->english_speaking ?: 'N/A' }}</div>
+            </td>
+            <td>
+                <div class="obs-title">8. Sick {{ $studentsLabel }} list</div>
+                <div style="white-space: pre-line;">{{ $report->sick_students_list ?: 'N/A' }}</div>
+            </td>
+        </tr>
+        <tr>
             <td colspan="2">
-                <div class="obs-title">7. Teacher's General Comments</div>
+                <div class="obs-title">9. Teacher's General Comments</div>
                 <div style="white-space: pre-line;">{{ $report->teacher_comments ?: 'N/A' }}</div>
             </td>
         </tr>

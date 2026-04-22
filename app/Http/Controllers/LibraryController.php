@@ -33,13 +33,6 @@ class LibraryController extends Controller
       $userType = Session::get('user_type');
       $schoolID = Session::get('schoolID');
       
-      // Temporary check to drop the unique ISBN constraint if it still exists
-      try {
-          DB::statement('ALTER TABLE books DROP INDEX books_school_isbn_unique');
-      } catch (\Exception $e) {
-          // Index probably already dropped or doesn't exist
-      }
-
         if (!$userType || !$schoolID)
         {
             return redirect()->route('login')->with('error', 'Access denied');

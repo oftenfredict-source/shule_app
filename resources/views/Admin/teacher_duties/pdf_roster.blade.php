@@ -25,10 +25,9 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 10%;">Week</th>
+                <th style="width: 15%;">Week</th>
                 <th style="width: 50%;">Assigned Teacher(s)</th>
-                <th style="width: 30%;">Dates</th>
-                <th style="width: 10%;">Term</th>
+                <th style="width: 35%;">Dates</th>
             </tr>
         </thead>
         <tbody>
@@ -50,7 +49,6 @@
                         {{ \Carbon\Carbon::parse($weekGroup[0]->start_date)->format('d M') }} - 
                         {{ \Carbon\Carbon::parse($weekGroup[0]->end_date)->format('d M Y') }}
                     </td>
-                    <td>{{ $weekGroup[0]->term ? $weekGroup[0]->term->term_name : 'N/A' }}</td>
                 </tr>
             @endforeach
         </tbody>

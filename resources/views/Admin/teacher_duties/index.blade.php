@@ -2,12 +2,30 @@
 
 @push('styles')
 <style>
+    body {
+        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;
+        background-color: #FFFFFF;
+    }
+    .content-wrapper {
+        background-color: #FFFFFF;
+    }
+    .card {
+        border-radius: 0;
+        border: none;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+    }
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid rgba(0,0,0,.125);
+        padding: 1rem 1.25rem;
+    }
     .week-card {
         transition: transform 0.2s;
+        border-radius: 0;
     }
     .week-card:hover {
-        border-color: #007bff !important;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border-color: #940000 !important;
+        box-shadow: 0 2px 10px rgba(148,0,0,0.1);
     }
     @keyframes pulse-indicator {
         0% { transform: scale(0.95); opacity: 0.8; }
@@ -32,97 +50,141 @@
         background-color: rgba(40, 167, 69, 0.05) !important;
     }
     .filter-card {
-        background: #f8f9fa;
-        border: 1px solid #e3e6f0;
-        border-radius: 10px;
+        background: #FFF5F5;
+        border-left: 5px solid #940000 !important;
     }
     .modal-xl { max-width: 95%; }
     .transition-icon { transition: transform 0.3s ease; }
     .expandable-row[aria-expanded="true"] .transition-icon { transform: rotate(90deg); }
-    .expandable-row:hover { background-color: rgba(0, 123, 255, 0.05) !important; }
+    .expandable-row:hover { background-color: #FFF5F5 !important; }
     #attendance_table input { width: 45px; text-align: center; border: 1px solid #eee; padding: 2px; }
     .btn-xs { padding: 0.1rem 0.3rem; font-size: 0.75rem; }
+    .btn-primary { background-color: #940000; border-color: #940000; }
+    .btn-primary:hover { background-color: #7b0000; border-color: #7b0000; }
+    .btn-info { background-color: #2f2f2f; border-color: #2f2f2f; }
+    .btn-outline-primary { color: #940000; border-color: #940000; }
+    .btn-outline-primary:hover { background-color: #940000; color: white; }
+    
+    table thead th {
+        background-color: #f8f9fa;
+        color: #940000;
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        border: none !important;
+    }
 </style>
 @endpush
 
 @section('content')
 
-<div class="breadcrumbs">
-    <div class="col-sm-6">
-        <div class="page-header float-left">
-            <div class="page-title">
-                <h1>Teacher on Duties in <u>{{ $monthTitle }}</u></h1>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-8">
-        <div class="page-header float-right">
-            <div class="page-title">
-                <ol class="breadcrumb text-right">
-                    <li><a href="#">Dashboard</a></li>
-                    <li><a href="#">Duties Book</a></li>
-                    <li class="active">Teacher on Duties</li>
-                </ol>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="content mt-3">
-    <div class="animated fadeIn">
-        <div class="row">
-            <div class="col-md-12">
-                <div id="alertPlaceholder"></div>
-
-                <!-- Filters -->
-                <div class="card filter-card mb-4">
-                    <div class="card-body">
-                        <form id="filterForm" class="row align-items-end">
-                            <div class="col-md-3">
-                                <label class="form-control-label">From Date</label>
-                                <input type="date" name="from_date" id="filter_from" class="form-control" value="{{ $fromDate }}">
+<div class="content-wrapper" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif; background-color: #FFFFFF;">
+    <div class="content mt-3">
+        <div class="animated fadeIn">
+            <!-- Header Section -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm" style="border-radius: 0; border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">Teacher on Duties in <u>{{ $monthTitle }}</u></h4>
+                                    <p class="text-muted mb-0 small" style="font-weight: 600;">Monitor and Manage Weekly Academic Responsibilities</p>
+                                </div>
+                                <div class="d-flex">
+                                    <button class="btn shadow-sm text-white mr-2" id="openAssignModal" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 20px;">
+                                        <i class="fa fa-plus"></i> ASSIGN TEACHER DUTIES
+                                    </button>
+                                    <button class="btn shadow-sm text-white" id="downloadPdf" style="border-radius: 0; background: #2f2f2f; border: none; font-weight: 700; padding: 10px 20px;">
+                                        <i class="fa fa-file-pdf-o"></i> DOWNLOAD PDF
+                                    </button>
+                                </div>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-control-label">To Date</label>
-                                <input type="date" name="to_date" id="filter_to" class="form-control" value="{{ $toDate }}">
-                            </div>
-                            <div class="col-md-6 text-right">
-                                <button type="submit" class="btn btn-info">
-                                    <i class="fa fa-filter"></i> Filter
-                                </button>
-                                <button type="button" id="resetFilters" class="btn btn-outline-secondary">
-                                    <i class="fa fa-refresh"></i> Reset
-                                </button>
-                                <button type="button" id="downloadPdf" class="btn btn-danger">
-                                    <i class="fa fa-file-pdf-o"></i> Download PDF
-                                </button>
-                                <button type="button" class="btn btn-primary" id="openAssignModal">
-                                    <i class="fa fa-plus"></i> Assign Teacher Duties
-                                </button>
-                            </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <strong class="card-title">Duties Roster - {{ $monthTitle }}</strong>
+            <!-- Breadcrumbs -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb bg-transparent p-0 m-0" style="font-size: 13px; font-weight: 600;">
+                            <li class="breadcrumb-item"><a href="#" style="color: #940000;">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="#" style="color: #940000;">Duties Book</a></li>
+                            <li class="breadcrumb-item active text-muted" aria-current="page">Teacher on Duties</li>
+                        </ol>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Stats Bar (Using Accent Soft Red) -->
+            @php
+                $weekCount = $duties->groupBy(function ($item) {
+                                return $item->start_date . '_' . $item->end_date;
+                             })->count();
+            @endphp
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm p-3 text-center" style="border-radius: 0; background-color: #FFF5F5;">
+                        <span class="text-uppercase small font-weight-bold mb-1" style="color: #940000; letter-spacing: 1px;">Current Month Assignments</span>
+                        <h2 class="mb-0 font-weight-bold" style="color: #2f2f2f;">{{ $weekCount }} Weeks</h2>
                     </div>
-                    <div class="card-body">
-                        <table class="table table-striped table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Week</th>
-                                    <th>Teacher(s)</th>
-                                    <th>Dates</th>
-                                    <th>Term</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="dutiesTableBody">
-                                @include('Admin.teacher_duties.table_body')
-                            </tbody>
-                        </table>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm p-3 text-center" style="border-radius: 0; background-color: #FFF5F5;">
+                        <span class="text-uppercase small font-weight-bold mb-1" style="color: #940000; letter-spacing: 1px;">Status</span>
+                        <h2 class="mb-0 font-weight-bold" style="color: #28a745;">Ready</h2>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter & Table Content -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm" style="border-radius: 0; background-color: #FFFFFF;">
+                        <!-- Filter Bar -->
+                        <div class="card-header border-0 p-4" style="background: #fafafa;">
+                            <form id="filterForm" class="row align-items-end">
+                                <div class="col-md-4">
+                                    <label class="small font-weight-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">From Date</label>
+                                    <input type="date" name="from_date" id="filter_from" class="form-control" value="{{ $fromDate }}" style="border-radius:0; border:1px solid #ddd; font-weight:600;">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="small font-weight-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">To Date</label>
+                                    <input type="date" name="to_date" id="filter_to" class="form-control" value="{{ $toDate }}" style="border-radius:0; border:1px solid #ddd; font-weight:600;">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-block text-white" style="background:#940000; border-radius:0; height:calc(1.5em + .75rem + 2px); font-weight: 700;">
+                                        <i class="fa fa-filter"></i> FILTER
+                                    </button>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" id="resetFilters" class="btn btn-block btn-outline-dark" style="border-radius:0; height:calc(1.5em + .75rem + 2px); font-weight: 700;">
+                                        <i class="fa fa-refresh"></i> RESET
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr class="small font-weight-bold text-uppercase" style="background-color: #f8f9fa;">
+                                            <th class="py-3 pl-4 border-0" style="color: #940000;">Week</th>
+                                            <th class="py-3 border-0" style="color: #940000;">Teacher(s)</th>
+                                            <th class="py-3 border-0" style="color: #940000;">Dates</th>
+                                            <th class="py-3 pr-4 border-0 text-right" style="color: #940000;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dutiesTableBody">
+                                        @include('Admin.teacher_duties.table_body')
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -133,12 +195,13 @@
 <!-- Assign Duty Modal -->
 <div class="modal fade" id="assignDutyModal" tabindex="-1" role="dialog" aria-labelledby="assignDutyModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="assignDutyModalLabel">Assign Teacher Duties Time Table</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <div class="modal-content border-0" style="border-radius: 0;">
+            <div class="modal-header border-0 p-4 d-block" style="background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: #940000; opacity: 1;">
                     <span aria-hidden="true">&times;</span>
                 </button>
+                <h5 class="modal-title font-weight-bold mb-1" id="assignDutyModalLabel" style="color: #940000; letter-spacing: 0.5px;">ASSIGN TEACHER DUTIES</h5>
+                <p class="text-muted small mb-0 font-weight-bold">Configure weekly academic responsibilities for staff members.</p>
             </div>
             <form id="dutyForm">
                 @csrf
@@ -264,7 +327,7 @@
         function addWeekRow() {
             let startDate = $('#start_date').val();
             if (!startDate) {
-                alert("Please select a starting date first.");
+                Swal.fire('Info', "Please select a starting date first.", 'info');
                 return;
             }
 
@@ -317,7 +380,7 @@
             if ($list.find('.teacher-row').length > 1) {
                 $(this).closest('.teacher-row').remove();
             } else {
-                alert("A week must have at least one teacher.");
+                Swal.fire('Info', "A week must have at least one teacher.", 'info');
             }
         });
 
@@ -350,9 +413,18 @@
             e.preventDefault();
             
             if ($('#weeks-container .week-card').length === 0) {
-                alert("Please add at least one week.");
+                Swal.fire('Warning', "Please add at least one week.", 'warning');
                 return;
             }
+
+            Swal.fire({
+                title: 'Saving Roster...',
+                text: 'Please wait while we process the assignments and notify teachers via SMS.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
 
             let $btn = $('#btnSaveRoster');
             $btn.prop('disabled', true).text('Saving...');
@@ -365,16 +437,23 @@
                 success: function(response) {
                     if (response.success) {
                         $('#assignDutyModal').modal('hide');
-                        showAlert('success', response.message);
-                        setTimeout(() => location.reload(), 1500);
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message,
+                            icon: 'success',
+                            timer: 2500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
                     } else {
-                        showAlert('danger', response.message || 'Error occurred');
+                        Swal.fire('Error', response.message || 'Error occurred', 'error');
                         $btn.prop('disabled', false).text('Save Roster & Send SMS');
                     }
                 },
                 error: function(xhr, status, error) {
                     let msg = xhr.responseJSON ? xhr.responseJSON.message : (status === 'timeout' ? 'Request timed out. The SMS might be taking too long, but the roster might have been saved. Please refresh.' : 'Server error');
-                    showAlert('danger', msg);
+                    Swal.fire('Error', msg, 'error');
                     $btn.prop('disabled', false).text('Save Roster & Send SMS');
                 }
             });
@@ -421,26 +500,42 @@
             const startDate = $(this).data('start');
             const endDate = $(this).data('end');
 
-            if (!confirm(`Are you sure you want to delete the duties for the week of ${startDate}?`)) return;
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `You want to delete the duties for the week starting ${startDate}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                cancelButtonColor: '#2f2f2f',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Deleting...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
 
-            $.ajax({
-                url: "{{ route('admin.teacher_duties.destroy') }}",
-                method: "DELETE",
-                data: {
-                    _token: "{{ csrf_token() }}",
-                    start_date: startDate,
-                    end_date: endDate
-                },
-                success: function(response) {
-                    if (response.success) {
-                        showAlert('success', response.message);
-                        $(`#duty-row-${startDate}`).fadeOut(300, function() { $(this).remove(); });
-                    } else {
-                        showAlert('danger', response.message || 'Error occurred');
-                    }
-                },
-                error: function() {
-                    showAlert('danger', 'Failed to delete record.');
+                    $.ajax({
+                        url: "{{ route('admin.teacher_duties.destroy') }}",
+                        method: "DELETE",
+                        data: {
+                            _token: "{{ csrf_token() }}",
+                            start_date: startDate,
+                            end_date: endDate
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                Swal.fire('Deleted!', response.message, 'success');
+                                $(`#duty-row-${startDate}`).fadeOut(300, function() { $(this).remove(); });
+                            } else {
+                                Swal.fire('Error', response.message || 'Error occurred', 'error');
+                            }
+                        },
+                        error: function() {
+                            Swal.fire('Error', 'Failed to delete record.', 'error');
+                        }
+                    });
                 }
             });
         });
@@ -493,7 +588,7 @@
                     $('.card-header .card-title').text('Duties Roster - ' + response.title.split(' in ')[1]);
                 },
                 error: function() {
-                    showAlert('danger', 'Failed to retrieve filtered data.');
+                    Swal.fire('Error', 'Failed to retrieve filtered data.', 'error');
                 },
                 complete: function() {
                     $btn.prop('disabled', false).html(originalText);
@@ -511,7 +606,7 @@
             const toDate = $('#filter_to').val();
             
             if (!fromDate || !toDate) {
-                alert("Please select date range for export.");
+                Swal.fire('Info', "Please select date range for export.", 'info');
                 return;
             }
 
@@ -537,7 +632,7 @@
                 })
                 .catch(error => {
                     console.error('Download error:', error);
-                    showAlert('danger', 'Failed to generate PDF. Please try again.');
+                    Swal.fire('Error', 'Failed to generate PDF. Please try again.', 'error');
                 })
                 .finally(() => {
                     $btn.prop('disabled', false).html(originalText);
