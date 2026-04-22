@@ -190,28 +190,6 @@ class CharacterAssessmentController extends Controller
             $schoolID = Session::get('schoolID');
             $id = $request->timetableID;
             
-            // 1. Validation for overlapping date range
-            $overlap = CharacterAssessmentTimetable::where('schoolID', $schoolID)
-                ->where(function($query) use ($request) {
-                    $query->whereBetween('start_date', [$request->start_date, $request->end_date])
-                          ->orWhereBetween('end_date', [$request->start_date, $request->end_date])
-                          ->orWhere(function($inner) use ($request) {
-                              $inner->where('start_date', '<=', $request->start_date)
-                                      ->where('end_date', '>=', $request->end_date);
-                          });
-                });
-
-            if ($id) {
-                $overlap->where('timetableID', '!=', $id);
-            }
-
-            if ($overlap->exists()) {
-                return response()->json([
-                    'success' => false, 
-                    'message' => 'A character assessment schedule already exists within this date range. Please choose different dates.'
-                ], 422);
-            }
-
             // 2. Create or Update Timetable
             if ($id) {
                 $timetable = CharacterAssessmentTimetable::findOrFail($id);

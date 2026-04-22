@@ -78,7 +78,7 @@
 
                 <div class="col-lg-4 mb-3">
                     <label class="font-weight-bold">SMS Message Template</label>
-                    <textarea id="smsTemplate" class="form-control" rows="3">HABARI, Account yako ipo tayari. LOGIN KWA username:{username} password:{password}</textarea>
+                    <textarea id="smsTemplate" class="form-control" rows="3">HABARI, Account yako ipo tayari. LOGIN KWA username:{username} password:{password} shule:{school}. Login: https://shulexpert.com/login</textarea>
                     <small class="text-muted">Placeholders: {username}, {password}, {school}</small>
                 </div>
             </div>

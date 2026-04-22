@@ -754,7 +754,7 @@ class ManageTeachersController extends Controller
             $schoolName = School::where('schoolID', $schoolID)->value('school_name') ?? 'ShuleXpert';
             $username = (string) $request->employee_number;
             $plainPassword = (string) $request->first_name;
-            $smsMessage = "{$schoolName}. Username: {$username}. Password: {$plainPassword}";
+            $smsMessage = "{$schoolName}. Usajili umekamilika. Username: {$username}. Password: {$plainPassword}. Login: https://shulexpert.com/login";
 
             $smsService = new SmsService();
             $smsResult = $smsService->sendSms($request->phone_number, $smsMessage);

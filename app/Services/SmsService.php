@@ -125,7 +125,7 @@ class SmsService
      */
     public function sendParentCredentials($phoneNumber, $schoolName, $username, $password)
     {
-        $message = "{$schoolName}. Usajili umekamilika. Username: {$username}. Password: {$password}. Asante";
+        $message = "{$schoolName}. Usajili umekamilika. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
 
         return $this->sendSms($phoneNumber, $message);
     }
@@ -142,7 +142,7 @@ class SmsService
      */
     public function sendStudentCredentials($phoneNumber, $schoolName, $studentName, $username, $password)
     {
-        $message = "{$schoolName}. Mwanafunzi {$studentName} amesajiliwa kikamilifu. Username: {$username}. Password: {$password}. Asante";
+        $message = "{$schoolName}. Mwanafunzi {$studentName} amesajiliwa kikamilifu. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
 
         return $this->sendSms($phoneNumber, $message);
     }

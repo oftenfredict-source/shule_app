@@ -1,4 +1,4 @@
-@include('includes.Admin_nav')
+﻿@include('includes.Admin_nav')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="content-wrapper" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif; background-color: #FFFFFF;">
@@ -1156,25 +1156,34 @@
     }
 
     function renderTimetables(timetables) {
-        console.log('Timetables data:', timetables);
         let html = '';
         timetables.forEach(tt => {
             const ay = tt.academic_year || tt.academicYear;
             const yearLabel = ay ? ay.year : 'N/A';
-            const td = tt.term_details || tt.termDetails;
-            const termLabel = tt.term ? tt.term.replace('_', ' ').toUpperCase() : 'N/A';
-            const classesCount = tt.target_classes ? (Array.isArray(tt.target_classes) ? tt.target_classes.length : 0) : 0;
-            
+            const termLabel = tt.term ? tt.term.replace(/_/g, ' ').toUpperCase() : 'N/A';
+            const targetClassIds = Array.isArray(tt.target_classes) ? tt.target_classes.map(id => parseInt(id)) : [];
+            const classBadges = targetClassIds.length > 0
+                ? targetClassIds.map(id => {
+                    const found = classesData.find(c => c.classID == id);
+                    const name = found ? found.class_name : '#' + id;
+                    return '<span class="badge mr-1 mb-1" style="background:#FFF5F5; color:#940000; border:1px solid #940000; font-size:10px; border-radius:0;">' + name + '</span>';
+                }).join('')
+                : '<span class="text-muted small">None</span>';
+
             html += `
-                <div class="timetable-card m-3 p-4 bg-white shadow-sm border-left" style="border-left: 5px solid #940000 !important;">
+                <div class="timetable-card m-3 p-4 bg-white shadow-sm" style="border-left: 5px solid #940000 !important;">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
                             <h5 class="font-weight-bold mb-1" style="color: #940000;">${termLabel} - ${yearLabel}</h5>
-                            <p class="text-muted small font-weight-bold mb-0">
-                                <i class="fa fa-calendar-o"></i> ${formatDate(tt.start_date)} TO ${formatDate(tt.end_date)} 
-                                <span class="mx-2">|</span> 
-                                <i class="fa fa-users"></i> ${classesCount} Main Classes Scheduled
+                            <p class="text-muted small font-weight-bold mb-2">
+                                <i class="fa fa-calendar-o"></i> ${formatDate(tt.start_date)} TO ${formatDate(tt.end_date)}
                             </p>
+                            <div>
+                                <span class="small font-weight-bold text-uppercase text-muted" style="font-size:10px; letter-spacing:1px;">
+                                    <i class="fa fa-graduation-cap mr-1" style="color:#940000;"></i>Target Classes:
+                                </span>
+                                <div class="mt-1">${classBadges}</div>
+                            </div>
                         </div>
                         <div class="d-flex gap-2">
                             <button class="btn btn-sm btn-outline-dark" onclick="openEditTimetable(${tt.timetableID})" style="border-radius:0;">EDIT</button>
@@ -1182,7 +1191,7 @@
                         </div>
                     </div>
                     <div class="mt-3">
-                        <label class="small font-weight-bold text-uppercase text-muted" style="font-size: 10px;">Assigned Teachers & Groups:</label>
+                        <label class="small font-weight-bold text-uppercase text-muted" style="font-size: 10px;">Assigned Teachers &amp; Groups:</label>
                         <div class="table-responsive">
                             <table class="table table-sm table-bordered mb-0 small">
                                 <thead class="bg-light">

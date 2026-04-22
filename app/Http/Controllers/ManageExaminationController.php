@@ -5263,14 +5263,11 @@ class ManageExaminationController extends Controller
             $classTeacherSubclassIds = Subclass::where('teacherID', $teacherID)->pluck('subclassID')->toArray();
             $coordinatorClassIds = ClassModel::where('teacherID', $teacherID)->pluck('classID')->toArray();
 
-            // HOD logic
-            $hodDepartmentIds = \App\Models\SGPM\DepartmentMember::where('member_id', $teacherID)
-                ->where('role', 'hod')
-                ->pluck('department_id')
-                ->toArray();
-            $hodSubjectIds = \App\Models\SGPM\DepartmentSubject::whereIn('department_id', $hodDepartmentIds)
-                ->pluck('school_subject_id')
-                ->toArray();
+            // HOD logic — find departments where this teacher is head
+            $hodDepartmentIds = \App\Models\Department::where('head_teacherID', $teacherID)->pluck('departmentID')->toArray();
+            $hodSubjectIds = !empty($hodDepartmentIds)
+                ? DB::table('department_subjects')->whereIn('departmentID', $hodDepartmentIds)->pluck('subjectID')->toArray()
+                : [];
 
             // Find logs matching roles or special roles
             $pendingLogs = $query->get()->filter(function($log) use ($roleIds, $classTeacherSubclassIds, $coordinatorClassIds, $hodSubjectIds) {
@@ -5505,13 +5502,10 @@ class ManageExaminationController extends Controller
                             ->exists();
                         if ($isCoordinator) $canApprove = true;
                     } elseif ($log->special_role_type === 'head_of_department') {
-                        $hodDepartmentIds = \App\Models\SGPM\DepartmentMember::where('member_id', $teacherID)
-                            ->where('role', 'hod')
-                            ->pluck('department_id')
-                            ->toArray();
-                        $hodSubjectIds = \App\Models\SGPM\DepartmentSubject::whereIn('department_id', $hodDepartmentIds)
-                            ->pluck('school_subject_id')
-                            ->toArray();
+                        $hodDepartmentIds = \App\Models\Department::where('head_teacherID', $teacherID)->pluck('departmentID')->toArray();
+                        $hodSubjectIds = !empty($hodDepartmentIds)
+                            ? DB::table('department_subjects')->whereIn('departmentID', $hodDepartmentIds)->pluck('subjectID')->toArray()
+                            : [];
                         $isHod = $examPaper->classSubject && in_array($examPaper->classSubject->subjectID, $hodSubjectIds);
                         if ($isHod) $canApprove = true;
                     }
@@ -5733,11 +5727,11 @@ class ManageExaminationController extends Controller
         } elseif ($chainRole->special_role_type === 'head_of_department') {
             $subjectID = $examPaper->classSubject->subjectID ?? null;
             if ($subjectID) {
-                $departmentIds = \App\Models\SGPM\DepartmentSubject::where('school_subject_id', $subjectID)->pluck('department_id')->toArray();
+                $departmentIds = DB::table('department_subjects')->where('subjectID', $subjectID)->pluck('departmentID')->toArray();
                 if (!empty($departmentIds)) {
-                    $hodIds = \App\Models\SGPM\DepartmentMember::whereIn('department_id', $departmentIds)->where('role', 'hod')->pluck('member_id')->toArray();
-                    if (!empty($hodIds)) {
-                        $hodPhones = Teacher::whereIn('id', $hodIds)->where('status', 'Active')->pluck('phone_number')->toArray();
+                    $hodTeacherIds = \App\Models\Department::whereIn('departmentID', $departmentIds)->whereNotNull('head_teacherID')->pluck('head_teacherID')->toArray();
+                    if (!empty($hodTeacherIds)) {
+                        $hodPhones = Teacher::whereIn('id', $hodTeacherIds)->where('status', 'Active')->pluck('phone_number')->toArray();
                         $phones = array_merge($phones, $hodPhones);
                     }
                 }

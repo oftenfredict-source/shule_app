@@ -175,7 +175,7 @@ class WatchmanController extends Controller
             $username = $request->phone_number;
             $password = $request->first_name;
 
-            $message = "{$schoolName}. Usajili umekamilika. Username: {$username}. Password: {$password}. Asante";
+            $message = "{$schoolName}. Usajili umekamilika. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
             $smsResult = $smsService->sendSms($phoneNumber, $message);
 
             if ($smsResult['success']) {

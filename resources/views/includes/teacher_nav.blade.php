@@ -471,15 +471,34 @@
                                 $teacherRoleName = $firstRole->role_name;
                             }
                         }
+
+                        // Check if this teacher is HOD
+                        $navTeacherID = Session::get('teacherID');
+                        $isNavHOD = $navTeacherID
+                            ? \App\Models\Department::where('head_teacherID', $navTeacherID)->exists()
+                            : false;
+
+                        if ($isNavHOD) {
+                            $hodDeptName = \App\Models\Department::where('head_teacherID', $navTeacherID)
+                                ->value('department_name');
+                        }
                     @endphp
                     <div class="sidebar-profile">
                         <img src="{{ $imgPath }}" alt="Teacher" class="profile-image">
                         <div class="profile-meta text-left">
-                            <div class="profile-role">User Type</div>
-                            <div class="profile-name">{{ $teacherRoleName }}</div>
+                            <div class="profile-role">{{ $isNavHOD ? 'Head of Department' : 'User Type' }}</div>
+                            <div class="profile-name">{{ $isNavHOD ? ($hodDeptName ?? 'HOD') : $teacherRoleName }}</div>
                         </div>
                     </div>
+                    @if($isNavHOD)
+                    <div class="mt-2 px-2">
+                        <div style="background: linear-gradient(135deg, #940000, #c0392b); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: 1.5px; padding: 5px 10px; border-radius: 4px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(148,0,0,0.35);">
+                            <i class="fa fa-star"></i> HEAD OF DEPARTMENT
+                        </div>
+                    </div>
+                    @endif
                 </li>
+
 
                 <!-- Sidebar Links -->
                 <li class="sidebar-links-container">
@@ -564,9 +583,12 @@
                                     $classTeacherSubclassIds = \App\Models\Subclass::where('teacherID', $teacherID)->pluck('subclassID')->toArray();
                                     $coordinatorClassIds = \App\Models\ClassModel::where('teacherID', $teacherID)->pluck('classID')->toArray();
                                     
-                                    // HOD logic
-                                    $hodDepartmentIds = \App\Models\SGPM\DepartmentMember::where('member_id', $teacherID)->where('role', 'hod')->pluck('department_id')->toArray();
-                                    $hodSubjectIds = \App\Models\SGPM\DepartmentSubject::whereIn('department_id', $hodDepartmentIds)->pluck('school_subject_id')->toArray();
+                                    // HOD logic — find departments where this teacher is head
+                                    $hodDepartments = \App\Models\Department::where('head_teacherID', $teacherID)->get();
+                                    $hodDepartmentIds = $hodDepartments->pluck('departmentID')->toArray();
+                                    $hodSubjectIds = !empty($hodDepartmentIds)
+                                        ? \Illuminate\Support\Facades\DB::table('department_subjects')->whereIn('departmentID', $hodDepartmentIds)->pluck('subjectID')->toArray()
+                                        : [];
 
                                     $specialCount = \App\Models\PaperApprovalLog::where('status', 'pending')
                                         ->whereNotNull('special_role_type')
