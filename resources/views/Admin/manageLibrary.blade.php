@@ -699,13 +699,14 @@
                     <div class="mb-3">
                         <label class="form-label">Lost By <span class="text-danger">*</span></label>
                         <select class="form-control" id="lostBy" onchange="toggleIncidentBy('lost')" style="font-weight: 700;">
+                            <option value="" selected disabled>SELECT LOSTER</option>
                             <option value="student">Student</option>
                             <option value="teacher">Teacher</option>
                             <option value="staff">Other Staff</option>
                             <option value="other">General / Other</option>
                         </select>
                     </div>
-                    <div class="mb-3" id="lostStudentSection">
+                    <div class="mb-3" id="lostStudentSection" style="display: none;">
                         <label class="form-label" id="lostSearchLabel">Search Student <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="lostStudentSearch" placeholder="Search by name or reference...">
                         <input type="hidden" id="lostStudentID">
@@ -763,13 +764,14 @@
                     <div class="mb-3">
                         <label class="form-label">Damaged By <span class="text-danger">*</span></label>
                         <select class="form-control" id="damagedBy" onchange="toggleIncidentBy('damaged')" style="font-weight: 700;">
+                            <option value="" selected disabled>SELECT DAMAGER</option>
                             <option value="student">Student</option>
                             <option value="teacher">Teacher</option>
                             <option value="staff">Other Staff</option>
                             <option value="other">General / Other</option>
                         </select>
                     </div>
-                    <div class="mb-3" id="damagedStudentSection">
+                    <div class="mb-3" id="damagedStudentSection" style="display: none;">
                         <label class="form-label" id="damagedSearchLabel">Search Student <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="damagedStudentSearch" placeholder="Search by name or reference...">
                         <input type="hidden" id="damagedStudentID">
@@ -992,6 +994,13 @@
                     $('#bookForm')[0].reset();
                     $('#bookID').val('');
                     $('#isbnList').html(getIsbnRowHtml());
+                });
+
+                $('#lostModal, #damagedModal').on('hidden.bs.modal', function() {
+                    const prefix = this.id === 'lostModal' ? 'lost' : 'damaged';
+                    $(`#${prefix}Form`)[0].reset();
+                    $(`#${prefix}StudentSection`).hide();
+                    $(`#${prefix}StudentID, #${prefix}TeacherID, #${prefix}StaffID`).val('');
                 });
                 
                 // Add ISBN Row logic
@@ -1343,6 +1352,10 @@
 
         function toggleIncidentBy(prefix) {
             const val = $(`#${prefix}By`).val();
+            if (!val) {
+                $(`#${prefix}StudentSection`).slideUp();
+                return;
+            }
             $(`#${prefix}SearchLabel`).text('Search ' + val.charAt(0).toUpperCase() + val.slice(1));
             $(`#${prefix}StudentSearch`).attr('placeholder', 'Searching for ' + val + '...');
             
