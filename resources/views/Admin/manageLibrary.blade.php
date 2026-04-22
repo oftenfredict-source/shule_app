@@ -563,7 +563,6 @@
                             <div class="col-md-8">
                                 <label class="form-label">Unique ID <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control isbn-input" placeholder="Enter Unique ID">
-                                <small class="text-danger d-none isbn-error">Unique ID is already taken.</small>
                             </div>
                             <div class="col-md-4">
                                 <button type="button" class="btn btn-danger remove-isbn-btn d-none">
@@ -949,6 +948,7 @@
         let searchTimer = null;
         let isbnCheckTimeout = null;
         let allBooks = [];
+        let selectedBookID = null;
 
         let $;
         
@@ -1296,58 +1296,117 @@
             $(`#${prefix}IsbnSpiner`).removeClass('d-none');
             $.get('{{ route("get_book_by_isbn") }}', { isbn }, function(res) {
                 $(`#${prefix}IsbnSpiner`).addClass('d-none');
+                
                 if (res.success) {
-                    const book = res.book;
-                    $(`#${prefix}BookTitle`).text(book.book_title);
-                    
-                    const className = book.class ? book.class.class_name : (book.class_name || 'N/A');
-                    const subjectName = book.subject ? book.subject.subject_name : (book.subject_name || 'N/A');
-                    
-                    $(`#${prefix}BookClass`).text(className);
-                    $(`#${prefix}BookSubject`).text(subjectName);
-                    
-                    if (prefix === 'borrow') {
-                        const isAva = res.is_available;
-                        $('#isBookAvailableForBorrow').val(isAva ? '1' : '0');
-                        
-                        const badge = $('#borrowBookStatusBadge');
-                        const card = $('#borrowBookDetailCard');
-                        const occDiv = $('#occupiedByDiv');
-                        
-                        badge.removeClass('badge-success badge-danger badge-warning');
-                        card.css('border-left', '4px solid transparent');
-                        occDiv.addClass('d-none');
+                    if (res.multiple) {
+                        // Handle multiple books with same ISBN
+                        let html = '<div class="p-3 border rounded mb-3 bg-light"><h6 class="font-weight-bold mb-3">Multiple books found with this ID. Please select one:</h6>';
+                        res.results.forEach((item, index) => {
+                            const b = item.book;
+                            const isAva = item.is_available;
+                            const statusText = isAva ? '<span class="text-success">Available</span>' : '<span class="text-danger">Unavailable</span>';
+                            const className = b.class ? b.class.class_name : 'N/A';
+                            const subjectName = b.subject ? b.subject.subject_name : 'N/A';
+                            
+                            html += `
+                                <div class="p-2 border rounded mb-2 bg-white d-flex justify-content-between align-items-center selection-item" 
+                                     style="cursor:pointer" onclick="handleBookSelection(${JSON.stringify(item).replace(/"/g, '&quot;')}, '${prefix}', ${autoReturn})">
+                                    <div>
+                                        <strong class="text-primary">${b.book_title}</strong><br>
+                                        <small class="text-muted">Class: ${className} | Subject: ${subjectName}</small><br>
+                                        <small>${statusText}</small>
+                                    </div>
+                                    <i class="fa fa-chevron-right text-muted"></i>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        $(`#${prefix}BookInfo`).html(html).slideDown();
+                        return;
+                    }
 
-                        if (isAva) {
-                            badge.addClass('badge-success').text('AVAILABLE (FREE)');
-                            card.css('border-left', '4px solid #28a745');
-                        } else {
-                            badge.addClass('badge-danger').text('UNAVAILABLE');
-                            card.css('border-left', '4px solid #dc3545');
-                            if (res.borrower) {
-                                occDiv.removeClass('d-none');
-                                $('#borrowOccupiedBy').text(res.borrower.name + ' (' + res.borrower.type.toUpperCase() + ')');
-                                badge.text('OCCUPIED');
-                            } else if (book.status === 'lost') {
-                                badge.text('LOST');
-                            } else if (book.status === 'damaged') {
-                                badge.text('DAMAGED');
-                            }
-                        }
-                    } else {
-                        $(`#${prefix}BookStatus`).text(res.is_available ? 'AVAILABLE' : 'OCCUPIED/INACTIVE');
-                    }
-                    
-                    $(`#${prefix}BookInfo`).slideDown();
-                    
-                    if (autoReturn && res.borrower) {
-                        openReturnModal(res.borrower.borrowID || (book.active_borrows && book.active_borrows[0] ? book.active_borrows[0].borrowID : null), 
-                                       (book.active_borrows && book.active_borrows[0] ? book.active_borrows[0].expected_return_date : null));
-                    }
+                    // Single book found
+                    displayBookInfo(res, prefix, autoReturn);
                 } else {
                     $(`#${prefix}BookInfo`).hide();
                 }
             }).fail(() => $(`#${prefix}IsbnSpiner`).addClass('d-none'));
+        }
+
+        function handleBookSelection(res, prefix, autoReturn) {
+            displayBookInfo(res, prefix, autoReturn);
+        }
+
+        function displayBookInfo(res, prefix, autoReturn) {
+            const book = res.book;
+            selectedBookID = book.bookID; // Track specifically which copy is chosen
+            
+            // Re-render the initial structure if it was replaced by selection list
+            let baseHtml = `
+                <div class="p-3 border rounded shadow-sm" id="${prefix}BookDetailCard">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong id="${prefix}BookTitle" class="h6 mb-0 text-primary"></strong>
+                        <span id="${prefix}BookStatusBadge" class="badge"></span>
+                    </div>
+                    <div class="small">
+                        <div><strong>Class:</strong> <span id="${prefix}BookClass"></span></div>
+                        <div><strong>Subject:</strong> <span id="${prefix}BookSubject"></span></div>
+                        <div id="${prefix}OccupiedByDiv" class="mt-2 p-2 bg-warning-light rounded d-none" style="border-left: 4px solid #ffc107;">
+                            <i class="fa fa-user"></i> <strong>Occupied By:</strong> <span id="${prefix}OccupiedBy"></span>
+                        </div>
+                    </div>
+                </div>
+                ${prefix === 'borrow' ? '<input type="hidden" id="isBookAvailableForBorrow" value="0">' : ''}
+            `;
+            
+            $(`#${prefix}BookInfo`).html(baseHtml);
+
+            $(`#${prefix}BookTitle`).text(book.book_title);
+            
+            const className = book.class ? book.class.class_name : (book.class_name || 'N/A');
+            const subjectName = book.subject ? book.subject.subject_name : (book.subject_name || 'N/A');
+            
+            $(`#${prefix}BookClass`).text(className);
+            $(`#${prefix}BookSubject`).text(subjectName);
+            
+            if (prefix === 'borrow') {
+                const isAva = res.is_available;
+                $('#isBookAvailableForBorrow').val(isAva ? '1' : '0');
+                
+                const badge = $('#borrowBookStatusBadge');
+                const card = $('#borrowBookDetailCard');
+                const occDiv = $('#borrowOccupiedByDiv');
+                
+                badge.removeClass('badge-success badge-danger badge-warning');
+                card.css('border-left', '4px solid transparent');
+                occDiv.addClass('d-none');
+
+                if (isAva) {
+                    badge.addClass('badge-success').text('AVAILABLE (FREE)');
+                    card.css('border-left', '4px solid #28a745');
+                } else {
+                    badge.addClass('badge-danger').text('UNAVAILABLE');
+                    card.css('border-left', '4px solid #dc3545');
+                    if (res.borrower) {
+                        occDiv.removeClass('d-none');
+                        $('#borrowOccupiedBy').text(res.borrower.name + ' (' + res.borrower.type.toUpperCase() + ')');
+                        badge.text('OCCUPIED');
+                    } else if (book.status === 'lost') {
+                        badge.text('LOST');
+                    } else if (book.status === 'damaged') {
+                        badge.text('DAMAGED');
+                    }
+                }
+            } else {
+                $(`#${prefix}BookStatus`).text(res.is_available ? 'AVAILABLE' : 'OCCUPIED/INACTIVE');
+            }
+            
+            $(`#${prefix}BookInfo`).slideDown();
+            
+            if (autoReturn && res.borrower) {
+                openReturnModal(res.borrower.borrowID || (book.active_borrows && book.active_borrows[0] ? book.active_borrows[0].borrowID : null), 
+                               (book.active_borrows && book.active_borrows[0] ? book.active_borrows[0].expected_return_date : null));
+            }
         }
 
         function toggleIncidentBy(prefix) {
@@ -1471,7 +1530,7 @@
 
             $.post('{{ route("borrow_book") }}', { 
                 _token: '{{ csrf_token() }}', 
-                isbn, borrower_type: type, 
+                isbn, bookID: selectedBookID, borrower_type: type, 
                 studentID: sid, teacherID: tid, staffID: aid, 
                 expected_return_date: date 
             }, function(res) {
@@ -1486,7 +1545,7 @@
             });
         }
         function getIsbnRowHtml() {
-            return '<div class="row align-items-end isbn-row mb-2"><div class="col-md-8"><label class="form-label">Unique ID <span class="text-danger">*</span></label><input type="text" class="form-control isbn-input" placeholder="Enter Unique ID"><small class="text-danger d-none isbn-error">Unique ID is already taken.</small></div><div class="col-md-4"><button type="button" class="btn btn-danger remove-isbn-btn d-none"><i class="fa fa-trash"></i> Remove</button></div></div>';
+            return '<div class="row align-items-end isbn-row mb-2"><div class="col-md-8"><label class="form-label">Unique ID <span class="text-danger">*</span></label><input type="text" class="form-control isbn-input" placeholder="Enter Unique ID"></div><div class="col-md-4"><button type="button" class="btn btn-danger remove-isbn-btn d-none"><i class="fa fa-trash"></i> Remove</button></div></div>';
         }
 
         function showAddBookModal() {
@@ -1535,6 +1594,7 @@
             $.post('{{ route("store_book_damage") }}', {
                 _token: '{{ csrf_token() }}',
                 isbn: isbn,
+                bookID: selectedBookID,
                 damaged_by: damaged_by,
                 studentID: studentID,
                 teacherID: teacherID,
@@ -1548,6 +1608,9 @@
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'Failed to save record' });
                 }
+            }).fail(function(xhr) {
+                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'A server error occurred';
+                Swal.fire({ icon: 'error', title: 'Error', text: msg });
             });
         }
 
@@ -1571,6 +1634,7 @@
             $.post('{{ route("store_book_loss") }}', {
                 _token: '{{ csrf_token() }}',
                 isbn: isbn,
+                bookID: selectedBookID,
                 lost_by: lost_by,
                 studentID: studentID,
                 teacherID: teacherID,
@@ -1584,6 +1648,9 @@
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'Failed to save record' });
                 }
+            }).fail(function(xhr) {
+                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'A server error occurred';
+                Swal.fire({ icon: 'error', title: 'Error', text: msg });
             });
         }
 
@@ -1626,6 +1693,9 @@
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'Failed to save books' });
                 }
+            }).fail(function(xhr) {
+                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'A server error occurred';
+                Swal.fire({ icon: 'error', title: 'Error', text: msg });
             });
         }
 

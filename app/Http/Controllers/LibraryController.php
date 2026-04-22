@@ -302,7 +302,7 @@ class LibraryController extends Controller
 
             return response()->json([
                 'success' => true,
-                'available' => !$exists
+                'available' => true
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -331,64 +331,84 @@ class LibraryController extends Controller
                 ], 422);
             }
 
-            $book = Book::with(['class', 'subject', 'activeBorrows.student.subclass.class', 'activeBorrows.teacher', 'activeBorrows.staff'])
+            $books = Book::with(['class', 'subject', 'activeBorrows.student.subclass.class', 'activeBorrows.teacher', 'activeBorrows.staff'])
                 ->where('schoolID', $schoolID)
                 ->where('isbn', $isbn)
-                ->first();
-
-            if (!$book) {
+                ->get();
+            
+            if ($books->isEmpty()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Book not found.'
                 ], 404);
             }
 
-            $activeBorrow = $book->activeBorrows->first();
-            $isBorrowed = $activeBorrow ? true : false;
-            $isLost = BookLoss::where('bookID', $book->bookID)
-                ->where('status', 'lost')
-                ->exists();
-            $isDamaged = BookDamage::where('bookID', $book->bookID)
-                ->where('status', 'damaged')
-                ->exists();
-            $isAvailable = !$isBorrowed && !$isLost && !$isDamaged && $book->status === 'Active';
+            $multiple = $books->count() > 1;
+            
+            $results = $books->map(function($book) {
+                $activeBorrow = $book->activeBorrows ? $book->activeBorrows->first() : null;
+                $isBorrowed = $activeBorrow ? true : false;
+                $isLost = BookLoss::where('bookID', $book->bookID)
+                    ->where('status', 'lost')
+                    ->exists();
+                $isDamaged = BookDamage::where('bookID', $book->bookID)
+                    ->where('status', 'damaged')
+                    ->exists();
+                $isAvailable = !$isBorrowed && !$isLost && !$isDamaged && $book->status === 'Active';
 
-            $borrower = null;
-            if ($activeBorrow) {
-                if ($activeBorrow->teacher) {
-                    $teacher = $activeBorrow->teacher;
-                    $borrower = [
-                        'type' => 'teacher',
-                        'name' => trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? '')),
-                        'ref' => $teacher->employee_number ?? '-',
-                        'class_name' => 'Teacher'
-                    ];
-                } elseif ($activeBorrow->staff) {
-                    $staff = $activeBorrow->staff;
-                    $borrower = [
-                        'type' => 'staff',
-                        'name' => trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? '')),
-                        'ref' => $staff->employee_number ?? '-',
-                        'class_name' => 'Staff'
-                    ];
-                } elseif ($activeBorrow->student) {
-                    $student = $activeBorrow->student;
-                    $className = $student->subclass && $student->subclass->class ? $student->subclass->class->class_name : '-';
-                    $borrower = [
-                        'type' => 'student',
-                        'studentID' => $student->studentID,
-                        'name' => trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? '')),
-                        'admission_number' => $student->admission_number ?? '-',
-                        'class_name' => $className
-                    ];
+                $borrower = null;
+                if ($activeBorrow) {
+                    if ($activeBorrow->teacher) {
+                        $teacher = $activeBorrow->teacher;
+                        $borrower = [
+                            'type' => 'teacher',
+                            'name' => trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? '')),
+                            'ref' => $teacher->employee_number ?? '-',
+                            'class_name' => 'Teacher'
+                        ];
+                    } elseif ($activeBorrow->staff) {
+                        $staff = $activeBorrow->staff;
+                        $borrower = [
+                            'type' => 'staff',
+                            'name' => trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? '')),
+                            'ref' => $staff->employee_number ?? '-',
+                            'class_name' => 'Staff'
+                        ];
+                    } elseif ($activeBorrow->student) {
+                        $student = $activeBorrow->student;
+                        $className = $student->subclass && $student->subclass->class ? $student->subclass->class->class_name : '-';
+                        $borrower = [
+                            'type' => 'student',
+                            'studentID' => $student->studentID,
+                            'name' => trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? '')),
+                            'admission_number' => $student->admission_number ?? '-',
+                            'class_name' => $className
+                        ];
+                    }
                 }
+                
+                return [
+                    'book' => $book,
+                    'is_available' => $isAvailable,
+                    'borrower' => $borrower
+                ];
+            });
+
+            if (!$multiple) {
+                $first = $results->first();
+                return response()->json([
+                    'success' => true,
+                    'multiple' => false,
+                    'book' => $first['book'],
+                    'is_available' => $first['is_available'],
+                    'borrower' => $first['borrower']
+                ]);
             }
 
             return response()->json([
                 'success' => true,
-                'book' => $book,
-                'is_available' => $isAvailable,
-                'borrower' => $borrower
+                'multiple' => true,
+                'results' => $results
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -566,7 +586,7 @@ class LibraryController extends Controller
                     'publication_year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
                     'description' => 'nullable|string',
                     'isbns' => 'required|array|min:1',
-                    'isbns.*' => 'required|string|max:50|distinct'
+                    'isbns.*' => 'required|string|max:50'
                 ]);
 
                 if ($validator->fails()) {
@@ -607,12 +627,15 @@ class LibraryController extends Controller
                     ->pluck('isbn')
                     ->toArray();
 
+                // Uniqueness check removed as per user request
+                /*
                 if (!empty($existingIsbns)) {
                     return response()->json([
                         'success' => false,
                         'message' => 'ISBN already exists: ' . implode(', ', $existingIsbns)
                     ], 422);
                 }
+                */
 
                 DB::beginTransaction();
                 foreach ($isbnList as $isbn) {
@@ -649,7 +672,7 @@ class LibraryController extends Controller
                 'subjectID' => 'required_if:book_type,Class|nullable|exists:school_subjects,subjectID',
                 'book_title' => 'required|string|max:255',
                 'author' => 'nullable|string|max:255',
-                'isbn' => 'required|string|max:50|unique:books,isbn,NULL,bookID,schoolID,' . $schoolID,
+                'isbn' => 'required|string|max:50',
                 'publisher' => 'nullable|string|max:255',
                 'publication_year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
                 'description' => 'nullable|string',
@@ -928,9 +951,16 @@ class LibraryController extends Controller
             }
 
             // Find book and verify it belongs to this school
-            $book = Book::where('isbn', $request->isbn)
-                ->where('schoolID', $schoolID)
-                ->first();
+            $book = null;
+            if ($request->has('bookID') && $request->bookID) {
+                $book = Book::where('bookID', $request->bookID)
+                    ->where('schoolID', $schoolID)
+                    ->first();
+            } else {
+                $book = Book::where('isbn', $request->isbn)
+                    ->where('schoolID', $schoolID)
+                    ->first();
+            }
 
             if (!$book) {
                 return response()->json([
@@ -1389,9 +1419,16 @@ class LibraryController extends Controller
                 ], 422);
             }
 
-            $book = Book::where('isbn', $request->isbn)
-                ->where('schoolID', $schoolID)
-                ->first();
+            $book = null;
+            if ($request->has('bookID') && $request->bookID) {
+                $book = Book::where('bookID', $request->bookID)
+                    ->where('schoolID', $schoolID)
+                    ->first();
+            } else {
+                $book = Book::where('isbn', $request->isbn)
+                    ->where('schoolID', $schoolID)
+                    ->first();
+            }
             if (!$book) {
                 return response()->json([
                     'success' => false,
@@ -1508,9 +1545,16 @@ class LibraryController extends Controller
                 ], 422);
             }
 
-            $book = Book::where('isbn', $request->isbn)
-                ->where('schoolID', $schoolID)
-                ->first();
+            $book = null;
+            if ($request->has('bookID') && $request->bookID) {
+                $book = Book::where('bookID', $request->bookID)
+                    ->where('schoolID', $schoolID)
+                    ->first();
+            } else {
+                $book = Book::where('isbn', $request->isbn)
+                    ->where('schoolID', $schoolID)
+                    ->first();
+            }
             if (!$book) {
                 return response()->json([
                     'success' => false,

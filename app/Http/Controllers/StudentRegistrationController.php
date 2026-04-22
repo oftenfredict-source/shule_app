@@ -392,7 +392,6 @@ class StudentRegistrationController extends Controller
                 'email' => $userEmail,
                 'password' => Hash::make($registration['first_name']),
                 'user_type' => 'student',
-                'schoolID' => $schoolID
             ]);
 
             // Ensure parent has user account (Username = phone, Password = last_name)
@@ -407,7 +406,6 @@ class StudentRegistrationController extends Controller
                             'email' => $parent->email ?: null,
                             'password' => Hash::make($parent->first_name),
                             'user_type' => 'parent',
-                            'schoolID' => $schoolID
                         ]);
                     }
                 }

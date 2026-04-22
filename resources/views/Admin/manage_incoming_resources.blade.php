@@ -135,53 +135,41 @@
             </div>
 
             <div class="row">
-                <div class="col-sm-4">
-                    <div class="list-group resources-menu">
-                        <a class="list-group-item active" data-target="#section-add-resources">
+                <div class="col-12 mb-4">
+                    <div class="list-group list-group-horizontal resources-menu">
+                        <a class="list-group-item active flex-fill text-center" data-target="#section-add-resources">
                             <i class="fa fa-plus-circle"></i> Add New Resources
                         </a>
-                        <a class="list-group-item" data-target="#section-view-resources">
+                        <a class="list-group-item flex-fill text-center" data-target="#section-view-resources">
                             <i class="fa fa-list"></i> View Resources
                         </a>
-                        <a class="list-group-item" data-target="#section-record-incoming">
+                        <a class="list-group-item flex-fill text-center" data-target="#section-record-incoming">
                             <i class="fa fa-download"></i> Record Incoming Resources
                         </a>
                     </div>
-                    <div class="card border-primary-custom mt-3">
-        <div class="card-body">
-                            <div class="section-title">Quick Notes</div>
-                            <div class="muted-help">
-                                - Quantity required only for quantity-based resources.<br>
-                                - Incoming resources increase stock quantity.
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
-                <div class="col-md-8">
+                <div class="col-12">
                     <div id="section-add-resources" class="resources-section">
-                        <div class="section-title">Add New Resources</div>
+                        <div class="section-title d-flex justify-content-between align-items-center">
+                            <span>Add New Resources</span>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="addResourceRow">
+                                <i class="fa fa-plus"></i> Add Another Resource
+                            </button>
+                        </div>
                         <form method="POST" action="{{ route('school_resources.store') }}" class="js-show-loading">
                             @csrf
-                            <div class="table-responsive">
-                                <table class="table table-bordered" id="resourcesTable">
-                                    <thead class="bg-primary-custom text-white">
-                                        <tr>
-                                            <th>Resource Name</th>
-                                            <th>Type</th>
-                                            <th>Requires Quantity</th>
-                                            <th>Quantity</th>
-                                            <th>Requires Price</th>
-                                            <th>Price (Per Unit)</th>
-                                            <th>Total Price</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr class="resource-row">
-                                            <td><input type="text" class="form-control" name="resources[0][resource_name]" required></td>
-                                            <td>
-                                                <select class="form-select" name="resources[0][resource_type]" required>
+                            <div id="resourcesContainer">
+                                <div class="resource-row-block card mb-3 border-left-primary shadow-sm" style="border-left: 5px solid #940000;">
+                                    <div class="card-body p-3">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-4 mb-2">
+                                                <label class="small font-weight-bold">Resource Name <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control form-control-sm" name="resources[0][resource_name]" placeholder="e.g. Chairs, Laptops" required>
+                                            </div>
+                                            <div class="col-md-3 mb-2">
+                                                <label class="small font-weight-bold">Type <span class="text-danger">*</span></label>
+                                                <select class="form-select form-select-sm" name="resources[0][resource_type]" required>
                                                     <option value="">Select Type</option>
                                                     <option value="Physical">Physical</option>
                                                     <option value="Learning">Learning</option>
@@ -192,33 +180,45 @@
                                                     <option value="Human">Human</option>
                                                     <option value="Laboratory Apparatus">Laboratory Apparatus</option>
                                                 </select>
-                                            </td>
-                                            <td>
-                                                <select class="form-select requires-qty" name="resources[0][requires_quantity]">
+                                            </div>
+                                            <div class="col-md-2 mb-2">
+                                                <label class="small font-weight-bold">Requires Qty</label>
+                                                <select class="form-select form-select-sm requires-qty" name="resources[0][requires_quantity]">
                                                     <option value="1">Yes</option>
                                                     <option value="0">No</option>
                                                 </select>
-                                            </td>
-                                            <td><input type="number" class="form-control qty-input" name="resources[0][quantity]" min="0" value="0"></td>
-                                            <td>
-                                                <select class="form-select requires-price" name="resources[0][requires_price]">
+                                            </div>
+                                            <div class="col-md-3 mb-2">
+                                                <label class="small font-weight-bold">Quantity</label>
+                                                <input type="number" class="form-control form-control-sm qty-input" name="resources[0][quantity]" min="0" value="0">
+                                            </div>
+                                            <div class="col-md-2 mb-2">
+                                                <label class="small font-weight-bold">Requires Price</label>
+                                                <select class="form-select form-select-sm requires-price" name="resources[0][requires_price]">
                                                     <option value="1">Yes</option>
                                                     <option value="0">No</option>
                                                 </select>
-                                            </td>
-                                            <td><input type="number" class="form-control price-input" name="resources[0][unit_price]" min="0" step="0.01" value="0"></td>
-                                            <td><input type="number" class="form-control total-input" readonly value="0"></td>
-                                            <td><button type="button" class="btn btn-sm btn-danger remove-row">Remove</button></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                            </div>
+                                            <div class="col-md-3 mb-2">
+                                                <label class="small font-weight-bold">Price (Per Unit)</label>
+                                                <input type="number" class="form-control form-control-sm price-input" name="resources[0][unit_price]" min="0" step="0.01" value="0">
+                                            </div>
+                                            <div class="col-md-3 mb-2">
+                                                <label class="small font-weight-bold">Total Price</label>
+                                                <input type="number" class="form-control form-control-sm total-input" readonly value="0">
+                                            </div>
+                                            <div class="col-md-4 d-flex align-items-end mb-2">
+                                                <button type="button" class="btn btn-sm btn-danger remove-row w-100" style="display:none;">
+                                                    <i class="fa fa-trash"></i> Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <button type="button" class="btn btn-light mb-3" id="addResourceRow">
-                                <i class="fa fa-plus"></i> Add Another Resource
-                            </button>
-                            <div>
-                                <button class="btn btn-primary-custom" type="submit">
-                                    <i class="fa fa-save"></i> Save Resources
+                            <div class="mt-4">
+                                <button class="btn btn-primary-custom px-5" type="submit">
+                                    <i class="fa fa-save"></i> Save All Resources
                                 </button>
                             </div>
                         </form>
@@ -283,43 +283,45 @@
                         <div class="section-title">Record Incoming Resources</div>
                         <form method="POST" action="{{ route('incoming_resources.store') }}" class="js-show-loading">
                             @csrf
-                            <div class="form-group mb-3">
-                                <label for="incoming_resource">Select Resource</label>
-                                <select class="form-select" id="incoming_resource" name="resourceID" required>
-                                    <option value="">-- Select Resource --</option>
-                                    @foreach(($resources ?? []) as $resource)
-                                        <option
-                                            value="{{ $resource->resourceID }}"
-                                            data-requires="{{ $resource->requires_quantity ? 1 : 0 }}"
-                                            data-requires-price="{{ $resource->requires_price ? 1 : 0 }}"
-                                            data-price="{{ $resource->unit_price }}"
-                                        >
-                                            {{ $resource->resource_name }} ({{ $resource->resource_type }})
-                                        </option>
-                                    @endforeach
-                                </select>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="incoming_resource">Select Resource</label>
+                                    <select class="form-select" id="incoming_resource" name="resourceID" required>
+                                        <option value="">-- Select Resource --</option>
+                                        @foreach(($resources ?? []) as $resource)
+                                            <option
+                                                value="{{ $resource->resourceID }}"
+                                                data-requires="{{ $resource->requires_quantity ? 1 : 0 }}"
+                                                data-requires-price="{{ $resource->requires_price ? 1 : 0 }}"
+                                                data-price="{{ $resource->unit_price }}"
+                                            >
+                                                {{ $resource->resource_name }} ({{ $resource->resource_type }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label" for="received_date">Date Received</label>
+                                    <input type="date" class="form-control" id="received_date" name="received_date" value="{{ date('Y-m-d') }}" required>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label" for="incoming_quantity">Quantity</label>
+                                    <input type="number" class="form-control" id="incoming_quantity" name="quantity" min="0" value="0">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label" for="incoming_unit_price">Price (Per Unit)</label>
+                                    <input type="number" class="form-control" id="incoming_unit_price" name="unit_price" min="0" step="0.01" value="0">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label" for="incoming_total_price">Total Price</label>
+                                    <input type="number" class="form-control" id="incoming_total_price" readonly value="0">
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label" for="incoming_note">Note</label>
+                                    <textarea class="form-control" id="incoming_note" name="note" rows="2"></textarea>
+                                </div>
                             </div>
-                            <div class="form-group mb-3">
-                                <label for="received_date">Date Received</label>
-                                <input type="date" class="form-control" id="received_date" name="received_date" value="{{ date('Y-m-d') }}" required>
-                            </div>
-                            <div class="form-group mb-3">
-                                <label for="incoming_quantity">Quantity</label>
-                                <input type="number" class="form-control" id="incoming_quantity" name="quantity" min="0" value="0">
-                            </div>
-                            <div class="form-group mb-3">
-                                <label for="incoming_unit_price">Price (Per Unit)</label>
-                                <input type="number" class="form-control" id="incoming_unit_price" name="unit_price" min="0" step="0.01" value="0">
-                            </div>
-                            <div class="form-group mb-3">
-                                <label for="incoming_total_price">Total Price</label>
-                                <input type="number" class="form-control" id="incoming_total_price" readonly value="0">
-                            </div>
-                            <div class="form-group mb-3">
-                                <label for="incoming_note">Note</label>
-                                <textarea class="form-control" id="incoming_note" name="note" rows="3"></textarea>
-                            </div>
-                            <button class="btn btn-primary-custom" type="submit">
+                            <button class="btn btn-primary-custom w-100" type="submit">
                                 <i class="fa fa-check"></i> Record Incoming
                             </button>
                         </form>
@@ -462,12 +464,16 @@
             });
         });
 
-        const resourcesTable = document.getElementById('resourcesTable');
+        const resourcesContainer = document.getElementById('resourcesContainer');
         const addResourceRow = document.getElementById('addResourceRow');
 
         function updateRowTotal(row) {
-            const requiresQty = row.querySelector('.requires-qty').value === '1';
-            const requiresPrice = row.querySelector('.requires-price').value === '1';
+            const requiresQtyElem = row.querySelector('.requires-qty');
+            const requiresPriceElem = row.querySelector('.requires-price');
+            if (!requiresQtyElem || !requiresPriceElem) return;
+
+            const requiresQty = requiresQtyElem.value === '1';
+            const requiresPrice = requiresPriceElem.value === '1';
             const qtyInput = row.querySelector('.qty-input');
             const priceInput = row.querySelector('.price-input');
             const totalInput = row.querySelector('.total-input');
@@ -477,12 +483,8 @@
             totalInput.value = total.toFixed(2);
             qtyInput.disabled = !requiresQty;
             priceInput.disabled = !requiresPrice;
-            if (!requiresQty) {
-                qtyInput.value = 0;
-            }
-            if (!requiresPrice) {
-                priceInput.value = 0;
-            }
+            if (!requiresQty) qtyInput.value = 0;
+            if (!requiresPrice) priceInput.value = 0;
         }
 
         function bindRowEvents(row) {
@@ -490,58 +492,97 @@
             row.querySelector('.requires-price').addEventListener('change', () => updateRowTotal(row));
             row.querySelector('.qty-input').addEventListener('input', () => updateRowTotal(row));
             row.querySelector('.price-input').addEventListener('input', () => updateRowTotal(row));
-            row.querySelector('.remove-row').addEventListener('click', () => {
-                if (resourcesTable.querySelectorAll('tbody tr').length > 1) {
-                    row.remove();
-                }
-            });
+            const removeBtn = row.querySelector('.remove-row');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', () => {
+                    const count = resourcesContainer.querySelectorAll('.resource-row-block').length;
+                    if (count > 1) {
+                        row.remove();
+                        updateRemoveButtons();
+                    }
+                });
+            }
             updateRowTotal(row);
         }
 
-        if (resourcesTable) {
-            resourcesTable.querySelectorAll('tbody tr').forEach(bindRowEvents);
+        function updateRemoveButtons() {
+            const blocks = resourcesContainer.querySelectorAll('.resource-row-block');
+            blocks.forEach((block, index) => {
+                const btn = block.querySelector('.remove-row');
+                if (btn) {
+                    btn.style.display = blocks.length > 1 ? 'block' : 'none';
+                }
+            });
+        }
+
+        if (resourcesContainer) {
+            resourcesContainer.querySelectorAll('.resource-row-block').forEach(bindRowEvents);
         }
 
         if (addResourceRow) {
             addResourceRow.addEventListener('click', () => {
-                const tbody = resourcesTable.querySelector('tbody');
-                const index = tbody.querySelectorAll('tr').length;
-                const row = document.createElement('tr');
-                row.className = 'resource-row';
-                row.innerHTML = `
-                    <td><input type="text" class="form-control" name="resources[${index}][resource_name]" required></td>
-                    <td>
-                        <select class="form-select" name="resources[${index}][resource_type]" required>
-                            <option value="">Select Type</option>
-                            <option value="Physical">Physical</option>
-                            <option value="Learning">Learning</option>
-                            <option value="ICT">ICT</option>
-                            <option value="Utility">Utility</option>
-                            <option value="Consumable">Consumable</option>
-                            <option value="Financial">Financial</option>
-                            <option value="Human">Human</option>
-                            <option value="Laboratory Apparatus">Laboratory Apparatus</option>
-                        </select>
-                    </td>
-                    <td>
-                        <select class="form-select requires-qty" name="resources[${index}][requires_quantity]">
-                            <option value="1">Yes</option>
-                            <option value="0">No</option>
-                        </select>
-                    </td>
-                    <td><input type="number" class="form-control qty-input" name="resources[${index}][quantity]" min="0" value="0"></td>
-                    <td>
-                        <select class="form-select requires-price" name="resources[${index}][requires_price]">
-                            <option value="1">Yes</option>
-                            <option value="0">No</option>
-                        </select>
-                    </td>
-                    <td><input type="number" class="form-control price-input" name="resources[${index}][unit_price]" min="0" step="0.01" value="0"></td>
-                    <td><input type="number" class="form-control total-input" readonly value="0"></td>
-                    <td><button type="button" class="btn btn-sm btn-danger remove-row">Remove</button></td>
+                const index = resourcesContainer.querySelectorAll('.resource-row-block').length;
+                const block = document.createElement('div');
+                block.className = 'resource-row-block card mb-3 border-left-primary shadow-sm';
+                block.style.borderLeft = '5px solid #940000';
+                block.innerHTML = `
+                    <div class="card-body p-3">
+                        <div class="row align-items-center">
+                            <div class="col-md-4 mb-2">
+                                <label class="small font-weight-bold">Resource Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="resources[${index}][resource_name]" placeholder="e.g. Chairs, Laptops" required>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="small font-weight-bold">Type <span class="text-danger">*</span></label>
+                                <select class="form-select form-select-sm" name="resources[${index}][resource_type]" required>
+                                    <option value="">Select Type</option>
+                                    <option value="Physical">Physical</option>
+                                    <option value="Learning">Learning</option>
+                                    <option value="ICT">ICT</option>
+                                    <option value="Utility">Utility</option>
+                                    <option value="Consumable">Consumable</option>
+                                    <option value="Financial">Financial</option>
+                                    <option value="Human">Human</option>
+                                    <option value="Laboratory Apparatus">Laboratory Apparatus</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="small font-weight-bold">Requires Qty</label>
+                                <select class="form-select form-select-sm requires-qty" name="resources[${index}][requires_quantity]">
+                                    <option value="1">Yes</option>
+                                    <option value="0">No</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="small font-weight-bold">Quantity</label>
+                                <input type="number" class="form-control form-control-sm qty-input" name="resources[${index}][quantity]" min="0" value="0">
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label class="small font-weight-bold">Requires Price</label>
+                                <select class="form-select form-select-sm requires-price" name="resources[${index}][requires_price]">
+                                    <option value="1">Yes</option>
+                                    <option value="0">No</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="small font-weight-bold">Price (Per Unit)</label>
+                                <input type="number" class="form-control form-control-sm price-input" name="resources[${index}][unit_price]" min="0" step="0.01" value="0">
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="small font-weight-bold">Total Price</label>
+                                <input type="number" class="form-control form-control-sm total-input" readonly value="0">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end mb-2">
+                                <button type="button" class="btn btn-sm btn-danger remove-row w-100">
+                                    <i class="fa fa-trash"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 `;
-                tbody.appendChild(row);
-                bindRowEvents(row);
+                resourcesContainer.appendChild(block);
+                bindRowEvents(block);
+                updateRemoveButtons();
             });
         }
 

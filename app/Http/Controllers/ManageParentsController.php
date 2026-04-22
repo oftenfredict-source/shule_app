@@ -693,7 +693,6 @@ class ManageParentsController extends Controller
                     'email' => $parent->email ?: null,
                     'password' => Hash::make($parent->first_name),
                     'user_type' => 'parent',
-                    'schoolID' => $schoolID
                 ]);
                 $registeredCount++;
             }

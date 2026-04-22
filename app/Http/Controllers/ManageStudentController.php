@@ -410,7 +410,6 @@ class ManageStudentController extends Controller
                             'email' => $parent->email ?: null,
                             'password' => Hash::make($parent->first_name),
                             'user_type' => 'parent',
-                            'schoolID' => $schoolID
                         ]);
                     }
 
@@ -4403,7 +4402,6 @@ class ManageStudentController extends Controller
                                 'email' => $parent->email ?: null,
                                 'password' => Hash::make($parent->last_name),
                                 'user_type' => 'parent',
-                                'schoolID' => $schoolID,
                             ]);
                         }
                     }
@@ -4482,8 +4480,6 @@ class ManageStudentController extends Controller
                     'email' => strtolower(preg_replace('/[^a-z0-9]/i', '', $sFirstName) . '.' . preg_replace('/[^a-z0-9]/i', '', $sLastName) . '.' . $fingerprintID . '@student.ShuleXpert'),
                     'password' => Hash::make($defaultPassword),
                     'user_type' => 'student',
-                    'studentID' => (int) $fingerprintID,
-                    'schoolID' => $schoolID,
                 ];
                 if (Schema::hasColumn('users', 'fingerprint_id')) {
                     $userPayload['fingerprint_id'] = $fingerprintID;

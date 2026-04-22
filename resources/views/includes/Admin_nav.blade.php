@@ -643,6 +643,17 @@
                             </ul>
                         </li>
 
+                        <!-- School Resources -->
+                        <li class="dropdown-nav-item">
+                            <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#schoolResources" aria-expanded="false">
+                                <i class="fa fa-cubes"></i> School Resources <i class="fa fa-chevron-down float-right"></i>
+                            </a>
+                            <ul id="schoolResources" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
+                                <li><a href="{{ route('manage_incoming_resources') }}" class="nav-link"><i class="fa fa-level-down"></i> Incoming Resources</a></li>
+                                <li><a href="{{ route('manage_outgoing_resources') }}" class="nav-link"><i class="fa fa-level-up"></i> Outgoing Resources</a></li>
+                            </ul>
+                        </li>
+
                         <!-- HR Operations -->
                         <li class="dropdown-nav-item">
                             <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#hrOperations" aria-expanded="false">
