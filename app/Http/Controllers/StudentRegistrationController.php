@@ -41,7 +41,7 @@ class StudentRegistrationController extends Controller
             'birth_certificate_number' => 'nullable|string|max:100',
             'religion' => 'nullable|string|max:100',
             'nationality' => 'nullable|string|max:100',
-            'student_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
+            'student_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:10240'
         ]);
 
         $schoolID = Session::get('schoolID');
@@ -315,7 +315,7 @@ class StudentRegistrationController extends Controller
             'registering_officer_name' => 'nullable|string|max:100',
             'registering_officer_title' => 'nullable|string|max:100',
             'registering_officer_signature' => 'nullable|string',
-            'school_stamp' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
+            'school_stamp' => 'nullable|image|mimes:jpeg,png,jpg|max:10240'
         ]);
 
         $registration = session('student_registration') ?? [];
@@ -487,8 +487,8 @@ class StudentRegistrationController extends Controller
                 'birth_certificate_number' => 'nullable|string|max:100',
                 'religion' => 'nullable|string|max:100',
                 'nationality' => 'nullable|string|max:100',
-                'student_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-                'parent_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'student_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
+                'parent_photo' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
                 'subclassID' => 'required|exists:subclasses,subclassID',
                 // Step 2
                 'parent_phone' => 'nullable|string|max:20',

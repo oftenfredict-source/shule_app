@@ -32,6 +32,13 @@ class LibraryController extends Controller
     {
       $userType = Session::get('user_type');
       $schoolID = Session::get('schoolID');
+      
+      // Temporary check to drop the unique ISBN constraint if it still exists
+      try {
+          DB::statement('ALTER TABLE books DROP INDEX books_school_isbn_unique');
+      } catch (\Exception $e) {
+          // Index probably already dropped or doesn't exist
+      }
 
         if (!$userType || !$schoolID)
         {
@@ -785,7 +792,7 @@ class LibraryController extends Controller
                 'subjectID' => 'required_if:book_type,Class|nullable|exists:school_subjects,subjectID',
                 'book_title' => 'required|string|max:255',
                 'author' => 'nullable|string|max:255',
-                'isbn' => 'required|string|max:50|unique:books,isbn,' . $bookID . ',bookID,schoolID,' . $schoolID,
+                'isbn' => 'required|string|max:50',
                 'publisher' => 'nullable|string|max:255',
                 'publication_year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
                 'description' => 'nullable|string',

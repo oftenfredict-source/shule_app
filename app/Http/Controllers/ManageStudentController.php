@@ -190,7 +190,7 @@ class ManageStudentController extends Controller
             'parentID' => 'nullable|exists:parents,parentID',
             'address' => 'nullable|string|max:255',
             'status' => 'nullable|in:Active,Transferred,Graduated,Inactive',
-            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
             'sponsor_id' => 'nullable|exists:sponsors,sponsorID',
             'sponsorship_percentage' => 'nullable|numeric|min:0|max:100',
             // Additional fields
@@ -207,7 +207,7 @@ class ManageStudentController extends Controller
             'admission_number.unique' => 'Admission number already exists. Please use a different admission number.',
             'photo.image' => 'Photo must be an image file.',
             'photo.mimes' => 'Photo must be a jpg, jpeg, or png file.',
-            'photo.max' => 'Photo must not exceed 2MB.'
+            'photo.max' => 'Photo must not exceed 10MB.'
         ]);
 
         if ($validator->fails()) {
@@ -658,7 +658,7 @@ class ManageStudentController extends Controller
             'parentID' => 'nullable|exists:parents,parentID',
             'address' => 'nullable|string|max:255',
             'status' => 'nullable|in:Active,Transferred,Graduated,Inactive',
-            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
             'subclassID' => 'nullable|exists:subclasses,subclassID',
             'sponsor_id' => 'nullable|exists:sponsors,sponsorID',
             'sponsorship_percentage' => 'nullable|numeric|min:0|max:100',
@@ -676,7 +676,7 @@ class ManageStudentController extends Controller
             'admission_number.unique' => 'Admission number already exists. Please use a different admission number.',
             'photo.image' => 'Photo must be an image file.',
             'photo.mimes' => 'Photo must be a jpg, jpeg, or png file.',
-            'photo.max' => 'Photo must not exceed 2MB.'
+            'photo.max' => 'Photo must not exceed 10MB.'
         ]);
 
         if ($validator->fails()) {

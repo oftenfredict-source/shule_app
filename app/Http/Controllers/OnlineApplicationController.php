@@ -334,7 +334,7 @@ class OnlineApplicationController extends Controller
             'gender' => 'required|in:Male,Female',
             'date_of_birth' => 'required|date',
             'address' => 'nullable|string|max:255',
-            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
             'is_disabled' => 'nullable|boolean',
             'has_epilepsy' => 'nullable|boolean',
             'has_allergies' => 'nullable|boolean',
@@ -342,7 +342,7 @@ class OnlineApplicationController extends Controller
         ], [
             'photo.image' => 'Photo must be an image file.',
             'photo.mimes' => 'Photo must be a jpg, jpeg, or png file.',
-            'photo.max' => 'Photo must not exceed 2MB.',
+            'photo.max' => 'Photo must not exceed 10MB.',
         ]);
 
         if ($validator->fails()) {

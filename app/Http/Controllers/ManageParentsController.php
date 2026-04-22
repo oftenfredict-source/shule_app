@@ -126,7 +126,7 @@ class ManageParentsController extends Controller
             'occupation' => 'nullable|string|max:100',
             'national_id' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:255',
-            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048'
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:10240'
         ], [
             'phone.unique' => 'Phone number already exists. Please use a different phone number.',
             'phone.size' => 'Phone number must be exactly 12 digits.',
@@ -135,7 +135,7 @@ class ManageParentsController extends Controller
             'email.email' => 'Please enter a valid email address.',
             'photo.image' => 'Photo must be an image file.',
             'photo.mimes' => 'Photo must be a jpg, jpeg, or png file.',
-            'photo.max' => 'Photo must not exceed 2MB.'
+            'photo.max' => 'Photo must not exceed 10MB.'
         ]);
 
         if ($validator->fails()) {
@@ -388,13 +388,13 @@ class ManageParentsController extends Controller
             'occupation' => 'nullable|string|max:100',
             'national_id' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:255',
-            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048'
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:10240'
         ], [
             'phone.unique' => 'Phone number already exists. Please use a different phone number.',
             'email.unique' => 'Email already exists. Please use a different email.',
             'photo.image' => 'Photo must be an image file.',
             'photo.mimes' => 'Photo must be a jpg, jpeg, or png file.',
-            'photo.max' => 'Photo must not exceed 2MB.'
+            'photo.max' => 'Photo must not exceed 10MB.'
         ]);
 
         if ($validator->fails()) {

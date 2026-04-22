@@ -888,7 +888,7 @@
                     <div class="mb-3">
                         <label for="photo" class="form-label">Photo</label>
                         <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
-                        <small class="text-muted">Max size: 2MB (jpg, jpeg, png)</small>
+                        <small class="text-muted">Max size: 10MB (jpg, jpeg, png)</small>
                     </div>
 
                     <!-- Additional Particulars Section -->
@@ -1153,7 +1153,7 @@
                     <div class="mb-3">
                         <label for="edit_photo" class="form-label">Update Photo</label>
                         <input type="file" class="form-control" id="edit_photo" name="photo" accept="image/*">
-                        <small class="text-muted">Max size: 2MB (jpg, jpeg, png). Leave empty to keep current photo.</small>
+                        <small class="text-muted">Max size: 10MB (jpg, jpeg, png). Leave empty to keep current photo.</small>
                     </div>
 
                     <!-- Additional Particulars Section -->
