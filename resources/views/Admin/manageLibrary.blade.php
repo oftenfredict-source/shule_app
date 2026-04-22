@@ -296,7 +296,7 @@
 
                     <!-- Expanded Actions Section -->
                     <div id="expandedActions" style="display: none; margin-top: 25px; padding-top: 25px; border-top: 1px solid rgba(148, 0, 0, 0.1); position: relative;">
-                        <button type="button" class="close" onclick="$('#expandedActions').slideUp(300); $('#actionChevron').removeClass('fa-chevron-up').addClass('fa-chevron-down');" style="position: absolute; right: 10px; top: 10px; color: #000; opacity: 0.5;">&times;</button>
+                        <button type="button" class="close" onclick="jQuery('#expandedActions').slideUp(300); jQuery('#actionChevron').removeClass('fa-chevron-up').addClass('fa-chevron-down');" style="position: absolute; right: 10px; top: 10px; color: #000; opacity: 0.5;">&times;</button>
                         <div class="row text-center">
                             <div class="col-md-3 border-right">
                                 <a href="javascript:void(0)" class="text-decoration-none d-block py-4 setting-item" onclick="showAddBookModal()">
@@ -939,8 +939,7 @@
 <!-- DataTables CSS -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap4.min.css">
 
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 
 <script>
     (function() {
@@ -949,12 +948,14 @@
         let isbnCheckTimeout = null;
         let allBooks = [];
 
+        let $;
+        
         function initLibrary() {
             if (typeof jQuery === 'undefined') {
                 setTimeout(initLibrary, 100);
                 return;
             }
-            var $ = jQuery;
+            $ = jQuery;
             
             $(document).ready(function() {
                 // Initialize default view
