@@ -11,7 +11,7 @@
 @endphp
 
 <div class="modal-header">
-    <h5 class="modal-title">Members: {{ $dept->department_name }}</h5>
+    <h5 class="modal-title">Department Details: {{ $dept->department_name }} ({{ $dept->type }})</h5>
     <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
 </div>
 <div class="modal-body">
@@ -76,6 +76,43 @@
                 $curS = Session::get('staffID');
                 $isHOD = ($dept->head_teacherID == $curT && $curT) || ($dept->head_staffID == $curS && $curS);
             @endphp
+
+            @if($dept->type == 'Academic')
+            <hr>
+            <h6 class="mb-3">Assigned Subjects</h6>
+            <div class="table-responsive" style="max-height: 250px;">
+                <table class="table table-sm table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Subject Name</th>
+                            <th>Code</th>
+                            @if($isAdmin || $isHOD)
+                            <th class="text-center">Action</th>
+                            @endif
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($dept->subjects as $subject)
+                            <tr>
+                                <td>{{ $subject->subject_name }}</td>
+                                <td>{{ $subject->subject_code ?? '-' }}</td>
+                                @if($isAdmin || $isHOD)
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-danger remove-subject" data-id="{{ $subject->subjectID }}" data-dept-id="{{ $dept->departmentID }}" title="Remove Subject">
+                                        <i class="fa fa-times"></i>
+                                    </button>
+                                </td>
+                                @endif
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="{{ ($isAdmin || $isHOD) ? 3 : 2 }}" class="text-center text-muted py-3">No subjects assigned yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @endif
 
             @if($isAdmin || $isHOD)
             <div class="mt-4 p-3 border rounded bg-light">

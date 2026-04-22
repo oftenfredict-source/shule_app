@@ -744,7 +744,7 @@ class ManageTeachersController extends Controller
         $user = User::create([
             'name'          => $request->employee_number,
             'email'         => $request->email,
-            'password'      => bcrypt($request->last_name), // hash password
+            'password'      => bcrypt($request->first_name), // hash password
             'user_type'     => 'Teacher',
             'fingerprint_id' => $fingerprintId  // Same fingerprint_id as teacher (id)
         ]);
@@ -753,7 +753,7 @@ class ManageTeachersController extends Controller
         try {
             $schoolName = School::where('schoolID', $schoolID)->value('school_name') ?? 'ShuleXpert';
             $username = (string) $request->employee_number;
-            $plainPassword = (string) $request->last_name;
+            $plainPassword = (string) $request->first_name;
             $smsMessage = "{$schoolName}. Username: {$username}. Password: {$plainPassword}";
 
             $smsService = new SmsService();

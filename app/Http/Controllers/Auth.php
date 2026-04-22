@@ -200,6 +200,20 @@ class Auth extends Controller
         // User Authentication
         $userLogin = User::where('name', $username)->first();
 
+        // If not found and username looks like a Tanzanian phone number, try alternative formats
+        if (!$userLogin && preg_match('/^(?:0|255|)\d{9}$/', $username)) {
+            $purePhone = substr($username, -9);
+            $formats = ['255' . $purePhone, '0' . $purePhone, $purePhone];
+            foreach ($formats as $fmt) {
+                if ($fmt === $username) continue;
+                $userLogin = User::where('name', $fmt)->first();
+                if ($userLogin) {
+                    $username = $fmt; // Update username to match found user
+                    break;
+                }
+            }
+        }
+
         // Check if user exists and password is correct
         if (!$userLogin || !Hash::check($password, $userLogin->password)) {
             RateLimiter::hit($key, 60); // 60 seconds lockout
@@ -529,15 +543,41 @@ class Auth extends Controller
                 break;
 
             case 'parent':
-                $parent = ParentModel::where('phone',$username)->first();
+            case 'Parent':
+                $parent = ParentModel::where('phone', $username)->first();
+
+                if (!$parent) {
+                    // Try by user name if phone doesn't match directly
+                    $parent = ParentModel::where('phone', 'like', '%' . substr($username, -9))->first();
+                }
+
+                if (!$parent) {
+                    if ($this->isAjax($request)) {
+                        return $this->jsonFail('Parent profile record not found. Please contact admin.', 404);
+                    }
+                    return redirect()->back()
+                        ->with('error', 'Parent profile record not found.')
+                        ->withInput($request->only('username'));
+                }
+
                 // Set session data
                 Session::put('parentID', $parent->parentID);
                 Session::put('schoolID', $parent->schoolID);
                 Session::put('user_type', $userLogin->user_type);
+                Session::put('userID', $userLogin->id);
+                Session::put('user_name', $userLogin->name);
+                Session::put('user_email', $userLogin->email);
 
-                   return redirect()->route('parentDashboard')
+                // Regenerate session ID for security
+                $request->session()->regenerate();
+
+                if ($this->isAjax($request)) {
+                    return response()->json(['success' => true, 'redirect' => route('parentDashboard')]);
+                }
+
+                return redirect()->route('parentDashboard')
                     ->with('success', 'You have logged in successfully as Parent!');
-                    break;
+                break;
 
             default:
                 return redirect()->back()

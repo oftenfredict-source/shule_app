@@ -641,6 +641,7 @@ Route::delete('delete_parent/{parentID}', [ManageParentsController::class, 'dele
 Route::get('get_parents_for_pdf/{subclassID}', [ManageParentsController::class, 'get_parents_for_pdf'])->name('get_parents_for_pdf');
 Route::get('get_parent_details/{parentID}', [ManageParentsController::class, 'get_parent_details'])->name('get_parent_details');
 Route::post('register_parent_account', [ManageParentsController::class, 'register_parent_account'])->name('register_parent_account');
+Route::post('register_all_parents', [ManageParentsController::class, 'register_all_parents'])->name('register_all_parents');
 Route::post('send_password_sms', [ManageParentsController::class, 'send_parent_password'])->name('send_password_sms');
 
 // Examination Routes
@@ -1091,6 +1092,7 @@ Route::prefix('sgpm')->name('sgpm.')->group(function () {
     Route::get('departments/{id}/members', [\App\Http\Controllers\DepartmentController::class, 'manageMembers'])->name('departments.members');
     Route::post('departments/{id}/members', [\App\Http\Controllers\DepartmentController::class, 'addMember'])->name('departments.members.add');
     Route::delete('departments/members/{memberId}', [\App\Http\Controllers\DepartmentController::class, 'removeMember'])->name('departments.members.remove');
+    Route::delete('departments/{id}/subjects/{subjectId}', [\App\Http\Controllers\DepartmentController::class, 'removeSubject'])->name('departments.subjects.remove');
     Route::post('departments/{id}/send-sms', [\App\Http\Controllers\DepartmentController::class, 'sendSmsToMembers'])->name('departments.members.sms');
     Route::post('departments/hods/send-sms', [\App\Http\Controllers\DepartmentController::class, 'sendSmsToHODs'])->name('departments.hods.sms');
 

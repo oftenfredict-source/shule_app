@@ -98,7 +98,7 @@ class WatchmanController extends Controller
             if ($user) {
                 $user->name = $request->phone_number;
                 $user->email = $newEmail;
-                $user->password = Hash::make($request->last_name);
+                $user->password = Hash::make($request->first_name);
                 $user->save();
             }
         });
@@ -163,7 +163,7 @@ class WatchmanController extends Controller
         User::create([
             'name'      => $request->phone_number,
             'email'     => $email,
-            'password'  => Hash::make($request->last_name),
+            'password'  => Hash::make($request->first_name),
             'user_type' => 'Watchman',
         ]);
 
@@ -173,7 +173,7 @@ class WatchmanController extends Controller
             $phoneNumber = $request->phone_number;
             $schoolName = $school->school_name ?? 'School';
             $username = $request->phone_number;
-            $password = $request->last_name;
+            $password = $request->first_name;
 
             $message = "{$schoolName}. Usajili umekamilika. Username: {$username}. Password: {$password}. Asante";
             $smsResult = $smsService->sendSms($phoneNumber, $message);

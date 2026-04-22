@@ -1707,10 +1707,11 @@ jQuery(document).ready(function($) {
     // Hard-coded special roles: class_teacher and coordinator
     const specialRoles = [
         { id: 'class_teacher', name: 'Class Teacher', role_name: 'Class Teacher' },
-        { id: 'coordinator', name: 'Coordinator', role_name: 'Coordinator' }
+        { id: 'coordinator', name: 'Coordinator', role_name: 'Coordinator' },
+        { id: 'head_of_department', name: 'Head Of Department', role_name: 'Head Of Department' }
     ];
-    // Max approvals = regular roles + 2 special roles
-    const maxApprovals = roles.length + 2;
+    // Max approvals = regular roles + special roles
+    const maxApprovals = roles.length + specialRoles.length;
 
     // Handle result approval checkbox
     $('#use_result_approval').on('change', function() {
@@ -1762,7 +1763,7 @@ jQuery(document).ready(function($) {
     // Handle number of paper approvals change
     $('#number_of_paper_approvals').on('change', function() {
         const numApprovals = parseInt($(this).val()) || 0;
-        const maxPaperApprovals = roles.length + 2; // Including 2 special roles
+        const maxPaperApprovals = roles.length + specialRoles.length;
         if (numApprovals > maxPaperApprovals) {
             Swal.fire({ icon: 'warning', title: 'Invalid Number', text: 'Number of approvals cannot exceed ' + maxPaperApprovals });
             $(this).val(maxPaperApprovals);
@@ -1817,6 +1818,7 @@ jQuery(document).ready(function($) {
             // Add Special Roles first
             select.append('<option value="class_teacher">Class Teacher</option>');
             select.append('<option value="coordinator">Coordinator</option>');
+            select.append('<option value="head_of_department">Head Of Department</option>');
             
             // Add Regular Roles
             roles.forEach(role => select.append($('<option>', { 
@@ -3492,6 +3494,7 @@ jQuery(document).ready(function($) {
             // Add Special Roles
             select.append('<option value="class_teacher">Class Teacher</option>');
             select.append('<option value="coordinator">Coordinator</option>');
+            select.append('<option value="head_of_department">Head Of Department</option>');
             
             // Add Regular Roles
             roles.forEach(r => select.append($('<option>', { value: r.id, text: r.name || r.role_name })));

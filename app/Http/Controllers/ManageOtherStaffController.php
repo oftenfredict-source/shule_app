@@ -574,7 +574,7 @@ class ManageOtherStaffController extends Controller
             $user = User::create([
                 'name'          => $request->employee_number,
                 'email'         => $request->email,
-                'password'      => bcrypt($request->last_name),
+                'password'      => bcrypt($request->first_name),
                 'user_type'     => 'Staff',
                 'fingerprint_id' => $fingerprintId
             ]);
@@ -586,7 +586,7 @@ class ManageOtherStaffController extends Controller
                 $phoneNumber = $request->phone_number;
                 $schoolName = $school->school_name ?? 'School';
                 $username = $request->employee_number;
-                $password = $request->last_name;
+                $password = $request->first_name;
                 
                 $message = "{$schoolName}. Usajili umekamilika. Username: {$username}. Password: {$password}. Asante";
                 $smsResult = $smsService->sendSms($phoneNumber, $message);

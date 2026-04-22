@@ -390,7 +390,7 @@ class StudentRegistrationController extends Controller
             User::create([
                 'name' => $admissionNumber,
                 'email' => $userEmail,
-                'password' => Hash::make($registration['last_name']),
+                'password' => Hash::make($registration['first_name']),
                 'user_type' => 'student',
                 'schoolID' => $schoolID
             ]);
@@ -405,7 +405,7 @@ class StudentRegistrationController extends Controller
                         User::create([
                             'name' => $parent->phone,
                             'email' => $parent->email ?: null,
-                            'password' => Hash::make($parent->last_name),
+                            'password' => Hash::make($parent->first_name),
                             'user_type' => 'parent',
                             'schoolID' => $schoolID
                         ]);
@@ -628,7 +628,7 @@ class StudentRegistrationController extends Controller
                     User::create([
                         'name' => $phone, // Username = phone number
                         'email' => $request->parent_email ?? null,
-                        'password' => Hash::make($request->parent_last_name), // Password = last_name
+                        'password' => Hash::make($request->parent_first_name), // Password = first_name
                         'user_type' => 'parent'
                     ]);
                 }
@@ -650,7 +650,7 @@ class StudentRegistrationController extends Controller
                     User::create([
                         'name' => $parentPhone, // Username = phone number
                         'email' => $existingParent->email ?? null,
-                        'password' => Hash::make($existingParent->last_name), // Password = last_name
+                        'password' => Hash::make($existingParent->first_name), // Password = first_name
                         'user_type' => 'parent'
                     ]);
                 }
@@ -743,7 +743,7 @@ class StudentRegistrationController extends Controller
             User::create([
                 'name' => $admissionNumber,
                 'email' => $userEmail,
-                'password' => Hash::make($request->last_name),
+                'password' => Hash::make($request->first_name),
                 'user_type' => 'student',
                 'fingerprint_id' => $fingerprintId  // Same fingerprint_id as student (studentID)
             ]);
@@ -765,7 +765,7 @@ class StudentRegistrationController extends Controller
                             $school->school_name ?? 'School',
                             $studentName,
                             $admissionNumber, // Username = admission number
-                            $request->last_name // Password = last name
+                            $request->first_name // Password = first name
                         );
                         $smsSent = $smsResult['success'];
                         
@@ -777,7 +777,7 @@ class StudentRegistrationController extends Controller
                                     $parent->phone,
                                     $school->school_name ?? 'School',
                                     $parent->phone, // Username = phone number
-                                    $parentLastName // Password = last name
+                                    $request->parent_first_name ?? $parent->first_name ?? '' // Password = first name
                                 );
                                 $parentSmsSent = $parentSmsResult['success'];
                             }

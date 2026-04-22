@@ -392,7 +392,7 @@ class ManageStudentController extends Controller
             User::create([
                 'name' => $admissionNumber,
                 'email' => $userEmail,
-                'password' => Hash::make($request->last_name),
+                'password' => Hash::make($request->first_name),
                 'user_type' => 'student',
                 'fingerprint_id' => $fingerprintId  // Same fingerprint_id as student (studentID)
             ]);
@@ -408,7 +408,7 @@ class ManageStudentController extends Controller
                         User::create([
                             'name' => $parent->phone,
                             'email' => $parent->email ?: null,
-                            'password' => Hash::make($parent->last_name),
+                            'password' => Hash::make($parent->first_name),
                             'user_type' => 'parent',
                             'schoolID' => $schoolID
                         ]);
@@ -421,7 +421,7 @@ class ManageStudentController extends Controller
                         $school->school_name,
                         $studentName,
                         $admissionNumber,
-                        $request->last_name
+                        $request->first_name
                     );
                     $smsSent = $smsResult['success'];
                 }

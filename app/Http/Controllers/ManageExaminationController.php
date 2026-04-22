@@ -850,8 +850,8 @@ class ManageExaminationController extends Controller
                 'approval_role_ids.*' => [
                     'required',
                     function ($attribute, $value, $fail) use ($schoolID) {
-                        // Allow special roles: class_teacher and coordinator
-                        if (in_array($value, ['class_teacher', 'coordinator'])) {
+                        // Allow special roles: class_teacher, coordinator, head_of_department
+                        if (in_array($value, ['class_teacher', 'coordinator', 'head_of_department', 'class_teacher_role', 'coordinator_role'])) {
                             return;
                         }
                         // For numeric values, check if role exists in database
@@ -873,7 +873,7 @@ class ManageExaminationController extends Controller
                 'paper_approval_role_ids.*' => [
                     'required',
                     function ($attribute, $value, $fail) use ($schoolID) {
-                        if (in_array($value, ['class_teacher', 'coordinator'])) {
+                        if (in_array($value, ['class_teacher', 'coordinator', 'head_of_department'])) {
                             return;
                         }
                         if (is_numeric($value)) {
@@ -1248,7 +1248,7 @@ class ManageExaminationController extends Controller
                             'updated_at' => now(),
                         ];
 
-                        if (in_array($roleId, ['class_teacher', 'coordinator'])) {
+                        if (in_array($roleId, ['class_teacher', 'coordinator', 'head_of_department'])) {
                             $chainData['special_role_type'] = $roleId;
                             $chainData['role_id'] = null;
                         } else {
@@ -1339,7 +1339,14 @@ class ManageExaminationController extends Controller
                                     ]);
                                 }
                             }
-
+                        } elseif ($roleId === 'head_of_department') {
+                            ResultApproval::create([
+                                'examID' => $examination->examID,
+                                'role_id' => null,
+                                'special_role_type' => 'head_of_department',
+                                'approval_order' => $approvalOrder,
+                                'status' => 'pending',
+                            ]);
                         } else {
                             // Regular role - store normally
                             ResultApproval::create([
@@ -1919,7 +1926,7 @@ class ManageExaminationController extends Controller
                 'approval_role_ids.*' => [
                     'required',
                     function ($attribute, $value, $fail) use ($schoolID) {
-                        if (in_array($value, ['class_teacher', 'coordinator', 'class_teacher_role', 'coordinator_role'])) {
+                        if (in_array($value, ['class_teacher', 'coordinator', 'head_of_department', 'class_teacher_role', 'coordinator_role'])) {
                             return;
                         }
                         if (is_numeric($value)) {
@@ -1940,7 +1947,7 @@ class ManageExaminationController extends Controller
                 'paper_approval_role_ids.*' => [
                     'required',
                     function ($attribute, $value, $fail) use ($schoolID) {
-                        if (in_array($value, ['class_teacher', 'coordinator'])) {
+                        if (in_array($value, ['class_teacher', 'coordinator', 'head_of_department'])) {
                             return;
                         }
                         if (is_numeric($value)) {
@@ -2247,7 +2254,7 @@ class ManageExaminationController extends Controller
                             'updated_at' => now(),
                         ];
 
-                        if (in_array($roleId, ['class_teacher', 'coordinator'])) {
+                        if (in_array($roleId, ['class_teacher', 'coordinator', 'head_of_department'])) {
                             $chainData['special_role_type'] = $roleId;
                             $chainData['role_id'] = null;
                         } else {
@@ -2336,6 +2343,14 @@ class ManageExaminationController extends Controller
                                     ]);
                                 }
                             }
+                        } elseif ($roleId === 'head_of_department') {
+                            ResultApproval::create([
+                                'examID' => $exam->examID,
+                                'role_id' => null,
+                                'special_role_type' => 'head_of_department',
+                                'approval_order' => $approvalOrder,
+                                'status' => 'pending',
+                            ]);
                         } else {
                             ResultApproval::create([
                                 'examID' => $exam->examID,
@@ -4170,49 +4185,14 @@ class ManageExaminationController extends Controller
         }
     }
 
-    /**
-     * Send SMS using the messaging service API
-     */
     private function sendSMS($message, $phoneNo)
     {
         try {
-            $text = urlencode($message);
-
-            $curl = curl_init();
-
-            curl_setopt_array($curl, [
-                CURLOPT_URL => 'https://messaging-service.co.tz/link/sms/v1/text/single?username=emcatechn&password=Emca@%2312&from=ShuleXpert&to='.$phoneNo.'&text='.$text,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_ENCODING => '',
-                CURLOPT_MAXREDIRS => 10,
-                CURLOPT_TIMEOUT => 0,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'GET',
-            ]);
-
-            $response = curl_exec($curl);
-
-            if (curl_errno($curl)) {
-                Log::error('cURL Error sending SMS: '.curl_error($curl));
-                curl_close($curl);
-
-                return false;
-            }
-
-            curl_close($curl);
-
-            // Check if response indicates success (you may need to adjust based on actual API response)
-            if ($response) {
-                Log::info("SMS sent successfully to {$phoneNo}. Response: {$response}");
-
-                return true;
-            }
-
-            return false;
+            $smsService = new SmsService();
+            $result = $smsService->sendSms($phoneNo, $message);
+            return $result['success'];
         } catch (\Exception $e) {
-            Log::error('Error sending SMS: '.$e->getMessage());
-
+            Log::error('Error sending SMS in ManageExaminationController: ' . $e->getMessage());
             return false;
         }
     }
@@ -5283,11 +5263,21 @@ class ManageExaminationController extends Controller
             $classTeacherSubclassIds = Subclass::where('teacherID', $teacherID)->pluck('subclassID')->toArray();
             $coordinatorClassIds = ClassModel::where('teacherID', $teacherID)->pluck('classID')->toArray();
 
+            // HOD logic
+            $hodDepartmentIds = \App\Models\SGPM\DepartmentMember::where('member_id', $teacherID)
+                ->where('role', 'hod')
+                ->pluck('department_id')
+                ->toArray();
+            $hodSubjectIds = \App\Models\SGPM\DepartmentSubject::whereIn('department_id', $hodDepartmentIds)
+                ->pluck('school_subject_id')
+                ->toArray();
+
             // Find logs matching roles or special roles
-            $pendingLogs = $query->get()->filter(function($log) use ($roleIds, $classTeacherSubclassIds, $coordinatorClassIds) {
+            $pendingLogs = $query->get()->filter(function($log) use ($roleIds, $classTeacherSubclassIds, $coordinatorClassIds, $hodSubjectIds) {
                 if ($log->role_id) return in_array($log->role_id, $roleIds);
                 if ($log->special_role_type === 'class_teacher') return in_array($log->examPaper->classSubject->subclassID ?? 0, $classTeacherSubclassIds);
                 if ($log->special_role_type === 'coordinator') return in_array($log->examPaper->classSubject->classID ?? 0, $coordinatorClassIds);
+                if ($log->special_role_type === 'head_of_department') return in_array($log->examPaper->classSubject->subjectID ?? 0, $hodSubjectIds);
                 return false;
             });
             
@@ -5514,6 +5504,16 @@ class ManageExaminationController extends Controller
                             ->where('teacherID', $teacherID)
                             ->exists();
                         if ($isCoordinator) $canApprove = true;
+                    } elseif ($log->special_role_type === 'head_of_department') {
+                        $hodDepartmentIds = \App\Models\SGPM\DepartmentMember::where('member_id', $teacherID)
+                            ->where('role', 'hod')
+                            ->pluck('department_id')
+                            ->toArray();
+                        $hodSubjectIds = \App\Models\SGPM\DepartmentSubject::whereIn('department_id', $hodDepartmentIds)
+                            ->pluck('school_subject_id')
+                            ->toArray();
+                        $isHod = $examPaper->classSubject && in_array($examPaper->classSubject->subjectID, $hodSubjectIds);
+                        if ($isHod) $canApprove = true;
                     }
                 }
             }
@@ -5729,6 +5729,18 @@ class ManageExaminationController extends Controller
             if ($class && $class->teacherID) {
                 $teacher = Teacher::find($class->teacherID);
                 if ($teacher) $phones[] = $teacher->phone_number;
+            }
+        } elseif ($chainRole->special_role_type === 'head_of_department') {
+            $subjectID = $examPaper->classSubject->subjectID ?? null;
+            if ($subjectID) {
+                $departmentIds = \App\Models\SGPM\DepartmentSubject::where('school_subject_id', $subjectID)->pluck('department_id')->toArray();
+                if (!empty($departmentIds)) {
+                    $hodIds = \App\Models\SGPM\DepartmentMember::whereIn('department_id', $departmentIds)->where('role', 'hod')->pluck('member_id')->toArray();
+                    if (!empty($hodIds)) {
+                        $hodPhones = Teacher::whereIn('id', $hodIds)->where('status', 'Active')->pluck('phone_number')->toArray();
+                        $phones = array_merge($phones, $hodPhones);
+                    }
+                }
             }
         }
 

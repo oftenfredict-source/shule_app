@@ -563,15 +563,21 @@
                                     // Special roles count
                                     $classTeacherSubclassIds = \App\Models\Subclass::where('teacherID', $teacherID)->pluck('subclassID')->toArray();
                                     $coordinatorClassIds = \App\Models\ClassModel::where('teacherID', $teacherID)->pluck('classID')->toArray();
+                                    
+                                    // HOD logic
+                                    $hodDepartmentIds = \App\Models\SGPM\DepartmentMember::where('member_id', $teacherID)->where('role', 'hod')->pluck('department_id')->toArray();
+                                    $hodSubjectIds = \App\Models\SGPM\DepartmentSubject::whereIn('department_id', $hodDepartmentIds)->pluck('school_subject_id')->toArray();
 
                                     $specialCount = \App\Models\PaperApprovalLog::where('status', 'pending')
                                         ->whereNotNull('special_role_type')
                                         ->get()
-                                        ->filter(function($log) use ($classTeacherSubclassIds, $coordinatorClassIds) {
+                                        ->filter(function($log) use ($classTeacherSubclassIds, $coordinatorClassIds, $hodSubjectIds) {
                                             if ($log->special_role_type === 'class_teacher') {
                                                 return $log->examPaper && in_array($log->examPaper->classSubject->subclassID ?? 0, $classTeacherSubclassIds);
                                             } elseif ($log->special_role_type === 'coordinator') {
                                                 return $log->examPaper && in_array($log->examPaper->classSubject->classID ?? 0, $coordinatorClassIds);
+                                            } elseif ($log->special_role_type === 'head_of_department') {
+                                                return $log->examPaper && $log->examPaper->classSubject && in_array($log->examPaper->classSubject->subjectID ?? 0, $hodSubjectIds);
                                             }
                                             return false;
                                         })->count();

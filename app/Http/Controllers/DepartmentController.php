@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Teacher;
 use App\Models\OtherStaff;
 use App\Models\DepartmentMember;
+use App\Models\SchoolSubject;
 use App\Models\User;
 use App\Services\SmsService;
 use App\Services\SgpmNotificationService;
@@ -47,8 +48,9 @@ class DepartmentController extends Controller
         $departments = $query->get();
         $teachers = Teacher::where('schoolID', $schoolID)->where('status', 'Active')->get();
         $staff = OtherStaff::where('schoolID', $schoolID)->where('status', 'Active')->get();
+        $schoolSubjects = SchoolSubject::where('schoolID', $schoolID)->where('status', 'Active')->get();
 
-        return view('sgpm.departments.index', compact('departments', 'teachers', 'staff'));
+        return view('sgpm.departments.index', compact('departments', 'teachers', 'staff', 'schoolSubjects'));
     }
 
     public function store(Request $request)
@@ -59,6 +61,7 @@ class DepartmentController extends Controller
             'department_name' => 'required|string|max:255',
             'type' => 'required|in:Academic,Administrative',
             'head_id' => 'nullable',
+            'subjects' => 'nullable|array',
         ]);
 
         $dept = new Department();
@@ -93,6 +96,10 @@ class DepartmentController extends Controller
 
         $dept->save();
 
+        if ($request->type === 'Academic' && $request->has('subjects')) {
+            $dept->subjects()->attach($request->subjects);
+        }
+
         // Notify the new HoD
         if ($head) {
             $hodUser = User::where('name', $head->employee_number)->first();
@@ -121,6 +128,7 @@ class DepartmentController extends Controller
             'department_name' => 'required|string|max:255',
             'type' => 'required|in:Academic,Administrative',
             'head_id' => 'nullable',
+            'subjects' => 'nullable|array',
         ]);
 
         $dept = Department::findOrFail($id);
@@ -154,6 +162,16 @@ class DepartmentController extends Controller
         }
 
         $dept->save();
+
+        if ($request->type === 'Academic') {
+            if ($request->has('subjects')) {
+                $dept->subjects()->sync($request->subjects);
+            } else {
+                $dept->subjects()->detach();
+            }
+        } else {
+            $dept->subjects()->detach();
+        }
 
         // Notify if head changed
         if ($request->head_id != $oldHeadID && $head) {
@@ -261,6 +279,22 @@ class DepartmentController extends Controller
         $member = DepartmentMember::findOrFail($memberId);
         $member->delete();
         return response()->json(['success' => true, 'message' => 'Member removed successfully!']);
+    }
+
+    public function removeSubject($deptId, $subjectId)
+    {
+        $userType = Session::get('user_type');
+        $dept = Department::findOrFail($deptId);
+        $curT = Session::get('teacherID');
+        $curS = Session::get('staffID');
+        $isHOD = ($dept->head_teacherID == $curT && $curT) || ($dept->head_staffID == $curS && $curS);
+
+        if ($userType !== 'Admin' && !$isHOD) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized! Only Admins or HODs can remove subjects.'], 403);
+        }
+
+        $dept->subjects()->detach($subjectId);
+        return response()->json(['success' => true, 'message' => 'Subject removed successfully!']);
     }
 
     public function sendSmsToMembers(Request $request, $id)

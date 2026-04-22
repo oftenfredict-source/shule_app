@@ -51,7 +51,7 @@
                                         <th>Department Name</th>
                                         <th>Type</th>
                                         <th>Head of Department</th>
-                                        <th>Members</th>
+                                        <th>Details</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -91,9 +91,10 @@
                                                 @endif
                                             </td>
                                             <td>
-                                                <span class="badge bg-primary rounded-pill">{{ $dept->members->count() }}</span>
-                                                <button class="btn btn-sm btn-link p-0 ms-1 view-members" data-id="{{ $dept->departmentID }}" data-name="{{ $dept->department_name }}">
-                                                    {{ $user_type == 'Admin' ? 'Manage' : 'View' }}
+                                                <span class="badge bg-primary rounded-pill">{{ $dept->members->count() }} Members</span>
+                                                <br>
+                                                <button class="btn btn-sm btn-link p-0 view-members" data-id="{{ $dept->departmentID }}" data-name="{{ $dept->department_name }}">
+                                                    <i class="fa fa-eye"></i> {{ $user_type == 'Admin' ? 'Manage Details' : 'View Details' }}
                                                 </button>
                                             </td>
                                             <td>
@@ -165,6 +166,32 @@
                                     <option value="{{ $head['id'] }}" {{ $currentHeadID == $head['id'] ? 'selected' : '' }}>{{ $head['name'] }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="mb-3 edit-subjects-container" style="display: {{ $dept->type == 'Academic' ? 'block' : 'none' }};">
+                            <label class="form-label">School Subjects (Academic Only)</label>
+                            <div class="subject-list d-flex flex-wrap gap-1 mb-2 p-2 border bg-light" id="edit_subjects_list_{{ $dept->departmentID }}" style="min-height: 40px; border-style: dashed !important; background-color: #fcfcfc;">
+                                @php $deptSubjectIds = isset($dept->subjects) ? $dept->subjects->pluck('subjectID')->toArray() : []; @endphp
+                                @foreach($schoolSubjects as $subject)
+                                    @if(in_array($subject->subjectID, $deptSubjectIds))
+                                        <span class="badge subject-badge px-3 py-2 text-white d-flex align-items-center gap-2 mb-1 mr-1" data-id="{{ $subject->subjectID }}" style="background: #940000; border-radius: 0; font-size: 11px; white-space: nowrap;">
+                                            {{ $subject->subject_name }}
+                                            <i class="fa fa-times cursor-pointer ms-2" style="cursor: pointer;" onclick="$(this).parent().remove(); window.syncSubjectDropdown('{{ $dept->departmentID }}');"></i>
+                                            <input type="hidden" name="subjects[]" value="{{ $subject->subjectID }}">
+                                        </span>
+                                    @endif
+                                @endforeach
+                            </div>
+                            <div class="input-group input-group-sm">
+                                <select class="form-control edit-subject-select-{{ $dept->departmentID }}" style="border-radius: 0;">
+                                    <option value="">Choose Subject...</option>
+                                    @foreach($schoolSubjects as $subject)
+                                        <option value="{{ $subject->subjectID }}">{{ $subject->subject_name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-danger font-weight-bold" type="button" onclick="addSubjectToDept('{{ $dept->departmentID }}')" style="border-radius: 0; border: 1px solid #ced4da; border-left: none; background: #940000; color: white;">+ ADD</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -244,6 +271,22 @@
                             <option value="">-- Select Head --</option>
                         </select>
                     </div>
+                    <div class="mb-3" id="subjects_container" style="display: block;"> <!-- Defaults to block because Academic is default -->
+                        <label class="form-label">School Subjects (Academic Only)</label>
+                        <div class="subject-list d-flex flex-wrap gap-1 mb-2 p-2 border bg-light" id="add_subjects_list" style="min-height: 40px; border-style: dashed !important; background-color: #fcfcfc;">
+                        </div>
+                        <div class="input-group input-group-sm">
+                            <select class="form-control add-subject-select" style="border-radius: 0;">
+                                <option value="">Choose Subject...</option>
+                                @foreach($schoolSubjects as $subject)
+                                    <option value="{{ $subject->subjectID }}">{{ $subject->subject_name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-danger font-weight-bold" type="button" onclick="addSubjectToDept('add')" style="border-radius: 0; border: 1px solid #ced4da; border-left: none; background: #940000; color: white;">+ ADD</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
@@ -284,22 +327,100 @@
             }
         }
 
+        window.addSubjectToDept = function(mode) {
+            const listId = mode === 'add' ? '#add_subjects_list' : '#edit_subjects_list_' + mode;
+            const selectClass = mode === 'add' ? '.add-subject-select' : '.edit-subject-select-' + mode;
+            
+            const select = $(selectClass);
+            const subjectId = select.val();
+            if (!subjectId) return;
+            const subjectName = select.find('option:selected').text();
+
+            // Prevent duplicate
+            if ($(`${listId} .subject-badge[data-id="${subjectId}"]`).length) return;
+
+            const badge = `
+                <span class="badge subject-badge px-3 py-2 text-white d-flex align-items-center gap-2 mb-1 mr-1" data-id="${subjectId}" style="background: #940000; border-radius: 0; font-size: 11px; white-space: nowrap;">
+                    ${subjectName}
+                    <i class="fa fa-times cursor-pointer ms-2" style="cursor: pointer;" onclick="$(this).parent().remove(); window.syncSubjectDropdown('${mode}');"></i>
+                    <input type="hidden" name="subjects[]" value="${subjectId}">
+                </span>`;
+            $(listId).append(badge);
+            select.val('');
+            window.syncSubjectDropdown(mode);
+        }
+
+        window.syncSubjectDropdown = function(mode) {
+            const listId = mode === 'add' ? '#add_subjects_list' : '#edit_subjects_list_' + mode;
+            const selectClass = mode === 'add' ? '.add-subject-select' : '.edit-subject-select-' + mode;
+            const select = $(selectClass);
+            
+            // Get selected subject IDs in this list
+            const selectedIds = [];
+            $(listId).find('.subject-badge').each(function() {
+                selectedIds.push($(this).data('id').toString());
+            });
+            
+            select.find('option').each(function() {
+                const opt = $(this);
+                const val = opt.val();
+                if (!val) return;
+                
+                let labelText = opt.text().replace(' (Added)', '');
+                
+                if (selectedIds.includes(val)) {
+                    opt.text(labelText + ' (Added)');
+                    opt.css({ 'color': '#999', 'font-style': 'italic' });
+                    opt.prop('disabled', true);
+                } else {
+                    opt.text(labelText);
+                    opt.css({ 'color': '#000', 'font-style': 'normal' });
+                    opt.prop('disabled', false);
+                }
+            });
+        };
+        
+        // Initial sync for all edit modals
+        $('.subject-list[id^="edit_subjects_list_"]').each(function() {
+            const idParts = $(this).attr('id').split('_');
+            const deptId = idParts[idParts.length - 1];
+            window.syncSubjectDropdown(deptId);
+        });
+
         // Add Dept Modal Listener
         const deptTypeSelect = document.getElementById('dept_type');
         const headSelect = document.getElementById('head_select');
+        const subjectsContainer = document.getElementById('subjects_container');
         if(deptTypeSelect) {
             deptTypeSelect.addEventListener('change', function() {
                 populateHeads(this.value, headSelect);
+                if(this.value === 'Academic') {
+                    subjectsContainer.style.display = 'block';
+                } else {
+                    subjectsContainer.style.display = 'none';
+                }
             });
             // Initial trigger
             populateHeads(deptTypeSelect.value, headSelect);
+            if(deptTypeSelect.value === 'Academic') {
+                subjectsContainer.style.display = 'block';
+            } else {
+                subjectsContainer.style.display = 'none';
+            }
         }
 
         // Edit Modal Listeners (Dynamic)
         $(document).on('change', '.edit-dept-type', function() {
             const $modal = $(this).closest('.modal');
             const $headSelect = $modal.find('.edit-head-select');
+            const $subjectsContainer = $modal.find('.edit-subjects-container');
             populateHeads(this.value, $headSelect[0]);
+            
+            if(this.value === 'Academic') {
+                $subjectsContainer.show();
+            } else {
+                $subjectsContainer.hide();
+            }
         });
 
         // Fix for the backdrop issue: ensure modals are not nested
@@ -386,6 +507,40 @@
                         success: function(response) {
                             if (response.success) {
                                 loadMembers(activeDeptId);
+                            }
+                        }
+                    });
+                }
+            });
+        });
+
+        $(document).on('click', '.remove-subject', function() {
+            const subjectId = $(this).data('id');
+            const deptId = $(this).data('dept-id');
+            
+            Swal.fire({
+                title: 'Remove subject from department?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Yes, remove'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: `/sgpm/departments/${deptId}/subjects/${subjectId}`,
+                        type: 'DELETE',
+                        data: { _token: '{{ csrf_token() }}' },
+                        success: function(response) {
+                            if (response.success) {
+                                Swal.fire({
+                                    icon: 'success', 
+                                    title: 'Removed!', 
+                                    text: response.message, 
+                                    timer: 1500, 
+                                    showConfirmButton: false
+                                });
+                                loadMembers(deptId);
+                                setTimeout(() => window.location.reload(), 1500); // Reload to reflect changes in index UI
                             }
                         }
                     });

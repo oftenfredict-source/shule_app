@@ -294,6 +294,11 @@ class ManageParentsController extends Controller
                 $studentCountInClass = $parent->students->where('subclassID', $subclassID)->count();
             }
 
+            // Get student names for parent_of
+            $studentNames = $parent->students ? $parent->students->map(function($s) {
+                return $s->first_name . ' ' . $s->last_name;
+            })->implode(', ') : 'N/A';
+
             return [
                 'parentID' => $parent->parentID,
                 'first_name' => $parent->first_name,
@@ -308,7 +313,8 @@ class ManageParentsController extends Controller
                 'photo' => $parent->photo ? asset('userImages/' . $parent->photo) : null,
                 'student_count' => $studentCount,
                 'student_count_in_class' => $studentCountInClass,
-                'has_account' => in_array($parent->phone, $existingUsernames)
+                'has_account' => in_array($parent->phone, $existingUsernames),
+                'parent_of' => $studentNames
             ];
         });
 
@@ -632,7 +638,7 @@ class ManageParentsController extends Controller
         User::create([
             'name' => $parent->phone,
             'email' => $parent->email ?: null,
-            'password' => Hash::make($parent->last_name),
+            'password' => Hash::make($parent->first_name),
             'user_type' => 'parent'
         ]);
 
@@ -659,7 +665,7 @@ class ManageParentsController extends Controller
             $parent->phone,
             $school->school_name,
             $parent->phone,
-            $parent->last_name
+            $parent->first_name
         );
 
         if ($smsResult['success']) {
@@ -667,5 +673,35 @@ class ManageParentsController extends Controller
         } else {
             return response()->json(['success' => false, 'message' => 'Failed to send SMS: ' . ($smsResult['message'] ?? 'Unknown error')]);
         }
+    }
+
+    public function register_all_parents(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+        }
+
+        $parents = ParentModel::where('schoolID', $schoolID)->get();
+        $registeredCount = 0;
+
+        foreach ($parents as $parent) {
+            $existingUser = User::where('name', $parent->phone)->first();
+            if (!$existingUser) {
+                User::create([
+                    'name' => $parent->phone,
+                    'email' => $parent->email ?: null,
+                    'password' => Hash::make($parent->first_name),
+                    'user_type' => 'parent',
+                    'schoolID' => $schoolID
+                ]);
+                $registeredCount++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Successfully registered $registeredCount parents who didn't have accounts."
+        ]);
     }
 }

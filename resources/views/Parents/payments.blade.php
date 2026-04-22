@@ -1,417 +1,204 @@
-@include('includes.parent_nav')
+@extends('layouts.parent_corp')
 
+@section('title', 'Make Payments - ShuleXpert')
+
+@section('content')
 <style>
-    .bg-primary-custom {
-        background-color: #940000 !important;
+    .filter-card {
+        background: white;
+        padding: 25px;
+        border-top: 4px solid #940000;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        margin-bottom: 25px;
     }
-    .text-primary-custom {
-        color: #940000 !important;
+    .stat-card-premium {
+        background: white;
+        padding: 20px;
+        border-left: 5px solid #eee;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        height: 100%;
     }
-    .btn-primary-custom {
-        background-color: #940000;
-        border-color: #940000;
-        color: #ffffff;
-    }
-    .btn-primary-custom:hover {
-        background-color: #b30000;
-        border-color: #b30000;
-        color: #ffffff;
-    }
-    .student-photo {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid #940000;
-    }
-    .student-photo-placeholder {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
+    .stat-card-premium.outstanding { border-left-color: #dc3545; }
+    .stat-card-premium.paid { border-left-color: #28a745; }
+    .stat-card-premium.balance { border-left-color: #940000; }
+    
+    .stat-v { font-size: 22px; font-weight: 800; color: #333; }
+    .stat-l { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #777; font-weight: 700; margin-bottom: 5px; }
+
+    .section-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: #940000;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid rgba(148,0,0,0.1);
+        padding-bottom: 10px;
         display: flex;
         align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: 16px;
-        border: 2px solid #940000;
+        gap: 10px;
+    }
+    .table th {
+        background: #fcfcfc;
+        color: #940000;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        font-weight: 800;
     }
     .control-number {
         font-family: 'Courier New', monospace;
-        font-weight: 700;
+        font-weight: 800;
         color: #940000;
+        background: #fff5f5;
+        padding: 2px 5px;
+        border: 1px dashed #940000;
     }
 </style>
 
-<!-- Bootstrap Icons -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<div class="row">
+    <div class="col-12">
+        <div class="section-title"><i class="bx bx-credit-card"></i> Payment & Billing</div>
+    </div>
 
-<meta name="csrf-token" content="{{ csrf_token() }}">
-
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="bi bi-check-circle"></i> {{ session('success') }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i> {{ session('error') }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            @endif
-
-            <!-- Page Header -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body bg-primary-custom text-white rounded">
-                    <h4 class="mb-0">
-                        <i class="bi bi-credit-card"></i> Payments & Fees
-                    </h4>
-                    <p class="mb-0 mt-2">View payments and fees for all your children</p>
+    <!-- Statistics Row -->
+    <div class="col-12 mb-4">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="stat-card-premium outstanding">
+                    <div class="stat-l">Amount Required</div>
+                    <div class="stat-v text-danger" id="statTotalRequired">TZS 0.00</div>
                 </div>
             </div>
-
-            <!-- Statistics Cards -->
-            <div class="row mb-4" id="statisticsCards">
-                <div class="col-md-3">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">Total Required</h6>
-                            <h3 class="mb-0 text-primary-custom" id="statTotalRequired">TZS 0.00</h3>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">Total Paid</h6>
-                            <h3 class="mb-0 text-success" id="statTotalPaid">TZS 0.00</h3>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">Outstanding Balance</h6>
-                            <h3 class="mb-0 text-danger" id="statOutstandingBalance">TZS 0.00</h3>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">Pending Payments</h6>
-                            <h3 class="mb-0 text-warning" id="statPendingPayments">0</h3>
-                        </div>
-                    </div>
+            <div class="col-md-4">
+                <div class="stat-card-premium paid">
+                    <div class="stat-l">Total Amount Paid</div>
+                    <div class="stat-v text-success" id="statTotalPaid">TZS 0.00</div>
                 </div>
             </div>
-
-            <!-- Fee Type Summary -->
-            <div class="row mb-4" id="feeTypeSummary">
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">
-                                <i class="bi bi-book text-success"></i> Tuition Fees Total
-                            </h6>
-                            <h3 class="mb-0 text-success" id="statTuitionFees">TZS 0.00</h3>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <h6 class="text-muted mb-2">
-                                <i class="bi bi-wallet2 text-warning"></i> Other Fees Total
-                            </h6>
-                            <h3 class="mb-0 text-warning" id="statOtherFees">TZS 0.00</h3>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Search and Filter Section -->
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold mb-2">
-                                <i class="bi bi-search"></i> Search Student
-                            </label>
-                            <input type="text" class="form-control" id="searchStudentInput" placeholder="Search by student name or admission number...">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold mb-2">
-                                <i class="bi bi-calendar"></i> Year
-                            </label>
-                            <select class="form-select" id="filterYear">
-                                @php
-                                    $currentYear = $currentYear ?? date('Y');
-                                    $availableYears = $availableYears ?? [];
-                                @endphp
-                                @if(count($availableYears) > 0)
-                                    @foreach($availableYears as $availableYear)
-                                        <option value="{{ $availableYear }}" {{ $availableYear == $currentYear ? 'selected' : '' }}>
-                                            {{ $availableYear }}
-                                        </option>
-                                    @endforeach
-                                @else
-                                    <option value="{{ $currentYear }}" selected>{{ $currentYear }}</option>
-                                @endif
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold mb-2">
-                                <i class="bi bi-person"></i> Student
-                            </label>
-                            <select class="form-select" id="filterStudent">
-                                <option value="">All Students</option>
-                                @foreach($students as $student)
-                                    <option value="{{ $student->studentID }}">
-                                        {{ $student->first_name }} {{ $student->last_name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold mb-2">
-                                <i class="bi bi-filter"></i> Fee Type
-                            </label>
-                            <select class="form-select" id="filterFeeType">
-                                <option value="">All Types</option>
-                                <option value="Tuition Fees">Tuition Fees</option>
-                                <option value="Other Fees">Other Fees</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold mb-2">
-                                <i class="bi bi-arrow-clockwise"></i> Actions
-                            </label>
-                            <button type="button" class="btn btn-outline-secondary w-100" id="clearFiltersBtn" title="Clear Filters">
-                                <i class="bi bi-x-circle"></i> Clear
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Payments Table -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-primary-custom text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-list-ul"></i> Payments & Fees List
-                    </h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive" style="overflow-x: auto; max-width: 100%;">
-                        <table class="table table-hover table-sm mb-0" id="paymentsTable" style="width: 100%;">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 40px;">#</th>
-                                    <th style="width: 60px;">Photo</th>
-                                    <th style="min-width: 150px;">Student Name</th>
-                                    <th style="min-width: 100px;">Fee Type</th>
-                                    <th style="min-width: 120px;">Control Number</th>
-                                    <th style="min-width: 120px;">Amount Required</th>
-                                    <th style="min-width: 120px;">Amount Paid</th>
-                                    <th style="min-width: 120px;">Balance</th>
-                                    <th style="min-width: 100px;">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="paymentsTableBody">
-                                <!-- Data will be loaded via AJAX -->
-                            </tbody>
-                        </table>
-                    </div>
+            <div class="col-md-4">
+                <div class="stat-card-premium balance">
+                    <div class="stat-l">Outstanding Balance</div>
+                    <div class="stat-v" style="color:#940000;" id="statOutstandingBalance">TZS 0.00</div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Filters -->
+    <div class="col-12">
+        <div class="filter-card">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label text-uppercase small font-weight-bold">Search Name</label>
+                    <input type="text" class="form-control" id="searchStudentInput" placeholder="Child name...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-uppercase small font-weight-bold">Academic Year</label>
+                    <select class="form-select" id="filterYear">
+                        @foreach($availableYears ?? [date('Y')] as $y)
+                            <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-uppercase small font-weight-bold">Fee Type</label>
+                    <select class="form-select" id="filterFeeType">
+                        <option value="">All Fees</option>
+                        <option value="Tuition Fees">Tuition Fees</option>
+                        <option value="Other Fees">Other Fees</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small font-weight-bold">&nbsp;</label>
+                    <button class="btn btn-outline-secondary w-100" id="clearFiltersBtn"><i class="bx bx-reset"></i> Reset Filters</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payments List -->
+    <div class="col-12 mt-3">
+        <div class="bg-white shadow-sm overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="paymentsTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Child</th>
+                            <th>Fee Category</th>
+                            <th>Control Number</th>
+                            <th class="text-end">Required</th>
+                            <th class="text-end">Paid</th>
+                            <th class="text-end">Balance</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentsTableBody">
+                        <!-- AJAX Content -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
+@endsection
 
-@include('includes.footer')
-
+@push('scripts')
 <script>
-(function() {
-    function initParentPayments() {
-        if (typeof jQuery === 'undefined') {
-            setTimeout(initParentPayments, 100);
-            return;
-        }
-        
-        var $ = jQuery;
-        
-        // CSRF Token setup
-        $.ajaxSetup({
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            }
-        });
-
-        // Function to generate placeholder color
-        function getPlaceholderColor(name) {
-            if (!name) return '#940000';
-            var colors = ['#940000', '#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6f42c1', '#e83e8c', '#fd7e14', '#20c997'];
-            var hash = 0;
-            for (var i = 0; i < name.length; i++) {
-                hash = name.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            return colors[Math.abs(hash) % colors.length];
-        }
-
-        // Function to load payments data via AJAX
-        function loadPaymentsData() {
-            var search = $('#searchStudentInput').val();
-            var year = $('#filterYear').val();
-            var studentFilter = $('#filterStudent').val();
-            var feeType = $('#filterFeeType').val();
-
-            // Show loading
-            $('#paymentsTableBody').html('<tr><td colspan="9" class="text-center py-4"><div class="spinner-border text-primary-custom" role="status"></div><p class="mt-2">Loading payments...</p></td></tr>');
-
+    $(document).ready(function() {
+        function loadData() {
+            $('#paymentsTableBody').html('<tr><td colspan="8" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>');
             $.ajax({
                 url: '{{ route("get_parent_payments_ajax") }}',
-                type: 'GET',
                 data: {
-                    search: search,
-                    year: year,
-                    student: studentFilter,
-                    fee_type: feeType
+                    search: $('#searchStudentInput').val(),
+                    year: $('#filterYear').val(),
+                    fee_type: $('#filterFeeType').val()
                 },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success && response.data) {
-                        var html = '';
-                        if (response.data.length > 0) {
-                            response.data.forEach(function(item) {
-                                var student = item.student;
-                                var payment = item.payment;
-                                var index = item.index;
-
-                                // Generate placeholder
-                                var firstName = student.first_name || '';
-                                var firstLetter = firstName ? firstName.charAt(0).toUpperCase() : 'N';
-                                var fullName = (student.first_name || '') + ' ' + (student.last_name || '');
-                                var placeholderColor = getPlaceholderColor(fullName);
-
-                                // Photo HTML
-                                var photoHtml = '';
-                                if (student.photo) {
-                                    photoHtml = '<div class="photo-container">' +
-                                        '<img src="' + student.photo + '" alt="Student Photo" class="student-photo" ' +
-                                        'onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' +
-                                        '<div class="student-photo-placeholder d-none" style="background-color: ' + placeholderColor + ';">' + firstLetter + '</div>' +
-                                        '</div>';
-                                } else {
-                                    photoHtml = '<div class="photo-container">' +
-                                        '<div class="student-photo-placeholder" style="background-color: ' + placeholderColor + ';">' + firstLetter + '</div>' +
-                                        '</div>';
-                                }
-
-                                if (payment) {
-                                    // Payment row
-                                    var feeTypeBadge = payment.fee_type === 'Tuition Fees' ? 
-                                        '<span class="badge bg-success">Tuition Fees</span>' : 
-                                        '<span class="badge bg-warning text-dark">Other Fees</span>';
-                                    
-                                    var statusBadge = '';
-                                    if (payment.payment_status === 'Pending') {
-                                        statusBadge = '<span class="badge bg-warning">Pending</span>';
-                                    } else if (payment.payment_status === 'Incomplete Payment' || payment.payment_status === 'Partial') {
-                                        statusBadge = '<span class="badge bg-info">Incomplete</span>';
-                                    } else if (payment.payment_status === 'Paid') {
-                                        statusBadge = '<span class="badge bg-success">Paid</span>';
-                                    } else {
-                                        statusBadge = '<span class="badge bg-secondary">Overpaid</span>';
-                                    }
-
-                                    var studentFullName = (student.first_name || '') + ' ' + (student.middle_name || '') + ' ' + (student.last_name || '');
-                                    var studentClass = (student.subclass && student.subclass.subclass_name) ? student.subclass.subclass_name : 'N/A';
-
-                                    html += '<tr>' +
-                                        '<td>' + index + '</td>' +
-                                        '<td>' + photoHtml + '</td>' +
-                                        '<td><strong>' + studentFullName.trim() + '</strong><br><small class="text-muted">' + (student.admission_number || 'N/A') + ' - ' + studentClass + '</small></td>' +
-                                        '<td>' + feeTypeBadge + '</td>' +
-                                        '<td><span class="control-number" style="font-size: 0.85rem;">' + (payment.control_number || 'N/A') + '</span></td>' +
-                                        '<td><strong class="text-primary-custom">TZS ' + parseFloat(payment.amount_required || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
-                                        '<td><strong class="text-success">TZS ' + parseFloat(payment.amount_paid || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
-                                        '<td><strong class="text-danger">TZS ' + parseFloat(payment.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
-                                        '<td>' + statusBadge + '</td>' +
-                                        '</tr>';
-                                }
-                            });
-                        } else {
-                            html = '<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-inbox" style="font-size: 2rem;"></i><p class="mt-2">No payments found</p></td></tr>';
-                        }
-                        $('#paymentsTableBody').html(html);
+                success: function(res) {
+                    if (res.success) {
+                        let html = '';
+                        res.data.forEach((item, i) => {
+                            let p = item.payment;
+                            let s = item.student;
+                            let statusBadge = p.payment_status === 'Paid' ? 'bg-success' : 'bg-warning';
+                            html += `<tr>
+                                <td>${i+1}</td>
+                                <td><div style="font-weight:800; color:#333;">${s.first_name} ${s.last_name}</div><div class="small text-muted">${s.admission_number || 'N/A'}</div></td>
+                                <td><span class="badge ${p.fee_type==='Tuition Fees'?'bg-success':'bg-info'}" style="border-radius:0; font-size:9px;">${p.fee_type}</span></td>
+                                <td><span class="control-number">${p.control_number || 'PENDING'}</span></td>
+                                <td class="text-end" style="font-weight:700;">TZS ${parseFloat(p.amount_required).toLocaleString()}</td>
+                                <td class="text-end text-success" style="font-weight:700;">TZS ${parseFloat(p.amount_paid).toLocaleString()}</td>
+                                <td class="text-end text-danger" style="font-weight:700;">TZS ${parseFloat(p.balance).toLocaleString()}</td>
+                                <td class="text-center"><span class="badge ${statusBadge}" style="border-radius:0; font-size:9px;">${p.payment_status.toUpperCase()}</span></td>
+                            </tr>`;
+                        });
+                        $('#paymentsTableBody').html(html || '<tr><td colspan="8" class="text-center py-5">No records found.</td></tr>');
                         
-                        // Update statistics
-                        if (response.statistics) {
-                            var stats = response.statistics;
-                            $('#statTotalRequired').text('TZS ' + parseFloat(stats.total_required || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                            $('#statTotalPaid').text('TZS ' + parseFloat(stats.total_paid || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                            $('#statOutstandingBalance').text('TZS ' + parseFloat(stats.total_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                            $('#statPendingPayments').text(stats.pending_payments || 0);
-                            $('#statTuitionFees').text('TZS ' + parseFloat(stats.tuition_fees_total || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                            $('#statOtherFees').text('TZS ' + parseFloat(stats.other_fees_total || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                        }
-                    } else {
-                        $('#paymentsTableBody').html('<tr><td colspan="9" class="text-center py-4 text-danger">Error loading payments</td></tr>');
+                        // Update stats
+                        let st = res.statistics;
+                        $('#statTotalRequired').text('TZS ' + parseFloat(st.total_required).toLocaleString());
+                        $('#statTotalPaid').text('TZS ' + parseFloat(st.total_paid).toLocaleString());
+                        $('#statOutstandingBalance').text('TZS ' + parseFloat(st.total_balance).toLocaleString());
                     }
-                },
-                error: function(xhr) {
-                    console.error('Error loading payments:', xhr);
-                    $('#paymentsTableBody').html('<tr><td colspan="9" class="text-center py-4 text-danger">Error loading payments. Please try again.</td></tr>');
                 }
             });
         }
 
-        // Real-time filtering with debounce
-        var searchTimeout;
-        $('#searchStudentInput').on('keyup', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(function() {
-                loadPaymentsData();
-            }, 500);
+        $('#searchStudentInput').on('input', function() {
+            clearTimeout(window.searchTimer);
+            window.searchTimer = setTimeout(loadData, 500);
         });
 
-        $('#filterYear, #filterStudent, #filterFeeType').on('change', function() {
-            loadPaymentsData();
-        });
-
-        // Clear all filters
+        $('#filterYear, #filterFeeType').on('change', loadData);
         $('#clearFiltersBtn').on('click', function() {
             $('#searchStudentInput').val('');
-            $('#filterYear').val('{{ isset($currentYear) ? $currentYear : date("Y") }}');
-            $('#filterStudent').val('');
             $('#filterFeeType').val('');
-            loadPaymentsData();
+            loadData();
         });
 
-        // Load initial data
-        loadPaymentsData();
-    }
-
-    // Initialize when DOM and jQuery are ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(initParentPayments, 200);
-        });
-    } else {
-        setTimeout(initParentPayments, 200);
-    }
-})();
+        loadData();
+    });
 </script>
-
+@endpush

@@ -1,438 +1,163 @@
-@include('includes.parent_nav')
+@extends('layouts.parent_corp')
 
-<meta name="csrf-token" content="{{ csrf_token() }}">
+@section('title', 'Registered Subjects - ShuleXpert')
 
+@section('content')
 <style>
-    :root {
-        --primary-color: #940000;
-        --primary-hover: #b30000;
+    .selection-card {
+        background: white;
+        padding: 25px;
+        border-top: 4px solid #940000;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        margin-bottom: 25px;
     }
-
-    body {
-        background-color: #f8f9fa;
+    .section-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: #940000;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid rgba(148,0,0,0.1);
+        padding-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
-
-    .bg-primary-custom {
-        background-color: #940000 !important;
+    .table th {
+        background: #fcfcfc;
+        color: #940000;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        font-weight: 800;
     }
-    .text-primary-custom {
-        color: #940000 !important;
+    .subject-row:hover {
+        background: #fffafa !important;
     }
-    .btn-primary-custom {
-        background-color: #940000;
-        border-color: #940000;
-        color: #ffffff;
-    }
-    .btn-primary-custom:hover {
-        background-color: #b30000;
-        border-color: #b30000;
-        color: #ffffff;
-    }
-    .subject-card {
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .subject-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 12px rgba(148, 0, 0, 0.15) !important;
+    .status-badge {
+        font-size: 9px;
+        padding: 4px 8px;
+        text-transform: uppercase;
+        font-weight: 700;
+        border-radius: 0 !important;
     }
 </style>
 
-<!-- Bootstrap Icons -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<!-- DataTables CSS -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<div class="container-fluid mt-3">
-    <!-- Page Header -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-primary-custom text-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="bi bi-book"></i> My Children's Subjects
-                </h5>
-            </div>
-        </div>
+<div class="row">
+    <div class="col-12">
+        <div class="section-title"><i class="bx bx-book"></i> Curriculum & Subjects</div>
     </div>
 
     <!-- Student Selection -->
-    @if($students->count() > 0)
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body">
-            <div class="mb-3">
-                <label class="form-label fw-bold">Select Student <span class="text-danger">*</span></label>
-                <select id="studentSelect" class="form-select">
-                    <option value="">Choose a student...</option>
-                    @foreach($students as $student)
-                        <option value="{{ $student->studentID }}">
-                            {{ $student->first_name }} {{ $student->last_name }} 
-                            ({{ $student->admission_number ?? 'N/A' }}) - 
-                            {{ $student->subclass && $student->subclass->class ? ($student->subclass->class->class_name . ' ' . trim($student->subclass->subclass_name)) : 'N/A' }}
-                        </option>
-                    @endforeach
-                </select>
+    <div class="col-12">
+        <div class="selection-card">
+            <div class="row align-items-end g-3">
+                <div class="col-md-6">
+                    <label class="form-label text-uppercase small font-weight-bold">Select Student</label>
+                    <select id="studentSelect" class="form-select">
+                        <option value="">Choose a student...</option>
+                        @foreach($students as $student)
+                            <option value="{{ $student->studentID }}">
+                                {{ $student->first_name }} {{ $student->last_name }} 
+                                ({{ $student->subclass->class->class_name ?? '' }} {{ $student->subclass->subclass_name ?? '' }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-auto">
+                    <div class="text-muted small pb-2"><i class="bx bx-info-circle"></i> Selecting a student will load their current subject list and teacher assignments.</div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Subjects Container -->
-    <div id="subjectsContainer">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body text-center py-5">
-                <i class="bi bi-info-circle text-primary-custom" style="font-size: 48px;"></i>
-                <p class="mt-3 mb-0 text-muted">Please select a student to view their subjects.</p>
-            </div>
+    <div class="col-12 mt-4" id="subjectsContainer">
+        <div class="bg-white p-5 text-center shadow-sm">
+            <i class="bx bx-select-multiple text-muted mb-3" style="font-size: 50px;"></i>
+            <h5 class="text-muted">Please select a student above to view their subjects.</h5>
         </div>
     </div>
-    @else
-    <div class="card border-0 shadow-sm">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-inbox text-primary-custom" style="font-size: 64px;"></i>
-            <h5 class="mt-3 mb-2">No Students Found</h5>
-            <p class="text-muted mb-0">You don't have any active students registered.</p>
-        </div>
-    </div>
-    @endif
 </div>
+@endsection
 
-@include('includes.footer')
-
-<!-- DataTables JS -->
+@push('scripts')
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-
 <script>
-    (function($) {
-        'use strict';
+    $(document).ready(function() {
+        $('#studentSelect').on('change', function() {
+            var studentID = $(this).val();
+            if (!studentID) return;
 
-        $(document).ready(function() {
-            // Handle Student Selection
-            $('#studentSelect').on('change', function() {
-                var studentID = $(this).val();
-                
-                if (!studentID) {
-                    $('#subjectsContainer').html(
-                        '<div class="card border-0 shadow-sm">' +
-                        '<div class="card-body text-center py-5">' +
-                        '<i class="bi bi-info-circle text-primary-custom" style="font-size: 48px;"></i>' +
-                        '<p class="mt-3 mb-0 text-muted">Please select a student to view their subjects.</p>' +
-                        '</div>' +
-                        '</div>'
-                    );
-                    return;
-                }
+            $('#subjectsContainer').html('<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>');
 
-                // Show loading
-                $('#subjectsContainer').html(
-                    '<div class="card border-0 shadow-sm">' +
-                    '<div class="card-body text-center py-4">' +
-                    '<div class="spinner-border text-primary-custom" role="status">' +
-                    '<span class="visually-hidden">Loading...</span>' +
-                    '</div>' +
-                    '<p class="mt-2">Loading subjects...</p>' +
-                    '</div>' +
-                    '</div>'
-                );
+            $.ajax({
+                url: "{{ route('get_student_subjects', ':id') }}".replace(':id', studentID),
+                type: "GET",
+                success: function(response) {
+                    if (response.success && response.subjects) {
+                        var html = '<div class="card border-0 shadow-sm">';
+                        html += '<div class="card-header bg-white py-3 border-bottom"><h6 class="mb-0 font-weight-bold text-uppercase" style="letter-spacing:1px; color:#940000;"><i class="bx bx-list-ul"></i> Subject List for ' + response.student.first_name + '</h6></div>';
+                        html += '<div class="table-responsive">';
+                        html += '<table class="table table-hover align-middle mb-0" id="subjectsTable">';
+                        html += '<thead><tr><th>#</th><th>Subject</th><th>Teacher</th><th>Requirement</th><th>Action</th></tr></thead><tbody>';
 
-                // Fetch subjects
-                $.ajax({
-                    url: "{{ route('get_student_subjects', ':id') }}".replace(':id', studentID),
-                    type: "GET",
-                    dataType: 'json',
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function(response) {
-                        if (response.success && response.subjects) {
-                            var html = '<div class="card border-0 shadow-sm mb-4">';
-                            html += '<div class="card-header bg-primary-custom text-white">';
-                            html += '<h6 class="mb-0">';
-                            html += '<i class="bi bi-person-circle"></i> ' + response.student.first_name + ' ' + response.student.last_name;
-                            html += ' - ' + response.student.subclass_name;
-                            html += '</h6>';
-                            html += '</div>';
-                            html += '<div class="card-body">';
-                            html += '<div class="table-responsive">';
-                            html += '<table class="table table-hover table-bordered" id="subjectsTable">';
-                            html += '<thead class="bg-light">';
-                            html += '<tr>';
-                            html += '<th>#</th>';
-                            html += '<th>Subject Name</th>';
-                            html += '<th>Subject Code</th>';
-                            html += '<th>Teacher</th>';
-                            html += '<th>Status</th>';
-                            html += '<th>Student Status</th>';
-                            html += '<th>Election Stats</th>';
-                            html += '<th>Actions</th>';
-                            html += '</tr>';
-                            html += '</thead>';
-                            html += '<tbody>';
-
-                            if (response.subjects.length > 0) {
-                                response.subjects.forEach(function(subject, index) {
-                                    html += '<tr>';
-                                    html += '<td>' + (index + 1) + '</td>';
-                                    html += '<td><strong>' + subject.subject_name + '</strong></td>';
-                                    html += '<td>' + (subject.subject_code || 'N/A') + '</td>';
-                                    html += '<td>' + (subject.teacher_name || 'Not Assigned') + '</td>';
-                                    
-                                    // Status Badge
-                                    var statusBadge = subject.status === 'Active' 
-                                        ? '<span class="badge bg-success">Active</span>' 
-                                        : '<span class="badge bg-secondary">Inactive</span>';
-                                    html += '<td>' + statusBadge + '</td>';
-                                    
-                                    // Student Status Badge
-                                    var studentStatusBadge = '';
-                                    if (subject.student_status === 'Required') {
-                                        studentStatusBadge = '<span class="badge bg-warning text-dark">Required</span>';
-                                    } else if (subject.student_status === 'Optional') {
-                                        studentStatusBadge = '<span class="badge bg-info text-white">Optional</span>';
-                                    } else {
-                                        studentStatusBadge = '<span class="badge bg-secondary">Not Set</span>';
-                                    }
-                                    html += '<td>' + studentStatusBadge + '</td>';
-                                    
-                                    // Election Stats
-                                    var electionStats = '';
-                                    if (subject.student_status === 'Optional') {
-                                        var electedCount = subject.elected_count || 0;
-                                        var nonElectedCount = subject.non_elected_count || 0;
-                                        var totalStudents = subject.total_students || 0;
-                                        electionStats = '<div class="small">';
-                                        electionStats += '<span class="badge bg-success me-1">Elected: ' + electedCount + '</span>';
-                                        electionStats += '<span class="badge bg-secondary">Not Elected: ' + nonElectedCount + '</span>';
-                                        electionStats += '<div class="mt-1"><small class="text-muted">Total: ' + totalStudents + ' students</small></div>';
-                                        electionStats += '</div>';
-                                    } else {
-                                        electionStats = '<span class="text-muted small">N/A</span>';
-                                    }
-                                    html += '<td>' + electionStats + '</td>';
-                                    
-                                    // Actions
-                                    html += '<td>';
-                                    if (subject.student_status === 'Optional' && subject.status === 'Active') {
-                                        if (subject.is_elected) {
-                                            html += '<button class="btn btn-sm btn-danger deselect-subject-btn" ';
-                                            html += 'data-student-id="' + response.student.studentID + '" ';
-                                            html += 'data-class-subject-id="' + subject.class_subjectID + '" ';
-                                            html += 'data-subject-name="' + subject.subject_name + '" ';
-                                            html += 'title="Deselect Subject">';
-                                            html += '<i class="bi bi-x-circle"></i> Deselect';
-                                            html += '</button>';
-                                        } else {
-                                            html += '<button class="btn btn-sm btn-primary-custom elect-subject-btn" ';
-                                            html += 'data-student-id="' + response.student.studentID + '" ';
-                                            html += 'data-class-subject-id="' + subject.class_subjectID + '" ';
-                                            html += 'data-subject-name="' + subject.subject_name + '" ';
-                                            html += 'title="Elect Subject">';
-                                            html += '<i class="bi bi-check-circle"></i> Elect';
-                                            html += '</button>';
-                                        }
-                                    } else {
-                                        html += '<span class="text-muted small">N/A</span>';
-                                    }
-                                    html += '</td>';
-                                    html += '</tr>';
-                                });
+                        response.subjects.forEach(function(s, idx) {
+                            var reqBadge = s.student_status === 'Required' ? 'bg-warning text-dark' : 'bg-info text-white';
+                            html += '<tr class="subject-row">';
+                            html += '<td>' + (idx+1) + '</td>';
+                            html += '<td><div style="font-weight:800; color:#333;">' + s.subject_name + '</div><div class="small text-muted">' + (s.subject_code || '---') + '</div></td>';
+                            html += '<td class="small">' + (s.teacher_name || '<i class="text-muted">No teacher assigned</i>') + '</td>';
+                            html += '<td><span class="status-badge ' + reqBadge + '">' + s.student_status + '</span></td>';
+                            html += '<td>';
+                            if (s.student_status === 'Optional' && s.status === 'Active') {
+                                if (s.is_elected) {
+                                    html += '<button class="btn btn-sm btn-danger deselect-subject-btn py-1" style="font-size:10px; border-radius:0;" data-sid="'+response.student.studentID+'" data-csid="'+s.class_subjectID+'" data-name="'+s.subject_name+'">DESELECT</button>';
+                                } else {
+                                    html += '<button class="btn btn-sm btn-primary elect-subject-btn py-1" style="font-size:10px; border-radius:0;" data-sid="'+response.student.studentID+'" data-csid="'+s.class_subjectID+'" data-name="'+s.subject_name+'">ELECT SUBJECT</button>';
+                                }
                             } else {
-                                html += '<tr><td colspan="8" class="text-center">No subjects found for this student.</td></tr>';
+                                html += '<span class="text-muted small">---</span>';
                             }
-
-                            html += '</tbody>';
-                            html += '</table>';
-                            html += '</div>';
-                            html += '</div>';
-                            html += '</div>';
-
-                            $('#subjectsContainer').html(html);
-
-                            // Initialize DataTable
-                            if ($.fn.DataTable) {
-                                $('#subjectsTable').DataTable({
-                                    "pageLength": 25,
-                                    "order": [[1, "asc"]],
-                                    "language": {
-                                        "search": "Search subjects:"
-                                    }
-                                });
-                            }
-                        } else {
-                            $('#subjectsContainer').html(
-                                '<div class="card border-0 shadow-sm">' +
-                                '<div class="card-body text-center py-5">' +
-                                '<i class="bi bi-exclamation-triangle text-warning" style="font-size: 48px;"></i>' +
-                                '<p class="mt-3 mb-0 text-muted">No subjects found for this student.</p>' +
-                                '</div>' +
-                                '</div>'
-                            );
-                        }
-                    },
-                    error: function(xhr) {
-                        console.error('Error fetching subjects:', xhr);
-                        $('#subjectsContainer').html(
-                            '<div class="card border-0 shadow-sm">' +
-                            '<div class="card-body text-center py-5">' +
-                            '<i class="bi bi-exclamation-triangle text-danger" style="font-size: 48px;"></i>' +
-                            '<p class="mt-3 mb-0 text-danger">Failed to load subjects. Please try again.</p>' +
-                            '</div>' +
-                            '</div>'
-                        );
-                    }
-                });
-            });
-
-            // Handle Elect Subject Button
-            $(document).on('click', '.elect-subject-btn', function(e) {
-                e.preventDefault();
-                var studentID = $(this).data('student-id');
-                var classSubjectID = $(this).data('class-subject-id');
-                var subjectName = $(this).data('subject-name');
-
-                Swal.fire({
-                    title: 'Elect Subject?',
-                    html: 'Are you sure you want to elect <strong>' + subjectName + '</strong> for your child?',
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#940000',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Yes, elect it!',
-                    cancelButtonText: 'Cancel'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        var $btn = $(this);
-                        var originalText = $btn.html();
-                        $btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Processing...');
-
-                        $.ajax({
-                            url: "{{ route('elect_subject') }}",
-                            type: "POST",
-                            data: {
-                                studentID: studentID,
-                                classSubjectID: classSubjectID,
-                                _token: $('meta[name="csrf-token"]').attr('content')
-                            },
-                            dataType: 'json',
-                            headers: {
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                            },
-                            success: function(response) {
-                                if (response && response.success) {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Success!',
-                                        text: response.success,
-                                        confirmButtonColor: '#940000',
-                                        timer: 2000
-                                    }).then(function() {
-                                        // Refresh subjects
-                                        $('#studentSelect').trigger('change');
-                                    });
-                                } else {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Error',
-                                        text: response.error || 'Failed to elect subject.',
-                                        confirmButtonColor: '#940000'
-                                    });
-                                    $btn.prop('disabled', false).html(originalText);
-                                }
-                            },
-                            error: function(xhr) {
-                                $btn.prop('disabled', false).html(originalText);
-                                let errorMsg = xhr.responseJSON && xhr.responseJSON.error
-                                    ? xhr.responseJSON.error
-                                    : 'Something went wrong. Please try again.';
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error',
-                                    text: errorMsg,
-                                    confirmButtonColor: '#940000'
-                                });
-                            }
+                            html += '</td></tr>';
                         });
+
+                        html += '</tbody></table></div></div>';
+                        $('#subjectsContainer').html(html);
+                        $('#subjectsTable').DataTable({ "pageLength": 50, "bLengthChange": false });
                     }
-                });
-            });
-
-            // Handle Deselect Subject Button
-            $(document).on('click', '.deselect-subject-btn', function(e) {
-                e.preventDefault();
-                var studentID = $(this).data('student-id');
-                var classSubjectID = $(this).data('class-subject-id');
-                var subjectName = $(this).data('subject-name');
-
-                Swal.fire({
-                    title: 'Deselect Subject?',
-                    html: 'Are you sure you want to deselect <strong>' + subjectName + '</strong> for your child?',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#dc3545',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Yes, deselect it!',
-                    cancelButtonText: 'Cancel'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        var $btn = $(this);
-                        var originalText = $btn.html();
-                        $btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Processing...');
-
-                        $.ajax({
-                            url: "{{ route('deselect_subject') }}",
-                            type: "POST",
-                            data: {
-                                studentID: studentID,
-                                classSubjectID: classSubjectID,
-                                _token: $('meta[name="csrf-token"]').attr('content')
-                            },
-                            dataType: 'json',
-                            headers: {
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                            },
-                            success: function(response) {
-                                if (response && response.success) {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Success!',
-                                        text: response.success,
-                                        confirmButtonColor: '#940000',
-                                        timer: 2000
-                                    }).then(function() {
-                                        // Refresh subjects
-                                        $('#studentSelect').trigger('change');
-                                    });
-                                } else {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Error',
-                                        text: response.error || 'Failed to deselect subject.',
-                                        confirmButtonColor: '#940000'
-                                    });
-                                    $btn.prop('disabled', false).html(originalText);
-                                }
-                            },
-                            error: function(xhr) {
-                                $btn.prop('disabled', false).html(originalText);
-                                let errorMsg = xhr.responseJSON && xhr.responseJSON.error
-                                    ? xhr.responseJSON.error
-                                    : 'Something went wrong. Please try again.';
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error',
-                                    text: errorMsg,
-                                    confirmButtonColor: '#940000'
-                                });
-                            }
-                        });
-                    }
-                });
+                }
             });
         });
-    })(jQuery);
+
+        $(document).on('click', '.elect-subject-btn, .deselect-subject-btn', function() {
+            var isElect = $(this).hasClass('elect-subject-btn');
+            var url = isElect ? "{{ route('elect_subject') }}" : "{{ route('deselect_subject') }}";
+            var sid = $(this).data('sid');
+            var csid = $(this).data('csid');
+            var name = $(this).data('name');
+
+            Swal.fire({
+                title: isElect ? 'Elect Subject?' : 'Deselect Subject?',
+                text: 'Confirm action for ' + name,
+                icon: isElect ? 'question' : 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                confirmButtonText: 'Confirm'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    $.post(url, { studentID: sid, classSubjectID: csid, _token: '{{ csrf_token() }}' }, function(r) {
+                        if (r.success) {
+                            Swal.fire('Success', r.success, 'success').then(() => $('#studentSelect').trigger('change'));
+                        } else {
+                            Swal.fire('Error', r.error, 'error');
+                        }
+                    });
+                }
+            });
+        });
+    });
 </script>
-
-
-
-
-
+@endpush

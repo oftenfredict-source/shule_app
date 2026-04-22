@@ -1101,12 +1101,33 @@
             assignments: assignments
         };
 
+        const jsonData = {
+            timetableID: data.timetableID,
+            academic_yearID: data.academic_yearID,
+            term: data.term,
+            start_date: data.start_date,
+            end_date: data.end_date,
+            target_classes: data.target_classes,
+            assignments: data.assignments
+        };
+
         $.ajax({
             url: `{{ route('store_assessment_timetable') }}`,
             type: 'POST',
-            data: data,
+            contentType: 'application/json',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            data: JSON.stringify(jsonData),
             beforeSend: function() { Swal.showLoading(); },
-            success: handleResponse
+            success: handleResponse,
+            error: function(xhr) {
+                Swal.close();
+                let msg = 'An error occurred. Please try again.';
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    msg = res.message || msg;
+                } catch(e) {}
+                Swal.fire({ icon: 'error', title: 'Error', text: msg });
+            }
         });
     });
 

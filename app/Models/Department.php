@@ -43,4 +43,9 @@ class Department extends Model
     {
         return $this->hasMany(DepartmentMember::class, 'departmentID');
     }
+
+    public function subjects()
+    {
+        return $this->belongsToMany(SchoolSubject::class, 'department_subjects', 'departmentID', 'subjectID');
+    }
 }

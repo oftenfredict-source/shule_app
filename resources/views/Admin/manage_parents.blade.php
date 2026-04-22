@@ -172,7 +172,15 @@
                     <i class="bi bi-people-fill"></i> Manage Parents
                 </h4>
                 <div class="d-flex gap-2">
-                   
+                    <button class="btn btn-outline-primary-custom" id="btnRegisterAll">
+                        <i class="bi bi-person-check-fill"></i> Register All Accounts
+                    </button>
+                    <button class="btn btn-primary-custom" id="btnBulkSendSms">
+                        <i class="bi bi-send-fill"></i> Send Bulk Credentials
+                    </button>
+                    <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addParentModal">
+                        <i class="bi bi-plus-circle"></i> Add Parent
+                    </button>
                 </div>
             </div>
         </div>
@@ -414,6 +422,66 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary-custom" id="confirmSignStudentBtn">
                     <i class="bi bi-check-circle"></i> Continue to Student Registration
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SMS Progress Modal -->
+<div class="modal fade" id="smsProgressModal" tabindex="-1" role="dialog" aria-labelledby="smsProgressModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title" id="smsProgressModalLabel"><i class="bi bi-send-check"></i> Send Parent Credentials (SMS)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info border-0 shadow-sm mb-4">
+                    <i class="bi bi-info-circle-fill"></i> Send login credentials (username & password) to selected parents.
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="selectAllParents">
+                        <label class="form-check-label fw-bold" for="selectAllParents">Select All</label>
+                    </div>
+                    <span class="badge bg-success" id="selectedCount" style="font-size: 1rem;">Receivers: 0</span>
+                </div>
+
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-sm table-hover" id="parentSmsTable">
+                        <thead class="bg-light sticky-top">
+                            <tr>
+                                <th style="width: 40px;"></th>
+                                <th>Parent Name</th>
+                                <th>Parent Of</th>
+                                <th>Phone Number</th>
+                                <th class="text-center" style="width: 120px;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="parentSmsList">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="smsProgressArea" class="progress-container mt-4 d-none">
+                    <hr>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="fw-bold text-primary-custom">Sending Progress</span>
+                        <span id="smsProgressText" class="small">0 / 0</span>
+                    </div>
+                    <div class="progress" style="height: 25px; border-radius: 12px; border: 1px solid #ddd;">
+                        <div id="smsProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                    <div id="smsDeliverySummary" class="text-center small mt-2"></div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btnCancelSms">Cancel</button>
+                <button type="button" class="btn btn-primary-custom" id="startSendingSms">
+                    <i class="bi bi-send"></i> Start Sending SMS
                 </button>
             </div>
         </div>
@@ -1035,6 +1103,211 @@ $(document).ready(function() {
                 });
             }
         });
+    });
+
+    // Bulk Account Registration
+    $('#btnRegisterAll').on('click', function() {
+        Swal.fire({
+            title: 'Register All Accounts?',
+            text: "This will create user accounts for all parents who don't have one yet.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#940000',
+            confirmButtonText: 'Yes, Register All'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Registering...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                $.ajax({
+                    url: '{{ route("register_all_parents") }}',
+                    type: 'POST',
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire('Success', response.message, 'success').then(() => { loadParents(); });
+                        } else {
+                            Swal.fire('Error', response.message, 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Error', xhr.responseJSON.message || 'Failed to register accounts', 'error');
+                    }
+                });
+            }
+        });
+    });
+
+    // Bulk SMS logic
+    let stopSmsRequest = false;
+
+    $('#btnBulkSendSms').on('click', function() {
+        Swal.fire({
+            title: 'Loading parents list...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        $.ajax({
+            url: '{{ route("get_parents") }}',
+            type: 'GET',
+            success: function(response) {
+                Swal.close();
+                if (response.success) {
+                    const list = $('#parentSmsList');
+                    list.empty();
+                    
+                    if ($.fn.DataTable.isDataTable('#parentSmsTable')) {
+                        $('#parentSmsTable').DataTable().destroy();
+                    }
+
+                    response.parents.forEach(parent => {
+                        const phone = parent.phone ? String(parent.phone).trim() : '';
+                        const disabledAttr = phone ? '' : 'disabled="disabled"';
+                        const statusHtml = phone 
+                            ? '<span class="status-marker text-muted small"><i class="bi bi-hourglass"></i> Pending...</span>' 
+                            : '<span class="text-danger small"><i class="bi bi-telephone-x"></i> No Phone</span>';
+                        
+                        list.append(`
+                            <tr data-parent-id="${parent.parentID}" data-phone="${phone}">
+                                <td class="text-center">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input parent-checkbox" data-id="${parent.parentID}" ${disabledAttr}>
+                                    </div>
+                                </td>
+                                <td>${parent.first_name} ${parent.last_name}</td>
+                                <td>${parent.parent_of || 'N/A'}</td>
+                                <td>${phone || '<span class="text-danger small">No Phone</span>'}</td>
+                                <td class="text-center status-col">${statusHtml}</td>
+                            </tr>
+                        `);
+                    });
+
+                    $('#parentSmsTable').DataTable({
+                        paging: true,
+                        lengthChange: false,
+                        pageLength: 50,
+                        language: { searchPlaceholder: "Quick Search..." }
+                    });
+
+                    $('#selectAllParents').prop('checked', false).prop('disabled', false);
+                    updateSelectedCount();
+                    $('#smsProgressArea').addClass('d-none');
+                    $('#smsProgressBar').css('width', '0%').text('0%');
+                    $('#startSendingSms').prop('disabled', true).html('<i class="bi bi-send"></i> Start Sending SMS');
+                    $('#smsProgressModal').modal('show');
+                }
+            }
+        });
+    });
+
+    $('#selectAllParents').on('change', function() {
+        const isChecked = $(this).is(':checked');
+        const table = $('#parentSmsTable').DataTable();
+        const rows = table.rows({ search: 'applied' }).nodes();
+        $('input.parent-checkbox:not(:disabled)', rows).prop('checked', isChecked);
+        updateSelectedCount();
+    });
+
+    $(document).on('change', '.parent-checkbox', function() {
+        updateSelectedCount();
+    });
+
+    function updateSelectedCount() {
+        const table = $('#parentSmsTable').DataTable();
+        const count = table.$('.parent-checkbox:checked').length;
+        $('#selectedCount').text('Receivers: ' + count);
+        $('#startSendingSms').prop('disabled', count === 0);
+    }
+
+    $('#startSendingSms').on('click', async function() {
+        const table = $('#parentSmsTable').DataTable();
+        const selectedRows = table.$('.parent-checkbox:checked').closest('tr');
+        if (selectedRows.length === 0) return;
+        
+        const confirmed = await Swal.fire({
+            title: 'Send SMS Credentials?',
+            text: `You are about to send credentials to ${selectedRows.length} parents.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#940000',
+            confirmButtonText: 'Yes, Send Now'
+        });
+        
+        if (!confirmed.isConfirmed) return;
+
+        stopSmsRequest = false;
+        $('#startSendingSms').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Sending...');
+        $('.parent-checkbox, #selectAllParents').prop('disabled', true);
+        $('#smsProgressArea').removeClass('d-none');
+        
+        const total = selectedRows.length;
+        let delivered = 0;
+        let failed = 0;
+        
+        $('#smsProgressText').text(`0 / ${total}`);
+        $('#smsDeliverySummary').empty();
+
+        for (let i = 0; i < total; i++) {
+            if (stopSmsRequest) break;
+            
+            const row = $(selectedRows[i]);
+            // Search for checkbox to get data-id if row.data() is unreliable
+            const checkbox = row.find('.parent-checkbox');
+            const parentID = checkbox.data('id') || row.data('parent-id');
+            const statusCol = row.find('.status-col');
+            
+            row.addClass('table-warning');
+            statusCol.html('<div class="spinner-border spinner-border-sm text-primary" role="status"></div> <span class="small text-primary fw-bold">Sending...</span>');
+            
+            // Scroll to the row if it's visible in the DOM
+            if (row[0].scrollIntoViewIfNeeded) {
+                row[0].scrollIntoViewIfNeeded();
+            }
+
+            try {
+                const response = await $.ajax({
+                    url: '{{ route("send_password_sms") }}',
+                    type: 'POST',
+                    data: { parentID: parentID },
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    timeout: 45000 // 45 seconds timeout per SMS
+                });
+
+                row.removeClass('table-warning');
+                if (response.success) {
+                    statusCol.html('<span class="text-success small fw-bold"><i class="bi bi-check-circle-fill"></i> Delivered</span>');
+                    delivered++;
+                    row.addClass('table-success');
+                } else {
+                    const errMsg = response.message || 'Failed';
+                    statusCol.html(`<span class="text-danger small fw-bold" title="${errMsg}"><i class="bi bi-exclamation-circle-fill"></i> Failed</span>`);
+                    failed++;
+                    row.addClass('table-danger');
+                }
+            } catch (err) {
+                console.error("SMS Error:", err);
+                row.removeClass('table-warning').addClass('table-danger');
+                let errText = 'Error';
+                if (err.statusText === 'timeout') errText = 'Timeout';
+                statusCol.html(`<span class="text-danger small fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> ${errText}</span>`);
+                failed++;
+            }
+
+            const currentCount = delivered + failed;
+            const percent = Math.round((currentCount / total) * 100);
+            $('#smsProgressBar').css('width', percent + '%').text(percent + '%');
+            $('#smsProgressText').text(`${currentCount} / ${total}`);
+            $('#smsDeliverySummary').html(`<span class="text-success fw-bold">${delivered} Sent</span> | <span class="text-danger fw-bold">${failed} Failed</span>`);
+        }
+
+        $('.parent-checkbox, #selectAllParents').prop('disabled', false); 
+        $('#startSendingSms').html('<i class="bi bi-send"></i> Start Sending SMS');
+        Swal.fire({ title: 'Completed', text: `SMS processing finished. Sent: ${delivered}, Failed: ${failed}`, icon: 'info' });
+        loadParents();
     });
 
     // Reset form when modal is closed

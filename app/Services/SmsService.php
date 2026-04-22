@@ -23,17 +23,21 @@ class SmsService
             // Remove any spaces or special characters from phone number
             $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
 
-            // Standardize format: should be 255... (no leading 0, no 2550...)
-            if (str_starts_with($phoneNumber, '0')) {
-                // e.g. 0764... -> 255764...
-                $phoneNumber = '255' . substr($phoneNumber, 1);
-            } elseif (str_starts_with($phoneNumber, '2550')) {
-                // e.g. 2550764... -> 255764...
-                $phoneNumber = '255' . substr($phoneNumber, 4);
-            } elseif (!str_starts_with($phoneNumber, '255')) {
-                // e.g. 764... -> 255764...
-                $phoneNumber = '255' . $phoneNumber;
+            // Robust TZ phone number cleaning:
+            // 1. Remove 255 if it exists at the start
+            if (str_starts_with($phoneNumber, '255')) {
+                $phoneNumber = substr($phoneNumber, 3);
             }
+            // 2. Remove leading 0 if it exists
+            if (str_starts_with($phoneNumber, '0')) {
+                $phoneNumber = substr($phoneNumber, 1);
+            }
+            // 3. Prepend 255 (gateway expects 2557XXXXXXXX or 2556XXXXXXXX)
+            $phoneNumber = '255' . $phoneNumber;
+
+            // Log the attempt for debugging (mask part of the phone for privacy)
+            $maskedPhone = substr($phoneNumber, 0, 5) . '...' . substr($phoneNumber, -3);
+            Log::info("SmsService: Attempting to send SMS to {$maskedPhone}");
 
             $text = urlencode($message);
             $url = $this->baseUrl . '?username=' . urlencode($this->username) .
@@ -62,29 +66,36 @@ class SmsService
             curl_close($curl);
 
             if ($error) {
-                \Log::error("SmsService CURL Error: {$error}");
+                Log::error("SmsService CURL Error: {$error}");
                 return [
                     'success' => false,
-                    'message' => 'SMS sending failed: ' . $error,
-                    'response' => null,
-                    'http_code' => $httpCode
+                    'message' => 'CURL Connection error: ' . $error,
                 ];
             }
 
             $responseData = json_decode($response, true);
-            $isSuccess = ($httpCode == 200);
+            $isSuccess = ($httpCode == 200 || $httpCode == 201);
             $errorMessage = 'SMS sent successfully';
 
-            if ($responseData && isset($responseData['messages'][0]['status'])) {
-                $status = $responseData['messages'][0]['status'];
-                // groupName can be PENDING, ACCEPTED, REJECTED, etc.
-                if (isset($status['groupName']) && $status['groupName'] === 'REJECTED') {
-                    $isSuccess = false;
-                    $errorMessage = $status['description'] ?? 'Message was rejected by the gateway';
+            if ($responseData) {
+                // Handle different gateway response structures
+                if (isset($responseData['messages'][0]['status'])) {
+                    $status = $responseData['messages'][0]['status'];
+                    if (isset($status['groupName']) && ($status['groupName'] === 'REJECTED' || $status['groupName'] === 'FAILED')) {
+                        $isSuccess = false;
+                        $errorMessage = $status['description'] ?? 'Message was rejected by gateway';
+                    }
+                } elseif (isset($responseData['error']) || isset($responseData['description'])) {
+                        $isSuccess = false;
+                        $errorMessage = $responseData['description'] ?? $responseData['error'] ?? 'Gateway returned an error';
                 }
-            } elseif ($httpCode !== 200) {
+            } elseif ($httpCode >= 400) {
                 $isSuccess = false;
                 $errorMessage = "Gateway returned HTTP code {$httpCode}";
+            }
+
+            if (!$isSuccess) {
+                Log::warning("SmsService: Failed to send SMS. Response: " . $response);
             }
 
             return [
@@ -95,9 +106,10 @@ class SmsService
             ];
 
         } catch (\Exception $e) {
+            Log::error("SmsService Exception: " . $e->getMessage());
             return [
                 'success' => false,
-                'message' => 'SMS sending exception: ' . $e->getMessage()
+                'message' => 'Exception: ' . $e->getMessage()
             ];
         }
     }
