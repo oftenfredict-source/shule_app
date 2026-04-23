@@ -1581,6 +1581,9 @@
         window.toggleIncidentBy = toggleIncidentBy;
         window.toggleBorrowerSearch = toggleBorrowerSearch;
         window.toggleBookTypeFields = toggleBookTypeFields;
+        window.displayBookInfo = displayBookInfo;
+        window.clearBookSelection = clearBookSelection;
+        window.deleteBook = deleteBook;
         window.getSubjects = getSubjects;
         window.removeBorrower = removeBorrower;
 
