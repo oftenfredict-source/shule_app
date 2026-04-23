@@ -486,17 +486,11 @@
                     <div class="sidebar-profile">
                         <img src="{{ $imgPath }}" alt="Teacher" class="profile-image">
                         <div class="profile-meta text-left">
-                            <div class="profile-role">{{ $isNavHOD ? 'Head of Department' : 'User Type' }}</div>
-                            <div class="profile-name">{{ $isNavHOD ? ($hodDeptName ?? 'HOD') : $teacherRoleName }}</div>
+                            <div class="profile-role">User Type</div>
+                            <div class="profile-name">{{ $teacherRoleName }}</div>
                         </div>
                     </div>
-                    @if($isNavHOD)
-                    <div class="mt-2 px-2">
-                        <div style="background: linear-gradient(135deg, #940000, #c0392b); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: 1.5px; padding: 5px 10px; border-radius: 4px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(148,0,0,0.35);">
-                            <i class="fa fa-star"></i> HEAD OF DEPARTMENT
-                        </div>
-                    </div>
-                    @endif
+
                 </li>
 
 
@@ -555,9 +549,22 @@
                                 <li><a href="{{ route('teacherSubjects') }}" class="nav-link"><i class="fa fa-book"></i> My Subjects</a></li>
                                 <li><a href="{{ route('teacher.schemeOfWork') }}" class="nav-link"><i class="fa fa-file-text-o"></i> Scheme of Work</a></li>
                                 <li><a href="{{ route('teacher.lessonPlans') }}" class="nav-link"><i class="fa fa-book"></i> Lesson Plans</a></li>
+                                <li><a href="{{ route('teacher.logbook') }}" class="nav-link"><i class="fa fa-book"></i> Logbook</a></li>
                                 <li><a href="{{ route('teacher.calendar') }}" class="nav-link"><i class="fa fa-calendar"></i> Calendar</a></li>
                             </ul>
                         </li>
+
+                        <!-- My Department (HOD Only) -->
+                        @if($isNavHOD)
+                        <li class="dropdown-nav-item">
+                            <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#myDepartment" aria-expanded="false">
+                                <i class="fa fa-university"></i> My Department <i class="fa fa-chevron-down float-right"></i>
+                            </a>
+                            <ul id="myDepartment" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
+                                <li><a href="{{ route('teacher.departmentLogbook') }}" class="nav-link"><i class="fa fa-book"></i> Logbooks</a></li>
+                            </ul>
+                        </li>
+                        @endif
 
                         <!-- Exams -->
                         <li class="dropdown-nav-item">

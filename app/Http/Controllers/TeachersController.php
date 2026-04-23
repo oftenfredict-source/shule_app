@@ -28,6 +28,8 @@ use App\Models\SchemeOfWork;
 use App\Models\SchemeOfWorkItem;
 use App\Models\SchemeOfWorkLearningObjective;
 use App\Models\LessonPlan;
+use App\Models\Logbook;
+use App\Models\Department;
 use App\Models\PermissionRequest;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Dompdf\Dompdf;
@@ -11521,5 +11523,265 @@ class TeachersController extends Controller
             return response()->json(['success' => true, 'message' => 'Permission request submitted successfully.']);
         }
         return redirect()->route('teacher.permissions')->with('success', 'Permission request submitted successfully.');
+    }
+
+    public function logbook()
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID) {
+            return redirect()->route('login')->with('error', 'Unauthorized access');
+        }
+
+        $teachingSubjects = ClassSubject::with(['subject', 'subclass.class'])
+            ->where('teacherID', $teacherID)
+            ->where('status', 'Active')
+            ->whereHas('subject', function($query) {
+                $query->where('status', 'Active');
+            })
+            ->get();
+
+        return view('Teacher.logbook', compact('teachingSubjects'));
+    }
+
+    public function getLogbookData($classSubjectID)
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
+        // Verify teacher teaches this subject
+        $classSubject = ClassSubject::with(['subject', 'subclass.class'])
+            ->where('class_subjectID', $classSubjectID)
+            ->where('teacherID', $teacherID)
+            ->first();
+
+        if (!$classSubject) {
+            return response()->json(['success' => false, 'message' => 'Subject not found'], 404);
+        }
+
+        $currentYear = Carbon::now()->year;
+        $logbookEntries = Logbook::where('class_subjectID', $classSubjectID)
+            ->where('schoolID', $schoolID)
+            ->where('year', $currentYear)
+            ->orderBy('date_started', 'asc')
+            ->get();
+
+        // Get teacher details
+        $teacher = Teacher::find($teacherID);
+        $teacherName = $teacher ? trim(($teacher->first_name ?? '') . ' ' . ($teacher->last_name ?? '')) : 'N/A';
+
+        return response()->json([
+            'success' => true,
+            'logbookEntries' => $logbookEntries,
+            'subjectName' => $classSubject->subject->subject_name ?? 'N/A',
+            'className' => $classSubject->subclass->class->class_name ?? 'N/A',
+            'subclassName' => $classSubject->subclass->subclass_name ?? 'N/A',
+            'year' => $currentYear,
+            'teacherName' => $teacherName
+        ]);
+    }
+
+    public function saveLogbookEntry(Request $request)
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
+        $validated = $request->validate([
+            'class_subjectID' => 'required',
+            'main_topic' => 'required|string',
+            'sub_topic' => 'required|string',
+            'content_covered' => 'required|string',
+            'date_started' => 'nullable|date',
+            'date_ended' => 'nullable|date',
+            'teacher_comment' => 'nullable|string',
+        ]);
+
+        $currentYear = Carbon::now()->year;
+
+        Logbook::create(array_merge($validated, [
+            'schoolID' => $schoolID,
+            'year' => $currentYear,
+            'status' => 'Active'
+        ]));
+
+        return response()->json(['success' => true, 'message' => 'Logbook entry saved successfully']);
+    }
+
+    public function departmentLogbook()
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID) {
+            return redirect()->route('login')->with('error', 'Unauthorized access');
+        }
+
+        // Get departments headed by this teacher
+        $departments = Department::with('subjects')
+            ->where('head_teacherID', $teacherID)
+            ->where('schoolID', $schoolID)
+            ->get();
+
+        if ($departments->isEmpty()) {
+            return redirect()->back()->with('error', 'You are not assigned as HOD of any department.');
+        }
+
+        $departmentSubjectIds = $departments->flatMap(function($dept) {
+            return $dept->subjects->pluck('subjectID');
+        })->unique();
+
+        // Get all academic classes for the current school
+        $classes = ClassModel::where('schoolID', $schoolID)->orderBy('class_name')->get();
+        // Get subjects for the department
+        $subjects = SchoolSubject::whereIn('subjectID', $departmentSubjectIds)->get();
+
+        return view('Teacher.department_logbook', compact('departments', 'classes', 'subjects'));
+    }
+
+    public function getDepartmentLogbookData(Request $request)
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+        $subjectID = $request->query('subjectID');
+        $classID = $request->query('classID');
+
+        if (!$teacherID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
+        // Fetch the ClassSubject records for all subclasses in this class level
+        $classSubjectIds = ClassSubject::whereHas('subclass', function($q) use ($classID) {
+                $q->where('classID', $classID);
+            })
+            ->where('subjectID', $subjectID)
+            ->pluck('class_subjectID');
+
+        if ($classSubjectIds->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'No assigned teacher found for this subject/class level.'], 404);
+        }
+
+        $currentYear = Carbon::now()->year;
+        $logbookEntries = Logbook::whereIn('class_subjectID', $classSubjectIds)
+            ->where('schoolID', $schoolID)
+            ->where('year', $currentYear)
+            ->orderBy('date_started', 'asc')
+            ->get();
+
+        // For display info, take the first class subject's related data
+        $sampleCS = ClassSubject::with(['subject', 'subclass.class', 'teacher'])
+            ->whereIn('class_subjectID', $classSubjectIds)
+            ->first();
+
+        $assignedTeacherName = $sampleCS->teacher ? trim(($sampleCS->teacher->first_name ?? '') . ' ' . ($sampleCS->teacher->last_name ?? '')) : 'N/A';
+        // If there are multiple streams/teachers, we could list them, but for now we keep it simple
+        $subjectName = $sampleCS->subject->subject_name ?? 'N/A';
+        $className = $sampleCS->subclass->class->class_name ?? 'N/A';
+
+        return response()->json([
+            'success' => true,
+            'logbookEntries' => $logbookEntries,
+            'subjectName' => $subjectName,
+            'className' => $className,
+            'year' => $currentYear,
+            'teacherName' => $assignedTeacherName,
+            'classSubjectID' => $classSubjectIds[0] // Default for PDF if multiple
+        ]);
+    }
+
+    public function signLogbook(Request $request)
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
+        $validated = $request->validate([
+            'logbookID' => 'required',
+            'hod_comment' => 'required|string',
+        ]);
+
+        $logbook = Logbook::find($validated['logbookID']);
+        if (!$logbook) {
+            return response()->json(['success' => false, 'message' => 'Logbook entry not found'], 404);
+        }
+
+        $logbook->update([
+            'hod_comment' => $validated['hod_comment']
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Logbook signed successfully']);
+    }
+
+    public function downloadLogbookPdf($classSubjectID)
+    {
+        try {
+            $teacherID = Session::get('teacherID');
+            $schoolID = Session::get('schoolID');
+
+            if (!$teacherID || !$schoolID) {
+                return response()->json(['error' => 'Session expired'], 401);
+            }
+
+            $currentYear = Carbon::now()->year;
+            
+            $classSubject = ClassSubject::with(['subject', 'subclass.class', 'teacher'])
+                ->where('class_subjectID', $classSubjectID)
+                ->first();
+
+            if (!$classSubject) {
+                return response()->json(['error' => 'Subject assignment not found'], 404);
+            }
+
+            $logbookEntries = Logbook::where('class_subjectID', $classSubjectID)
+                ->where('schoolID', $schoolID)
+                ->where('year', $currentYear)
+                ->orderBy('date_started', 'asc')
+                ->get();
+
+            $school = School::find($schoolID);
+            
+            $data = [
+                'classSubject' => $classSubject,
+                'logbookEntries' => $logbookEntries,
+                'school' => $school,
+                'year' => $currentYear,
+                'teacherName' => $classSubject->teacher ? trim(($classSubject->teacher->first_name ?? '') . ' ' . ($classSubject->teacher->last_name ?? '')) : 'N/A'
+            ];
+
+            $html = view('Teacher.pdf.logbook', $data)->render();
+
+            $options = new \Dompdf\Options();
+            $options->set('defaultFont', 'Helvetica');
+            $options->set('isRemoteEnabled', true);
+            $options->set('isHtml5ParserEnabled', true);
+            $options->setChroot(public_path());
+
+            $dompdf = new \Dompdf\Dompdf($options);
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'landscape');
+            $dompdf->render();
+
+            $filename = 'Logbook_' . str_replace(' ', '_', $classSubject->subject->subject_name) . '_' . str_replace(' ', '_', $classSubject->subclass->class->class_name) . '_' . $currentYear . '.pdf';
+
+            return response($dompdf->output(), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading logbook PDF: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to generate PDF: ' . $e->getMessage()], 500);
+        }
     }
 }

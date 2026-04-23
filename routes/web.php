@@ -299,6 +299,13 @@ Route::get('teacher/get-session-attendance-data', [TeachersController::class, 'g
 Route::get('teacher/update-attendance', [TeachersController::class, 'updateAttendance'])->name('teacher.update_attendance');
 Route::get('teacher/get-collected-attendance', [TeachersController::class, 'getCollectedAttendance'])->name('teacher.get_collected_attendance');
 Route::get('teacher/get-session-attendance-for-update', [TeachersController::class, 'getSessionAttendanceForUpdate'])->name('teacher.get_session_attendance_for_update');
+Route::get('teacher/logbook', [TeachersController::class, 'logbook'])->name('teacher.logbook');
+Route::get('teacher/get-logbook-data/{classSubjectID}', [TeachersController::class, 'getLogbookData'])->name('teacher.get_logbook_data');
+Route::post('teacher/save-logbook-entry', [TeachersController::class, 'saveLogbookEntry'])->name('teacher.save_logbook_entry');
+Route::get('teacher/department-logbook', [TeachersController::class, 'departmentLogbook'])->name('teacher.departmentLogbook');
+Route::get('teacher/get-department-logbook-data', [TeachersController::class, 'getDepartmentLogbookData'])->name('teacher.getDepartmentLogbookData');
+Route::post('teacher/sign-logbook', [TeachersController::class, 'signLogbook'])->name('teacher.signLogbook');
+Route::get('teacher/download-logbook-pdf/{classSubjectID}', [TeachersController::class, 'downloadLogbookPdf'])->name('teacher.downloadLogbookPdf');
 Route::get('teacherSubjects', [TeachersController::class, 'teacherSubjects'])->name('teacherSubjects');
 Route::get('teacher/scheme-of-work', [TeachersController::class, 'schemeOfWork'])->name('teacher.schemeOfWork');
 Route::get('teacher/scheme-of-work/create/{classSubjectID}', [TeachersController::class, 'createNewScheme'])->name('teacher.createSchemeOfWork');

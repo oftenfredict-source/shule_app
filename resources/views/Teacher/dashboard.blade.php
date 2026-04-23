@@ -160,6 +160,13 @@
                     <div>
         <div class="text-muted" style="font-size: 0.9rem;">Today · {{ \Carbon\Carbon::now()->format('l, d M Y') }}</div>
         <div class="hero-title">Hello, Teacher</div>
+        @if(isset($isNavHOD) && $isNavHOD)
+            <div class="mb-2">
+                <span class="badge text-white p-2" style="background: linear-gradient(135deg, #940000, #c0392b); border-radius: 4px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; box-shadow: 0 4px 10px rgba(148,0,0,0.2);">
+                    <i class="fa fa-star"></i> HEAD OF DEPARTMENT: {{ $hodDeptName ?? '' }}
+                </span>
+            </div>
+        @endif
         <p class="hero-subtitle">Quick access to your teaching modules and updates.</p>
     </div>
     <div class="hero-actions">
