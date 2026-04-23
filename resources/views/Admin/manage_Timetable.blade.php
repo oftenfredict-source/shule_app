@@ -3191,7 +3191,7 @@ $(function() {
 
         // Get subclass
         const subclassSelect = $(`.subclass-select[data-class-index="${classIndex}"]`);
-        const subclassID = subclassSelect.val();
+        const subclassID = editingSubclassID || subclassSelect.val();
         
         if (!subclassID) {
             if (typeof Swal !== 'undefined') {
@@ -3483,22 +3483,24 @@ $(function() {
                 const day = session.day;
                 const isPrepo = session.is_prepo == 1 || session.is_prepo === true;
                 
-                // Get subject ID
-                const subjectID = session.class_subjectID || session.subjectID;
-                const subject = subjectsMap[subjectID];
-                
-                if (!subject) {
-                    console.warn('Subject not found for session:', session);
-                    return; // Skip if subject not found
-                }
-                
                 // Get session type
                 const sessionTypeID = session.session_typeID;
                 const sessionType = sessionTypesMap[sessionTypeID];
+                const sessionTypeName = sessionType ? (sessionType.name || sessionType.type || '').toLowerCase() : '';
+                const isFreeSession = sessionTypeName.includes('free');
                 
                 if (!sessionType) {
                     console.warn('Session type not found for session:', session);
                     return; // Skip if session type not found
+                }
+
+                // Get subject ID
+                const subjectID = session.class_subjectID || session.subjectID;
+                const subject = subjectsMap[subjectID];
+                
+                if (!subject && !isFreeSession) {
+                    console.warn('Subject not found for non-free session:', session);
+                    return; // Skip if subject not found and not a free session
                 }
                 
                 // Add session form with data
