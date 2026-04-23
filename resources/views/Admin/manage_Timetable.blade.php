@@ -2139,70 +2139,10 @@ $(function() {
                 });
             }
         }
-                            }
-                        });
-                        
-                        tableHtml += '</tr>';
-                    }
-                });
-            }
-            
-            // Display Prepo Sessions Separately (if exists)
-            if (data.definition.has_prepo && hasPrepoSessions) {
-                // Add separator row for Prepo sessions
-                tableHtml += '<tr class="table-success" style="border-top: 3px solid #198754;">';
-                tableHtml += '<td class="fw-bold text-center" style="background-color: #d1e7dd;">' + data.definition.prepo_start_time + '<br>' + data.definition.prepo_end_time + '</td>';
-                tableHtml += '<td colspan="5" class="text-center fw-bold" style="background-color: #d1e7dd; color: #0f5132; padding: 20px 10px;">';
-                tableHtml += '<i class="bi bi-clock-history"></i> <span style="letter-spacing: 3px;">PREPO SESSION</span>';
-                tableHtml += '</td>';
-                tableHtml += '</tr>';
-                
-                // Display prepo sessions
-                sortedPrepoTimeSlots.forEach(function(timeSlot) {
-                    const [startTime, endTime] = timeSlot.split('-');
-                    tableHtml += '<tr>';
-                    tableHtml += '<td class="fw-bold" style="background-color: #f8f9fa;">' + startTime + '<br>' + endTime + '</td>';
-                    
-                    days.forEach(function(day) {
-                        const sessions = prepoSessionsByDay[day][timeSlot] || [];
-                        if (sessions.length > 0) {
-                            let cellHtml = '';
-                            // Remove duplicates within same time slot
-                            const uniqueSessions = [];
-                            const seenSubjects = new Set();
-                            
-                            sessions.forEach(function(session) {
-                                const sessionKey = session.subject + '-' + session.teacher + '-' + session.class;
-                                if (!seenSubjects.has(sessionKey)) {
-                                    seenSubjects.add(sessionKey);
-                                    uniqueSessions.push(session);
-                                }
-                            });
-                            
-                            uniqueSessions.forEach(function(session) {
-                                if (session.is_free) {
-                                    // Display FREE session with special styling
-                                    cellHtml += '<div class="mb-1"><span class="badge bg-success">Prepo</span> <strong class="text-primary" style="font-size: 1.1em;">FREE</strong><br>';
-                                    cellHtml += '<small class="text-muted">Free Session</small></div>';
-                                } else {
-                                cellHtml += '<div class="mb-1"><span class="badge bg-success">Prepo</span> <strong>' + session.subject + '</strong><br>';
-                                cellHtml += '<small class="text-muted">' + session.teacher + '</small><br>';
-                                cellHtml += '<small class="text-info">' + session.class + '</small></div>';
-                                }
-                            });
-                            tableHtml += '<td style="background-color: #f8f9fa;">' + cellHtml + '</td>';
-                        } else {
-                            tableHtml += '<td class="bg-light" style="background-color: #f8f9fa;"></td>';
-                        }
-                    });
-                    
-                    tableHtml += '</tr>';
-                });
-            }
-        }
-
+        
         $('#sessionTimetableBody').html(tableHtml);
     }
+
 
     // Handle Export to Excel button
     $('#exportTimetableExcelBtn').on('click', function() {
