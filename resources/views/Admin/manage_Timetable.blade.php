@@ -1933,7 +1933,6 @@ $(function() {
     function displaySessionTimetable(data, subclassID) {
         currentSubclassID = subclassID;
         currentTimetableData = data; // Store for export
-        currentTimetableData = data; // Store for export
         // Display definition info
         let definitionHtml = '<div class="row">';
         definitionHtml += '<div class="col-md-3"><strong>Session Time:</strong><br>' + data.definition.session_start_time + ' - ' + data.definition.session_end_time + '</div>';
@@ -1953,151 +1952,193 @@ $(function() {
         definitionHtml += '</div>';
         $('#definitionInfoContent').html(definitionHtml);
 
-        // Group sessions by day and time
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-        const sessionsByDay = {};
+        // 1. Process all sessions into regular and prepo categories, removing exact duplicates
+        const regularSessions = [];
+        const prepoSessions = [];
+        const processed = new Set();
         
-        days.forEach(function(day) {
-            sessionsByDay[day] = {};
+        // Helper to normalize time to HH:mm:ss for consistent comparison
+        function normT(t) {
+            if (!t) return '00:00:00';
+            const parts = t.split(':');
+            const h = parts[0].padStart(2, '0');
+            const m = (parts[1] || '00').padStart(2, '0');
+            const s = (parts[2] || '00').padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        data.sessions.forEach(function(s) {
+            const key = s.day + '-' + normT(s.start_time) + '-' + normT(s.end_time) + '-' + (s.class_subjectID || s.subjectID || '') + '-' + s.teacherID;
+            if (processed.has(key)) return;
+            processed.add(key);
+            
+            const isPrepo = s.is_prepo == 1 || s.is_prepo === true;
+            if (isPrepo) {
+                prepoSessions.push(s);
+            } else {
+                regularSessions.push(s);
+            }
         });
 
-        // Group sessions - separate regular and prepo sessions
-        const regularSessionsByDay = {};
-        const prepoSessionsByDay = {};
-        
-        days.forEach(function(day) {
-            regularSessionsByDay[day] = {};
-            prepoSessionsByDay[day] = {};
+        // 2. Generate Boundaries for Regular Sessions
+        const regBoundaries = new Set();
+        regularSessions.forEach(s => {
+            regBoundaries.add(normT(s.start_time));
+            regBoundaries.add(normT(s.end_time));
         });
-        
-        const processedSessions = new Set();
-        data.sessions.forEach(function(session) {
-            // Create unique key to avoid duplicates
-            const uniqueKey = session.day + '-' + session.start_time + '-' + session.end_time + '-' + (session.class_subjectID || session.subjectID || '') + '-' + session.teacherID;
-            
-            if (processedSessions.has(uniqueKey)) {
-                return; // Skip duplicate
-            }
-            processedSessions.add(uniqueKey);
-            
-            const day = session.day;
-            const timeKey = session.start_time + '-' + session.end_time;
-            const isPrepo = session.is_prepo == 1 || session.is_prepo === true;
-            
-            const targetSessions = isPrepo ? prepoSessionsByDay[day] : regularSessionsByDay[day];
-            
-            if (!targetSessions[timeKey]) {
-                targetSessions[timeKey] = [];
-            }
-            
-            // Check if this is a free session
-            const isFreeSession = session.is_free === true || 
-                                 (session.session_type && session.session_type.toLowerCase() === 'free') ||
-                                 (session.subject_name && session.subject_name.toUpperCase() === 'FREE');
-            
-            targetSessions[timeKey].push({
-                subject: isFreeSession ? 'FREE' : (session.subject_name || 'N/A'),
-                teacher: isFreeSession ? 'FREE' : (session.teacher_name || 'N/A'),
-                class: (session.class_name || '') + ' ' + (session.subclass_name || ''),
-                is_prepo: isPrepo,
-                is_free: isFreeSession
-            });
-        });
-
-        // Get all unique time slots for regular sessions including break times
-        const regularTimeSlots = new Set();
-        days.forEach(function(day) {
-            Object.keys(regularSessionsByDay[day]).forEach(function(timeKey) {
-                regularTimeSlots.add(timeKey);
-            });
-        });
-        
-        // Add break times as time slots
-        if (data.break_times && data.break_times.length > 0) {
-            data.break_times.forEach(function(bt) {
-                regularTimeSlots.add(bt.start_time + '-' + bt.end_time + '-BREAK');
+        if (data.break_times) {
+            data.break_times.forEach(bt => {
+                regBoundaries.add(normT(bt.start_time));
+                regBoundaries.add(normT(bt.end_time));
             });
         }
-        
-        // Get all unique time slots for prepo sessions
-        const prepoTimeSlots = new Set();
-        if (data.definition.has_prepo) {
-            days.forEach(function(day) {
-                Object.keys(prepoSessionsByDay[day]).forEach(function(timeKey) {
-                    prepoTimeSlots.add(timeKey);
-                });
-            });
+        // Also add overall session start/end as boundaries
+        if (data.definition) {
+            regBoundaries.add(normT(data.definition.session_start_time));
+            regBoundaries.add(normT(data.definition.session_end_time));
+        }
+
+        const sortedRegBoundaries = Array.from(regBoundaries).sort();
+        const regularSlots = [];
+        for (let i = 0; i < sortedRegBoundaries.length - 1; i++) {
+            const start = sortedRegBoundaries[i];
+            const end = sortedRegBoundaries[i+1];
+            
+            // Check if this slot is a break
+            let isBreak = false;
+            if (data.break_times) {
+                isBreak = data.break_times.some(bt => normT(bt.start_time) <= start && normT(bt.end_time) >= end);
+            }
+            
+            regularSlots.push({ start, end, isBreak });
+        }
+
+        // 3. Generate Boundaries for Prepo Sessions
+        const prepoBoundaries = new Set();
+        prepoSessions.forEach(s => {
+            prepoBoundaries.add(normT(s.start_time));
+            prepoBoundaries.add(normT(s.end_time));
+        });
+        if (data.definition && data.definition.has_prepo) {
+            prepoBoundaries.add(normT(data.definition.prepo_start_time));
+            prepoBoundaries.add(normT(data.definition.prepo_end_time));
         }
         
-        // Sort time slots chronologically
-        const sortedRegularTimeSlots = Array.from(regularTimeSlots).sort(function(a, b) {
-            const aStart = a.replace('-BREAK', '').split('-')[0];
-            const bStart = b.replace('-BREAK', '').split('-')[0];
-            return aStart.localeCompare(bStart);
-        });
-        
-        const sortedPrepoTimeSlots = Array.from(prepoTimeSlots).sort(function(a, b) {
-            const aStart = a.split('-')[0];
-            const bStart = b.split('-')[0];
-            return aStart.localeCompare(bStart);
-        });
+        const sortedPrepoBoundaries = Array.from(prepoBoundaries).sort();
+        const prepoSlots = [];
+        for (let i = 0; i < sortedPrepoBoundaries.length - 1; i++) {
+            prepoSlots.push({ start: sortedPrepoBoundaries[i], end: sortedPrepoBoundaries[i+1] });
+        }
 
-        // Build table
+        // 4. Build Table HTML
         let tableHtml = '';
-        
-        const hasRegularSessions = sortedRegularTimeSlots.length > 0;
-        const hasPrepoSessions = sortedPrepoTimeSlots.length > 0;
-        
-        if (!hasRegularSessions && !hasPrepoSessions) {
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+        if (regularSlots.length === 0 && prepoSlots.length === 0) {
             tableHtml = '<tr><td colspan="6" class="text-center text-muted">No sessions found for this class</td></tr>';
         } else {
-            // Display Regular Sessions First
-            if (hasRegularSessions) {
-                sortedRegularTimeSlots.forEach(function(timeSlot) {
-                    // Check if this is a break time
-                    if (timeSlot.includes('-BREAK')) {
-                        const [startTime, endTime] = timeSlot.replace('-BREAK', '').split('-');
-                        tableHtml += '<tr class="table-warning">';
-                        tableHtml += '<td class="fw-bold text-center">' + startTime + '<br>' + endTime + '</td>';
-                        tableHtml += '<td colspan="5" class="text-center fw-bold" style="background-color: #fff3cd; color: #856404; padding: 20px 10px;">';
-                        tableHtml += '<i class="bi bi-clock"></i> <span style="letter-spacing: 3px;">BREAK TIME</span>';
-                        tableHtml += '</td>';
-                        tableHtml += '</tr>';
-                    } else {
-                        const [startTime, endTime] = timeSlot.split('-');
-                        tableHtml += '<tr>';
-                        tableHtml += '<td class="fw-bold">' + startTime + '<br>' + endTime + '</td>';
-                        
-                        days.forEach(function(day) {
-                            const sessions = regularSessionsByDay[day][timeSlot] || [];
-                            if (sessions.length > 0) {
-                                let cellHtml = '';
-                                // Remove duplicates within same time slot
-                                const uniqueSessions = [];
-                                const seenSubjects = new Set();
+            // Render Regular Sessions
+            regularSlots.forEach(function(slot) {
+                if (slot.isBreak) {
+                    tableHtml += '<tr class="table-warning">';
+                    tableHtml += '<td class="fw-bold text-center">' + slot.start.substring(0, 5) + '<br>' + slot.end.substring(0, 5) + '</td>';
+                    tableHtml += '<td colspan="5" class="text-center fw-bold" style="background-color: #fff3cd; color: #856404; padding: 20px 10px;">';
+                    tableHtml += '<i class="bi bi-clock"></i> <span style="letter-spacing: 3px;">BREAK TIME</span>';
+                    tableHtml += '</td>';
+                    tableHtml += '</tr>';
+                } else {
+                    tableHtml += '<tr>';
+                    tableHtml += '<td class="fw-bold">' + slot.start.substring(0, 5) + '<br>' + slot.end.substring(0, 5) + '</td>';
+                    
+                    days.forEach(function(day) {
+                        const matches = regularSessions.filter(s => 
+                            s.day === day && 
+                            normT(s.start_time) <= slot.start && 
+                            normT(s.end_time) >= slot.end
+                        );
+
+                        if (matches.length > 0) {
+                            let cellHtml = '';
+                            // Remove logical duplicates for display (e.g. if the exact same session info is repeated)
+                            const uniqueDisplay = [];
+                            const seen = new Set();
+                            matches.forEach(m => {
+                                const isFree = m.is_free === true || 
+                                              (m.session_type && m.session_type.toLowerCase() === 'free') ||
+                                              (m.subject_name && m.subject_name.toUpperCase() === 'FREE');
                                 
-                                sessions.forEach(function(session) {
-                                    const sessionKey = session.subject + '-' + session.teacher + '-' + session.class;
-                                    if (!seenSubjects.has(sessionKey)) {
-                                        seenSubjects.add(sessionKey);
-                                        uniqueSessions.push(session);
-                                    }
-                                });
-                                
-                                uniqueSessions.forEach(function(session) {
-                                    if (session.is_free) {
-                                        // Display FREE session with special styling
-                                        cellHtml += '<div class="mb-1"><strong class="text-primary" style="font-size: 1.1em;">FREE</strong><br>';
-                                        cellHtml += '<small class="text-muted">Free Session</small></div>';
-                                    } else {
-                                    cellHtml += '<div class="mb-1"><strong>' + session.subject + '</strong><br>';
-                                    cellHtml += '<small class="text-muted">' + session.teacher + '</small><br>';
-                                    cellHtml += '<small class="text-info">' + session.class + '</small></div>';
-                                    }
-                                });
-                                tableHtml += '<td>' + cellHtml + '</td>';
-                            } else {
-                                tableHtml += '<td class="bg-light"></td>';
+                                const key = isFree ? 'FREE' : (m.subject_name + m.teacher_name);
+                                if (!seen.has(key)) {
+                                    seen.add(key);
+                                    uniqueDisplay.push({ ...m, isFree });
+                                }
+                            });
+
+                            uniqueDisplay.forEach(function(session) {
+                                if (session.isFree) {
+                                    cellHtml += '<div class="mb-1"><strong class="text-primary" style="font-size: 1.1em;">FREE</strong><br>';
+                                    cellHtml += '<small class="text-muted">Free Session</small></div>';
+                                } else {
+                                    cellHtml += '<div class="mb-1"><strong>' + (session.subject_name || 'N/A') + '</strong><br>';
+                                    cellHtml += '<small class="text-muted">' + (session.teacher_name || 'N/A') + '</small><br>';
+                                    cellHtml += '<small class="text-info">' + (session.class_name || '') + ' ' + (session.subclass_name || '') + '</small></div>';
+                                }
+                            });
+                            tableHtml += '<td>' + cellHtml + '</td>';
+                        } else {
+                            tableHtml += '<td class="bg-light"></td>';
+                        }
+                    });
+                    tableHtml += '</tr>';
+                }
+            });
+
+            // Render Prepo Sessions
+            if (prepoSlots.length > 0) {
+                tableHtml += '<tr class="bg-dark text-white"><td colspan="6" class="text-center py-2 fw-bold"><i class="bi bi-moon-stars"></i> PREPO SESSIONS</td></tr>';
+                prepoSlots.forEach(function(slot) {
+                    tableHtml += '<tr>';
+                    tableHtml += '<td class="fw-bold">' + slot.start.substring(0, 5) + '<br>' + slot.end.substring(0, 5) + '</td>';
+                    
+                    days.forEach(function(day) {
+                        const matches = prepoSessions.filter(s => 
+                            s.day === day && 
+                            normT(s.start_time) <= slot.start && 
+                            normT(s.end_time) >= slot.end
+                        );
+
+                        if (matches.length > 0) {
+                            let cellHtml = '';
+                            const uniqueDisplay = [];
+                            const seen = new Set();
+                            matches.forEach(m => {
+                                const isFree = m.is_free === true || 
+                                              (m.session_type && m.session_type.toLowerCase() === 'free') ||
+                                              (m.subject_name && m.subject_name.toUpperCase() === 'FREE');
+                                const key = isFree ? 'FREE' : (m.subject_name + m.teacher_name);
+                                if (!seen.has(key)) {
+                                    seen.add(key);
+                                    uniqueDisplay.push({ ...m, isFree });
+                                }
+                            });
+
+                            uniqueDisplay.forEach(function(session) {
+                                if (session.isFree) {
+                                    cellHtml += '<div class="mb-1"><strong class="text-success">FREE</strong></div>';
+                                } else {
+                                    cellHtml += '<div class="mb-1"><strong>' + (session.subject_name || 'N/A') + '</strong><br>';
+                                    cellHtml += '<small class="text-muted">' + (session.teacher_name || 'N/A') + '</small></div>';
+                                }
+                            });
+                            tableHtml += '<td>' + cellHtml + '</td>';
+                        } else {
+                            tableHtml += '<td class="bg-light"></td>';
+                        }
+                    });
+                    tableHtml += '</tr>';
+                });
+            }
+        }
                             }
                         });
                         
@@ -3112,8 +3153,10 @@ $(function() {
                         // Hide "Add New Class" button in edit mode
                         $('#addNewClassBtn').hide();
                         
-                        // Hide "Save All" and show only "Update Timetable" button in edit mode
+                        // Hide "Save All" and default submit button, show "Update Timetable"
                         $('#saveAllTimetablesBtn').hide();
+                        $('#createTimetableForm button[type="submit"]').hide();
+                        
                         if ($('#updateTimetableBtn').length === 0) {
                             $('#saveAllTimetablesBtn').after('<button type="button" class="btn btn-success mt-3" id="updateTimetableBtn" style="display: none;"><i class="bi bi-check-circle"></i> Update Timetable</button>');
                         }
@@ -3404,6 +3447,7 @@ $(function() {
         $('#updateTimetableBtn').hide();
         $('#saveAllTimetablesBtn').show();
         $('#addNewClassBtn').show();
+        $('#createTimetableForm button[type="submit"]').show();
         $('.subclass-select').prop('disabled', false);
     }
 
@@ -3837,6 +3881,7 @@ $(function() {
 
     // Check for existing timetable definition
     function checkExistingDefinition() {
+        if (isEditingMode) return;
         $.ajax({
             url: '/admin/get-session-timetable-definition',
             method: 'GET',
@@ -4162,6 +4207,7 @@ $(function() {
 
     // Check if subclass has timetable and disable if it does
     function checkSubclassTimetableStatus(subclassID, classIndex) {
+        if (isEditingMode) return;
         $.ajax({
             url: '/admin/check-subclass-has-timetable',
             method: 'GET',
@@ -4173,7 +4219,7 @@ $(function() {
                 if (response.success && response.hasTimetable) {
                     const select = $(`.subclass-select[data-class-index="${classIndex}"]`);
                     select.prop('disabled', true);
-                    select.after('<small class="text-warning d-block mt-1">This class already has a timetable. Please edit existing timetable instead.</small>');
+                    select.after('<small class="text-warning d-block mt-1">This class already has a timetable. Please edit existing timetable badala ya kuunda mpya.</small>');
                 }
             },
             error: function(xhr) {
@@ -4420,7 +4466,12 @@ $(function() {
         const breakEndTime = $(this).data('break-end'); // For "After Break" button
         
         const subclassSelect = $(`.subclass-select[data-class-index="${classIndex}"]`);
-        const subclassID = subclassSelect.val();
+        let subclassID = subclassSelect.val();
+        
+        // If val() is empty but we are in edit mode, use the editingSubclassID
+        if (!subclassID && isEditingMode && editingSubclassID) {
+            subclassID = editingSubclassID;
+        }
         
         if (!subclassID) {
             if (typeof Swal !== 'undefined') {
@@ -6672,10 +6723,15 @@ $(function() {
                 notes: $('#notes').val()
             };
         } 
-        else if (mainCategory === 'session') {
-           // Handle session timetable if needed, but the original code had it in a separate logic or partially here.
-           // For now, preservation of original logic for school-wide/etc.
-           requestData = $(this).serialize(); // Fallback for simple fields
+        else if (mainCategory === 'class') {
+           // If we are in editing mode, trigger the update button click
+           if (isEditingMode) {
+               $('#updateTimetableBtn').click();
+               return;
+           }
+           // Otherwise, trigger the save all button click
+           $('#saveAllTimetablesBtn').click();
+           return;
         }
         else {
             // School wide - check creation method

@@ -170,61 +170,63 @@ class LibraryController extends Controller
                 $isLost = ($book->active_losses_count ?? 0) > 0;
                 $isDamaged = ($book->active_damages_count ?? 0) > 0;
                 $isAvailable = ($book->active_borrows_count ?? 0) === 0 && !$isLost && !$isDamaged;
-                $activeBorrow = $book->activeBorrows->first();
-                $student = $activeBorrow ? $activeBorrow->student : null;
-                $teacher = $activeBorrow ? $activeBorrow->teacher : null;
-                $staff = $activeBorrow ? $activeBorrow->staff : null;
-                
-                $className = '-';
-                $studentName = '';
-                $admission = '-';
+                $occupants = $book->activeBorrows->map(function($ab) {
+                    $student = $ab->student;
+                    $teacher = $ab->teacher;
+                    $staff = $ab->staff;
+                    $name = '';
+                    $ref = '-';
+                    $type = 'student';
+                    $sub = '-';
 
-                if ($student) {
-                    $className = $student->subclass && $student->subclass->class
-                        ? $student->subclass->class->class_name
-                        : '-';
-                    $studentName = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
-                    $admission = $student->admission_number ?? '-';
-                } elseif ($teacher) {
-                    $className = 'Teacher';
-                    $studentName = trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? ''));
-                    $admission = $teacher->employee_number ?? '-';
-                } elseif ($staff) {
-                    $className = 'Staff';
-                    $studentName = trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? ''));
-                    $admission = $staff->employee_number ?? '-';
-                }
+                    if ($student) {
+                        $name = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
+                        $ref = $student->admission_number ?? '-';
+                        $sub = $student->subclass && $student->subclass->class ? $student->subclass->class->class_name : '-';
+                    } elseif ($teacher) {
+                        $name = trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? ''));
+                        $ref = $teacher->employee_number ?? '-';
+                        $sub = 'Teacher';
+                        $type = 'teacher';
+                    } elseif ($staff) {
+                        $name = trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? ''));
+                        $ref = $staff->employee_number ?? '-';
+                        $sub = 'Staff';
+                        $type = 'staff';
+                    }
+
+                    return [
+                        'name' => $name,
+                        'admission_number' => $ref,
+                        'class_name' => $sub,
+                        'type' => $type,
+                        'borrowID' => $ab->borrowID,
+                        'expected_return_date' => $ab->expected_return_date
+                    ];
+                });
 
                 $loss = $book->activeLosses->first();
                 $damage = $book->activeDamages->first();
-                $lossStudent = $loss && $loss->student ? $loss->student : null;
-                $damageStudent = $damage && $damage->student ? $damage->student : null;
-                $lossClassName = $lossStudent && $lossStudent->subclass && $lossStudent->subclass->class
-                    ? $lossStudent->subclass->class->class_name
-                    : '-';
-                $damageClassName = $damageStudent && $damageStudent->subclass && $damageStudent->subclass->class
-                    ? $damageStudent->subclass->class->class_name
-                    : '-';
+                $activeBorrow = $book->activeBorrows->first();
 
+                $lossStudent = $loss ? $loss->student : null;
+                $lossClassName = ($lossStudent && $lossStudent->subclass && $lossStudent->subclass->class) ? $lossStudent->subclass->class->class_name : '-';
+
+                $damageStudent = $damage ? $damage->student : null;
+                $damageClassName = ($damageStudent && $damageStudent->subclass && $damageStudent->subclass->class) ? $damageStudent->subclass->class->class_name : '-';
+                
                 $book->is_available = $isAvailable;
                 $book->is_lost = $isLost;
                 $book->is_damaged = $isDamaged;
                 $book->total_quantity = 1;
                 $book->available_quantity = $isAvailable ? 1 : 0;
                 $book->issued_quantity = $isAvailable ? 0 : 1;
+                $book->occupants = $occupants;
+                $book->occupied_by = $occupants->first(); // For backward compatibility in some UI parts
                 $book->borrow_expected_return_date = $activeBorrow ? $activeBorrow->expected_return_date : null;
                 $book->is_overdue = $activeBorrow && $activeBorrow->expected_return_date
                     ? (Carbon::parse($activeBorrow->expected_return_date)->lt(Carbon::today()))
                     : false;
-                $book->occupied_by = ($student || $teacher || $staff)
-                    ? [
-                        'name' => $studentName,
-                        'admission_number' => $admission,
-                        'class_name' => $className,
-                        'is_teacher' => (bool)$teacher,
-                        'is_staff' => (bool)$staff
-                    ]
-                    : null;
                 $book->loss_info = $loss ? [
                     'lossID' => $loss->lossID,
                     'lost_by' => $loss->lost_by,
@@ -933,10 +935,8 @@ class LibraryController extends Controller
             // Validate input
             $validator = Validator::make($request->all(), [
                 'isbn' => 'required|string|max:50',
-                'borrower_type' => 'required|in:student,teacher,staff',
-                'studentID' => 'required_if:borrower_type,student|nullable|exists:students,studentID',
-                'teacherID' => 'required_if:borrower_type,teacher|nullable|exists:teachers,id',
-                'staffID' => 'required_if:borrower_type,staff|nullable|exists:other_staff,id',
+                'borrower_ids' => 'required|array',
+                'borrower_types' => 'required|array',
                 'expected_return_date' => 'required|date|after_or_equal:today',
                 'notes' => 'nullable|string|max:500',
             ]);
@@ -951,16 +951,9 @@ class LibraryController extends Controller
             }
 
             // Find book and verify it belongs to this school
-            $book = null;
-            if ($request->has('bookID') && $request->bookID) {
-                $book = Book::where('bookID', $request->bookID)
-                    ->where('schoolID', $schoolID)
-                    ->first();
-            } else {
-                $book = Book::where('isbn', $request->isbn)
-                    ->where('schoolID', $schoolID)
-                    ->first();
-            }
+            $book = Book::where('isbn', $request->isbn)
+                ->where('schoolID', $schoolID)
+                ->first();
 
             if (!$book) {
                 return response()->json([
@@ -990,148 +983,57 @@ class LibraryController extends Controller
                 ], 400);
             }
 
-            // Check if book is available
-            $activeBorrow = BookBorrow::where('bookID', $book->bookID)
+            // Check if book is available for NEW borrowing
+            $activeBorrows = BookBorrow::where('bookID', $book->bookID)
                 ->where('status', 'borrowed')
-                ->first();
+                ->get();
 
-            if ($activeBorrow) {
-                $student = $activeBorrow->student;
-                $teacher = $activeBorrow->teacher;
-                $staff = $activeBorrow->staff;
-                $borrowerName = 'another person';
-                if ($student) {
-                    $borrowerName = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
-                } elseif ($teacher) {
-                    $borrowerName = trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? ''));
-                } elseif ($staff) {
-                    $borrowerName = trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? ''));
-                }
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Book is already taken by ' . $borrowerName . '.'
-                ], 400);
-            }
+            // Create borrow records for each selected person
+            $ids = $request->borrower_ids;
+            $types = $request->borrower_types;
+            $createdCount = 0;
 
-            $borrowerType = $request->input('borrower_type');
-            $studentID = null;
-            $teacherID = null;
-            $staffID = null;
-
-            if ($borrowerType === 'student') {
-                // Verify student belongs to this school
-                $student = Student::where('studentID', $request->studentID)
-                    ->where('schoolID', $schoolID)
-                    ->where('status', 'Active')
-                    ->first();
-
-                if (!$student) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Student not found, inactive, or does not belong to this school.'
-                    ], 404);
-                }
-                $studentID = $request->studentID;
-
-                // Check if student already has this book borrowed
-                $existingBorrow = BookBorrow::where('bookID', $book->bookID)
-                    ->where('studentID', $studentID)
+            foreach ($ids as $index => $id) {
+                $type = $types[$index];
+                
+                // Skip if this person already has it borrowed
+                $exists = BookBorrow::where('bookID', $book->bookID)
                     ->where('status', 'borrowed')
-                    ->exists();
+                    ->where(function($q) use ($id, $type) {
+                        if ($type === 'student') $q->where('studentID', $id);
+                        elseif ($type === 'teacher') $q->where('teacherID', $id);
+                        elseif ($type === 'staff') $q->where('staffID', $id);
+                    })->exists();
 
-                if ($existingBorrow) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Student already has this book borrowed.'
-                    ], 400);
-                }
-            } elseif ($borrowerType === 'teacher') {
-                // Verify teacher belongs to this school
-                $teacher = Teacher::where('id', $request->teacherID)
-                    ->where('schoolID', $schoolID)
-                    ->where('status', 'Active')
-                    ->first();
-
-                if (!$teacher) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Teacher not found, inactive, or does not belong to this school.'
-                    ], 404);
-                }
-                $teacherID = $request->teacherID;
-
-                // Check if teacher already has this book borrowed
-                $existingBorrow = BookBorrow::where('bookID', $book->bookID)
-                    ->where('teacherID', $teacherID)
-                    ->where('status', 'borrowed')
-                    ->exists();
-
-                if ($existingBorrow) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Teacher already has this book borrowed.'
-                    ], 400);
-                }
-            } elseif ($borrowerType === 'staff') {
-                // Verify staff belongs to this school
-                $staff = OtherStaff::where('id', $request->staffID)
-                    ->where('schoolID', $schoolID)
-                    ->where('status', 'Active')
-                    ->first();
-
-                if (!$staff) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Staff member not found, inactive, or does not belong to this school.'
-                    ], 404);
-                }
-                $staffID = $request->staffID;
-
-                // Check if staff member already has this book borrowed
-                $existingBorrow = BookBorrow::where('bookID', $book->bookID)
-                    ->where('staffID', $staffID)
-                    ->where('status', 'borrowed')
-                    ->exists();
-
-                if ($existingBorrow) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Staff member already has this book borrowed.'
-                    ], 400);
+                if (!$exists) {
+                    BookBorrow::create([
+                        'bookID' => $book->bookID,
+                        'studentID' => $type === 'student' ? $id : null,
+                        'teacherID' => $type === 'teacher' ? $id : null,
+                        'staffID' => $type === 'staff' ? $id : null,
+                        'borrow_date' => now(),
+                        'expected_return_date' => $request->expected_return_date,
+                        'status' => 'borrowed',
+                        'notes' => $request->notes
+                    ]);
+                    $createdCount++;
                 }
             }
 
-            DB::beginTransaction();
-
-            // Create borrow record
-            $borrow = BookBorrow::create([
-                'bookID' => $book->bookID,
-                'studentID' => $studentID,
-                'teacherID' => $teacherID,
-                'staffID' => $staffID,
-                'borrow_date' => Carbon::now()->toDateString(),
-                'expected_return_date' => $request->expected_return_date ? Carbon::parse($request->expected_return_date)->toDateString() : null,
-                'status' => 'borrowed',
-                'notes' => $request->notes ?? null
-            ]);
-
-            // Update book quantities
-            $book->available_quantity = 0;
-            $book->issued_quantity = 1;
-            $book->save();
-
-            DB::commit();
+            // Update book quantities (decrement by the number of successes)
+            if ($createdCount > 0) {
+                $book->available_quantity = max(0, $book->available_quantity - $createdCount);
+                $book->issued_quantity = ($book->issued_quantity ?? 0) + $createdCount;
+                $book->save();
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Book borrowed successfully',
-                'borrow' => $borrow
+                'message' => $createdCount . ' borrower(s) assigned successfully.',
             ]);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             \Log::error('Error borrowing book: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to borrow book: ' . $e->getMessage(),
@@ -1190,9 +1092,11 @@ class LibraryController extends Controller
 
             // Update book quantities
             $book = $borrow->book;
-            $book->available_quantity = 1;
-            $book->issued_quantity = 0;
-            $book->save();
+            if ($book) {
+                $book->available_quantity += 1;
+                $book->issued_quantity = max(0, ($book->issued_quantity ?? 1) - 1);
+                $book->save();
+            }
 
             DB::commit();
 

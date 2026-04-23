@@ -8,6 +8,10 @@
 
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
+<!-- DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+
 <style>
     :root {
         --primary-color: #940000;
@@ -426,6 +430,12 @@
                         <a class="list-group-item" data-recipient="specific_teacher">
                             <i class="fa fa-user"></i> Specific Teacher
                         </a>
+                        <a class="list-group-item" data-recipient="all_staff">
+                            <i class="fa fa-users"></i> All Staff
+                        </a>
+                        <a class="list-group-item" data-recipient="specific_staff">
+                            <i class="fa fa-user"></i> Specific Staff
+                        </a>
                     </div>
                 </div>
                 <div class="col-md-8">
@@ -437,8 +447,10 @@
                             <option value="class_parents">Class Parents</option>
                             <option value="all_parents_teachers">All Parents & Teachers</option>
                             <option value="all_teachers">All Teachers</option>
+                            <option value="all_staff">All Staff</option>
                             <option value="specific_parent">Specific Parent</option>
                             <option value="specific_teacher">Specific Teacher</option>
+                            <option value="specific_staff">Specific Staff</option>
                         </select>
                         <div class="row">
                             <div class="col-md-4" id="quickClassGroup" style="display: none;">
@@ -460,49 +472,81 @@
                                 <input type="text" class="form-control" id="quickTeacherSearch" placeholder="Search by name or phone...">
                                 <div class="student-search-results" id="quickTeacherResults"></div>
                             </div>
+                            <div class="col-md-5" id="quickStaffSearchGroup" style="display: none;">
+                                <label class="form-label"><i class="fa fa-search"></i> Search Staff Member</label>
+                                <input type="text" class="form-control" id="quickStaffSearch" placeholder="Search by name or phone...">
+                                <div class="student-search-results" id="quickStaffResults"></div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Compose Message Section (Hidden by default, shown after selecting recipient type) -->
+                    <!-- Compose Message Section (Stacked Full Width) -->
                     <div class="row hidden" id="composeMessageSection">
                         <div class="col-lg-12">
-                            <div class="sms-card">
-                                <div class="card-title">
-                                    <i class="fa fa-paper-plane"></i>
-                                    Compose Message
+                            <!-- 1. Summary Widget (Full Width) -->
+                            <div class="sms-card" style="border-left: 5px solid var(--primary-color);">
+                                <div class="row align-items-center">
+                                    <div class="col-md-4">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="bg-primary-custom text-white rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                                <i class="fa fa-info-circle fa-lg"></i>
+                                            </div>
+                                            <div>
+                                                <div class="text-muted small fw-bold text-uppercase">Selected Recipients</div>
+                                                <div id="selectedRecipientText" class="fw-bold fs-5">-</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="bg-success text-white rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                                <i class="fa fa-users fa-lg"></i>
+                                            </div>
+                                            <div>
+                                                <div class="text-muted small fw-bold text-uppercase">Total Recipients</div>
+                                                <div class="d-flex align-items-baseline gap-2">
+                                                    <span id="recipientCount" class="fw-bold fs-3 text-success">0</span>
+                                                    <span class="text-muted small">people selected</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button type="button" class="btn btn-send btn-lg px-5 shadow-sm" id="sendBtn" onclick="sendSMS()">
+                                            <i class="fa fa-paper-plane me-2"></i> SEND SMS NOW
+                                        </button>
+                                    </div>
                                 </div>
+                            </div>
 
+                            <!-- 2. Message Composition (Full Width) -->
+                            <div class="sms-card">
                                 <form id="smsForm">
-                                    <!-- Hidden recipient type (synced from search) -->
+                                    <!-- Hidden Fields -->
                                     <input type="hidden" id="recipient_type" name="recipient_type">
                                     <input type="hidden" id="classID" name="classID">
                                     <input type="hidden" id="studentID" name="studentID">
                                     <input type="hidden" id="teacherID" name="teacherID">
+                                    <input type="hidden" id="staffID" name="staffID">
+                                    <input type="hidden" id="selected_ids" name="selected_ids">
 
-                                    <!-- Selected Recipient Info -->
-                                    <div class="recipient-preview" id="selectedRecipientInfo">
-                                        <strong>Selected Recipients:</strong> <span id="selectedRecipientText">-</span>
-                                        <br>
-                                        <strong>Total Recipients:</strong> <span id="recipientCount">0</span>
-                                    </div>
-
-                                    <!-- Message -->
-                                    <div class="form-group" style="margin-top: 20px;">
-                                        <label class="form-label" for="message">
-                                            <i class="fa fa-comment"></i>
-                                            Message
+                                    <div class="form-group mb-0">
+                                        <label class="form-label fs-5 fw-bold mb-3" for="message">
+                                            <i class="fa fa-comment-dots text-primary-custom"></i>
+                                            Type Your Message
                                         </label>
-                                        <textarea class="form-control" id="message" name="message" rows="5" placeholder="Enter your message here... (School name will be automatically added at the beginning)"></textarea>
-                                        <div class="char-count">
-                                            <span id="charCount">0</span> characters
+                                        <textarea class="form-control fs-5" id="message" name="message" rows="5" 
+                                                  placeholder="What would you like to say? School name will be added automatically."
+                                                  style="border: 2px solid #e9ecef; border-radius: 8px !important;"></textarea>
+                                        <div class="d-flex justify-content-between align-items-center mt-3">
+                                            <div class="text-muted small">
+                                                <i class="fa fa-info-circle me-1"></i> Avoid using special characters for better delivery.
+                                            </div>
+                                            <div class="char-count bg-light px-3 py-1 rounded-pill border">
+                                                <span id="charCount" class="fw-bold text-primary-custom">0</span> 
+                                                <span class="text-muted">characters</span>
+                                            </div>
                                         </div>
-                                    </div>
-
-                                    <!-- Send Button -->
-                                    <div class="form-group">
-                                        <button type="button" class="btn btn-send" id="sendBtn" onclick="sendSMS()">
-                                            <i class="fa fa-paper-plane"></i> Send SMS
-                                        </button>
                                     </div>
                                 </form>
                             </div>
@@ -515,6 +559,27 @@
                                 </div>
                                 <div id="resultsContent"></div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Recipient Selection List (Now below Compose) -->
+                    <div class="sms-card hidden" id="recipientListSection" style="padding-top: 10px;">
+                        <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
+                            <table class="table table-hover" id="recipientListTable" style="width: 100%;">
+                                <thead class="sticky-top bg-white" style="z-index: 1;">
+                                    <tr>
+                                        <th style="width: 40px; vertical-align: middle; text-align: center;">
+                                            <input class="form-check-input" type="checkbox" id="selectAllRecipients" checked style="cursor: pointer; margin: 0;">
+                                        </th>
+                                        <th>Name</th>
+                                        <th>Phone</th>
+                                        <th>Role</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recipientListTbody">
+                                    <tr><td colspan="4" class="text-center">Loading recipients...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -534,6 +599,10 @@
 </div>
 
 @include('includes.footer')
+
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -605,17 +674,28 @@
                     }
                 });
 
-                // Quick teacher search
-                $('#quickTeacherSearch').on('input', function() {
+                // Quick staff search
+                $('#quickStaffSearch').on('input', function() {
                     const search = $(this).val().trim();
                     if (searchTimeout) {
                         clearTimeout(searchTimeout);
                     }
                     if (search.length >= 2) {
-                        searchTimeout = setTimeout(() => searchQuickTeachers(search), 300);
+                        searchTimeout = setTimeout(() => searchQuickStaff(search), 300);
                     } else {
-                        $('#quickTeacherResults').hide().empty();
+                        $('#quickStaffResults').hide().empty();
                     }
+                });
+
+                // Select All Recipient List handler
+                $('#selectAllRecipients').on('change', function() {
+                    const isChecked = $(this).is(':checked');
+                    $('.recipient-checkbox').prop('checked', isChecked);
+                    updateManualSelectionCount();
+                });
+
+                $(document).on('change', '.recipient-checkbox', function() {
+                    updateManualSelectionCount();
                 });
             });
         }
@@ -643,6 +723,8 @@
         $('#quickClassGroup').hide();
         $('#quickStudentSearchGroup').hide();
         $('#quickTeacherSearchGroup').hide();
+        $('#quickStaffSearchGroup').hide();
+        $('#recipientListSection').addClass('hidden');
 
         if (!recipientType) {
             $('#composeMessageSection').addClass('hidden');
@@ -655,23 +737,36 @@
         // Realtime fetch and display based on recipient type
         if (recipientType === 'class_parents') {
             $('#quickClassGroup').show();
+            $('#recipientListSection').removeClass('hidden');
             // Show compose form immediately
             showComposeForm(recipientType);
             
-            // Handle class change - update count in realtime
+            // Handle class change - update list in realtime
             $('#quickClassID').off('change').on('change', function() {
                 const classID = $(this).val();
                 if (classID) {
-                    $('#classID').val(classID);
-                    loadRecipientCount();
-                    // Update recipient text
                     const className = $('#quickClassID option:selected').text();
+                    $('#classID').val(classID);
+                    loadRecipientList('class_parents', classID, `Searching for parents of ${className}...`);
+                    // Update recipient text
                     $('#selectedRecipientText').text(`Parents of ${className}`);
                 } else {
                     $('#selectedRecipientText').text('Parents of [Select Class]');
                     $('#recipientCount').text('0');
+                    $('#recipientListTbody').html('<tr><td colspan="4" class="text-center">Select class to load parents</td></tr>');
                 }
             });
+        } else if (recipientType === 'all_parents' || recipientType === 'all_teachers' || recipientType === 'all_staff' || recipientType === 'all_parents_teachers') {
+            $('#recipientListSection').removeClass('hidden');
+            showComposeForm(recipientType);
+            
+            let msg = 'Loading recipients...';
+            if (recipientType === 'all_parents') msg = 'Fetching all parents...';
+            else if (recipientType === 'all_teachers') msg = 'Fetching all teachers...';
+            else if (recipientType === 'all_staff') msg = 'Fetching all staff members...';
+            else if (recipientType === 'all_parents_teachers') msg = 'Combining all parents and teachers...';
+            
+            loadRecipientList(recipientType, null, msg);
         } else if (recipientType === 'specific_parent') {
             $('#quickStudentSearchGroup').show();
             // Clear previous student selection
@@ -694,12 +789,143 @@
             showComposeForm(recipientType);
             $('#totalRecipientsWidget').text('0');
             $('#recipientCount').text('0');
+        } else if (recipientType === 'specific_staff') {
+            $('#quickStaffSearchGroup').show();
+            $('#staffID').val('');
+            $('#quickStaffSearch').val('');
+            $('#quickStaffResults').hide().empty();
+            selectedStaffID = null;
+            showComposeForm(recipientType);
+            $('#totalRecipientsWidget').text('0');
+            $('#recipientCount').text('0');
         } else {
-            // For all_parents, all_parents_teachers, all_teachers, show form immediately and fetch count
+            // Fallback
             showComposeForm(recipientType);
             loadRecipientCount();
         }
     };
+
+    // Load Recipient List for Selection
+    let recipientDataTable = null;
+
+    function loadRecipientList(type, param = null, customMessage = null) {
+        if (typeof jQuery === 'undefined') return;
+        var $ = jQuery;
+        
+        // Destroy existing table if any
+        if (recipientDataTable) {
+            recipientDataTable.destroy();
+            recipientDataTable = null;
+        }
+
+        const loadingMsg = customMessage || 'Loading recipients...';
+        $('#recipientListTbody').html(`<tr><td colspan="4" class="text-center"><i class="fa fa-spinner fa-spin"></i> ${loadingMsg}</td></tr>`);
+        $('#selectAllRecipients').prop('checked', true);
+        
+        let url = '';
+        let data = {};
+        
+        if (type === 'all_parents') url = '{{ route("get_all_parents_sms") }}';
+        else if (type === 'all_teachers') url = '{{ route("get_all_teachers_sms") }}';
+        else if (type === 'all_staff') url = '{{ route("get_all_staff_sms") }}';
+        else if (type === 'class_parents') {
+            url = '{{ route("get_parents_by_class_sms") }}';
+            data = { classID: param };
+        }
+        else if (type === 'all_parents_teachers') {
+            // Special handling for combined list
+            Promise.all([
+                $.ajax({ url: '{{ route("get_all_parents_sms") }}', type: 'GET' }),
+                $.ajax({ url: '{{ route("get_all_teachers_sms") }}', type: 'GET' })
+            ]).then(results => {
+                const parents = results[0].success ? results[0].parents : [];
+                const teachers = results[1].success ? results[1].teachers : [];
+                renderRecipientTable([...parents.map(p => ({...p, type:'parent', id: p.parentID})), ...teachers.map(t => ({...t, type:'teacher', id: t.id}))]);
+            });
+            return;
+        }
+        
+        if (!url) return;
+        
+        $.ajax({
+            url: url,
+            type: 'GET',
+            data: data,
+            success: function(response) {
+                if (response.success) {
+                    let items = [];
+                    if (type === 'all_parents' || type === 'class_parents') items = response.parents.map(p => ({...p, type:'parent', id: p.parentID}));
+                    else if (type === 'all_teachers') items = response.teachers.map(t => ({...t, type:'teacher', id: t.id}));
+                    else if (type === 'all_staff') items = response.staff.map(s => ({...s, type:'staff', id: s.id}));
+                    
+                    renderRecipientTable(items);
+                }
+            }
+        });
+    }
+
+    function renderRecipientTable(items) {
+        let html = '';
+        if (!items || items.length === 0) {
+            html = '<tr><td colspan="4" class="text-center">No recipients found</td></tr>';
+        } else {
+            items.forEach((item, index) => {
+                const name = (item.first_name || '') + ' ' + (item.middle_name || '') + ' ' + (item.last_name || item.phone || '');
+                const phone = item.phone || item.phone_number || 'N/A';
+                const role = item.type.toUpperCase();
+                html += `
+                    <tr>
+                        <td>
+                            <div class="d-flex justify-content-center">
+                                <input type="checkbox" class="form-check-input recipient-checkbox" value="${item.id}" checked style="transform: scale(1.1); cursor: pointer;">
+                            </div>
+                        </td>
+                        <td><strong>${name.trim()}</strong></td>
+                        <td>${phone}</td>
+                        <td><span class="badge bg-light text-dark border">${role}</span></td>
+                    </tr>
+                `;
+            });
+        }
+        $('#recipientListTbody').html(html);
+        
+        // Initialize DataTables
+        if (items && items.length > 0) {
+            recipientDataTable = $('#recipientListTable').DataTable({
+                "pageLength": 10,
+                "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
+                "order": [[1, 'asc']],
+                "columnDefs": [
+                    { "orderable": false, "targets": 0 } // Disable sorting on the checkbox column
+                ],
+                "drawCallback": function() {
+                    updateManualSelectionCount();
+                }
+            });
+        }
+        
+        $('#selectAllRecipients').prop('checked', items && items.length > 0);
+        updateManualSelectionCount();
+    }
+
+    function updateManualSelectionCount() {
+        // When using DataTables, we need to find checkboxes across all pages
+        const $table = $('#recipientListTable');
+        const count = $table.find('.recipient-checkbox:checked').length;
+        
+        // If we want to support selection across ALL pages, we need a more complex way
+        // For now, let's just use what's visible or handle it via a global array
+        // Simpler approach for now:
+        const ids = [];
+        $('.recipient-checkbox:checked').each(function() {
+            ids.push($(this).val());
+        });
+        
+        const totalChecked = ids.length;
+        $('#recipientCount').text(totalChecked);
+        $('#totalRecipientsWidget').text(totalChecked);
+        $('#selected_ids').val(ids.join(','));
+    }
 
     // Removed - no longer needed since we use search section only
 
@@ -823,6 +1049,28 @@
             return;
         }
 
+        if (recipientType === 'specific_staff' && !$('#staffID').val()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Staff Required',
+                text: 'Please select a staff member'
+            });
+            return;
+        }
+        
+        // Check manual selection for "All" types
+        if (['all_parents', 'all_teachers', 'all_staff', 'all_parents_teachers', 'class_parents'].includes(recipientType)) {
+            const count = $('.recipient-checkbox:checked').length;
+            if (count === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Recipients Required',
+                    text: 'Please select at least one recipient from the list'
+                });
+                return;
+            }
+        }
+
         // Confirm before sending
         Swal.fire({
             title: 'Confirm Send',
@@ -907,7 +1155,9 @@
             message: messageValue,
             classID: $('#classID').val() || null,
             studentID: $('#studentID').val() || null,
-            teacherID: $('#teacherID').val() || null
+            teacherID: $('#teacherID').val() || null,
+            staffID: $('#staffID').val() || null,
+            selected_ids: $('#selected_ids').val() || null
         };
         
         console.log('=== Sending SMS ===');
@@ -1030,13 +1280,16 @@
             `;
             
             results.details.forEach(detail => {
-                const statusClass = detail.status === 'success' ? 'badge-success-custom' : 'badge-danger-custom';
+                const statusIcon = detail.status === 'success' 
+                    ? '<i class="fa fa-check-circle text-success" style="font-size: 1.2rem;"></i>' 
+                    : '<i class="fa fa-times-circle text-danger" style="font-size: 1.2rem;"></i>';
+                const statusBadge = detail.status === 'success' ? 'badge-success-custom' : 'badge-danger-custom';
                 html += `
                     <tr>
                         <td>${detail.name}</td>
                         <td>${detail.phone}</td>
-                        <td><span class="${statusClass}">${detail.status}</span></td>
-                        <td>${detail.message}</td>
+                        <td class="text-center">${statusIcon}</td>
+                        <td><span class="${statusBadge}">${detail.status}</span> - ${detail.message}</td>
                     </tr>
                 `;
             });
@@ -1142,6 +1395,23 @@
                 $('#recipientCount').text('1');
                 return;
 
+            case 'all_staff':
+                countPromise = $.ajax({
+                    url: '{{ route("get_all_staff_sms") }}',
+                    type: 'GET'
+                }).then(res => res.success ? res.count : 0);
+                break;
+                
+            case 'specific_staff':
+                if (!$('#staffID').val()) {
+                    $('#totalRecipientsWidget').text('0');
+                    $('#recipientCount').text('0');
+                    return;
+                }
+                $('#totalRecipientsWidget').text('1');
+                $('#recipientCount').text('1');
+                return;
+
             default:
                 $('#totalRecipientsWidget').text('0');
                 return;
@@ -1204,6 +1474,17 @@
                     recipientText = `Teacher: ${teacherName}`;
                 } else {
                     recipientText = 'Teacher: [Search Teacher]';
+                }
+                break;
+            case 'all_staff':
+                recipientText = 'All Staff Members';
+                break;
+            case 'specific_staff':
+                const staffName = $('#quickStaffSearch').val();
+                if (staffName) {
+                    recipientText = `Staff: ${staffName}`;
+                } else {
+                    recipientText = 'Staff: [Search Staff]';
                 }
                 break;
         }
@@ -1313,7 +1594,76 @@
         });
     }
 
-    // Select Quick Student - Make available globally
+    // Search Quick Staff
+    function searchQuickStaff(search) {
+        if (typeof jQuery === 'undefined') return;
+        var $ = jQuery;
+
+        $.ajax({
+            url: '{{ route("search_staff_sms") }}',
+            type: 'GET',
+            data: { search: search },
+            success: function(response) {
+                if (response.success && response.staff.length > 0) {
+                    let html = '';
+                    response.staff.forEach(s => {
+                        const fullName = `${s.first_name} ${s.middle_name || ''} ${s.last_name || ''}`.trim();
+                        const phone = s.phone_number || 'N/A';
+                        const escapedName = fullName.replace(/'/g, "\\'");
+                        const escapedPhone = phone.replace(/'/g, "\\'");
+                        html += `
+                            <div class="student-result-item" onclick="selectQuickStaff(${s.id}, '${escapedName}', '${escapedPhone}')">
+                                <div class="student-info">
+                                    <div>
+                                        <div class="student-name">${fullName}</div>
+                                        <div class="student-details">Phone: ${phone}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    $('#quickStaffResults').html(html).show();
+                } else {
+                    $('#quickStaffResults').html('<div class="student-result-item">No staff found</div>').show();
+                }
+            },
+            error: function() {
+                $('#quickStaffResults').html('<div class="student-result-item">Error searching staff</div>').show();
+            }
+        });
+    }
+
+    // Select Quick Staff
+    window.selectQuickStaff = function(staffID, name, phone) {
+        if (typeof jQuery === 'undefined') return;
+        var $ = jQuery;
+        
+        selectedStaffID = staffID;
+        $('#staffID').val(staffID);
+        $('#quickStaffSearch').val(name);
+        $('#quickStaffResults').hide();
+        
+        $('#recipient_type').val('specific_staff');
+        $('#quickRecipientType').val('specific_staff');
+        
+        $('#totalRecipientsWidget').text('1');
+        $('#recipientCount').text('1');
+        $('#selectedRecipientText').text(`Staff: ${name}`);
+        
+        const composeSection = $('#composeMessageSection');
+        composeSection.removeClass('hidden');
+        composeSection.css('display', 'block');
+        composeSection.show();
+        
+        setTimeout(() => {
+            const offset = composeSection.offset();
+            if (offset) {
+                $('html, body').animate({
+                    scrollTop: offset.top - 100
+                }, 500);
+            }
+        }, 200);
+    };
     window.selectQuickStudent = function(studentID, name, admissionNo, className) {
         if (typeof jQuery === 'undefined') {
             console.error('jQuery is not loaded');

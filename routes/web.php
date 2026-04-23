@@ -921,9 +921,11 @@ Route::get('sms_notification', [SMS_InformationController::class, 'sms_notificat
 Route::get('get_all_parents_sms', [SMS_InformationController::class, 'get_all_parents'])->name('get_all_parents_sms');
 Route::get('get_parents_by_class_sms', [SMS_InformationController::class, 'get_parents_by_class'])->name('get_parents_by_class_sms');
 Route::get('get_all_teachers_sms', [SMS_InformationController::class, 'get_all_teachers'])->name('get_all_teachers_sms');
+Route::get('get_all_staff_sms', [SMS_InformationController::class, 'get_all_staff'])->name('get_all_staff_sms');
 Route::get('get_parent_by_student_sms', [SMS_InformationController::class, 'get_parent_by_student'])->name('get_parent_by_student_sms');
 Route::get('search_students_sms', [SMS_InformationController::class, 'search_students'])->name('search_students_sms');
 Route::get('search_teachers_sms', [SMS_InformationController::class, 'search_teachers'])->name('search_teachers_sms');
+Route::get('search_staff_sms', [SMS_InformationController::class, 'search_staff'])->name('search_staff_sms');
 Route::get('get_sms_balance', [SMS_InformationController::class, 'get_sms_balance'])->name('get_sms_balance');
 Route::post('send_sms', [SMS_InformationController::class, 'send_sms'])->name('send_sms');
 

@@ -12,6 +12,7 @@ use App\Models\Combie;
 use App\Models\Attendance;
 use App\Models\School;
 use App\Models\ParentModel;
+use App\Models\OtherStaff;
 use App\Services\SmsService;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -164,6 +165,36 @@ class SMS_InformationController extends Controller
     }
 
     /**
+     * Get all staff
+     */
+    public function get_all_staff()
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+            }
+
+            $staff = OtherStaff::where('schoolID', $schoolID)
+                ->where('status', 'Active')
+                ->whereNotNull('phone_number')
+                ->where('phone_number', '!=', '')
+                ->get();
+
+            $count = $staff->count();
+
+            return response()->json([
+                'success' => true,
+                'count' => $count,
+                'staff' => $staff
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error getting all staff: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Get parent by student
      */
     public function get_parent_by_student(Request $request)
@@ -283,6 +314,45 @@ class SMS_InformationController extends Controller
     }
 
     /**
+     * Search staff for selection
+     */
+    public function search_staff(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+            }
+
+            $search = $request->input('search', '');
+
+            $query = OtherStaff::where('schoolID', $schoolID)
+                ->where('status', 'Active')
+                ->whereNotNull('phone_number')
+                ->where('phone_number', '!=', '');
+
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                      ->orWhere('middle_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%")
+                      ->orWhere('phone_number', 'like', "%{$search}%");
+                });
+            }
+
+            $staff = $query->limit(50)->get();
+
+            return response()->json([
+                'success' => true,
+                'staff' => $staff
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error searching staff: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Send SMS to recipients
      */
     public function send_sms(Request $request)
@@ -295,7 +365,7 @@ class SMS_InformationController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'message' => 'required|string|min:1',
-                'recipient_type' => 'required|in:all_parents,class_parents,all_parents_teachers,all_teachers,specific_parent,specific_teacher'
+                'recipient_type' => 'required|in:all_parents,class_parents,all_parents_teachers,all_teachers,specific_parent,specific_teacher,all_staff,specific_staff'
             ]);
 
             if ($validator->fails()) {
@@ -309,6 +379,10 @@ class SMS_InformationController extends Controller
 
             $message = $request->input('message');
             $recipientType = $request->input('recipient_type');
+            $selectedIds = $request->input('selected_ids'); // Optional array of IDs
+            if ($selectedIds && !is_array($selectedIds)) {
+                $selectedIds = explode(',', $selectedIds);
+            }
             
             // Prepend school name to message
             $fullMessage = $school->school_name . '. ' . $message;
@@ -325,13 +399,18 @@ class SMS_InformationController extends Controller
             switch ($recipientType) {
                 case 'all_parents':
                     // Get parents who have at least one active student
-                    $parents = ParentModel::where('schoolID', $schoolID)
+                    $parentsQuery = ParentModel::where('schoolID', $schoolID)
                         ->whereNotNull('phone')
                         ->where('phone', '!=', '')
                         ->whereHas('students', function($q) {
                             $q->where('status', 'Active');
-                        })
-                        ->get();
+                        });
+                    
+                    if (!empty($selectedIds)) {
+                        $parentsQuery->whereIn('parentID', $selectedIds);
+                    }
+
+                    $parents = $parentsQuery->get();
                     foreach ($parents as $parent) {
                         $recipients[] = [
                             'type' => 'parent',
@@ -349,15 +428,19 @@ class SMS_InformationController extends Controller
                     }
                     $subclassIDs = Subclass::where('classID', $classID)->pluck('subclassID');
                     // Get parents who have at least one active student in these subclasses
-                    $parents = ParentModel::where('schoolID', $schoolID)
+                    $parentsQuery = ParentModel::where('schoolID', $schoolID)
                         ->whereNotNull('phone')
                         ->where('phone', '!=', '')
                         ->whereHas('students', function($q) use ($subclassIDs) {
                             $q->whereIn('subclassID', $subclassIDs)
                               ->where('status', 'Active');
-                        })
-                        ->get()
-                        ->unique('parentID');
+                        });
+                    
+                    if (!empty($selectedIds)) {
+                        $parentsQuery->whereIn('parentID', $selectedIds);
+                    }
+
+                    $parents = $parentsQuery->get()->unique('parentID');
                     foreach ($parents as $parent) {
                         $recipients[] = [
                             'type' => 'parent',
@@ -369,14 +452,19 @@ class SMS_InformationController extends Controller
                     break;
 
                 case 'all_parents_teachers':
-                    // Get parents who have at least one active student
-                    $parents = ParentModel::where('schoolID', $schoolID)
+                    // Get parents
+                    $parentsQuery = ParentModel::where('schoolID', $schoolID)
                         ->whereNotNull('phone')
                         ->where('phone', '!=', '')
                         ->whereHas('students', function($q) {
                             $q->where('status', 'Active');
-                        })
-                        ->get();
+                        });
+                    
+                    if (!empty($selectedIds)) {
+                        $parentsQuery->whereIn('parentID', $selectedIds);
+                    }
+
+                    $parents = $parentsQuery->get();
                     foreach ($parents as $parent) {
                         $recipients[] = [
                             'type' => 'parent',
@@ -385,12 +473,18 @@ class SMS_InformationController extends Controller
                             'id' => $parent->parentID
                         ];
                     }
-                    // Get all active teachers
-                    $teachers = Teacher::where('schoolID', $schoolID)
+
+                    // Get teachers
+                    $teachersQuery = Teacher::where('schoolID', $schoolID)
                         ->where('status', 'Active')
                         ->whereNotNull('phone_number')
-                        ->where('phone_number', '!=', '')
-                        ->get();
+                        ->where('phone_number', '!=', '');
+                    
+                    if (!empty($selectedIds)) {
+                        $teachersQuery->whereIn('id', $selectedIds);
+                    }
+
+                    $teachers = $teachersQuery->get();
                     foreach ($teachers as $teacher) {
                         $recipients[] = [
                             'type' => 'teacher',
@@ -402,11 +496,16 @@ class SMS_InformationController extends Controller
                     break;
 
                 case 'all_teachers':
-                    $teachers = Teacher::where('schoolID', $schoolID)
+                    $teachersQuery = Teacher::where('schoolID', $schoolID)
                         ->where('status', 'Active')
                         ->whereNotNull('phone_number')
-                        ->where('phone_number', '!=', '')
-                        ->get();
+                        ->where('phone_number', '!=', '');
+                    
+                    if (!empty($selectedIds)) {
+                        $teachersQuery->whereIn('id', $selectedIds);
+                    }
+
+                    $teachers = $teachersQuery->get();
                     foreach ($teachers as $teacher) {
                         $recipients[] = [
                             'type' => 'teacher',
@@ -458,6 +557,49 @@ class SMS_InformationController extends Controller
                         'phone' => $teacher->phone_number,
                         'name' => $teacher->first_name . ' ' . ($teacher->last_name ?? ''),
                         'id' => $teacher->id
+                    ];
+                    break;
+
+                case 'all_staff':
+                    $staffQuery = OtherStaff::where('schoolID', $schoolID)
+                        ->where('status', 'Active')
+                        ->whereNotNull('phone_number')
+                        ->where('phone_number', '!=', '');
+                    
+                    if (!empty($selectedIds)) {
+                        $staffQuery->whereIn('id', $selectedIds);
+                    }
+
+                    $staff = $staffQuery->get();
+                    foreach ($staff as $s) {
+                        $recipients[] = [
+                            'type' => 'staff',
+                            'phone' => $s->phone_number,
+                            'name' => $s->first_name . ' ' . ($s->last_name ?? ''),
+                            'id' => $s->id
+                        ];
+                    }
+                    break;
+
+                case 'specific_staff':
+                    $staffID = $request->input('staffID');
+                    if (!$staffID) {
+                        return response()->json(['success' => false, 'message' => 'Staff ID is required'], 400);
+                    }
+                    $staff = OtherStaff::where('id', $staffID)
+                        ->where('schoolID', $schoolID)
+                        ->where('status', 'Active')
+                        ->whereNotNull('phone_number')
+                        ->where('phone_number', '!=', '')
+                        ->first();
+                    if (!$staff) {
+                        return response()->json(['success' => false, 'message' => 'Active staff not found or phone number not available'], 404);
+                    }
+                    $recipients[] = [
+                        'type' => 'staff',
+                        'phone' => $staff->phone_number,
+                        'name' => $staff->first_name . ' ' . ($staff->last_name ?? ''),
+                        'id' => $staff->id
                     ];
                     break;
             }
