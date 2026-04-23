@@ -865,6 +865,9 @@
     }
 
     function renderRecipientTable(items) {
+        if (typeof jQuery === 'undefined') return;
+        var $ = jQuery;
+        
         let html = '';
         if (!items || items.length === 0) {
             html = '<tr><td colspan="4" class="text-center">No recipients found</td></tr>';
@@ -909,19 +912,28 @@
     }
 
     function updateManualSelectionCount() {
-        // When using DataTables, we need to find checkboxes across all pages
-        const $table = $('#recipientListTable');
-        const count = $table.find('.recipient-checkbox:checked').length;
+        if (typeof jQuery === 'undefined') return;
+        var $ = jQuery;
+
+        let ids = [];
+        let totalChecked = 0;
+
+        // If DataTable exists, use its API to find checkboxes on ALL pages
+        if ($.fn.DataTable.isDataTable('#recipientListTable')) {
+            const table = $('#recipientListTable').DataTable();
+            // Search through all rows in the DataTable (not just current page)
+            table.rows().nodes().to$().find('.recipient-checkbox:checked').each(function() {
+                ids.push($(this).val());
+            });
+            totalChecked = ids.length;
+        } else {
+            // Fallback for when DataTable isn't initialized yet
+            $('.recipient-checkbox:checked').each(function() {
+                ids.push($(this).val());
+            });
+            totalChecked = ids.length;
+        }
         
-        // If we want to support selection across ALL pages, we need a more complex way
-        // For now, let's just use what's visible or handle it via a global array
-        // Simpler approach for now:
-        const ids = [];
-        $('.recipient-checkbox:checked').each(function() {
-            ids.push($(this).val());
-        });
-        
-        const totalChecked = ids.length;
         $('#recipientCount').text(totalChecked);
         $('#totalRecipientsWidget').text(totalChecked);
         $('#selected_ids').val(ids.join(','));

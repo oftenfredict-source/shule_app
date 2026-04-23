@@ -934,7 +934,8 @@ class LibraryController extends Controller
 
             // Validate input
             $validator = Validator::make($request->all(), [
-                'isbn' => 'required|string|max:50',
+                'bookID' => 'required_without:isbn|nullable|exists:books,bookID',
+                'isbn' => 'required_without:bookID|nullable|string|max:50',
                 'borrower_ids' => 'required|array',
                 'borrower_types' => 'required|array',
                 'expected_return_date' => 'required|date|after_or_equal:today',
@@ -951,9 +952,13 @@ class LibraryController extends Controller
             }
 
             // Find book and verify it belongs to this school
-            $book = Book::where('isbn', $request->isbn)
-                ->where('schoolID', $schoolID)
-                ->first();
+            $query = Book::where('schoolID', $schoolID);
+            if ($request->bookID) {
+                $query->where('bookID', $request->bookID);
+            } else {
+                $query->where('isbn', $request->isbn);
+            }
+            $book = $query->first();
 
             if (!$book) {
                 return response()->json([

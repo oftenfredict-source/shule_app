@@ -1080,7 +1080,11 @@
                 </div>`;
             
             $('#bookDetailsContent').html(content);
-            let buttons = `<button class="btn btn-outline-secondary btn-sm" onclick="editBook('${book.bookID}')">EDIT</button>`;
+            let buttons = `
+                <button class="btn btn-outline-danger btn-sm mr-auto" onclick="deleteBook('${book.bookID}', 'details')">
+                    <i class="fa fa-trash"></i> DELETE
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="editBook('${book.bookID}')">EDIT</button>`;
             if (!book.is_available && !book.is_lost && !book.is_damaged) 
                 buttons += `<button class="btn btn-success btn-sm ml-2" onclick="lookupBookByIsbn('${book.isbn}', true)">QUICK RETURN</button>`;
             if (book.is_available)
@@ -1256,8 +1260,12 @@
                         success: function(res) {
                             if (res.success) {
                                 Swal.fire('Deleted!', 'The book has been deleted.', 'success');
-                                clearBookSelection(prefix);
-                                // Optional: refresh some lists if needed
+                                if (prefix === 'details') {
+                                    $('#bookDetailsModal').modal('hide');
+                                    loadBooks();
+                                } else {
+                                    clearBookSelection(prefix);
+                                }
                             } else {
                                 Swal.fire('Error', res.message || 'Could not delete book', 'error');
                             }
@@ -1347,6 +1355,7 @@
             $.post('{{ route("borrow_book") }}', {
                 _token: '{{ csrf_token() }}',
                 bookID: selectedBookID,
+                isbn: $('#borrowISBN').val(),
                 borrower_ids: selectedBorrowers.map(b => b.id),
                 borrower_types: selectedBorrowers.map(b => b.type),
                 expected_return_date: expectedReturnDate

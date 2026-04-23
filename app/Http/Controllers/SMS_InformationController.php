@@ -62,16 +62,14 @@ class SMS_InformationController extends Controller
                 return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
             }
 
-            // Get parents who have at least one active student
+            // Optimized query: Only select necessary fields and avoid eager loading
             $parents = ParentModel::where('schoolID', $schoolID)
                 ->whereNotNull('phone')
                 ->where('phone', '!=', '')
                 ->whereHas('students', function($q) {
                     $q->where('status', 'Active');
                 })
-                ->with(['students' => function($q) {
-                    $q->where('status', 'Active');
-                }, 'students.subclass.class'])
+                ->select('parentID', 'first_name', 'middle_name', 'last_name', 'phone')
                 ->get();
 
             $count = $parents->count();
@@ -106,7 +104,7 @@ class SMS_InformationController extends Controller
             // Get all subclasses for this class
             $subclassIDs = Subclass::where('classID', $classID)->pluck('subclassID');
 
-            // Get parents who have at least one active student in these subclasses
+            // Optimized query: Only select necessary fields and avoid eager loading
             $parents = ParentModel::where('schoolID', $schoolID)
                 ->whereNotNull('phone')
                 ->where('phone', '!=', '')
@@ -114,10 +112,7 @@ class SMS_InformationController extends Controller
                     $q->whereIn('subclassID', $subclassIDs)
                       ->where('status', 'Active');
                 })
-                ->with(['students' => function($q) use ($subclassIDs) {
-                    $q->whereIn('subclassID', $subclassIDs)
-                      ->where('status', 'Active');
-                }])
+                ->select('parentID', 'first_name', 'middle_name', 'last_name', 'phone')
                 ->get()
                 ->unique('parentID');
 
@@ -149,6 +144,7 @@ class SMS_InformationController extends Controller
                 ->where('status', 'Active')
                 ->whereNotNull('phone_number')
                 ->where('phone_number', '!=', '')
+                ->select('id', 'first_name', 'middle_name', 'last_name', 'phone_number')
                 ->get();
 
             $count = $teachers->count();
@@ -179,6 +175,7 @@ class SMS_InformationController extends Controller
                 ->where('status', 'Active')
                 ->whereNotNull('phone_number')
                 ->where('phone_number', '!=', '')
+                ->select('id', 'first_name', 'middle_name', 'last_name', 'phone_number')
                 ->get();
 
             $count = $staff->count();
