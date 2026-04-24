@@ -261,6 +261,14 @@
                     let rows = '';
                     if (response.logbookEntries.length > 0) {
                         response.logbookEntries.forEach((entry, index) => {
+                            let hodStatus = entry.hod_comment 
+                                ? `<span class="badge badge-success" style="font-size: 10px;"><i class="fa fa-check"></i> COMMENTED</span><div class="mt-1 xsmall text-dark">${entry.hod_comment}</div>` 
+                                : `<span class="badge badge-secondary" style="font-size: 10px;">PENDING</span>`;
+                            
+                            let hmStatus = entry.hm_comment 
+                                ? `<span class="badge badge-success" style="font-size: 10px;"><i class="fa fa-check"></i> COMMENTED</span><div class="mt-1 xsmall text-dark">${entry.hm_comment}</div>` 
+                                : `<span class="badge badge-secondary" style="font-size: 10px;">PENDING</span>`;
+
                             rows += `
                                 <tr class="text-center small">
                                     <td class="font-weight-bold">${index + 1}</td>
@@ -269,9 +277,12 @@
                                     <td>${entry.content_covered || ''}</td>
                                     <td>${entry.date_started || ''}</td>
                                     <td>${entry.date_ended || ''}</td>
-                                    <td>${entry.teacher_comment || ''}</td>
-                                    <td class="text-muted italic">${entry.hod_comment || 'Pending...'}</td>
-                                    <td class="text-muted italic">${entry.hm_comment || 'Pending...'}</td>
+                                    <td>
+                                        <span class="badge badge-success" style="font-size: 10px;"><i class="fa fa-check"></i> SIGNED</span>
+                                        <div class="mt-1 xsmall text-dark">${entry.teacher_comment || ''}</div>
+                                    </td>
+                                    <td>${hodStatus}</td>
+                                    <td>${hmStatus}</td>
                                 </tr>
                             `;
                         });

@@ -306,6 +306,9 @@ Route::get('teacher/department-logbook', [TeachersController::class, 'department
 Route::get('teacher/get-department-logbook-data', [TeachersController::class, 'getDepartmentLogbookData'])->name('teacher.getDepartmentLogbookData');
 Route::post('teacher/sign-logbook', [TeachersController::class, 'signLogbook'])->name('teacher.signLogbook');
 Route::get('teacher/download-logbook-pdf/{classSubjectID}', [TeachersController::class, 'downloadLogbookPdf'])->name('teacher.downloadLogbookPdf');
+Route::get('admin/logbook', [TeachersController::class, 'adminLogbook'])->name('admin.logbook');
+Route::get('admin/get-logbook-data', [TeachersController::class, 'getAdminLogbookData'])->name('admin.getLogbookData');
+Route::post('admin/sign-logbook', [TeachersController::class, 'adminSignLogbook'])->name('admin.adminSignLogbook');
 Route::get('teacherSubjects', [TeachersController::class, 'teacherSubjects'])->name('teacherSubjects');
 Route::get('teacher/scheme-of-work', [TeachersController::class, 'schemeOfWork'])->name('teacher.schemeOfWork');
 Route::get('teacher/scheme-of-work/create/{classSubjectID}', [TeachersController::class, 'createNewScheme'])->name('teacher.createSchemeOfWork');

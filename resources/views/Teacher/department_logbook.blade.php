@@ -1,22 +1,24 @@
-@include('includes.teacher_nav')
+@if($user_type == 'Admin')
+    @include('includes.Admin_nav')
+@elseif($user_type == 'Staff')
+    @include('includes.staff_nav')
+@else
+    @include('includes.teacher_nav')
+@endif
 
 <div class="content-wrapper" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif; background-color: #FFFFFF;">
     <div class="content mt-3">
         <div class="animated fadeIn">
-            <!-- Header Section -->
+            
+            <!-- Header (Style from character_assessment) -->
             <div class="row mb-4">
                 <div class="col-md-12">
                     <div class="card border-0 shadow-sm" style="border-radius: 0; border-left: 5px solid #940000 !important; background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
-                        <div class="card-body">
+                        <div class="card-body py-4">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">DEPARTMENT LOGBOOKS</h4>
-                                    <p class="text-muted mb-0 small" style="font-weight: 600;">Monitor and sign teaching records for your department</p>
-                                </div>
-                                <div>
-                                    <button class="btn shadow-sm text-white" id="downloadPdfBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 20px; display: none;">
-                                        <i class="fa fa-file-pdf-o"></i> DOWNLOAD PDF
-                                    </button>
+                                    <p class="text-muted mb-0 small" style="font-weight: 600;">Monitor and provide comments on teaching records for your department</p>
                                 </div>
                             </div>
                         </div>
@@ -24,92 +26,75 @@
                 </div>
             </div>
 
-            <!-- Department Filters -->
-            <div class="row mb-4">
-                <div class="col-md-12">
-                    <div class="card border-0 shadow-sm" style="border-radius: 0; background-color: #FFFFFF;">
-                        <div class="card-header border-0 p-4" style="background: #fafafa;">
-                            <div class="row align-items-end">
-                                <div class="col-md-4">
-                                    <label class="small font-weight-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">Select Subject</label>
-                                    <select id="hocSubjectSelect" class="form-control" style="border-radius:0; border:1px solid #ddd; font-weight:600;">
-                                        <option value="">-- Choose Subject --</option>
-                                        @foreach($subjects as $subj)
-                                            <option value="{{ $subj->subjectID }}">{{ $subj->subject_name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="small font-weight-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">Select Class</label>
-                                    <select id="hocClassSelect" class="form-control" style="border-radius:0; border:1px solid #ddd; font-weight:600;">
-                                        <option value="">-- Choose Class --</option>
-                                        @foreach($classes as $cls)
-                                            <option value="{{ $cls->classID }}">{{ $cls->class_name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <button class="btn btn-block text-white" id="loadDeptLogbookBtn" style="background:#2f2f2f; border-radius:0; height:calc(1.5em + .75rem + 2px); font-weight: 700;">
-                                        <i class="fa fa-search"></i> FILTER
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Filters Section -->
+            <div class="row mb-4 pt-2 pb-3" style="background: rgba(255,255,255,0.98); border-bottom: 2px solid #f0f0f0;">
+                <div class="col-md-3 mb-2">
+                    <label class="small font-weight-bold text-muted" style="letter-spacing: 1px;">SELECT SUBJECT</label>
+                    <select id="hocSubjectSelect" class="form-control border-0 bg-light" style="border-radius: 0; font-weight: 700; color: #940000; height: 50px;">
+                        <option value="">-- Choose Subject --</option>
+                        @foreach($subjects as $subj)
+                            <option value="{{ $subj->subjectID }}">{{ $subj->subject_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="small font-weight-bold text-muted" style="letter-spacing: 1px;">SELECT CLASS</label>
+                    <select id="hocClassSelect" class="form-control border-0 bg-light" style="border-radius: 0; font-weight: 700; color: #940000; height: 50px;">
+                        <option value="">-- Choose Class --</option>
+                        @foreach($classes as $cls)
+                            <option value="{{ $cls->classID }}">{{ $cls->class_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="small font-weight-bold text-muted" style="letter-spacing: 1px;">SELECT STREAM</label>
+                    <select id="hocSubclassSelect" class="form-control border-0 bg-light" style="border-radius: 0; font-weight: 700; color: #940000; height: 50px;">
+                        <option value="">-- Choose Stream --</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="button" id="loadDeptLogbookBtn" class="btn btn-block text-white" style="border-radius: 0; background: #940000; font-weight: 700; border: none; height: 50px;">
+                        <i class="fa fa-search"></i> FILTER RECORDS
+                    </button>
                 </div>
             </div>
 
-            <!-- Logbook Content -->
+            <!-- Data Display Area -->
             <div id="deptLogbookContainer" style="display: none;">
-                <!-- Header Info -->
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <div class="p-3 shadow-sm border" style="background-color: #FFF5F5; border-radius: 0;">
-                            <div class="row text-center">
-                                <div class="col-md-3">
-                                    <small class="text-muted d-block font-weight-bold">SUBJECT</small>
-                                    <span id="h_Subject" class="font-weight-bold" style="color: #940000;"></span>
-                                </div>
-                                <div class="col-md-3">
-                                    <small class="text-muted d-block font-weight-bold">CLASS</small>
-                                    <span id="h_Class" class="font-weight-bold" style="color: #940000;"></span>
-                                </div>
-                                <div class="col-md-3">
-                                    <small class="text-muted d-block font-weight-bold">YEAR</small>
-                                    <span id="h_Year" class="font-weight-bold" style="color: #940000;"></span>
-                                </div>
-                                <div class="col-md-3">
-                                    <small class="text-muted d-block font-weight-bold">TEACHER</small>
-                                    <span id="h_Teacher" class="font-weight-bold" style="color: #940000;"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Table -->
                 <div class="row">
                     <div class="col-md-12">
-                        <div class="card border-0 shadow-sm" style="border-radius: 0;">
+                        <div class="card border-0 shadow-sm" style="border-radius: 0; border-top: 3px solid #940000;">
+                            <div class="card-header bg-white p-4 border-0 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1 font-weight-bold" style="color: #2f2f2f;">Teaching Records</h5>
+                                    <div class="small text-muted" style="font-weight: 600;">
+                                        <span id="h_Subject" style="color: #940000;"></span> | 
+                                        <span id="h_Class"></span> | 
+                                        <span id="h_Teacher"></span>
+                                    </div>
+                                </div>
+                                <button id="downloadPdfBtn" class="btn btn-outline-danger btn-sm font-weight-bold" style="border-radius: 0; display: none;">
+                                    <i class="fa fa-file-pdf-o mr-1"></i> DOWNLOAD PDF
+                                </button>
+                            </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive">
-                                    <table class="table table-bordered table-hover mb-0" style="border-color: #eee;">
-                                        <thead style="background-color: #940000; color: white;">
-                                            <tr class="text-center small">
-                                                <th style="width: 50px;">SN</th>
-                                                <th>MAIN TOPIC</th>
-                                                <th>SUB TOPIC</th>
-                                                <th>CONTENT COVERED</th>
-                                                <th>DATE STARTED</th>
-                                                <th>DATE ENDED</th>
-                                                <th>TEACHER'S COMMENT</th>
-                                                <th>H.O.D COMMENT</th>
-                                                <th>H/M COMMENT</th>
-                                                <th>ACTION</th>
+                                    <table class="table table-hover mb-0" id="deptLogbookTable">
+                                        <thead style="background: #FFF5F5;">
+                                            <tr class="text-center small text-uppercase font-weight-bold" style="color: #940000;">
+                                                <th class="border-0">#</th>
+                                                <th class="border-0">Topic</th>
+                                                <th class="border-0">Subtopic</th>
+                                                <th class="border-0">Content</th>
+                                                <th class="border-0">Start Date</th>
+                                                <th class="border-0">End Date</th>
+                                                <th class="border-0">HOD Comment</th>
+                                                <th class="border-0">HM Comment</th>
+                                                <th class="border-0">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody id="deptLogbookBody">
-                                            <!-- Dynamic Rows -->
+                                            <!-- Data injected via AJAX -->
                                         </tbody>
                                     </table>
                                 </div>
@@ -119,46 +104,43 @@
                 </div>
             </div>
 
-            <!-- Welcome Placeholder -->
-            <div class="py-5 text-center" id="deptWelcomePlaceholder">
-                <div class="p-4 mb-4 rounded-circle mx-auto" style="background-color: #FFF5F5; width: fit-content;">
-                    <i class="fa fa-users fa-4x text-muted" style="color: #940000 !important;"></i>
+            <!-- Initial Placeholder -->
+            <div id="deptWelcomePlaceholder" class="text-center p-5 mt-5">
+                <div class="py-5">
+                    <i class="fa fa-book fa-4x mb-4" style="color: #FFF5F5;"></i>
+                    <h4 class="text-muted font-weight-bold">Select parameters above to review records</h4>
                 </div>
-                <h3 class="font-weight-bold mb-3" style="color: #2f2f2f;">Departmental Oversight</h3>
-                <p class="text-muted mb-4 px-3" style="max-width: 600px; margin: 0 auto;">
-                    Select a subject and class to review the logbooks of teachers in your department. 
-                    You can provide feedback and sign off on content coverage.
-                </p>
             </div>
+
         </div>
     </div>
 </div>
 
-<!-- Sign Modal -->
-<div class="modal fade" id="signModal" tabindex="-1" role="dialog" aria-hidden="true">
+<!-- Comment Modal -->
+<div class="modal fade" id="commentModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content border-0" style="border-radius: 0;">
-            <div class="modal-header border-0 p-4 d-block" style="background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: #940000; opacity: 1;">
+        <div class="modal-content" style="border-radius: 0; border: none; box-shadow: 0 15px 50px rgba(0,0,0,0.2);">
+            <div class="modal-header p-4 border-0" style="background: #940000; border-radius: 0;">
+                <h5 class="modal-title font-weight-bold text-white"><i class="fa fa-commenting mr-2"></i> DEPARTMENT FEEDBACK</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
-                <h5 class="modal-title font-weight-bold mb-1" style="color: #940000; letter-spacing: 0.5px;">SIGN LOGBOOK ENTRY</h5>
-                <p class="text-muted small mb-0 font-weight-bold">Provide your comment as Head of Department.</p>
             </div>
-            <form id="signForm">
+            <form id="commentForm">
                 @csrf
-                <input type="hidden" name="logbookID" id="signLogbookID">
+                <input type="hidden" name="logbookID" id="commentLogbookID">
                 <div class="modal-body p-4">
-                    <div class="row">
-                        <div class="col-md-12">
-                            <label class="small font-weight-bold text-uppercase pb-1" style="color:#666;">H.O.D Comment</label>
-                            <textarea name="hod_comment" id="signCommentText" class="form-control" rows="4" required style="border-radius: 0;" placeholder="e.g. Content verified, keep it up."></textarea>
-                        </div>
+                    <div class="form-group">
+                        <label class="small font-weight-bold text-uppercase" style="color:#666;">HOD Comment</label>
+                        <textarea name="hod_comment" id="hodCommentText" class="form-control bg-light border-0" rows="4" required style="border-radius: 0;" placeholder="Enter your comments for the teacher..."></textarea>
+                    </div>
+                    <div class="alert alert-info small border-0" style="border-radius: 0; background-color: #FFF5F5; color: #940000;">
+                        <i class="fa fa-info-circle mr-1"></i> The teacher will be notified via SMS.
                     </div>
                 </div>
                 <div class="modal-footer border-0 p-4 pt-0">
-                    <button type="button" class="btn px-4 font-weight-bold" data-dismiss="modal" style="border-radius: 0; background: #f0f0f0; color: #2f2f2f;">CANCEL</button>
-                    <button type="submit" class="btn px-4 font-weight-bold text-white shadow-sm" style="border-radius: 0; background: #940000; border: none;">SUBMIT SIGNATURE</button>
+                    <button type="button" class="btn px-4 font-weight-bold btn-light" data-dismiss="modal" style="border-radius: 0;">CANCEL</button>
+                    <button type="submit" class="btn px-4 font-weight-bold text-white" style="border-radius: 0; background: #940000; border: none;">SAVE COMMENT</button>
                 </div>
             </form>
         </div>
@@ -167,152 +149,154 @@
 
 <input type="hidden" id="current_classSubjectID">
 
+@include('includes.footer')
+
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    $(document).ready(function() {
-        $('#loadDeptLogbookBtn').on('click', function() {
-            const subjectID = $('#hocSubjectSelect').val();
-            const classID = $('#hocClassSelect').val();
-            
-            if (!subjectID || !classID) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Selection Required',
-                    text: 'Please select both subject and class.',
-                    confirmButtonColor: '#940000'
+    (function($) {
+        $(document).ready(function() {
+            // Subclass loading
+            $('#hocClassSelect').on('change', function() {
+                const classID = $(this).val();
+                const subclassSelect = $('#hocSubclassSelect');
+                subclassSelect.html('<option value="">-- Loading... --</option>');
+                if (!classID) {
+                    subclassSelect.html('<option value="">-- Choose Stream --</option>');
+                    return;
+                }
+                $.ajax({
+                    url: "{{ url('get_class_subclasses') }}/" + classID,
+                    type: 'GET',
+                    success: function(response) {
+                        let options = '<option value="">-- Choose Stream --</option>';
+                        let data = [];
+                        if (Array.isArray(response)) data = response;
+                        else if (response.subclasses) data = response.subclasses;
+                        if (data.length > 0) {
+                            data.forEach(sub => {
+                                options += `<option value="${sub.subclassID}">${sub.subclass_name || sub.display_name}</option>`;
+                            });
+                        }
+                        subclassSelect.html(options);
+                    }
                 });
-                return;
+            });
+
+            // Load Data
+            $('#loadDeptLogbookBtn').on('click', function() {
+                const subjectID = $('#hocSubjectSelect').val();
+                const classID = $('#hocClassSelect').val();
+                const subclassID = $('#hocSubclassSelect').val();
+                
+                if (!subjectID || !classID || !subclassID) {
+                    Swal.fire({ icon: 'warning', title: 'Selection Required', text: 'Please select Subject, Class, and Stream.', confirmButtonColor: '#940000' });
+                    return;
+                }
+
+                const $btn = $(this);
+                const originalHtml = $btn.html();
+                $btn.html('<i class="fa fa-spinner fa-spin"></i>').prop('disabled', true);
+
+                $.ajax({
+                    url: "{{ route('teacher.getDepartmentLogbookData') }}",
+                    type: 'GET',
+                    data: { subjectID: subjectID, classID: classID, subclassID: subclassID },
+                    success: function(response) {
+                        $btn.html(originalHtml).prop('disabled', false);
+                        if (response.success) {
+                            $('#deptWelcomePlaceholder').hide();
+                            $('#deptLogbookContainer').show();
+                            $('#downloadPdfBtn').show();
+                            $('#h_Subject').text(response.subjectName);
+                            $('#h_Class').text(response.className + ' (' + (response.subclassName || 'N/A') + ')');
+                            $('#h_Teacher').text('Teacher: ' + (response.teacherName || 'Not Assigned'));
+                            $('#current_classSubjectID').val(response.classSubjectID);
+
+                            let rows = '';
+                            if (response.logbookEntries && response.logbookEntries.length > 0) {
+                                response.logbookEntries.forEach((entry, index) => {
+                                    let hodStatus = entry.hod_comment 
+                                        ? `<span class="badge badge-success px-2 py-1" style="border-radius:0; background:#28a745;">COMMENTED</span><div class="small mt-1 text-dark">${entry.hod_comment}</div>` 
+                                        : `<span class="badge badge-secondary px-2 py-1" style="border-radius:0;">PENDING</span>`;
+                                    let hmStatus = entry.hm_comment 
+                                        ? `<span class="badge badge-success px-2 py-1" style="border-radius:0; background:#28a745;">COMMENTED</span><div class="small mt-1 text-dark">${entry.hm_comment}</div>` 
+                                        : `<span class="badge badge-secondary px-2 py-1" style="border-radius:0;">PENDING</span>`;
+
+                                    rows += `
+                                        <tr class="text-center align-middle small">
+                                            <td class="font-weight-bold">${index + 1}</td>
+                                            <td>${entry.main_topic || ''}</td>
+                                            <td>${entry.sub_topic || ''}</td>
+                                            <td style="max-width: 250px; white-space: normal;">${entry.content_covered || ''}</td>
+                                            <td>${entry.date_started || ''}</td>
+                                            <td>${entry.date_ended || ''}</td>
+                                            <td style="max-width: 150px;">${hodStatus}</td>
+                                            <td style="max-width: 150px;">${hmStatus}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger font-weight-bold" onclick="openCommentModal(${entry.logbookID}, '${escapeJs(entry.hod_comment || '')}')" style="border-radius:0;">
+                                                    <i class="fa fa-comment"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `;
+                                });
+                            } else {
+                                rows = '<tr><td colspan="9" class="p-5 text-center text-muted font-weight-bold">No records found for this selection.</td></tr>';
+                            }
+                            $('#deptLogbookBody').html(rows);
+                        } else {
+                            Swal.fire('Notice', response.message || 'No data found', 'info');
+                        }
+                    },
+                    error: function(xhr) {
+                        $btn.html(originalHtml).prop('disabled', false);
+                        let msg = 'Failed to load records.';
+                        if (xhr.status === 403) msg = xhr.responseJSON ? xhr.responseJSON.message : 'Access denied.';
+                        Swal.fire('Error', msg, 'error');
+                    }
+                });
+            });
+
+            // Comment Submission
+            $('#commentForm').on('submit', function(e) {
+                e.preventDefault();
+                const $btn = $(this).find('button[type="submit"]');
+                $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> SAVING...');
+                $.ajax({
+                    url: "{{ route('teacher.signLogbook') }}",
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        if (response.success) {
+                            $('#commentModal').modal('hide');
+                            Swal.fire({ icon: 'success', title: 'Saved', text: response.message, timer: 1500, showConfirmButton: false });
+                            $('#loadDeptLogbookBtn').click();
+                        } else {
+                            Swal.fire('Error', response.message, 'error');
+                        }
+                    },
+                    complete: function() {
+                        $btn.prop('disabled', false).text('SAVE COMMENT');
+                    }
+                });
+            });
+
+            $('#downloadPdfBtn').on('click', function() {
+                const classSubjectID = $('#current_classSubjectID').val();
+                if (!classSubjectID) return;
+                window.open("{{ url('teacher/download-logbook-pdf') }}/" + classSubjectID, '_blank');
+            });
+
+            function escapeJs(text) {
+                if (!text) return '';
+                return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
             }
 
-            $.ajax({
-                url: "{{ route('teacher.getDepartmentLogbookData') }}",
-                type: 'GET',
-                data: { subjectID: subjectID, classID: classID },
-                beforeSend: function() {
-                    $('#deptWelcomePlaceholder').hide();
-                    $('#deptLogbookContainer').hide();
-                    $('#downloadPdfBtn').hide();
-                },
-                success: function(response) {
-                    if (response.success) {
-                        $('#h_Subject').text(response.subjectName);
-                        $('#h_Class').text(response.className);
-                        $('#h_Year').text(response.year);
-                        $('#h_Teacher').text(response.teacherName);
-                        $('#current_classSubjectID').val(response.classSubjectID);
-
-                        let rows = '';
-                        if (response.logbookEntries.length > 0) {
-                            response.logbookEntries.forEach((entry, index) => {
-                                rows += `
-                                    <tr class="text-center small">
-                                        <td class="font-weight-bold">${index + 1}</td>
-                                        <td>${entry.main_topic || ''}</td>
-                                        <td>${entry.sub_topic || ''}</td>
-                                        <td>${entry.content_covered || ''}</td>
-                                        <td>${entry.date_started || ''}</td>
-                                        <td>${entry.date_ended || ''}</td>
-                                        <td>${entry.teacher_comment || ''}</td>
-                                        <td class="italic">${entry.hod_comment || '<span class="text-muted">Not Signed</span>'}</td>
-                                        <td class="text-muted italic">${entry.hm_comment || 'Pending...'}</td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-danger" onclick="openSignModal(${entry.logbookID}, '${escapeHtml(entry.hod_comment || '')}')" style="border-radius: 0; font-size: 10px;">
-                                                <i class="fa fa-pencil"></i> SIGN
-                                            </button>
-                                        </td>
-                                    </tr>
-                                `;
-                            });
-                        } else {
-                            rows = '<tr><td colspan="10" class="text-center py-5 text-muted font-weight-bold">No logbook entries recorded for this subject and class.</td></tr>';
-                        }
-
-                        $('#deptLogbookBody').html(rows);
-                        $('#deptLogbookContainer').fadeIn();
-                        $('#downloadPdfBtn').show();
-                    } else {
-                        Swal.fire('Error', response.message, 'error');
-                        $('#deptWelcomePlaceholder').show();
-                    }
-                },
-                error: function(err) {
-                    const msg = err.responseJSON ? err.responseJSON.message : 'Something went wrong';
-                    Swal.fire('Error', msg, 'error');
-                    $('#deptWelcomePlaceholder').show();
-                }
-            });
+            window.openCommentModal = function(id, comment) {
+                $('#commentLogbookID').val(id);
+                $('#hodCommentText').val(comment);
+                $('#commentModal').modal('show');
+            };
         });
-
-        $('#signForm').on('submit', function(e) {
-            e.preventDefault();
-            const formData = $(this).serialize();
-
-            $.ajax({
-                url: "{{ route('teacher.signLogbook') }}",
-                type: 'POST',
-                data: formData,
-                success: function(response) {
-                    if (response.success) {
-                        $('#signModal').modal('hide');
-                        $('#loadDeptLogbookBtn').click(); // Refresh data
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: response.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
-                    }
-                }
-            });
-        });
-
-        // AJAX Download PDF
-        $('#downloadPdfBtn').on('click', function() {
-            const classSubjectID = $('#current_classSubjectID').val();
-            if (!classSubjectID) return;
-
-            const $btn = $(this);
-            const originalHtml = $btn.html();
-            $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> GENERATING...');
-
-            fetch("{{ url('teacher/download-logbook-pdf') }}/" + classSubjectID)
-                .then(response => {
-                    if(!response.ok) throw new Error('Failed to generate PDF');
-                    return response.blob();
-                })
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = 'Logbook_' + classSubjectID + '.pdf';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    Swal.fire({ title: 'Success', text: 'Logbook PDF downloaded.', icon: 'success', timer: 1500, showConfirmButton: false });
-                })
-                .catch(error => {
-                    Swal.fire('Error', error.message, 'error');
-                })
-                .finally(() => {
-                    $btn.prop('disabled', false).html(originalHtml);
-                });
-        });
-    });
-
-    function openSignModal(id, comment) {
-        $('#signLogbookID').val(id);
-        $('#signCommentText').val(comment);
-        $('#signModal').modal('show');
-    }
-
-    function escapeHtml(text) {
-        return text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
+    })(jQuery);
 </script>

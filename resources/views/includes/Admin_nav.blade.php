@@ -624,7 +624,26 @@
                                 <li><a href="{{ route('timeTable') }}" class="nav-link"><i class="fa fa-clock-o"></i> Time Tables</a></li>
                                 <li><a href="{{ route('admin.calendar') }}" class="nav-link"><i class="fa fa-calendar"></i> Calendar</a></li>
                                 <li><a href="{{ route('admin.schemeOfWork') }}" class="nav-link"><i class="fa fa-book"></i> Scheme of Work</a></li>
-                                <li><a href="{{ route('admin.lessonPlans') }}" class="nav-link"><i class="fa fa-file-text"></i> Lesson Plans</a></li>
+                                <li><a href="{{ route('admin.logbook') }}" class="admin-log-link-custom"><i class="fa fa-book"></i> Logbook</a></li>
+                                <style>
+                                    .admin-log-link-custom {
+                                        color: #e0e0e0;
+                                        display: block;
+                                        font-size: 14px;
+                                        padding: 10px 0;
+                                        text-decoration: none;
+                                        transition: 0.3s;
+                                    }
+                                    .admin-log-link-custom:hover {
+                                        color: #fff;
+                                        padding-left: 5px;
+                                    }
+                                    .admin-log-link-custom i {
+                                        margin-right: 10px;
+                                        width: 20px;
+                                        text-align: center;
+                                    }
+                                </style>
                                 <li><a href="{{ route('admin.academicYears') }}" class="nav-link"><i class="fa fa-calendar-check-o"></i> Academic Years</a></li>
                             </ul>
                         </li>

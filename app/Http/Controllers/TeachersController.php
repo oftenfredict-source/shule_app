@@ -11652,16 +11652,25 @@ class TeachersController extends Controller
         $teacherID = Session::get('teacherID');
         $schoolID = Session::get('schoolID');
         $subjectID = $request->query('subjectID');
-        $classID = $request->query('classID');
+        $subclassID = $request->query('subclassID');
 
         if (!$teacherID) {
             return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
         }
 
-        // Fetch the ClassSubject records for all subclasses in this class level
-        $classSubjectIds = ClassSubject::whereHas('subclass', function($q) use ($classID) {
-                $q->where('classID', $classID);
+        // Verify this subject belongs to the HOD's department
+        $isSubjectInDept = Department::where('head_teacherID', $teacherID)
+            ->whereHas('subjects', function($q) use ($subjectID) {
+                $q->where('school_subjects.subjectID', $subjectID);
             })
+            ->exists();
+
+        if (!$isSubjectInDept) {
+            return response()->json(['success' => false, 'message' => 'This subject does not belong to your department.'], 403);
+        }
+
+        // Fetch the ClassSubject records for the selected subclass
+        $classSubjectIds = ClassSubject::where('subclassID', $subclassID)
             ->where('subjectID', $subjectID)
             ->pluck('class_subjectID');
 
@@ -11686,11 +11695,14 @@ class TeachersController extends Controller
         $subjectName = $sampleCS->subject->subject_name ?? 'N/A';
         $className = $sampleCS->subclass->class->class_name ?? 'N/A';
 
+        $subclassName = $sampleCS->subclass->subclass_name ?? 'N/A';
+
         return response()->json([
             'success' => true,
             'logbookEntries' => $logbookEntries,
             'subjectName' => $subjectName,
             'className' => $className,
+            'subclassName' => $subclassName,
             'year' => $currentYear,
             'teacherName' => $assignedTeacherName,
             'classSubjectID' => $classSubjectIds[0] // Default for PDF if multiple
@@ -11719,6 +11731,8 @@ class TeachersController extends Controller
         $logbook->update([
             'hod_comment' => $validated['hod_comment']
         ]);
+
+        $this->notifyTeacherOnLogbookComment($logbook);
 
         return response()->json(['success' => true, 'message' => 'Logbook signed successfully']);
     }
@@ -11782,6 +11796,123 @@ class TeachersController extends Controller
         } catch (\Exception $e) {
             Log::error('Error downloading logbook PDF: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to generate PDF: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function adminLogbook()
+    {
+        $schoolID = Session::get('schoolID');
+        if (!Session::has('user_id') || Session::get('user_type') !== 'Admin') {
+            return redirect()->route('login')->with('error', 'Unauthorized access');
+        }
+
+        $classes = ClassModel::where('schoolID', $schoolID)->orderBy('class_name')->get();
+        $subjects = SchoolSubject::where('schoolID', $schoolID)->orderBy('subject_name')->get();
+
+        return view('Admin.admin_logbook', compact('classes', 'subjects'));
+    }
+
+    public function getAdminLogbookData(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $subjectID = $request->query('subjectID');
+        $subclassID = $request->query('subclassID');
+
+        if (Session::get('user_type') !== 'Admin') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
+        $classSubjectIds = ClassSubject::where('subclassID', $subclassID)
+            ->where('subjectID', $subjectID)
+            ->pluck('class_subjectID');
+
+        if ($classSubjectIds->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'No assigned teacher found for this subject/class level.'], 404);
+        }
+
+        $currentYear = Carbon::now()->year;
+        $logbookEntries = Logbook::whereIn('class_subjectID', $classSubjectIds)
+            ->where('schoolID', $schoolID)
+            ->where('year', $currentYear)
+            ->orderBy('date_started', 'asc')
+            ->get();
+
+        $sampleCS = ClassSubject::with(['subject', 'subclass.class', 'teacher'])
+            ->whereIn('class_subjectID', $classSubjectIds)
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'logbookEntries' => $logbookEntries,
+            'subjectName' => $sampleCS->subject->subject_name ?? 'N/A',
+            'className' => $sampleCS->subclass->class->class_name ?? 'N/A',
+            'subclassName' => $sampleCS->subclass->subclass_name ?? 'N/A',
+            'year' => $currentYear,
+            'teacherName' => $sampleCS->teacher ? trim(($sampleCS->teacher->first_name ?? '') . ' ' . ($sampleCS->teacher->last_name ?? '')) : 'N/A',
+            'classSubjectID' => $classSubjectIds[0]
+        ]);
+    }
+
+    public function adminSignLogbook(Request $request)
+    {
+        if (Session::get('user_type') !== 'Admin') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
+        $validated = $request->validate([
+            'logbookID' => 'required',
+            'hm_comment' => 'required|string',
+        ]);
+
+        $logbook = Logbook::find($validated['logbookID']);
+        if (!$logbook) {
+            return response()->json(['success' => false, 'message' => 'Logbook entry not found'], 404);
+        }
+
+        $logbook->update([
+            'hm_comment' => $validated['hm_comment']
+        ]);
+
+        $this->notifyTeacherOnLogbookComment($logbook);
+
+        return response()->json(['success' => true, 'message' => 'Logbook signed by Headmaster successfully']);
+    }
+
+    private function notifyTeacherOnLogbookComment($logbook)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            $school = School::find($schoolID);
+            $schoolName = $school ? strtoupper($school->school_name) : 'SHULEXPERT';
+
+            // Get teacher
+            $classSubject = $logbook->classSubject;
+            if (!$classSubject) {
+                return;
+            }
+
+            $teacher = $classSubject->teacher;
+            if (!$teacher) {
+                return;
+            }
+
+            $phoneNumber = $teacher->phone_number;
+
+            if (!$phoneNumber) {
+                return;
+            }
+
+            $subjectName = $classSubject->subject->subject_name ?? 'Subject';
+            $className = $classSubject->subclass->class->class_name ?? '';
+            $subclassName = $classSubject->subclass->subclass_name ?? '';
+            
+            $message = "{$schoolName}: Habari, Logbook yako ya somo la {$subjectName} {$className} {$subclassName} imepata maoni mapya. Tafadhali ingia kwenye mfumo kuona.";
+
+            $smsService = new SmsService();
+            $smsService->sendSms($phoneNumber, $message);
+
+        } catch (\Exception $e) {
+            Log::error('Error sending logbook notification SMS: ' . $e->getMessage());
         }
     }
 }
