@@ -813,6 +813,7 @@ Route::post('admin/api/delete-all-test-schedules', [TimeTableController::class, 
 
 // Calendar routes
 Route::get('admin/calendar', [CalendarController::class, 'adminCalendar'])->name('admin.calendar');
+Route::get('admin/calendar/export-pdf', [CalendarController::class, 'exportCalendarPdf'])->name('admin.export_calendar_pdf');
 Route::get('teacher/calendar', [CalendarController::class, 'teacherCalendar'])->name('teacher.calendar');
 Route::get('holidays/{holidayID}', [CalendarController::class, 'getHoliday'])->name('holidays.show');
 Route::post('holidays', [CalendarController::class, 'storeHoliday'])->name('holidays.store');

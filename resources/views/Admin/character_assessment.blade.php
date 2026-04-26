@@ -1,4 +1,4 @@
-﻿@include('includes.Admin_nav')
+@include('includes.Admin_nav')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="content-wrapper" style="font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif; background-color: #FFFFFF;">
@@ -98,8 +98,18 @@
                                 <div class="col-md-3">
                                     <label class="small font-weight-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">Academic Year</label>
                                     <select id="filterYear" class="form-control" style="border-radius:0; border:1px solid #ddd; font-weight:600;">
-                                        @foreach($academicYears as $year)
-                                            <option value="{{ $year->academic_yearID }}" {{ $year->status == 'Active' ? 'selected' : '' }}>{{ $year->year_name ?: $year->year }}</option>
+                                        @php
+                                            $currentYear = date('Y');
+                                            $yearsToDisplay = [$currentYear, $currentYear - 1, $currentYear - 2, $currentYear - 3];
+                                        @endphp
+                                        @foreach($yearsToDisplay as $yearValue)
+                                            @php
+                                                $matchingYear = $academicYears->first(function($ay) use ($yearValue) {
+                                                    return ($ay->year_name == $yearValue || $ay->year == $yearValue);
+                                                });
+                                                $finalValue = $matchingYear ? $matchingYear->academic_yearID : $yearValue;
+                                            @endphp
+                                            <option value="{{ $finalValue }}">{{ $yearValue }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -489,8 +499,18 @@
                         <div class="col-md-3">
                             <label class="form-label small font-weight-bold text-uppercase" style="color:#666;">Academic Year</label>
                             <select class="form-control" name="academic_yearID" id="ttYear" required style="border-radius: 0;">
-                                @foreach($academicYears as $ay)
-                                    <option value="{{ $ay->academic_yearID }}" {{ $ay->status == 'Active' ? 'selected' : '' }}>{{ $ay->year_name ?: $ay->year }}</option>
+                                @php
+                                    $currentYear = date('Y');
+                                    $yearsToDisplay = [$currentYear, $currentYear - 1, $currentYear - 2, $currentYear - 3];
+                                @endphp
+                                @foreach($yearsToDisplay as $yearValue)
+                                    @php
+                                        $matchingYear = $academicYears->first(function($ay) use ($yearValue) {
+                                            return ($ay->year_name == $yearValue || $ay->year == $yearValue);
+                                        });
+                                        $finalValue = $matchingYear ? $matchingYear->academic_yearID : $yearValue;
+                                    @endphp
+                                    <option value="{{ $finalValue }}">{{ $yearValue }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -575,8 +595,18 @@
                 <div class="bg-light p-3 border-bottom d-flex gap-3">
                     <select class="form-control form-control-sm" id="filterTtYear" onchange="loadTimetables()" style="width: 150px; border-radius: 0;">
                         <option value="">All Years</option>
-                        @foreach($academicYears as $ay)
-                            <option value="{{ $ay->academic_yearID }}" {{ $ay->status == 'Active' ? 'selected' : '' }}>{{ $ay->year_name ?: $ay->year }}</option>
+                        @php
+                            $currentYear = date('Y');
+                            $yearsToDisplay = [$currentYear, $currentYear - 1, $currentYear - 2, $currentYear - 3];
+                        @endphp
+                        @foreach($yearsToDisplay as $yearValue)
+                            @php
+                                $matchingYear = $academicYears->first(function($ay) use ($yearValue) {
+                                    return ($ay->year_name == $yearValue || $ay->year == $yearValue);
+                                });
+                                $finalValue = $matchingYear ? $matchingYear->academic_yearID : $yearValue;
+                            @endphp
+                            <option value="{{ $finalValue }}">{{ $yearValue }}</option>
                         @endforeach
                     </select>
                     <select class="form-control form-control-sm" id="filterTtTerm" onchange="loadTimetables()" style="width: 150px; border-radius: 0;">

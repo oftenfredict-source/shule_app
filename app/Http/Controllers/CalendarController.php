@@ -7,8 +7,10 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
 use App\Models\Holiday;
 use App\Models\Event;
+use App\Models\School;
 use App\Services\TanzaniaHolidaysService;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class CalendarController extends Controller
 {
@@ -629,5 +631,66 @@ class CalendarController extends Controller
             'holidays' => $holidays,
             'events' => $events
         ]);
+    }
+
+    /**
+     * Export Calendar to PDF
+     */
+    public function exportCalendarPdf(Request $request)
+    {
+        set_time_limit(0);
+        ini_set('memory_limit', '2048M');
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return redirect()->route('login');
+        }
+
+        $currentYear = $request->get('year', date('Y'));
+        $school = School::find($schoolID);
+
+        // Get all holidays for the year
+        $holidays = Holiday::where('schoolID', $schoolID)
+            ->whereYear('start_date', '<=', $currentYear)
+            ->whereYear('end_date', '>=', $currentYear)
+            ->orderBy('start_date')
+            ->get();
+
+        // Get all events for the year
+        $events = Event::where('schoolID', $schoolID)
+            ->whereYear('event_date', $currentYear)
+            ->orderBy('event_date')
+            ->get();
+
+        // Get auto-detected Tanzania holidays
+        $autoHolidays = TanzaniaHolidaysService::getHolidaysForYear($currentYear);
+        
+        // Calculate statistics
+        $stats = $this->calculateYearStatistics($schoolID, $currentYear);
+        
+        // Calculate monthly working days
+        $monthlyStats = $this->calculateMonthlyStatistics($schoolID, $currentYear, $holidays, $events);
+
+        $data = [
+            'school' => $school,
+            'currentYear' => $currentYear,
+            'holidays' => $holidays,
+            'events' => $events,
+            'autoHolidays' => $autoHolidays,
+            'stats' => $stats,
+            'monthlyStats' => $monthlyStats,
+            'title' => 'School Calendar - ' . $currentYear
+        ];
+
+        $pdf = PDF::loadView('Admin.pdf.calendar_pdf', $data);
+        $pdf->setOptions([
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'chroot' => base_path(),
+        ]);
+        $pdf->setPaper('A4', 'portrait');
+
+        $filename = 'School_Calendar_' . $currentYear . '_' . date('YmdHis') . '.pdf';
+        return $pdf->download($filename);
     }
 }
