@@ -676,8 +676,8 @@
     }
 
     // Export PDF
-    $('#downloadCalendarPdf').on('click', function() {
-        const year = $('#yearSelect').val();
+    jQuery('#downloadCalendarPdf').on('click', function() {
+        const year = jQuery('#yearSelect').val();
         
         let url = '{{ route("admin.export_calendar_pdf") }}';
         url += `?year=${year}`;
@@ -686,8 +686,8 @@
         const progressModal = new bootstrap.Modal(document.getElementById('downloadProgressModal'));
         progressModal.show();
         
-        $('#pdfProgressBar').css('width', '0%');
-        $('#pdfProgressPercent').text('0%');
+        jQuery('#pdfProgressBar').css('width', '0%');
+        jQuery('#pdfProgressPercent').text('0%');
 
         let progress = 0;
         const interval = setInterval(function() {
@@ -699,8 +699,8 @@
                 progress += inc;
                 if (progress > 95) progress = 95;
                 
-                $('#pdfProgressBar').css('width', progress + '%');
-                $('#pdfProgressPercent').text(Math.round(progress) + '%');
+                jQuery('#pdfProgressBar').css('width', progress + '%');
+                jQuery('#pdfProgressPercent').text(Math.round(progress) + '%');
             }
         }, 400);
 
@@ -711,8 +711,8 @@
             })
             .then(blob => {
                 clearInterval(interval);
-                $('#pdfProgressBar').css('width', '100%');
-                $('#pdfProgressPercent').text('100%');
+                jQuery('#pdfProgressBar').css('width', '100%');
+                jQuery('#pdfProgressPercent').text('100%');
                 
                 setTimeout(() => {
                     const downloadUrl = window.URL.createObjectURL(blob);
@@ -729,8 +729,8 @@
                     setTimeout(() => {
                         progressModal.hide();
                         setTimeout(() => {
-                            $('#pdfProgressBar').css('width', '0%');
-                            $('#pdfProgressPercent').text('0%');
+                            jQuery('#pdfProgressBar').css('width', '0%');
+                            jQuery('#pdfProgressPercent').text('0%');
                         }, 500);
                     }, 800);
                 }, 400);
@@ -744,31 +744,31 @@
     });
 
     // Year selector change
-    $('#yearSelect').on('change', function() {
-        const year = $(this).val();
+    jQuery('#yearSelect').on('change', function() {
+        const year = jQuery(this).val();
         window.location.href = '{{ route("admin.calendar") }}?year=' + year;
     });
 
     // Holiday Functions
     function showAddHolidayModal() {
-        $('#holidayModalTitle').text('Add Holiday');
-        $('#holidayForm')[0].reset();
-        $('#holidayID').val('');
+        jQuery('#holidayModalTitle').text('Add Holiday');
+        jQuery('#holidayForm')[0].reset();
+        jQuery('#holidayID').val('');
         new bootstrap.Modal(document.getElementById('holidayModal')).show();
     }
 
     function editHoliday(holidayID) {
-        $.ajax({
+        jQuery.ajax({
             url: '/holidays/' + holidayID,
             method: 'GET',
             success: function(response) {
-                $('#holidayModalTitle').text('Edit Holiday');
-                $('#holidayID').val(response.holidayID);
-                $('#holiday_name').val(response.holiday_name);
-                $('#start_date').val(response.start_date);
-                $('#end_date').val(response.end_date);
-                $('#type').val(response.type);
-                $('#description').val(response.description);
+                jQuery('#holidayModalTitle').text('Edit Holiday');
+                jQuery('#holidayID').val(response.holidayID);
+                jQuery('#holiday_name').val(response.holiday_name);
+                jQuery('#start_date').val(response.start_date);
+                jQuery('#end_date').val(response.end_date);
+                jQuery('#type').val(response.type);
+                jQuery('#description').val(response.description);
                 new bootstrap.Modal(document.getElementById('holidayModal')).show();
             },
             error: function() {
@@ -779,19 +779,19 @@
 
     function saveHoliday() {
         const formData = {
-            holiday_name: $('#holiday_name').val(),
-            start_date: $('#start_date').val(),
-            end_date: $('#end_date').val(),
-            type: $('#type').val(),
-            description: $('#description').val(),
-            _token: $('meta[name="csrf-token"]').attr('content')
+            holiday_name: jQuery('#holiday_name').val(),
+            start_date: jQuery('#start_date').val(),
+            end_date: jQuery('#end_date').val(),
+            type: jQuery('#type').val(),
+            description: jQuery('#description').val(),
+            _token: jQuery('meta[name="csrf-token"]').attr('content')
         };
 
-        const holidayID = $('#holidayID').val();
+        const holidayID = jQuery('#holidayID').val();
         const url = holidayID ? '/holidays/' + holidayID : '/holidays';
         const method = holidayID ? 'PUT' : 'POST';
 
-        $.ajax({
+        jQuery.ajax({
             url: url,
             method: method,
             data: formData,
@@ -817,11 +817,11 @@
             confirmButtonText: 'Yes, delete it!'
         }).then((result) => {
             if (result.isConfirmed) {
-                $.ajax({
+                jQuery.ajax({
                     url: '/holidays/' + holidayID,
                     method: 'DELETE',
                     headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
                         Swal.fire('Deleted!', response.message, 'success').then(() => {
@@ -839,7 +839,7 @@
     // Bulk Holiday Functions
     function showBulkHolidayModal() {
         // Reset container to one row
-        $('#bulkHolidaysContainer').html(`
+        jQuery('#bulkHolidaysContainer').html(`
             <div class="bulk-holiday-item mb-3 p-3 border rounded">
                 <div class="row">
                     <div class="col-md-4 mb-2">
@@ -879,7 +879,7 @@
             <div class="bulk-holiday-item mb-3 p-3 border rounded">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <strong class="text-primary">Holiday Entry</strong>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="$(this).closest('.bulk-holiday-item').remove()">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="jQuery(this).closest('.bulk-holiday-item').remove()">
                         <i class="fa fa-trash"></i> Remove
                     </button>
                 </div>
@@ -913,19 +913,19 @@
                 </div>
             </div>
         `;
-        $('#bulkHolidaysContainer').append(newRow);
+        jQuery('#bulkHolidaysContainer').append(newRow);
     }
 
     function saveBulkHolidays() {
         const holidays = [];
         let isValid = true;
 
-        $('.bulk-holiday-item').each(function() {
-            const name = $(this).find('.bulk-holiday-name').val();
-            const startDate = $(this).find('.bulk-start-date').val();
-            const endDate = $(this).find('.bulk-end-date').val();
-            const type = $(this).find('.bulk-holiday-type').val();
-            const description = $(this).find('.bulk-description').val();
+        jQuery('.bulk-holiday-item').each(function() {
+            const name = jQuery(this).find('.bulk-holiday-name').val();
+            const startDate = jQuery(this).find('.bulk-start-date').val();
+            const endDate = jQuery(this).find('.bulk-end-date').val();
+            const type = jQuery(this).find('.bulk-holiday-type').val();
+            const description = jQuery(this).find('.bulk-description').val();
 
             if (!name || !startDate || !endDate || !type) {
                 isValid = false;
@@ -967,11 +967,11 @@
             }
         });
 
-        $.ajax({
+        jQuery.ajax({
             url: '/holidays/bulk',
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
             },
             data: {
                 holidays: holidays
@@ -989,27 +989,27 @@
 
     // Event Functions
     function showAddEventModal() {
-        $('#eventModalTitle').text('Add Event');
-        $('#eventForm')[0].reset();
-        $('#eventID').val('');
-        $('#is_non_working_day').prop('checked', false);
+        jQuery('#eventModalTitle').text('Add Event');
+        jQuery('#eventForm')[0].reset();
+        jQuery('#eventID').val('');
+        jQuery('#is_non_working_day').prop('checked', false);
         new bootstrap.Modal(document.getElementById('eventModal')).show();
     }
 
     function editEvent(eventID) {
-        $.ajax({
+        jQuery.ajax({
             url: '/events/' + eventID,
             method: 'GET',
             success: function(response) {
-                $('#eventModalTitle').text('Edit Event');
-                $('#eventID').val(response.eventID);
-                $('#event_name').val(response.event_name);
-                $('#event_date').val(response.event_date);
-                $('#start_time').val(response.start_time ? response.start_time.substring(0, 5) : '');
-                $('#end_time').val(response.end_time ? response.end_time.substring(0, 5) : '');
-                $('#event_type').val(response.type);
-                $('#event_description').val(response.description);
-                $('#is_non_working_day').prop('checked', response.is_non_working_day == 1);
+                jQuery('#eventModalTitle').text('Edit Event');
+                jQuery('#eventID').val(response.eventID);
+                jQuery('#event_name').val(response.event_name);
+                jQuery('#event_date').val(response.event_date);
+                jQuery('#start_time').val(response.start_time ? response.start_time.substring(0, 5) : '');
+                jQuery('#end_time').val(response.end_time ? response.end_time.substring(0, 5) : '');
+                jQuery('#event_type').val(response.type);
+                jQuery('#event_description').val(response.description);
+                jQuery('#is_non_working_day').prop('checked', response.is_non_working_day == 1);
                 new bootstrap.Modal(document.getElementById('eventModal')).show();
             },
             error: function() {
@@ -1020,21 +1020,21 @@
 
     function saveEvent() {
         const formData = {
-            event_name: $('#event_name').val(),
-            event_date: $('#event_date').val(),
-            start_time: $('#start_time').val(),
-            end_time: $('#end_time').val(),
-            type: $('#event_type').val(),
-            description: $('#event_description').val(),
-            is_non_working_day: $('#is_non_working_day').is(':checked') ? 1 : 0,
-            _token: $('meta[name="csrf-token"]').attr('content')
+            event_name: jQuery('#event_name').val(),
+            event_date: jQuery('#event_date').val(),
+            start_time: jQuery('#start_time').val(),
+            end_time: jQuery('#end_time').val(),
+            type: jQuery('#event_type').val(),
+            description: jQuery('#event_description').val(),
+            is_non_working_day: jQuery('#is_non_working_day').is(':checked') ? 1 : 0,
+            _token: jQuery('meta[name="csrf-token"]').attr('content')
         };
 
-        const eventID = $('#eventID').val();
+        const eventID = jQuery('#eventID').val();
         const url = eventID ? '/events/' + eventID : '/events';
         const method = eventID ? 'PUT' : 'POST';
 
-        $.ajax({
+        jQuery.ajax({
             url: url,
             method: method,
             data: formData,
@@ -1060,11 +1060,11 @@
             confirmButtonText: 'Yes, delete it!'
         }).then((result) => {
             if (result.isConfirmed) {
-                $.ajax({
+                jQuery.ajax({
                     url: '/events/' + eventID,
                     method: 'DELETE',
                     headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
                         Swal.fire('Deleted!', response.message, 'success').then(() => {
