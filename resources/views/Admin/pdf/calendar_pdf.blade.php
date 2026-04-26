@@ -177,40 +177,21 @@
 
     <div style="page-break-after: always;"></div>
 
-    <div class="section-title">Holidays & Vacations</div>
+    <div class="section-title">School Defined Holidays</div>
     <table class="data-table">
         <thead>
             <tr>
-                <th>Date / Period</th>
                 <th>Holiday Name</th>
-                <th>Type</th>
-                <th>Description</th>
+                <th>Start Date</th>
+                <th>End Date</th>
             </tr>
         </thead>
         <tbody>
-            {{-- Public Holidays (Auto-detected) --}}
-            @foreach($autoHolidays as $holiday)
-                <tr>
-                    <td style="white-space: nowrap;">{{ $holiday['date']->format('d M Y') }}</td>
-                    <td><strong>{{ $holiday['name'] }}</strong></td>
-                    <td><span class="type-badge type-public">Public</span></td>
-                    <td class="description">National Public Holiday</td>
-                </tr>
-            @endforeach
-
-            {{-- School Holidays (Manual) --}}
             @foreach($holidays as $holiday)
                 <tr>
-                    <td style="white-space: nowrap;">
-                        @if($holiday->start_date == $holiday->end_date)
-                            {{ \Carbon\Carbon::parse($holiday->start_date)->format('d M Y') }}
-                        @else
-                            {{ \Carbon\Carbon::parse($holiday->start_date)->format('d M') }} - {{ \Carbon\Carbon::parse($holiday->end_date)->format('d M Y') }}
-                        @endif
-                    </td>
                     <td><strong>{{ $holiday->holiday_name }}</strong></td>
-                    <td><span class="type-badge type-holiday">{{ $holiday->type }}</span></td>
-                    <td class="description">{{ $holiday->description ?: 'No description provided.' }}</td>
+                    <td style="white-space: nowrap;">{{ strtolower(\Carbon\Carbon::parse($holiday->start_date)->format('d M Y')) }}</td>
+                    <td style="white-space: nowrap;">{{ strtolower(\Carbon\Carbon::parse($holiday->end_date)->format('d M Y')) }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -221,35 +202,25 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Date</th>
                     <th>Event Name</th>
-                    <th>Type</th>
-                    <th>Time</th>
-                    <th>Description</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Working Status</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($events as $event)
                     <tr>
-                        <td style="white-space: nowrap;">{{ \Carbon\Carbon::parse($event->event_date)->format('d M Y') }}</td>
-                        <td>
-                            <strong>{{ $event->event_name }}</strong>
+                        <td><strong>{{ $event->event_name }}</strong></td>
+                        <td style="white-space: nowrap;">{{ strtolower(\Carbon\Carbon::parse($event->event_date)->format('d M Y')) }}</td>
+                        <td style="white-space: nowrap;">{{ strtolower(\Carbon\Carbon::parse($event->event_date)->format('d M Y')) }}</td>
+                        <td style="text-align: center;">
                             @if($event->is_non_working_day)
-                                <br><small style="color: #dc3545;">(Non-Working Day)</small>
-                            @endif
-                        </td>
-                        <td><span class="type-badge type-event">{{ $event->type }}</span></td>
-                        <td style="white-space: nowrap;">
-                            @if($event->start_time)
-                                {{ \Carbon\Carbon::parse($event->start_time)->format('H:i') }}
-                                @if($event->end_time)
-                                    - {{ \Carbon\Carbon::parse($event->end_time)->format('H:i') }}
-                                @endif
+                                <span style="font-weight: bold;">no</span>
                             @else
-                                All Day
+                                <span style="font-weight: bold;">yes</span>
                             @endif
                         </td>
-                        <td class="description">{{ $event->description ?: 'No description provided.' }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -257,6 +228,26 @@
     @else
         <p>No school events scheduled for this year.</p>
     @endif
+
+    <div class="section-title">Auto-Detected Public Holidays</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Holiday Name</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($autoHolidays as $holiday)
+                <tr>
+                    <td><strong>{{ $holiday['name'] }}</strong></td>
+                    <td style="white-space: nowrap;">{{ strtolower($holiday['date']->format('d M Y')) }}</td>
+                    <td style="white-space: nowrap;">{{ strtolower($holiday['date']->format('d M Y')) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
 
     <div class="footer">
         Generated by ShuleLink (School Management System), Powered By EmCa Techonology &copy; {{ date('Y') }}

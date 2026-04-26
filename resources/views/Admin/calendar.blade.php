@@ -759,7 +759,7 @@
 
     function editHoliday(holidayID) {
         jQuery.ajax({
-            url: '/holidays/' + holidayID,
+            url: '{{ url("holidays") }}/' + holidayID,
             method: 'GET',
             success: function(response) {
                 jQuery('#holidayModalTitle').text('Edit Holiday');
@@ -788,7 +788,7 @@
         };
 
         const holidayID = jQuery('#holidayID').val();
-        const url = holidayID ? '/holidays/' + holidayID : '/holidays';
+        const url = holidayID ? '{{ url("holidays") }}/' + holidayID : '{{ url("holidays") }}';
         const method = holidayID ? 'PUT' : 'POST';
 
         jQuery.ajax({
@@ -801,7 +801,15 @@
                 });
             },
             error: function(xhr) {
-                Swal.fire('Error', xhr.responseJSON?.error || 'Failed to save holiday', 'error');
+                let errorMsg = 'Failed to save holiday';
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.error) {
+                        errorMsg = xhr.responseJSON.error;
+                    } else if (xhr.responseJSON.errors) {
+                        errorMsg = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                    }
+                }
+                Swal.fire('Error', errorMsg, 'error');
             }
         });
     }
@@ -813,12 +821,13 @@
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
+            confirmButtonColor: '#dc3545',
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Yes, delete it!'
         }).then((result) => {
             if (result.isConfirmed) {
                 jQuery.ajax({
-                    url: '/holidays/' + holidayID,
+                    url: '{{ url("holidays") }}/' + holidayID,
                     method: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
@@ -829,7 +838,15 @@
                         });
                     },
                     error: function(xhr) {
-                        Swal.fire('Error', xhr.responseJSON?.error || 'Failed to delete holiday', 'error');
+                        let errorMsg = 'Failed to delete holiday';
+                        if (xhr.responseJSON) {
+                            if (xhr.responseJSON.error) {
+                                errorMsg = xhr.responseJSON.error;
+                            } else if (xhr.responseJSON.errors) {
+                                errorMsg = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                            }
+                        }
+                        Swal.fire('Error', errorMsg, 'error');
                     }
                 });
             }
@@ -968,7 +985,7 @@
         });
 
         jQuery.ajax({
-            url: '/holidays/bulk',
+            url: '{{ url("holidays/bulk") }}',
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
@@ -982,7 +999,15 @@
                 });
             },
             error: function(xhr) {
-                Swal.fire('Error', xhr.responseJSON?.error || 'Failed to save holidays', 'error');
+                let errorMsg = 'Failed to save holidays';
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.error) {
+                        errorMsg = xhr.responseJSON.error;
+                    } else if (xhr.responseJSON.errors) {
+                        errorMsg = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                    }
+                }
+                Swal.fire('Error', errorMsg, 'error');
             }
         });
     }
@@ -998,7 +1023,7 @@
 
     function editEvent(eventID) {
         jQuery.ajax({
-            url: '/events/' + eventID,
+            url: '{{ url("events") }}/' + eventID,
             method: 'GET',
             success: function(response) {
                 jQuery('#eventModalTitle').text('Edit Event');
@@ -1031,7 +1056,7 @@
         };
 
         const eventID = jQuery('#eventID').val();
-        const url = eventID ? '/events/' + eventID : '/events';
+        const url = eventID ? '{{ url("events") }}/' + eventID : '{{ url("events") }}';
         const method = eventID ? 'PUT' : 'POST';
 
         jQuery.ajax({
@@ -1044,7 +1069,15 @@
                 });
             },
             error: function(xhr) {
-                Swal.fire('Error', xhr.responseJSON?.error || 'Failed to save event', 'error');
+                let errorMsg = 'Failed to save event';
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.error) {
+                        errorMsg = xhr.responseJSON.error;
+                    } else if (xhr.responseJSON.errors) {
+                        errorMsg = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                    }
+                }
+                Swal.fire('Error', errorMsg, 'error');
             }
         });
     }
@@ -1061,7 +1094,7 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 jQuery.ajax({
-                    url: '/events/' + eventID,
+                    url: '{{ url("events") }}/' + eventID,
                     method: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
@@ -1072,7 +1105,15 @@
                         });
                     },
                     error: function(xhr) {
-                        Swal.fire('Error', xhr.responseJSON?.error || 'Failed to delete event', 'error');
+                        let errorMsg = 'Failed to delete event';
+                        if (xhr.responseJSON) {
+                            if (xhr.responseJSON.error) {
+                                errorMsg = xhr.responseJSON.error;
+                            } else if (xhr.responseJSON.errors) {
+                                errorMsg = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                            }
+                        }
+                        Swal.fire('Error', errorMsg, 'error');
                     }
                 });
             }

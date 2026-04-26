@@ -53,10 +53,9 @@ class TeachersController extends Controller
 {
     public function teachersDashboard()
     {
-           $user = Session::get('user_type');
+        $user = Session::get('user_type');
 
-        if (!$user)
-        {
+        if (!$user) {
             return redirect()->route('login')->with('error', 'Unauthorized access');
         }
 
@@ -113,7 +112,7 @@ class TeachersController extends Controller
 
             if (!empty($teacherRoles)) {
                 $allTeacherApprovals = ResultApproval::with(['examination', 'role'])
-                ->whereIn('role_id', $teacherRoles)
+                    ->whereIn('role_id', $teacherRoles)
                     ->whereIn('status', ['pending', 'rejected'])
                     ->get();
 
@@ -129,7 +128,7 @@ class TeachersController extends Controller
 
                     // Check if all previous approvals are approved
                     $canProceed = $previousApprovals->isEmpty() ||
-                        $previousApprovals->every(function($prev) {
+                        $previousApprovals->every(function ($prev) {
                             return $prev->status === 'approved';
                         });
 
@@ -175,7 +174,7 @@ class TeachersController extends Controller
                     ->get();
 
                 $canProceed = $previousApprovals->isEmpty() ||
-                    $previousApprovals->every(function($prev) {
+                    $previousApprovals->every(function ($prev) {
                         return $prev->status === 'approved';
                     });
 
@@ -234,7 +233,8 @@ class TeachersController extends Controller
 
             foreach ($allExamApprovals as $examID => $approvals) {
                 $exam = $approvals->first()->examination;
-                if (!$exam) continue;
+                if (!$exam)
+                    continue;
 
                 // Check if teacher is in this approval chain
                 $teacherInChain = false;
@@ -297,9 +297,11 @@ class TeachersController extends Controller
                             if ($matchingApprovals->count() > 0) {
                                 $isTeacherStep = true;
                                 // Check if all matching approvals are approved
-                                if ($matchingApprovals->every(function($cta) {
-                                    return $cta->status === 'approved';
-                                })) {
+                                if (
+                                    $matchingApprovals->every(function ($cta) {
+                                        return $cta->status === 'approved';
+                                    })
+                                ) {
                                     $teacherHasApproved = true;
                                     break;
                                 }
@@ -314,9 +316,11 @@ class TeachersController extends Controller
                             if ($matchingApprovals->count() > 0) {
                                 $isTeacherStep = true;
                                 // Check if all matching approvals are approved
-                                if ($matchingApprovals->every(function($ca) {
-                                    return $ca->status === 'approved';
-                                })) {
+                                if (
+                                    $matchingApprovals->every(function ($ca) {
+                                        return $ca->status === 'approved';
+                                    })
+                                ) {
                                     $teacherHasApproved = true;
                                     break;
                                 }
@@ -347,11 +351,11 @@ class TeachersController extends Controller
                                 'special_role_type' => $approval->special_role_type,
                                 'is_teacher_step' => ($approval->role_id && in_array($approval->role_id, $teacherRoles)) ||
                                     ($approval->special_role_type === 'class_teacher' && !empty($teacherSubclasses) &&
-                                     ClassTeacherApproval::where('result_approvalID', $approval->result_approvalID)
-                                         ->whereIn('subclassID', $teacherSubclasses)->exists()) ||
+                                        ClassTeacherApproval::where('result_approvalID', $approval->result_approvalID)
+                                            ->whereIn('subclassID', $teacherSubclasses)->exists()) ||
                                     ($approval->special_role_type === 'coordinator' && !empty($teacherMainClasses) &&
-                                     CoordinatorApproval::where('result_approvalID', $approval->result_approvalID)
-                                         ->whereIn('mainclassID', $teacherMainClasses)->exists()),
+                                        CoordinatorApproval::where('result_approvalID', $approval->result_approvalID)
+                                            ->whereIn('mainclassID', $teacherMainClasses)->exists()),
                             ];
                         }
 
@@ -391,7 +395,7 @@ class TeachersController extends Controller
             // Count subjects teaching
             $subjectsCount = ClassSubject::where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->distinct('subjectID')
@@ -421,12 +425,12 @@ class TeachersController extends Controller
 
                 // Get all holidays for the year
                 $yearHolidays = Holiday::where('schoolID', $schoolID)
-                    ->where(function($query) use ($yearStart, $yearEnd) {
+                    ->where(function ($query) use ($yearStart, $yearEnd) {
                         $query->whereBetween('start_date', [$yearStart, $yearEnd])
                             ->orWhereBetween('end_date', [$yearStart, $yearEnd])
-                            ->orWhere(function($q) use ($yearStart, $yearEnd) {
+                            ->orWhere(function ($q) use ($yearStart, $yearEnd) {
                                 $q->where('start_date', '<=', $yearStart)
-                                  ->where('end_date', '>=', $yearEnd);
+                                    ->where('end_date', '>=', $yearEnd);
                             });
                     })
                     ->get();
@@ -475,7 +479,7 @@ class TeachersController extends Controller
 
                 // Sessions per year = sessions per week * (total working days / 5)
                 if ($sessionsPerWeek > 0) {
-                    $sessionsPerYear = (int)($sessionsPerWeek * ($totalWorkingDays / 5));
+                    $sessionsPerYear = (int) ($sessionsPerWeek * ($totalWorkingDays / 5));
                 }
             }
 
@@ -484,7 +488,7 @@ class TeachersController extends Controller
             if ($definition) {
                 $approvedSessionsCount = SessionTask::where('teacherID', $teacherID)
                     ->where('status', 'approved')
-                    ->whereHas('sessionTimetable', function($query) use ($definition) {
+                    ->whereHas('sessionTimetable', function ($query) use ($definition) {
                         $query->where('definitionID', $definition->definitionID);
                     })
                     ->distinct('session_timetableID')
@@ -495,12 +499,12 @@ class TeachersController extends Controller
             $teachingSubjects = ClassSubject::with(['subject', 'subclass.class'])
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->get()
                 ->groupBy('subjectID')
-                ->map(function($group) {
+                ->map(function ($group) {
                     $first = $group->first();
                     return [
                         'subjectID' => $first->subjectID,
@@ -550,12 +554,12 @@ class TeachersController extends Controller
             $schemeOfWorkCount = 0;
             if ($teacherID) {
                 $currentYear = Carbon::now()->year;
-                $schemeOfWorkCount = SchemeOfWork::whereHas('classSubject', function($query) use ($teacherID) {
+                $schemeOfWorkCount = SchemeOfWork::whereHas('classSubject', function ($query) use ($teacherID) {
                     $query->where('teacherID', $teacherID)
-                          ->where('status', 'Active');
+                        ->where('status', 'Active');
                 })
-                ->where('year', $currentYear)
-                ->count();
+                    ->where('year', $currentYear)
+                    ->count();
             }
 
             // Count Lesson Plans
@@ -698,9 +702,9 @@ class TeachersController extends Controller
 
                     // Check for holidays
                     $holidays = \App\Models\Holiday::where('schoolID', $schoolID)
-                        ->where(function($query) use ($today) {
+                        ->where(function ($query) use ($today) {
                             $query->whereDate('start_date', '<=', $today)
-                                  ->whereDate('end_date', '>=', $today);
+                                ->whereDate('end_date', '>=', $today);
                         })
                         ->exists();
 
@@ -716,12 +720,12 @@ class TeachersController extends Controller
                     if (!$isHoliday && !$isWeekend && $now >= $sessionTime && $now <= $sessionEndTime) {
                         // Get subject name - check classSubject first, then subject
                         $subjectName = 'N/A';
-                        if($session->classSubject && $session->classSubject->subject && $session->classSubject->subject->subject_name) {
+                        if ($session->classSubject && $session->classSubject->subject && $session->classSubject->subject->subject_name) {
                             $subjectName = $session->classSubject->subject->subject_name;
-                        } elseif($session->subject && $session->subject->subject_name) {
+                        } elseif ($session->subject && $session->subject->subject_name) {
                             $subjectName = $session->subject->subject_name;
                         }
-                        if($session->is_prepo) {
+                        if ($session->is_prepo) {
                             $subjectName .= ' (Prepo)';
                         }
 
@@ -742,7 +746,7 @@ class TeachersController extends Controller
         }
 
         // Sort notifications by date (most recent first)
-        $notifications = $notifications->sortByDesc(function($notification) {
+        $notifications = $notifications->sortByDesc(function ($notification) {
             return $notification['date'];
         })->values()->take(10);
 
@@ -776,7 +780,7 @@ class TeachersController extends Controller
             }
 
             // Re-sort after adding feedback notifications
-            $notifications = $notifications->sortByDesc(function($notification) {
+            $notifications = $notifications->sortByDesc(function ($notification) {
                 return $notification['date'];
             })->values()->take(10);
         }
@@ -813,7 +817,7 @@ class TeachersController extends Controller
                     ->get();
 
                 $teacherPermissionsByCategory = $permissionsData->groupBy('permission_category')
-                    ->map(function($perms) {
+                    ->map(function ($perms) {
                         return $perms->pluck('name')->unique()->values();
                     });
             }
@@ -1025,7 +1029,7 @@ class TeachersController extends Controller
             // Count subjects teaching
             $subjectsCount = ClassSubject::where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->distinct('subjectID')
@@ -1048,9 +1052,11 @@ class TeachersController extends Controller
             // Get teaching subjects list
             $teachingSubjects = ClassSubject::where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->with(['subject' => function($query) {
-                    $query->where('status', 'Active');
-                }])
+                ->with([
+                    'subject' => function ($query) {
+                        $query->where('status', 'Active');
+                    }
+                ])
                 ->get()
                 ->pluck('subject.subject_name')
                 ->filter()
@@ -1279,7 +1285,7 @@ class TeachersController extends Controller
                 ->get();
 
             $teacherPermissionsByCategory = $permissionsData->groupBy('permission_category')
-                ->map(function($perms) {
+                ->map(function ($perms) {
                     return $perms->pluck('name')->unique()->values();
                 });
 
@@ -1391,7 +1397,7 @@ class TeachersController extends Controller
         $schoolID = Session::get('schoolID');
         $userType = Session::get('user_type');
 
-        if ($userType !== 'Teacher' || ! $teacherID || ! $schoolID) {
+        if ($userType !== 'Teacher' || !$teacherID || !$schoolID) {
             return redirect()->route('login')->with('error', 'Access denied');
         }
 
@@ -1399,7 +1405,7 @@ class TeachersController extends Controller
             ->where('schoolID', $schoolID)
             ->first();
 
-        if (! $teacher) {
+        if (!$teacher) {
             return redirect()->back()->with('error', 'Teacher not found');
         }
 
@@ -1466,11 +1472,11 @@ class TeachersController extends Controller
         if ($request->hasFile('teacher_image')) {
             $image = $request->file('teacher_image');
             $imageName = 'teacher_' . time() . '.' . $image->getClientOriginalExtension();
-            
+
             // Determine upload path - Prioritize the directory where index.php is located
             $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
             $uploadPath = $scriptDir . '/userImages';
-            
+
             // If scriptDir doesn't exist or isn't writable, fallback to other common paths
             if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
                 $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/userImages' : null;
@@ -1484,7 +1490,7 @@ class TeachersController extends Controller
             if (!file_exists($uploadPath)) {
                 @mkdir($uploadPath, 0755, true);
             }
-            
+
             $image->move($uploadPath, $imageName);
 
             // Delete old image if exists
@@ -1511,7 +1517,7 @@ class TeachersController extends Controller
         $schoolID = Session::get('schoolID');
         $userType = Session::get('user_type');
 
-        if ($userType !== 'Teacher' || ! $teacherID || ! $schoolID) {
+        if ($userType !== 'Teacher' || !$teacherID || !$schoolID) {
             return redirect()->route('login')->with('error', 'Access denied');
         }
 
@@ -1543,16 +1549,16 @@ class TeachersController extends Controller
             ->where('schoolID', $schoolID)
             ->first();
 
-        if (! $teacher) {
+        if (!$teacher) {
             return redirect()->back()->with('error', 'Teacher not found');
         }
 
         $user = User::where('name', $teacher->employee_number)->first();
-        if (! $user) {
+        if (!$user) {
             return redirect()->back()->with('error', 'User account not found');
         }
 
-        if (! Hash::check($request->current_password, $user->password)) {
+        if (!Hash::check($request->current_password, $user->password)) {
             return redirect()->back()->with('error', 'Current password is incorrect.');
         }
 
@@ -1681,9 +1687,18 @@ class TeachersController extends Controller
             // Update teacher with only provided fields
             $updateData = [];
             $allowedFields = [
-                'first_name', 'middle_name', 'last_name', 'gender', 'email',
-                'phone_number', 'qualification', 'specialization', 'experience',
-                'date_of_birth', 'address', 'position'
+                'first_name',
+                'middle_name',
+                'last_name',
+                'gender',
+                'email',
+                'phone_number',
+                'qualification',
+                'specialization',
+                'experience',
+                'date_of_birth',
+                'address',
+                'position'
             ];
 
             foreach ($allowedFields as $field) {
@@ -1886,19 +1901,23 @@ class TeachersController extends Controller
             }
 
             // Get all class subjects assigned to this teacher with statistics
-            $classSubjects = ClassSubject::with(['subject' => function($query) {
+            $classSubjects = ClassSubject::with([
+                'subject' => function ($query) {
                     $query->where('status', 'Active');
-                }, 'class', 'subclass.class'])
+                },
+                'class',
+                'subclass.class'
+            ])
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->get()
-                ->filter(function($classSubject) {
+                ->filter(function ($classSubject) {
                     return $classSubject->subject && $classSubject->subject->status === 'Active';
                 })
-                ->map(function($classSubject) {
+                ->map(function ($classSubject) {
                     // Get total students for this class subject
                     $subclassID = $classSubject->subclassID;
                     $classID = $classSubject->classID;
@@ -2001,7 +2020,7 @@ class TeachersController extends Controller
             $classSubject = ClassSubject::where('class_subjectID', $classSubjectID)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -2034,7 +2053,7 @@ class TeachersController extends Controller
                     ->get();
             }
 
-            $formattedStudents = $students->map(function($student) {
+            $formattedStudents = $students->map(function ($student) {
                 $baseUrl = asset('');
                 $photoUrl = $student->photo
                     ? $baseUrl . 'userImages/' . $student->photo
@@ -2131,7 +2150,7 @@ class TeachersController extends Controller
             $classSubject = ClassSubject::where('class_subjectID', $classSubjectID)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -2148,7 +2167,7 @@ class TeachersController extends Controller
                 ->where('enter_result', true)
                 ->orderBy('created_at', 'desc')
                 ->get()
-                ->map(function($exam) use ($schoolID) {
+                ->map(function ($exam) use ($schoolID) {
                     // Check if term is closed
                     $isTermClosed = false;
                     if ($exam->term && $exam->year) {
@@ -2248,13 +2267,17 @@ class TeachersController extends Controller
             }
 
             // Verify teacher owns this class subject
-            $classSubject = ClassSubject::with(['subject' => function($query) {
+            $classSubject = ClassSubject::with([
+                'subject' => function ($query) {
                     $query->where('status', 'Active');
-                }, 'class', 'subclass'])
+                },
+                'class',
+                'subclass'
+            ])
                 ->where('class_subjectID', $classSubjectID)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -2276,7 +2299,7 @@ class TeachersController extends Controller
             $results = $query->get();
 
             $baseUrl = asset('');
-            $formattedResults = $results->map(function($result) use ($baseUrl) {
+            $formattedResults = $results->map(function ($result) use ($baseUrl) {
                 $student = $result->student ?? null;
                 $photoUrl = $student && $student->photo
                     ? $baseUrl . 'userImages/' . $student->photo
@@ -2385,7 +2408,7 @@ class TeachersController extends Controller
             $classSubject = ClassSubject::where('class_subjectID', $request->class_subject_id)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -2565,7 +2588,7 @@ class TeachersController extends Controller
             $classSubject = ClassSubject::where('class_subjectID', $request->class_subject_id)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -2636,7 +2659,7 @@ class TeachersController extends Controller
 
                 // Validate marks
                 if ($marks !== null && $marks !== '') {
-                    $marks = (float)$marks;
+                    $marks = (float) $marks;
                     if ($marks < 0 || $marks > 100) {
                         $errors[] = "Row $row: Marks must be between 0 and 100.";
                         continue;
@@ -2747,7 +2770,7 @@ class TeachersController extends Controller
             // Graph 1: Sessions per week by day (from approved tasks)
             $approvedTasks = SessionTask::where('teacherID', $teacherID)
                 ->where('status', 'approved')
-                ->whereHas('sessionTimetable', function($query) use ($definition) {
+                ->whereHas('sessionTimetable', function ($query) use ($definition) {
                     $query->where('definitionID', $definition->definitionID);
                 })
                 ->with('sessionTimetable')
@@ -2823,7 +2846,7 @@ class TeachersController extends Controller
             }
 
             // Sort by pass rate (highest to lowest)
-            usort($subjectPerformance, function($a, $b) {
+            usort($subjectPerformance, function ($a, $b) {
                 return $b['pass_rate'] <=> $a['pass_rate'];
             });
 
@@ -2837,9 +2860,9 @@ class TeachersController extends Controller
                 if (!isset($classSessions[$className])) {
                     $sessionCount = SessionTask::where('teacherID', $teacherID)
                         ->where('status', 'approved')
-                        ->whereHas('sessionTimetable', function($query) use ($classSubject, $definition) {
+                        ->whereHas('sessionTimetable', function ($query) use ($classSubject, $definition) {
                             $query->where('definitionID', $definition->definitionID)
-                                  ->where('class_subjectID', $classSubject->class_subjectID);
+                                ->where('class_subjectID', $classSubject->class_subjectID);
                         })
                         ->count();
 
@@ -2962,15 +2985,15 @@ class TeachersController extends Controller
         $lastOrder = !empty($chain) ? max(array_column($chain, 'approval_order')) : 0;
 
         $chain[] = [
-            'result_approvalID'  => null,
-            'approval_order'     => $lastOrder + 1,
-            'role_name'          => 'Admin',
-            'status'             => $adminApprovalStatus,
-            'special_role_type'  => 'admin',
-            'is_teacher_step'    => false,
-            'approver'           => null,
-            'approved_at'        => $adminApprovalStatus === 'approved' ? ($examination->updated_at ?? null) : null,
-            'rejection_reason'   => $adminApprovalStatus === 'rejected' ? ($examination->rejection_reason ?? null) : null,
+            'result_approvalID' => null,
+            'approval_order' => $lastOrder + 1,
+            'role_name' => 'Admin',
+            'status' => $adminApprovalStatus,
+            'special_role_type' => 'admin',
+            'is_teacher_step' => false,
+            'approver' => null,
+            'approved_at' => $adminApprovalStatus === 'approved' ? ($examination->updated_at ?? null) : null,
+            'rejection_reason' => $adminApprovalStatus === 'rejected' ? ($examination->rejection_reason ?? null) : null,
         ];
 
         return view('Teacher.view_approval_chain', compact('examination', 'chain', 'teacherID'));
@@ -3134,11 +3157,11 @@ class TeachersController extends Controller
         ]);
     }
 
-    public function teacherSubjects(){
-           $user = Session::get('user_type');
+    public function teacherSubjects()
+    {
+        $user = Session::get('user_type');
 
-        if (!$user)
-        {
+        if (!$user) {
             return redirect()->route('login')->with('error', 'Unauthorized access');
         }
 
@@ -3150,20 +3173,24 @@ class TeachersController extends Controller
 
         // Get all class subjects assigned to this teacher with statistics
         // Only show subjects where both ClassSubject and SchoolSubject have status = Active
-        $classSubjects = ClassSubject::with(['subject' => function($query) {
+        $classSubjects = ClassSubject::with([
+            'subject' => function ($query) {
                 $query->where('status', 'Active');
-            }, 'class', 'subclass.class'])
+            },
+            'class',
+            'subclass.class'
+        ])
             ->where('teacherID', $teacherID)
             ->where('status', 'Active')
-            ->whereHas('subject', function($query) {
+            ->whereHas('subject', function ($query) {
                 $query->where('status', 'Active');
             })
             ->get()
-            ->filter(function($classSubject) {
+            ->filter(function ($classSubject) {
                 // Additional filter: ensure subject relationship exists and has Active status
                 return $classSubject->subject && $classSubject->subject->status === 'Active';
             })
-            ->map(function($classSubject) {
+            ->map(function ($classSubject) {
                 // Get total students for this class subject
                 // Students who take this subject (based on subclass or class)
                 $subclassID = $classSubject->subclassID;
@@ -3192,7 +3219,7 @@ class TeachersController extends Controller
                 $classSubject->total_students = $studentCount;
                 return $classSubject;
             })
-            ->filter(function($classSubject) {
+            ->filter(function ($classSubject) {
                 // Final filter: ensure subject still exists and is Active after mapping
                 return $classSubject->subject && $classSubject->subject->status === 'Active';
             })
@@ -3209,8 +3236,7 @@ class TeachersController extends Controller
     {
         $user = Session::get('user_type');
 
-        if (!$user)
-        {
+        if (!$user) {
             return redirect()->route('login')->with('error', 'Unauthorized access');
         }
 
@@ -3222,16 +3248,20 @@ class TeachersController extends Controller
 
         // Get all class subjects assigned to this teacher
         // Only show subjects where both ClassSubject and SchoolSubject have status = Active
-        $teacherSubjects = ClassSubject::with(['subject' => function($query) {
+        $teacherSubjects = ClassSubject::with([
+            'subject' => function ($query) {
                 $query->where('status', 'Active');
-            }, 'class', 'subclass.class'])
+            },
+            'class',
+            'subclass.class'
+        ])
             ->where('teacherID', $teacherID)
             ->where('status', 'Active')
-            ->whereHas('subject', function($query) {
+            ->whereHas('subject', function ($query) {
                 $query->where('status', 'Active');
             })
             ->get()
-            ->filter(function($classSubject) {
+            ->filter(function ($classSubject) {
                 // Additional filter: ensure subject relationship exists and has Active status
                 return $classSubject->subject && $classSubject->subject->status === 'Active';
             })
@@ -3300,16 +3330,16 @@ class TeachersController extends Controller
 
         // Get holidays for the year (including those that span across years)
         $holidays = Holiday::where('schoolID', $schoolID)
-            ->where(function($query) use ($currentYear) {
+            ->where(function ($query) use ($currentYear) {
                 $query->whereYear('start_date', $currentYear)
-                      ->orWhereYear('end_date', $currentYear)
-                      ->orWhere(function($q) use ($currentYear) {
-                          $q->whereYear('start_date', '<', $currentYear)
+                    ->orWhereYear('end_date', $currentYear)
+                    ->orWhere(function ($q) use ($currentYear) {
+                        $q->whereYear('start_date', '<', $currentYear)
                             ->whereYear('end_date', '>', $currentYear);
-                      });
+                    });
             })
             ->get()
-            ->map(function($holiday) use ($currentYear) {
+            ->map(function ($holiday) use ($currentYear) {
                 // Format dates properly
                 $startDate = \Carbon\Carbon::parse($holiday->start_date);
                 $endDate = \Carbon\Carbon::parse($holiday->end_date);
@@ -3331,7 +3361,7 @@ class TeachersController extends Controller
             ->whereYear('event_date', $currentYear)
             ->where('is_non_working_day', true)
             ->get()
-            ->map(function($event) {
+            ->map(function ($event) {
                 $eventDate = \Carbon\Carbon::parse($event->event_date);
                 return [
                     'name' => $event->event_name,
@@ -3424,7 +3454,7 @@ class TeachersController extends Controller
                         'learning_activities' => $item['learning_activities'] ?? '',
                         'specific_activities' => $item['specific_activities'] ?? '',
                         'week' => !empty($item['week']) ? $item['week'] : null,
-                        'number_of_periods' => !empty($item['number_of_periods']) ? (int)$item['number_of_periods'] : 0,
+                        'number_of_periods' => !empty($item['number_of_periods']) ? (int) $item['number_of_periods'] : 0,
                         'teaching_methods' => $item['teaching_methods'] ?? '',
                         'teaching_resources' => $item['teaching_resources'] ?? '',
                         'assessment_tools' => $item['assessment_tools'] ?? '',
@@ -3464,14 +3494,18 @@ class TeachersController extends Controller
         }
 
         // Get scheme of work with relationships
-        $scheme = SchemeOfWork::with(['classSubject.subject', 'classSubject.class', 'classSubject.subclass.class',
-                                      'items' => function($query) {
-                                          $query->orderBy('month')->orderBy('row_order');
-                                      },
-                                      'learningObjectives' => function($query) {
-                                          $query->orderBy('order');
-                                      },
-                                      'createdBy'])
+        $scheme = SchemeOfWork::with([
+            'classSubject.subject',
+            'classSubject.class',
+            'classSubject.subclass.class',
+            'items' => function ($query) {
+                $query->orderBy('month')->orderBy('row_order');
+            },
+            'learningObjectives' => function ($query) {
+                $query->orderBy('order');
+            },
+            'createdBy'
+        ])
             ->where('scheme_of_workID', $schemeOfWorkID)
             ->first();
 
@@ -3502,14 +3536,18 @@ class TeachersController extends Controller
         }
 
         // Get scheme of work with relationships
-        $scheme = SchemeOfWork::with(['classSubject.subject', 'classSubject.class', 'classSubject.subclass.class',
-                                      'items' => function($query) {
-                                          $query->orderBy('month')->orderBy('row_order');
-                                      },
-                                      'learningObjectives' => function($query) {
-                                          $query->orderBy('order');
-                                      },
-                                      'createdBy'])
+        $scheme = SchemeOfWork::with([
+            'classSubject.subject',
+            'classSubject.class',
+            'classSubject.subclass.class',
+            'items' => function ($query) {
+                $query->orderBy('month')->orderBy('row_order');
+            },
+            'learningObjectives' => function ($query) {
+                $query->orderBy('order');
+            },
+            'createdBy'
+        ])
             ->where('scheme_of_workID', $schemeOfWorkID)
             ->first();
 
@@ -3526,12 +3564,12 @@ class TeachersController extends Controller
         // Get holidays for the year
         $currentYear = $scheme->year;
         $holidays = Holiday::where('schoolID', $schoolID)
-            ->where(function($query) use ($currentYear) {
+            ->where(function ($query) use ($currentYear) {
                 $query->whereYear('start_date', $currentYear)
-                      ->orWhereYear('end_date', $currentYear);
+                    ->orWhereYear('end_date', $currentYear);
             })
             ->get()
-            ->map(function($holiday) use ($currentYear) {
+            ->map(function ($holiday) use ($currentYear) {
                 $startDate = \Carbon\Carbon::parse($holiday->start_date);
                 $endDate = \Carbon\Carbon::parse($holiday->end_date);
 
@@ -3551,7 +3589,7 @@ class TeachersController extends Controller
             ->whereYear('event_date', $currentYear)
             ->where('is_non_working_day', true)
             ->get()
-            ->map(function($event) {
+            ->map(function ($event) {
                 $eventDate = \Carbon\Carbon::parse($event->event_date);
                 return [
                     'name' => $event->event_name,
@@ -3632,7 +3670,7 @@ class TeachersController extends Controller
                             'learning_activities' => $itemData['learning_activities'] ?? '',
                             'specific_activities' => $itemData['specific_activities'] ?? '',
                             'week' => !empty($itemData['week']) ? $itemData['week'] : null,
-                            'number_of_periods' => !empty($itemData['number_of_periods']) ? (int)$itemData['number_of_periods'] : 0,
+                            'number_of_periods' => !empty($itemData['number_of_periods']) ? (int) $itemData['number_of_periods'] : 0,
                             'teaching_methods' => $itemData['teaching_methods'] ?? '',
                             'teaching_resources' => $itemData['teaching_resources'] ?? '',
                             'assessment_tools' => $itemData['assessment_tools'] ?? '',
@@ -3657,7 +3695,7 @@ class TeachersController extends Controller
                                 'learning_activities' => $itemData['learning_activities'] ?? '',
                                 'specific_activities' => $itemData['specific_activities'] ?? '',
                                 'week' => !empty($itemData['week']) ? $itemData['week'] : null,
-                                'number_of_periods' => !empty($itemData['number_of_periods']) ? (int)$itemData['number_of_periods'] : 0,
+                                'number_of_periods' => !empty($itemData['number_of_periods']) ? (int) $itemData['number_of_periods'] : 0,
                                 'teaching_methods' => $itemData['teaching_methods'] ?? '',
                                 'teaching_resources' => $itemData['teaching_resources'] ?? '',
                                 'assessment_tools' => $itemData['assessment_tools'] ?? '',
@@ -3788,7 +3826,7 @@ class TeachersController extends Controller
         // Get all schemes for this subject (from any class subject with same subjectID)
         // Include schemes from scheme_of_works table (current, past, and archived schemes)
         $existingSchemes = SchemeOfWork::with(['classSubject.subject', 'classSubject.class', 'classSubject.subclass.class', 'createdBy', 'items', 'learningObjectives'])
-            ->whereHas('classSubject', function($query) use ($subjectID) {
+            ->whereHas('classSubject', function ($query) use ($subjectID) {
                 $query->where('subjectID', $subjectID);
             })
             ->orderBy('year', 'desc')
@@ -3981,14 +4019,18 @@ class TeachersController extends Controller
     {
         $teacherID = Session::get('teacherID');
 
-        $scheme = SchemeOfWork::with(['classSubject.subject', 'classSubject.class', 'classSubject.subclass.class',
-                                      'items' => function($query) {
-                                          $query->orderBy('month')->orderBy('row_order');
-                                      },
-                                      'learningObjectives' => function($query) {
-                                          $query->orderBy('order');
-                                      },
-                                      'createdBy'])
+        $scheme = SchemeOfWork::with([
+            'classSubject.subject',
+            'classSubject.class',
+            'classSubject.subclass.class',
+            'items' => function ($query) {
+                $query->orderBy('month')->orderBy('row_order');
+            },
+            'learningObjectives' => function ($query) {
+                $query->orderBy('order');
+            },
+            'createdBy'
+        ])
             ->where('scheme_of_workID', $schemeOfWorkID)
             ->first();
 
@@ -3998,15 +4040,16 @@ class TeachersController extends Controller
 
         // Sort items chronologically by month
         $monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        $scheme->setRelation('items', $scheme->items->sort(function($a, $b) use ($monthOrder) {
+        $scheme->setRelation('items', $scheme->items->sort(function ($a, $b) use ($monthOrder) {
             $posA = array_search($a->month, $monthOrder);
             $posB = array_search($b->month, $monthOrder);
-            if ($posA === $posB) return $a->row_order <=> $b->row_order;
+            if ($posA === $posB)
+                return $a->row_order <=> $b->row_order;
             return ($posA === false ? 99 : $posA) <=> ($posB === false ? 99 : $posB);
         }));
 
-        $school   = School::where('schoolID', Session::get('schoolID'))->first();
-        $teacher  = Teacher::find($teacherID);
+        $school = School::where('schoolID', Session::get('schoolID'))->first();
+        $teacher = Teacher::find($teacherID);
 
         $data = [
             'scheme' => $scheme,
@@ -4031,7 +4074,7 @@ class TeachersController extends Controller
             $filename = 'Scheme_of_Work_' . str_replace(' ', '_', $scheme->classSubject->subject->subject_name ?? 'Subject') . '_' . $scheme->year . '.pdf';
 
             return response($dompdf->output(), 200, [
-                'Content-Type'        => 'application/pdf',
+                'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             ]);
         } catch (\Exception $e) {
@@ -4044,14 +4087,18 @@ class TeachersController extends Controller
     {
         $teacherID = Session::get('teacherID');
 
-        $scheme = SchemeOfWork::with(['classSubject.subject', 'classSubject.class', 'classSubject.subclass.class',
-                                      'items' => function($query) {
-                                          $query->orderBy('month')->orderBy('row_order');
-                                      },
-                                      'learningObjectives' => function($query) {
-                                          $query->orderBy('order');
-                                      },
-                                      'createdBy'])
+        $scheme = SchemeOfWork::with([
+            'classSubject.subject',
+            'classSubject.class',
+            'classSubject.subclass.class',
+            'items' => function ($query) {
+                $query->orderBy('month')->orderBy('row_order');
+            },
+            'learningObjectives' => function ($query) {
+                $query->orderBy('order');
+            },
+            'createdBy'
+        ])
             ->where('scheme_of_workID', $schemeOfWorkID)
             ->first();
 
@@ -4063,9 +4110,21 @@ class TeachersController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
 
         // Set headers
-        $headers = ['#', 'Main Competence', 'Specific Competences', 'Learning Activities', 'Specific Activities',
-                   'Month', 'Week', 'Number of Periods', 'Teaching and Learning Methods',
-                   'Teaching and Learning Resources', 'Assessment Tools', 'References', 'Remarks'];
+        $headers = [
+            '#',
+            'Main Competence',
+            'Specific Competences',
+            'Learning Activities',
+            'Specific Activities',
+            'Month',
+            'Week',
+            'Number of Periods',
+            'Teaching and Learning Methods',
+            'Teaching and Learning Resources',
+            'Assessment Tools',
+            'References',
+            'Remarks'
+        ];
 
         $col = 'A';
         foreach ($headers as $header) {
@@ -4125,7 +4184,7 @@ class TeachersController extends Controller
             $classSubject = ClassSubject::where('class_subjectID', $classSubjectID)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -4192,13 +4251,17 @@ class TeachersController extends Controller
             }
 
             // Verify teacher owns this class subject and both ClassSubject and Subject have status = Active
-            $classSubject = ClassSubject::with(['subject' => function($query) {
+            $classSubject = ClassSubject::with([
+                'subject' => function ($query) {
                     $query->where('status', 'Active');
-                }, 'class', 'subclass'])
+                },
+                'class',
+                'subclass'
+            ])
                 ->where('class_subjectID', $classSubjectID)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -4242,7 +4305,7 @@ class TeachersController extends Controller
 
                     $caMarksMap = [];
                     foreach ($allTestResults->groupBy('studentID') as $studentID => $studentTestResults) {
-                        $validMarks = $studentTestResults->filter(function($r) {
+                        $validMarks = $studentTestResults->filter(function ($r) {
                             return $r->marks !== null && $r->marks !== '';
                         });
                         $averageCa = $validMarks->count() > 0 ? $validMarks->avg('marks') : 0;
@@ -4251,27 +4314,39 @@ class TeachersController extends Controller
 
                     $results->transform(function ($result) use ($caMarksMap, $classSubject, $grades, $classNameLower) {
                         $caMark = isset($caMarksMap[$result->studentID]) ? $caMarksMap[$result->studentID] : 0;
-                        $examMark = $result->marks !== null ? (float)$result->marks : 0;
-                        
+                        $examMark = $result->marks !== null ? (float) $result->marks : 0;
+
                         $result->ca_marks = $caMark;
                         $result->exam_marks = $examMark;
                         $result->total_marks = $examMark + $caMark;
                         $result->avg_marks = $result->total_marks / 2;
-                        
+
                         // Use pre-fetched grades logic here instead of call to getGradeFromDefinition
                         $marksNum = (float) $result->avg_marks;
                         $gradeDefinition = $grades->where('first', '<=', $marksNum)->where('last', '>=', $marksNum)->first();
                         $result->grade = $gradeDefinition->grade ?? 'N/A';
-                        
+
                         // Map grade to descriptive remark
                         $gradeUpper = strtoupper($result->grade);
-                        switch($gradeUpper) {
-                            case 'A': $result->remark = 'Excellent'; break;
-                            case 'B': $result->remark = 'Very Good'; break;
-                            case 'C': $result->remark = 'Good'; break;
-                            case 'D': $result->remark = 'Pass'; break;
-                            case 'E': $result->remark = 'Satisfactory'; break;
-                            default: $result->remark = 'Fail'; break;
+                        switch ($gradeUpper) {
+                            case 'A':
+                                $result->remark = 'Excellent';
+                                break;
+                            case 'B':
+                                $result->remark = 'Very Good';
+                                break;
+                            case 'C':
+                                $result->remark = 'Good';
+                                break;
+                            case 'D':
+                                $result->remark = 'Pass';
+                                break;
+                            case 'E':
+                                $result->remark = 'Satisfactory';
+                                break;
+                            default:
+                                $result->remark = 'Fail';
+                                break;
                         }
 
                         return $result;
@@ -4279,26 +4354,38 @@ class TeachersController extends Controller
                 } else {
                     $results->transform(function ($result) use ($classSubject, $grades, $classNameLower) {
                         $result->ca_marks = 0;
-                        $result->exam_marks = $result->marks !== null ? (float)$result->marks : 0;
+                        $result->exam_marks = $result->marks !== null ? (float) $result->marks : 0;
                         $result->total_marks = $result->exam_marks;
                         $result->avg_marks = $result->total_marks;
-                        
+
                         // Use pre-fetched grades logic here instead of call to getGradeFromDefinition
                         $marksNum = (float) $result->avg_marks;
                         $gradeDefinition = $grades->where('first', '<=', $marksNum)->where('last', '>=', $marksNum)->first();
                         $result->grade = $gradeDefinition->grade ?? 'N/A';
-                        
+
                         // Map grade to descriptive remark
                         $gradeUpper = strtoupper($result->grade);
-                        switch($gradeUpper) {
-                            case 'A': $result->remark = 'Excellent'; break;
-                            case 'B': $result->remark = 'Very Good'; break;
-                            case 'C': $result->remark = 'Good'; break;
-                            case 'D': $result->remark = 'Pass'; break;
-                            case 'E': $result->remark = 'Satisfactory'; break;
-                            default: $result->remark = 'Fail'; break;
+                        switch ($gradeUpper) {
+                            case 'A':
+                                $result->remark = 'Excellent';
+                                break;
+                            case 'B':
+                                $result->remark = 'Very Good';
+                                break;
+                            case 'C':
+                                $result->remark = 'Good';
+                                break;
+                            case 'D':
+                                $result->remark = 'Pass';
+                                break;
+                            case 'E':
+                                $result->remark = 'Satisfactory';
+                                break;
+                            default:
+                                $result->remark = 'Fail';
+                                break;
                         }
-                        
+
                         return $result;
                     });
                 }
@@ -4306,22 +4393,28 @@ class TeachersController extends Controller
                 // Basic results if no examID
                 $results->transform(function ($result) use ($classSubject) {
                     $result->ca_marks = 0;
-                    $result->exam_marks = $result->marks !== null ? (float)$result->marks : 0;
+                    $result->exam_marks = $result->marks !== null ? (float) $result->marks : 0;
                     $result->total_marks = $result->exam_marks;
                     $result->avg_marks = $result->total_marks;
-                    
+
                     $gradeData = $this->getGradeFromDefinition($result->total_marks, $classSubject->classID);
                     $result->grade = $gradeData['grade'] ?? 'N/A';
-                    
+
                     // Map grade to descriptive remark
                     $grade = strtoupper($result->grade);
-                    if ($grade === 'A') $result->remark = 'Excellent';
-                    elseif ($grade === 'B') $result->remark = 'Very Good';
-                    elseif ($grade === 'C') $result->remark = 'Good';
-                    elseif ($grade === 'D') $result->remark = 'Pass';
-                    elseif ($grade === 'E') $result->remark = 'Satisfactory';
-                    else $result->remark = 'Fail';
-                    
+                    if ($grade === 'A')
+                        $result->remark = 'Excellent';
+                    elseif ($grade === 'B')
+                        $result->remark = 'Very Good';
+                    elseif ($grade === 'C')
+                        $result->remark = 'Good';
+                    elseif ($grade === 'D')
+                        $result->remark = 'Pass';
+                    elseif ($grade === 'E')
+                        $result->remark = 'Satisfactory';
+                    else
+                        $result->remark = 'Fail';
+
                     return $result;
                 });
             }
@@ -4361,7 +4454,8 @@ class TeachersController extends Controller
                 ->select('class_subjects.*', 'classes.class_name', 'school_subjects.subject_name')
                 ->first();
 
-            if (!$classSubject) return redirect()->back()->with('error', 'Subject not found.');
+            if (!$classSubject)
+                return redirect()->back()->with('error', 'Subject not found.');
 
             // Fetch results by joining with students to filter by schoolID
             $query = \App\Models\Result::with(['student'])
@@ -4402,7 +4496,7 @@ class TeachersController extends Controller
 
                     $caMarksMap = [];
                     foreach ($allTestResults->groupBy('studentID') as $sid => $studentTestResults) {
-                        $validMarks = $studentTestResults->filter(function($r) {
+                        $validMarks = $studentTestResults->filter(function ($r) {
                             return $r->marks !== null && $r->marks !== '';
                         });
                         $averageCa = $validMarks->count() > 0 ? $validMarks->avg('marks') : 0;
@@ -4411,70 +4505,88 @@ class TeachersController extends Controller
 
                     $results->transform(function ($result) use ($caMarksMap, $classSubject) {
                         $caMark = isset($caMarksMap[$result->studentID]) ? $caMarksMap[$result->studentID] : 0;
-                        $examMark = $result->marks !== null ? (float)$result->marks : 0;
+                        $examMark = $result->marks !== null ? (float) $result->marks : 0;
                         $result->ca_marks = $caMark;
                         $result->exam_marks = $examMark;
                         $result->total_marks = $examMark + $caMark;
                         $result->avg_marks = $result->total_marks / 2;
-                        
+
                         $gradeData = $this->getGradeFromDefinition($result->avg_marks, $classSubject->classID);
                         $result->grade = $gradeData['grade'] ?? 'N/A';
-                        
+
                         $grade = strtoupper($result->grade);
-                        if ($grade === 'A') $result->remark = 'Excellent';
-                        elseif ($grade === 'B') $result->remark = 'Very Good';
-                        elseif ($grade === 'C') $result->remark = 'Good';
-                        elseif ($grade === 'D') $result->remark = 'Pass';
-                        elseif ($grade === 'E') $result->remark = 'Satisfactory';
-                        else $result->remark = 'Fail';
-                        
+                        if ($grade === 'A')
+                            $result->remark = 'Excellent';
+                        elseif ($grade === 'B')
+                            $result->remark = 'Very Good';
+                        elseif ($grade === 'C')
+                            $result->remark = 'Good';
+                        elseif ($grade === 'D')
+                            $result->remark = 'Pass';
+                        elseif ($grade === 'E')
+                            $result->remark = 'Satisfactory';
+                        else
+                            $result->remark = 'Fail';
+
                         return $result;
                     });
                 } else {
                     $results->transform(function ($result) use ($classSubject) {
                         $result->ca_marks = 0;
-                        $result->exam_marks = $result->marks !== null ? (float)$result->marks : 0;
+                        $result->exam_marks = $result->marks !== null ? (float) $result->marks : 0;
                         $result->total_marks = $result->exam_marks;
                         $result->avg_marks = $result->total_marks;
-                        
+
                         $gradeData = $this->getGradeFromDefinition($result->total_marks, $classSubject->classID);
                         $result->grade = $gradeData['grade'] ?? 'N/A';
-                        
+
                         $grade = strtoupper($result->grade);
-                        if ($grade === 'A') $result->remark = 'Excellent';
-                        elseif ($grade === 'B') $result->remark = 'Very Good';
-                        elseif ($grade === 'C') $result->remark = 'Good';
-                        elseif ($grade === 'D') $result->remark = 'Pass';
-                        elseif ($grade === 'E') $result->remark = 'Satisfactory';
-                        else $result->remark = 'Fail';
-                        
+                        if ($grade === 'A')
+                            $result->remark = 'Excellent';
+                        elseif ($grade === 'B')
+                            $result->remark = 'Very Good';
+                        elseif ($grade === 'C')
+                            $result->remark = 'Good';
+                        elseif ($grade === 'D')
+                            $result->remark = 'Pass';
+                        elseif ($grade === 'E')
+                            $result->remark = 'Satisfactory';
+                        else
+                            $result->remark = 'Fail';
+
                         return $result;
                     });
                 }
             } else {
                 $results->transform(function ($result) use ($classSubject) {
                     $result->ca_marks = 0;
-                    $result->exam_marks = $result->marks !== null ? (float)$result->marks : 0;
+                    $result->exam_marks = $result->marks !== null ? (float) $result->marks : 0;
                     $result->total_marks = $result->exam_marks;
                     $result->avg_marks = $result->total_marks;
-                    
+
                     $gradeData = $this->getGradeFromDefinition($result->total_marks, $classSubject->classID);
                     $result->grade = $gradeData['grade'] ?? 'N/A';
-                    
+
                     $grade = strtoupper($result->grade);
-                    if ($grade === 'A') $result->remark = 'Excellent';
-                    elseif ($grade === 'B') $result->remark = 'Very Good';
-                    elseif ($grade === 'C') $result->remark = 'Good';
-                    elseif ($grade === 'D') $result->remark = 'Pass';
-                    elseif ($grade === 'E') $result->remark = 'Satisfactory';
-                    else $result->remark = 'Fail';
-                    
+                    if ($grade === 'A')
+                        $result->remark = 'Excellent';
+                    elseif ($grade === 'B')
+                        $result->remark = 'Very Good';
+                    elseif ($grade === 'C')
+                        $result->remark = 'Good';
+                    elseif ($grade === 'D')
+                        $result->remark = 'Pass';
+                    elseif ($grade === 'E')
+                        $result->remark = 'Satisfactory';
+                    else
+                        $result->remark = 'Fail';
+
                     return $result;
                 });
             }
 
             $results = $results->sortByDesc('total_marks')->values();
-            
+
             $teacher = DB::table('teachers')->where('id', $teacherID)->first();
             $teacherName = $teacher ? ($teacher->first_name . ' ' . $teacher->last_name) : 'N/A';
 
@@ -4485,7 +4597,7 @@ class TeachersController extends Controller
                 'has_ca' => $hasCA,
                 'exam_name' => $examName,
                 'teacher_name' => $teacherName,
-                'subject' => (object)['subject_name' => $classSubject->subject_name]
+                'subject' => (object) ['subject_name' => $classSubject->subject_name]
             ])->render();
 
             $dompdf->loadHtml($html);
@@ -4493,7 +4605,7 @@ class TeachersController extends Controller
             $dompdf->render();
 
             $filename = str_replace(' ', '_', $classSubject->class_name . '_' . $classSubject->subject_name) . '_Results.pdf';
-            return response()->streamDownload(function() use ($dompdf) {
+            return response()->streamDownload(function () use ($dompdf) {
                 echo $dompdf->output();
             }, $filename, ['Content-Type' => 'application/pdf']);
 
@@ -4517,7 +4629,7 @@ class TeachersController extends Controller
             $classSubject = ClassSubject::where('class_subjectID', $classSubjectID)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -4536,7 +4648,7 @@ class TeachersController extends Controller
                 ->where('enter_result', true) // Only exams with enter_result = true
                 ->orderBy('created_at', 'desc')
                 ->get()
-                ->map(function($exam) use ($schoolID) {
+                ->map(function ($exam) use ($schoolID) {
                     // Check if term is closed
                     $isTermClosed = false;
                     if ($exam->term && $exam->year) {
@@ -4603,7 +4715,7 @@ class TeachersController extends Controller
             $classSubject = ClassSubject::where('class_subjectID', $classSubjectID)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -4721,9 +4833,9 @@ class TeachersController extends Controller
     public function saveSubjectResults(Request $request)
     {
         // Increase limits for large payloads (300+ students with questions)
-        set_time_limit(600); 
+        set_time_limit(600);
         ini_set('memory_limit', '512M');
-        
+
         try {
             // Handle stringified JSON from large payloads (bypasses max_input_vars limit)
             if (is_string($request->results)) {
@@ -4770,8 +4882,9 @@ class TeachersController extends Controller
             $requiresQuestionMarks = $schoolType === 'secondary' && ($examination->allow_no_format != 1);
 
             $testWeek = $request->test_week ? trim($request->test_week) : null;
-            if ($testWeek === '') $testWeek = null;
-            
+            if ($testWeek === '')
+                $testWeek = null;
+
             // Collect all student IDs to fetch subclasses in one go
             $studentIdsInRequest = collect($request->results)->pluck('studentID')->unique()->toArray();
             $studentsMap = Student::whereIn('studentID', $studentIdsInRequest)->pluck('subclassID', 'studentID');
@@ -4782,7 +4895,8 @@ class TeachersController extends Controller
 
             foreach ($request->results as $resultData) {
                 $studentID = $resultData['studentID'] ?? null;
-                if (!$studentID) continue;
+                if (!$studentID)
+                    continue;
 
                 $marks = $resultData['marks'] ?? null;
                 $grade = $resultData['grade'] ?? null;
@@ -4790,9 +4904,9 @@ class TeachersController extends Controller
 
                 // Auto-calculate if not provided
                 if ($marks !== null && (!$grade || !$remark)) {
-                   $calc = $this->calculateGradeAndRemarkFromMarks($marks);
-                   $grade = $grade ?: $calc['grade'];
-                   $remark = $remark ?: $calc['remark'];
+                    $calc = $this->calculateGradeAndRemarkFromMarks($marks);
+                    $grade = $grade ?: $calc['grade'];
+                    $remark = $remark ?: $calc['remark'];
                 }
 
                 $resultsToUpsert[] = [
@@ -4812,13 +4926,14 @@ class TeachersController extends Controller
 
                 if ($requiresQuestionMarks && !empty($resultData['question_marks'])) {
                     foreach ($resultData['question_marks'] as $qMark) {
-                        if (!isset($qMark['question_id'])) continue;
+                        if (!isset($qMark['question_id']))
+                            continue;
                         $questionMarksToUpsert[] = [
                             'exam_paper_questionID' => $qMark['question_id'],
                             'studentID' => $studentID,
                             'examID' => $request->examID,
                             'class_subjectID' => $request->class_subjectID,
-                            'marks' => (float)($qMark['marks'] ?? 0),
+                            'marks' => (float) ($qMark['marks'] ?? 0),
                             'created_at' => $now,
                             'updated_at' => $now
                         ];
@@ -4827,7 +4942,7 @@ class TeachersController extends Controller
             }
 
             DB::beginTransaction();
-            
+
             // Massive Save 1: Basic Results
             if (!empty($resultsToUpsert)) {
                 foreach ($resultsToUpsert as $resultData) {
@@ -4888,7 +5003,7 @@ class TeachersController extends Controller
         }
 
         $marksNum = (float) $marks;
-        
+
         if ($marksNum >= 75) {
             return ['grade' => 'A', 'remark' => 'Excellent'];
         } elseif ($marksNum >= 65) {
@@ -4943,13 +5058,17 @@ class TeachersController extends Controller
             }
 
             // Verify teacher owns this class subject
-            $classSubject = ClassSubject::with(['subject' => function($query) {
+            $classSubject = ClassSubject::with([
+                'subject' => function ($query) {
                     $query->where('status', 'Active');
-                }, 'class', 'subclass'])
+                },
+                'class',
+                'subclass'
+            ])
                 ->where('class_subjectID', $classSubjectID)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -5125,13 +5244,17 @@ class TeachersController extends Controller
             }
 
             // Verify teacher owns this class subject and both ClassSubject and Subject have status = Active
-            $classSubject = ClassSubject::with(['subject' => function($query) {
+            $classSubject = ClassSubject::with([
+                'subject' => function ($query) {
                     $query->where('status', 'Active');
-                }, 'class', 'subclass'])
+                },
+                'class',
+                'subclass'
+            ])
                 ->where('class_subjectID', $classSubjectID)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -5326,7 +5449,7 @@ class TeachersController extends Controller
             $classSubject = ClassSubject::where('class_subjectID', $request->class_subject_id)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -5393,7 +5516,7 @@ class TeachersController extends Controller
 
                 // Validate marks
                 if ($marks !== null && $marks !== '') {
-                    $marks = (float)$marks;
+                    $marks = (float) $marks;
                     if ($marks < 0 || $marks > 100) {
                         $errors[] = "Row $row: Marks must be between 0 and 100.";
                         continue;
@@ -5551,7 +5674,7 @@ class TeachersController extends Controller
         $output = fopen('php://output', 'w');
 
         // Add BOM for Excel UTF-8 support
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
         // Headers
         fputcsv($output, ['Student ID', 'Admission Number', 'Student Name', 'Marks', 'Grade', 'Remark']);
@@ -5674,8 +5797,8 @@ class TeachersController extends Controller
         // Check for regular role approvals
         if (!empty($teacherRoles)) {
             $regularRoleApprovals = ResultApproval::with(['examination', 'role'])
-            ->where('examID', $examID)
-            ->whereIn('role_id', $teacherRoles)
+                ->where('examID', $examID)
+                ->whereIn('role_id', $teacherRoles)
                 ->whereIn('status', ['pending', 'rejected'])
                 ->get();
 
@@ -5685,32 +5808,32 @@ class TeachersController extends Controller
         }
 
         // Check for class_teacher approvals
-            if (!empty($teacherSubclasses)) {
+        if (!empty($teacherSubclasses)) {
             $classTeacherApprovals = ResultApproval::with(['examination', 'classTeacherApprovals'])
-                    ->where('examID', $examID)
-                    ->where('special_role_type', 'class_teacher')
-                    ->whereIn('status', ['pending', 'rejected'])
-                    ->whereHas('classTeacherApprovals', function($query) use ($teacherSubclasses) {
-                        $query->whereIn('subclassID', $teacherSubclasses)
-                            ->whereIn('status', ['pending', 'rejected']);
-                    })
+                ->where('examID', $examID)
+                ->where('special_role_type', 'class_teacher')
+                ->whereIn('status', ['pending', 'rejected'])
+                ->whereHas('classTeacherApprovals', function ($query) use ($teacherSubclasses) {
+                    $query->whereIn('subclassID', $teacherSubclasses)
+                        ->whereIn('status', ['pending', 'rejected']);
+                })
                 ->get();
 
             foreach ($classTeacherApprovals as $approval) {
                 $eligibleApprovals[] = $approval;
-                }
             }
+        }
 
         // Check for coordinator approvals
         if (!empty($teacherMainClasses)) {
             $coordinatorApprovals = ResultApproval::with(['examination', 'coordinatorApprovals'])
-                    ->where('examID', $examID)
-                    ->where('special_role_type', 'coordinator')
-                    ->whereIn('status', ['pending', 'rejected'])
-                    ->whereHas('coordinatorApprovals', function($query) use ($teacherMainClasses) {
-                        $query->whereIn('mainclassID', $teacherMainClasses)
-                            ->whereIn('status', ['pending', 'rejected']);
-                    })
+                ->where('examID', $examID)
+                ->where('special_role_type', 'coordinator')
+                ->whereIn('status', ['pending', 'rejected'])
+                ->whereHas('coordinatorApprovals', function ($query) use ($teacherMainClasses) {
+                    $query->whereIn('mainclassID', $teacherMainClasses)
+                        ->whereIn('status', ['pending', 'rejected']);
+                })
                 ->get();
 
             foreach ($coordinatorApprovals as $approval) {
@@ -5720,7 +5843,7 @@ class TeachersController extends Controller
 
         // Get all approvals for this exam to check previous approvals
         $allApprovals = ResultApproval::where('examID', $examID)
-                    ->orderBy('approval_order')
+            ->orderBy('approval_order')
             ->get();
 
         // Filter eligible approvals: only include those where all previous approvals are completed
@@ -5730,7 +5853,7 @@ class TeachersController extends Controller
             $previousApprovals = $allApprovals->where('approval_order', '<', $approval->approval_order);
 
             // Check if all previous approvals are completed (approved)
-            $allPreviousCompleted = $previousApprovals->every(function($prev) use ($teacherID, $teacherRoles, $teacherSubclasses, $teacherMainClasses) {
+            $allPreviousCompleted = $previousApprovals->every(function ($prev) use ($teacherID, $teacherRoles, $teacherSubclasses, $teacherMainClasses) {
                 // If previous approval is already approved, it's fine
                 if ($prev->status === 'approved') {
                     return true;
@@ -5771,16 +5894,16 @@ class TeachersController extends Controller
                     if ($prev->role_id && in_array($prev->role_id, $teacherRoles)) {
                         $teacherEligibleForPrev = true;
                     } elseif ($prev->special_role_type === 'class_teacher' && !empty($teacherSubclasses)) {
-                    $teacherEligibleForPrev = ClassTeacherApproval::where('result_approvalID', $prev->result_approvalID)
-                        ->whereIn('subclassID', $teacherSubclasses)
-                        ->whereIn('status', ['pending', 'rejected'])
-                        ->exists();
+                        $teacherEligibleForPrev = ClassTeacherApproval::where('result_approvalID', $prev->result_approvalID)
+                            ->whereIn('subclassID', $teacherSubclasses)
+                            ->whereIn('status', ['pending', 'rejected'])
+                            ->exists();
                     } elseif ($prev->special_role_type === 'coordinator' && !empty($teacherMainClasses)) {
-                    $teacherEligibleForPrev = CoordinatorApproval::where('result_approvalID', $prev->result_approvalID)
-                        ->whereIn('mainclassID', $teacherMainClasses)
-                        ->whereIn('status', ['pending', 'rejected'])
-                        ->exists();
-                }
+                        $teacherEligibleForPrev = CoordinatorApproval::where('result_approvalID', $prev->result_approvalID)
+                            ->whereIn('mainclassID', $teacherMainClasses)
+                            ->whereIn('status', ['pending', 'rejected'])
+                            ->exists();
+                    }
 
                     if ($teacherEligibleForPrev) {
                         return false; // Teacher should approve previous step first
@@ -5813,8 +5936,8 @@ class TeachersController extends Controller
             ->get();
 
         $canProceed = $previousApprovals->isEmpty() ||
-            $previousApprovals->every(function($prev) {
-            return $prev->status === 'approved';
+            $previousApprovals->every(function ($prev) {
+                return $prev->status === 'approved';
             });
 
         // If cannot proceed, show only roadmap (no results)
@@ -5942,7 +6065,7 @@ class TeachersController extends Controller
             ->get();
 
         // Group results by class and subclass
-        $results = $allResults->groupBy(function($result) {
+        $results = $allResults->groupBy(function ($result) {
             if (!$result->student || !$result->student->subclass) {
                 return 'Unknown|0|Unknown';
             }
@@ -6231,7 +6354,7 @@ class TeachersController extends Controller
         $allResults = $query->get();
 
         // Group results by class and subclass
-        $results = $allResults->groupBy(function($result) {
+        $results = $allResults->groupBy(function ($result) {
             $className = $result->class_name ?? 'Unknown';
             $subclassID = $result->subclass_id ?? 0;
             $subclassName = $result->subclass_name ?? 'Unknown';
@@ -6250,7 +6373,8 @@ class TeachersController extends Controller
             $studentsResults = [];
             foreach ($classResults as $result) {
                 $studentID = $result->studentID ?? null;
-                if (!$studentID) continue;
+                if (!$studentID)
+                    continue;
 
                 // Get classID from result
                 $classID = $result->main_class_id ?? $result->classID ?? null;
@@ -6296,7 +6420,7 @@ class TeachersController extends Controller
                     ];
                 }
 
-                $originalMarks = $result->marks !== null ? (float)$result->marks : null;
+                $originalMarks = $result->marks !== null ? (float) $result->marks : null;
 
                 $studentsResults[$studentID]['subjects'][] = [
                     'subject_name' => $result->subject_name ?? 'N/A',
@@ -6332,7 +6456,7 @@ class TeachersController extends Controller
                     // Normalize gender immediately - database stores 'Male' or 'Female'
                     $rawGender = $genderResult->gender ?? null;
                     if ($rawGender) {
-                        $rawGender = trim((string)$rawGender);
+                        $rawGender = trim((string) $rawGender);
                         if (strcasecmp($rawGender, 'Male') === 0) {
                             $studentGenders[$genderResult->studentID] = 'Male';
                         } elseif (strcasecmp($rawGender, 'Female') === 0) {
@@ -6396,7 +6520,7 @@ class TeachersController extends Controller
 
                         if (in_array($classNameLower, ['form_one', 'form_two', 'form_three', 'form_four'])) {
                             // O-Level: Best 7 subjects (lowest points)
-                            usort($subjectPoints, function($a, $b) {
+                            usort($subjectPoints, function ($a, $b) {
                                 if ($a['points'] != $b['points']) {
                                     return $a['points'] <=> $b['points'];
                                 }
@@ -6408,7 +6532,7 @@ class TeachersController extends Controller
                             }
                         } elseif (in_array($classNameLower, ['form_five', 'form_six'])) {
                             // A-Level: Best 3 subjects (highest points)
-                            usort($subjectPoints, function($a, $b) {
+                            usort($subjectPoints, function ($a, $b) {
                                 if ($a['points'] != $b['points']) {
                                     return $b['points'] <=> $a['points'];
                                 }
@@ -6429,7 +6553,7 @@ class TeachersController extends Controller
                 $rawGender = $studentGenders[$studentID] ?? null;
                 $studentGender = 'Unknown';
                 if ($rawGender) {
-                    $rawGender = trim((string)$rawGender);
+                    $rawGender = trim((string) $rawGender);
                     // Database uses exact 'Male' or 'Female', but handle variations just in case
                     if (strcasecmp($rawGender, 'Male') === 0 || strcasecmp($rawGender, 'M') === 0) {
                         $studentGender = 'Male';
@@ -6461,7 +6585,7 @@ class TeachersController extends Controller
             }
 
             // Sort by total marks descending
-            usort($studentsArray, function($a, $b) {
+            usort($studentsArray, function ($a, $b) {
                 return $b['total_marks'] <=> $a['total_marks'];
             });
 
@@ -6558,11 +6682,11 @@ class TeachersController extends Controller
 
         // First, check for regular role approvals
         if (!empty($teacherRoles)) {
-        $resultApproval = ResultApproval::where('examID', $examID)
-            ->whereIn('role_id', $teacherRoles)
+            $resultApproval = ResultApproval::where('examID', $examID)
+                ->whereIn('role_id', $teacherRoles)
                 ->whereIn('status', ['pending', 'rejected'])
-            ->orderBy('approval_order')
-            ->first();
+                ->orderBy('approval_order')
+                ->first();
         }
 
         // If no regular role approval, check for special role approvals
@@ -6572,7 +6696,7 @@ class TeachersController extends Controller
                 $classTeacherApproval = ResultApproval::where('examID', $examID)
                     ->where('special_role_type', 'class_teacher')
                     ->whereIn('status', ['pending', 'rejected'])
-                    ->whereHas('classTeacherApprovals', function($query) use ($teacherSubclasses) {
+                    ->whereHas('classTeacherApprovals', function ($query) use ($teacherSubclasses) {
                         $query->whereIn('subclassID', $teacherSubclasses)
                             ->whereIn('status', ['pending', 'rejected']);
                     })
@@ -6589,7 +6713,7 @@ class TeachersController extends Controller
                 $coordinatorApproval = ResultApproval::where('examID', $examID)
                     ->where('special_role_type', 'coordinator')
                     ->whereIn('status', ['pending', 'rejected'])
-                    ->whereHas('coordinatorApprovals', function($query) use ($teacherMainClasses) {
+                    ->whereHas('coordinatorApprovals', function ($query) use ($teacherMainClasses) {
                         $query->whereIn('mainclassID', $teacherMainClasses)
                             ->whereIn('status', ['pending', 'rejected']);
                     })
@@ -6619,9 +6743,11 @@ class TeachersController extends Controller
             ->where('approval_order', '<', $resultApproval->approval_order)
             ->get();
 
-        if ($previousApprovals->isNotEmpty() && !$previousApprovals->every(function($prev) {
-            return $prev->status === 'approved';
-        })) {
+        if (
+            $previousApprovals->isNotEmpty() && !$previousApprovals->every(function ($prev) {
+                return $prev->status === 'approved';
+            })
+        ) {
             return response()->json(['error' => 'Previous approvals in the chain must be completed first'], 403);
         }
 
@@ -6649,7 +6775,7 @@ class TeachersController extends Controller
                     $allClassTeacherApprovals = ClassTeacherApproval::where('result_approvalID', $resultApproval->result_approvalID)
                         ->get();
 
-                    $allApproved = $allClassTeacherApprovals->every(function($cta) {
+                    $allApproved = $allClassTeacherApprovals->every(function ($cta) {
                         return $cta->status === 'approved';
                     });
 
@@ -6692,7 +6818,7 @@ class TeachersController extends Controller
                     $allCoordinatorApprovals = CoordinatorApproval::where('result_approvalID', $resultApproval->result_approvalID)
                         ->get();
 
-                    $allApproved = $allCoordinatorApprovals->every(function($ca) {
+                    $allApproved = $allCoordinatorApprovals->every(function ($ca) {
                         return $ca->status === 'approved';
                     });
 
@@ -6717,13 +6843,13 @@ class TeachersController extends Controller
                     }
                 } else {
                     // Regular role approval
-                $resultApproval->update([
-                    'status' => 'approved',
-                    'approved_by' => $teacherID,
-                    'approved_at' => now(),
-                    'approval_comment' => $request->approval_comment ?? null,
-                    'rejection_reason' => null, // Clear rejection reason if any
-                ]);
+                    $resultApproval->update([
+                        'status' => 'approved',
+                        'approved_by' => $teacherID,
+                        'approved_at' => now(),
+                        'approval_comment' => $request->approval_comment ?? null,
+                        'rejection_reason' => null, // Clear rejection reason if any
+                    ]);
                 }
 
                 // Reset all subsequent approvals to pending (in case they were rejected before)
@@ -6791,7 +6917,7 @@ class TeachersController extends Controller
                         try {
                             $smsService->sendSms($teacher->phone_number, $message);
                         } catch (\Exception $e) {
-                            Log::error('Failed to send SMS to next approver: '.$e->getMessage());
+                            Log::error('Failed to send SMS to next approver: ' . $e->getMessage());
                         }
                     }
                 }
@@ -6855,13 +6981,13 @@ class TeachersController extends Controller
                     }
                 } else {
                     // Regular role rejection
-                $resultApproval->update([
-                    'status' => 'rejected',
-                    'approved_by' => $teacherID,
-                    'approved_at' => now(),
-                    'rejection_reason' => $request->rejection_reason ?? null,
-                    'approval_comment' => null, // Clear approval comment
-                ]);
+                    $resultApproval->update([
+                        'status' => 'rejected',
+                        'approved_by' => $teacherID,
+                        'approved_at' => now(),
+                        'rejection_reason' => $request->rejection_reason ?? null,
+                        'approval_comment' => null, // Clear approval comment
+                    ]);
                 }
 
                 // Reset all subsequent approvals to pending
@@ -6992,7 +7118,7 @@ class TeachersController extends Controller
             $studentSubjectCount = 0;
             foreach ($studentResultList as $result) {
                 if ($result->marks !== null && $result->marks !== '') {
-                    $marks = (float)$result->marks;
+                    $marks = (float) $result->marks;
                     $studentTotalMarks += $marks;
                     $studentSubjectCount++;
                     $totalMarks += $marks;
@@ -7182,21 +7308,21 @@ class TeachersController extends Controller
         }
 
         // Fallback to old logic if classID not provided
-        $marksNum = (float)$marks;
+        $marksNum = (float) $marks;
         $classNameLower = strtolower(preg_replace('/[\s\-]+/', '_', $className));
 
         // Secondary: Calculate points based on marks
         if (in_array($classNameLower, ['form_one', 'form_two', 'form_three', 'form_four'])) {
             // O-Level points
-        if ($marksNum >= 75) {
+            if ($marksNum >= 75) {
                 return ['grade' => 'A', 'points' => 1];
-        } elseif ($marksNum >= 65) {
+            } elseif ($marksNum >= 65) {
                 return ['grade' => 'B', 'points' => 2];
-        } elseif ($marksNum >= 45) {
+            } elseif ($marksNum >= 45) {
                 return ['grade' => 'C', 'points' => 3];
-        } elseif ($marksNum >= 30) {
+            } elseif ($marksNum >= 30) {
                 return ['grade' => 'D', 'points' => 4];
-        } else {
+            } else {
                 return ['grade' => 'F', 'points' => 5];
             }
         } elseif (in_array($classNameLower, ['form_five', 'form_six'])) {
@@ -7307,186 +7433,186 @@ class TeachersController extends Controller
 
             // Process each class
             foreach ($formattedResults as $classResult) {
-            $className = $classResult['class_name'];
-            $subclassName = $classResult['subclass_name'];
-            $classKey = $className . ' - ' . $subclassName;
+                $className = $classResult['class_name'];
+                $subclassName = $classResult['subclass_name'];
+                $classKey = $className . ' - ' . $subclassName;
 
-            // Initialize class statistics
-            if (!isset($classStats[$classKey])) {
-                $classStats[$classKey] = [
-                    'class_name' => $className,
-                    'subclass_name' => $subclassName,
-                    'grades' => ['A' => 0, 'B' => 0, 'C' => 0, 'D' => 0, 'E' => 0, 'F' => 0],
-                    'divisions' => ['I' => 0, 'II' => 0, 'III' => 0, 'IV' => 0, '0' => 0],
-                    'total_students' => 0
-                ];
-            }
+                // Initialize class statistics
+                if (!isset($classStats[$classKey])) {
+                    $classStats[$classKey] = [
+                        'class_name' => $className,
+                        'subclass_name' => $subclassName,
+                        'grades' => ['A' => 0, 'B' => 0, 'C' => 0, 'D' => 0, 'E' => 0, 'F' => 0],
+                        'divisions' => ['I' => 0, 'II' => 0, 'III' => 0, 'IV' => 0, '0' => 0],
+                        'total_students' => 0
+                    ];
+                }
 
-            // Process each student in the class
-            foreach ($classResult['students'] as $student) {
-                $studentID = $student['studentID'];
-                // Normalize gender - handle different formats
-                $rawGender = $student['gender'] ?? null;
-                $studentGender = 'Unknown';
+                // Process each student in the class
+                foreach ($classResult['students'] as $student) {
+                    $studentID = $student['studentID'];
+                    // Normalize gender - handle different formats
+                    $rawGender = $student['gender'] ?? null;
+                    $studentGender = 'Unknown';
 
-                if ($rawGender) {
-                    $rawGender = trim((string)$rawGender);
-                    // Database uses exact 'Male' or 'Female' as ENUM
-                    if (strcasecmp($rawGender, 'Male') === 0 || strcasecmp($rawGender, 'M') === 0) {
-                        $studentGender = 'Male';
-                    } elseif (strcasecmp($rawGender, 'Female') === 0 || strcasecmp($rawGender, 'F') === 0) {
-                        $studentGender = 'Female';
-                    } else {
-                        // Fallback: check if contains the word
-                        if (stripos($rawGender, 'male') !== false && stripos($rawGender, 'female') === false) {
+                    if ($rawGender) {
+                        $rawGender = trim((string) $rawGender);
+                        // Database uses exact 'Male' or 'Female' as ENUM
+                        if (strcasecmp($rawGender, 'Male') === 0 || strcasecmp($rawGender, 'M') === 0) {
                             $studentGender = 'Male';
-                        } elseif (stripos($rawGender, 'female') !== false) {
+                        } elseif (strcasecmp($rawGender, 'Female') === 0 || strcasecmp($rawGender, 'F') === 0) {
                             $studentGender = 'Female';
                         } else {
-                            // Log for debugging if we get unexpected values
-                            \Illuminate\Support\Facades\Log::debug("Unexpected gender value: '{$rawGender}' for student ID: {$studentID}");
-                        }
-                    }
-                } else {
-                    // If gender is null/empty in student array, try to get it from database directly
-                    try {
-                        $studentRecord = DB::table('students')
-                            ->where('studentID', $studentID)
-                            ->select('gender')
-                            ->first();
-                        if ($studentRecord && $studentRecord->gender) {
-                            $rawGender = trim((string)$studentRecord->gender);
-                            if (strcasecmp($rawGender, 'Male') === 0) {
+                            // Fallback: check if contains the word
+                            if (stripos($rawGender, 'male') !== false && stripos($rawGender, 'female') === false) {
                                 $studentGender = 'Male';
-                            } elseif (strcasecmp($rawGender, 'Female') === 0) {
+                            } elseif (stripos($rawGender, 'female') !== false) {
                                 $studentGender = 'Female';
+                            } else {
+                                // Log for debugging if we get unexpected values
+                                \Illuminate\Support\Facades\Log::debug("Unexpected gender value: '{$rawGender}' for student ID: {$studentID}");
                             }
                         }
-                    } catch (\Exception $e) {
-                        // Silently continue if we can't get gender
-                    }
-                }
-
-                $classStats[$classKey]['total_students']++;
-
-                if ($schoolType === 'Primary') {
-                    // Primary school: use grades
-                    $grade = $student['grade'] ?? 'N/A';
-                    if (isset($gradeStats[$grade])) {
-                        $gradeStats[$grade]++;
-                        $classStats[$classKey]['grades'][$grade]++;
-
-                        // Count gender statistics
-                        if ($studentGender === 'Male') {
-                            $gradeGenderStats[$grade]['Male']++;
-                        } elseif ($studentGender === 'Female') {
-                            $gradeGenderStats[$grade]['Female']++;
+                    } else {
+                        // If gender is null/empty in student array, try to get it from database directly
+                        try {
+                            $studentRecord = DB::table('students')
+                                ->where('studentID', $studentID)
+                                ->select('gender')
+                                ->first();
+                            if ($studentRecord && $studentRecord->gender) {
+                                $rawGender = trim((string) $studentRecord->gender);
+                                if (strcasecmp($rawGender, 'Male') === 0) {
+                                    $studentGender = 'Male';
+                                } elseif (strcasecmp($rawGender, 'Female') === 0) {
+                                    $studentGender = 'Female';
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            // Silently continue if we can't get gender
                         }
                     }
-                } else {
-                    // Secondary school: use divisions
-                    $division = $student['division'] ?? null;
-                    if ($division) {
-                        $divNum = $this->extractDivisionNumber($division);
-                        if (isset($divisionStats[$divNum])) {
-                            $divisionStats[$divNum]++;
-                            $classStats[$classKey]['divisions'][$divNum]++;
 
-                            // Count gender statistics - include Unknown to match totals
+                    $classStats[$classKey]['total_students']++;
+
+                    if ($schoolType === 'Primary') {
+                        // Primary school: use grades
+                        $grade = $student['grade'] ?? 'N/A';
+                        if (isset($gradeStats[$grade])) {
+                            $gradeStats[$grade]++;
+                            $classStats[$classKey]['grades'][$grade]++;
+
+                            // Count gender statistics
                             if ($studentGender === 'Male') {
-                                $divisionGenderStats[$divNum]['Male']++;
+                                $gradeGenderStats[$grade]['Male']++;
                             } elseif ($studentGender === 'Female') {
-                                $divisionGenderStats[$divNum]['Female']++;
+                                $gradeGenderStats[$grade]['Female']++;
                             }
-                            // Note: If gender is Unknown, it's counted in divisionStats but not in gender breakdown
-                            // This ensures division total matches Male + Female + Unknown
+                        }
+                    } else {
+                        // Secondary school: use divisions
+                        $division = $student['division'] ?? null;
+                        if ($division) {
+                            $divNum = $this->extractDivisionNumber($division);
+                            if (isset($divisionStats[$divNum])) {
+                                $divisionStats[$divNum]++;
+                                $classStats[$classKey]['divisions'][$divNum]++;
+
+                                // Count gender statistics - include Unknown to match totals
+                                if ($studentGender === 'Male') {
+                                    $divisionGenderStats[$divNum]['Male']++;
+                                } elseif ($studentGender === 'Female') {
+                                    $divisionGenderStats[$divNum]['Female']++;
+                                }
+                                // Note: If gender is Unknown, it's counted in divisionStats but not in gender breakdown
+                                // This ensures division total matches Male + Female + Unknown
+                            }
+                        }
+
+                        // Also track grades for secondary (subject-level grades)
+                        // But for overall statistics, we focus on divisions
+                    }
+                }
+            }
+
+            // Calculate average marks per class (for bar graph when filtering all classes)
+            // Formula: For each student, calculate average marks (total marks / number of subjects)
+            // Then calculate class average (sum of student averages / number of students)
+            $classPassRates = [];
+
+            // Group students by class from formattedResults
+            $classStudentsData = [];
+            foreach ($formattedResults as $classResult) {
+                $subclassID = $classResult['subclassID'] ?? null;
+                $classKey = $subclassID ? 'subclass_' . $subclassID : 'class_' . ($classResult['classID'] ?? 'unknown');
+                $className = $classResult['class_name'] ?? 'Unknown';
+                $subclassName = $classResult['subclass_name'] ?? null;
+
+                if (!isset($classStudentsData[$classKey])) {
+                    $classStudentsData[$classKey] = [
+                        'class_name' => $className,
+                        'subclass_name' => $subclassName,
+                        'students' => []
+                    ];
+                }
+
+                if (isset($classResult['students']) && is_array($classResult['students'])) {
+                    foreach ($classResult['students'] as $student) {
+                        $totalMarks = $student['total_marks'] ?? 0;
+                        $subjectCount = $student['subject_count'] ?? 0;
+
+                        // Calculate average marks for this student
+                        $studentAverage = 0;
+                        if ($subjectCount > 0 && $totalMarks > 0) {
+                            $studentAverage = $totalMarks / $subjectCount;
+                        }
+
+                        $classStudentsData[$classKey]['students'][] = [
+                            'studentID' => $student['studentID'] ?? null,
+                            'total_marks' => $totalMarks,
+                            'subject_count' => $subjectCount,
+                            'average_marks' => $studentAverage
+                        ];
+                    }
+                }
+            }
+
+            // Calculate class average for each class
+            foreach ($classStudentsData as $classKey => $classData) {
+                $students = $classData['students'];
+                $totalStudents = count($students);
+
+                if ($totalStudents > 0) {
+                    // Sum all student averages
+                    $sumOfAverages = 0;
+                    $validStudents = 0;
+
+                    foreach ($students as $student) {
+                        if ($student['subject_count'] > 0 && $student['average_marks'] > 0) {
+                            $sumOfAverages += $student['average_marks'];
+                            $validStudents++;
                         }
                     }
 
-                    // Also track grades for secondary (subject-level grades)
-                    // But for overall statistics, we focus on divisions
-                }
-            }
-        }
-
-        // Calculate average marks per class (for bar graph when filtering all classes)
-        // Formula: For each student, calculate average marks (total marks / number of subjects)
-        // Then calculate class average (sum of student averages / number of students)
-        $classPassRates = [];
-
-        // Group students by class from formattedResults
-        $classStudentsData = [];
-        foreach ($formattedResults as $classResult) {
-            $subclassID = $classResult['subclassID'] ?? null;
-            $classKey = $subclassID ? 'subclass_' . $subclassID : 'class_' . ($classResult['classID'] ?? 'unknown');
-            $className = $classResult['class_name'] ?? 'Unknown';
-            $subclassName = $classResult['subclass_name'] ?? null;
-
-            if (!isset($classStudentsData[$classKey])) {
-                $classStudentsData[$classKey] = [
-                    'class_name' => $className,
-                    'subclass_name' => $subclassName,
-                    'students' => []
-                ];
-            }
-
-            if (isset($classResult['students']) && is_array($classResult['students'])) {
-                foreach ($classResult['students'] as $student) {
-                    $totalMarks = $student['total_marks'] ?? 0;
-                    $subjectCount = $student['subject_count'] ?? 0;
-
-                    // Calculate average marks for this student
-                    $studentAverage = 0;
-                    if ($subjectCount > 0 && $totalMarks > 0) {
-                        $studentAverage = $totalMarks / $subjectCount;
+                    // Calculate class average
+                    $classAverage = 0;
+                    if ($validStudents > 0) {
+                        $classAverage = $sumOfAverages / $validStudents;
                     }
 
-                    $classStudentsData[$classKey]['students'][] = [
-                        'studentID' => $student['studentID'] ?? null,
-                        'total_marks' => $totalMarks,
-                        'subject_count' => $subjectCount,
-                        'average_marks' => $studentAverage
+                    $classPassRates[$classKey] = [
+                        'class_name' => $classData['class_name'],
+                        'subclass_name' => $classData['subclass_name'],
+                        'pass_rate' => round($classAverage, 2), // Using pass_rate field to store average marks
+                        'average_marks' => round($classAverage, 2),
+                        'passed' => $validStudents,
+                        'total' => $totalStudents
                     ];
                 }
             }
-        }
-
-        // Calculate class average for each class
-        foreach ($classStudentsData as $classKey => $classData) {
-            $students = $classData['students'];
-            $totalStudents = count($students);
-
-            if ($totalStudents > 0) {
-                // Sum all student averages
-                $sumOfAverages = 0;
-                $validStudents = 0;
-
-                foreach ($students as $student) {
-                    if ($student['subject_count'] > 0 && $student['average_marks'] > 0) {
-                        $sumOfAverages += $student['average_marks'];
-                        $validStudents++;
-                    }
-                }
-
-                // Calculate class average
-                $classAverage = 0;
-                if ($validStudents > 0) {
-                    $classAverage = $sumOfAverages / $validStudents;
-                }
-
-                $classPassRates[$classKey] = [
-                    'class_name' => $classData['class_name'],
-                    'subclass_name' => $classData['subclass_name'],
-                    'pass_rate' => round($classAverage, 2), // Using pass_rate field to store average marks
-                    'average_marks' => round($classAverage, 2),
-                    'passed' => $validStudents,
-                    'total' => $totalStudents
-                ];
-            }
-        }
 
             // Sort class pass rates by pass rate (highest to lowest)
-            usort($classPassRates, function($a, $b) {
+            usort($classPassRates, function ($a, $b) {
                 return $b['pass_rate'] <=> $a['pass_rate'];
             });
 
@@ -7589,7 +7715,7 @@ class TeachersController extends Controller
             foreach ($genderResults as $genderResult) {
                 $rawGender = $genderResult->gender ?? null;
                 if ($rawGender) {
-                    $rawGender = trim((string)$rawGender);
+                    $rawGender = trim((string) $rawGender);
                     if (strcasecmp($rawGender, 'Male') === 0) {
                         $studentGenders[$genderResult->studentID] = 'Male';
                     } elseif (strcasecmp($rawGender, 'Female') === 0) {
@@ -7646,7 +7772,7 @@ class TeachersController extends Controller
                 }
 
                 $resultsBySubject[$subjectName]['results'][] = [
-                    'marks' => (float)$marks,
+                    'marks' => (float) $marks,
                     'classID' => $classID,
                     'studentID' => $studentID
                 ];
@@ -7745,7 +7871,7 @@ class TeachersController extends Controller
         }
 
         // Sort by subject name
-        usort($subjectStats, function($a, $b) {
+        usort($subjectStats, function ($a, $b) {
             return strcmp($a['subject_name'], $b['subject_name']);
         });
 
@@ -7800,158 +7926,158 @@ class TeachersController extends Controller
                 }
             }
 
-        // Get all student IDs and their genders
-        $studentIds = [];
-        $studentsWithSubjects = 0;
-        foreach ($formattedResults as $classResult) {
-            if (isset($classResult['students']) && is_array($classResult['students'])) {
-                foreach ($classResult['students'] as $student) {
-                    if (isset($student['studentID'])) {
-                        $studentIds[] = $student['studentID'];
-                        if (isset($student['subjects']) && is_array($student['subjects']) && count($student['subjects']) > 0) {
-                            $studentsWithSubjects++;
+            // Get all student IDs and their genders
+            $studentIds = [];
+            $studentsWithSubjects = 0;
+            foreach ($formattedResults as $classResult) {
+                if (isset($classResult['students']) && is_array($classResult['students'])) {
+                    foreach ($classResult['students'] as $student) {
+                        if (isset($student['studentID'])) {
+                            $studentIds[] = $student['studentID'];
+                            if (isset($student['subjects']) && is_array($student['subjects']) && count($student['subjects']) > 0) {
+                                $studentsWithSubjects++;
+                            }
                         }
                     }
                 }
             }
-        }
 
-        \Illuminate\Support\Facades\Log::debug("calculateSubjectStatisticsFromFormatted: Total students = " . count(array_unique($studentIds)) . ", Students with subjects = " . $studentsWithSubjects);
+            \Illuminate\Support\Facades\Log::debug("calculateSubjectStatisticsFromFormatted: Total students = " . count(array_unique($studentIds)) . ", Students with subjects = " . $studentsWithSubjects);
 
-        $studentIds = array_unique($studentIds);
-        $studentGenders = [];
-        if (!empty($studentIds)) {
-            $genderResults = DB::table('students')
-                ->whereIn('studentID', $studentIds)
-                ->select('studentID', 'gender')
-                ->get();
+            $studentIds = array_unique($studentIds);
+            $studentGenders = [];
+            if (!empty($studentIds)) {
+                $genderResults = DB::table('students')
+                    ->whereIn('studentID', $studentIds)
+                    ->select('studentID', 'gender')
+                    ->get();
 
-            foreach ($genderResults as $genderResult) {
-                $rawGender = $genderResult->gender ?? null;
-                if ($rawGender) {
-                    $rawGender = trim((string)$rawGender);
-                    if (strcasecmp($rawGender, 'Male') === 0) {
-                        $studentGenders[$genderResult->studentID] = 'Male';
-                    } elseif (strcasecmp($rawGender, 'Female') === 0) {
-                        $studentGenders[$genderResult->studentID] = 'Female';
+                foreach ($genderResults as $genderResult) {
+                    $rawGender = $genderResult->gender ?? null;
+                    if ($rawGender) {
+                        $rawGender = trim((string) $rawGender);
+                        if (strcasecmp($rawGender, 'Male') === 0) {
+                            $studentGenders[$genderResult->studentID] = 'Male';
+                        } elseif (strcasecmp($rawGender, 'Female') === 0) {
+                            $studentGenders[$genderResult->studentID] = 'Female';
+                        } else {
+                            $studentGenders[$genderResult->studentID] = 'Unknown';
+                        }
                     } else {
                         $studentGenders[$genderResult->studentID] = 'Unknown';
                     }
-                } else {
-                    $studentGenders[$genderResult->studentID] = 'Unknown';
-                }
-            }
-        }
-
-        // Extract subject data from formatted results
-        $subjectsFound = 0;
-        foreach ($formattedResults as $classResult) {
-            $subclassID = $classResult['subclassID'] ?? null;
-            $resultClassID = null;
-
-            // Get classID from subclass
-            if ($subclassID) {
-                $subclass = DB::table('subclasses')
-                    ->where('subclassID', $subclassID)
-                    ->select('classID')
-                    ->first();
-                if ($subclass) {
-                    $resultClassID = $subclass->classID;
                 }
             }
 
-            if (isset($classResult['students']) && is_array($classResult['students'])) {
-                foreach ($classResult['students'] as $student) {
-                    $studentID = $student['studentID'] ?? null;
-                    $gender = $studentGenders[$studentID] ?? ($student['gender'] ?? 'Unknown');
+            // Extract subject data from formatted results
+            $subjectsFound = 0;
+            foreach ($formattedResults as $classResult) {
+                $subclassID = $classResult['subclassID'] ?? null;
+                $resultClassID = null;
 
-                    if (isset($student['subjects']) && is_array($student['subjects'])) {
-                        foreach ($student['subjects'] as $subject) {
-                            $subjectName = $subject['subject_name'] ?? null;
-                            $subjectGrade = $subject['grade'] ?? null; // Grade is already in the subject array!
+                // Get classID from subclass
+                if ($subclassID) {
+                    $subclass = DB::table('subclasses')
+                        ->where('subclassID', $subclassID)
+                        ->select('classID')
+                        ->first();
+                    if ($subclass) {
+                        $resultClassID = $subclass->classID;
+                    }
+                }
 
-                            if (!$subjectName || !$subjectGrade) {
-                                continue;
-                            }
+                if (isset($classResult['students']) && is_array($classResult['students'])) {
+                    foreach ($classResult['students'] as $student) {
+                        $studentID = $student['studentID'] ?? null;
+                        $gender = $studentGenders[$studentID] ?? ($student['gender'] ?? 'Unknown');
 
-                            // Normalize grade to uppercase
-                            $subjectGrade = strtoupper(trim($subjectGrade));
+                        if (isset($student['subjects']) && is_array($student['subjects'])) {
+                            foreach ($student['subjects'] as $subject) {
+                                $subjectName = $subject['subject_name'] ?? null;
+                                $subjectGrade = $subject['grade'] ?? null; // Grade is already in the subject array!
 
-                            // Skip if grade is not A-F, try to map variations
-                            if (!in_array($subjectGrade, ['A', 'B', 'C', 'D', 'E', 'F'])) {
-                                if (in_array($subjectGrade, ['A+', 'A-'])) {
-                                    $subjectGrade = 'A';
-                                } elseif (in_array($subjectGrade, ['B+', 'B-'])) {
-                                    $subjectGrade = 'B';
-                                } elseif (in_array($subjectGrade, ['C+', 'C-'])) {
-                                    $subjectGrade = 'C';
-                                } elseif (in_array($subjectGrade, ['D+', 'D-'])) {
-                                    $subjectGrade = 'D';
-                                } elseif (in_array($subjectGrade, ['E+', 'E-'])) {
-                                    $subjectGrade = 'E';
-                                } else {
-                                    continue; // Skip unknown grades
+                                if (!$subjectName || !$subjectGrade) {
+                                    continue;
                                 }
-                            }
 
-                            if (!isset($resultsBySubject[$subjectName])) {
-                                $resultsBySubject[$subjectName] = [
-                                    'subject_name' => $subjectName,
-                                    'results' => []
+                                // Normalize grade to uppercase
+                                $subjectGrade = strtoupper(trim($subjectGrade));
+
+                                // Skip if grade is not A-F, try to map variations
+                                if (!in_array($subjectGrade, ['A', 'B', 'C', 'D', 'E', 'F'])) {
+                                    if (in_array($subjectGrade, ['A+', 'A-'])) {
+                                        $subjectGrade = 'A';
+                                    } elseif (in_array($subjectGrade, ['B+', 'B-'])) {
+                                        $subjectGrade = 'B';
+                                    } elseif (in_array($subjectGrade, ['C+', 'C-'])) {
+                                        $subjectGrade = 'C';
+                                    } elseif (in_array($subjectGrade, ['D+', 'D-'])) {
+                                        $subjectGrade = 'D';
+                                    } elseif (in_array($subjectGrade, ['E+', 'E-'])) {
+                                        $subjectGrade = 'E';
+                                    } else {
+                                        continue; // Skip unknown grades
+                                    }
+                                }
+
+                                if (!isset($resultsBySubject[$subjectName])) {
+                                    $resultsBySubject[$subjectName] = [
+                                        'subject_name' => $subjectName,
+                                        'results' => []
+                                    ];
+                                }
+
+                                $resultsBySubject[$subjectName]['results'][] = [
+                                    'grade' => $subjectGrade,
+                                    'studentID' => $studentID,
+                                    'gender' => $gender
                                 ];
+                                $subjectsFound++;
                             }
-
-                            $resultsBySubject[$subjectName]['results'][] = [
-                                'grade' => $subjectGrade,
-                                'studentID' => $studentID,
-                                'gender' => $gender
-                            ];
-                            $subjectsFound++;
                         }
                     }
                 }
             }
-        }
 
-        \Illuminate\Support\Facades\Log::debug("calculateSubjectStatisticsFromFormatted: Subjects found = " . $subjectsFound . ", Unique subjects = " . count($resultsBySubject));
+            \Illuminate\Support\Facades\Log::debug("calculateSubjectStatisticsFromFormatted: Subjects found = " . $subjectsFound . ", Unique subjects = " . count($resultsBySubject));
 
-        // Calculate grade distribution for each subject with gender breakdown
-        foreach ($resultsBySubject as $subjectName => $subjectData) {
-            $gradeCounts = ['A' => 0, 'B' => 0, 'C' => 0, 'D' => 0, 'E' => 0, 'F' => 0];
-            $gradeGenderCounts = [
-                'A' => ['Male' => 0, 'Female' => 0],
-                'B' => ['Male' => 0, 'Female' => 0],
-                'C' => ['Male' => 0, 'Female' => 0],
-                'D' => ['Male' => 0, 'Female' => 0],
-                'E' => ['Male' => 0, 'Female' => 0],
-                'F' => ['Male' => 0, 'Female' => 0]
-            ];
+            // Calculate grade distribution for each subject with gender breakdown
+            foreach ($resultsBySubject as $subjectName => $subjectData) {
+                $gradeCounts = ['A' => 0, 'B' => 0, 'C' => 0, 'D' => 0, 'E' => 0, 'F' => 0];
+                $gradeGenderCounts = [
+                    'A' => ['Male' => 0, 'Female' => 0],
+                    'B' => ['Male' => 0, 'Female' => 0],
+                    'C' => ['Male' => 0, 'Female' => 0],
+                    'D' => ['Male' => 0, 'Female' => 0],
+                    'E' => ['Male' => 0, 'Female' => 0],
+                    'F' => ['Male' => 0, 'Female' => 0]
+                ];
 
-            foreach ($subjectData['results'] as $resultData) {
-                $grade = $resultData['grade'] ?? null;
-                $gender = $resultData['gender'] ?? 'Unknown';
+                foreach ($subjectData['results'] as $resultData) {
+                    $grade = $resultData['grade'] ?? null;
+                    $gender = $resultData['gender'] ?? 'Unknown';
 
-                if ($grade && isset($gradeCounts[$grade])) {
-                    $gradeCounts[$grade]++;
-                    if ($gender === 'Male' || $gender === 'Female') {
-                        $gradeGenderCounts[$grade][$gender]++;
+                    if ($grade && isset($gradeCounts[$grade])) {
+                        $gradeCounts[$grade]++;
+                        if ($gender === 'Male' || $gender === 'Female') {
+                            $gradeGenderCounts[$grade][$gender]++;
+                        }
                     }
+                }
+
+                $totalStudents = array_sum($gradeCounts);
+                if ($totalStudents > 0) {
+                    $subjectStats[] = [
+                        'subject_name' => $subjectName,
+                        'grade_counts' => $gradeCounts,
+                        'grade_gender_counts' => $gradeGenderCounts,
+                        'total_students' => $totalStudents
+                    ];
                 }
             }
 
-            $totalStudents = array_sum($gradeCounts);
-            if ($totalStudents > 0) {
-                $subjectStats[] = [
-                    'subject_name' => $subjectName,
-                    'grade_counts' => $gradeCounts,
-                    'grade_gender_counts' => $gradeGenderCounts,
-                    'total_students' => $totalStudents
-                ];
-            }
-            }
-
             // Sort by subject name
-            usort($subjectStats, function($a, $b) {
+            usort($subjectStats, function ($a, $b) {
                 return strcmp($a['subject_name'], $b['subject_name']);
             });
 
@@ -7985,7 +8111,7 @@ class TeachersController extends Controller
             $classSubject = ClassSubject::where('class_subjectID', $classSubjectID)
                 ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
-                ->whereHas('subject', function($query) {
+                ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
                 })
                 ->first();
@@ -8609,7 +8735,8 @@ class TeachersController extends Controller
                     ->select('subclasses.subclass_name', 'classes.class_name', 'subclasses.subclassID')
                     ->first();
 
-                if (!$subclass) continue;
+                if (!$subclass)
+                    continue;
 
                 // Get all students in this subclass
                 $students = DB::table('students')
@@ -8746,12 +8873,12 @@ class TeachersController extends Controller
         $weekEnd = $startOfWeek->copy()->endOfWeek()->format('Y-m-d');
 
         $holidays = Holiday::where('schoolID', $schoolID)
-            ->where(function($query) use ($weekStart, $weekEnd) {
+            ->where(function ($query) use ($weekStart, $weekEnd) {
                 $query->whereBetween('start_date', [$weekStart, $weekEnd])
                     ->orWhereBetween('end_date', [$weekStart, $weekEnd])
-                    ->orWhere(function($q) use ($weekStart, $weekEnd) {
+                    ->orWhere(function ($q) use ($weekStart, $weekEnd) {
                         $q->where('start_date', '<=', $weekStart)
-                          ->where('end_date', '>=', $weekEnd);
+                            ->where('end_date', '>=', $weekEnd);
                     });
             })
             ->get();
@@ -8857,12 +8984,12 @@ class TeachersController extends Controller
             $weekEnd = $endOfWeek->format('Y-m-d');
 
             $holidays = Holiday::where('schoolID', $schoolID)
-                ->where(function($query) use ($weekStart, $weekEnd) {
+                ->where(function ($query) use ($weekStart, $weekEnd) {
                     $query->whereBetween('start_date', [$weekStart, $weekEnd])
                         ->orWhereBetween('end_date', [$weekStart, $weekEnd])
-                        ->orWhere(function($q) use ($weekStart, $weekEnd) {
+                        ->orWhere(function ($q) use ($weekStart, $weekEnd) {
                             $q->where('start_date', '<=', $weekStart)
-                              ->where('end_date', '>=', $weekEnd);
+                                ->where('end_date', '>=', $weekEnd);
                         });
                 })
                 ->get();
@@ -9686,8 +9813,8 @@ class TeachersController extends Controller
             'sessionTimetable.subclass.class',
             'approver'
         ])
-        ->where('teacherID', $teacherID)
-        ->where('schoolID', $schoolID);
+            ->where('teacherID', $teacherID)
+            ->where('schoolID', $schoolID);
 
         // Apply status filter
         if ($request->has('status') && $request->status != '') {
@@ -9860,47 +9987,47 @@ class TeachersController extends Controller
             if ($filterType === 'date') {
                 // Date filter - show detailed attendance for specific date
                 // Get all attendance records (don't filter by status here, we'll filter on frontend)
-            $attendanceRecords = StudentSessionAttendance::whereIn('session_timetableID', $sessions->pluck('session_timetableID'))
-                ->where('attendance_date', $attendanceDate)
-                ->get()
-                ->keyBy(function($record) {
-                    return $record->session_timetableID . '_' . $record->studentID;
-                });
+                $attendanceRecords = StudentSessionAttendance::whereIn('session_timetableID', $sessions->pluck('session_timetableID'))
+                    ->where('attendance_date', $attendanceDate)
+                    ->get()
+                    ->keyBy(function ($record) {
+                        return $record->session_timetableID . '_' . $record->studentID;
+                    });
 
-            $attendanceData = [];
-            foreach ($sessions as $session) {
-                $sessionAttendance = [];
-                foreach ($students as $student) {
-                    $key = $session->session_timetableID . '_' . $student->studentID;
-                    $record = $attendanceRecords->get($key);
+                $attendanceData = [];
+                foreach ($sessions as $session) {
+                    $sessionAttendance = [];
+                    foreach ($students as $student) {
+                        $key = $session->session_timetableID . '_' . $student->studentID;
+                        $record = $attendanceRecords->get($key);
 
-                    $sessionAttendance[] = [
-                        'studentID' => $student->studentID,
-                        'name' => trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? '')),
-                        'status' => $record ? $record->status : null,
-                        'remark' => $record ? $record->remark : null,
-                    ];
-                }
+                        $sessionAttendance[] = [
+                            'studentID' => $student->studentID,
+                            'name' => trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? '')),
+                            'status' => $record ? $record->status : null,
+                            'remark' => $record ? $record->remark : null,
+                        ];
+                    }
 
                     // Format time for display
                     $startTime = is_string($session->start_time) ? $session->start_time : ($session->start_time ? $session->start_time->format('H:i:s') : 'N/A');
                     $endTime = is_string($session->end_time) ? $session->end_time : ($session->end_time ? $session->end_time->format('H:i:s') : 'N/A');
 
-                $attendanceData[] = [
-                    'session_timetableID' => $session->session_timetableID,
-                    'day' => $session->day,
+                    $attendanceData[] = [
+                        'session_timetableID' => $session->session_timetableID,
+                        'day' => $session->day,
                         'start_time' => $startTime,
                         'end_time' => $endTime,
-                    'attendance' => $sessionAttendance,
-                ];
-            }
+                        'attendance' => $sessionAttendance,
+                    ];
+                }
 
-            return response()->json([
-                'success' => true,
+                return response()->json([
+                    'success' => true,
                     'filter_type' => 'date',
-                'data' => $attendanceData,
-                'date' => $attendanceDate
-            ]);
+                    'data' => $attendanceData,
+                    'date' => $attendanceDate
+                ]);
             } else {
                 // Month filter - show statistics per student
                 $monthStart = Carbon::parse($month . '-01')->startOfMonth();
@@ -9908,12 +10035,12 @@ class TeachersController extends Controller
 
                 // Get holidays and events for the month
                 $holidays = Holiday::where('schoolID', $schoolID)
-                    ->where(function($query) use ($monthStart, $monthEnd) {
+                    ->where(function ($query) use ($monthStart, $monthEnd) {
                         $query->whereBetween('start_date', [$monthStart, $monthEnd])
                             ->orWhereBetween('end_date', [$monthStart, $monthEnd])
-                            ->orWhere(function($q) use ($monthStart, $monthEnd) {
+                            ->orWhere(function ($q) use ($monthStart, $monthEnd) {
                                 $q->where('start_date', '<=', $monthStart)
-                                  ->where('end_date', '>=', $monthEnd);
+                                    ->where('end_date', '>=', $monthEnd);
                             });
                     })
                     ->get();
@@ -9984,7 +10111,7 @@ class TeachersController extends Controller
 
                     foreach ($sessionDates as $sessionDate) {
                         // Find matching attendance record - ensure date format matches
-                        $attended = $attendanceRecords->filter(function($record) use ($student, $sessionDate) {
+                        $attended = $attendanceRecords->filter(function ($record) use ($student, $sessionDate) {
                             $recordDate = is_string($record->attendance_date)
                                 ? $record->attendance_date
                                 : Carbon::parse($record->attendance_date)->format('Y-m-d');
@@ -10075,78 +10202,78 @@ class TeachersController extends Controller
                 'sessionTimetable.subclass.class',
                 'student'
             ])
-            ->where('teacherID', $teacherID)
-            ->where('schoolID', $schoolID)
-            ->orderBy('attendance_date', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->groupBy(function($item) {
-                return $item->session_timetableID . '_' . $item->attendance_date->format('Y-m-d');
-            })
-            ->map(function($group) {
-                $first = $group->first();
-                $session = $first->sessionTimetable;
+                ->where('teacherID', $teacherID)
+                ->where('schoolID', $schoolID)
+                ->orderBy('attendance_date', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->groupBy(function ($item) {
+                    return $item->session_timetableID . '_' . $item->attendance_date->format('Y-m-d');
+                })
+                ->map(function ($group) {
+                    $first = $group->first();
+                    $session = $first->sessionTimetable;
 
-                // Try to get subject from classSubject first, then from session directly
-                $subject = null;
-                $class = null;
-                $subclass = null;
+                    // Try to get subject from classSubject first, then from session directly
+                    $subject = null;
+                    $class = null;
+                    $subclass = null;
 
-                if ($session) {
-                    if ($session->classSubject) {
-                        $subject = $session->classSubject->subject ?? null;
-                        $subclass = $session->classSubject->subclass ?? null;
-                        if ($subclass) {
-                            $class = $subclass->class ?? null;
+                    if ($session) {
+                        if ($session->classSubject) {
+                            $subject = $session->classSubject->subject ?? null;
+                            $subclass = $session->classSubject->subclass ?? null;
+                            if ($subclass) {
+                                $class = $subclass->class ?? null;
+                            }
+                        }
+
+                        // Fallback to session's direct relationships
+                        if (!$subject && $session->subject) {
+                            $subject = $session->subject;
+                        }
+                        if (!$subclass && $session->subclass) {
+                            $subclass = $session->subclass;
+                            if ($subclass) {
+                                $class = $subclass->class ?? null;
+                            }
                         }
                     }
 
-                    // Fallback to session's direct relationships
-                    if (!$subject && $session->subject) {
-                        $subject = $session->subject;
-                    }
-                    if (!$subclass && $session->subclass) {
-                        $subclass = $session->subclass;
-                        if ($subclass) {
-                            $class = $subclass->class ?? null;
+                    $className = 'N/A';
+                    if ($class && $subclass) {
+                        $className = $class->class_name ?? 'N/A';
+                        if ($subclass->subclass_name) {
+                            $className .= ' - ' . $subclass->subclass_name;
                         }
                     }
-                }
 
-                $className = 'N/A';
-                if ($class && $subclass) {
-                    $className = $class->class_name ?? 'N/A';
-                    if ($subclass->subclass_name) {
-                        $className .= ' - ' . $subclass->subclass_name;
+                    // Format time
+                    $startTime = 'N/A';
+                    $endTime = 'N/A';
+                    if ($session) {
+                        if ($session->start_time) {
+                            $startTime = is_string($session->start_time) ? $session->start_time : $session->start_time->format('H:i:s');
+                        }
+                        if ($session->end_time) {
+                            $endTime = is_string($session->end_time) ? $session->end_time : $session->end_time->format('H:i:s');
+                        }
                     }
-                }
 
-                // Format time
-                $startTime = 'N/A';
-                $endTime = 'N/A';
-                if ($session) {
-                    if ($session->start_time) {
-                        $startTime = is_string($session->start_time) ? $session->start_time : $session->start_time->format('H:i:s');
-                    }
-                    if ($session->end_time) {
-                        $endTime = is_string($session->end_time) ? $session->end_time : $session->end_time->format('H:i:s');
-                    }
-                }
-
-                return [
-                    'session_timetableID' => $first->session_timetableID,
-                    'attendance_date' => $first->attendance_date->format('Y-m-d'),
-                    'attendance_date_formatted' => $first->attendance_date->format('d/m/Y'),
-                    'day' => $session->day ?? 'N/A',
-                    'start_time' => $startTime,
-                    'end_time' => $endTime,
-                    'subject' => $subject->subject_name ?? 'N/A',
-                    'class' => $className,
-                    'students_count' => $group->count(),
-                    'created_at' => $first->created_at->format('Y-m-d H:i:s'),
-                ];
-            })
-            ->values();
+                    return [
+                        'session_timetableID' => $first->session_timetableID,
+                        'attendance_date' => $first->attendance_date->format('Y-m-d'),
+                        'attendance_date_formatted' => $first->attendance_date->format('d/m/Y'),
+                        'day' => $session->day ?? 'N/A',
+                        'start_time' => $startTime,
+                        'end_time' => $endTime,
+                        'subject' => $subject->subject_name ?? 'N/A',
+                        'class' => $className,
+                        'students_count' => $group->count(),
+                        'created_at' => $first->created_at->format('Y-m-d H:i:s'),
+                    ];
+                })
+                ->values();
 
             return response()->json([
                 'success' => true,
@@ -10241,12 +10368,12 @@ class TeachersController extends Controller
         $subjects = ClassSubject::with(['subject'])
             ->where('teacherID', $teacherID)
             ->where('status', 'Active')
-            ->whereHas('subject', function($query) {
+            ->whereHas('subject', function ($query) {
                 $query->where('status', 'Active');
             })
             ->get()
             ->groupBy('subjectID')
-            ->map(function($group) {
+            ->map(function ($group) {
                 $first = $group->first();
                 return [
                     'subjectID' => $first->subjectID,
@@ -10279,9 +10406,9 @@ class TeachersController extends Controller
 
         // Check if holiday
         $holiday = Holiday::where('schoolID', $schoolID)
-            ->where(function($query) use ($date) {
+            ->where(function ($query) use ($date) {
                 $query->whereDate('start_date', '<=', $date)
-                      ->whereDate('end_date', '>=', $date);
+                    ->whereDate('end_date', '>=', $date);
             })
             ->first();
 
@@ -10582,13 +10709,13 @@ class TeachersController extends Controller
             $sessions = ClassSessionTimetable::with(['subclass.class', 'subject', 'classSubject.subject'])
                 ->where('teacherID', $teacherID)
                 ->where('definitionID', $definition->definitionID)
-                ->where(function($query) use ($subjectID) {
+                ->where(function ($query) use ($subjectID) {
                     // Check through classSubject relationship
-                    $query->whereHas('classSubject', function($q) use ($subjectID) {
+                    $query->whereHas('classSubject', function ($q) use ($subjectID) {
                         $q->where('subjectID', $subjectID);
                     })
-                    // Or check direct subjectID field
-                    ->orWhere('subjectID', $subjectID);
+                        // Or check direct subjectID field
+                        ->orWhere('subjectID', $subjectID);
                 })
                 ->orderByRaw("FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')")
                 ->orderBy('start_time')
@@ -10612,21 +10739,21 @@ class TeachersController extends Controller
             }
 
             // Format sessions data
-            $formattedSessions = $sessions->map(function($session) {
+            $formattedSessions = $sessions->map(function ($session) {
                 $subjectName = 'N/A';
-                if($session->classSubject && $session->classSubject->subject) {
+                if ($session->classSubject && $session->classSubject->subject) {
                     $subjectName = $session->classSubject->subject->subject_name;
-                } elseif($session->subject) {
+                } elseif ($session->subject) {
                     $subjectName = $session->subject->subject_name;
                 }
-                if($session->is_prepo) {
+                if ($session->is_prepo) {
                     $subjectName .= ' (Prepo)';
                 }
 
                 $className = '';
                 $subclassName = '';
-                if($session->subclass) {
-                    if($session->subclass->class) {
+                if ($session->subclass) {
+                    if ($session->subclass->class) {
                         $className = $session->subclass->class->class_name ?? '';
                     }
                     $subclassName = $session->subclass->subclass_name ?? '';
@@ -10694,9 +10821,9 @@ class TeachersController extends Controller
 
             // Get all holidays for the year
             $holidays = Holiday::where('schoolID', $schoolID)
-                ->where(function($query) use ($year) {
+                ->where(function ($query) use ($year) {
                     $query->whereYear('start_date', $year)
-                          ->orWhereYear('end_date', $year);
+                        ->orWhereYear('end_date', $year);
                 })
                 ->get();
 
@@ -10959,7 +11086,7 @@ class TeachersController extends Controller
                         $schoolStampBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
                     }
                 }
-                
+
                 // Headmaster Signature
                 if ($school->school_signature) {
                     $sigPath = public_path($school->school_signature);
@@ -11016,7 +11143,7 @@ class TeachersController extends Controller
                 $filename = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $filename);
 
                 // Return PDF as download
-                return response()->streamDownload(function() use ($dompdf) {
+                return response()->streamDownload(function () use ($dompdf) {
                     echo $dompdf->output();
                 }, $filename, [
                     'Content-Type' => 'application/pdf',
@@ -11295,7 +11422,7 @@ class TeachersController extends Controller
     {
         try {
             $teacherID = Session::get('teacherID');
-            $schoolID  = Session::get('schoolID');
+            $schoolID = Session::get('schoolID');
             $lessonPlanIDs = $request->input('lesson_plan_ids', []);
 
             if (!$teacherID || !$schoolID) {
@@ -11325,8 +11452,8 @@ class TeachersController extends Controller
             // Prepare data for PDF view
             $data = [
                 'lessonPlans' => $lessonPlans,
-                'school'      => $school,
-                'schoolType'  => $schoolTypeDisplay,
+                'school' => $school,
+                'schoolType' => $schoolTypeDisplay,
             ];
 
             // Render the view and generate PDF using Dompdf
@@ -11346,7 +11473,7 @@ class TeachersController extends Controller
             $filename = 'Lesson_Plans_Bulk_' . Carbon::now()->format('Y-m-d_His') . '.pdf';
 
             return response($dompdf->output(), 200, [
-                'Content-Type'        => 'application/pdf',
+                'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             ]);
         } catch (\Exception $e) {
@@ -11537,7 +11664,7 @@ class TeachersController extends Controller
         $teachingSubjects = ClassSubject::with(['subject', 'subclass.class'])
             ->where('teacherID', $teacherID)
             ->where('status', 'Active')
-            ->whereHas('subject', function($query) {
+            ->whereHas('subject', function ($query) {
                 $query->where('status', 'Active');
             })
             ->get();
@@ -11635,7 +11762,7 @@ class TeachersController extends Controller
             return redirect()->back()->with('error', 'You are not assigned as HOD of any department.');
         }
 
-        $departmentSubjectIds = $departments->flatMap(function($dept) {
+        $departmentSubjectIds = $departments->flatMap(function ($dept) {
             return $dept->subjects->pluck('subjectID');
         })->unique();
 
@@ -11660,7 +11787,7 @@ class TeachersController extends Controller
 
         // Verify this subject belongs to the HOD's department
         $isSubjectInDept = Department::where('head_teacherID', $teacherID)
-            ->whereHas('subjects', function($q) use ($subjectID) {
+            ->whereHas('subjects', function ($q) use ($subjectID) {
                 $q->where('school_subjects.subjectID', $subjectID);
             })
             ->exists();
@@ -11748,7 +11875,7 @@ class TeachersController extends Controller
             }
 
             $currentYear = Carbon::now()->year;
-            
+
             $classSubject = ClassSubject::with(['subject', 'subclass.class', 'teacher'])
                 ->where('class_subjectID', $classSubjectID)
                 ->first();
@@ -11764,7 +11891,7 @@ class TeachersController extends Controller
                 ->get();
 
             $school = School::find($schoolID);
-            
+
             $data = [
                 'classSubject' => $classSubject,
                 'logbookEntries' => $logbookEntries,
@@ -11809,7 +11936,7 @@ class TeachersController extends Controller
         $classes = ClassModel::where('schoolID', $schoolID)->orderBy('class_name')->get();
         $subjects = SchoolSubject::where('schoolID', $schoolID)->orderBy('subject_name')->get();
 
-        return view('Admin.admin_logbook', compact('classes', 'subjects'));
+        return view('Admin.admin_logbooks', compact('classes', 'subjects'));
     }
 
     public function getAdminLogbookData(Request $request)
@@ -11905,7 +12032,7 @@ class TeachersController extends Controller
             $subjectName = $classSubject->subject->subject_name ?? 'Subject';
             $className = $classSubject->subclass->class->class_name ?? '';
             $subclassName = $classSubject->subclass->subclass_name ?? '';
-            
+
             $message = "{$schoolName}: Habari, Logbook yako ya somo la {$subjectName} {$className} {$subclassName} imepata maoni mapya. Tafadhali ingia kwenye mfumo kuona.";
 
             $smsService = new SmsService();
