@@ -22,6 +22,9 @@ use App\Models\CaDefinition;
 use App\Models\AcademicYear;
 use App\Models\CharacterAssessmentTimetable;
 use App\Models\StudentCharacterAssessment;
+use App\Models\PublishedReport;
+use App\Models\ParentResultNotification;
+use App\Models\ParentModel;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -2790,7 +2793,7 @@ class ResultManagementController extends Controller
             return ['grade' => null, 'points' => null];
         }
 
-        $marksNum = (float) $marks;
+        $marksNum = round((float) $marks, 2);
 
         // Get grade definition from database
         $gradeDefinition = GradeDefinition::where('classID', $classID)
@@ -3704,6 +3707,140 @@ class ResultManagementController extends Controller
             ->with(['category', 'choice'])
             ->get()
             ->groupBy('studentID');
+    }
+    public function toggleExamPublication(Request $request)
+    {
+        $examID = $request->get('examID');
+        $classID = $request->get('classID');
+        $subclassID = $request->get('subclassID');
+        $status = $request->get('status'); // 'enabled' or 'disabled'
+        $schoolID = Session::get('schoolID');
+
+        if (!$schoolID) return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+
+        $query = Result::where('examID', $examID);
+        
+        if ($subclassID) {
+            $query->where('subclassID', $subclassID);
+        } elseif ($classID) {
+            $subclassIDs = Subclass::where('classID', $classID)->pluck('subclassID');
+            $query->whereIn('subclassID', $subclassIDs);
+        }
+
+        $query->update(['parent_status' => $status]);
+
+        if ($status === 'enabled') {
+            // Create notifications for parents
+            $results = $query->with('student.parent')->get();
+            $exam = Examination::find($examID);
+            
+            $uniqueStudents = $results->pluck('studentID')->unique();
+            
+            foreach ($uniqueStudents as $studentID) {
+                $student = Student::find($studentID);
+                if ($student && $student->parentID) {
+                    ParentResultNotification::updateOrCreate(
+                        [
+                            'schoolID' => $schoolID,
+                            'parentID' => $student->parentID,
+                            'studentID' => $studentID,
+                            'type' => 'exam',
+                            'examID' => $examID,
+                        ],
+                        [
+                            'term' => $exam->term ?? '',
+                            'year' => $exam->year ?? '',
+                            'is_viewed' => false,
+                            'updated_at' => now()
+                        ]
+                    );
+                }
+            }
+        } else {
+            // Remove notifications if disabled
+            ParentResultNotification::where('examID', $examID)
+                ->where('type', 'exam')
+                ->delete();
+        }
+
+        return response()->json([
+            'success' => true, 
+            'message' => 'Exam results ' . ($status === 'enabled' ? 'published' : 'unpublished') . ' for parents.'
+        ]);
+    }
+
+    public function toggleReportPublication(Request $request)
+    {
+        $classID = $request->get('classID');
+        $term = $request->get('term');
+        $year = $request->get('year');
+        $status = $request->get('status');
+        $schoolID = Session::get('schoolID');
+
+        if (!$schoolID) return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+
+        PublishedReport::updateOrCreate(
+            [
+                'schoolID' => $schoolID,
+                'classID' => $classID,
+                'term' => $term,
+                'year' => $year,
+            ],
+            ['status' => $status]
+        );
+
+        if ($status === 'enabled') {
+            $subclassIDs = Subclass::where('classID', $classID)->pluck('subclassID');
+            $students = Student::whereIn('subclassID', $subclassIDs)->where('status', 'Active')->get();
+            
+            foreach ($students as $student) {
+                if ($student->parentID) {
+                    ParentResultNotification::updateOrCreate(
+                        [
+                            'schoolID' => $schoolID,
+                            'parentID' => $student->parentID,
+                            'studentID' => $student->studentID,
+                            'type' => 'report',
+                            'term' => $term,
+                            'year' => $year,
+                        ],
+                        [
+                            'is_viewed' => false,
+                            'updated_at' => now()
+                        ]
+                    );
+                }
+            }
+        } else {
+            // Remove notifications
+            ParentResultNotification::where('schoolID', $schoolID)
+                ->where('type', 'report')
+                ->where('term', $term)
+                ->where('year', $year)
+                ->delete();
+        }
+
+        return response()->json([
+            'success' => true, 
+            'message' => 'Term reports ' . ($status === 'enabled' ? 'published' : 'unpublished') . ' for parents.'
+        ]);
+    }
+
+    public function getPublishedReports(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $year = $request->get('year');
+        $term = $request->get('term');
+        
+        $published = PublishedReport::where('schoolID', $schoolID)
+            ->where('year', $year)
+            ->where('term', $term)
+            ->get();
+            
+        return response()->json([
+            'success' => true,
+            'data' => $published
+        ]);
     }
 }
 

@@ -78,8 +78,8 @@ class GradeDefinitionController extends Controller
     public function store(Request $request)
     {
         // Ensure first and last are numeric
-        $first = is_numeric($request->first) ? (float)$request->first : null;
-        $last = is_numeric($request->last) ? (float)$request->last : null;
+        $first = is_numeric($request->first) ? round((float)$request->first, 2) : null;
+        $last = is_numeric($request->last) ? round((float)$request->last, 2) : null;
         
         $validator = Validator::make([
             'classID' => $request->classID,
@@ -183,16 +183,130 @@ class GradeDefinitionController extends Controller
     }
 
     /**
+     * Store multiple grade definitions at once.
+     */
+    public function bulkStore(Request $request)
+    {
+        $grades = $request->input('grades');
+        $classID = $request->input('classID');
+
+        if (!is_array($grades)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid data format. Expected an array of grades.',
+            ], 400);
+        }
+
+        $validator = Validator::make([
+            'classID' => $classID,
+        ], [
+            'classID' => 'required|exists:classes,classID',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Optional: Clear existing grades for this class if requested
+            if ($request->boolean('clear_existing')) {
+                GradeDefinition::where('classID', $classID)->delete();
+            }
+
+            $createdCount = 0;
+            $errors = [];
+
+            foreach ($grades as $index => $gradeData) {
+                $first = is_numeric($gradeData['first']) ? round((float)$gradeData['first'], 2) : null;
+                $last = is_numeric($gradeData['last']) ? round((float)$gradeData['last'], 2) : null;
+                $gradeLetter = $gradeData['grade'];
+
+                // Basic validation for this row
+                if ($first === null || $last === null || empty($gradeLetter)) {
+                    $errors[] = "Row " . ($index + 1) . ": All fields are required.";
+                    continue;
+                }
+
+                if ($last < $first) {
+                    $errors[] = "Row " . ($index + 1) . ": Last mark must be >= first mark.";
+                    continue;
+                }
+
+                // Check for overlapping within the new set and existing set
+                $overlapping = GradeDefinition::where('classID', $classID)
+                    ->where(function($query) use ($first, $last) {
+                        $query->whereBetween('first', [$first, $last])
+                            ->orWhereBetween('last', [$first, $last])
+                            ->orWhere(function($q) use ($first, $last) {
+                                $q->where('first', '<=', $first)
+                                  ->where('last', '>=', $last);
+                            });
+                    })
+                    ->first();
+
+                if ($overlapping) {
+                    $errors[] = "Row " . ($index + 1) . " ({$gradeLetter}): Range overlaps with an existing definition.";
+                    continue;
+                }
+
+                GradeDefinition::create([
+                    'classID' => $classID,
+                    'first' => $first,
+                    'last' => $last,
+                    'grade' => strtoupper($gradeLetter),
+                ]);
+                $createdCount++;
+            }
+
+            if (!empty($errors)) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Some grades failed validation.',
+                    'errors' => $errors
+                ], 422);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully saved $createdCount grade definitions.",
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save grade definitions: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Update the specified grade definition.
      */
     public function update(Request $request, $id)
     {
         $gradeDefinition = GradeDefinition::findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
+        // Ensure first and last are numeric
+        $first = is_numeric($request->first) ? round((float)$request->first, 2) : null;
+        $last = is_numeric($request->last) ? round((float)$request->last, 2) : null;
+
+        $validator = Validator::make([
+            'classID' => $request->classID,
+            'first' => $first,
+            'last' => $last,
+            'grade' => $request->grade,
+        ], [
             'classID' => 'required|exists:classes,classID',
             'first' => 'required|numeric|min:0|max:100',
-            'last' => 'required|numeric|min:0|max:100|gte:first',
+            'last' => 'required|numeric|min:0|max:100',
             'grade' => 'required|string|max:10',
         ], [
             'classID.required' => 'Please select a class.',
@@ -205,10 +319,20 @@ class GradeDefinitionController extends Controller
             'last.numeric' => 'Last mark must be a number.',
             'last.min' => 'Last mark must be at least 0.',
             'last.max' => 'Last mark cannot exceed 100.',
-            'last.gte' => 'Last mark must be greater than or equal to first mark.',
             'grade.required' => 'Grade is required.',
             'grade.max' => 'Grade cannot exceed 10 characters.',
         ]);
+
+        // Custom validation: last must be >= first
+        if ($first !== null && $last !== null && $last < $first) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => [
+                    'last' => ['Last mark (' . $last . ') must be greater than or equal to first mark (' . $first . ').']
+                ]
+            ], 422);
+        }
 
         if ($validator->fails()) {
             return response()->json([
@@ -220,7 +344,7 @@ class GradeDefinitionController extends Controller
 
         // Check if grade already exists for this class (excluding current record)
         $existing = GradeDefinition::where('classID', $request->classID)
-            ->where('grade', $request->grade)
+            ->where('grade', strtoupper($request->grade))
             ->where('gradeDefinitionID', '!=', $id)
             ->first();
 
@@ -234,12 +358,12 @@ class GradeDefinitionController extends Controller
         // Check for overlapping ranges (excluding current record)
         $overlapping = GradeDefinition::where('classID', $request->classID)
             ->where('gradeDefinitionID', '!=', $id)
-            ->where(function($query) use ($request) {
-                $query->whereBetween('first', [$request->first, $request->last])
-                    ->orWhereBetween('last', [$request->first, $request->last])
-                    ->orWhere(function($q) use ($request) {
-                        $q->where('first', '<=', $request->first)
-                          ->where('last', '>=', $request->last);
+            ->where(function($query) use ($first, $last) {
+                $query->whereBetween('first', [$first, $last])
+                    ->orWhereBetween('last', [$first, $last])
+                    ->orWhere(function($q) use ($first, $last) {
+                        $q->where('first', '<=', $first)
+                          ->where('last', '>=', $last);
                     });
             })
             ->first();
@@ -254,8 +378,8 @@ class GradeDefinitionController extends Controller
         try {
             $gradeDefinition->update([
                 'classID' => $request->classID,
-                'first' => $request->first,
-                'last' => $request->last,
+                'first' => $first,
+                'last' => $last,
                 'grade' => strtoupper($request->grade),
             ]);
 

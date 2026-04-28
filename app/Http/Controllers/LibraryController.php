@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
 use Carbon\Carbon;
-use Barryvdh\DomPDF\PDF;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use App\Services\SmsService;
 use App\Models\OtherStaff;
 
@@ -1984,5 +1984,122 @@ class LibraryController extends Controller
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    public function export_library_pdf(Request $request)
+    {
+        set_time_limit(0);
+        ini_set('memory_limit', '2048M');
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return redirect()->route('login');
+        }
+
+        $school = School::find($schoolID);
+        $classID = $request->input('classID');
+        $subjectID = $request->input('subjectID');
+        $status = $request->input('status');
+        $search = $request->input('search');
+
+        // Build query with eager loading
+        $query = Book::with([
+                'class',
+                'subject',
+                'activeBorrows.student.subclass.class',
+                'activeBorrows.teacher',
+                'activeBorrows.staff',
+                'activeLosses.student.subclass.class',
+                'activeLosses.teacher',
+                'activeLosses.staff',
+                'activeDamages.student.subclass.class',
+                'activeDamages.teacher',
+                'activeDamages.staff'
+            ])
+            ->withCount([
+                'activeBorrows as active_borrows_count',
+                'activeLosses as active_losses_count',
+                'activeDamages as active_damages_count'
+            ])
+            ->where('schoolID', $schoolID);
+
+        if ($classID) {
+            $query->where('classID', $classID);
+        }
+        if ($subjectID) {
+            $query->where('subjectID', $subjectID);
+        }
+        if ($search && trim($search) !== '') {
+            $searchTerm = trim($search);
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('book_title', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('author', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('isbn', 'like', '%' . $searchTerm . '%');
+            });
+        }
+
+        $books = $query->orderBy('book_title', 'asc')->get()->map(function($book) {
+            $isLost = ($book->active_losses_count ?? 0) > 0;
+            $isDamaged = ($book->active_damages_count ?? 0) > 0;
+            $activeBorrows = $book->activeBorrows;
+            $isBorrowed = $activeBorrows->count() > 0;
+            
+            $book->status_label = 'Available';
+            if ($isLost) $book->status_label = 'Lost';
+            elseif ($isDamaged) $book->status_label = 'Damaged';
+            elseif ($isBorrowed) {
+                $isOverdue = false;
+                foreach($activeBorrows as $ab) {
+                    if ($ab->expected_return_date && Carbon::parse($ab->expected_return_date)->lt(Carbon::today())) {
+                        $isOverdue = true;
+                        break;
+                    }
+                }
+                $book->status_label = $isOverdue ? 'Overdue' : 'Borrowed';
+            }
+
+            return $book;
+        });
+
+        if ($status) {
+            $books = $books->filter(function($book) use ($status) {
+                if ($status === 'available') return $book->status_label === 'Available';
+                if ($status === 'borrowed') return in_array($book->status_label, ['Borrowed', 'Overdue']);
+                if ($status === 'overdue') return $book->status_label === 'Overdue';
+                if ($status === 'lost') return $book->status_label === 'Lost';
+                if ($status === 'damaged') return $book->status_label === 'Damaged';
+                return true;
+            });
+        }
+
+        $stats = [
+            'total' => Book::where('schoolID', $schoolID)->count(),
+            'borrowed' => BookBorrow::whereHas('book', function($q) use ($schoolID) { $q->where('schoolID', $schoolID); })->where('status', 'borrowed')->distinct('bookID')->count('bookID'),
+            'lost' => BookLoss::whereHas('book', function($q) use ($schoolID) { $q->where('schoolID', $schoolID); })->where('status', 'lost')->where('payment_status', 'unpaid')->distinct('bookID')->count('bookID'),
+            'damaged' => BookDamage::whereHas('book', function($q) use ($schoolID) { $q->where('schoolID', $schoolID); })->where('status', 'damaged')->where('payment_status', 'unpaid')->distinct('bookID')->count('bookID'),
+        ];
+        $stats['available'] = max(0, $stats['total'] - $stats['borrowed'] - $stats['lost'] - $stats['damaged']);
+
+        $data = [
+            'school' => $school,
+            'books' => $books,
+            'stats' => $stats,
+            'filterStatus' => $status,
+            'filterClass' => $classID ? (ClassModel::find($classID)->class_name ?? 'All') : 'All',
+            'filterSubject' => $subjectID ? (SchoolSubject::find($subjectID)->subject_name ?? 'All') : 'All',
+            'title' => 'Library Inventory Report',
+            'dateGenerated' => date('d M Y H:i')
+        ];
+
+        $pdf = PDF::loadView('Admin.pdf.library_report_pdf', $data);
+        $pdf->setOptions([
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'chroot' => base_path(),
+        ]);
+        $pdf->setPaper('A4', 'landscape');
+
+        $filename = 'Library_Report_' . date('YmdHis') . '.pdf';
+        return $pdf->download($filename);
     }
 }

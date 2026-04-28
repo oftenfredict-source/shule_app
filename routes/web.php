@@ -413,6 +413,7 @@ Route::get('download_student_results_pdf/{studentID}/{examID}', [ManageClassessC
 // Grade Definitions Routes
 Route::get('manage_grade_definitions', [GradeDefinitionController::class, 'index'])->name('grade_definitions.index');
 Route::post('grade_definitions', [GradeDefinitionController::class, 'store'])->name('grade_definitions.store');
+Route::post('grade_definitions/bulk', [GradeDefinitionController::class, 'bulkStore'])->name('grade_definitions.bulk_store');
 Route::get('grade_definitions/{id}', [GradeDefinitionController::class, 'show'])->name('grade_definitions.show');
 Route::put('grade_definitions/{id}', [GradeDefinitionController::class, 'update'])->name('grade_definitions.update');
 Route::delete('grade_definitions/{id}', [GradeDefinitionController::class, 'destroy'])->name('grade_definitions.destroy');
@@ -707,6 +708,9 @@ Route::delete('delete_ca_definition/{id}', [ResultManagementController::class, '
 Route::get('get_school_exams_for_term_list', [ResultManagementController::class, 'getSchoolExamsForTermList'])->name('get_school_exams_for_term_list');
 Route::get('get_tests_for_term_list', [ResultManagementController::class, 'getTestsForTermList'])->name('get_tests_for_term_list');
 Route::get('check_exam_ca_exists', [ResultManagementController::class, 'checkExamCaExists'])->name('check_exam_ca_exists');
+Route::post('toggle_exam_publication', [ResultManagementController::class, 'toggleExamPublication'])->name('toggle_exam_publication');
+Route::post('toggle_report_publication', [ResultManagementController::class, 'toggleReportPublication'])->name('toggle_report_publication');
+Route::get('get_published_reports', [ResultManagementController::class, 'getPublishedReports'])->name('get_published_reports');
 
 // Character Assessment Management
 Route::get('character_assessment', [CharacterAssessmentController::class, 'index'])->name('character_assessment');
@@ -859,6 +863,7 @@ Route::post('resolve_book_incident', [LibraryController::class, 'resolve_book_in
 Route::get('get_library_students', [LibraryController::class, 'get_library_students'])->name('get_library_students');
 Route::get('search_teachers', [LibraryController::class, 'search_teachers'])->name('search_teachers');
 Route::get('search_staff', [LibraryController::class, 'search_staff'])->name('search_staff');
+Route::get('export_library_pdf', [LibraryController::class, 'export_library_pdf'])->name('export_library_pdf');
 
 // Character Assessment Routes
 Route::get('character_assessment', [CharacterAssessmentController::class, 'index'])->name('character_assessment');

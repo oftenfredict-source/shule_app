@@ -21,6 +21,7 @@ class Result extends Model
         'grade',
         'remark',
         'status',
+        'parent_status',
         'test_week',
         'test_date',
     ];

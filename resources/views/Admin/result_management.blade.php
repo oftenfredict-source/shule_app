@@ -2195,9 +2195,40 @@
                                     <div class="card mb-4 border-0 shadow-sm">
                                         <div class="card-header bg-primary-custom text-white d-flex justify-content-between align-items-center">
                                             <h5 class="mb-0"><i class="bi bi-list-ul"></i> All Students Results</h5>
-                                            <button class="btn btn-sm btn-light text-primary font-weight-bold download-all-students-btn" data-type="exam" title="Download All Students Reports">
-                                                <i class="bi bi-printer"></i> Download All
-                                            </button>
+                                            <div class="d-flex align-items-center" style="gap: 10px;">
+                                                @php
+                                                    $isExamPublished = false;
+                                                    if (!empty($filters['examID'])) {
+                                                        $pubQuery = \App\Models\Result::where('examID', $filters['examID']);
+                                                        if (!empty($filters['class'])) {
+                                                            $pubQuery->whereHas('student.subclass', function($q) use ($filters) {
+                                                                $q->where('classID', $filters['class']);
+                                                            });
+                                                        }
+                                                        if (!empty($filters['subclass'])) {
+                                                            $pubQuery->whereHas('student', function($q) use ($filters) {
+                                                                $q->where('subclassID', $filters['subclass']);
+                                                            });
+                                                        }
+                                                        $isExamPublished = $pubQuery->where('parent_status', 'enabled')->exists();
+                                                    }
+                                                @endphp
+                                                <span class="badge {{ $isExamPublished ? 'bg-success' : 'bg-warning' }} text-white pub-status-badge">
+                                                    {{ $isExamPublished ? 'Published to Parents' : 'Not Published' }}
+                                                </span>
+                                                <button class="btn btn-sm {{ $isExamPublished ? 'btn-danger' : 'btn-info' }} text-white font-weight-bold btn-publish-exam" 
+                                                    data-exam-id="{{ $filters['examID'] ?? '' }}" 
+                                                    data-class-id="{{ $filters['class'] ?? '' }}"
+                                                    data-subclass-id="{{ $filters['subclass'] ?? '' }}"
+                                                    data-status="{{ $isExamPublished ? 'enabled' : 'disabled' }}"
+                                                    title="{{ $isExamPublished ? 'Unpublish from Parents' : 'Publish to Parents' }}">
+                                                    <i class="bi {{ $isExamPublished ? 'bi-eye-slash' : 'bi-megaphone' }}"></i> 
+                                                    {{ $isExamPublished ? 'Unpublish' : 'Publish' }}
+                                                </button>
+                                                <button class="btn btn-sm btn-light text-primary font-weight-bold download-all-students-btn" data-type="exam" title="Download All Students Reports">
+                                                    <i class="bi bi-printer"></i> Download All
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="card-body">
                                             <div class="table-responsive">
@@ -3136,11 +3167,32 @@
                                     
                                     <!-- All Students Results Table -->
                                     <div class="card mb-4 border-0 shadow-sm">
-                                        <div class="card-header bg-primary-custom text-white d-flex justify-content-between align-items-center">
                                             <h5 class="mb-0"><i class="bi bi-list-ul"></i> All Students Results</h5>
-                                            <button class="btn btn-sm btn-light text-primary font-weight-bold download-all-students-btn" data-type="report" title="Download All Students Reports">
-                                                <i class="bi bi-printer"></i> Download All
-                                            </button>
+                                            <div class="d-flex align-items-center" style="gap: 10px;">
+                                                @php
+                                                    $isReportPublished = \App\Models\PublishedReport::where('schoolID', Session::get('schoolID'))
+                                                        ->where('classID', $filters['class'] ?? null)
+                                                        ->where('term', $filters['term'] ?? null)
+                                                        ->where('year', $filters['year'] ?? null)
+                                                        ->where('status', 'enabled')
+                                                        ->exists();
+                                                @endphp
+                                                <span class="badge {{ $isReportPublished ? 'bg-success' : 'bg-warning' }} text-white pub-status-badge">
+                                                    {{ $isReportPublished ? 'Published to Parents' : 'Not Published' }}
+                                                </span>
+                                                <button class="btn btn-sm {{ $isReportPublished ? 'btn-danger' : 'btn-info' }} text-white font-weight-bold btn-publish-report" 
+                                                    data-class-id="{{ $filters['class'] ?? '' }}"
+                                                    data-term="{{ $filters['term'] ?? '' }}"
+                                                    data-year="{{ $filters['year'] ?? '' }}"
+                                                    data-status="{{ $isReportPublished ? 'enabled' : 'disabled' }}"
+                                                    title="{{ $isReportPublished ? 'Unpublish from Parents' : 'Publish to Parents' }}">
+                                                    <i class="bi {{ $isReportPublished ? 'bi-eye-slash' : 'bi-megaphone' }}"></i> 
+                                                    {{ $isReportPublished ? 'Unpublish' : 'Publish' }}
+                                                </button>
+                                                <button class="btn btn-sm btn-light text-primary font-weight-bold download-all-students-btn" data-type="report" title="Download All Students Reports">
+                                                    <i class="bi bi-printer"></i> Download All
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="card-body">
                                             <div class="table-responsive">
@@ -7781,11 +7833,94 @@ $(document).ready(function() {
     });
 
     // Update range display when first/last marks change
-    $(document).on('input', '.edit-first, .edit-last', function() {
-        const row = $(this).closest('tr');
-        const first = parseFloat(row.find('.edit-first').val()) || 0;
-        const last = parseFloat(row.find('.edit-last').val()) || 0;
-        row.find('td:nth-child(4)').text(first.toFixed(2) + ' - ' + last.toFixed(2));
+    // Real-time validation for grade rows
+    function validateGradeDefinitionRows(containerSelector) {
+        const rows = $(containerSelector).find('tr, .grade-input-row');
+        let ranges = [];
+        let hasGlobalError = false;
+
+        rows.each(function(index) {
+            const row = $(this);
+            const gradeInput = row.find('.edit-grade, .grade-input');
+            const firstInput = row.find('.edit-first, .first-input');
+            const lastInput = row.find('.edit-last, .last-input');
+            const displayCell = row.find('td:nth-child(4)');
+
+            const grade = gradeInput.val().trim().toUpperCase();
+            const first = parseFloat(firstInput.val());
+            const last = parseFloat(lastInput.val());
+
+            // Reset states
+            gradeInput.removeClass('is-invalid is-valid');
+            firstInput.removeClass('is-invalid is-valid');
+            lastInput.removeClass('is-invalid is-valid');
+            let rowErrors = [];
+
+            if (!grade) {
+                gradeInput.addClass('is-invalid');
+                rowErrors.push("Grade is required");
+            } else {
+                gradeInput.addClass('is-valid');
+            }
+
+            if (isNaN(first)) {
+                firstInput.addClass('is-invalid');
+                rowErrors.push("First mark required");
+            } else if (first < 0 || first > 100) {
+                firstInput.addClass('is-invalid');
+                rowErrors.push("First mark must be 0-100");
+            } else {
+                firstInput.addClass('is-valid');
+            }
+
+            if (isNaN(last)) {
+                lastInput.addClass('is-invalid');
+                rowErrors.push("Last mark required");
+            } else if (last < 0 || last > 100) {
+                lastInput.addClass('is-invalid');
+                rowErrors.push("Last mark must be 0-100");
+            } else if (!isNaN(first) && last < first) {
+                lastInput.addClass('is-invalid');
+                rowErrors.push("Last must be >= First");
+            } else {
+                lastInput.addClass('is-valid');
+            }
+
+            // Check for overlaps with previous ranges
+            if (!isNaN(first) && !isNaN(last) && last >= first) {
+                for (let r of ranges) {
+                    if ((first >= r.first && first <= r.last) || (last >= r.first && last <= r.last) || (first <= r.first && last >= r.last)) {
+                        firstInput.addClass('is-invalid');
+                        lastInput.addClass('is-invalid');
+                        rowErrors.push(`Overlaps with Grade ${r.grade} (${r.first}-${r.last})`);
+                        break;
+                    }
+                }
+                ranges.push({ grade, first, last, index });
+            }
+
+            if (rowErrors.length > 0) {
+                hasGlobalError = true;
+                if (displayCell.length) {
+                    displayCell.html(`<span class="text-danger small"><i class="bi bi-exclamation-triangle"></i> ${rowErrors.join('<br>')}</span>`);
+                }
+            } else {
+                if (displayCell.length) {
+                    displayCell.html(`<span class="text-success small"><i class="bi bi-check-circle"></i> ${grade}: <strong>${first} - ${last}</strong></span>`);
+                }
+            }
+        });
+
+        return !hasGlobalError;
+    }
+
+    // Update range display and validate when first/last marks change
+    $(document).on('input', '.edit-grade, .edit-first, .edit-last', function() {
+        validateGradeDefinitionRows('#gradeDefinitionsTableBody');
+    });
+
+    $(document).on('input', '.grade-input, .first-input, .last-input', function() {
+        validateGradeDefinitionRows('#gradeInputsContainer');
     });
 
     // Function to load grade definitions
@@ -7813,10 +7948,10 @@ $(document).ready(function() {
                     response.data.forEach(function(def) {
                         const row = `
                             <tr data-id="${def.gradeDefinitionID}">
-                                <td><span class="badge bg-info">${def.grade}</span></td>
-                                <td><input type="number" class="form-control form-control-sm edit-first" value="${def.first}" step="0.01" min="0" max="100"></td>
-                                <td><input type="number" class="form-control form-control-sm edit-last" value="${def.last}" step="0.01" min="0" max="100"></td>
-                                <td>${parseFloat(def.first).toFixed(2)} - ${parseFloat(def.last).toFixed(2)}</td>
+                                <td><input type="text" class="form-control form-control-sm edit-grade" value="${def.grade}" style="width: 60px; text-transform: uppercase;"></td>
+                                <td><input type="number" class="form-control form-control-sm edit-first" value="${def.first}" min="0" max="100" step="any"></td>
+                                <td><input type="number" class="form-control form-control-sm edit-last" value="${def.last}" min="0" max="100" step="any"></td>
+                                <td>${def.first} - ${def.last}</td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-warning update-grade-def" data-id="${def.gradeDefinitionID}">
                                         <i class="bi bi-pencil"></i> Update
@@ -7846,7 +7981,11 @@ $(document).ready(function() {
     
     $('#addGradeInputBtn').on('click', function() {
         if (gradeInputCount >= maxGradeInputs) {
-            alert('Maximum ' + maxGradeInputs + ' grade inputs allowed.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Limit Reached',
+                text: 'Maximum ' + maxGradeInputs + ' grade inputs allowed.'
+            });
             return;
         }
         
@@ -7936,7 +8075,21 @@ $(document).ready(function() {
         
         const classID = $('#gradeDefinitionClassSelect').val();
         if (!classID) {
-            alert('Please select a class first');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Missing Class',
+                text: 'Please select a class first'
+            });
+            return;
+        }
+
+        // Run validation
+        if (!validateGradeDefinitionRows('#gradeInputsContainer')) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please fix the errors highlighted in the grade rows before saving.'
+            });
             return;
         }
         
@@ -7968,7 +8121,11 @@ $(document).ready(function() {
         });
         
         if (grades.length === 0) {
-            alert('Please fill in at least one complete grade definition (Grade, First Mark, and Last Mark)');
+            Swal.fire({
+                icon: 'info',
+                title: 'No Data',
+                text: 'Please fill in at least one complete grade definition'
+            });
             return;
         }
         
@@ -7989,7 +8146,11 @@ $(document).ready(function() {
         });
         
         if (hasError) {
-            alert(errorMsg);
+            Swal.fire({
+                icon: 'error',
+                title: 'Data Error',
+                html: errorMsg.replace(/\n/g, '<br>')
+            });
             return;
         }
         
@@ -7998,64 +8159,51 @@ $(document).ready(function() {
         const originalText = submitBtn.html();
         submitBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Saving...');
         
-        // Save all grades via AJAX (one by one or batch)
-        let successCount = 0;
-        let errorCount = 0;
-        let completed = 0;
-        
-        grades.forEach(function(gradeData, index) {
-            $.ajax({
-                url: '{{ route("grade_definitions.store") }}',
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content'),
-                    classID: classID,
-                    grade: gradeData.grade,
-                    first: gradeData.first,
-                    last: gradeData.last
-                },
-                success: function(response) {
-                    successCount++;
-                    completed++;
-                    if (completed === grades.length) {
-                        submitBtn.prop('disabled', false).html(originalText);
-                        if (errorCount === 0) {
-                            showGradeDefinitionAlert('All ' + successCount + ' grade definition(s) added successfully!', 'success');
-                            $('#addGradeDefinitionForm')[0].reset();
-                            $('#clearAllGradesBtn').click(); // Reset to single row
-                            loadGradeDefinitions();
-                        } else {
-                            showGradeDefinitionAlert(successCount + ' grade definition(s) added successfully. ' + errorCount + ' failed.', 'warning');
-                            loadGradeDefinitions();
-                        }
+        // Save all grades via bulk AJAX
+        $.ajax({
+            url: '{{ route("grade_definitions.bulk_store") }}',
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                classID: classID,
+                grades: grades
+            },
+            success: function(response) {
+                submitBtn.prop('disabled', false).html(originalText);
+                showGradeDefinitionAlert(response.message, 'success');
+                $('#addGradeDefinitionForm')[0].reset();
+                $('#clearAllGradesBtn').click(); // Reset to single row
+                loadGradeDefinitions();
+            },
+            error: function(xhr) {
+                submitBtn.prop('disabled', false).html(originalText);
+                if (xhr.status === 422) {
+                    const resp = xhr.responseJSON;
+                    let errorMsg = '';
+                    if (resp.errors && Array.isArray(resp.errors)) {
+                        errorMsg = resp.errors.join('<br>');
+                    } else if (resp.errors) {
+                        $.each(resp.errors, function(key, value) {
+                            errorMsg += (Array.isArray(value) ? value[0] : value) + '<br>';
+                        });
                     }
-                },
-                error: function(xhr) {
-                    errorCount++;
-                    completed++;
-                    if (completed === grades.length) {
-                        submitBtn.prop('disabled', false).html(originalText);
-                        if (successCount > 0) {
-                            showGradeDefinitionAlert(successCount + ' grade definition(s) added successfully. ' + errorCount + ' failed.', 'warning');
-                        } else {
-                            if (xhr.status === 422) {
-                                const errors = xhr.responseJSON.errors;
-                                let errorMsg = 'Validation errors:\n';
-                                $.each(errors, function(key, value) {
-                                    errorMsg += value[0] + '\n';
-                                });
-                                alert(errorMsg);
-                            } else {
-                                alert(xhr.responseJSON.message || 'Failed to add grade definitions');
-                            }
-                        }
-                        loadGradeDefinitions();
-                    }
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Validation Error',
+                        html: errorMsg || 'Please check your inputs'
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Server Error',
+                        text: xhr.responseJSON.message || 'Failed to add grade definitions'
+                    });
                 }
-            });
+                loadGradeDefinitions();
+            }
         });
     });
 
@@ -8066,21 +8214,43 @@ $(document).ready(function() {
         const first = parseFloat(row.find('.edit-first').val());
         const last = parseFloat(row.find('.edit-last').val());
         const classID = $('#gradeDefinitionClassSelect').val();
-        const grade = row.find('td:first-child .badge').text().trim();
+        const grade = row.find('.edit-grade').val().trim().toUpperCase();
 
         if (!classID) {
-            alert('Please select a class first');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Missing Class',
+                text: 'Please select a class first'
+            });
             return;
         }
 
-        if (last < first) {
-            alert('Last mark must be greater than or equal to first mark');
+        // Local validation for this row
+        const firstVal = parseFloat(row.find('.edit-first').val());
+        const lastVal = parseFloat(row.find('.edit-last').val());
+        const gradeVal = row.find('.edit-grade').val().trim();
+
+        if (!gradeVal || isNaN(firstVal) || isNaN(lastVal)) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Missing Information',
+                text: 'Please ensure Grade, First Mark, and Last Mark are all filled correctly.'
+            });
+            return;
+        }
+
+        if (lastVal < firstVal) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Range',
+                text: 'Last mark must be greater than or equal to first mark'
+            });
             return;
         }
 
         $.ajax({
             url: `{{ url("grade_definitions") }}/${id}`,
-            method: 'PUT',
+            method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
@@ -8100,14 +8270,24 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 if (xhr.status === 422) {
-                    const errors = xhr.responseJSON.errors;
-                    let errorMsg = 'Validation errors:\n';
-                    $.each(errors, function(key, value) {
-                        errorMsg += value[0] + '\n';
+                    const resp = xhr.responseJSON;
+                    let errorMsg = '';
+                    if (resp.errors) {
+                        $.each(resp.errors, function(key, value) {
+                            errorMsg += (Array.isArray(value) ? value[0] : value) + '<br>';
+                        });
+                    }
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Update Failed',
+                        html: errorMsg || resp.message || 'Check for overlaps or invalid ranges'
                     });
-                    alert(errorMsg);
                 } else {
-                    alert(xhr.responseJSON.message || 'Failed to update grade definition');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: xhr.responseJSON.message || 'Failed to update grade definition'
+                    });
                 }
             }
         });
@@ -8117,44 +8297,56 @@ $(document).ready(function() {
     $(document).on('click', '.delete-grade-def', function() {
         const id = $(this).data('id');
         
-        if (confirm('Are you sure you want to delete this grade definition?')) {
-            $.ajax({
-                url: `{{ url("grade_definitions") }}/${id}`,
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content'),
-                    _method: 'DELETE'
-                },
-                success: function(response) {
-                    if (response.success) {
-                        loadGradeDefinitions();
-                        showGradeDefinitionAlert('Grade definition deleted successfully!', 'success');
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this grade definition!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `{{ url("grade_definitions") }}/${id}`,
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    data: {
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            loadGradeDefinitions();
+                            Swal.fire(
+                                'Deleted!',
+                                'Grade definition has been deleted.',
+                                'success'
+                            );
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Failed to delete grade definition'
+                        });
                     }
-                },
-                error: function(xhr) {
-                    alert(xhr.responseJSON.message || 'Failed to delete grade definition');
-                }
-            });
-        }
+                });
+            }
+        });
     });
 
     // Show alert in modal
     function showGradeDefinitionAlert(message, type) {
-        const alertHtml = `
-                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-        `;
-        $('#gradeDefinitionAlertContainer').html(alertHtml);
-        setTimeout(function() {
-            $('#gradeDefinitionAlertContainer .alert').fadeOut();
-        }, 3000);
+        Swal.fire({
+            icon: type || 'info',
+            title: type === 'success' ? 'Success' : 'Notice',
+            text: message,
+            timer: 3000,
+            showConfirmButton: false
+        });
     }
 });
 </script>
@@ -8559,18 +8751,14 @@ $(document).ready(function() {
     }
 
     // Function to show validation error as info alert
-    function showValidationAlert(title, message, errorType) {
+    function showValidationAlert(title, message, type) {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
-                icon: 'info',
-                title: title || 'Information',
+                title: title,
                 html: message,
+                icon: type || 'info',
                 confirmButtonText: 'OK',
-                confirmButtonColor: '#940000',
-                allowOutsideClick: true,
-                allowEscapeKey: true,
                 customClass: {
-                    popup: 'swal2-popup-validation'
                 }
             });
         } else {
@@ -9642,6 +9830,151 @@ $(document).ready(function() {
                     }
                 });
             }
+        });
+    });
+    // ==========================================
+    // Result Publication Module
+    // ==========================================
+
+    // Publish/Unpublish Exam
+    $(document).on('click', '.btn-publish-exam', function() {
+        const btn = $(this);
+        const examID = btn.data('exam-id');
+        const classID = btn.data('class-id');
+        const subclassID = btn.data('subclass-id');
+        const currentStatus = btn.data('status');
+        const isPublished = (currentStatus === 'enabled');
+
+        Swal.fire({
+            title: isPublished ? 'Unpublish Results?' : 'Publish Results?',
+            text: isPublished 
+                ? "Parents will no longer be able to view these results. Continue?" 
+                : "Parents will be notified and able to view these results. Continue?",
+            icon: isPublished ? 'warning' : 'question',
+            showCancelButton: true,
+            confirmButtonColor: isPublished ? '#dc3545' : '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: isPublished ? '<i class="bi bi-eye-slash"></i> Unpublish' : '<i class="bi bi-megaphone"></i> Publish',
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            const newStatus = isPublished ? 'disabled' : 'enabled';
+
+            $.ajax({
+                url: "{{ route('toggle_exam_publication') }}",
+                type: 'POST',
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    examID: examID,
+                    classID: classID,
+                    subclassID: subclassID,
+                    status: newStatus
+                },
+                beforeSend: function() {
+                    Swal.fire({
+                        title: 'Processing...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+                },
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire('Success!', response.message, 'success');
+                        
+                        // Update status badge
+                        const badge = btn.siblings('.pub-status-badge');
+                        
+                        // Update button state
+                        if (newStatus === 'enabled') {
+                            btn.removeClass('btn-info').addClass('btn-danger').data('status', 'enabled');
+                            btn.html('<i class="bi bi-eye-slash"></i> Unpublish');
+                            btn.attr('title', 'Unpublish from Parents');
+                            badge.removeClass('bg-warning').addClass('bg-success').text('Published to Parents');
+                        } else {
+                            btn.removeClass('btn-danger').addClass('btn-info').data('status', 'disabled');
+                            btn.html('<i class="bi bi-megaphone"></i> Publish');
+                            btn.attr('title', 'Publish to Parents');
+                            badge.removeClass('bg-success').addClass('bg-warning').text('Not Published');
+                        }
+                    } else {
+                        Swal.fire('Error', response.message, 'error');
+                    }
+                },
+                error: function() {
+                    Swal.fire('Error', 'Failed to update publication status.', 'error');
+                }
+            });
+        });
+    });
+
+    // Publish/Unpublish Report
+    $(document).on('click', '.btn-publish-report', function() {
+        const btn = $(this);
+        const classID = btn.data('class-id');
+        const term = btn.data('term');
+        const year = btn.data('year');
+        const currentStatus = btn.data('status');
+        const isPublished = (currentStatus === 'enabled');
+
+        Swal.fire({
+            title: isPublished ? 'Unpublish Reports?' : 'Publish Reports?',
+            text: isPublished 
+                ? "Parents will no longer be able to view these terminal reports. Continue?" 
+                : "Parents will be notified and able to view terminal reports. Continue?",
+            icon: isPublished ? 'warning' : 'question',
+            showCancelButton: true,
+            confirmButtonColor: isPublished ? '#dc3545' : '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: isPublished ? '<i class="bi bi-eye-slash"></i> Unpublish' : '<i class="bi bi-megaphone"></i> Publish',
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            const newStatus = isPublished ? 'disabled' : 'enabled';
+
+            $.ajax({
+                url: "{{ route('toggle_report_publication') }}",
+                type: 'POST',
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    classID: classID,
+                    term: term,
+                    year: year,
+                    status: newStatus
+                },
+                beforeSend: function() {
+                    Swal.fire({
+                        title: 'Processing...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+                },
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire('Success!', response.message, 'success');
+                        
+                        // Update status badge
+                        const badge = btn.siblings('.pub-status-badge');
+                        
+                        // Update button state
+                        if (newStatus === 'enabled') {
+                            btn.removeClass('btn-info').addClass('btn-danger').data('status', 'enabled');
+                            btn.html('<i class="bi bi-eye-slash"></i> Unpublish');
+                            btn.attr('title', 'Unpublish from Parents');
+                            badge.removeClass('bg-warning').addClass('bg-success').text('Published to Parents');
+                        } else {
+                            btn.removeClass('btn-danger').addClass('btn-info').data('status', 'disabled');
+                            btn.html('<i class="bi bi-megaphone"></i> Publish');
+                            btn.attr('title', 'Publish to Parents');
+                            badge.removeClass('bg-success').addClass('bg-warning').text('Not Published');
+                        }
+                    } else {
+                        Swal.fire('Error', response.message, 'error');
+                    }
+                },
+                error: function() {
+                    Swal.fire('Error', 'Failed to update publication status.', 'error');
+                }
+            });
         });
     });
 });

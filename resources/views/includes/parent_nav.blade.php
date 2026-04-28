@@ -159,6 +159,14 @@
                             ->first() : null;
                         $parentName = $parent ? ($parent->first_name . ' ' . ($parent->last_name ?? '')) : 'Parent';
                         $parentPhoto = $parent && $parent->photo ? asset('userImages/' . $parent->photo) : asset('images/admin.jpg');
+                        
+                        $unviewedResultNotifications = 0;
+                        if ($parentID) {
+                            $unviewedResultNotifications = \App\Models\ParentResultNotification::where('parentID', $parentID)
+                                ->where('schoolID', $schoolID)
+                                ->where('is_viewed', 0)
+                                ->count();
+                        }
                     @endphp
                     <img src="{{ $parentPhoto }}" alt="{{ $parentName }}" class="rounded-circle" width="80" height="80" style="object-fit: cover; border: 2px solid #940000;">
                     <p class="mt-2 mb-0 font-weight-bold">{{ $parentName }}</p>
@@ -167,7 +175,15 @@
                 <li class="sidebar-links-container">
                     <ul style="list-style: none; padding: 0; margin: 0;">
                         <li><a href="{{ route('parentDashboard') }}" class="nav-link"><i class="fa fa-building"></i> <span data-translate="dashboard">Dashboard</span></a></li>
-                        <li><a href="{{ route('parentResults') }}" class="nav-link"><i class="fa fa-trophy"></i> <span data-translate="results">Results</span></a></li>
+                        <li>
+                            <a href="{{ route('parentResults') }}" class="nav-link">
+                                <i class="fa fa-trophy"></i> 
+                                <span data-translate="results">Results</span>
+                                @if($unviewedResultNotifications > 0)
+                                    <span class="badge badge-danger float-right" style="border-radius: 50%; padding: 3px 6px; font-size: 10px;">{{ $unviewedResultNotifications }}</span>
+                                @endif
+                            </a>
+                        </li>
                         <li><a href="{{ route('parentAttendance') }}" class="nav-link"><i class="fa fa-calendar-check-o"></i> <span data-translate="attendance">Attendance</span></a></li>
                         <li><a href="{{ route('parentSubjects') }}" class="nav-link"><i class="fa fa-book"></i> <span data-translate="subjects">Subjects</span></a></li>
                         <li><a href="{{ route('parentPayments') }}" class="nav-link"><i class="fa fa-credit-card"></i> <span data-translate="payments">Payments</span></a></li>
@@ -301,7 +317,7 @@
                         <div class="dropdown for-notification">
                             <button class="btn btn-secondary dropdown-toggle" type="button" id="notification" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <i class="fa fa-bell"></i>
-                                <span class="count bg-danger">5</span>
+                                <span class="count bg-danger">{{ $unviewedResultNotifications > 0 ? $unviewedResultNotifications : 0 }}</span>
                             </button>
                             <div class="dropdown-menu" aria-labelledby="notification">
                                 <p class="red">You have 3 Notification</p>

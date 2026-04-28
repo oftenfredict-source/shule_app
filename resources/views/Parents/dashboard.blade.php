@@ -147,6 +147,28 @@
     </div>
 </div>
 
+<!-- Result Notifications -->
+<div class="row">
+    @if(isset($resultNotifications) && $resultNotifications->count() > 0)
+        @foreach($resultNotifications as $rn)
+            <div class="col-12 mb-3">
+                <div class="alert alert-info alert-dismissible fade show d-flex align-items-center mb-0" role="alert" style="border-radius: 0; border-left: 5px solid #940000; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                    <i class="bx bx-megaphone me-3" style="font-size: 24px; color: #940000;"></i>
+                    <div style="color: #333;">
+                        @if($rn->type == 'exam')
+                            Matokeo ya <strong>{{ $rn->examination->exam_name ?? 'Mtihani' }}</strong> kwa mwanafunzi <strong>{{ $rn->student->first_name }} {{ $rn->student->last_name }}</strong> yametoka.
+                        @else
+                            Ripoti ya <strong>Muhula ({{ $rn->term == 'first_term' ? 'Muhula wa 1' : 'Muhula wa 2' }})</strong> kwa mwanafunzi <strong>{{ $rn->student->first_name }} {{ $rn->student->last_name }}</strong> imetoka.
+                        @endif
+                        <a href="{{ route('parentResults') }}" class="alert-link ms-2" style="color: #940000; text-decoration: underline;">Bofya hapa kutazama</a>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </div>
+        @endforeach
+    @endif
+</div>
+
 <!-- Statistics Row -->
 <div class="row g-4 mb-5">
     <div class="col-lg-3 col-md-6">

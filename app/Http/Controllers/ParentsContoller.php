@@ -21,6 +21,7 @@ use App\Services\SmsService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Models\ParentResultNotification;
 
 class ParentsContoller extends Controller
 {
@@ -74,6 +75,7 @@ class ParentsContoller extends Controller
 
         // Get recent results (last 5)
         $recentResults = Result::whereIn('studentID', $students->pluck('studentID'))
+            ->where('parent_status', 'enabled')
             ->with(['student', 'examination', 'classSubject.subject'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
@@ -184,6 +186,14 @@ class ParentsContoller extends Controller
         // Sort notifications by date
         $notifications = $notifications->sortByDesc('date')->take(10)->values();
 
+        // Get unviewed result notifications
+        $resultNotifications = ParentResultNotification::where('parentID', $parentID)
+            ->where('schoolID', $schoolID)
+            ->where('is_viewed', 0)
+            ->with(['student', 'examination'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return view('Parents.dashboard', compact(
             'parent',
             'students',
@@ -198,7 +208,8 @@ class ParentsContoller extends Controller
             'upcomingExams',
             'recentExaminations',
             'school',
-            'notifications'
+            'notifications',
+            'resultNotifications'
         ));
     }
 
@@ -403,6 +414,7 @@ class ParentsContoller extends Controller
         // Build query for results - try both allowed and approved statuses
         $query = Result::whereIn('studentID', $students->pluck('studentID'))
             ->whereIn('status', ['allowed', 'approved'])
+            ->where('parent_status', 'enabled')
             ->with(['student.subclass.class', 'examination', 'classSubject.subject']);
 
         // Apply filters
@@ -446,7 +458,8 @@ class ParentsContoller extends Controller
             ->where('approval_status', 'Approved')
             ->whereHas('results', function($q) use ($students) {
                 $q->whereIn('studentID', $students->pluck('studentID'))
-                  ->whereIn('status', ['allowed', 'approved']); // Try both statuses
+                  ->whereIn('status', ['allowed', 'approved'])
+                  ->where('parent_status', 'enabled');
             });
 
         // Filter examinations by year if year filter is set
@@ -469,7 +482,8 @@ class ParentsContoller extends Controller
             ->where('approval_status', 'Approved')
             ->whereHas('results', function($q) use ($students) {
                 $q->whereIn('studentID', $students->pluck('studentID'))
-                  ->whereIn('status', ['allowed', 'approved']); // Try both statuses
+                  ->whereIn('status', ['allowed', 'approved'])
+                  ->where('parent_status', 'enabled');
             })
             ->distinct()
             ->orderBy('year', 'desc')
@@ -498,7 +512,8 @@ class ParentsContoller extends Controller
             ->where('approval_status', 'Approved')
             ->whereHas('results', function($q) use ($students) {
                 $q->whereIn('studentID', $students->pluck('studentID'))
-                  ->whereIn('status', ['allowed', 'approved']); // Try both statuses
+                  ->whereIn('status', ['allowed', 'approved'])
+                  ->where('parent_status', 'enabled');
             })
             ->distinct()
             ->orderBy('term', 'asc')
@@ -522,6 +537,12 @@ class ParentsContoller extends Controller
                 ->toArray();
         }
 
+        // Mark all result notifications as viewed
+        ParentResultNotification::where('parentID', $parentID)
+            ->where('schoolID', $schoolID)
+            ->where('is_viewed', 0)
+            ->update(['is_viewed' => 1]);
+
         // Get school details
         $school = School::where('schoolID', $schoolID)->first();
 
@@ -532,8 +553,23 @@ class ParentsContoller extends Controller
             // For report: Group by student and calculate term averages
             $studentResults = $results->groupBy('studentID');
             
+            // Filter by published reports only
+            $publishedReports = \App\Models\PublishedReport::where('schoolID', $schoolID)
+                ->where('term', $termFilter)
+                ->where('year', $yearFilter)
+                ->where('status', 'enabled')
+                ->pluck('classID')
+                ->toArray();
+            
             foreach ($studentResults as $studentID => $studentResultList) {
                 $student = $studentResultList->first()->student;
+                
+                // Check if the student's class has published reports
+                $studentClassID = $student->subclass ? $student->subclass->classID : null;
+                if (!in_array($studentClassID, $publishedReports)) {
+                    continue;
+                }
+
                 $className = $student->subclass && $student->subclass->class
                     ? $student->subclass->class->class_name
                     : null;

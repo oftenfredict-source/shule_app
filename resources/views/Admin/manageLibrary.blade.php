@@ -395,10 +395,16 @@
                     <label class="form-label" style="font-size: 10px;">Search Keyword</label>
                     <input type="text" class="form-control form-control-sm" id="searchBook" placeholder="Title, Unique ID, Author..." style="border-radius: 0;">
                 </div>
-                <div class="col-md-1">
-                    <button class="btn btn-primary-custom btn-sm w-100" onclick="loadBooks()">
-                        <i class="fa fa-refresh"></i>
-                    </button>
+                <div class="col-md-2">
+                    <label class="form-label d-block" style="font-size: 10px; opacity: 0;">Actions</label>
+                    <div class="btn-group w-100">
+                        <button class="btn btn-primary-custom btn-sm" onclick="loadBooks()" title="Refresh Inventory">
+                            <i class="fa fa-refresh"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="exportLibraryPdf()" title="Download PDF Report">
+                            <i class="fa fa-file-pdf-o"></i> PDF
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -438,6 +444,35 @@
 </div>
 
 <!-- View Books Modal -->
+    <!-- Download Progress Modal -->
+    <div class="modal fade" id="downloadProgressModal" data-backdrop="static" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-body p-4 text-center">
+                    <div class="mb-4">
+                        <i class="fa fa-file-pdf-o fa-3x text-danger animate-pulse"></i>
+                    </div>
+                    <h5 class="mb-4" style="color: #940000; font-weight: bold;">Generating Library Inventory Report</h5>
+                    <div class="progress mb-2" style="height: 12px; border-radius: 6px;">
+                        <div id="pdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" 
+                            role="progressbar" style="width: 0%;"></div>
+                    </div>
+                    <div id="pdfProgressPercent" class="font-weight-bold text-muted" style="font-size: 14px;">0%</div>
+                    <p class="mt-3 text-muted small">Please wait, this might take a moment if the library has many books.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .animate-pulse { animation: pulse 1.5s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+
 <div class="modal fade" id="viewBooksModal" tabindex="-1">
     <div class="modal-dialog modal-xl" style="max-width: 1200px;">
         <div class="modal-content">
@@ -1002,6 +1037,70 @@
             }).always(function() {
                 $('#loaderOverlay').hide();
             });
+        }
+
+        function exportLibraryPdf() {
+            const classID = $('#filterClass').val() || '';
+            const subjectID = $('#filterSubject').val() || '';
+            const status = $('#filterStatus').val() || '';
+            const search = $('#searchBook').val() || '';
+            
+            const url = `{{ route('export_library_pdf') }}?classID=${classID}&subjectID=${subjectID}&status=${status}&search=${encodeURIComponent(search)}`;
+            
+            // Show progress modal
+            const progressModal = new bootstrap.Modal(document.getElementById('downloadProgressModal'));
+            progressModal.show();
+            
+            $('#pdfProgressBar').css('width', '0%');
+            $('#pdfProgressPercent').text('0%');
+
+            let progress = 0;
+            const interval = setInterval(function() {
+                if (progress < 95) {
+                    let inc = 2 + Math.random() * 5;
+                    if (progress > 80) inc = 0.5 + Math.random();
+                    progress += inc;
+                    if (progress > 95) progress = 95;
+                    $('#pdfProgressBar').css('width', progress + '%');
+                    $('#pdfProgressPercent').text(Math.round(progress) + '%');
+                }
+            }, 400);
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Server error: ' + response.statusText);
+                    return response.blob();
+                })
+                .then(blob => {
+                    clearInterval(interval);
+                    $('#pdfProgressBar').css('width', '100%');
+                    $('#pdfProgressPercent').text('100%');
+                    
+                    setTimeout(() => {
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = downloadUrl;
+                        a.download = `Library_Report_${new Date().getTime()}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(downloadUrl);
+                        document.body.removeChild(a);
+                        
+                        setTimeout(() => {
+                            progressModal.hide();
+                            setTimeout(() => {
+                                $('#pdfProgressBar').css('width', '0%');
+                                $('#pdfProgressPercent').text('0%');
+                            }, 500);
+                        }, 800);
+                    }, 400);
+                })
+                .catch(error => {
+                    clearInterval(interval);
+                    progressModal.hide();
+                    Swal.fire('Error', 'Failed to generate PDF: ' + error.message, 'error');
+                });
         }
 
         function renderBooksGrid(books, statusFilter) {
@@ -1586,6 +1685,7 @@
         window.deleteBook = deleteBook;
         window.getSubjects = getSubjects;
         window.removeBorrower = removeBorrower;
+        window.exportLibraryPdf = exportLibraryPdf;
 
         initLibrary();
     })();

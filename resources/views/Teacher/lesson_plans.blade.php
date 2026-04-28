@@ -1,4 +1,4 @@
-﻿@include('includes.teacher_nav')
+@include('includes.teacher_nav')
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
@@ -473,6 +473,11 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+    // Ensure jQuery is available globally as $ to prevent "TypeError: $ is not a function"
+    if (typeof jQuery !== 'undefined') {
+        window.$ = jQuery;
+    }
+
     // Make sure functions are globally accessible
     let currentSubjectSessions = [];
     function loadSessionsBySubject() {
@@ -2861,7 +2866,7 @@
     }
 
     // Auto-open lesson plan modal with session details from URL parameters
-    document.addEventListener('DOMContentLoaded', function () {
+    jQuery(document).ready(function ($) {
         const urlParams = new URLSearchParams(window.location.search);
         const autoOpen = urlParams.get('auto_open');
 
