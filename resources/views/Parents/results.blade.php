@@ -297,11 +297,11 @@
                     <div class="wizard-step d-none" id="step2">
                         <h5 class="font-weight-bold mb-3">Hatua ya 2: Chagua Muhula</h5>
                         <div class="selection-grid" id="termGrid">
-                            <div class="selection-card" data-value="Term_1">
+                            <div class="selection-card" data-value="first_term">
                                 <i class="bx bx-time-five"></i>
                                 <strong>Muhula wa Kwanza</strong>
                             </div>
-                            <div class="selection-card" data-value="Term_2">
+                            <div class="selection-card" data-value="second_term">
                                 <i class="bx bx-time"></i>
                                 <strong>Muhula wa Pili</strong>
                             </div>

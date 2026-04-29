@@ -178,7 +178,7 @@
                     <button class="btn btn-primary-custom" id="btnBulkSendSms">
                         <i class="bi bi-send-fill"></i> Send Bulk Credentials
                     </button>
-                    <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addParentModal">
+                    <button class="btn btn-primary-custom" data-toggle="modal" data-target="#addParentModal">
                         <i class="bi bi-plus-circle"></i> Add Parent
                     </button>
                 </div>
@@ -217,7 +217,9 @@
                 <h5 class="modal-title" id="addParentModalLabel">
                     <i class="bi bi-person-plus"></i> Register New Parent
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <form id="addParentForm" enctype="multipart/form-data">
                 @csrf
@@ -282,7 +284,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary-custom">
                         <i class="bi bi-check-circle"></i> Register Parent
                     </button>
@@ -300,7 +302,9 @@
                 <h5 class="modal-title" id="editParentModalLabel">
                     <i class="bi bi-pencil-square"></i> Edit Parent
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <form id="editParentForm" enctype="multipart/form-data">
                 @csrf
@@ -367,7 +371,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary-custom">
                         <i class="bi bi-check-circle"></i> Update Parent
                     </button>
@@ -385,7 +389,9 @@
                 <h5 class="modal-title" id="viewParentModalLabel">
                     <i class="bi bi-eye"></i> Parent Details
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <div class="modal-body" id="viewParentContent" style="max-height: calc(100vh - 200px); overflow-y: auto;">
                 <div class="text-center">
@@ -395,7 +401,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary-custom" id="signNewStudentBtn">
                     <i class="bi bi-person-plus"></i> Sign New Student
                 </button>
@@ -412,14 +418,16 @@
                 <h5 class="modal-title" id="signNewStudentModalLabel">
                     <i class="bi bi-person-plus"></i> Sign New Student for <span id="signStudentParentName"></span>
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <div class="modal-body">
                 <p class="text-muted">This will redirect you to the student registration page with this parent pre-selected.</p>
                 <p><strong>Parent:</strong> <span id="signStudentParentInfo"></span></p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary-custom" id="confirmSignStudentBtn">
                     <i class="bi bi-check-circle"></i> Continue to Student Registration
                 </button>
@@ -434,7 +442,9 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="smsProgressModalLabel"><i class="bi bi-send-check"></i> Send Parent Credentials (SMS)</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info border-0 shadow-sm mb-4">
@@ -479,7 +489,7 @@
                 </div>
             </div>
             <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btnCancelSms">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" id="btnCancelSms">Cancel</button>
                 <button type="button" class="btn btn-primary-custom" id="startSendingSms">
                     <i class="bi bi-send"></i> Start Sending SMS
                 </button>
@@ -605,7 +615,20 @@ $(document).ready(function() {
     // Phone validation
     function validatePhone(phone) {
         var cleaned = phone.replace(/[^0-9]/g, '');
+        // Automatically convert 07... or 06... to 2557... or 2556...
+        if (cleaned.length === 10 && cleaned.startsWith('0')) {
+            cleaned = '255' + cleaned.substring(1);
+        }
         return /^255[67]\d{8}$/.test(cleaned);
+    }
+    
+    // Helper to format phone before saving
+    function formatPhone(phone) {
+        var cleaned = phone.replace(/[^0-9]/g, '');
+        if (cleaned.length === 10 && cleaned.startsWith('0')) {
+            return '255' + cleaned.substring(1);
+        }
+        return cleaned;
     }
 
     // Register Parent Form
@@ -615,9 +638,9 @@ $(document).ready(function() {
         $('.text-danger').hide().text('');
         $('.form-control').removeClass('is-invalid');
         
-        var phone = $('#phone').val().replace(/[^0-9]/g, '');
+        var phone = formatPhone($('#phone').val());
         if (!validatePhone(phone)) {
-            $('#phone_error').text('Phone number must be 12 digits: 255 + 6 or 7 + 8 more digits (e.g., 255614863345 or 255714863345)').show();
+            $('#phone_error').text('Phone number must be valid (e.g., 0614863345 or 255614863345)').show();
             $('#phone').addClass('is-invalid');
             return false;
         }
@@ -718,9 +741,9 @@ $(document).ready(function() {
         $('.text-danger').hide().text('');
         $('.form-control').removeClass('is-invalid');
         
-        var phone = $('#edit_phone').val().replace(/[^0-9]/g, '');
+        var phone = formatPhone($('#edit_phone').val());
         if (!validatePhone(phone)) {
-            $('#edit_phone_error').text('Phone number must be 12 digits: 255 + 6 or 7 + 8 more digits (e.g., 255614863345 or 255714863345)').show();
+            $('#edit_phone_error').text('Phone number must be valid (e.g., 0614863345 or 255614863345)').show();
             $('#edit_phone').addClass('is-invalid');
             return false;
         }

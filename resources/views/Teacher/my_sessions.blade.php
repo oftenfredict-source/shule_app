@@ -108,9 +108,6 @@
     #attendanceTabContent .tab-pane {
         border-radius: 0 !important;
     }
-        transform: scale(1.05);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
     .btn-session-action:focus,
     .btn-session-action:active {
         background: #940000 !important;
@@ -330,8 +327,9 @@
                                                 
                                                 <div class="session-actions">
                                                     <button 
+                                                        type="button"
                                                         class="btn btn-session-action btn-sm" 
-                                                        onclick="collectAttendance({{ $session->session_timetableID }}, '{{ $dayDate->format('Y-m-d') }}')"
+                                                        onclick="collectAttendance('{{ $session->session_timetableID }}', '{{ $dayDate->format('Y-m-d') }}')"
                                                     >
                                                         <i class="bi bi-clipboard-check"></i> Collect Attendance
                                                     </button>
@@ -351,15 +349,17 @@
                                                         $className = ($session->subclass->class->class_name ?? '') . ' - ' . ($session->subclass->subclass_name ?? '');
                                                     @endphp
                                                     <button 
+                                                        type="button"
                                                         class="btn btn-session-action btn-sm" 
-                                                        onclick="assignTask({{ $session->session_timetableID }}, '{{ $dayDate->format('Y-m-d') }}', '{{ $startTimeStr }}', '{{ $endTimeStr }}')"
+                                                        onclick="assignTask('{{ $session->session_timetableID }}', '{{ $dayDate->format('Y-m-d') }}', '{{ $startTimeStr }}', '{{ $endTimeStr }}')"
                                                     >
                                                         <i class="bi bi-journal-plus"></i> Assign Task
                                                     </button>
                                                     
                                                     <button 
+                                                        type="button"
                                                         class="btn btn-session-action btn-sm" 
-                                                        onclick="openLessonPlan({{ $session->session_timetableID }}, '{{ $session->day }}', '{{ $startTimeStr }}', '{{ $endTimeStr }}', '{{ addslashes($subjectName) }}', '{{ addslashes($className) }}', '{{ $dayDate->format('Y-m-d') }}')"
+                                                        onclick="openLessonPlan('{{ $session->session_timetableID }}', '{{ $session->day }}', '{{ $startTimeStr }}', '{{ $endTimeStr }}', '{{ addslashes($subjectName) }}', '{{ addslashes($className) }}', '{{ $dayDate->format('Y-m-d') }}')"
                                                     >
                                                         <i class="bi bi-journal-text"></i> Lesson Plan
                                                     </button>
