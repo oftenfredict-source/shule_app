@@ -198,6 +198,9 @@ Route::get('parentFeesSummary', [ParentsContoller::class, 'parentFeesSummary'])-
 Route::get('parentSubjects', [ParentsContoller::class, 'parentSubjects'])->name('parentSubjects');
 Route::get('parentPermissions', [ParentsContoller::class, 'manageParentPermissions'])->name('parent.permissions');
 Route::post('parentPermissions', [ParentsContoller::class, 'storeParentPermission'])->name('parent.permissions.store');
+Route::get('parent/get-published-exams', [ParentsContoller::class, 'getPublishedExams'])->name('get_published_exams');
+Route::get('parent/fetch-student-results-ajax', [ParentsContoller::class, 'fetchStudentResultsAjax'])->name('fetch_student_results_ajax');
+Route::post('parent/download-student-result', [ParentsContoller::class, 'downloadStudentResult'])->name('download_student_result');
 Route::get('get_student_subjects/{studentID}', [ParentsContoller::class, 'getStudentSubjects'])->name('get_student_subjects');
 Route::post('elect_subject', [ParentsContoller::class, 'electSubject'])->name('elect_subject');
 Route::post('deselect_subject', [ParentsContoller::class, 'deselectSubject'])->name('deselect_subject');

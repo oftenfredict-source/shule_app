@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\ParentResultNotification;
+use App\Models\CaDefinition;
 
 class ParentsContoller extends Controller
 {
@@ -3572,5 +3573,106 @@ class ParentsContoller extends Controller
         } catch (\Exception $e) {
             \Log::error("Error sending election SMS: " . $e->getMessage());
         }
+    }
+
+    public function getPublishedExams(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $year = $request->get('year');
+        $term = $request->get('term');
+
+        $exams = Examination::where('schoolID', $schoolID)
+            ->where('year', $year)
+            ->where('term', $term)
+            ->where('approval_status', 'Approved')
+            ->whereHas('results', function($q) {
+                $q->where('parent_status', 'enabled');
+            })
+            ->select('examID', 'exam_name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'exams' => $exams
+        ]);
+    }
+
+    public function fetchStudentResultsAjax(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $parentID = Session::get('parentID');
+        $studentID = $request->get('student');
+        $examID = $request->get('exam');
+
+        $student = Student::where('studentID', $studentID)
+            ->where('parentID', $parentID)
+            ->first();
+
+        if (!$student) {
+            return response()->json(['success' => false, 'message' => 'Mwanafunzi hakupatikana.']);
+        }
+
+        $results = Result::where('studentID', $studentID)
+            ->where('examID', $examID)
+            ->where('parent_status', 'enabled')
+            ->with(['classSubject.subject'])
+            ->get();
+
+        if ($results->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Hakuna matokeo yaliyochapishwa.']);
+        }
+
+        // Calculate summary
+        $totalMarks = $results->sum('marks');
+        $count = $results->count();
+        $average = $count > 0 ? number_format($totalMarks / $count, 1) : 0;
+        
+        // Find position (This is a simplified version, ideally should be pre-calculated or compared with subclass)
+        $position = $results->first()->position ?? 'N/A';
+        $grade = $results->first()->overall_grade ?? 'N/A'; // Assuming it's stored or we'll need to calculate it
+
+        // Check if CA is defined for this exam
+        $hasCa = CaDefinition::where('examID', $examID)->exists();
+
+        $processedResults = $results->map(function($res) {
+            return [
+                'subject_name' => $res->classSubject->subject->subject_name ?? 'N/A',
+                'marks' => $res->marks,
+                'grade' => $res->grade,
+                'remark' => $res->remark,
+                'ca_marks' => $res->ca_marks,
+                'main_exam_marks' => $res->main_exam_marks,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'student' => $student,
+                'total_marks' => $totalMarks,
+                'average' => $average,
+                'position' => $position,
+                'overall_grade' => $grade,
+                'has_ca' => $hasCa,
+                'results' => $processedResults
+            ]
+        ]);
+    }
+
+    public function downloadStudentResult(Request $request)
+    {
+        $examID = $request->get('examID');
+        $studentID = $request->get('studentID');
+        $year = $request->get('year');
+        $term = $request->get('term');
+        
+        return redirect()->route('admin.download_results_pdf', [
+            'option' => 'single',
+            'studentID' => $studentID,
+            'examID' => $examID,
+            'type' => 'exam',
+            'year' => $year,
+            'term' => $term
+        ]);
     }
 }

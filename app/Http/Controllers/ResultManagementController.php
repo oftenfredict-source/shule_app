@@ -3757,9 +3757,23 @@ class ResultManagementController extends Controller
                 }
             }
         } else {
-            // Remove notifications if disabled
+            // Remove notifications if disabled - ONLY for students in this subclass
+            $subclassID = $request->get('subclassID');
+            $classID = $request->get('classID');
+            
+            $studentQuery = Student::where('schoolID', $schoolID);
+            if ($subclassID) {
+                $studentQuery->where('subclassID', $subclassID);
+            } elseif ($classID) {
+                $subclassIDs = Subclass::where('classID', $classID)->pluck('subclassID');
+                $studentQuery->whereIn('subclassID', $subclassIDs);
+            }
+            
+            $studentIDs = $studentQuery->pluck('studentID');
+
             ParentResultNotification::where('examID', $examID)
                 ->where('type', 'exam')
+                ->whereIn('studentID', $studentIDs)
                 ->delete();
         }
 
@@ -3812,11 +3826,15 @@ class ResultManagementController extends Controller
                 }
             }
         } else {
-            // Remove notifications
+            // Remove notifications - ONLY for students in this class
+            $subclassIDs = Subclass::where('classID', $classID)->pluck('subclassID');
+            $studentIDs = Student::whereIn('subclassID', $subclassIDs)->pluck('studentID');
+
             ParentResultNotification::where('schoolID', $schoolID)
                 ->where('type', 'report')
                 ->where('term', $term)
                 ->where('year', $year)
+                ->whereIn('studentID', $studentIDs)
                 ->delete();
         }
 

@@ -178,10 +178,16 @@
                         <li>
                             <a href="{{ route('parentResults') }}" class="nav-link">
                                 <i class="fa fa-trophy"></i> 
-                                <span data-translate="results">Results</span>
+                                <span data-translate="results_exam">Matokeo</span>
                                 @if($unviewedResultNotifications > 0)
                                     <span class="badge badge-danger float-right" style="border-radius: 50%; padding: 3px 6px; font-size: 10px;">{{ $unviewedResultNotifications }}</span>
                                 @endif
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('parentResults', ['type' => 'report']) }}" class="nav-link">
+                                <i class="fa fa-file-text-o"></i> 
+                                <span data-translate="results_report">Ripoti</span>
                             </a>
                         </li>
                         <li><a href="{{ route('parentAttendance') }}" class="nav-link"><i class="fa fa-calendar-check-o"></i> <span data-translate="attendance">Attendance</span></a></li>
@@ -207,7 +213,8 @@
         const translations = {
             'sw': {
                 'dashboard': 'Dashboard',
-                'results': 'Matokeo',
+                'results_exam': 'Matokeo',
+                'results_report': 'Ripoti',
                 'attendance': 'Ushiriki',
                 'subjects': 'Masomo',
                 'payments': 'Malipo',
@@ -220,7 +227,8 @@
             },
             'en': {
                 'dashboard': 'Dashboard',
-                'results': 'Results',
+                'results_exam': 'Exams',
+                'results_report': 'Reports',
                 'attendance': 'Attendance',
                 'subjects': 'Subjects',
                 'payments': 'Payments',
