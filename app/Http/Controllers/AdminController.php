@@ -2842,7 +2842,7 @@ class AdminController extends Controller
     {
         $user = Session::get('user_type');
         $schoolID = Session::get('schoolID');
-        if (!$user || $user !== 'Admin' || !$schoolID) {
+        if (!$user || !in_array($user, ['Admin', 'Staff', 'Teacher']) || !$schoolID) {
             return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
         }
 
@@ -2886,7 +2886,7 @@ class AdminController extends Controller
     {
         $user = Session::get('user_type');
         $schoolID = Session::get('schoolID');
-        if (!$user || $user !== 'Admin' || !$schoolID) {
+        if (!$user || !in_array($user, ['Admin', 'Staff', 'Teacher']) || !$schoolID) {
             return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
         }
 
@@ -2916,7 +2916,7 @@ class AdminController extends Controller
     {
         $user = Session::get('user_type');
         $schoolID = Session::get('schoolID');
-        if (!$user || $user !== 'Admin' || !$schoolID) {
+        if (!$user || !in_array($user, ['Admin', 'Staff', 'Teacher']) || !$schoolID) {
             return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
         }
 
@@ -2957,7 +2957,7 @@ class AdminController extends Controller
     {
         $user = Session::get('user_type');
         $schoolID = Session::get('schoolID');
-        if (!$user || $user !== 'Admin' || !$schoolID) {
+        if (!$user || !in_array($user, ['Admin', 'Staff', 'Teacher']) || !$schoolID) {
             return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
         }
 
@@ -2987,7 +2987,7 @@ class AdminController extends Controller
     {
         $user = Session::get('user_type');
         $schoolID = Session::get('schoolID');
-        if (!$user || $user !== 'Admin' || !$schoolID) {
+        if (!$user || !in_array($user, ['Admin', 'Staff', 'Teacher']) || !$schoolID) {
             return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
         }
 
@@ -3007,7 +3007,7 @@ class AdminController extends Controller
     {
         $user = Session::get('user_type');
         $schoolID = Session::get('schoolID');
-        if (!$user || $user !== 'Admin' || !$schoolID) {
+        if (!$user || !in_array($user, ['Admin', 'Staff', 'Teacher']) || !$schoolID) {
             return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
         }
 
