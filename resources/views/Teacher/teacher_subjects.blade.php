@@ -917,6 +917,7 @@ function loadExamQuestionData(classSubjectID, examID) {
                 const exam = window.examDataCache[examID];
                 if (exam && exam.allow_no_format == 1) {
                     jQuery('.question-detail-container').empty();
+                    setTimeout(restoreMarksFromCache, 600);
                     return;
                 }
                 
@@ -925,6 +926,7 @@ function loadExamQuestionData(classSubjectID, examID) {
                     '<i class="bi bi-exclamation-triangle"></i> ' + (response.message || 'No approved exam paper question formats found for this subject.') +
                     '</div>'
                 );
+                setTimeout(restoreMarksFromCache, 600);
                 return;
             }
 
@@ -1865,9 +1867,9 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
                         // If marks are 0 or null, leave the input empty (placeholder shows)
                     }
                 });
-                
-                setTimeout(restoreMarksFromCache, 600);
             }
+            // Always restore cache — even if no DB results exist yet (first-time entry)
+            setTimeout(restoreMarksFromCache, 600);
         },
         error: function(xhr) {
             console.error('Error loading existing results:', xhr);
