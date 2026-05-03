@@ -150,7 +150,7 @@
                                ($teacherPermissions ?? collect())->contains('examination_delete');
                 @endphp
                 @if($canView)
-                <button class="btn exam-widget-action" onclick="viewExamMore({{ $exam->examID }});" title="View More">
+                <button class="btn exam-widget-action view-exam-more-btn" data-exam-id="{{ $exam->examID }}" title="View More">
                     <i class="bi bi-eye"></i> View More
                 </button>
                 @endif
@@ -173,13 +173,21 @@
                         title="View Exam Halls">
                     <i class="bi bi-building"></i> Exam Halls
                 </button>
+
+                <!-- Exam Attendance -->
+                <button class="btn exam-widget-action view-exam-attendance-btn"
+                        data-exam-id="{{ $exam->examID }}"
+                        data-exam-name="{{ $exam->exam_name }}"
+                        title="Exam Attendance">
+                    <i class="bi bi-person-check"></i> Attendance
+                </button>
                 
                 <!-- Edit -->
                 @php
                     $canUpdate = ($user_type ?? '') == 'Admin' || ($teacherPermissions ?? collect())->contains('examination_update');
                 @endphp
                 @if($canUpdate)
-                <button class="btn exam-widget-action" onclick="editExam({{ $exam->examID }});" title="Edit">
+                <button class="btn exam-widget-action edit-exam-btn" data-exam-id="{{ $exam->examID }}" title="Edit">
                     <i class="bi bi-pencil"></i> Edit
                 </button>
                 @endif
@@ -242,7 +250,10 @@
                     $canDelete = ($user_type ?? '') == 'Admin' || ($teacherPermissions ?? collect())->contains('examination_delete');
                 @endphp
                 @if($canDelete)
-                <button class="btn exam-widget-action" onclick="deleteExam({{ $exam->examID }}, '{{ addslashes($exam->exam_name) }}');" title="Delete">
+                <button class="btn exam-widget-action delete-exam-btn" 
+                        data-exam-id="{{ $exam->examID }}" 
+                        data-exam-name="{{ $exam->exam_name }}" 
+                        title="Delete">
                     <i class="bi bi-trash"></i> Delete
                 </button>
                 @endif

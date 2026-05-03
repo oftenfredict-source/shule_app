@@ -2380,6 +2380,17 @@ jQuery(document).ready(function($) {
 
     // Change exam status
     // Approve Exam
+    // Event Delegation for Widget Buttons
+    $(document).on('click', '.view-exam-more-btn', function() {
+        const examID = $(this).data('exam-id');
+        viewExamMore(examID);
+    });
+
+    $(document).on('click', '.edit-exam-btn', function() {
+        const examID = $(this).data('exam-id');
+        editExam(examID);
+    });
+
     $(document).on('click', '.approve-exam-btn', function(e) {
         e.preventDefault();
         
@@ -4533,7 +4544,7 @@ window.viewExamPapers = function(examID, examName) {
         return;
     }
     var $ = jQuery;
-    $(function() {
+
             // Check permission
             if (typeof window.hasPermission === 'function') {
                 if (!window.hasPermission('view_exam_papers')) {
@@ -4597,7 +4608,7 @@ window.viewExamPapers = function(examID, examName) {
                 console.error('loadExamPapers function is not defined');
                 $('#examPapersContent').html('<div class="alert alert-danger">Error: Failed to load exam papers. Please refresh the page.</div>');
             }
-        });
+
 };
 
 window.updateExamPaperModalCount = function() {
@@ -5605,10 +5616,1512 @@ $(document).on('click', '#next_week_btn', function(e) {
         loadExamPapers(examID, search, status, week);
     }
 });
-// Week filter is now a hidden input managed by the navigator, so no Select2 initialization needed.
+});
 
-// Old form submission handler removed - now using SweetAlert2 directly
+/* --- Exam Attendance Management Logic --- */
+</script>
+
+<style>
+    #examAttendanceModal .modal-content,
+    #examAttendanceModal .modal-header,
+    #examAttendanceModal .nav-link,
+    #examAttendanceModal .btn,
+    #examAttendanceModal .card,
+    #examAttendanceModal .form-control,
+    #examAttendanceModal .badge,
+    #examAttendanceModal .alert {
+        border-radius: 0 !important;
+    }
+    #examAttendanceModal .modal-content {
+        overflow: hidden;
+        border: none;
+        background-color: #FFFFFF;
+    }
+    #examAttendanceModal .modal-header {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+        color: #940000 !important;
+        border-bottom: 2px solid #940000 !important;
+    }
+    #examAttendanceModal .modal-header .modal-title, 
+    #examAttendanceModal .modal-header .close {
+        color: #940000 !important;
+        opacity: 1;
+    }
+    #examAttendanceModal .nav-tabs {
+        border-bottom: 1px solid #eee;
+        background-color: #FFFFFF;
+    }
+    #examAttendanceModal .nav-link {
+        color: #666;
+        border: none;
+        padding: 15px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    #examAttendanceModal .nav-link.active {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+        color: #940000 !important;
+        border-bottom: 3px solid #940000 !important;
+    }
+    #examAttendanceModal .nav-link:hover:not(.active) {
+        background-color: #FFF5F5;
+        color: #940000;
+    }
+    #examAttendanceModal .btn-primary-custom {
+        background-color: #940000 !important;
+        border-color: #940000 !important;
+        color: #FFFFFF !important;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    #examAttendanceModal .btn-primary-custom:hover {
+        background-color: #7a0000 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(148, 0, 0, 0.2);
+    }
+    #examAttendanceModal .card {
+        border: 1px solid #eee;
+        transition: all 0.3s ease;
+    }
+    #examAttendanceModal .assignment-widget:hover {
+        background-color: #FFF5F5 !important;
+    }
+    #examAttendanceModal .badge-primary { background-color: #940000; }
+    #examAttendanceModal .text-primary-custom { color: #940000 !important; }
+    
+    .subject-checkbox-wrapper {
+        transition: all 0.2s ease;
+    }
+    .subject-checkbox-wrapper:hover:not(.disabled) {
+        background-color: #FFF5F5 !important;
+        border-color: #940000 !important;
+    }
+    
+    .custom-switch .custom-control-input:checked ~ .custom-control-label::before {
+        background-color: #940000 !important;
+        border-color: #940000 !important;
+    }
+    .animate-pulse { animation: pulse 1.5s infinite; }
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+</style>
+
+<!-- DOWNLOAD PROGRESS MODAL -->
+<div class="modal fade" id="downloadProgressModal" data-backdrop="static" tabindex="-1" style="z-index: 9999 !important;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 0 !important;">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-4">
+                    <i class="bi bi-file-pdf fa-3x text-danger animate-pulse" style="font-size: 3rem;"></i>
+                </div>
+                <h5 class="mb-4" style="color: #940000; font-weight: bold;">Generating Attendance PDF</h5>
+                <div class="progress mb-2" style="height: 12px; border-radius: 0;">
+                    <div id="pdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                        role="progressbar" style="width: 0%; background-color: #940000;"></div>
+                </div>
+                <div id="pdfProgressPercent" class="font-weight-bold text-muted" style="font-size: 14px;">0%</div>
+                <p class="mt-3 text-muted small">Please wait while we prepare your document. This might take a moment.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+
+// Modal Open Handler
+$(document).on('click', '.view-exam-attendance-btn', function() {
+    const examID = $(this).data('exam-id');
+    const examName = $(this).data('exam-name');
+    
+    $('#attendance_exam_id').val(examID);
+    $('#attendance_exam_name').text(examName);
+    $('#examAttendanceModal').modal('show');
+    
+    // Load classes for this exam
+    loadAttendanceClasses(examID);
+    
+    // Switch to first tab by default
+    $('#attendanceTabs a[href="#assign-teacher"]').tab('show');
+});
+
+function loadAttendanceClasses(examID) {
+    $.get("{{ url('admin/exam-attendance/classes') }}/" + examID, function(response) {
+        if (response.success) {
+            let options = '<option value="">Select Class</option>';
+            response.classes.forEach(c => {
+                options += `<option value="${c.classID}">${c.class_name}</option>`;
+            });
+            $('#assign_attendance_class, #collect_attendance_class, #view_att_class_filter, #stats_class_filter').html(options);
+            // Default "All Classes" for filters
+            $('#view_att_class_filter, #stats_class_filter').prepend('<option value="all" selected>All Classes</option>');
+        }
+    });
+}
+
+// Tab change listener
+$('#attendanceTabs a').on('shown.bs.tab', function (e) {
+    const examID = $('#attendance_exam_id').val();
+    const target = $(e.target).attr("href");
+    
+    if (target === '#view-attendance') {
+        loadAttendanceSummary(examID);
+    } else if (target === '#attendance-stats') {
+        loadAttendanceStats(examID);
+    } else if (target === '#view-assigned') {
+        loadAssignedTeachers(examID);
+    }
+});
+
+// Class change handler for Assign Teacher tab
+$('#assign_attendance_class').on('change', function() {
+    const classID = $(this).val();
+    if (!classID) return;
+    
+    // Load subclasses
+    $.get("{{ url('admin/exam-attendance/subclasses') }}/" + classID, function(response) {
+        if (response.success) {
+            let options = '<option value="all">All Subclasses</option>';
+            response.subclasses.forEach(sc => {
+                options += `<option value="${sc.subclassID}">${sc.subclass_name}</option>`;
+            });
+            $('#assign_attendance_subclass').html(options);
+            loadAttendanceSubjects(); // Initial subjects load
+        }
+    });
+});
+
+$('#assign_attendance_subclass').on('change', loadAttendanceSubjects);
+
+function loadAttendanceSubjects() {
+    const examID = $('#attendance_exam_id').val();
+    const classID = $('#assign_attendance_class').val();
+    const subclassID = $('#assign_attendance_subclass').val();
+    const assignmentID = $('#attendance_assignment_id').val();
+    
+    if (!classID) return;
+    
+    $.post("{{ route('admin.exam_attendance.subjects') }}", {
+        _token: "{{ csrf_token() }}",
+        examID: examID,
+        classID: classID,
+        subclassID: subclassID,
+        assignmentID: assignmentID
+    }, function(response) {
+        if (response.success) {
+            let html = '';
+            response.subjects.forEach(s => {
+                const isAssigned = response.assigned_subject_ids.includes(String(s.subjectID)) || response.assigned_subject_ids.includes(Number(s.subjectID));
+                
+                html += `
+                    <div class="col-md-4 mb-2">
+                        <div class="custom-control custom-checkbox p-2 border rounded ${isAssigned ? 'bg-light text-muted' : 'bg-white'}" 
+                             style="${isAssigned ? 'opacity: 0.7; cursor: not-allowed;' : ''}">
+                            <input type="checkbox" class="custom-control-input subject-checkbox" 
+                                   id="att_subject_${s.subjectID}" 
+                                   name="subject_ids[]" 
+                                   value="${s.subjectID}"
+                                   ${isAssigned ? 'disabled onclick="return false;"' : ''}>
+                            <label class="custom-control-label w-100 cursor-pointer" for="att_subject_${s.subjectID}">
+                                ${s.subject.subject_name}
+                                ${isAssigned ? '<br><span class="badge badge-warning">Already Assigned</span>' : ''}
+                            </label>
+                        </div>
+                    </div>
+                `;
+            });
+            $('#attendance_subjects_container').html(html || '<div class="col-12 text-center text-muted">No subjects found for this class</div>');
+        }
+    });
+}
+
+// Form Submit: Assign Teacher
+$('#assignAttendanceTeacherForm').on('submit', function(e) {
+    e.preventDefault();
+    const formData = $(this).serialize();
+    
+    $.post("{{ route('admin.exam_attendance.assign') }}", formData, function(response) {
+        if (response.success) {
+            Swal.fire('Success', response.message, 'success');
+            loadAttendanceSubjects(); // Refresh subjects
+        } else {
+            Swal.fire('Error', response.error || 'Failed to save assignment', 'error');
+        }
+    });
+});
+
+
+
+function loadAssignedTeachers(examID) {
+    $.get("{{ url('admin/exam-attendance/assigned') }}/" + examID, function(response) {
+        if (response.success) {
+            let html = '';
+            response.assignments.forEach(a => {
+                html += `
+                    <div class="card mb-2 border-0 shadow-sm rounded-0">
+                        <div class="card-body p-3 d-flex justify-content-between align-items-center cursor-pointer assignment-widget" data-id="${a.id}">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-bold">${a.teacher.first_name} ${a.teacher.last_name}</h6>
+                                <small class="text-muted">${a.class.class_name} ${a.subclass ? a.subclass.subclass_name : 'All Subclasses'}</small>
+                            </div>
+                            <div class="btn-group mr-3">
+                                <button class="btn btn-sm btn-outline-info edit-assignment-btn" 
+                                        data-id="${a.id}" 
+                                        data-teacher-id="${a.teacherID}"
+                                        data-class-id="${a.classID}"
+                                        data-subclass-id="${a.subclassID || 'all'}"
+                                        data-subjects='${JSON.stringify(a.subject_ids)}'
+                                        title="Edit Assignment">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-assignment-btn" 
+                                        data-id="${a.id}" 
+                                        title="Delete Assignment">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            <div class="custom-control custom-switch mr-3">
+                                <input type="checkbox" class="custom-control-input toggle-assignment-status" 
+                                       id="toggle_att_${a.id}" data-id="${a.id}" ${a.status ? 'checked' : ''}>
+                                <label class="custom-control-label cursor-pointer" for="toggle_att_${a.id}"></label>
+                            </div>
+                            <i class="bi bi-chevron-down"></i>
+                        </div>
+                        <div class="card-body p-3 border-top assignment-details" id="assignment_details_${a.id}" style="display: none;">
+                            <div class="text-center py-3"><i class="spinner-border spinner-border-sm"></i> Loading details...</div>
+                        </div>
+                    </div>
+                `;
+            });
+            $('#assigned_teachers_list').html(html || '<div class="alert alert-info text-center py-4">No teachers assigned yet</div>');
+        }
+    })
+    .fail(function() {
+        $('#assigned_teachers_list').html('<div class="alert alert-danger text-center py-4"><i class="bi bi-exclamation-triangle"></i> Failed to load assignments. Please check your connection.</div>');
+    });
+}
+
+// Edit Assignment Handler
+$(document).on('click', '.edit-assignment-btn', function(e) {
+    e.stopPropagation();
+    const id = $(this).data('id');
+    const teacherID = $(this).data('teacher-id');
+    const classID = $(this).data('class-id');
+    const subclassID = $(this).data('subclass-id');
+    const subjects = $(this).data('subjects');
+    
+    // Set form to edit mode
+    $('#attendance_assignment_id').val(id);
+    $('#assign_attendance_class').val(classID).trigger('change');
+    $('#assign_attendance_teacher').val(teacherID);
+    $('#cancel_edit_assignment').show();
+    $('#save_assignment_btn').html('<i class="bi bi-save"></i> Update Assignment');
+    
+    // Subclass and subjects need to wait for AJAX
+    setTimeout(() => {
+        $('#assign_attendance_subclass').val(subclassID).trigger('change');
+        
+        setTimeout(() => {
+            subjects.forEach(sid => {
+                $(`#att_subject_${sid}`).prop('checked', true).prop('disabled', false).parent().removeClass('bg-light text-muted').addClass('bg-white').css('opacity', '1');
+            });
+        }, 1000);
+    }, 500);
+    
+    $('#attendanceTabs a[href="#assign-teacher"]').tab('show');
+});
+
+$('#cancel_edit_assignment').on('click', function() {
+    $('#attendance_assignment_id').val('');
+    $('#assignAttendanceTeacherForm')[0].reset();
+    $('#cancel_edit_assignment').hide();
+    $('#save_assignment_btn').html('<i class="bi bi-save"></i> Save Assignment & Notify Teacher');
+    $('#attendance_subjects_container').html('<div class="col-12 text-center text-muted">Please select a class first</div>');
+});
+
+// Delete Assignment Handler
+$(document).on('click', '.delete-assignment-btn', function(e) {
+    e.stopPropagation();
+    const id = $(this).data('id');
+    const examID = $('#attendance_exam_id').val();
+    
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "This will remove the teacher assignment. Attendance records already collected will remain but the teacher will no longer be assigned.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: "{{ url('admin/exam-attendance/delete-assignment') }}/" + id,
+                type: 'DELETE',
+                data: { _token: "{{ csrf_token() }}" },
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire('Deleted!', response.message, 'success');
+                        loadAssignedTeachers(examID);
+                        loadAttendanceSubjects();
+                    }
+                }
+            });
+        }
+    });
+});
+
+// Toggle Assignment Status Handler
+$(document).on('change', '.toggle-assignment-status', function() {
+    const id = $(this).data('id');
+    const isChecked = $(this).is(':checked');
+    
+    $.post("{{ url('admin/exam-attendance/toggle-status') }}/" + id, {
+        _token: "{{ csrf_token() }}"
+    }, function(response) {
+        if (response.success) {
+            Swal.fire({
+                title: 'Status Updated',
+                text: response.message,
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        }
+    });
+});
+
+$(document).on('click', '.assignment-widget', function() {
+    const id = $(this).data('id');
+    const detailsContainer = $(`#assignment_details_${id}`);
+    const icon = $(this).find('i');
+    
+    if (detailsContainer.is(':visible')) {
+        detailsContainer.slideUp();
+        icon.removeClass('bi-chevron-up').addClass('bi-chevron-down');
+    } else {
+        $('.assignment-details').slideUp(); // Close others
+        $('.bi-chevron-up').removeClass('bi-chevron-up').addClass('bi-chevron-down');
+        
+        detailsContainer.slideDown();
+        icon.removeClass('bi-chevron-down').addClass('bi-chevron-up');
+        
+        // Load details
+        $.get("{{ url('admin/exam-attendance/assignment-details') }}/" + id)
+        .done(function(response) {
+            if (response.success) {
+                if (!response.details || response.details.length === 0) {
+                    detailsContainer.html('<div class="alert alert-info border-0 rounded-0 m-0"><i class="bi bi-info-circle"></i> No subjects found for this assignment.</div>');
+                    return;
+                }
+
+                let html = '';
+                response.details.forEach(d => {
+                    const studentCount = d.students ? d.students.length : 0;
+                    html += `
+                        <div class="mb-3 border rounded-0 p-3 bg-white">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0 fw-bold text-dark">${d.subject_name}</h6>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-primary download-template-btn" 
+                                            data-subject-id="${d.subjectID}" 
+                                            data-exam-id="${$('#attendance_exam_id').val()}"
+                                            data-class-id="${response.assignment.classID}"
+                                            data-subclass-id="${response.assignment.subclassID || ''}"
+                                            style="border-radius: 0 !important;">
+                                        <i class="bi bi-file-pdf"></i> Template
+                                    </button>
+                                    <button class="btn btn-sm btn-primary view-students-att-btn" 
+                                            data-target="#subject_students_${id}_${d.subjectID}"
+                                            style="background-color: #940000; border-color: #940000; border-radius: 0 !important;">
+                                        <i class="bi bi-people"></i> Students (${studentCount})
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="subject_students_${id}_${d.subjectID}" style="display: none;">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover mt-2 mb-0">
+                                        <thead class="bg-light">
+                                            <tr>
+                                                <th class="border-0">Student Name</th>
+                                                <th class="text-center border-0">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${studentCount > 0 ? d.students.map(s => `
+                                                <tr>
+                                                    <td class="align-middle">${s.name}</td>
+                                                    <td class="text-center align-middle">
+                                                        <select class="form-control form-control-sm attendance-select-view" 
+                                                                data-student-id="${s.studentID}" 
+                                                                data-assignment-id="${id}" 
+                                                                data-subject-id="${d.subjectID}"
+                                                                style="border-radius: 0 !important; border: 1px solid #eee; width: 120px; display: inline-block;">
+                                                            <option value="Present" ${s.status === 'Present' ? 'selected' : ''}>Present</option>
+                                                            <option value="Absent" ${s.status === 'Absent' ? 'selected' : ''}>Absent</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            `).join('') : '<tr><td colspan="2" class="text-center py-3 text-muted">No students found</td></tr>'}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                detailsContainer.html(html);
+            } else {
+                detailsContainer.html(`<div class="alert alert-danger border-0 rounded-0 m-0"><i class="bi bi-exclamation-triangle"></i> ${response.error || 'Failed to load details'}</div>`);
+            }
+        })
+        .fail(function() {
+            detailsContainer.html('<div class="alert alert-danger border-0 rounded-0 m-0"><i class="bi bi-exclamation-triangle"></i> Network error. Please try again.</div>');
+        });
+    }
+});
+
+// Add stopPropagation to buttons inside the widget to prevent expansion
+$(document).on('click', '.assignment-widget .btn, .assignment-widget .form-check-input', function(e) {
+    e.stopPropagation();
+});
+
+$(document).on('click', '.view-students-att-btn', function() {
+    const target = $(this).data('target');
+    $(target).slideToggle();
+});
+
+$(document).on('click', '.download-template-btn', function() {
+    const examID = $(this).data('exam-id');
+    const subjectID = $(this).data('subject-id');
+    const classID = $(this).data('class-id');
+    const subclassID = $(this).data('subclass-id');
+    
+    window.location.href = `{{ route('admin.exam_attendance.download_template') }}?examID=${examID}&subjectID=${subjectID}&classID=${classID}&subclassID=${subclassID}`;
+});
+
+function loadAttendanceSummary(examID) {
+    const classID = $('#view_att_class_filter').val();
+    const subclassID = $('#view_att_subclass_filter').val();
+    const subjectID = $('#view_att_subject_filter').val();
+
+    $('#attendance_collected_summary').html('<div class="text-center py-5"><div class="spinner-border text-primary-custom"></div><p class="mt-2">Updating summary...</p></div>');
+
+    $.get("{{ url('admin/exam-attendance/summary') }}/" + examID, {
+        classID: classID,
+        subclassID: subclassID,
+        subjectID: subjectID
+    }, function(response) {
+        if (response.success) {
+            let html = '';
+            if (!response.summary || response.summary.length === 0) {
+                html = '<div class="alert alert-info text-center py-5" style="border-radius: 0 !important;">No attendance data matching your filters</div>';
+            } else {
+                response.summary.forEach(c => {
+                    html += `
+                        <div class="card mb-4 border-0 shadow-sm overflow-hidden" style="border-radius: 0 !important;">
+                            <div class="card-header bg-white border-0 py-4 d-flex justify-content-between align-items-center" style="cursor: pointer; border-left: 5px solid #940000 !important;" onclick="$(this).next('.subclass-container').slideToggle()">
+                                <div>
+                                    <h4 class="mb-1 fw-bold text-dark text-uppercase letter-spacing-1">${c.class_name}</h4>
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge badge-light border text-muted mr-2" style="font-size: 11px;">${c.student_count} Total Students</span>
+                                        <span class="text-primary-custom small fw-bold"><i class="bi bi-stack mr-1"></i> ${c.subclasses.length} Subclasses</span>
+                                    </div>
+                                </div>
+                                <div class="text-right d-flex align-items-center">
+                                    <div class="mr-4 d-none d-md-block">
+                                        <div class="text-muted small text-uppercase mb-1" style="font-size: 10px;">Overall Class Participation</div>
+                                        <div class="progress" style="height: 6px; width: 120px; border-radius: 0 !important; background-color: #eee;">
+                                            <div class="progress-bar bg-success" role="progressbar" style="width: 85%; border-radius: 0 !important;"></div>
+                                        </div>
+                                    </div>
+                                    <i class="bi bi-chevron-down text-muted fs-4"></i>
+                                </div>
+                            </div>
+                            <div class="card-body p-0 subclass-container" style="display: none; background-color: #fdfdfd;">
+                                ${(c.subclasses || []).map(sc => `
+                                    <div class="p-4 border-top bg-white">
+                                        <div class="d-flex justify-content-between align-items-center mb-4">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-primary-custom text-white p-2 mr-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                                                    ${sc.subclass_name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0 fw-bold text-dark">${sc.subclass_name}</h6>
+                                                    <small class="text-muted">${sc.student_count} Registered Students</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mx-n2">
+                                            ${(sc.subjects || []).map(s => `
+                                                <div class="col-xl-4 col-lg-6 px-2 mb-3">
+                                                    <div class="border p-4 bg-white subject-detail-card transition-all" 
+                                                         style="border-left: 4px solid #eee !important; cursor: pointer; border-radius: 0 !important;" 
+                                                         data-exam-id="${examID}"
+                                                         data-subject-id="${s.subjectID}"
+                                                         data-class-id="${c.classID}"
+                                                         data-subclass-id="${sc.subclassID || ''}"
+                                                         onmouseover="this.style.borderColor='#940000'; this.style.borderLeftColor='#940000'"
+                                                         onmouseout="this.style.borderColor='#eee'; this.style.borderLeftColor='#eee'"
+                                                         onclick="loadSubjectStudentDrilldown(event, this)">
+                                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                                            <div>
+                                                                <h6 class="mb-1 fw-bold text-dark" style="font-size: 15px;">${s.subject_name}</h6>
+                                                                <small class="text-muted d-block"><i class="bi bi-person-badge mr-1"></i> ${s.teacher_name}</small>
+                                                            </div>
+                                                            <div class="text-right">
+                                                                <div class="h5 mb-0 fw-bold text-primary-custom">${s.present}/${s.expected}</div>
+                                                                <small class="text-uppercase fw-bold" style="font-size: 9px; color: ${ (s.present/s.expected) > 0.8 ? '#28a745' : '#f39c12' }">
+                                                                    ${s.expected > 0 ? Math.round((s.present/s.expected)*100) : 0}% Recorded
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="progress mb-3" style="height: 4px; border-radius: 0 !important; background-color: #f0f0f0;">
+                                                            <div class="progress-bar ${ (s.present/s.expected) > 0.8 ? 'bg-success' : 'bg-warning' }" 
+                                                                 role="progressbar" 
+                                                                 style="width: ${s.expected > 0 ? (s.present/s.expected)*100 : 0}%; border-radius: 0 !important;"></div>
+                                                        </div>
+                                                        <div class="d-flex gap-2">
+                                                            <button class="btn btn-sm btn-outline-dark flex-fill" 
+                                                                    onclick="event.stopPropagation(); downloadAdminTemplateSpecific(this)"
+                                                                    style="font-size: 11px; border-radius: 0 !important; border-color: #ddd;">
+                                                                <i class="bi bi-file-earmark-pdf"></i> Template
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-dark flex-fill" 
+                                                                    onclick="event.stopPropagation(); downloadAdminAttendanceSpecific(this)"
+                                                                    style="font-size: 11px; border-radius: 0 !important; border-color: #ddd;">
+                                                                <i class="bi bi-cloud-download"></i> Record
+                                                            </button>
+                                                            <button class="btn btn-sm btn-primary-custom" 
+                                                                    onclick="event.stopPropagation(); editSubjectAttendanceDirectFromCard(this)"
+                                                                    style="font-size: 11px; border-radius: 0 !important; background-color: #940000;">
+                                                                <i class="bi bi-pencil-square"></i> Edit
+                                                            </button>
+                                                        </div>
+                                                        <div class="subject-student-drilldown mt-4 border-top pt-3" style="display: none;">
+                                                            <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary-custom"></div></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            $('#attendance_collected_summary').html(html);
+        }
+    }).fail(function() {
+        $('#attendance_collected_summary').html('<div class="alert alert-danger text-center py-5">Error loading summary. Please try again.</div>');
+    });
+}
+
+function editSubjectAttendanceDirectFromCard(btn) {
+    const card = $(btn).closest('.subject-detail-card');
+    const examID = card.data('exam-id');
+    const subjectID = card.data('subject-id');
+    const classID = card.data('class-id');
+    const subclassID = card.data('subclass-id');
+
+    $.post("{{ route('admin.exam_attendance.admin_students') }}", {
+        _token: "{{ csrf_token() }}",
+        examID: examID,
+        classID: classID,
+        subclassID: subclassID,
+        subjectID: subjectID
+    }, function(response) {
+        if (response.success) {
+            showAttendanceEditModal(examID, subjectID, 'Attendance Details', response.students);
+        }
+    });
+}
+
+window.downloadAdminTemplateSpecific = function(btn) {
+    const card = $(btn).closest('.subject-detail-card');
+    const examID = card.data('exam-id');
+    const subjectID = card.data('subject-id');
+    const classID = card.data('class-id');
+    const subclassID = card.data('subclass-id');
+    const url = `{{ route('admin.exam_attendance.download_template') }}?examID=${examID}&subjectID=${subjectID}&classID=${classID}&subclassID=${subclassID}`;
+    performDownloadWithProgress(url, `Template_${subjectID}.pdf`);
+}
+
+window.downloadAdminAttendanceSpecific = function(btn) {
+    const card = $(btn).closest('.subject-detail-card');
+    const examID = card.data('exam-id');
+    const subjectID = card.data('subject-id');
+    const classID = card.data('class-id');
+    const subclassID = card.data('subclass-id');
+    const url = `{{ route('admin.exam_attendance.download_template') }}?examID=${examID}&subjectID=${subjectID}&classID=${classID}&subclassID=${subclassID}&with_data=true`;
+    performDownloadWithProgress(url, `Attendance_${subjectID}.pdf`);
+}
+
+window.downloadAdminTemplate = function() {
+    const examID = $('#attendance_exam_id').val();
+    const classID = $('#collect_attendance_class').val();
+    const subclassID = $('#collect_attendance_subclass').val();
+    const subjectID = $('#collect_attendance_subject').val();
+    
+    if (!subjectID) {
+        Swal.fire('Info', 'Please select a subject first.', 'info');
+        return;
+    }
+    
+    const url = `{{ route('admin.exam_attendance.download_template') }}?examID=${examID}&subjectID=${subjectID}&classID=${classID}&subclassID=${subclassID}`;
+    performDownloadWithProgress(url, `Template_${subjectID}.pdf`);
+};
+
+window.downloadAdminAttendance = function() {
+    const examID = $('#attendance_exam_id').val();
+    const classID = $('#collect_attendance_class').val();
+    const subclassID = $('#collect_attendance_subclass').val();
+    const subjectID = $('#collect_attendance_subject').val();
+    
+    if (!subjectID) {
+        Swal.fire('Info', 'Please select a subject first.', 'info');
+        return;
+    }
+    
+    const url = `{{ route('admin.exam_attendance.download_template') }}?examID=${examID}&subjectID=${subjectID}&classID=${classID}&subclassID=${subclassID}&with_data=true`;
+    performDownloadWithProgress(url, `Attendance_${subjectID}.pdf`);
+};
+
+// Student drilldown loader
+window.loadSubjectStudentDrilldown = function(event, element) {
+    event.stopPropagation();
+    const card = $(element);
+    const drilldown = card.find('.subject-student-drilldown');
+    
+    if (drilldown.is(':visible')) {
+        drilldown.slideUp();
+        return;
+    }
+
+    const examID = card.data('exam-id');
+    const subjectID = card.data('subject-id');
+    const classID = card.data('class-id');
+    const subclassID = card.data('subclass-id');
+
+    drilldown.html('<div class="text-center py-2"><div class="spinner-border spinner-border-sm text-primary-custom"></div></div>').slideDown();
+
+    $.post("{{ route('admin.exam_attendance.admin_students') }}", {
+        _token: "{{ csrf_token() }}",
+        examID: examID,
+        classID: classID,
+        subclassID: subclassID,
+        subjectID: subjectID
+    }, function(response) {
+        if (response.success) {
+            let html = `
+                <table class="table table-sm table-hover mb-0" style="font-size: 11px;">
+                    <thead class="bg-white">
+                        <tr>
+                            <th>Student</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            response.students.forEach(s => {
+                html += `
+                    <tr>
+                        <td class="font-weight-bold">${s.name}</td>
+                        <td class="text-center">
+                            <span class="badge ${s.status === 'Present' ? 'badge-success' : 'badge-danger'}" style="font-size: 9px;">${s.status}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            drilldown.html(html);
+        }
+    });
+}
+
+if (typeof attendanceChart === 'undefined') {
+    var attendanceChart = null;
+}
+function loadAttendanceStats(examID) {
+    const classID = $('#stats_class_filter').val();
+    const subclassID = $('#stats_subclass_filter').val();
+    const subjectID = $('#stats_subject_filter').val();
+
+    $.get("{{ url('admin/exam-attendance/stats') }}/" + examID, {
+        classID: classID,
+        subclassID: subclassID,
+        subjectID: subjectID
+    }, function(response) {
+        if (response.success) {
+            // Update Totals
+            $('#stats_total_present').text(response.totals ? (response.totals.total_present || 0) : 0);
+            $('#stats_total_absent').text(response.totals ? (response.totals.total_absent || 0) : 0);
+
+            const chartContainer = $('#attendanceStatsChart').parent();
+            
+            if (response.stats && response.stats.length > 0) {
+                const labels = response.stats.map(s => s.class_name);
+                const presentData = response.stats.map(s => s.present_count);
+                const absentData = response.stats.map(s => s.absent_count);
+                
+                if (attendanceChart) attendanceChart.destroy();
+                
+                const ctx = document.getElementById('attendanceStatsChart').getContext('2d');
+                attendanceChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Present',
+                                data: presentData,
+                                backgroundColor: '#28a745',
+                                borderRadius: 0
+                            },
+                            {
+                                label: 'Absent',
+                                data: absentData,
+                                backgroundColor: '#dc3545',
+                                borderRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top', labels: { usePointStyle: true, font: { family: 'Century Gothic' } } }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, grid: { display: false } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+                $('#no-stats-msg').remove();
+                $('#attendanceStatsChart').show();
+            } else {
+                if (attendanceChart) attendanceChart.destroy();
+                $('#attendanceStatsChart').hide();
+                if ($('#no-stats-msg').length === 0) {
+                    chartContainer.append('<div id="no-stats-msg" class="alert alert-info text-center py-5">No attendance data available for these filters</div>');
+                }
+            }
+        }
+    }).fail(function() {
+         Swal.fire('Error', 'Failed to load statistics.', 'error');
+    });
+}
+
+// Filter Event Listeners
+$('#view_att_class_filter, #stats_class_filter').on('change', function() {
+    const classID = $(this).val();
+    const isStats = $(this).attr('id') === 'stats_class_filter';
+    const subclassSelect = isStats ? $('#stats_subclass_filter') : $('#view_att_subclass_filter');
+    const examID = $('#attendance_exam_id').val();
+
+    if (classID === 'all') {
+        subclassSelect.html('<option value="all">All Subclasses</option>');
+        if (isStats) loadAttendanceStats(examID); else loadAttendanceSummary(examID);
+        return;
+    }
+
+    $.get("{{ url('admin/exam-attendance/subclasses') }}/" + classID, function(response) {
+        if (response.success) {
+            let options = '<option value="all">All Subclasses</option>';
+            response.subclasses.forEach(sc => {
+                options += `<option value="${sc.subclassID}">${sc.subclass_name}</option>`;
+            });
+            subclassSelect.html(options);
+            
+            // Trigger subject loading for the whole class if subclass is 'all'
+            const subjectSelect = isStats ? $('#stats_subject_filter') : $('#view_att_subject_filter');
+            $.post("{{ route('admin.exam_attendance.subjects') }}", {
+                _token: "{{ csrf_token() }}",
+                examID: examID,
+                classID: classID,
+                subclassID: 'all',
+                isAdmin: true
+            }, function(subResponse) {
+                if (subResponse.success) {
+                    let subOptions = '<option value="all">All Subjects</option>';
+                    subResponse.subjects.forEach(s => {
+                        subOptions += `<option value="${s.subjectID}">${s.subject.subject_name}</option>`;
+                    });
+                    subjectSelect.html(subOptions);
+                    if (isStats) loadAttendanceStats(examID); else loadAttendanceSummary(examID);
+                }
+            });
+        }
+    });
+});
+
+$('#view_att_subclass_filter, #stats_subclass_filter').on('change', function() {
+    const subclassID = $(this).val();
+    const classID = $(this).closest('.row').find('select:first').val();
+    const isStats = $(this).attr('id') === 'stats_subclass_filter';
+    const subjectSelect = isStats ? $('#stats_subject_filter') : $('#view_att_subject_filter');
+    const examID = $('#attendance_exam_id').val();
+
+    if (subclassID === 'all' && classID === 'all') {
+        subjectSelect.html('<option value="all">All Subjects</option>');
+        if (isStats) loadAttendanceStats(examID); else loadAttendanceSummary(examID);
+        return;
+    }
+
+    // Load subjects for filters
+    $.post("{{ route('admin.exam_attendance.subjects') }}", {
+        _token: "{{ csrf_token() }}",
+        examID: examID,
+        classID: classID,
+        subclassID: subclassID,
+        isAdmin: true
+    }, function(response) {
+        if (response.success) {
+            let options = '<option value="all">All Subjects</option>';
+            response.subjects.forEach(s => {
+                options += `<option value="${s.subjectID}">${s.subject.subject_name}</option>`;
+            });
+            subjectSelect.html(options);
+            if (isStats) loadAttendanceStats(examID); else loadAttendanceSummary(examID);
+        }
+    });
+});
+
+$('#view_att_subject_filter, #stats_subject_filter').on('change', function() {
+    const examID = $('#attendance_exam_id').val();
+    if ($(this).attr('id') === 'stats_subject_filter') loadAttendanceStats(examID); else loadAttendanceSummary(examID);
+});
+
+$(document).on('click', '.edit-attendance-btn', function() {
+    const examID = $(this).data('exam-id');
+    const subjectID = $(this).data('subject-id');
+    const classID = $(this).data('class-id');
+    const subclassID = $(this).data('subclass-id');
+    
+    // Create a temporary ID to check if assignment exists to get students
+    // Actually we can just get students for class/subclass directly
+    // Using assignment details logic to get student list with current status
+    
+    // We'll reuse getAssignmentDetails but with specific subject
+    // But since it needs an assignment ID, we'll find the assignment first
+    $.get("{{ url('admin/exam-attendance/assigned') }}/" + examID, function(response) {
+        if (response.success) {
+            const assignment = response.assignments.find(a => 
+                a.classID == classID && 
+                (a.subclassID == subclassID || (!a.subclassID && !subclassID))
+            );
+            
+            if (assignment) {
+                $.get("{{ url('admin/exam-attendance/assignment-details') }}/" + assignment.id, function(detailsResp) {
+                    if (detailsResp.success) {
+                        const subjectDetail = detailsResp.details.find(d => d.subjectID == subjectID);
+                        if (subjectDetail) {
+                            showAttendanceEditModal(examID, subjectID, subjectDetail.subject_name, subjectDetail.students);
+                        }
+                    }
+                });
+            }
+        }
+    });
+});
+
+function showAttendanceEditModal(examID, subjectID, subjectName, students) {
+    let html = `
+        <form id="editAttendanceForm">
+            <input type="hidden" name="examID" value="${examID}">
+            <input type="hidden" name="subjectID" value="${subjectID}">
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th class="text-center">Present</th>
+                            <th class="text-center">Absent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${students.map(s => `
+                            <tr>
+                                <td>${s.name}</td>
+                                <td class="text-center">
+                                    <input type="radio" name="attendance[${s.studentID}]" value="Present" ${s.status === 'Present' ? 'checked' : ''}>
+                                </td>
+                                <td class="text-center">
+                                    <input type="radio" name="attendance[${s.studentID}]" value="Absent" ${s.status === 'Absent' ? 'checked' : ''}>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    `;
+    
+    Swal.fire({
+        title: `Edit Attendance: ${subjectName}`,
+        html: html,
+        showCancelButton: true,
+        confirmButtonText: 'Save Changes',
+        confirmButtonColor: '#940000',
+        width: '600px',
+        preConfirm: () => {
+            const formData = [];
+            $('#editAttendanceForm table tbody tr').each(function() {
+                const studentID = $(this).find('input[type="radio"]').attr('name').match(/\d+/)[0];
+                const status = $(this).find('input[type="radio"]:checked').val();
+                formData.push({ studentID, status });
+            });
+            
+            return $.post("{{ route('admin.exam_attendance.save') }}", {
+                _token: "{{ csrf_token() }}",
+                examID: examID,
+                subjectID: subjectID,
+                attendance: formData
+            });
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire('Saved!', 'Attendance has been updated.', 'success');
+            loadAttendanceSummary(examID);
+        }
+    });
+}
+
+
+
+// --- Admin Direct Collect Attendance Logic ---
+
+$('#collect_attendance_class').on('change', function() {
+    const classID = $(this).val();
+    if (!classID) {
+        $('#admin_collect_content').hide();
+        $('#admin_collect_placeholder').show();
+        return;
+    }
+    
+    // Load subclasses
+    $.get("{{ url('admin/exam-attendance/subclasses') }}/" + classID, function(response) {
+        if (response.success) {
+            let options = '<option value="all">All Subclasses</option>';
+            response.subclasses.forEach(sc => {
+                options += `<option value="${sc.subclassID}">${sc.subclass_name}</option>`;
+            });
+            $('#collect_attendance_subclass').html(options);
+            loadAdminCollectSubjects();
+        }
+    });
+});
+
+$('#collect_attendance_subclass').on('change', loadAdminCollectSubjects);
+$('#collect_attendance_subject').on('change', loadAdminCollectStudents);
+
+function loadAdminCollectSubjects() {
+    const classID = $('#collect_attendance_class').val();
+    if (!classID) return;
+    
+    // For admin collection, we just need all subjects assigned to this class
+    // We can use a simpler approach or the existing subjects endpoint
+    $.post("{{ route('admin.exam_attendance.subjects') }}", {
+        _token: "{{ csrf_token() }}",
+        examID: $('#attendance_exam_id').val(),
+        classID: classID,
+        subclassID: $('#collect_attendance_subclass').val(),
+        isAdmin: true // Flag to show all subjects regardless of assignment
+    }, function(response) {
+        if (response.success) {
+            let options = '<option value="">Select Subject</option>';
+            response.subjects.forEach(s => {
+                options += `<option value="${s.subjectID}">${s.subject.subject_name}</option>`;
+            });
+            $('#collect_attendance_subject').html(options);
+            $('#admin_collect_content').hide();
+            $('#admin_collect_placeholder').show();
+        }
+    });
+}
+
+function loadAdminCollectStudents() {
+    const examID = $('#attendance_exam_id').val();
+    const classID = $('#collect_attendance_class').val();
+    const subclassID = $('#collect_attendance_subclass').val();
+    const subjectID = $('#collect_attendance_subject').val();
+    
+    if (!subjectID) {
+        $('#admin_collect_content').hide();
+        $('#admin_collect_placeholder').show();
+        return;
+    }
+    
+    $('#admin_collect_placeholder').hide();
+    $('#admin_collect_content').show();
+    $('#admin_students_list_container').html('<div class="text-center py-5"><i class="spinner-border"></i> Loading students...</div>');
+    
+    $.post("{{ route('admin.exam_attendance.admin_students') }}", {
+        _token: "{{ csrf_token() }}",
+        examID: examID,
+        classID: classID,
+        subclassID: subclassID,
+        subjectID: subjectID
+    }, function(response) {
+        if (response.success) {
+            let html = `
+                <div class="table-responsive">
+                    <table class="table table-hover border" id="adminAttendanceTable">
+                        <thead class="bg-light">
+                            <tr>
+                                <th width="50">#</th>
+                                <th>Student Name</th>
+                                <th class="text-center" width="200">Attendance Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            response.students.forEach((s, index) => {
+                html += `
+                    <tr class="student-row" data-name="${s.name.toLowerCase()}">
+                        <td>${index + 1}</td>
+                        <td class="fw-bold">${s.name}</td>
+                        <td class="text-center">
+                            <select class="form-control form-control-sm attendance-select" name="attendance[${s.studentID}]" style="border-radius: 0 !important; border: 1px solid #ddd;">
+                                <option value="Present" ${s.status === 'Present' ? 'selected' : ''}>Present</option>
+                                <option value="Absent" ${s.status === 'Absent' ? 'selected' : ''}>Absent</option>
+                            </select>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            $('#admin_students_list_container').html(html);
+        }
+    });
+}
+
+window.filterAdminStudents = function() {
+    const search = $('#adminStudentSearch').val().toLowerCase();
+    $('.student-row').each(function() {
+        const name = $(this).data('name');
+        $(this).toggle(name.includes(search));
+    });
+}
+
+window.markAllAdmin = function(status) {
+    $(`#adminAttendanceTable .attendance-select`).each(function() {
+        $(this).val(status);
+    });
+}
+
+window.saveAdminAttendance = function() {
+    const examID = $('#attendance_exam_id').val();
+    const subjectID = $('#collect_attendance_subject').val();
+    
+    const records = [];
+    $(`#adminAttendanceTable .attendance-select`).each(function() {
+        const nameAttr = $(this).attr('name');
+        const studentID = nameAttr.match(/\[(\d+)\]/)[1];
+        records.push({
+            studentID: studentID,
+            status: $(this).val()
+        });
+    });
+    
+    if (records.length === 0) {
+        Swal.fire('Info', 'No students found to save.', 'info');
+        return;
+    }
+    
+    Swal.fire({
+        title: 'Saving...',
+        didOpen: () => { Swal.showLoading(); }
+    });
+    
+    $.post("{{ route('admin.exam_attendance.save') }}", {
+        _token: "{{ csrf_token() }}",
+        examID: examID,
+        subjectID: subjectID,
+        attendance: records
+    }, function(response) {
+        if (response.success) {
+            Swal.fire('Success', 'Attendance saved successfully!', 'success');
+        } else {
+            Swal.fire('Error', response.error || 'Failed to save attendance', 'error');
+        }
+    });
+}
+
+// --- Reusable Download with Progress Logic ---
+function performDownloadWithProgress(url, defaultFilename) {
+    $('#downloadProgressModal').modal('show');
+    $('#pdfProgressBar').css('width', '0%');
+    $('#pdfProgressPercent').text('0%');
+
+    let progress = 0;
+    const interval = setInterval(function() {
+        if (progress < 95) {
+            let inc = 2 + Math.random() * 5;
+            if (progress > 50) inc = 1 + Math.random() * 2;
+            if (progress > 80) inc = 0.5 + Math.random();
+            progress += inc;
+            if (progress > 95) progress = 95;
+            $('#pdfProgressBar').css('width', progress + '%');
+            $('#pdfProgressPercent').text(Math.round(progress) + '%');
+        }
+    }, 400);
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error('Server error: ' + response.statusText);
+            return response.blob();
+        })
+        .then(blob => {
+            clearInterval(interval);
+            $('#pdfProgressBar').css('width', '100%');
+            $('#pdfProgressPercent').text('100%');
+            
+            setTimeout(() => {
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = downloadUrl;
+                a.download = defaultFilename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(downloadUrl);
+                document.body.removeChild(a);
+                $('#downloadProgressModal').modal('hide');
+            }, 500);
+        })
+        .catch(error => {
+            clearInterval(interval);
+            $('#downloadProgressModal').modal('hide');
+            Swal.fire('Error', 'Failed to generate PDF: ' + error.message, 'error');
+        });
+}
+
+$(document).on('click', '.download-template-btn', function(e) {
+    e.stopPropagation();
+    const examID = $(this).data('exam-id');
+    const subjectID = $(this).data('subject-id');
+    const classID = $(this).data('class-id');
+    const subclassID = $(this).data('subclass-id');
+    
+    const url = `{{ route('admin.exam_attendance.download_template') }}?examID=${examID}&subjectID=${subjectID}&classID=${classID}&subclassID=${subclassID}`;
+    const filename = `Attendance_Template_${examID}_${subjectID}.pdf`;
+    performDownloadWithProgress(url, filename);
+});
+
+window.downloadAdminTemplate = function() {
+    const examID = $('#attendance_exam_id').val();
+    const classID = $('#collect_attendance_class').val();
+    const subclassID = $('#collect_attendance_subclass').val();
+    const subjectID = $('#collect_attendance_subject').val();
+    
+    if (!classID || !subjectID) {
+        Swal.fire('Info', 'Please select Class and Subject first', 'info');
+        return;
+    }
+    
+    const url = `{{ route('admin.exam_attendance.download_template') }}?examID=${examID}&subjectID=${subjectID}&classID=${classID}&subclassID=${subclassID}`;
+    const filename = `Attendance_Template_${classID}_${subjectID}.pdf`;
+    performDownloadWithProgress(url, filename);
+};
+
+// Handle in-place attendance status changes in "Assigned Teachers" expansion
+$(document).on('change', '.attendance-select-view', function() {
+    const studentID = $(this).data('student-id');
+    const subjectID = $(this).data('subject-id');
+    const status = $(this).val();
+    const examID = $('#attendance_exam_id').val();
+
+    $.post("{{ route('admin.exam_attendance.save') }}", {
+        _token: "{{ csrf_token() }}",
+        examID: examID,
+        subjectID: subjectID,
+        attendance: [{ studentID: studentID, status: status }]
+    }).done(function() {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Attendance updated',
+            showConfirmButton: false,
+            timer: 1500
+        });
+    });
+});
+
+// --- End Exam Attendance Logic ---
+
 });
 </script>
+
+<!-- Exam Attendance Modal -->
+<div class="modal fade" id="examAttendanceModal" tabindex="-1" role="dialog" aria-labelledby="examAttendanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-fullscreen-lg-down" role="document" style="max-width: 95%;">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title" id="examAttendanceModalLabel">
+                    <i class="bi bi-person-check"></i> Exam Attendance Management - <span id="attendance_exam_name"></span>
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-0">
+                <ul class="nav nav-tabs nav-justified" id="attendanceTabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active py-3" id="assign-teacher-tab" data-toggle="tab" href="#assign-teacher" role="tab">
+                            <i class="bi bi-person-plus"></i> Assign Teacher
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-3" id="admin-collect-tab" data-toggle="tab" href="#admin-collect" role="tab">
+                            <i class="bi bi-pencil-square"></i> Collect Attendance
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-3" id="view-assigned-tab" data-toggle="tab" href="#view-assigned" role="tab">
+                            <i class="bi bi-people"></i> Assigned Teachers
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-3" id="view-attendance-tab" data-toggle="tab" href="#view-attendance" role="tab">
+                            <i class="bi bi-card-checklist"></i> View Attendance
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-3" id="attendance-stats-tab" data-toggle="tab" href="#attendance-stats" role="tab">
+                            <i class="bi bi-graph-up"></i> Statistics
+                        </a>
+                    </li>
+                </ul>
+                <div class="tab-content p-4" id="attendanceTabsContent">
+                    <!-- Tab 1: Assign Teacher -->
+                    <div class="tab-pane fade show active" id="assign-teacher" role="tabpanel">
+                        <form id="assignAttendanceTeacherForm">
+                            <input type="hidden" name="examID" id="attendance_exam_id">
+                            <input type="hidden" name="assignmentID" id="attendance_assignment_id">
+                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label fw-bold">Select Class</label>
+                                    <select class="form-control" name="classID" id="assign_attendance_class" required>
+                                        <option value="">Select Class</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label fw-bold">Select Subclass</label>
+                                    <select class="form-control" name="subclassID" id="assign_attendance_subclass">
+                                        <option value="all">All Subclasses</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label fw-bold">Select Teacher</label>
+                                    <select class="form-control" name="teacherID" id="assign_attendance_teacher" required>
+                                        <option value="">Select Teacher</option>
+                                        @foreach($teachers ?? [] as $teacher)
+                                            <option value="{{ $teacher->id }}">{{ $teacher->first_name }} {{ $teacher->last_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Select Subjects</label>
+                                <div id="attendance_subjects_container" class="row p-3 border rounded bg-light mx-0 shadow-sm" style="max-height: 400px; overflow-y: auto; background-color: #f8f9fa !important;">
+                                    <div class="col-12 text-muted text-center py-5">
+                                        <i class="bi bi-info-circle" style="font-size: 2rem;"></i><br>
+                                        Please select a class first to see available subjects
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-right mt-4">
+                                <button type="button" id="cancel_edit_assignment" class="btn btn-secondary btn-lg px-4 mr-2 shadow-sm" style="display: none;">
+                                    Cancel Edit
+                                </button>
+                                <button type="submit" id="save_assignment_btn" class="btn btn-primary-custom btn-lg px-5 shadow-sm">
+                                    <i class="bi bi-save"></i> Save Assignment & Notify Teacher
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Tab: Collect Attendance (Admin Direct) -->
+                    <div class="tab-pane fade" id="admin-collect" role="tabpanel">
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Class</label>
+                                <select class="form-control" id="collect_attendance_class">
+                                    <option value="">Select Class</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Subclass</label>
+                                <select class="form-control" id="collect_attendance_subclass">
+                                    <option value="all">All Subclasses</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Subject</label>
+                                <select class="form-control" id="collect_attendance_subject">
+                                    <option value="">Select Subject</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="admin_collect_content" style="display: none;">
+                            <div class="row mb-3 border-bottom pb-3">
+                                <div class="col-12 col-md-5 mb-3 mb-md-0">
+                                    <div class="search-box">
+                                        <div class="input-group">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text bg-white border-right-0" style="border-radius: 0 !important;"><i class="bi bi-search"></i></span>
+                                            </div>
+                                            <input type="text" id="adminStudentSearch" class="form-control border-left-0" placeholder="Search student name..." onkeyup="filterAdminStudents()" style="border-radius: 0 !important;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-7 text-md-right">
+                                    <div class="btn-group w-100 w-md-auto">
+                                        <button class="btn btn-outline-primary" onclick="downloadAdminTemplate()" style="border-radius: 0 !important;">
+                                            <i class="bi bi-file-pdf"></i> Template
+                                        </button>
+                                        <button class="btn btn-outline-success" onclick="downloadAdminAttendance()" style="border-radius: 0 !important;">
+                                            <i class="bi bi-download"></i> Record
+                                        </button>
+                                        <button class="btn btn-success" onclick="markAllAdmin('Present')" style="border-radius: 0 !important; background-color: #28a745; border-color: #28a745;">
+                                            <i class="bi bi-check-all"></i> Present
+                                        </button>
+                                        <button class="btn btn-danger" onclick="markAllAdmin('Absent')" style="border-radius: 0 !important; background-color: #dc3545; border-color: #dc3545;">
+                                            <i class="bi bi-x-circle"></i> Absent
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="admin_students_list_container">
+                                <!-- Student list loaded via AJAX -->
+                            </div>
+
+                            <div class="text-right mt-4 pt-3 border-top">
+                                <button class="btn btn-primary-custom btn-lg px-5 shadow-sm" onclick="saveAdminAttendance()">
+                                    <i class="bi bi-cloud-arrow-up"></i> Save Attendance
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="admin_collect_placeholder" class="text-center py-5 text-muted">
+                            <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
+                            <p class="mt-3">Select class, subclass, and subject to start collecting attendance.</p>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Assigned Teachers -->
+                    <div class="tab-pane fade" id="view-assigned" role="tabpanel">
+                        <div id="assigned_teachers_list" class="mt-2">
+                            <!-- List of assigned teachers will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: View Attendance -->
+                    <div class="tab-pane fade" id="view-attendance" role="tabpanel">
+                        <div class="row mb-4 bg-light p-3 rounded mx-0">
+                            <div class="col-md-4 mb-2 mb-md-0">
+                                <label class="form-label fw-bold small text-uppercase">Filter Class</label>
+                                <select class="form-control" id="view_att_class_filter">
+                                    <option value="all">All Classes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-2 mb-md-0">
+                                <label class="form-label fw-bold small text-uppercase">Filter Subclass</label>
+                                <select class="form-control" id="view_att_subclass_filter">
+                                    <option value="all">All Subclasses</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-uppercase">Filter Subject</label>
+                                <select class="form-control" id="view_att_subject_filter">
+                                    <option value="all">All Subjects</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="attendance_collected_summary">
+                            <div class="text-center py-5 text-muted">
+                                <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
+                                <p class="mt-3">Loading attendance summary...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: Statistics -->
+                    <div class="tab-pane fade" id="attendance-stats" role="tabpanel">
+                        <div class="row mb-4 bg-light p-3 rounded mx-0">
+                            <div class="col-md-4 mb-2 mb-md-0">
+                                <label class="form-label fw-bold small text-uppercase">Class</label>
+                                <select class="form-control" id="stats_class_filter">
+                                    <option value="all">All Classes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-2 mb-md-0">
+                                <label class="form-label fw-bold small text-uppercase">Subclass</label>
+                                <select class="form-control" id="stats_subclass_filter">
+                                    <option value="all">All Subclasses</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small text-uppercase">Subject</label>
+                                <select class="form-control" id="stats_subject_filter">
+                                    <option value="all">All Subjects</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <div class="card bg-success text-white border-0 shadow-sm" style="border-radius: 0 !important;">
+                                    <div class="card-body p-4 text-center">
+                                        <h6 class="text-uppercase small mb-1 opacity-8">Total Present</h6>
+                                        <h2 class="mb-0 fw-bold" id="stats_total_present">0</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="card bg-danger text-white border-0 shadow-sm" style="border-radius: 0 !important;">
+                                    <div class="card-body p-4 text-center">
+                                        <h6 class="text-uppercase small mb-1 opacity-8">Total Absent</h6>
+                                        <h2 class="mb-0 fw-bold" id="stats_total_absent">0</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border-0 shadow-sm" style="border-radius: 0 !important;">
+                            <div class="card-body">
+                                <h5 class="card-title text-primary-custom mb-4 font-weight-bold"><i class="bi bi-bar-chart"></i> Participation Analytics</h5>
+                                <div style="height: 400px;">
+                                    <canvas id="attendanceStatsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary px-4" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 @include('includes.footer')

@@ -31,6 +31,7 @@ use App\Models\LessonPlan;
 use App\Models\Logbook;
 use App\Models\Department;
 use App\Models\PermissionRequest;
+use App\Models\TeacherResultAssignment;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Dompdf\Dompdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -3226,10 +3227,13 @@ class TeachersController extends Controller
             ->values(); // Re-index array after filtering
 
         $schoolID = Session::get('schoolID');
+        $teacherResultPermission = \App\Models\TeacherResultPermission::where('schoolID', $schoolID)->first();
+        $resultButtonStatus = $teacherResultPermission ? $teacherResultPermission->result_button_status : true;
+
         $school = $schoolID ? School::find($schoolID) : null;
         $schoolType = $school && $school->school_type ? $school->school_type : 'Secondary';
 
-        return view('Teacher.teacher_subjects', compact('classSubjects', 'schoolType'));
+        return view('Teacher.teacher_subjects', compact('classSubjects', 'schoolType', 'resultButtonStatus'));
     }
 
     public function schemeOfWork()
@@ -4173,16 +4177,16 @@ class TeachersController extends Controller
     {
         try {
             $teacherID = Session::get('teacherID');
+            $userType = Session::get('user_type');
 
-            if (!$teacherID) {
+            if (!$teacherID && $userType !== 'Admin' && $userType !== 'Staff') {
                 return response()->json([
                     'error' => 'Teacher ID not found in session.'
                 ], 400);
             }
 
-            // Verify teacher owns this class subject and both ClassSubject and Subject have status = Active
+            // Verify teacher owns this class subject or user is Admin/Staff or has assignment
             $classSubject = ClassSubject::where('class_subjectID', $classSubjectID)
-                ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
                 ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
@@ -4191,8 +4195,34 @@ class TeachersController extends Controller
 
             if (!$classSubject) {
                 return response()->json([
-                    'error' => 'Class subject not found or unauthorized access.'
+                    'error' => 'Class subject not found.'
                 ], 404);
+            }
+
+            if ($userType !== 'Admin' && $userType !== 'Staff') {
+                // Check if direct owner
+                $isOwner = $classSubject->teacherID == $teacherID;
+                
+                // Check if assigned via TeacherResultAssignment
+                $isAssigned = false;
+                if (!$isOwner) {
+                    $isAssigned = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
+                        ->where('teacherID', $teacherID)
+                        ->where('classID', $classSubject->classID)
+                        ->where(function($q) use ($classSubject) {
+                            $q->where('subclassID', $classSubject->subclassID)
+                              ->orWhereNull('subclassID');
+                        })
+                        ->where('status', true)
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->exists();
+                }
+
+                if (!$isOwner && !$isAssigned) {
+                    return response()->json([
+                        'error' => 'Unauthorized access to this class subject.'
+                    ], 403);
+                }
             }
 
             // Get students based on subclass or class
@@ -4243,14 +4273,15 @@ class TeachersController extends Controller
     {
         try {
             $teacherID = Session::get('teacherID');
+            $userType = Session::get('user_type');
 
-            if (!$teacherID) {
+            if (!$teacherID && $userType !== 'Admin' && $userType !== 'Staff') {
                 return response()->json([
                     'error' => 'Teacher ID not found in session.'
                 ], 400);
             }
 
-            // Verify teacher owns this class subject and both ClassSubject and Subject have status = Active
+            // Verify access
             $classSubject = ClassSubject::with([
                 'subject' => function ($query) {
                     $query->where('status', 'Active');
@@ -4259,7 +4290,6 @@ class TeachersController extends Controller
                 'subclass'
             ])
                 ->where('class_subjectID', $classSubjectID)
-                ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
                 ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
@@ -4268,8 +4298,34 @@ class TeachersController extends Controller
 
             if (!$classSubject) {
                 return response()->json([
-                    'error' => 'Class subject not found or unauthorized access.'
+                    'error' => 'Class subject not found.'
                 ], 404);
+            }
+
+            if ($userType !== 'Admin' && $userType !== 'Staff') {
+                // Check if direct owner
+                $isOwner = $classSubject->teacherID == $teacherID;
+                
+                // Check if assigned via TeacherResultAssignment
+                $isAssigned = false;
+                if (!$isOwner) {
+                    $isAssigned = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
+                        ->where('teacherID', $teacherID)
+                        ->where('classID', $classSubject->classID)
+                        ->where(function($q) use ($classSubject) {
+                            $q->where('subclassID', $classSubject->subclassID)
+                              ->orWhereNull('subclassID');
+                        })
+                        ->where('status', true)
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->exists();
+                }
+
+                if (!$isOwner && !$isAssigned) {
+                    return response()->json([
+                        'error' => 'Unauthorized access to this class subject.'
+                    ], 403);
+                }
             }
 
             $query = Result::with(['student', 'examination'])
@@ -4441,9 +4497,10 @@ class TeachersController extends Controller
         try {
             $schoolID = Session::get('schoolID');
             $teacherID = Session::get('teacherID');
+            $userType = Session::get('user_type');
 
-            if (!$schoolID || !$teacherID) {
-                return redirect()->back()->with('error', 'Session expired.');
+            if (!$schoolID || (!$teacherID && $userType !== 'Admin' && $userType !== 'Staff')) {
+                return redirect()->back()->with('error', 'Session expired or unauthorized access.');
             }
 
             // Fetch class subject details correctly using school_subjects table
@@ -4618,16 +4675,16 @@ class TeachersController extends Controller
     {
         try {
             $teacherID = Session::get('teacherID');
+            $userType = Session::get('user_type');
 
-            if (!$teacherID) {
+            if (!$teacherID && $userType !== 'Admin' && $userType !== 'Staff') {
                 return response()->json([
                     'error' => 'Teacher ID not found in session.'
                 ], 400);
             }
 
-            // Verify teacher owns this class subject and both ClassSubject and Subject have status = Active
+            // Verify access
             $classSubject = ClassSubject::where('class_subjectID', $classSubjectID)
-                ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
                 ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
@@ -4636,8 +4693,34 @@ class TeachersController extends Controller
 
             if (!$classSubject) {
                 return response()->json([
-                    'error' => 'Class subject not found or unauthorized access.'
+                    'error' => 'Class subject not found.'
                 ], 404);
+            }
+
+            if ($userType !== 'Admin' && $userType !== 'Staff') {
+                // Check if direct owner
+                $isOwner = $classSubject->teacherID == $teacherID;
+                
+                // Check if assigned via TeacherResultAssignment
+                $isAssigned = false;
+                if (!$isOwner) {
+                    $isAssigned = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
+                        ->where('teacherID', $teacherID)
+                        ->where('classID', $classSubject->classID)
+                        ->where(function($q) use ($classSubject) {
+                            $q->where('subclassID', $classSubject->subclassID)
+                              ->orWhereNull('subclassID');
+                        })
+                        ->where('status', true)
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->exists();
+                }
+
+                if (!$isOwner && !$isAssigned) {
+                    return response()->json([
+                        'error' => 'Unauthorized access to this class subject.'
+                    ], 403);
+                }
             }
 
             // Get examinations - ONLY exams with enter_result = true (no other logic)
@@ -4704,16 +4787,16 @@ class TeachersController extends Controller
         try {
             $teacherID = Session::get('teacherID');
             $schoolID = Session::get('schoolID');
+            $userType = Session::get('user_type');
 
-            if (!$teacherID || !$schoolID) {
+            if ((!$teacherID && $userType !== 'Admin' && $userType !== 'Staff') || !$schoolID) {
                 return response()->json([
                     'error' => 'Unauthorized access.'
                 ], 401);
             }
 
-            // Verify teacher owns this class subject and both ClassSubject and Subject have status = Active
+            // Verify access
             $classSubject = ClassSubject::where('class_subjectID', $classSubjectID)
-                ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
                 ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
@@ -4722,17 +4805,39 @@ class TeachersController extends Controller
 
             if (!$classSubject) {
                 return response()->json([
-                    'error' => 'Class subject not found or unauthorized access.'
+                    'error' => 'Class subject not found.'
                 ], 404);
+            }
+
+            if ($userType !== 'Admin' && $userType !== 'Staff') {
+                $isOwner = $classSubject->teacherID == $teacherID;
+                $isAssigned = false;
+                if (!$isOwner) {
+                    $isAssigned = TeacherResultAssignment::where('schoolID', $schoolID)
+                        ->where('teacherID', $teacherID)
+                        ->where('classID', $classSubject->classID)
+                        ->where(function($q) use ($classSubject) {
+                            $q->where('subclassID', $classSubject->subclassID)
+                              ->orWhereNull('subclassID');
+                        })
+                        ->where('status', true)
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->exists();
+                }
+                if (!$isOwner && !$isAssigned) {
+                    return response()->json([
+                        'error' => 'Unauthorized access to this class subject.'
+                    ], 403);
+                }
             }
 
             $school = School::find($schoolID);
             $schoolType = $school && $school->school_type ? strtolower($school->school_type) : 'secondary';
 
-
+            // Fetch exam paper WITHOUT restricting by teacherID — the paper was created by the subject owner
+            // but assigned teachers also need to load the question format
             $examPaper = ExamPaper::where('class_subjectID', $classSubjectID)
                 ->where('examID', $examID)
-                ->where('teacherID', $teacherID)
                 ->orderBy('created_at', 'desc')
                 ->first();
 
@@ -4847,8 +4952,9 @@ class TeachersController extends Controller
 
             $teacherID = Session::get('teacherID');
             $schoolID = Session::get('schoolID');
+            $userType = Session::get('user_type');
 
-            if (!$teacherID) {
+            if (!$teacherID && $userType !== 'Admin' && $userType !== 'Staff') {
                 return response()->json(['error' => 'Teacher ID not found in session.'], 400);
             }
 
@@ -4864,12 +4970,31 @@ class TeachersController extends Controller
             }
 
             $classSubject = ClassSubject::where('class_subjectID', $request->class_subjectID)
-                ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
                 ->first();
 
             if (!$classSubject) {
-                return response()->json(['error' => 'Class subject not found or unauthorized access.'], 404);
+                return response()->json(['error' => 'Class subject not found.'], 404);
+            }
+
+            if ($userType !== 'Admin' && $userType !== 'Staff') {
+                $isOwner = $classSubject->teacherID == $teacherID;
+                $isAssigned = false;
+                if (!$isOwner) {
+                    $isAssigned = TeacherResultAssignment::where('schoolID', $schoolID)
+                        ->where('teacherID', $teacherID)
+                        ->where('classID', $classSubject->classID)
+                        ->where(function($q) use ($classSubject) {
+                            $q->where('subclassID', $classSubject->subclassID)
+                              ->orWhereNull('subclassID');
+                        })
+                        ->where('status', true)
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->exists();
+                }
+                if (!$isOwner && !$isAssigned) {
+                    return response()->json(['error' => 'Unauthorized access to this class subject.'], 403);
+                }
             }
 
             $examination = \App\Models\Examination::find($request->examID);
@@ -5057,7 +5182,7 @@ class TeachersController extends Controller
                 ], 404);
             }
 
-            // Verify teacher owns this class subject
+            // Verify teacher owns this class subject OR is assigned via TeacherResultAssignment
             $classSubject = ClassSubject::with([
                 'subject' => function ($query) {
                     $query->where('status', 'Active');
@@ -5066,7 +5191,6 @@ class TeachersController extends Controller
                 'subclass'
             ])
                 ->where('class_subjectID', $classSubjectID)
-                ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
                 ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
@@ -5076,8 +5200,29 @@ class TeachersController extends Controller
             if (!$classSubject) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Class subject not found or unauthorized access.'
+                    'error' => 'Class subject not found.'
                 ], 404);
+            }
+
+            $isOwner = $classSubject->teacherID == $teacherID;
+            $isAssigned = false;
+            if (!$isOwner) {
+                $isAssigned = TeacherResultAssignment::where('schoolID', $schoolID)
+                    ->where('teacherID', $teacherID)
+                    ->where('classID', $classSubject->classID)
+                    ->where(function($q) use ($classSubject) {
+                        $q->where('subclassID', $classSubject->subclassID)
+                          ->orWhereNull('subclassID');
+                    })
+                    ->where('status', true)
+                    ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                    ->exists();
+            }
+            if (!$isOwner && !$isAssigned) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Unauthorized access to this class subject.'
+                ], 403);
             }
 
             // Get examination
@@ -5236,14 +5381,15 @@ class TeachersController extends Controller
         try {
             $teacherID = Session::get('teacherID');
             $schoolID = Session::get('schoolID');
+            $userType = Session::get('user_type');
 
-            if (!$teacherID || !$schoolID) {
+            if ((!$teacherID && $userType !== 'Admin' && $userType !== 'Staff') || !$schoolID) {
                 return response()->json([
                     'error' => 'Teacher ID or School ID not found in session.'
                 ], 400);
             }
 
-            // Verify teacher owns this class subject and both ClassSubject and Subject have status = Active
+            // Verify access
             $classSubject = ClassSubject::with([
                 'subject' => function ($query) {
                     $query->where('status', 'Active');
@@ -5252,7 +5398,6 @@ class TeachersController extends Controller
                 'subclass'
             ])
                 ->where('class_subjectID', $classSubjectID)
-                ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
                 ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
@@ -5261,8 +5406,30 @@ class TeachersController extends Controller
 
             if (!$classSubject) {
                 return response()->json([
-                    'error' => 'Class subject not found or unauthorized access.'
+                    'error' => 'Class subject not found.'
                 ], 404);
+            }
+
+            if ($userType !== 'Admin' && $userType !== 'Staff') {
+                $isOwner = $classSubject->teacherID == $teacherID;
+                $isAssigned = false;
+                if (!$isOwner) {
+                    $isAssigned = TeacherResultAssignment::where('schoolID', $schoolID)
+                        ->where('teacherID', $teacherID)
+                        ->where('classID', $classSubject->classID)
+                        ->where(function($q) use ($classSubject) {
+                            $q->where('subclassID', $classSubject->subclassID)
+                              ->orWhereNull('subclassID');
+                        })
+                        ->where('status', true)
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->exists();
+                }
+                if (!$isOwner && !$isAssigned) {
+                    return response()->json([
+                        'error' => 'Unauthorized access to this class subject.'
+                    ], 403);
+                }
             }
 
             // Get examination
@@ -5428,8 +5595,9 @@ class TeachersController extends Controller
         try {
             $teacherID = Session::get('teacherID');
             $schoolID = Session::get('schoolID');
+            $userType = Session::get('user_type');
 
-            if (!$teacherID || !$schoolID) {
+            if ((!$teacherID && $userType !== 'Admin' && $userType !== 'Staff') || !$schoolID) {
                 return response()->json([
                     'error' => 'Teacher ID or School ID not found in session.'
                 ], 400);
@@ -5445,9 +5613,8 @@ class TeachersController extends Controller
                 return response()->json(['errors' => $validator->errors()], 422);
             }
 
-            // Verify teacher owns this class subject and both ClassSubject and Subject have status = Active
+            // Verify access
             $classSubject = ClassSubject::where('class_subjectID', $request->class_subject_id)
-                ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
                 ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
@@ -5456,8 +5623,30 @@ class TeachersController extends Controller
 
             if (!$classSubject) {
                 return response()->json([
-                    'error' => 'Class subject not found or unauthorized access.'
+                    'error' => 'Class subject not found.'
                 ], 404);
+            }
+
+            if ($userType !== 'Admin' && $userType !== 'Staff') {
+                $isOwner = $classSubject->teacherID == $teacherID;
+                $isAssigned = false;
+                if (!$isOwner) {
+                    $isAssigned = TeacherResultAssignment::where('schoolID', $schoolID)
+                        ->where('teacherID', $teacherID)
+                        ->where('classID', $classSubject->classID)
+                        ->where(function($q) use ($classSubject) {
+                            $q->where('subclassID', $classSubject->subclassID)
+                              ->orWhereNull('subclassID');
+                        })
+                        ->where('status', true)
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->exists();
+                }
+                if (!$isOwner && !$isAssigned) {
+                    return response()->json([
+                        'error' => 'Unauthorized access to this class subject.'
+                    ], 403);
+                }
             }
 
             // Check examination status
@@ -5711,8 +5900,9 @@ class TeachersController extends Controller
     {
         try {
             $teacherID = Session::get('teacherID');
+            $userType = Session::get('user_type');
 
-            if (!$teacherID) {
+            if (!$teacherID && $userType !== 'Admin' && $userType !== 'Staff') {
                 return response()->json([
                     'error' => 'Teacher ID not found in session.'
                 ], 400);
@@ -8100,16 +8290,16 @@ class TeachersController extends Controller
     {
         try {
             $teacherID = Session::get('teacherID');
+            $userType = Session::get('user_type');
 
-            if (!$teacherID) {
+            if (!$teacherID && $userType !== 'Admin' && $userType !== 'Staff') {
                 return response()->json([
                     'error' => 'Teacher ID not found in session.'
                 ], 400);
             }
 
-            // Verify teacher owns this class subject
+            // Verify access
             $classSubject = ClassSubject::where('class_subjectID', $classSubjectID)
-                ->where('teacherID', $teacherID)
                 ->where('status', 'Active')
                 ->whereHas('subject', function ($query) {
                     $query->where('status', 'Active');
@@ -8118,8 +8308,30 @@ class TeachersController extends Controller
 
             if (!$classSubject) {
                 return response()->json([
-                    'error' => 'Class subject not found or unauthorized access.'
+                    'error' => 'Class subject not found.'
                 ], 404);
+            }
+
+            if ($userType !== 'Admin' && $userType !== 'Staff') {
+                $isOwner = $classSubject->teacherID == $teacherID;
+                $isAssigned = false;
+                if (!$isOwner) {
+                    $isAssigned = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
+                        ->where('teacherID', $teacherID)
+                        ->where('classID', $classSubject->classID)
+                        ->where(function($q) use ($classSubject) {
+                            $q->where('subclassID', $classSubject->subclassID)
+                              ->orWhereNull('subclassID');
+                        })
+                        ->where('status', true)
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->exists();
+                }
+                if (!$isOwner && !$isAssigned) {
+                    return response()->json([
+                        'error' => 'Unauthorized access to this class subject.'
+                    ], 403);
+                }
             }
 
             // Check exam paper status

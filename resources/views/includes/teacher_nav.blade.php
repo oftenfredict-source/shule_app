@@ -572,6 +572,24 @@
                                 <i class="fa fa-graduation-cap"></i> Exams <i class="fa fa-chevron-down float-right"></i>
                             </a>
                             <ul id="exams" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
+                                @php
+                                    $canAddResultsByAssignment = false;
+                                    $navTeacherID = Session::get('teacherID');
+                                    $navSchoolID = Session::get('schoolID');
+                                    
+                                    $globalResultPermission = \App\Models\TeacherResultPermission::where('schoolID', $navSchoolID)->first();
+                                    $isGlobalEnabled = $globalResultPermission ? $globalResultPermission->result_button_status : true;
+
+                                    if ($isGlobalEnabled && $navTeacherID) {
+                                        $canAddResultsByAssignment = \App\Models\TeacherResultAssignment::where('teacherID', $navTeacherID)
+                                            ->where('status', true)
+                                            ->exists();
+                                    }
+                                @endphp
+
+                                @if($canAddResultsByAssignment)
+                                    <li><a href="{{ route('admin.add_results') }}" class="nav-link"><i class="fa fa-plus-circle text-success"></i> Add Results</a></li>
+                                @endif
                                 <li><a href="{{ route('supervise_exams') }}" class="nav-link"><i class="fa fa-graduation-cap"></i> My Supervise Exams</a></li>
                                 <li><a href="{{ route('exam_paper') }}" class="nav-link"><i class="fa fa-file-text"></i> My Exam Papers</a></li>
                                 @php
@@ -621,6 +639,15 @@
                                         @endif
                                     </a>
                                 </li>
+                                @php
+                                    $navTeacherID = Session::get('teacherID');
+                                    $canCollectExamAttendance = \App\Models\ExamAttendanceAssignment::where('teacherID', $navTeacherID)
+                                        ->where('status', true)
+                                        ->exists();
+                                @endphp
+                                @if($canCollectExamAttendance)
+                                    <li><a href="{{ route('teacher.exam_attendance') }}" class="nav-link"><i class="fa fa-check-square-o"></i> Collect Attendance</a></li>
+                                @endif
                             </ul>
                         </li>
 

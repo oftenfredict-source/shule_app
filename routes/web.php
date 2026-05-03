@@ -41,6 +41,7 @@ use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\GoalManagementController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\CharacterAssessmentController;
+use App\Http\Controllers\ExamAttendanceController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 
@@ -339,7 +340,7 @@ Route::get('teacher/lesson-plan/get-by-filter', [TeachersController::class, 'get
 Route::get('teacher/lesson-plan/get-by-id', [TeachersController::class, 'getLessonPlanById'])->name('teacher.get_lesson_plan_by_id');
 Route::post('teacher/lesson-plan/send-to-admin', [TeachersController::class, 'sendLessonPlanToAdmin'])->name('teacher.send_lesson_plan_to_admin');
 Route::post('teacher/lesson-plan/download-bulk-pdf', [TeachersController::class, 'downloadBulkLessonPlansPDF'])->name('teacher.download_bulk_lesson_plans_pdf');
-Route::get('teacher/exam-attendance/{classSubjectID}', [TeachersController::class, 'examAttendance'])->name('teacher.exam_attendance');
+    // Route::get('teacher/exam-attendance/{classSubjectID}', [TeachersController::class, 'examAttendance'])->name('teacher.exam_attendance');
 Route::get('teacher/get-terms-for-year', [TeachersController::class, 'getTermsForYear'])->name('teacher.get_terms_for_year');
 Route::get('teacher/get-exams-for-year-term', [TeachersController::class, 'getExamsForYearTerm'])->name('teacher.get_exams_for_year_term');
 Route::get('teacher/get-exam-attendance-data', [TeachersController::class, 'getExamAttendanceData'])->name('teacher.get_exam_attendance_data');
@@ -658,6 +659,9 @@ Route::post('register_parent_account', [ManageParentsController::class, 'registe
 Route::post('register_all_parents', [ManageParentsController::class, 'register_all_parents'])->name('register_all_parents');
 Route::post('send_password_sms', [ManageParentsController::class, 'send_parent_password'])->name('send_password_sms');
 
+// Result Management Routes
+Route::get('admin/add-results', [ResultManagementController::class, 'addResultsView'])->name('admin.add_results');
+
 // Examination Routes
 Route::get('exam_paper', [ManageExaminationController::class, 'exam_paper'])->name('exam_paper');
 Route::get('manageExamination', [ManageExaminationController::class, 'manageExamination'])->name('manageExamination');
@@ -674,6 +678,7 @@ Route::get('get_class_subjects_for_exam', [ManageExaminationController::class, '
 Route::post('get_class_subjects_by_subclass', [ManageExaminationController::class, 'getClassSubjects'])->name('get_class_subjects_by_subclass_post');
 Route::post('update_results_status/{examID}', [ManageExaminationController::class, 'updateResultsStatus'])->name('update_results_status');
 Route::post('toggle_enter_result/{examID}', [ManageExaminationController::class, 'toggleEnterResult'])->name('toggle_enter_result');
+Route::post('toggle_teacher_result_permission', [ManageExaminationController::class, 'toggleTeacherResultPermission'])->name('toggle_teacher_result_permission');
 Route::post('toggle_publish_result/{examID}', [ManageExaminationController::class, 'togglePublishResult'])->name('toggle_publish_result');
 Route::post('toggle_upload_paper/{examID}', [ManageExaminationController::class, 'toggleUploadPaper'])->name('toggle_upload_paper');
 Route::post('auto_shift_students/{examID}', [ManageExaminationController::class, 'autoShiftStudents'])->name('auto_shift_students');
@@ -693,6 +698,8 @@ Route::get('manageResults', [ResultManagementController::class, 'index'])->name(
 Route::post('send_teacher_reminder', [ResultManagementController::class, 'sendTeacherReminder'])->name('send_teacher_reminder');
 Route::post('send_broadcast_reminder', [ResultManagementController::class, 'sendBroadcastReminder'])->name('send_broadcast_reminder');
 Route::get('admin/subject-analysis', [ResultManagementController::class, 'subjectAnalysis'])->name('admin.subject_analysis');
+Route::get('admin/add-results', [ResultManagementController::class, 'addResultsView'])->name('admin.add_results');
+Route::get('admin/get-class-subject-id', [ResultManagementController::class, 'getClassSubjectId'])->name('admin.get_class_subject_id');
 Route::get('admin/export-subject-analysis-pdf', [ResultManagementController::class, 'exportSubjectAnalysisPdf'])->name('admin.export_subject_analysis_pdf');
 Route::get('admin/get-class-subjects', [ResultManagementController::class, 'getClassSubjectsForAnalysis'])->name('admin.get_class_subjects_for_analysis');
 Route::post('admin/send-subject-analysis-comment', [ResultManagementController::class, 'sendSubjectAnalysisComment'])->name('admin.send_subject_analysis_comment');
@@ -714,6 +721,37 @@ Route::get('check_exam_ca_exists', [ResultManagementController::class, 'checkExa
 Route::post('toggle_exam_publication', [ResultManagementController::class, 'toggleExamPublication'])->name('toggle_exam_publication');
 Route::post('toggle_report_publication', [ResultManagementController::class, 'toggleReportPublication'])->name('toggle_report_publication');
 Route::get('get_published_reports', [ResultManagementController::class, 'getPublishedReports'])->name('get_published_reports');
+
+// Teacher Result Entry Permission & Assignments
+Route::post('toggle_teacher_result_permission', [ResultManagementController::class, 'toggleTeacherResultPermission'])->name('toggle_teacher_result_permission');
+Route::get('admin/get-teachers-for-assignment', [ResultManagementController::class, 'getTeachersForAssignment'])->name('admin.get_teachers_for_assignment');
+Route::get('admin/get-subjects-for-assignment', [ResultManagementController::class, 'getSubjectsForAssignment'])->name('admin.get_subjects_for_assignment');
+Route::post('admin/assign-teacher-to-result', [ResultManagementController::class, 'assignTeacherToResult'])->name('admin.assign_teacher_to_result');
+Route::get('admin/get-teacher-assignments', [ResultManagementController::class, 'getTeacherAssignments'])->name('admin.get_teacher_assignments');
+Route::get('admin/get-assignment-details/{id}', [ResultManagementController::class, 'getAssignmentDetails'])->name('admin.get_assignment_details');
+Route::post('admin/toggle-assignment-status', [ResultManagementController::class, 'toggleAssignmentStatus'])->name('admin.toggle_assignment_status');
+Route::post('admin/delete-assignment', [ResultManagementController::class, 'deleteAssignment'])->name('admin.delete_assignment');
+
+// Exam Attendance Routes
+Route::prefix('admin/exam-attendance')->group(function () {
+    Route::get('/classes/{examID}', [ExamAttendanceController::class, 'getExamClasses'])->name('admin.exam_attendance.classes');
+    Route::get('/subclasses/{classID}', [ExamAttendanceController::class, 'getSubclasses'])->name('admin.exam_attendance.subclasses');
+    Route::post('/subjects', [ExamAttendanceController::class, 'getSubjectsForAttendance'])->name('admin.exam_attendance.subjects');
+    Route::post('/assign', [ExamAttendanceController::class, 'assignTeacher'])->name('admin.exam_attendance.assign');
+    Route::get('/assigned/{examID}', [ExamAttendanceController::class, 'getAssignedTeachers'])->name('admin.exam_attendance.assigned');
+    Route::get('/assignment-details/{id}', [ExamAttendanceController::class, 'getAssignmentDetails'])->name('admin.exam_attendance.assignment_details');
+    Route::post('/save', [ExamAttendanceController::class, 'saveAttendance'])->name('admin.exam_attendance.save');
+    Route::get('/download-template', [ExamAttendanceController::class, 'downloadTemplate'])->name('admin.exam_attendance.download_template');
+    Route::get('/summary/{examID}', [ExamAttendanceController::class, 'getAttendanceSummary'])->name('admin.exam_attendance.summary');
+    Route::post('/admin-students', [ExamAttendanceController::class, 'getStudentsForAdminCollection'])->name('admin.exam_attendance.admin_students');
+    Route::get('/stats/{examID}', [ExamAttendanceController::class, 'getAttendanceStats'])->name('admin.exam_attendance.stats');
+    Route::delete('/delete-assignment/{id}', [ExamAttendanceController::class, 'deleteAssignment'])->name('admin.exam_attendance.delete_assignment');
+    Route::post('/toggle-status/{id}', [ExamAttendanceController::class, 'toggleStatus'])->name('admin.exam_attendance.toggle_status');
+});
+
+// Teacher Exam Attendance Routes
+Route::get('teacher/exam-attendance', [ExamAttendanceController::class, 'teacherIndex'])->name('teacher.exam_attendance');
+Route::get('teacher/exam-attendance/details/{id}', [ExamAttendanceController::class, 'getAssignmentDetailsForTeacher'])->name('teacher.exam_attendance.details');
 
 // Character Assessment Management
 Route::get('character_assessment', [CharacterAssessmentController::class, 'index'])->name('character_assessment');

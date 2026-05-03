@@ -658,7 +658,17 @@ class ManageExaminationController extends Controller
             ->pluck('term_number')
             ->toArray();
 
-        return view('Admin.manage_exam', compact('examinations', 'examinationsGrouped', 'subclasses', 'classSubjects', 'classes', 'currentYear', 'availableYears', 'totalExams', 'search', 'yearFilter', 'statusFilter', 'termFilter', 'examCategoryFilter', 'roles', 'closedTerms'));
+        // Get global teacher result entry permission
+        $teacherResultPermission = \App\Models\TeacherResultPermission::where('schoolID', $schoolID)->first();
+        $resultButtonStatus = $teacherResultPermission ? $teacherResultPermission->result_button_status : true;
+
+        // Get all active teachers for assignment
+        $teachers = Teacher::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->orderBy('first_name')
+            ->get();
+
+        return view('Admin.manage_exam', compact('examinations', 'examinationsGrouped', 'subclasses', 'classSubjects', 'classes', 'currentYear', 'availableYears', 'totalExams', 'search', 'yearFilter', 'statusFilter', 'termFilter', 'examCategoryFilter', 'roles', 'closedTerms', 'resultButtonStatus', 'teachers'));
     }
 
     public function searchExaminations(Request $request)
@@ -6504,9 +6514,14 @@ class ManageExaminationController extends Controller
                                 $q->whereIn('role_id', $roleIds);
                             }
 
-                            // Check special roles (class teacher / coordinator)
+                            // Check special roles (class teacher / coordinator / head_of_department)
                             $subclassIds = Subclass::where('teacherID', $teacherID)->pluck('subclassID')->toArray();
                             $classIds = ClassModel::where('teacherID', $teacherID)->pluck('classID')->toArray();
+                            
+                            $hodDepartmentIds = \App\Models\Department::where('head_teacherID', $teacherID)->pluck('departmentID')->toArray();
+                            $hodSubjectIds = !empty($hodDepartmentIds)
+                                ? \Illuminate\Support\Facades\DB::table('department_subjects')->whereIn('departmentID', $hodDepartmentIds)->pluck('subjectID')->toArray()
+                                : [];
 
                             $q->orWhere(function($sq) use ($subclassIds) {
                                 $sq->where('special_role_type', 'class_teacher')
@@ -6523,6 +6538,14 @@ class ManageExaminationController extends Controller
                                            ->join('class_subjects', 'exam_papers.class_subjectID', '=', 'class_subjects.class_subjectID')
                                            ->whereColumn('exam_papers.exam_paperID', 'paper_approval_logs.exam_paperID')
                                            ->whereIn('class_subjects.classID', $classIds);
+                                   });
+                            })->orWhere(function($sq) use ($hodSubjectIds) {
+                                $sq->where('special_role_type', 'head_of_department')
+                                   ->whereExists(function($ssq) use ($hodSubjectIds) {
+                                       $ssq->from('exam_papers')
+                                           ->join('class_subjects', 'exam_papers.class_subjectID', '=', 'class_subjects.class_subjectID')
+                                           ->whereColumn('exam_papers.exam_paperID', 'paper_approval_logs.exam_paperID')
+                                           ->whereIn('class_subjects.subjectID', $hodSubjectIds);
                                    });
                             });
                         })->exists();
@@ -6666,6 +6689,44 @@ class ManageExaminationController extends Controller
         }
     }
 
+    public function toggleTeacherResultPermission(Request $request)
+    {
+        // Check permission - Admin only for global settings
+        if (Session::get('user_type') !== 'Admin') {
+            return response()->json([
+                'error' => 'You do not have permission to manage global teacher result entry settings.',
+            ], 403);
+        }
+
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['error' => 'School ID not found in session.'], 400);
+            }
+
+            $permission = \App\Models\TeacherResultPermission::firstOrCreate(
+                ['schoolID' => $schoolID],
+                ['result_button_status' => true]
+            );
+
+            $newStatus = !$permission->result_button_status;
+            $permission->update(['result_button_status' => $newStatus]);
+
+            $message = $newStatus 
+                ? 'Success: You have enabled teachers to add results.' 
+                : 'Success: You have disabled teachers from adding results.';
+
+            return response()->json([
+                'success' => true,
+                'status' => $newStatus,
+                'message' => $message,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Error toggling teacher result permission: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to update setting.'], 500);
+        }
+    }
+
     public function toggleEnterResult(Request $request, $examID)
     {
         // Check permission - Update action: examination_update
@@ -6709,9 +6770,14 @@ class ManageExaminationController extends Controller
                 'enter_result' => $enterResult,
             ]);
 
-            // Get all teachers involved in this examination and send SMS
-            try {
-                $smsService = new SmsService();
+            // Get global permission status for sending SMS
+            $globalPermission = \App\Models\TeacherResultPermission::where('schoolID', $schoolID)->first();
+            $canSendSms = $globalPermission ? $globalPermission->result_button_status : true;
+
+            if ($canSendSms) {
+                // Get all teachers involved in this examination and send SMS
+                try {
+                    $smsService = new SmsService();
                 $school = \App\Models\School::find($schoolID);
                 $schoolName = $school ? $school->school_name : 'ShuleXpert';
 
@@ -6840,6 +6906,18 @@ class ManageExaminationController extends Controller
                     'exam' => $exam,
                 ], 200);
             }
+        } else {
+            // SMS is disabled, return success for the toggle itself
+            $successMessage = $enterResult
+                ? 'Teachers can now enter results for this examination.'
+                : 'Result entry has been disabled for this examination.';
+
+            return response()->json([
+                'success' => $successMessage,
+                'exam' => $exam,
+                'sms_sent_count' => 0,
+            ], 200);
+        }
 
         } catch (\Exception $e) {
             return response()->json([

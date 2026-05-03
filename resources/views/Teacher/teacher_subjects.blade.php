@@ -278,6 +278,7 @@
                                             <i class="bi bi-clipboard-check action-icon view-results" onclick="viewResults({{ $classSubject->class_subjectID }})"></i>
                                             <small class="d-block text-muted mt-1">View Results</small>
                                         </div>
+                                        @if($resultButtonStatus)
                                         <div class="text-center mb-2" title="Edit Results">
                                             <i class="bi bi-pencil-square action-icon edit-results" onclick="editResults({{ $classSubject->class_subjectID }})"></i>
                                             <small class="d-block text-muted mt-1">Edit Result</small>
@@ -286,6 +287,7 @@
                                             <i class="bi bi-plus-circle-fill action-icon add-results" onclick="addResults({{ $classSubject->class_subjectID }})"></i>
                                             <small class="d-block text-muted mt-1">Add Result</small>
                                         </div>
+                                        @endif
                                         @if($classSubject->student_status === 'Optional')
                                             <div class="text-center mb-2" title="Subject Election">
                                                 <i class="bi bi-person-check action-icon" style="color: #007bff;" 
@@ -576,6 +578,121 @@ if (typeof $ === 'undefined') {
 const isSecondarySchool = @json(strtolower($schoolType ?? 'Secondary')) === 'secondary';
 const questionColspan = isSecondarySchool ? 7 : 6;
 // Helper for Premium Progress Bar Loading
+// LocalStorage Cache Logic for Offline Persistence
+const RESULTS_CACHE_PREFIX = 'shulelink_marks_cache_';
+
+function getResultsCacheKey() {
+    const classSubjectID = jQuery('#class_subject_id').val();
+    const examID = jQuery('#exam_id').val();
+    const testWeek = jQuery('#test_week').val() || 'none';
+    if (!classSubjectID || !examID) return null;
+    return `${RESULTS_CACHE_PREFIX}${classSubjectID}_${examID}_${testWeek}`;
+}
+
+function saveMarkToCache(studentID, fieldKey, marks) {
+    const key = getResultsCacheKey();
+    if (!key) return;
+    
+    let cache = JSON.parse(localStorage.getItem(key) || '{}');
+    if (!cache[studentID]) cache[studentID] = {};
+    
+    cache[studentID][fieldKey] = marks;
+    localStorage.setItem(key, JSON.stringify(cache));
+}
+
+function restoreMarksFromCache() {
+    const key = getResultsCacheKey();
+    if (!key) return;
+    
+    const cache = JSON.parse(localStorage.getItem(key) || '{}');
+    if (Object.keys(cache).length === 0) return;
+    
+    let restoredCount = 0;
+    
+    Object.keys(cache).forEach(studentID => {
+        const studentMarks = cache[studentID];
+        
+        // Restore Main Marks
+        if (studentMarks['main'] !== undefined) {
+            const $mainInput = jQuery(`#marks_${studentID}`);
+            if ($mainInput.length) {
+                $mainInput.val(studentMarks['main']);
+                autoCalculateGrade(studentID);
+                restoredCount++;
+            }
+        }
+        
+        // Restore Question Marks
+        Object.keys(studentMarks).forEach(qID => {
+            if (qID !== 'main') {
+                if (!examQuestionData.marksByStudent[studentID]) {
+                    examQuestionData.marksByStudent[studentID] = {};
+                }
+                examQuestionData.marksByStudent[studentID][qID] = studentMarks[qID];
+                
+                const $qInput = jQuery(`.question-mark-input[data-student="${studentID}"][data-question-id="${qID}"]`);
+                if ($qInput.length) {
+                    $qInput.val(studentMarks[qID]);
+                    
+                    // Auto-check the optional box if it has marks
+                    const $optionalCheck = jQuery(`.optional-select[data-student="${studentID}"][data-question-id="${qID}"]`);
+                    if ($optionalCheck.length && studentMarks[qID] > 0) {
+                        $optionalCheck.prop('checked', true);
+                        $qInput.prop('disabled', false);
+                    }
+                    
+                    restoredCount++;
+                }
+            }
+        });
+        
+        // Update DOM inputs if they happen to be rendered
+        updateStudentTotal(studentID);
+    });
+    
+    // Recalculate all main totals from the cache object (crucial since DOM inputs might not be rendered yet)
+    if (typeof updateTotalsFromCache === 'function') {
+        updateTotalsFromCache();
+    }
+    
+    if (restoredCount > 0) {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: 'Unsaved marks restored from local cache.',
+            showConfirmButton: false,
+            timer: 4000
+        });
+    }
+}
+
+function clearResultsCache() {
+    const key = getResultsCacheKey();
+    if (key) localStorage.removeItem(key);
+}
+
+// Attach Event Listeners for Caching
+jQuery(document).on('input', '.marks-input', function() {
+    const studentID = jQuery(this).data('student');
+    const marks = jQuery(this).val();
+    saveMarkToCache(studentID, 'main', marks);
+});
+
+jQuery(document).on('input', '.question-mark-input', function() {
+    const studentID = jQuery(this).data('student');
+    const questionID = jQuery(this).data('question-id');
+    const marks = jQuery(this).val();
+    
+    if (!examQuestionData.marksByStudent[studentID]) {
+        examQuestionData.marksByStudent[studentID] = {};
+    }
+    examQuestionData.marksByStudent[studentID][questionID] = marks;
+    
+    updateStudentTotal(studentID);
+    saveMarkToCache(studentID, questionID, marks);
+});
+
 function showPremiumLoading(targetID, title = "Preparing Data...", detail = "Fetching information from server...") {
     jQuery(`#${targetID}`).html(`
         <div class="p-5 text-center">
@@ -834,6 +951,7 @@ function loadExamQuestionData(classSubjectID, examID) {
                 });
                 updateStudentTotal(studentID);
             });
+            setTimeout(restoreMarksFromCache, 600);
         },
         error: function() {
             jQuery('.question-detail-container').html(
@@ -1747,6 +1865,8 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
                         // If marks are 0 or null, leave the input empty (placeholder shows)
                     }
                 });
+                
+                setTimeout(restoreMarksFromCache, 600);
             }
         },
         error: function(xhr) {
@@ -2219,6 +2339,7 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
             results: JSON.stringify(results) // Stringify to bypass PHP max_input_vars limit
         },
         success: function(response) {
+            clearResultsCache(); // Clear local storage on successful save
             Swal.fire({
                 title: 'Success!',
                 text: response.success || 'Results saved successfully!',

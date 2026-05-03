@@ -25,6 +25,8 @@ use App\Models\StudentCharacterAssessment;
 use App\Models\PublishedReport;
 use App\Models\ParentResultNotification;
 use App\Models\ParentModel;
+use App\Models\TeacherResultAssignment;
+use App\Models\School;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -3858,6 +3860,310 @@ class ResultManagementController extends Controller
         return response()->json([
             'success' => true,
             'data' => $published
+        ]);
+    }
+
+    public function addResultsView(Request $request)
+    {
+        $user_type = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+        $teacherID = Session::get('teacherID');
+
+        if ($user_type !== 'Admin' && $user_type !== 'Staff' && $user_type !== 'Teacher') {
+            return redirect()->back()->with('error', 'Unauthorized access');
+        }
+
+        // Get global teacher result entry permission
+        $teacherResultPermission = \App\Models\TeacherResultPermission::where('schoolID', $schoolID)->first();
+        $resultButtonStatus = $teacherResultPermission ? $teacherResultPermission->result_button_status : true;
+
+        // Initialize $availableTerms for all user types (overridden for Admin/Staff below)
+        $availableTerms = collect();
+
+        if ($user_type === 'Teacher') {
+            if (!$resultButtonStatus) {
+                return redirect()->back()->with('error', 'Teacher result entry is currently disabled by administrator.');
+            }
+
+            $assignments = TeacherResultAssignment::where('schoolID', $schoolID)
+                ->where('teacherID', $teacherID)
+                ->where('status', true)
+                ->get();
+
+            if ($assignments->isEmpty()) {
+                return redirect()->back()->with('error', 'You have no active result entry assignments.');
+            }
+
+            $assignedClassIDs = $assignments->pluck('classID')->unique();
+            $assignedSubclassIDs = $assignments->pluck('subclassID')->filter()->unique();
+            $assignedExamIDs = $assignments->pluck('examID')->unique();
+            $assignedSubjectIDs = $assignments->pluck('subject_ids')->flatten()->unique();
+
+            $availableYears = Examination::whereIn('examID', $assignedExamIDs)->distinct()->orderBy('year', 'desc')->pluck('year');
+            $classes = ClassModel::whereIn('classID', $assignedClassIDs)->where('status', 'Active')->get();
+            
+            $subclassesQuery = Subclass::with('class')->where('status', 'Active');
+            if ($assignedSubclassIDs->isNotEmpty()) {
+                $subclassesQuery->whereIn('subclassID', $assignedSubclassIDs);
+            } else {
+                $subclassesQuery->whereIn('classID', $assignedClassIDs);
+            }
+            $subclasses = $subclassesQuery->get();
+
+            $schoolSubjects = SchoolSubject::whereIn('subjectID', $assignedSubjectIDs)->where('status', 'Active')->get();
+            $availableExams = Examination::whereIn('examID', $assignedExamIDs)->orderBy('created_at', 'desc')->get();
+
+        } else {
+            // Admin/Staff logic
+            $availableYears = Examination::where('schoolID', $schoolID)->distinct()->orderBy('year', 'desc')->pluck('year');
+            $availableTerms = \App\Models\Term::where('schoolID', $schoolID)->orderBy('term_number')->get();
+            
+            $classes = ClassModel::where('schoolID', $schoolID)->where('status', 'Active')->get();
+            $subclasses = Subclass::with('class')->whereHas('class', function($q) use ($schoolID) {
+                $q->where('schoolID', $schoolID);
+            })->where('status', 'Active')->get();
+            
+            $schoolSubjects = SchoolSubject::where('schoolID', $schoolID)->where('status', 'Active')->get();
+
+            $availableExams = Examination::where('schoolID', $schoolID)
+                ->whereIn('status', ['ongoing', 'awaiting_results', 'published'])
+                ->orderBy('created_at', 'desc')->get();
+        }
+
+        return view('Admin.admin_add_result', compact('user_type', 'availableYears', 'availableTerms', 'classes', 'subclasses', 'schoolSubjects', 'availableExams', 'resultButtonStatus'));
+    }
+
+    public function getClassSubjectId(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $classID = $request->get('classID');
+        $subclassID = $request->get('subclassID');
+        $subjectID = $request->get('subjectID');
+
+        $query = ClassSubject::whereHas('class', function($q) use ($schoolID) {
+                $q->where('schoolID', $schoolID);
+            })
+            ->where('classID', $classID)
+            ->where('subjectID', $subjectID)
+            ->where('status', 'Active');
+
+        if (!empty($subclassID)) {
+            $query->where('subclassID', $subclassID);
+        } else {
+            $query->whereNull('subclassID');
+        }
+
+        $classSubject = $query->first();
+
+        if ($classSubject) {
+            return response()->json(['success' => true, 'class_subjectID' => $classSubject->class_subjectID]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Class Subject not found or not assigned.']);
+    }
+
+    public function getTeachersForAssignment(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $teachers = Teacher::where('schoolID', $schoolID)->where('status', 'Active')
+            ->select('id', 'first_name', 'middle_name', 'last_name')
+            ->get();
+        return response()->json(['success' => true, 'teachers' => $teachers]);
+    }
+
+    public function getSubjectsForAssignment(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $classID = $request->get('classID');
+        $subclassID = $request->get('subclassID');
+        $examID = $request->get('examID');
+
+        $query = ClassSubject::with('subject')
+            ->whereHas('class', function($q) use ($schoolID) {
+                $q->where('schoolID', $schoolID);
+            })
+            ->where('classID', $classID)
+            ->where('status', 'Active');
+
+        if (!empty($subclassID) && $subclassID !== 'all') {
+            $query->where('subclassID', $subclassID);
+        } else {
+            $query->whereNull('subclassID');
+        }
+
+        $subjects = $query->get()->map(function($cs) {
+            return [
+                'subjectID' => $cs->subjectID,
+                'subject_name' => $cs->subject ? $cs->subject->subject_name : 'Unknown'
+            ];
+        })->unique('subjectID')->values();
+
+        // Find already assigned subjects for this context
+        $alreadyAssignedIds = [];
+        if ($examID) {
+            $alreadyAssignedIds = TeacherResultAssignment::where('schoolID', $schoolID)
+                ->where('classID', $classID)
+                ->where('examID', $examID)
+                ->where('subclassID', $subclassID === 'all' ? null : $subclassID)
+                ->where('status', true)
+                ->get()
+                ->pluck('subject_ids')
+                ->flatten()
+                ->unique()
+                ->toArray();
+        }
+
+        return response()->json([
+            'success' => true, 
+            'subjects' => $subjects,
+            'alreadyAssignedIds' => $alreadyAssignedIds
+        ]);
+    }
+
+    public function assignTeacherToResult(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $createdBy = Session::get('teacherID') ?? 0;
+
+        $validator = Validator::make($request->all(), [
+            'id' => 'nullable|exists:teacher_result_assignments,id',
+            'teacherID' => 'required|exists:teachers,id',
+            'classID' => 'required|exists:classes,classID',
+            'examID' => 'required|exists:examinations,examID',
+            'subject_ids' => 'required|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()]);
+        }
+
+        if ($request->filled('id')) {
+            $assignment = TeacherResultAssignment::findOrFail($request->id);
+            $assignment->update([
+                'teacherID' => $request->teacherID,
+                'classID' => $request->classID,
+                'subclassID' => $request->subclassID === 'all' ? null : $request->subclassID,
+                'examID' => $request->examID,
+                'subject_ids' => $request->subject_ids,
+            ]);
+        } else {
+            $assignment = TeacherResultAssignment::updateOrCreate(
+                [
+                    'schoolID' => $schoolID,
+                    'teacherID' => $request->teacherID,
+                    'classID' => $request->classID,
+                    'subclassID' => $request->subclassID === 'all' ? null : $request->subclassID,
+                    'examID' => $request->examID,
+                ],
+                [
+                    'subject_ids' => $request->subject_ids,
+                    'status' => true,
+                    'created_by' => $createdBy
+                ]
+            );
+        }
+
+        // Send SMS to teacher
+        try {
+            $teacher = Teacher::find($request->teacherID);
+            $exam = Examination::find($request->examID);
+            $school = School::find($schoolID);
+            
+            if ($teacher && $teacher->phone_number && $exam && $school) {
+                $class = ClassModel::find($request->classID);
+                $subclass = ($request->subclassID && $request->subclassID !== 'all') ? Subclass::find($request->subclassID) : null;
+                
+                $className = $class ? $class->class_name : 'N/A';
+                if ($subclass) {
+                    $className .= ' ' . $subclass->subclass_name;
+                }
+
+                $termName = ($exam->term === 'first_term') ? 'First Term' : (($exam->term === 'second_term') ? 'Second Term' : 'All Terms');
+                $subjectNames = SchoolSubject::whereIn('subjectID', $request->subject_ids)->pluck('subject_name')->toArray();
+                $subjectList = implode(', ', $subjectNames);
+                
+                $message = "{$school->school_name}. Habari teacher {$teacher->first_name}, umechaguliwa kujaza matokeo ya mtihani {$exam->exam_name}, darasa la {$className}, muhula wa {$termName}, katika masomo yafuatayo: {$subjectList}.";
+                
+                $smsService = new SmsService();
+                $smsService->sendSms($teacher->phone_number, $message);
+            }
+        } catch (\Exception $e) {
+            \Log::error("Failed to send teacher assignment SMS: " . $e->getMessage());
+        }
+
+        return response()->json(['success' => true, 'message' => 'Teacher assignment saved successfully.']);
+    }
+
+    public function getAssignmentDetails($id)
+    {
+        $schoolID = Session::get('schoolID');
+        $assignment = TeacherResultAssignment::where('id', $id)->where('schoolID', $schoolID)->first();
+        
+        if (!$assignment) {
+            return response()->json(['success' => false, 'message' => 'Assignment not found.']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'assignment' => $assignment
+        ]);
+    }
+
+    public function getTeacherAssignments(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $query = TeacherResultAssignment::with(['teacher', 'class', 'subclass', 'exam'])
+            ->where('schoolID', $schoolID);
+
+        if ($request->filled('teacherID')) $query->where('teacherID', $request->teacherID);
+        if ($request->filled('examID')) $query->where('examID', $request->examID);
+        if ($request->filled('classID')) $query->where('classID', $request->classID);
+        if ($request->filled('year')) $query->whereHas('exam', fn($q) => $q->where('year', $request->year));
+        if ($request->filled('term')) $query->whereHas('exam', fn($q) => $q->where('term', $request->term));
+
+        $assignments = $query->orderBy('created_at', 'desc')->get();
+
+        // Get subject names for each assignment
+        foreach ($assignments as $assignment) {
+            $subjectNames = SchoolSubject::whereIn('subjectID', $assignment->subject_ids)->pluck('subject_name')->toArray();
+            $assignment->subject_names = implode(', ', $subjectNames);
+        }
+
+        return response()->json(['success' => true, 'assignments' => $assignments]);
+    }
+
+    public function toggleAssignmentStatus(Request $request)
+    {
+        $assignment = TeacherResultAssignment::findOrFail($request->id);
+        $assignment->status = !$assignment->status;
+        $assignment->save();
+
+        return response()->json(['success' => true, 'status' => $assignment->status, 'message' => 'Status updated successfully.']);
+    }
+
+    public function deleteAssignment(Request $request)
+    {
+        $assignment = TeacherResultAssignment::findOrFail($request->id);
+        $assignment->delete();
+
+        return response()->json(['success' => true, 'message' => 'Assignment deleted successfully.']);
+    }
+
+    public function toggleTeacherResultPermission(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $permission = \App\Models\TeacherResultPermission::updateOrCreate(
+            ['schoolID' => $schoolID],
+            ['updated_at' => now()]
+        );
+        
+        $permission->result_button_status = !$permission->result_button_status;
+        $permission->save();
+
+        return response()->json([
+            'success' => true,
+            'status' => $permission->result_button_status,
+            'message' => 'Teacher result entry ' . ($permission->result_button_status ? 'enabled' : 'disabled') . ' globally.'
         ]);
     }
 }

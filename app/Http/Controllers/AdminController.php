@@ -2644,6 +2644,9 @@ class AdminController extends Controller
 
         PermissionRequest::where('schoolID', $schoolID)->update(['is_read_by_admin' => true]);
 
+        $teacherResultPermission = \App\Models\TeacherResultPermission::where('schoolID', $schoolID)->first();
+        $resultButtonStatus = $teacherResultPermission ? $teacherResultPermission->result_button_status : true;
+
         if ($request->ajax() || $request->expectsJson()) {
             $data = $permissions->map(function ($permission) use ($tab) {
                 $requesterName = 'N/A';
@@ -2690,6 +2693,7 @@ class AdminController extends Controller
             'approvedCount' => $approvedCount,
             'rejectedCount' => $rejectedCount,
             'tabCounts' => $tabCounts,
+            'resultButtonStatus' => $resultButtonStatus,
         ]);
     }
 
