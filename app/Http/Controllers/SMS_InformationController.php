@@ -13,6 +13,7 @@ use App\Models\Attendance;
 use App\Models\School;
 use App\Models\ParentModel;
 use App\Models\OtherStaff;
+use App\Models\SmsLog;
 use App\Services\SmsService;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -70,7 +71,18 @@ class SMS_InformationController extends Controller
                     $q->where('status', 'Active');
                 })
                 ->select('parentID', 'first_name', 'middle_name', 'last_name', 'phone')
+                ->with(['students' => function($q) {
+                    $q->where('status', 'Active')->select('studentID', 'parentID', 'first_name', 'last_name');
+                }])
                 ->get();
+
+            // Map parents to add student info
+            $parents->transform(function ($parent) {
+                $studentName = $parent->students->first() ? $parent->students->first()->first_name . ' ' . $parent->students->first()->last_name : 'Student';
+                $parent->display_name = 'Parent of ' . trim($studentName);
+                unset($parent->students); // Clean up payload
+                return $parent;
+            });
 
             $count = $parents->count();
 
@@ -113,15 +125,27 @@ class SMS_InformationController extends Controller
                       ->where('status', 'Active');
                 })
                 ->select('parentID', 'first_name', 'middle_name', 'last_name', 'phone')
+                ->with(['students' => function($q) use ($subclassIDs) {
+                    $q->whereIn('subclassID', $subclassIDs)->where('status', 'Active')->select('studentID', 'parentID', 'first_name', 'last_name');
+                }])
                 ->get()
                 ->unique('parentID');
+
+            // Map parents to add student info
+            $parents = $parents->values();
+            $parents->transform(function ($parent) {
+                $studentName = $parent->students->first() ? $parent->students->first()->first_name . ' ' . $parent->students->first()->last_name : 'Student';
+                $parent->display_name = 'Parent of ' . trim($studentName);
+                unset($parent->students); // Clean up payload
+                return $parent;
+            });
 
             $count = $parents->count();
 
             return response()->json([
                 'success' => true,
                 'count' => $count,
-                'parents' => $parents->values()
+                'parents' => $parents
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting parents by class: ' . $e->getMessage());
@@ -401,7 +425,10 @@ class SMS_InformationController extends Controller
                         ->where('phone', '!=', '')
                         ->whereHas('students', function($q) {
                             $q->where('status', 'Active');
-                        });
+                        })
+                        ->with(['students' => function($q) {
+                            $q->where('status', 'Active')->select('studentID', 'parentID', 'first_name', 'last_name');
+                        }]);
                     
                     if (!empty($selectedIds)) {
                         $parentsQuery->whereIn('parentID', $selectedIds);
@@ -409,10 +436,11 @@ class SMS_InformationController extends Controller
 
                     $parents = $parentsQuery->get();
                     foreach ($parents as $parent) {
+                        $studentName = $parent->students->first() ? $parent->students->first()->first_name . ' ' . $parent->students->first()->last_name : 'Student';
                         $recipients[] = [
                             'type' => 'parent',
                             'phone' => $parent->phone,
-                            'name' => $parent->first_name . ' ' . ($parent->last_name ?? ''),
+                            'name' => 'Parent of ' . trim($studentName),
                             'id' => $parent->parentID
                         ];
                     }
@@ -431,7 +459,10 @@ class SMS_InformationController extends Controller
                         ->whereHas('students', function($q) use ($subclassIDs) {
                             $q->whereIn('subclassID', $subclassIDs)
                               ->where('status', 'Active');
-                        });
+                        })
+                        ->with(['students' => function($q) use ($subclassIDs) {
+                            $q->whereIn('subclassID', $subclassIDs)->where('status', 'Active')->select('studentID', 'parentID', 'first_name', 'last_name');
+                        }]);
                     
                     if (!empty($selectedIds)) {
                         $parentsQuery->whereIn('parentID', $selectedIds);
@@ -439,10 +470,11 @@ class SMS_InformationController extends Controller
 
                     $parents = $parentsQuery->get()->unique('parentID');
                     foreach ($parents as $parent) {
+                        $studentName = $parent->students->first() ? $parent->students->first()->first_name . ' ' . $parent->students->first()->last_name : 'Student';
                         $recipients[] = [
                             'type' => 'parent',
                             'phone' => $parent->phone,
-                            'name' => $parent->first_name . ' ' . ($parent->last_name ?? ''),
+                            'name' => 'Parent of ' . trim($studentName),
                             'id' => $parent->parentID
                         ];
                     }
@@ -455,7 +487,10 @@ class SMS_InformationController extends Controller
                         ->where('phone', '!=', '')
                         ->whereHas('students', function($q) {
                             $q->where('status', 'Active');
-                        });
+                        })
+                        ->with(['students' => function($q) {
+                            $q->where('status', 'Active')->select('studentID', 'parentID', 'first_name', 'last_name');
+                        }]);
                     
                     if (!empty($selectedIds)) {
                         $parentsQuery->whereIn('parentID', $selectedIds);
@@ -463,10 +498,11 @@ class SMS_InformationController extends Controller
 
                     $parents = $parentsQuery->get();
                     foreach ($parents as $parent) {
+                        $studentName = $parent->students->first() ? $parent->students->first()->first_name . ' ' . $parent->students->first()->last_name : 'Student';
                         $recipients[] = [
                             'type' => 'parent',
                             'phone' => $parent->phone,
-                            'name' => $parent->first_name . ' ' . ($parent->last_name ?? ''),
+                            'name' => 'Parent of ' . trim($studentName),
                             'id' => $parent->parentID
                         ];
                     }
@@ -530,7 +566,7 @@ class SMS_InformationController extends Controller
                     $recipients[] = [
                         'type' => 'parent',
                         'phone' => $student->parent->phone,
-                        'name' => $student->parent->first_name . ' ' . ($student->parent->last_name ?? ''),
+                        'name' => 'Parent of ' . $student->first_name . ' ' . ($student->last_name ?? ''),
                         'id' => $student->parent->parentID
                     ];
                     break;
@@ -603,22 +639,28 @@ class SMS_InformationController extends Controller
 
             $results['total'] = count($recipients);
 
-            // Return response immediately, then continue sending in background
-            $response = response()->json([
-                'success' => true,
-                'status' => 'queued',
-                'message' => 'SMS sending started',
-                'results' => $results
-            ]);
+            // If sync is requested, don't use fastcgi_finish_request
+            $isSync = $request->input('is_sync', false);
 
-            if (function_exists('fastcgi_finish_request')) {
+            if (!$isSync && function_exists('fastcgi_finish_request')) {
+                $response = response()->json([
+                    'success' => true,
+                    'status' => 'queued',
+                    'message' => 'SMS sending started',
+                    'results' => $results
+                ]);
                 $response->send();
                 fastcgi_finish_request();
             }
 
-            $this->sendSmsBatch($recipients, $fullMessage, $results);
+            $this->sendSmsBatch($recipients, $fullMessage, $results, $recipientType);
 
-            return $response;
+            return response()->json([
+                'success' => true,
+                'status' => 'completed',
+                'message' => 'SMS process finished',
+                'results' => $results
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Error sending SMS: ' . $e->getMessage());
@@ -626,51 +668,76 @@ class SMS_InformationController extends Controller
         }
     }
 
-    private function sendSmsBatch(array $recipients, string $fullMessage, array &$results): void
+    private function sendSmsBatch(array $recipients, string $fullMessage, array &$results, string $messageType = 'general'): void
     {
-        // Send SMS in batches to avoid timeout
-        $batchSize = 50; // Send 50 at a time
-        $batches = array_chunk($recipients, $batchSize);
+        $schoolID   = Session::get('schoolID');
+        $sentDate   = now()->toDateString();
+        $sentTime   = now()->toTimeString();
+
+        // Determine who sent the SMS
+        $sentByName = Session::get('name', 'System');
+        $sentByRole = Session::get('role', 'admin');
+
+        $batchSize = 50;
+        $batches   = array_chunk($recipients, $batchSize);
 
         foreach ($batches as $batchIndex => $batch) {
             foreach ($batch as $recipient) {
                 try {
                     $smsResult = $this->smsService->sendSms($recipient['phone'], $fullMessage);
-                    
+
+                    $status    = $smsResult['success'] ? 'PENDING' : 'FAILED';
+                    $messageId = $smsResult['message_id'] ?? null;
+
                     if ($smsResult['success']) {
                         $results['success']++;
                         $results['details'][] = [
-                            'phone' => $recipient['phone'],
-                            'name' => $recipient['name'],
+                            'phone'  => $recipient['phone'],
+                            'name'   => $recipient['name'],
                             'status' => 'success',
-                            'message' => 'SMS sent successfully'
+                            'message'=> 'SMS sent successfully'
                         ];
                     } else {
                         $results['failed']++;
                         $results['details'][] = [
-                            'phone' => $recipient['phone'],
-                            'name' => $recipient['name'],
+                            'phone'  => $recipient['phone'],
+                            'name'   => $recipient['name'],
                             'status' => 'failed',
-                            'message' => $smsResult['message'] ?? 'Failed to send SMS'
+                            'message'=> $smsResult['message'] ?? 'Failed to send SMS'
                         ];
                     }
+
+                    // Log to DB
+                    SmsLog::create([
+                        'schoolID'       => $schoolID,
+                        'message_id'     => $messageId,
+                        'message_type'   => $messageType,
+                        'recipient_name' => $recipient['name'],
+                        'recipient_phone'=> $recipient['phone'],
+                        'recipient_role' => $recipient['type'] ?? 'unknown',
+                        'sent_by_name'   => $sentByName,
+                        'sent_by_role'   => $sentByRole,
+                        'message'        => $fullMessage,
+                        'status'         => $status,
+                        'sent_date'      => $sentDate,
+                        'sent_time'      => $sentTime,
+                    ]);
+
                 } catch (\Exception $e) {
                     $results['failed']++;
                     $results['details'][] = [
-                        'phone' => $recipient['phone'],
-                        'name' => $recipient['name'],
+                        'phone'  => $recipient['phone'],
+                        'name'   => $recipient['name'],
                         'status' => 'failed',
-                        'message' => 'Exception: ' . $e->getMessage()
+                        'message'=> 'Exception: ' . $e->getMessage()
                     ];
                 }
-                
-                // Small delay to avoid overwhelming the API
+
                 usleep(100000); // 0.1 second delay
             }
-            
-            // Longer delay between batches
+
             if ($batchIndex < count($batches) - 1) {
-                sleep(1); // 1 second delay between batches
+                sleep(1);
             }
         }
     }
@@ -684,19 +751,148 @@ class SMS_InformationController extends Controller
             $balanceResult = $this->smsService->getBalance();
             
             return response()->json([
-                'success' => $balanceResult['success'],
-                'balance' => $balanceResult['balance'] ?? 0,
+                'success'  => $balanceResult['success'],
+                'balance'  => $balanceResult['balance'] ?? 0,
                 'currency' => $balanceResult['currency'] ?? 'TZS',
-                'message' => $balanceResult['message'] ?? 'Balance retrieved successfully'
+                'message'  => $balanceResult['message'] ?? 'Balance retrieved successfully'
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting SMS balance: ' . $e->getMessage());
             return response()->json([
-                'success' => false,
-                'balance' => 0,
+                'success'  => false,
+                'balance'  => 0,
                 'currency' => 'TZS',
-                'message' => $e->getMessage()
+                'message'  => $e->getMessage()
             ], 500);
         }
     }
+
+    /**
+     * Get SMS logs for delivery report
+     * Filters by type and optional date range
+     */
+    public function get_sms_logs(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+            }
+
+            $type      = $request->input('type');        // e.g. parent, teacher, staff
+            $dateFrom  = $request->input('date_from');  // Y-m-d
+            $dateTo    = $request->input('date_to');    // Y-m-d
+
+            $query = SmsLog::where('schoolID', $schoolID);
+
+            if ($type && $type !== 'all') {
+                $query->where('message_type', $type);
+            }
+
+            if ($dateFrom) {
+                $query->whereDate('sent_date', '>=', $dateFrom);
+            }
+
+            if ($dateTo) {
+                $query->whereDate('sent_date', '<=', $dateTo);
+            }
+
+            $logs = $query->orderByDesc('sent_date')
+                          ->orderByDesc('sent_time')
+                          ->get();
+
+            return response()->json([
+                'success' => true,
+                'logs'    => $logs,
+                'count'   => $logs->count()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error getting SMS logs: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Fetch real-time delivery status for a single messageId from the SMS gateway
+     */
+    public function get_delivery_status(Request $request)
+    {
+        try {
+            $messageId = $request->input('message_id');
+            if (!$messageId) {
+                return response()->json(['success' => false, 'message' => 'Message ID is required'], 400);
+            }
+
+            $username = config('services.sms.username', 'emcatechn');
+            $password = config('services.sms.password', 'Emca@#12');
+            $token    = base64_encode($username . ':' . $password);
+
+            // Per documentation and gateway logs, use /api/sms/v1/reports
+            $url = 'https://messaging-service.co.tz/api/sms/v1/reports?messageId=' . urlencode($messageId);
+            
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL            => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 15,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST  => 'GET',
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_HTTPHEADER     => [
+                    'Authorization: Basic ' . $token,
+                    'Accept: application/json'
+                ],
+            ]);
+
+            $response = curl_exec($curl);
+            curl_close($curl);
+            
+            // Use JSON_BIGINT_AS_STRING to prevent precision loss on long messageIds
+            $data = json_decode($response, true, 512, JSON_BIGINT_AS_STRING) ?? [];
+
+            Log::info("SMS Delivery Status Raw Response for MsgID {$messageId}: " . json_encode($data));
+
+            // Extract status from possible response structures
+            $status = 'UNKNOWN';
+            
+            // Check in results (standard structure)
+            if (!empty($data['results'][0]['status']['groupName'])) {
+                $status = $data['results'][0]['status']['groupName'];
+            } 
+            // Check in messages (alternate structure)
+            elseif (!empty($data['messages'][0]['status']['groupName'])) {
+                $status = $data['messages'][0]['status']['groupName'];
+            }
+            // Check if results is just a flat array
+            elseif (isset($data[0]['status']['groupName'])) {
+                $status = $data[0]['status']['groupName'];
+            }
+
+            // Map gateway status to our system status
+            $mappedStatus = match(strtoupper($status)) {
+                'DELIVERED', 'DELIVERED_TO_HANDSET', 'DELIVERED_TO_NETWORK' => 'DELIVERED',
+                'PENDING', 'ACCEPTED', 'ENROUTE', 'UNDELIVERED'             => 'PENDING',
+                'REJECTED', 'FAILED', 'UNDELIVERABLE', 'EXPIRED'            => 'FAILED',
+                default                                                     => strtoupper($status)
+            };
+
+            // Update in DB
+            SmsLog::where('message_id', $messageId)->update(['status' => $mappedStatus]);
+
+            return response()->json([
+                'success'    => true,
+                'message_id' => $messageId,
+                'status'     => $mappedStatus,
+                'raw'        => $data
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching delivery status: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }
+

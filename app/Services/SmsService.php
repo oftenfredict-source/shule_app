@@ -73,7 +73,7 @@ class SmsService
                 ];
             }
 
-            $responseData = json_decode($response, true);
+            $responseData = json_decode($response, true, 512, JSON_BIGINT_AS_STRING);
             $isSuccess = ($httpCode == 200 || $httpCode == 201);
             $errorMessage = 'SMS sent successfully';
 
@@ -96,13 +96,16 @@ class SmsService
 
             if (!$isSuccess) {
                 Log::warning("SmsService: Failed to send SMS. Response: " . $response);
+            } else {
+                Log::info("SmsService: SMS sent successfully. Raw Response: " . $response);
             }
 
             return [
-                'success' => $isSuccess,
-                'message' => $errorMessage,
-                'response' => $response,
-                'http_code' => $httpCode
+                'success'    => $isSuccess,
+                'message'    => $errorMessage,
+                'message_id' => $responseData['messages'][0]['messageId'] ?? null,
+                'response'   => $response,
+                'http_code'  => $httpCode
             ];
 
         } catch (\Exception $e) {

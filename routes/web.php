@@ -1190,3 +1190,23 @@ Route::prefix('sgpm')->name('sgpm.')->group(function () {
     Route::post('/notifications/read-all', [App\Http\Controllers\SgpmNotificationController::class, 'markAllAsRead'])->name('notifications.read_all');
 });
 
+// -------------------------------------------------------
+// SMS Management Routes
+// -------------------------------------------------------
+Route::get('manage_sms', [SMS_InformationController::class, 'index'])->name('manage_sms');
+
+// Recipient loaders
+Route::get('sms/get-all-parents',    [SMS_InformationController::class, 'get_all_parents'])->name('get_all_parents_sms');
+Route::get('sms/get-all-teachers',   [SMS_InformationController::class, 'get_all_teachers'])->name('get_all_teachers_sms');
+Route::get('sms/get-all-staff',      [SMS_InformationController::class, 'get_all_staff'])->name('get_all_staff_sms');
+Route::get('sms/get-parents-by-class', [SMS_InformationController::class, 'get_parents_by_class'])->name('get_parents_by_class_sms');
+
+// Sending
+Route::post('sms/send', [SMS_InformationController::class, 'send_sms'])->name('send_sms');
+
+// Balance
+Route::get('sms/balance', [SMS_InformationController::class, 'get_sms_balance'])->name('get_sms_balance');
+
+// Delivery Report
+Route::get('sms/logs',              [SMS_InformationController::class, 'get_sms_logs'])->name('get_sms_logs');
+Route::get('sms/delivery-status',   [SMS_InformationController::class, 'get_delivery_status'])->name('get_delivery_status');

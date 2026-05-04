@@ -213,75 +213,84 @@
 </div>
 
 <script>
-    if (typeof $ === 'undefined') {
-        var $ = jQuery;
-    }
-    
-    // Auto-filter subclasses based on class
-    $('#classID').change(function() {
-        var classID = $(this).val();
-        $('#subclassID option').each(function() {
-            if ($(this).val() === '') {
-                $(this).show();
-            } else if ($(this).data('class') == classID) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
-        });
-        $('#subclassID').val('');
-    });
-
-    // Helper to get class_subject_id from server
-    function fetchClassSubjectAndExecute(action) {
-        const classID = $('#classID').val();
-        const subclassID = $('#subclassID').val();
-        const subjectID = $('#subjectID').val();
-
-        if (!classID || !subjectID) {
-            Swal.fire('Error', 'Please select a Class and Subject.', 'error');
-            return;
-        }
-
-        Swal.fire({
-            title: 'Mapping Subject...',
-            html: 'Finding the correct assignment for selected class and subject.',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-
-        $.ajax({
-            url: '{{ route("admin.get_class_subject_id") }}',
-            method: 'GET',
-            data: { classID, subclassID, subjectID },
-            success: function(res) {
-                Swal.close();
-                if (res.success && res.class_subjectID) {
-                    if (action === 'add') {
-                        addResults(res.class_subjectID);
-                    } else if (action === 'view') {
-                        viewResults(res.class_subjectID);
+    (function($) {
+        "use strict";
+        
+        // Auto-filter subclasses based on class
+        $('#classID').on('change', function() {
+            var classID = $(this).val();
+            var $subclassSelect = $('#subclassID');
+            
+            // Keep the "All" option
+            $subclassSelect.html('<option value="">All Subclasses</option>');
+            
+            if (classID) {
+                // Get all original subclasses from a template or hidden data
+                @foreach($subclasses as $sub)
+                    if ("{{ $sub->classID }}" == classID) {
+                        $subclassSelect.append('<option value="{{ $sub->subclassID }}">{{ $sub->display_name ?? ($sub->class_name . " " . $sub->subclass_name) }}</option>');
                     }
-                } else {
-                    Swal.fire('Not Found', 'This subject is not assigned to the selected class/subclass.', 'warning');
-                }
-            },
-            error: function() {
-                Swal.close();
-                Swal.fire('Error', 'Could not fetch subject mapping.', 'error');
+                @endforeach
+            } else {
+                // If no class selected, show all subclasses or keep it empty
+                @foreach($subclasses as $sub)
+                    $subclassSelect.append('<option value="{{ $sub->subclassID }}">{{ $sub->display_name ?? ($sub->class_name . " " . $sub->subclass_name) }}</option>');
+                @endforeach
             }
         });
-    }
 
-    $('#btnStartAddResult').click(function() {
-        fetchClassSubjectAndExecute('add');
-    });
+        // Helper to get class_subject_id from server
+        window.fetchClassSubjectAndExecute = function(action) {
+            const classID = $('#classID').val();
+            const subclassID = $('#subclassID').val();
+            const subjectID = $('#subjectID').val();
 
-    $('#btnViewResult').click(function() {
-        fetchClassSubjectAndExecute('view');
-    });
+            if (!classID || !subjectID) {
+                Swal.fire('Error', 'Please select a Class and Subject.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Mapping Subject...',
+                html: 'Finding the correct assignment for selected class and subject.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            $.ajax({
+                url: '{{ route("admin.get_class_subject_id") }}',
+                method: 'GET',
+                data: { classID, subclassID, subjectID },
+                success: function(res) {
+                    Swal.close();
+                    if (res.success && res.class_subjectID) {
+                        if (action === 'add') {
+                            if (typeof addResults === 'function') addResults(res.class_subjectID);
+                        } else if (action === 'view') {
+                            if (typeof viewResults === 'function') viewResults(res.class_subjectID);
+                        }
+                    } else {
+                        Swal.fire('Not Found', 'This subject is not assigned to the selected class/subclass.', 'warning');
+                    }
+                },
+                error: function() {
+                    Swal.close();
+                    Swal.fire('Error', 'Could not fetch subject mapping.', 'error');
+                }
+            });
+        };
+
+        $('#btnStartAddResult').on('click', function() {
+            fetchClassSubjectAndExecute('add');
+        });
+
+        $('#btnViewResult').on('click', function() {
+            fetchClassSubjectAndExecute('view');
+        });
+
+    })(jQuery);
 </script>
 
 <!-- BELOW WE WILL APPEND THE MODALS AND JS FROM teacher_subjects.blade.php -->
