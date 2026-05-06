@@ -193,6 +193,7 @@ Route::get('admin/student-id-cards/download/{id?}', [ManageStudentController::cl
 // Parents Routes
 Route::get('parentDashboard', [ParentsContoller::class, 'parentDashboard'])->name('parentDashboard');
 Route::get('parentResults', [ParentsContoller::class, 'parentResults'])->name('parentResults');
+Route::get('parentReport', [ParentsContoller::class, 'parentResults'])->name('parentReport'); // Reusing parentResults logic with a type flag
 Route::get('parentAttendance', [ParentsContoller::class, 'parentAttendance'])->name('parentAttendance');
 Route::get('parentPayments', [ParentsContoller::class, 'parentPayments'])->name('parentPayments');
 Route::get('parentFeesSummary', [ParentsContoller::class, 'parentFeesSummary'])->name('parentFeesSummary');
@@ -202,6 +203,8 @@ Route::post('parentPermissions', [ParentsContoller::class, 'storeParentPermissio
 Route::get('parent/get-published-exams', [ParentsContoller::class, 'getPublishedExams'])->name('get_published_exams');
 Route::get('parent/fetch-student-results-ajax', [ParentsContoller::class, 'fetchStudentResultsAjax'])->name('fetch_student_results_ajax');
 Route::post('parent/download-student-result', [ParentsContoller::class, 'downloadStudentResult'])->name('download_student_result');
+Route::get('parent/fetch-term-report-ajax', [ParentsContoller::class, 'fetchStudentResultsAjax'])->name('fetch_term_report_ajax'); // Reusing same logic
+Route::post('parent/download-term-report', [ParentsContoller::class, 'downloadStudentResult'])->name('download_term_report'); // Reusing same logic
 Route::get('get_student_subjects/{studentID}', [ParentsContoller::class, 'getStudentSubjects'])->name('get_student_subjects');
 Route::post('elect_subject', [ParentsContoller::class, 'electSubject'])->name('elect_subject');
 Route::post('deselect_subject', [ParentsContoller::class, 'deselectSubject'])->name('deselect_subject');

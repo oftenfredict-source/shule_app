@@ -31,8 +31,8 @@
         content: '';
         position: absolute;
         top: 25px;
-        left: 50px;
-        right: 50px;
+        left: 70px;
+        right: 70px;
         height: 3px;
         background: #f0f0f0;
         z-index: 1;
@@ -41,12 +41,13 @@
     .step-chain-progress {
         position: absolute;
         top: 25px;
-        left: 50px;
+        left: 70px;
         height: 3px;
         background: var(--primary-red);
         z-index: 2;
         transition: width 0.4s ease;
         width: 0%;
+        max-width: calc(100% - 140px); /* Prevents going beyond the last circle */
     }
 
     .step-item {
@@ -144,74 +145,104 @@
         to { opacity: 1; transform: translateY(0); }
     }
 
-    .overview-table {
-        background: var(--light-red);
-        border-radius: 12px;
-        overflow: hidden;
-        margin-bottom: 25px;
-        border: 1px solid rgba(148,0,0,0.1);
+    /* Collegiate UI Styles */
+    .color-def-container {
+        text-align: center;
+        margin-bottom: 20px;
     }
-
-    .overview-table th {
-        background: var(--primary-red);
-        color: white;
-        padding: 12px 20px;
-        font-size: 12px;
-        text-transform: uppercase;
+    .color-def-title {
+        font-weight: bold;
+        color: #6c757d;
+        margin-bottom: 10px;
+        font-size: 15px;
     }
-
-    .overview-table td {
-        padding: 15px 20px;
-        font-weight: 700;
-        color: var(--primary-red);
-        font-size: 16px;
-    }
-
-    .marks-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0 8px;
-    }
-
-    .marks-table th {
-        padding: 15px;
-        font-size: 11px;
-        text-transform: uppercase;
-        color: #777;
-        font-weight: 800;
-        border-bottom: 2px solid #f0f0f0;
-    }
-
-    .marks-table tr {
-        background: white;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-    }
-
-    .marks-table td {
-        padding: 15px;
-        border-top: 1px solid #f9f9f9;
-        border-bottom: 1px solid #f9f9f9;
-    }
-
-    .marks-table td:first-child { border-left: 1px solid #f9f9f9; border-radius: 10px 0 0 10px; }
-    .marks-table td:last-child { border-right: 1px solid #f9f9f9; border-radius: 0 10px 10px 0; }
-
-    .grade-badge {
-        width: 35px;
-        height: 35px;
+    .color-blocks {
         display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        font-weight: 800;
-        font-size: 14px;
     }
-
-    .grade-A { background: #e6fcf5; color: #0ca678; }
-    .grade-B { background: #e7f5ff; color: #1c7ed6; }
-    .grade-C { background: #fff9db; color: #f08c00; }
-    .grade-D { background: #fff4e6; color: #fd7e14; }
-    .grade-F { background: #fff5f5; color: #fa5252; }
+    .color-block {
+        padding: 10px 40px;
+        font-size: 15px;
+        color: #6c757d;
+    }
+    .bg-pass { background-color: #d4edda; }
+    .bg-fail { background-color: #f8d7da; }
+    .bg-inc { background-color: #d1ecf1; }
+    
+    .univ-summary-table {
+        width: 100%;
+        border: 1px solid #ddd;
+        background: #fff;
+    }
+    .univ-summary-header {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        padding: 12px 15px;
+        border-bottom: 1px solid #ddd;
+        color: #6c757d;
+    }
+    .univ-summary-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+        color: #555;
+    }
+    .univ-summary-table td.label {
+        font-weight: bold;
+        color: #6c757d;
+        width: 250px;
+        text-align: right;
+        border-right: 1px solid #eee;
+    }
+    .univ-summary-table tr:last-child td {
+        border-bottom: none;
+    }
+    .univ-dl-link {
+        display: block;
+        padding: 12px 15px;
+        border: 1px solid #ddd;
+        border-top: none;
+        background-color: #fff;
+        color: #337ab7;
+        text-decoration: none;
+        font-size: 14px;
+        margin-bottom: 30px;
+    }
+    .univ-dl-link:hover {
+        background-color: #f8f9fa;
+        text-decoration: none;
+    }
+    
+    .univ-section-title {
+        font-weight: bold;
+        font-size: 18px;
+        margin: 25px 0 15px 0;
+        color: #333;
+    }
+    
+    .univ-marks-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #ddd;
+        background: #fff;
+    }
+    .univ-marks-table th {
+        background-color: #fff;
+        color: #555;
+        font-weight: bold;
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+        border-right: 1px solid #eee;
+    }
+    .univ-marks-table td {
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+        border-right: 1px solid #eee;
+        color: #6c757d;
+    }
+    .univ-marks-table td.colored-remark {
+        text-align: center;
+        color: #6c757d;
+    }
 
     /* Mobile Responsive */
     @media (max-width: 768px) {
@@ -229,15 +260,92 @@
         .step-label {
             font-size: 9px;
         }
+        .btn-back-responsive {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .step-chain::before {
+            left: 35px;
+            right: 35px;
+            top: 20px;
+        }
+        .step-chain-progress {
+            left: 35px;
+            max-width: calc(100% - 70px);
+            top: 20px;
+        }
         .selection-grid {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr; /* Make cards full width on mobile */
         }
+        
+        .container-fluid {
+            padding-left: 2px !important;
+            padding-right: 2px !important;
+        }
+        
+        .col-lg-10 {
+            padding-left: 2px !important;
+            padding-right: 2px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        
         .wizard-container {
-            padding: 15px;
+            padding: 10px 5px !important;
+            border-radius: 8px !important;
+            margin: 0 auto !important;
+            width: 98% !important;
         }
-        .overview-table td {
-            font-size: 14px;
-            padding: 10px;
+
+        .step-chain {
+            padding: 0 5px;
+            margin-bottom: 25px;
+        }
+
+        /* Color Definition Responsive */
+        .color-blocks {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .color-block {
+            flex: 1;
+            padding: 8px 5px;
+            text-align: center;
+            border-right: 1px solid #fff;
+            font-size: 11px;
+        }
+        .color-block:last-child {
+            border-right: none;
+        }
+
+        /* Summary Table Responsive (Keep Tabular) */
+        .univ-summary-table td {
+            padding: 8px 10px;
+        }
+        .univ-summary-table td.label {
+            font-size: 12px;
+            width: 45%;
+        }
+        .univ-summary-table td:not(.label) {
+            font-size: 13px;
+        }
+
+        /* Marks Table Responsive (Keep Tabular) */
+        .univ-marks-table th {
+            padding: 8px 5px;
+            font-size: 10px;
+        }
+        .univ-marks-table td {
+            padding: 8px 5px;
+            font-size: 12px;
+        }
+        .univ-marks-table td.colored-remark {
+            padding: 8px 5px;
+            font-size: 11px;
         }
     }
 
@@ -253,6 +361,12 @@
         <div class="col-lg-10">
             
             <div class="wizard-container">
+                <!-- Back Button - shown when results are displayed -->
+                <div id="backBtnWrapper" style="display:none; margin-bottom: 10px;">
+                    <button class="btn btn-outline-danger btn-back-responsive" id="backToWizardBtn" style="border-radius: 20px; font-weight: bold;">
+                        <i class="bx bx-arrow-back mr-2"></i> Rudi Nyuma
+                    </button>
+                </div>
                 <h4 class="mb-4 text-center font-weight-bold" style="color: var(--primary-red);">
                     <i class="bx bx-trophy"></i> Matokeo ya Mwanafunzi
                 </h4>
@@ -351,51 +465,42 @@
             </div>
 
             <!-- Results Section -->
-            <div id="resultDisplay" class="result-section">
-                <!-- Overview Table -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 font-weight-bold">Muhtasari wa Matokeo</h5>
-                        <button class="btn btn-sm btn-danger px-3" id="downloadBtn">
-                            <i class="bx bx-download"></i> Pakua (PDF)
-                        </button>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table overview-table mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Jina la Mwanafunzi</th>
-                                    <th class="text-center">Jumla</th>
-                                    <th class="text-center">Wastani</th>
-                                    <th class="text-center">Daraja</th>
-                                    <th class="text-center">Nafasi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="overviewBody">
-                                <!-- Dynamically loaded -->
-                            </tbody>
-                        </table>
+            <div id="resultDisplay" class="result-section" style="margin-top: -10px;">
+                <!-- Color Definition -->
+                <div class="color-def-container">
+                    <div class="color-def-title">Tafsiri ya Rangi za Matokeo</div>
+                    <div class="color-blocks">
+                        <div class="color-block bg-pass">Ufaulu</div>
+                        <div class="color-block bg-fail">Kufeli</div>
+                        <div class="color-block bg-inc">Haijakamilika</div>
                     </div>
                 </div>
 
-                <!-- Detailed Marks Table -->
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white py-3">
-                        <h5 class="mb-0 font-weight-bold">Mchanganuo wa Masomo</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table marks-table">
-                                <thead id="marksHead">
-                                    <!-- Dynamically loaded -->
-                                </thead>
-                                <tbody id="marksBody">
-                                    <!-- Dynamically loaded -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                <!-- Summary Table -->
+                <div class="univ-summary-table">
+                    <div class="univ-summary-header">Results Summary</div>
+                    <table style="width: 100%;">
+                        <tbody id="overviewBody">
+                            <!-- Loaded via JS -->
+                        </tbody>
+                    </table>
                 </div>
+                
+                <a href="#" id="univDownloadBtn" class="univ-dl-link" style="text-align: center; display: block; background: var(--primary-red); color: white; padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 20px 0;">
+                    <i class="bx bx-download mr-2"></i> Bofya hapa ku sevu matokeo
+                </a>
+
+                <div class="univ-section-title" id="semesterTitle">Matokeo ya Mtihani</div>
+
+                <!-- Detail Table -->
+                <table class="univ-marks-table">
+                    <thead id="marksHead">
+                        <!-- Loaded via JS -->
+                    </thead>
+                    <tbody id="marksBody">
+                        <!-- Loaded via JS -->
+                    </tbody>
+                </table>
             </div>
 
         </div>
@@ -423,6 +528,42 @@ $(document).ready(function() {
         exam: '',
         student: ''
     };
+
+    // Check if session exists to auto-load results on refresh
+    const savedSession = sessionStorage.getItem('parent_results_selections');
+    if(savedSession) {
+        try {
+            selections = JSON.parse(savedSession);
+            // Hide wizard internals, show back button
+            $('.step-chain, .wizard-content, h4.text-center').hide();
+            $('#backBtnWrapper').show();
+            $('#resultDisplay').show();
+            $('#overviewBody').html('<tr><td colspan="5" class="text-center py-5"><i class="bx bx-loader bx-spin text-danger" style="font-size: 30px;"></i><br>Inaleta Matokeo...</td></tr>');
+            
+            $.ajax({
+                url: '{{ route("fetch_student_results_ajax") }}',
+                data: selections,
+                success: function(response) {
+                    if(response.success) {
+                        renderResults(response.data);
+                    } else {
+                        sessionStorage.removeItem('parent_results_selections');
+                        $('.step-chain, .wizard-content, h4.text-center').show();
+                        $('#backBtnWrapper').hide();
+                        $('#resultDisplay').hide();
+                        Swal.fire('Error', response.message || 'Haikuweza kupata matokeo.', 'error');
+                    }
+                },
+                error: function() {
+                    sessionStorage.removeItem('parent_results_selections');
+                    $('.step-chain, .wizard-content, h4.text-center').show();
+                    $('#backBtnWrapper').hide();
+                    $('#resultDisplay').hide();
+                    Swal.fire('Error', 'Tatizo la mtandao limetokea.', 'error');
+                }
+            });
+        } catch(e) {}
+    }
 
     const updateWizard = () => {
         // Update Steps UI
@@ -527,7 +668,6 @@ $(document).ready(function() {
     };
 
     $('#viewBtn').click(function() {
-        $('#resultDisplay').hide();
         $(this).html('<i class="bx bx-loader bx-spin"></i> Inatafuta...');
         
         $.ajax({
@@ -536,9 +676,13 @@ $(document).ready(function() {
             success: function(response) {
                 $('#viewBtn').html('<i class="bx bx-show"></i> Angalia Matokeo');
                 if(response.success) {
+                    sessionStorage.setItem('parent_results_selections', JSON.stringify(selections));
+                    // Hide wizard internals, show back button at top
+                    $('.step-chain, .wizard-content, h4.text-center').hide();
+                    $('#backBtnWrapper').show();
                     renderResults(response.data);
                     $('#resultDisplay').fadeIn();
-                    $('html, body').animate({ scrollTop: $("#resultDisplay").offset().top - 50 }, 500);
+                    window.scrollTo(0, 0);
                 } else {
                     Swal.fire('Error', response.message || 'Haikuweza kupata matokeo.', 'error');
                 }
@@ -550,16 +694,30 @@ $(document).ready(function() {
         });
     });
 
+    $('#backToWizardBtn').click(function(e) {
+        e.preventDefault();
+        sessionStorage.removeItem('parent_results_selections');
+        $('#resultDisplay').hide();
+        // Restore wizard internals
+        $('.step-chain, .wizard-content, h4.text-center').show();
+        $('#backBtnWrapper').hide();
+        updateWizard();
+    });
+
     const renderResults = (data) => {
+        // Handle "N/A" -> "Incomplete"
+        const position = (data.position && data.position !== 'N/A') ? data.position : 'Incomplete';
+        const grade = (data.overall_grade || data.overall_division || 'Incomplete');
+        const totalMarks = (data.total_marks !== null && data.total_marks !== undefined) ? parseFloat(data.total_marks).toFixed(0) : 'Incomplete';
+        const average = (data.average !== null && data.average !== undefined && data.average !== 0) ? parseFloat(data.average).toFixed(0) : 'Incomplete';
+
         // Overview
         $('#overviewBody').html(`
-            <tr>
-                <td>${data.student.first_name} ${data.student.last_name}</td>
-                <td class="text-center">${data.total_marks}</td>
-                <td class="text-center">${data.average}</td>
-                <td class="text-center"><span class="badge bg-danger">${data.overall_grade || data.overall_division || 'N/A'}</span></td>
-                <td class="text-center"><span class="badge bg-success">${data.position || 'N/A'}</span></td>
-            </tr>
+            <tr><td class="label">Jina la Mwanafunzi:</td><td>${data.student.first_name} ${data.student.last_name}</td></tr>
+            <tr><td class="label">Jumla ya Alama:</td><td>${totalMarks}</td></tr>
+            <tr><td class="label">Wastani:</td><td>${average}</td></tr>
+            <tr><td class="label">Divisheni ya Mtihani:</td><td>${grade}</td></tr>
+            <tr><td class="label">Nafasi:</td><td>${position}</td></tr>
         `);
 
         // Marks Table Header
@@ -570,7 +728,7 @@ $(document).ready(function() {
                 ${data.has_ca ? '<th class="text-center">Main</th>' : ''}
                 <th class="text-center">Alama</th>
                 <th class="text-center">Daraja</th>
-                <th>Maoni</th>
+                <th class="text-center">Remarks</th>
             </tr>
         `;
         $('#marksHead').html(headHtml);
@@ -578,22 +736,63 @@ $(document).ready(function() {
         // Marks Table Body
         let bodyHtml = '';
         data.results.forEach(res => {
-            const gradeClass = `grade-${res.grade}`;
+            const gradeText = res.grade || 'Incomplete';
+            
+            // Determine remark class / text
+            let remarkClass = 'bg-fail'; // Default pink
+            let remarkText = 'Failed';
+            if(['A', 'B', 'C', 'D'].includes(gradeText)) {
+                remarkClass = 'bg-pass';
+                remarkText = 'Pass';
+            } else if(gradeText === 'Incomplete') {
+                remarkClass = 'bg-inc';
+                remarkText = 'Incomplete';
+            }
+
             bodyHtml += `
                 <tr>
-                    <td class="font-weight-bold">${res.subject_name}</td>
-                    ${data.has_ca ? `<td class="text-center text-muted">${res.ca_marks || '-'}</td>` : ''}
-                    ${data.has_ca ? `<td class="text-center text-muted">${res.main_exam_marks || '-'}</td>` : ''}
-                    <td class="text-center font-weight-bold" style="color: var(--primary-red);">${res.marks}</td>
-                    <td class="text-center">
-                        <span class="grade-badge ${gradeClass}">${res.grade}</span>
-                    </td>
-                    <td class="text-muted small">${res.remark || 'Maendeleo Mazuri'}</td>
+                    <td>${res.subject_name || 'Incomplete'}</td>
+                    ${data.has_ca ? `<td class="text-center">${res.ca_marks ? parseFloat(res.ca_marks).toFixed(0) : '-'}</td>` : ''}
+                    ${data.has_ca ? `<td class="text-center">${res.main_exam_marks ? parseFloat(res.main_exam_marks).toFixed(0) : '-'}</td>` : ''}
+                    <td class="text-center">${res.marks ? parseFloat(res.marks).toFixed(0) : '-'}</td>
+                    <td class="text-center">${gradeText}</td>
+                    <td class="colored-remark ${remarkClass}">${remarkText}</td>
                 </tr>
             `;
         });
         $('#marksBody').html(bodyHtml);
+        
+        // Update Exam Title
+        $('#semesterTitle').text($('#examSelect option:selected').text() || 'Matokeo ya Mtihani');
     };
+    
+    $('#univDownloadBtn').click(function(e) {
+        e.preventDefault();
+        
+        Swal.fire({
+            title: 'Inatayarisha PDF...',
+            html: 'Tafadhali subiri kidogo wakati matokeo yako yanatayarishwa.<br><br><b></b>%',
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: () => {
+                Swal.showLoading();
+                const b = Swal.getHtmlContainer().querySelector('b');
+                let progress = 0;
+                const timerInterval = setInterval(() => {
+                    progress += 5;
+                    if(progress > 100) progress = 100;
+                    b.textContent = progress;
+                }, 150);
+            },
+            willClose: () => {
+                $('#dl_studentID').val(selections.student);
+                $('#dl_examID').val(selections.exam);
+                $('#dl_year').val(selections.year);
+                $('#dl_term').val(selections.term);
+                $('#downloadForm').submit();
+            }
+        });
+    });
 
     $('#downloadBtn').click(function() {
         $('#dl_studentID').val(selections.student);

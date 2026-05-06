@@ -228,36 +228,48 @@
 
     <!-- Sidebar -->
     <nav id="corp-sidebar">
-        <div class="sidebar-group-title">ACADEMIC & ACTIVITIES</div>
+        <div class="sidebar-group-title">TAALUMA NA SHUGHULI</div>
         <a href="{{ route('parentDashboard') }}" class="sidebar-link {{ request()->routeIs('parentDashboard') ? 'active' : '' }}">
-            <i class="bx bx-grid-alt"></i> Dashboard
+            <i class="bx bx-grid-alt"></i> Dashibodi
         </a>
-        <a href="{{ route('parentResults') }}" class="sidebar-link {{ request()->routeIs('parentResults') ? 'active' : '' }}">
-            <i class="bx bx-trophy"></i> Exam Results
+
+        <!-- Matokeo Dropdown / Collapse -->
+        <a class="sidebar-link {{ request()->routeIs('parentResults') || request()->routeIs('parentReport') ? 'active' : '' }}" data-bs-toggle="collapse" href="#matokeoCollapse" role="button" aria-expanded="{{ request()->routeIs('parentResults') || request()->routeIs('parentReport') ? 'true' : 'false' }}" aria-controls="matokeoCollapse">
+            <i class="bx bx-trophy"></i> Matokeo
+            <i class="bx bx-chevron-down ms-auto" style="font-size: 14px;"></i>
         </a>
+        <div class="collapse {{ request()->routeIs('parentResults') || request()->routeIs('parentReport') ? 'show' : '' }}" id="matokeoCollapse">
+            <a href="{{ route('parentResults') }}" class="sidebar-link" style="padding-left: 45px; font-size: 12px; {{ request()->routeIs('parentResults') ? 'color: #940000; font-weight: bold;' : '' }}">
+                <i class="bx bx-file-blank" style="font-size: 14px;"></i> Matokeo ya Mtihani
+            </a>
+            <a href="{{ route('parentReport') }}" class="sidebar-link" style="padding-left: 45px; font-size: 12px; {{ request()->routeIs('parentReport') ? 'color: #940000; font-weight: bold;' : '' }}">
+                <i class="bx bx-book-open" style="font-size: 14px;"></i> Ripoti ya Mwanafunzi
+            </a>
+        </div>
+
         <a href="{{ route('parentAttendance') }}" class="sidebar-link {{ request()->routeIs('parentAttendance') ? 'active' : '' }}">
-            <i class="bx bx-calendar-check"></i> Attendance
+            <i class="bx bx-calendar-check"></i> Mahudhurio
         </a>
         <a href="{{ route('parentSubjects') }}" class="sidebar-link {{ request()->routeIs('parentSubjects') ? 'active' : '' }}">
-            <i class="bx bx-book"></i> Subjects
+            <i class="bx bx-book"></i> Masomo
         </a>
 
-        <div class="sidebar-group-title">FINANCIAL</div>
+        <div class="sidebar-group-title">FEDHA</div>
         <a href="{{ route('parentPayments') }}" class="sidebar-link {{ request()->routeIs('parentPayments') ? 'active' : '' }}">
-            <i class="bx bx-credit-card"></i> Make Payments
+            <i class="bx bx-credit-card"></i> Fanya Malipo
         </a>
         <a href="{{ route('parentFeesSummary') }}" class="sidebar-link {{ request()->routeIs('parentFeesSummary') ? 'active' : '' }}">
-            <i class="bx bx-list-ul"></i> Fees Summary
+            <i class="bx bx-list-ul"></i> Muhtasari wa Ada
         </a>
 
-        <div class="sidebar-group-title">ACCOUNT</div>
+        <div class="sidebar-group-title">AKAUNTI</div>
         <a href="{{ route('parent.permissions') }}" class="sidebar-link {{ request()->routeIs('parent.permissions') ? 'active' : '' }}">
-            <i class="bx bx-check-shield"></i> Permissions
+            <i class="bx bx-check-shield"></i> Ruhusa
         </a>
         <form action="{{ route('logout') }}" method="POST">
             @csrf
             <button type="submit" class="sidebar-link w-100 border-0 bg-transparent text-start">
-                <i class="bx bx-log-out"></i> Logout
+                <i class="bx bx-log-out"></i> Ondoka (Logout)
             </button>
         </form>
     </nav>

@@ -442,7 +442,7 @@
                         @foreach($examResult['subjects'] as $i => $subject)
                             <tr class="{{ $i % 2 == 0 ? '' : 'even' }}">
                                 <td>{{ $subject['subject_name'] }}</td>
-                                <td class="tc bold">{{ $subject['marks'] ?? 'N/A' }}</td>
+                                <td class="tc bold">{{ isset($subject['marks']) ? number_format((float)$subject['marks'], 0) : 'N/A' }}</td>
                                 <td class="tc"><span class="badge-pale">{{ $subject['grade'] ?? 'N/A' }}</span></td>
                             </tr>
                         @endforeach
@@ -725,7 +725,7 @@
                         <tr class="even"><td>Pass Rate</td><td class="tc bold" style="color:#155724;">{{ number_format($pRate, 0) }}%</td></tr>
                         <tr><td>Male Average</td><td class="tc">{{ number_format($mAvg, 0) }}</td></tr>
                         <tr class="even"><td>Female Average</td><td class="tc">{{ number_format($fAvg, 0) }}</td></tr>
-                        <tr><td>Fail Rate</td><td class="tc bold" style="color:#721c24;">{{ number_format((100 - $pRate), 1) }}%</td></tr>
+                        <tr><td>Fail Rate</td><td class="tc bold" style="color:#721c24;">{{ number_format((100 - $pRate), 0) }}%</td></tr>
                         @php
                             $rmk = ''; $cmt = '';
                             if ($avgMarks >= 75) { $rmk = 'Excellent'; $cmt = 'The class has performed excellently with an outstanding average score. Keep up the great work!'; }
@@ -1104,7 +1104,7 @@
                         <tr><td>Female</td><td class="tc">{{ $sFemale }}</td></tr>
                         <tr class="even"><td>Class GPA</td><td class="tc bold">{{ $classGPAVal }}</td></tr>
                         <tr><td>Pass Rate</td><td class="tc bold" style="color:#155724;">{{ number_format($pRate, 0) }}%</td></tr>
-                        <tr class="even"><td>Fail Rate</td><td class="tc bold" style="color:#721c24;">{{ number_format((100 - $pRate), 1) }}%</td></tr>
+                        <tr class="even"><td>Fail Rate</td><td class="tc bold" style="color:#721c24;">{{ number_format((100 - $pRate), 0) }}%</td></tr>
                     </tbody>
                 </table>
 

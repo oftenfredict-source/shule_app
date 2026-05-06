@@ -1052,13 +1052,14 @@
                                                         }
                                                         
                                                         // Extract total points from division for sorting (e.g., "I.7" -> 7, "0.34" -> 34)
-                                                        $totalPoints = 0;
-                                                        if ($division) {
+                                                        $totalPoints = $examResult['total_points'] ?? null;
+                                                        if ($totalPoints === null && $division) {
                                                             $pointsMatch = preg_match('/\.(\d+)$/', $division, $pointsMatches);
                                                             if ($pointsMatch) {
                                                                 $totalPoints = (int)$pointsMatches[1];
                                                             }
                                                         }
+                                                        $totalPoints = $totalPoints ?? 9999; // Default to 9999 so they don't incorrectly rank first
                                                         
                                                         // Get best 7 total marks for sorting (for Secondary school)
                                                         $bestSevenTotalMarks = $examResult['best_seven_total_marks'] ?? 0;
@@ -2793,11 +2794,11 @@
                                         'failRate' => number_format($failRate, 1),
                                         'performanceRemark' => $performanceRemark,
                                         'performanceComment' => $performanceComment,
-                                        'top5Students' => array_map(function($s) {
+                                        'top5Students' => array_map(function($s) use ($filters) {
                                             return [
                                                 'position' => $s['position'] ?? 'N/A',
                                                 'studentName' => ($s['student']->first_name ?? '') . ' ' . ($s['student']->middle_name ?? '') . ' ' . ($s['student']->last_name ?? ''),
-                                                'divisionOrGrade' => $s['division'] ?? $s['grade'] ?? 'N/A'
+                                                'divisionOrGrade' => (($filters['type'] ?? '') === 'report') ? ($s['grade'] ?? $s['division'] ?? 'N/A') : ($s['division'] ?? $s['grade'] ?? 'N/A')
                                             ];
                                         }, array_slice($reportStudents, 0, 5)),
                                         'allStudents' => array_map(function($s) {
@@ -2892,7 +2893,7 @@
                                             </div>
                                         </div>
                                         
-                                        @if($schoolType === 'Primary')
+                                        @if($schoolType === 'Primary' || ($filters['type'] ?? '') === 'report')
                                             <!-- Grade Distribution -->
                                             <div class="col-12 mt-3">
                                                 <h6 class="mb-2"><i class="bi bi-award"></i> Grade Distribution</h6>
@@ -2950,7 +2951,7 @@
                                                 </div>
                                             </div>
                                         @else
-                                            <!-- Division Distribution -->
+                                            <!-- Division Distribution (Only for Secondary Exams) -->
                                             <div class="col-12 mt-3">
                                                 <h6 class="mb-2"><i class="bi bi-trophy"></i> Division Distribution</h6>
                                                 <div class="row">
@@ -4038,13 +4039,15 @@ $(document).ready(function() {
                         teacher: response.teacher || null
                     };
                     
-                    // Update position in content if response has position
-                    if (response.position) {
-                        content = content.replace(
-                            `<p><strong>Position:</strong> <span class="badge badge-success">${position}</span></p>`,
-                            `<p><strong>Position:</strong> <span class="badge badge-success">${studentPosition} out of ${response.totalStudentsCount || 0}</span></p>`
-                        );
-                    }
+                    // Update Position and Division in content if response has them
+                    const displayGradeOrDivision = response.division || response.grade || gradeOrDivision;
+                    content = content.replace(
+                        `<p><strong>Position:</strong> <span class="badge badge-success">${position}</span></p>`,
+                        `<p><strong>Position:</strong> <span class="badge badge-success">${studentPosition} out of ${response.totalStudentsCount || 0}</span></p>`
+                    ).replace(
+                        `<p><strong>${schoolType === 'Primary' ? 'Grade' : 'Division'}:</strong> ${gradeOrDivision}</p>`,
+                        `<p><strong>${schoolType === 'Primary' ? 'Grade' : 'Division'}:</strong> ${displayGradeOrDivision}</p>`
+                    );
                     
                     if (response.subjects && response.subjects.length > 0) {
                         const isTermReport = response.subjects[0].is_term_report;
