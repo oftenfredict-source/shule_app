@@ -11849,13 +11849,13 @@ class TeachersController extends Controller
             $teacherName = $teacher ? trim(($teacher->first_name ?? '') . ' ' . ($teacher->last_name ?? '')) : 'Teacher';
             $reasonLabel = $validated['reason_description'];
             $schoolName = $school->school_name ?? 'School';
-            $periodLabel = 'N/A';
-            if ($validated['time_mode'] === 'days') {
-                $periodLabel = ($validated['start_date'] ?? '') . ' to ' . ($validated['end_date'] ?? '');
-            } else {
-                $periodLabel = ($validated['start_time'] ?? '') . ' to ' . ($validated['end_time'] ?? '');
+            $smsService = new SmsService();
+            $message = "";
+            if (!($school && $school->senderID)) {
+                $message .= "{$schoolName}: ";
             }
-            $smsService->sendSms($school->phone, "{$schoolName}: New permission request by {$teacherName}. Period: {$periodLabel}. Reason: {$reasonLabel}. Please review.");
+            $message .= "New permission request by {$teacherName}. Period: {$periodLabel}. Reason: {$reasonLabel}. Please review.";
+            $smsService->sendSms($school->phone, $message);
         }
 
         if ($request->ajax() || $request->expectsJson()) {
@@ -12245,7 +12245,11 @@ class TeachersController extends Controller
             $className = $classSubject->subclass->class->class_name ?? '';
             $subclassName = $classSubject->subclass->subclass_name ?? '';
 
-            $message = "{$schoolName}: Habari, Logbook yako ya somo la {$subjectName} {$className} {$subclassName} imepata maoni mapya. Tafadhali ingia kwenye mfumo kuona.";
+            $message = "";
+            if (!($school && $school->senderID)) {
+                $message .= "{$schoolName}: ";
+            }
+            $message .= "Habari, Logbook yako ya somo la {$subjectName} {$className} {$subclassName} imepata maoni mapya. Tafadhali ingia kwenye mfumo kuona.";
 
             $smsService = new SmsService();
             $smsService->sendSms($phoneNumber, $message);

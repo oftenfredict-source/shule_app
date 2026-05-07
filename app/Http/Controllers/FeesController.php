@@ -1295,7 +1295,11 @@ class FeesController extends Controller
                 // Send to sponsor if requested and available
                 if ($sendToSponsor && $sponsor && $sponsor->phone && $p > 0) {
                     $sponsorPct = (int)$p;
-                    $messageSponsor = "Mdhamini wa {$studentName}, Control Number: {$controlNumber}. Lipa TZS {$sponsorShareMsg} ({$sponsorPct}% ya TZS {$totalAmountForMsg}). Lipia benki/mitandao.";
+                    $messageSponsor = "";
+                    if (!($school && $school->senderID)) {
+                        $messageSponsor .= "{$school->school_name}: ";
+                    }
+                    $messageSponsor .= "Mdhamini wa {$studentName}, Control Number: {$controlNumber}. Lipa TZS {$sponsorShareMsg} ({$sponsorPct}% ya TZS {$totalAmountForMsg}). Lipia benki/mitandao.";
                     $res = $this->smsService->sendSms($sponsor->phone, $messageSponsor);
                     $rowResult['phone']   = $sponsor->phone;
                     $rowResult['success'] = $res['success'];
@@ -1304,11 +1308,15 @@ class FeesController extends Controller
 
                 // Send to parent if requested and available
                 if ($sendToParent && $parent && $parent->phone) {
+                    $messageParent = "";
+                    if (!($school && $school->senderID)) {
+                        $messageParent .= "{$school->school_name}: ";
+                    }
                     if ($p > 0) {
-                        $messageParent = "Mzazi wa {$studentName}, CN: {$controlNumber}. Jumla TZS {$totalAmountForMsg}, ulipe TZS {$parentShareMsg} (mdhamini TZS {$sponsorShareMsg}). Kuanza: TZS {$requiredAmount}.";
+                        $messageParent .= "Mzazi wa {$studentName}, CN: {$controlNumber}. Jumla TZS {$totalAmountForMsg}, ulipe TZS {$parentShareMsg} (mdhamini TZS {$sponsorShareMsg}). Kuanza: TZS {$requiredAmount}.";
                     } else {
                         $totalAmount = number_format($payment->amount_required ?? 0, 0);
-                        $messageParent = "Mzazi wa {$studentName}, amepangiwa CN: {$controlNumber}. Kiasi: TZS {$totalAmount}, kuanza: TZS {$requiredAmount}. Lipa kuepuka usumbufu.";
+                        $messageParent .= "Mzazi wa {$studentName}, amepangiwa CN: {$controlNumber}. Kiasi: TZS {$totalAmount}, kuanza: TZS {$requiredAmount}. Lipa kuepuka usumbufu.";
                     }
                     $res = $this->smsService->sendSms($parent->phone, $messageParent);
                     $rowResult['phone']   = $parent->phone;
@@ -1395,7 +1403,11 @@ class FeesController extends Controller
                 $balance       = number_format($payment->balance, 0);
 
                 // Short Kiswahili Message for Debt Reminder (≤163 chars)
-                $message = "Mzazi wa {$studentName} unakumbushwa kulipa deni, sh {$balance}, control number {$controlNumber}. Lipa kuepuka usumbufu.";
+                $message = "";
+                if (!($school && $school->senderID)) {
+                    $message .= "{$school->school_name}: ";
+                }
+                $message .= "Mzazi wa {$studentName} unakumbushwa kulipa deni, sh {$balance}, control number {$controlNumber}. Lipa kuepuka usumbufu.";
 
                 // Send SMS using the service
                 $smsResult = $this->smsService->sendSms($parent->phone, $message);
@@ -1556,7 +1568,11 @@ class FeesController extends Controller
                 }
 
                 $formattedAmount = number_format($totalDebt);
-                $message = "{$schoolName}: Unakumbushwa kulipa deni la wanafunzi {$count} kiasi cha Sh {$formattedAmount}. Tafadhali wahi kukamilisha malipo. Ahsante.";
+                $message = "";
+                if (!($school && $school->senderID)) {
+                    $message .= "{$schoolName}: ";
+                }
+                $message .= "Unakumbushwa kulipa deni la wanafunzi {$count} kiasi cha Sh {$formattedAmount}. Tafadhali wahi kukamilisha malipo. Ahsante.";
                 $phone = $sponsor->phone;
 
                 $smsResult = $this->smsService->sendSms($phone, $message);
@@ -1583,15 +1599,23 @@ class FeesController extends Controller
 
                 if ($type === 'debt_reminder') {
                     $balanceStr = number_format($payment->parent_balance);
-                    $message = "{$schoolName}: Unakumbushwa kulipa deni la Ada kiasi cha Sh {$balanceStr}. Tafadhali wahi kulipa mapema. Ahsante.";
+                    $message = "";
+                    if (!($school && $school->senderID)) {
+                        $message .= "{$schoolName}: ";
+                    }
+                    $message .= "Unakumbushwa kulipa deni la Ada kiasi cha Sh {$balanceStr}. Tafadhali wahi kulipa mapema. Ahsante.";
                 } else {
                     // control_number SMS (keep existing logic but respect shorter templates if possible)
                     $totalAmount = number_format($payment->amount_required, 0);
+                    $message = "";
+                    if (!($school && $school->senderID)) {
+                        $message .= "{$schoolName}: ";
+                    }
                     if ($p > 0) {
                         $parentShare = number_format(max(0, $payment->amount_required - ($payment->amount_required * $p / 100)), 0);
-                        $message = "{$schoolName}: Mzazi wa {$student->first_name}, CN: {$cn}. Jumla Sh {$totalAmount}, sehemu yako Sh {$parentShare}. Ahsante.";
+                        $message .= "Mzazi wa {$student->first_name}, CN: {$cn}. Jumla Sh {$totalAmount}, sehemu yako Sh {$parentShare}. Ahsante.";
                     } else {
-                        $message = "{$schoolName}: Mzazi wa {$student->first_name}, Control Number: {$cn}. Kiasi: Sh {$totalAmount}. Ahsante.";
+                        $message .= "Mzazi wa {$student->first_name}, Control Number: {$cn}. Kiasi: Sh {$totalAmount}. Ahsante.";
                     }
                 }
 
@@ -1650,7 +1674,11 @@ class FeesController extends Controller
             $requiredAmount = number_format($payment->required_fees_amount, 0);
 
             // Shortered Message for Control Number
-            $message = "Mzazi wa {$studentName}, mwanafunzi amepangiwa Control Number: {$controlNumber}. Kiasi kuanza: sh {$requiredAmount}, Jumla: sh {$totalAmount}. Lipa kuepuka usumbufu.";
+            $message = "";
+            if (!($school && $school->senderID)) {
+                $message .= "{$school->school_name}: ";
+            }
+            $message .= "Mzazi wa {$studentName}, mwanafunzi amepangiwa Control Number: {$controlNumber}. Kiasi kuanza: sh {$requiredAmount}, Jumla: sh {$totalAmount}. Lipa kuepuka usumbufu.";
 
             $smsResult = $this->smsService->sendSms($parent->phone, $message);
 
@@ -1697,7 +1725,11 @@ class FeesController extends Controller
             $controlNumber = $payment->control_number;
 
             // Shortered Message for Debt Reminder
-            $message = "Mzazi wa {$studentName} unakumbushwa kulipa deni, sh {$balance}, control number {$controlNumber}. Lipa kuepuka usumbufu.";
+            $message = "";
+            if (!($school && $school->senderID)) {
+                $message .= "{$school->school_name}: ";
+            }
+            $message .= "Mzazi wa {$studentName} unakumbushwa kulipa deni, sh {$balance}, control number {$controlNumber}. Lipa kuepuka usumbufu.";
 
             $smsResult = $this->smsService->sendSms($parent->phone, $message);
 

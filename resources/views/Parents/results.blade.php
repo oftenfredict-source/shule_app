@@ -223,6 +223,20 @@
         border-collapse: collapse;
         border: 1px solid #ddd;
         background: #fff;
+        table-layout: auto;
+    }
+    .univ-marks-table th.col-somo { width: 22%; }
+    .univ-marks-table th.col-mtihani { width: auto; }
+    .univ-marks-table th.col-small {
+        white-space: nowrap;
+        width: 1%;
+    }
+    .univ-marks-table td.col-small {
+        white-space: nowrap;
+        text-align: center;
+    }
+    .univ-marks-table td.col-mtihani {
+        word-break: break-word;
     }
     .univ-marks-table th {
         background-color: #fff;
@@ -241,7 +255,36 @@
     }
     .univ-marks-table td.colored-remark {
         text-align: center;
-        color: #6c757d;
+        font-weight: 500;
+        padding: 8px 4px !important;
+    }
+    .bg-pass { background-color: #d4edda !important; color: #155724 !important; }
+    .bg-fail { background-color: #f8d7da !important; color: #721c24 !important; }
+    .bg-inc { background-color: #d1ecf1 !important; color: #0c5460 !important; }
+
+    .exam-sub-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .exam-sub-item {
+        padding: 5px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .exam-sub-item:last-child {
+        border-bottom: none;
+    }
+    
+    .btn-premium-download {
+        background-color: #f8f9fa;
+        color: #940000;
+        border: 1px solid #940000;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    .btn-premium-download:hover {
+        background-color: #940000;
+        color: #white;
     }
 
     /* Mobile Responsive */
@@ -282,6 +325,22 @@
             padding-left: 2px !important;
             padding-right: 2px !important;
         }
+        .univ-marks-table th, .univ-marks-table td {
+            font-size: 10px !important;
+            padding: 6px 4px !important;
+        }
+        .exam-sub-item {
+            padding: 2px 0;
+            word-break: break-word;
+        }
+        .univ-marks-table {
+            width: 100% !important;
+            table-layout: auto !important;
+        }
+        .colored-remark {
+            padding: 5px 2px !important;
+        }
+    }
         
         .col-lg-10 {
             padding-left: 2px !important;
@@ -486,21 +545,23 @@
                     </table>
                 </div>
                 
-                <a href="#" id="univDownloadBtn" class="univ-dl-link" style="text-align: center; display: block; background: var(--primary-red); color: white; padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 20px 0;">
-                    <i class="bx bx-download mr-2"></i> Bofya hapa ku sevu matokeo
+                <a href="#" id="univDownloadBtn" class="univ-dl-link btn-premium-download" style="text-align: center; display: block; padding: 12px; border-radius: 10px; text-decoration: none; margin: 20px 0;">
+                    <i class="bx bx-download mr-2"></i> Bofya hapa ku sevu matokeo (PDF)
                 </a>
 
                 <div class="univ-section-title" id="semesterTitle">Matokeo ya Mtihani</div>
 
                 <!-- Detail Table -->
-                <table class="univ-marks-table">
-                    <thead id="marksHead">
-                        <!-- Loaded via JS -->
-                    </thead>
-                    <tbody id="marksBody">
-                        <!-- Loaded via JS -->
-                    </tbody>
-                </table>
+                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;">
+                    <table class="univ-marks-table">
+                        <thead id="marksHead">
+                            <!-- Loaded via JS -->
+                        </thead>
+                        <tbody id="marksBody">
+                            <!-- Loaded via JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
         </div>
@@ -720,48 +781,77 @@ $(document).ready(function() {
             <tr><td class="label">Nafasi:</td><td>${position}</td></tr>
         `);
 
-        // Marks Table Header
-        let headHtml = `
-            <tr>
-                <th>Somo</th>
-                ${data.has_ca ? '<th class="text-center">CA</th>' : ''}
-                ${data.has_ca ? '<th class="text-center">Main</th>' : ''}
-                <th class="text-center">Alama</th>
-                <th class="text-center">Daraja</th>
-                <th class="text-center">Remarks</th>
-            </tr>
-        `;
+        // Marks Table — conditional on whether exam has CA
+        const hasCa = data.has_ca;
+
+        let headHtml = '';
+        if (hasCa) {
+            headHtml = `
+                <tr>
+                    <th class="col-somo">Somo</th>
+                    <th class="col-mtihani">Mitihani</th>
+                    <th class="col-small text-center">Wastani</th>
+                    <th class="col-small text-center">Daraja</th>
+                    <th class="col-small text-center">Remark</th>
+                </tr>`;
+        } else {
+            headHtml = `
+                <tr>
+                    <th class="col-somo">Somo</th>
+                    <th class="col-small text-center">Alama</th>
+                    <th class="col-small text-center">Daraja</th>
+                    <th class="col-small text-center">Remark</th>
+                </tr>`;
+        }
         $('#marksHead').html(headHtml);
 
         // Marks Table Body
         let bodyHtml = '';
         data.results.forEach(res => {
-            const gradeText = res.grade || 'Incomplete';
-            
+            // Determine if marks are null/empty → Incomplete
+            const rawMarks = res.average ?? res.marks;
+            const hasMarks = rawMarks !== null && rawMarks !== undefined && rawMarks !== '' && rawMarks !== '-';
+            const marksVal = hasMarks ? parseFloat(rawMarks).toFixed(0) : 'Incomplete';
+            const gradeText = hasMarks ? (res.grade || 'F') : 'Incomplete';
+
             // Determine remark class / text
-            let remarkClass = 'bg-fail'; // Default pink
+            let remarkClass = 'bg-fail'; 
             let remarkText = 'Failed';
-            if(['A', 'B', 'C', 'D'].includes(gradeText)) {
-                remarkClass = 'bg-pass';
-                remarkText = 'Pass';
-            } else if(gradeText === 'Incomplete') {
+            if (!hasMarks || gradeText === 'Incomplete') {
                 remarkClass = 'bg-inc';
                 remarkText = 'Incomplete';
+            } else if (['A', 'B', 'C', 'D'].includes(gradeText)) {
+                remarkClass = 'bg-pass';
+                remarkText = 'Pass';
             }
 
-            bodyHtml += `
-                <tr>
-                    <td>${res.subject_name || 'Incomplete'}</td>
-                    ${data.has_ca ? `<td class="text-center">${res.ca_marks ? parseFloat(res.ca_marks).toFixed(0) : '-'}</td>` : ''}
-                    ${data.has_ca ? `<td class="text-center">${res.main_exam_marks ? parseFloat(res.main_exam_marks).toFixed(0) : '-'}</td>` : ''}
-                    <td class="text-center">${res.marks ? parseFloat(res.marks).toFixed(0) : '-'}</td>
-                    <td class="text-center">${gradeText}</td>
-                    <td class="colored-remark ${remarkClass}">${remarkText}</td>
-                </tr>
-            `;
+            if (hasCa) {
+                bodyHtml += `
+                    <tr>
+                        <td class="align-middle"><strong>${res.subject_name || 'N/A'}</strong></td>
+                        <td class="col-mtihani p-0">
+                            <ul class="exam-sub-list">
+                                ${(res.exams || []).map(ex => `<li class="exam-sub-item px-3">${ex.exam_name}: <strong>${ex.marks ? parseFloat(ex.marks).toFixed(0) : '-'}</strong></li>`).join('')}
+                            </ul>
+                        </td>
+                        <td class="col-small align-middle"><strong>${marksVal}</strong></td>
+                        <td class="col-small align-middle">${gradeText}</td>
+                        <td class="col-small colored-remark ${remarkClass} align-middle">${remarkText}</td>
+                    </tr>
+                `;
+            } else {
+                bodyHtml += `
+                    <tr>
+                        <td class="align-middle"><strong>${res.subject_name || 'N/A'}</strong></td>
+                        <td class="col-small align-middle"><strong>${marksVal}</strong></td>
+                        <td class="col-small align-middle">${gradeText}</td>
+                        <td class="col-small colored-remark ${remarkClass} align-middle">${remarkText}</td>
+                    </tr>
+                `;
+            }
         });
         $('#marksBody').html(bodyHtml);
-        
+
         // Update Exam Title
         $('#semesterTitle').text($('#examSelect option:selected').text() || 'Matokeo ya Mtihani');
     };

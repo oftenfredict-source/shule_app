@@ -588,7 +588,8 @@ class ManageOtherStaffController extends Controller
                 $username = $request->employee_number;
                 $password = $request->first_name;
                 
-                $message = "{$schoolName}. Usajili umekamilika. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
+                $prefix = ($school && $school->senderID) ? "" : "{$schoolName}. ";
+                $message = "{$prefix}Usajili umekamilika. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
                 $smsResult = $smsService->sendSms($phoneNumber, $message);
                 
                 if ($smsResult['success']) {

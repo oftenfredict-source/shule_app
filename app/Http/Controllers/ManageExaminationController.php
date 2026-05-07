@@ -3828,13 +3828,15 @@ class ManageExaminationController extends Controller
             $schoolName = $school ? $school->school_name : 'Shule';
 
             $message = '';
+            $prefix = ($school && $school->senderID) ? "" : "{$schoolName}. ";
+
             if ($action === 'graduated') {
                 $oldClassName = $oldSubclass ? $oldSubclass->subclass_name : 'Darasa la zamani';
-                $message = "{$schoolName}. Mzazi {$parentName}, mwanafunzi {$studentName} amehitimu kutoka {$oldClassName}. Hongera!";
+                $message = "{$prefix}Mzazi {$parentName}, mwanafunzi {$studentName} amehitimu kutoka {$oldClassName}. Hongera!";
             } else {
                 $oldClassName = $oldSubclass ? $oldSubclass->subclass_name : 'Darasa la zamani';
                 $newClassName = $newSubclass ? $newSubclass->subclass_name : 'Darasa jipya';
-                $message = "{$schoolName}. Mzazi {$parentName}, mwanafunzi {$studentName} amehamishwa kutoka {$oldClassName} kwenda {$newClassName}.";
+                $message = "{$prefix}Mzazi {$parentName}, mwanafunzi {$studentName} amehamishwa kutoka {$oldClassName} kwenda {$newClassName}.";
             }
 
             // Send SMS
@@ -3927,7 +3929,8 @@ class ManageExaminationController extends Controller
                     }
 
                     // Build SMS message according to user requirements
-                    $message = "{$schoolName}. Mzazi {$parentName}, mwanafunzi {$studentName} amepata jumla ya alama {$totalMarks}";
+                    $prefix = ($school && $school->senderID) ? "" : "{$schoolName}. ";
+                    $message = "{$prefix}Mzazi {$parentName}, mwanafunzi {$studentName} amepata jumla ya alama {$totalMarks}";
                     if ($schoolType === 'Secondary') {
                         $message .= ", wastani division {$gradeOrDivision}";
                     } else {

@@ -165,6 +165,18 @@
                                 @enderror
                             </div>
 
+                            <div class="col-md-4">
+                                <label class="form-label" for="senderID">SMS Sender ID</label>
+                                <div class="position-relative">
+                                    <i class="fa fa-paper-plane input-icon"></i>
+                                    <input type="text" id="senderID" name="senderID" class="form-control with-icon @error('senderID') is-invalid @enderror" value="{{ old('senderID') }}" placeholder="e.g., SHULEXPERT" maxlength="11">
+                                    @error('senderID')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="help">Max 11 chars. Fallback: ShuleXpert</div>
+                            </div>
+
                             <div class="col-md-5">
                                 <label class="form-label" for="school_logo">School Logo</label>
                                 <input type="file" id="school_logo" name="school_logo" class="form-control @error('school_logo') is-invalid @enderror" accept="image/*">
@@ -234,6 +246,7 @@
             email: v => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
             phone: v => !v || /^[+0-9\s-]{7,20}$/.test(v),
             established_year: v => !v || (+v >= 1900 && +v <= new Date().getFullYear()),
+            senderID: v => !v || /^[A-Za-z0-9\s]{1,11}$/.test(v),
             agree: v => !!v,
         };
 

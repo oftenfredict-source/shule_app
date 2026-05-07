@@ -135,6 +135,7 @@ class SuperAdminController extends Controller
             'environment' => 'nullable|in:Demo,Live',
             'status' => 'required|in:Active,Inactive',
             'two_factor_enabled' => 'nullable|boolean',
+            'senderID' => 'nullable|string|max:20',
         ]);
 
         if ($validator->fails()) {
@@ -154,6 +155,7 @@ class SuperAdminController extends Controller
         $school->environment = $environment;
         $school->status = $request->status;
         $school->two_factor_enabled = (bool)($request->input('two_factor_enabled', false));
+        $school->senderID = $request->senderID;
         $school->save();
 
         return response()->json([
@@ -164,6 +166,7 @@ class SuperAdminController extends Controller
                 'environment' => $school->environment ?: 'Demo',
                 'status' => $school->status,
                 'two_factor_enabled' => (bool)$school->two_factor_enabled,
+                'senderID' => $school->senderID,
             ]
         ]);
     }
@@ -785,7 +788,15 @@ class SuperAdminController extends Controller
             return $u !== '' && strtolower($u) !== 'null' && strtolower($u) !== 'undefined';
         }));
 
-        return response()->json(['success' => true, 'school' => ['schoolID' => $schoolID, 'school_name' => $schoolName], 'users' => $rows]);
+        return response()->json([
+            'success' => true,
+            'school' => [
+                'schoolID' => $schoolID,
+                'school_name' => $schoolName,
+                'senderID' => $school->senderID
+            ],
+            'users' => $rows
+        ]);
     }
 
     public function sendUserCredentialsSms(Request $request)
@@ -800,6 +811,7 @@ class SuperAdminController extends Controller
             'username' => 'required|string|max:255',
             'phone' => 'required|string|max:30',
             'message' => 'required|string|max:500',
+            'from' => 'nullable|string|max:11',
         ]);
 
         if ($validator->fails()) {
@@ -939,7 +951,8 @@ class SuperAdminController extends Controller
             );
 
             $smsService = new SmsService();
-            $smsResult = $smsService->sendSms($phone, $message);
+            $senderID = $request->input('from');
+            $smsResult = $smsService->sendSms($phone, $message, $senderID);
 
             if (!($smsResult['success'] ?? false)) {
                 Log::error('SuperAdmin sendUserCredentialsSms: gateway rejected/failed', [
@@ -980,6 +993,7 @@ class SuperAdminController extends Controller
             'username' => 'required|string|max:255',
             'phone' => 'required|string|max:30',
             'message' => 'required|string|max:500',
+            'from' => 'nullable|string|max:11',
         ]);
 
         if ($validator->fails()) {
@@ -1008,7 +1022,8 @@ class SuperAdminController extends Controller
             );
 
             $smsService = new SmsService();
-            $smsResult = $smsService->sendSms($phone, $message);
+            $senderID = $request->input('from');
+            $smsResult = $smsService->sendSms($phone, $message, $senderID);
 
             if (!($smsResult['success'] ?? false)) {
                 Log::error('SuperAdmin sendCustomerCareSms: gateway rejected/failed', [

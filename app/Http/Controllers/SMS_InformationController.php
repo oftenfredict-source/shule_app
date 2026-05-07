@@ -405,8 +405,12 @@ class SMS_InformationController extends Controller
                 $selectedIds = explode(',', $selectedIds);
             }
             
-            // Prepend school name to message
-            $fullMessage = $school->school_name . '. ' . $message;
+            // Prepend school name to message only if custom senderID is NOT used
+            if ($school->senderID) {
+                $fullMessage = $message;
+            } else {
+                $fullMessage = $school->school_name . '. ' . $message;
+            }
 
             $recipients = [];
             $results = [

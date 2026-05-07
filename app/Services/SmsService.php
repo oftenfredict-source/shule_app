@@ -15,11 +15,29 @@ class SmsService
      *
      * @param string $phoneNumber Phone number (e.g., 255614863345)
      * @param string $message Message to send
+     * @param string|null $senderID Optional sender ID override
      * @return array Response with success status and message
      */
-    public function sendSms($phoneNumber, $message)
+    public function sendSms($phoneNumber, $message, $senderID = null)
     {
         try {
+            // Determine Sender ID
+            $finalSenderID = $senderID;
+
+            if (!$finalSenderID) {
+                $schoolID = session('schoolID');
+                if ($schoolID) {
+                    $school = \App\Models\School::find($schoolID);
+                    if ($school && $school->senderID) {
+                        $finalSenderID = $school->senderID;
+                    }
+                }
+            }
+
+            // Fallback to default
+            if (!$finalSenderID) {
+                $finalSenderID = $this->senderID;
+            }
             // Remove any spaces or special characters from phone number
             $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
 
@@ -42,7 +60,7 @@ class SmsService
             $text = urlencode($message);
             $url = $this->baseUrl . '?username=' . urlencode($this->username) .
                    '&password=' . urlencode($this->password) .
-                   '&from=' . urlencode($this->senderID) .
+                   '&from=' . urlencode($finalSenderID) .
                    '&to=' . $phoneNumber .
                    '&text=' . $text;
 
@@ -128,7 +146,14 @@ class SmsService
      */
     public function sendParentCredentials($phoneNumber, $schoolName, $username, $password)
     {
-        $message = "{$schoolName}. Usajili umekamilika. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
+        $school = null;
+        $schoolID = session('schoolID');
+        if ($schoolID) {
+            $school = \App\Models\School::find($schoolID);
+        }
+        
+        $prefix = ($school && $school->senderID) ? "" : "{$schoolName}. ";
+        $message = "{$prefix}Usajili umekamilika. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
 
         return $this->sendSms($phoneNumber, $message);
     }
@@ -145,7 +170,14 @@ class SmsService
      */
     public function sendStudentCredentials($phoneNumber, $schoolName, $studentName, $username, $password)
     {
-        $message = "{$schoolName}. Mwanafunzi {$studentName} amesajiliwa kikamilifu. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
+        $school = null;
+        $schoolID = session('schoolID');
+        if ($schoolID) {
+            $school = \App\Models\School::find($schoolID);
+        }
+
+        $prefix = ($school && $school->senderID) ? "" : "{$schoolName}. ";
+        $message = "{$prefix}Mwanafunzi {$studentName} amesajiliwa kikamilifu. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
 
         return $this->sendSms($phoneNumber, $message);
     }

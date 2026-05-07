@@ -51,6 +51,7 @@ class ConfigurationController extends Controller
         'status' => 'required|in:Active,Inactive',
         'environment' => 'nullable|in:Demo,Live',
         'two_factor_enabled' => 'nullable|boolean',
+        'senderID' => 'nullable|string|max:20',
     ]);
 
     if (!array_key_exists('environment', $validated) || !$validated['environment']) {

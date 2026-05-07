@@ -223,6 +223,20 @@
         border-collapse: collapse;
         border: 1px solid #ddd;
         background: #fff;
+        table-layout: auto;
+    }
+    .univ-marks-table th.col-somo { width: 22%; }
+    .univ-marks-table th.col-mtihani { width: auto; }
+    .univ-marks-table th.col-small {
+        white-space: nowrap;
+        width: 1%;
+    }
+    .univ-marks-table td.col-small {
+        white-space: nowrap;
+        text-align: center;
+    }
+    .univ-marks-table td.col-mtihani {
+        word-break: break-word;
     }
     .univ-marks-table th {
         background-color: #fff;
@@ -241,7 +255,36 @@
     }
     .univ-marks-table td.colored-remark {
         text-align: center;
-        color: #6c757d;
+        font-weight: 500;
+        padding: 8px 4px !important;
+    }
+    .bg-pass { background-color: #d4edda !important; color: #155724 !important; }
+    .bg-fail { background-color: #f8d7da !important; color: #721c24 !important; }
+    .bg-inc { background-color: #d1ecf1 !important; color: #0c5460 !important; }
+
+    .exam-sub-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .exam-sub-item {
+        padding: 5px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .exam-sub-item:last-child {
+        border-bottom: none;
+    }
+    
+    .btn-premium-download {
+        background-color: #f8f9fa;
+        color: #940000;
+        border: 1px solid #940000;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    .btn-premium-download:hover {
+        background-color: #940000;
+        color: white !important;
     }
 
     /* Mobile Responsive */
@@ -282,6 +325,22 @@
             padding-left: 2px !important;
             padding-right: 2px !important;
         }
+        .univ-marks-table th, .univ-marks-table td {
+            font-size: 10px !important;
+            padding: 6px 4px !important;
+        }
+        .exam-sub-item {
+            padding: 2px 0;
+            word-break: break-word;
+        }
+        .univ-marks-table {
+            width: 100% !important;
+            table-layout: auto !important;
+        }
+        .colored-remark {
+            padding: 5px 2px !important;
+        }
+    }
         
         .col-lg-10 {
             padding-left: 2px !important;
@@ -471,21 +530,23 @@
                     </table>
                 </div>
                 
-                <a href="#" id="univDownloadBtn" class="univ-dl-link" style="text-align: center; display: block; background: var(--primary-red); color: white; padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 20px 0;">
-                    <i class="bx bx-download mr-2"></i> Bofya hapa ku sevu matokeo
+                <a href="#" id="univDownloadBtn" class="univ-dl-link btn-premium-download" style="text-align: center; display: block; padding: 12px; border-radius: 10px; text-decoration: none; margin: 20px 0;">
+                    <i class="bx bx-download mr-2"></i> Bofya hapa ku sevu ripoti (PDF)
                 </a>
 
                 <div class="univ-section-title" id="semesterTitle">Ripoti ya Maendeleo ya Mwanafunzi</div>
 
                 <!-- Detail Table -->
-                <table class="univ-marks-table">
-                    <thead id="marksHead">
-                        <!-- Loaded via JS -->
-                    </thead>
-                    <tbody id="marksBody">
-                        <!-- Loaded via JS -->
-                    </tbody>
-                </table>
+                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;">
+                    <table class="univ-marks-table">
+                        <thead id="marksHead">
+                            <!-- Loaded via JS -->
+                        </thead>
+                        <tbody id="marksBody">
+                            <!-- Loaded via JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
         </div>
@@ -663,40 +724,55 @@ $(document).ready(function() {
             <tr><td class="label">Nafasi:</td><td>${data.position || 'N/A'}</td></tr>
         `);
 
-        // Marks Table Header - Dynamic based on included exams
-        let exams = data.exams_included || [];
+        // Marks Table Header
         let headHtml = `
             <tr>
-                <th>Somo</th>
-                ${exams.map(ex => `<th class="text-center">${ex.exam_name}</th>`).join('')}
-                <th class="text-center">Wastani</th>
-                <th class="text-center">Daraja</th>
+                <th class="col-somo">Somo</th>
+                <th class="col-mtihani">Mitihani</th>
+                <th class="col-small text-center">Wastani</th>
+                <th class="col-small text-center">Daraja</th>
+                <th class="col-small text-center">Remark</th>
             </tr>
         `;
         $('#marksHead').html(headHtml);
 
         // Marks Table Body
         let bodyHtml = '';
+        let examsInTerm = data.exams_included || [];
+        
         data.results.forEach(res => {
-            const gradeText = res.grade || '-';
+            // Determine if average is null/empty → Incomplete
+            const rawAvg = res.average;
+            const hasMarks = rawAvg !== null && rawAvg !== undefined && rawAvg !== '' && rawAvg !== '-';
+            const avgVal = hasMarks ? parseFloat(rawAvg).toFixed(0) : 'Incomplete';
+            const gradeText = hasMarks ? (res.grade || 'F') : 'Incomplete';
             
-            // Determine remark class based on average
+            // Determine remark class based on grade
             let remarkClass = 'bg-fail';
-            if(['A', 'B', 'C', 'D'].includes(gradeText)) {
-                remarkClass = 'bg-pass';
-            } else if(gradeText === '-' || gradeText === 'Incomplete') {
+            let remarkText = 'Failed';
+            if (!hasMarks || gradeText === 'Incomplete') {
                 remarkClass = 'bg-inc';
+                remarkText = 'Incomplete';
+            } else if (['A', 'B', 'C', 'D'].includes(gradeText)) {
+                remarkClass = 'bg-pass';
+                remarkText = 'Pass';
             }
 
             bodyHtml += `
                 <tr>
-                    <td>${res.subject_name || 'N/A'}</td>
-                    ${exams.map(ex => {
-                        const exResult = res.exams ? res.exams[ex.examID] : null;
-                        return `<td class="text-center">${exResult ? parseFloat(exResult.marks).toFixed(0) : '-'}</td>`;
-                    }).join('')}
-                    <td class="text-center">${res.average ? parseFloat(res.average).toFixed(0) : '-'}</td>
-                    <td class="colored-remark ${remarkClass}">${gradeText}</td>
+                    <td class="align-middle"><strong>${res.subject_name || 'N/A'}</strong></td>
+                    <td class="col-mtihani p-0">
+                        <ul class="exam-sub-list">
+                            ${examsInTerm.map(ex => {
+                                const exResult = res.exams ? res.exams[ex.examID] : null;
+                                const exMarks = exResult && exResult.marks !== null && exResult.marks !== '' ? parseFloat(exResult.marks).toFixed(0) : '-';
+                                return `<li class="exam-sub-item px-3">${ex.exam_name}: <strong>${exMarks}</strong></li>`;
+                            }).join('')}
+                        </ul>
+                    </td>
+                    <td class="col-small align-middle"><strong>${avgVal}</strong></td>
+                    <td class="col-small align-middle">${gradeText}</td>
+                    <td class="col-small colored-remark ${remarkClass} align-middle">${remarkText}</td>
                 </tr>
             `;
         });

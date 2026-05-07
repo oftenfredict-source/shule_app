@@ -364,6 +364,7 @@
                         <tr>
                             <th style="width: 50px;">#</th>
                             <th>Student Name</th>
+                            <th class="text-center">Exam Number</th>
                             <th class="text-center" style="width: 200px;">Status</th>
                         </tr>
                     </thead>
@@ -375,6 +376,7 @@
                 <tr class="student-row" data-name="${s.name.toLowerCase()}">
                     <td data-label="#">${index + 1}</td>
                     <td data-label="Name" class="font-weight-bold">${s.name}</td>
+                    <td data-label="Exam Number" class="text-center small text-muted font-monospace">${s.examination_number || '-'}</td>
                     <td data-label="Status">
                         <select class="form-control form-control-sm attendance-select" 
                                 style="border-radius: 0 !important; border: 1px solid #ddd;"

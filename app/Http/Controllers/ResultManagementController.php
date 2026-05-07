@@ -2194,7 +2194,10 @@ class ResultManagementController extends Controller
         $schoolType = $school ? $school->school_type : 'Secondary';
 
         // Construct Premium SMS Format
-        $msg = "{$schoolName}\n";
+        $msg = "";
+        if (!($school && $school->senderID)) {
+            $msg .= "{$schoolName}\n";
+        }
         $msg .= "MZAZI WA {$studentName},\n";
         $msg .= "YAFUATAYO NI MATOKEO YA {$studentName} KATIKA {$examNameContext}.\n";
         

@@ -70,15 +70,8 @@ class ExamAttendanceController extends Controller
         
         $details = [];
         foreach ($subjects as $subject) {
-            $students = Student::join('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
-                ->where('subclasses.classID', $assignment->classID)
-                ->when($assignment->subclassID, function($q) use ($assignment) {
-                    return $q->where('students.subclassID', $assignment->subclassID);
-                })
-                ->where('students.status', 'Active')
-                ->select('students.*')
-                ->orderBy('students.first_name')
-                ->get();
+            // Use helper for consistent sorting and exam numbers
+            $students = $this->getStudentsWithExamNumbers($assignment->examID, $assignment->classID, $assignment->subclassID);
 
             $records = ExamAttendanceRecord::where('examID', $assignment->examID)
                 ->where('subjectID', $subject->subjectID)
@@ -90,6 +83,7 @@ class ExamAttendanceController extends Controller
                 return [
                     'studentID' => $student->studentID,
                     'name' => $student->first_name . ' ' . $student->middle_name . ' ' . $student->last_name,
+                    'examination_number' => $student->examination_number,
                     'status' => $records[$student->studentID]->status ?? 'Present'
                 ];
             });
@@ -115,16 +109,8 @@ class ExamAttendanceController extends Controller
         $subclassID = $request->subclassID === 'all' ? null : $request->subclassID;
         $subjectID = $request->subjectID;
 
-        // Get students for this class/subclass
-        $students = Student::join('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
-            ->where('subclasses.classID', $classID)
-            ->when($subclassID, function($q) use ($subclassID) {
-                return $q->where('students.subclassID', $subclassID);
-            })
-            ->where('students.status', 'Active')
-            ->select('students.*')
-            ->orderBy('students.first_name')
-            ->get();
+        // Use helper to get students with exam numbers and correct sorting
+        $students = $this->getStudentsWithExamNumbers($examID, $classID, $subclassID);
 
         $records = ExamAttendanceRecord::where('examID', $examID)
             ->where('subjectID', $subjectID)
@@ -136,6 +122,7 @@ class ExamAttendanceController extends Controller
             return [
                 'studentID' => $student->studentID,
                 'name' => $student->first_name . ' ' . $student->middle_name . ' ' . $student->last_name,
+                'examination_number' => $student->examination_number,
                 'status' => $records[$student->studentID]->status ?? 'Present'
             ];
         });
@@ -291,15 +278,8 @@ class ExamAttendanceController extends Controller
         // For each subject, get students and their attendance status
         $details = [];
         foreach ($subjects as $subject) {
-            $students = Student::join('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
-                ->where('subclasses.classID', $assignment->classID)
-                ->when($assignment->subclassID, function($q) use ($assignment) {
-                    return $q->where('students.subclassID', $assignment->subclassID);
-                })
-                ->where('students.status', 'Active')
-                ->select('students.*')
-                ->orderBy('students.first_name')
-                ->get();
+            // Use helper for consistent sorting and exam numbers
+            $students = $this->getStudentsWithExamNumbers($assignment->examID, $assignment->classID, $assignment->subclassID);
 
             $records = ExamAttendanceRecord::where('examID', $assignment->examID)
                 ->where('subjectID', $subject->subjectID)
@@ -311,6 +291,7 @@ class ExamAttendanceController extends Controller
                 return [
                     'studentID' => $student->studentID,
                     'name' => $student->first_name . ' ' . $student->middle_name . ' ' . $student->last_name,
+                    'examination_number' => $student->examination_number,
                     'status' => $records[$student->studentID]->status ?? 'Present'
                 ];
             });
@@ -360,15 +341,7 @@ class ExamAttendanceController extends Controller
         $subclass = $request->subclassID ? Subclass::find($request->subclassID) : null;
         $school = School::find(Session::get('schoolID'));
 
-        $students = Student::join('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
-            ->where('subclasses.classID', $request->classID)
-            ->when($request->subclassID && $request->subclassID !== 'all', function($q) use ($request) {
-                return $q->where('students.subclassID', $request->subclassID);
-            })
-            ->where('students.status', 'Active')
-            ->select('students.*')
-            ->orderBy('students.first_name')
-            ->get();
+        $students = $this->getStudentsWithExamNumbers($request->examID, $request->classID, $request->subclassID);
 
         $records = [];
         if ($request->with_data) {
@@ -535,5 +508,38 @@ class ExamAttendanceController extends Controller
             'stats' => $stats,
             'totals' => $totals
         ]);
+    }
+
+    private function getStudentsWithExamNumbers($examID, $classID, $subclassID = null)
+    {
+        $exam = Examination::find($examID);
+        $school = School::find(Session::get('schoolID'));
+        
+        // Always get all students for the main class to ensure consistent sequence numbers
+        $allStudentsInClass = Student::join('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
+            ->where('subclasses.classID', $classID)
+            ->where('students.status', 'Active')
+            ->select('students.*')
+            ->orderByRaw("CASE 
+                WHEN students.gender LIKE 'F%' OR students.gender LIKE 'K%' THEN 1 
+                ELSE 2 
+            END ASC")
+            ->orderBy('students.first_name', 'asc')
+            ->get();
+            
+        $currentYear = $exam->year ?? date('Y');
+        $schoolRegNo = $school->registration_number ?? 'REG';
+        
+        foreach ($allStudentsInClass as $index => $student) {
+            $sequence = str_pad($index + 1, 3, '0', STR_PAD_LEFT);
+            $student->examination_number = "{$schoolRegNo}/{$sequence}/{$currentYear}";
+        }
+        
+        // Now filter by subclass if specified
+        if ($subclassID && $subclassID !== 'all') {
+            return $allStudentsInClass->where('subclassID', $subclassID);
+        }
+        
+        return $allStudentsInClass;
     }
 }

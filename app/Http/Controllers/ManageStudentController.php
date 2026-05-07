@@ -1180,11 +1180,21 @@ class ManageStudentController extends Controller
             // URL encode the message
             $text = urlencode($message);
 
+            // Determine Sender ID
+            $senderID = 'ShuleXpert'; // Default
+            $schoolID = session('schoolID');
+            if ($schoolID) {
+                $school = \App\Models\School::find($schoolID);
+                if ($school && $school->senderID) {
+                    $senderID = $school->senderID;
+                }
+            }
+
             // Initialize cURL
             $curl = curl_init();
 
             // Build API URL
-            $apiUrl = 'https://messaging-service.co.tz/link/sms/v1/text/single?username=emcatechn&password=Emca@%2312&from=ShuleXpert&to=' . $phoneNumber . '&text=' . $text;
+            $apiUrl = 'https://messaging-service.co.tz/link/sms/v1/text/single?username=emcatechn&password=Emca@%2312&from=' . urlencode($senderID) . '&to=' . $phoneNumber . '&text=' . $text;
 
             curl_setopt_array($curl, array(
                 CURLOPT_URL => $apiUrl,

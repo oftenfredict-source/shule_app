@@ -6047,6 +6047,7 @@ $(document).on('click', '.assignment-widget', function() {
                                         <thead class="bg-light">
                                             <tr>
                                                 <th class="border-0">Student Name</th>
+                                                <th class="text-center border-0">Exam Number</th>
                                                 <th class="text-center border-0">Status</th>
                                             </tr>
                                         </thead>
@@ -6054,6 +6055,7 @@ $(document).on('click', '.assignment-widget', function() {
                                             ${studentCount > 0 ? d.students.map(s => `
                                                 <tr>
                                                     <td class="align-middle">${s.name}</td>
+                                                    <td class="text-center align-middle small text-muted font-monospace">${s.examination_number || '-'}</td>
                                                     <td class="text-center align-middle">
                                                         <select class="form-control form-control-sm attendance-select-view" 
                                                                 data-student-id="${s.studentID}" 
@@ -6543,6 +6545,7 @@ function showAttendanceEditModal(examID, subjectID, subjectName, students) {
                     <thead>
                         <tr>
                             <th>Student Name</th>
+                            <th class="text-center">Exam Number</th>
                             <th class="text-center">Present</th>
                             <th class="text-center">Absent</th>
                         </tr>
@@ -6551,6 +6554,7 @@ function showAttendanceEditModal(examID, subjectID, subjectName, students) {
                         ${students.map(s => `
                             <tr>
                                 <td>${s.name}</td>
+                                <td class="text-center small text-muted font-monospace">${s.examination_number || '-'}</td>
                                 <td class="text-center">
                                     <input type="radio" name="attendance[${s.studentID}]" value="Present" ${s.status === 'Present' ? 'checked' : ''}>
                                 </td>
@@ -6679,7 +6683,8 @@ function loadAdminCollectStudents() {
                             <tr>
                                 <th width="50">#</th>
                                 <th>Student Name</th>
-                                <th class="text-center" width="200">Attendance Status</th>
+                                <th class="text-center">Exam Number</th>
+                                <th class="text-center" width="180">Attendance Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -6690,6 +6695,7 @@ function loadAdminCollectStudents() {
                     <tr class="student-row" data-name="${s.name.toLowerCase()}">
                         <td>${index + 1}</td>
                         <td class="fw-bold">${s.name}</td>
+                        <td class="text-center small text-muted font-monospace">${s.examination_number || '-'}</td>
                         <td class="text-center">
                             <select class="form-control form-control-sm attendance-select" name="attendance[${s.studentID}]" style="border-radius: 0 !important; border: 1px solid #ddd;">
                                 <option value="Present" ${s.status === 'Present' ? 'selected' : ''}>Present</option>

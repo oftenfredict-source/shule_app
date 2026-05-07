@@ -175,7 +175,11 @@ class WatchmanController extends Controller
             $username = $request->phone_number;
             $password = $request->first_name;
 
-            $message = "{$schoolName}. Usajili umekamilika. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
+            $message = "";
+            if (!($school && $school->senderID)) {
+                $message .= "{$schoolName}. ";
+            }
+            $message .= "Usajili umekamilika. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
             $smsResult = $smsService->sendSms($phoneNumber, $message);
 
             if ($smsResult['success']) {
@@ -288,7 +292,11 @@ class WatchmanController extends Controller
                 $smsService = new SmsService();
                 $allSent = true;
                 foreach ($rows as $row) {
-                    $message = "Mgeni mpya ameingia Shuleni jina: {$row['name']}, lengo: " . ($row['reason'] ?? 'N/A') . ", simu: " . ($row['contact'] ?? 'N/A');
+                    $message = "";
+                    if (!($school && $school->senderID)) {
+                        $message .= "{$school->school_name}: ";
+                    }
+                    $message .= "Mgeni mpya ameingia Shuleni jina: {$row['name']}, lengo: " . ($row['reason'] ?? 'N/A') . ", simu: " . ($row['contact'] ?? 'N/A');
                     $smsResult = $smsService->sendSms($schoolPhone, $message);
                     if (!$smsResult['success']) {
                         $allSent = false;

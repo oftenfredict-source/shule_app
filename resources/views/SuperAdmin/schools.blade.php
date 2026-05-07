@@ -88,6 +88,7 @@
                                 data-environment="{{ $env }}"
                                 data-status="{{ $school->status }}"
                                 data-twofa="{{ $twofa ? 1 : 0 }}"
+                                data-sender-id="{{ $school->senderID }}"
                             >
                                 <td>{{ $i + 1 }}</td>
                                 <td class="text-center">
@@ -160,9 +161,14 @@
                                 <option value="Inactive">Inactive</option>
                             </select>
                         </div>
-                        <div class="form-check">
+                        <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" value="1" id="edit_twofa" name="two_factor_enabled">
                             <label class="form-check-label" for="edit_twofa">Enable Two Factor Authentication (2FA)</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">SMS Sender ID (Optional)</label>
+                            <input type="text" class="form-control" name="senderID" id="edit_senderID" maxlength="20" placeholder="e.g. SHULEYETU">
+                            <small class="text-muted">Default: ShuleXpert (if empty)</small>
                         </div>
                     </form>
                     <div class="text-danger mt-2" id="edit_settings_error" style="display:none;"></div>
@@ -291,6 +297,7 @@
             $('#edit_environment').val($row.data('environment') || 'Demo');
             $('#edit_status').val($row.data('status') || 'Active');
             $('#edit_twofa').prop('checked', String($row.data('twofa')) === '1');
+            $('#edit_senderID').val($row.data('sender-id') || '');
 
             $('#editSchoolSettingsModal').modal('show');
         });
@@ -301,7 +308,8 @@
                 schoolID: sid,
                 environment: $('#edit_environment').val(),
                 status: $('#edit_status').val(),
-                two_factor_enabled: $('#edit_twofa').is(':checked') ? 1 : 0
+                two_factor_enabled: $('#edit_twofa').is(':checked') ? 1 : 0,
+                senderID: $('#edit_senderID').val()
             };
 
             $('#edit_settings_error').hide().text('');
@@ -325,6 +333,7 @@
                     $row.data('environment', env);
                     $row.data('status', status);
                     $row.data('twofa', twofa ? 1 : 0);
+                    $row.data('sender-id', resp.school.senderID || '');
 
                     $('#env_badge_' + sid).text(env);
                     $('#status_badge_' + sid).text(status);

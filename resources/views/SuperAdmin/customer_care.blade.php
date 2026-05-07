@@ -67,12 +67,19 @@
                     <small class="text-muted">You can search inside the list.</small>
                 </div>
 
-                <div class="col-lg-3 mb-3">
+                <div class="col-lg-2 mb-3">
                     <label class="font-weight-bold">Filter User Type</label>
                     <select id="userType" class="form-control">
                         @foreach($userTypes as $ut)
                             <option value="{{ $ut }}">{{ $ut }}</option>
                         @endforeach
+                    </select>
+                </div>
+
+                <div class="col-lg-2 mb-3">
+                    <label class="font-weight-bold">Sender ID</label>
+                    <select id="senderID" class="form-control">
+                        <option value="ShuleXpert">ShuleXpert</option>
                     </select>
                 </div>
 
@@ -212,6 +219,15 @@ $(document).ready(function() {
 
             loadedUsers = res.users || [];
 
+            // Update Sender ID options
+            $('#senderID').html('<option value="ShuleXpert">ShuleXpert</option>');
+            if (res.school && res.school.senderID && res.school.senderID.trim() !== '') {
+                const sID = res.school.senderID.trim();
+                if (sID.toUpperCase() !== 'SHULEXPERT') {
+                    $('#senderID').append(`<option value="${safeText(sID)}">${safeText(sID)}</option>`);
+                }
+            }
+
             if (loadedUsers.length === 0) {
                 $('#usersTbody').html('<tr><td colspan="7" class="text-center text-muted">No users found for this selection.</td></tr>');
                 updateSelectedCount();
@@ -291,7 +307,7 @@ $(document).ready(function() {
         if (!confirmed.isConfirmed) return;
 
         $('#btnSendSms').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Sending...');
-        $('#schoolID, #userType, #smsMessage, #selectAllUsers').prop('disabled', true);
+        $('#schoolID, #userType, #smsMessage, #selectAllUsers, #senderID').prop('disabled', true);
         $('.user-checkbox').prop('disabled', true);
 
         $('#smsProgressArea').removeClass('d-none');
@@ -315,6 +331,7 @@ $(document).ready(function() {
                 username: row.data('username'),
                 phone: row.data('phone'),
                 message: msgText,
+                from: $('#senderID').val(),
                 _token: $('meta[name="csrf-token"]').attr('content')
             };
 
@@ -351,7 +368,7 @@ $(document).ready(function() {
         }
 
         // Reset UI so user can send again without page refresh
-        $('#schoolID, #userType, #smsMessage, #selectAllUsers').prop('disabled', false);
+        $('#schoolID, #userType, #smsMessage, #selectAllUsers, #senderID').prop('disabled', false);
         $('#selectAllUsers').prop('checked', false);
 
         $('#usersTbody tr').each(function() {

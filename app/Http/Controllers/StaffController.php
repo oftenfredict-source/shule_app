@@ -259,7 +259,10 @@ class StaffController extends Controller
             } else {
                 $periodLabel = ($validated['start_time'] ?? '') . ' to ' . ($validated['end_time'] ?? '');
             }
-            $smsService->sendSms($school->phone, "{$schoolName}: New staff permission request by {$staffName}. Period: {$periodLabel}. Reason: {$reasonLabel}. Please review.");
+            
+            $prefix = ($school && $school->senderID) ? "" : "{$schoolName}: ";
+            $message = "{$prefix}New staff permission request by {$staffName}. Period: {$periodLabel}. Reason: {$reasonLabel}. Please review.";
+            $smsService->sendSms($school->phone, $message);
         }
 
         if ($request->ajax() || $request->expectsJson()) {
