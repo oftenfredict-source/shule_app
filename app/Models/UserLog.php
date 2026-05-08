@@ -40,6 +40,6 @@ class UserLog extends Model
 
     public function school()
     {
-        return $this->belongsTo(School::class, 'schoolID');
+        return $this->belongsTo(School::class, 'schoolID', 'schoolID');
     }
 }
