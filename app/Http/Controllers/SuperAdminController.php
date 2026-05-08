@@ -1168,11 +1168,23 @@ class SuperAdminController extends Controller
         return view('SuperAdmin.system_logs');
     }
 
-    public function getSystemLogsData()
+    public function getSystemLogsData(Request $request)
     {
         if ($resp = $this->ensureSuperAdmin()) return $resp;
 
-        $logs = UserLog::orderBy('created_at', 'desc')->get()->map(function($log) {
+        $query = UserLog::query();
+
+        if ($request->start_date) {
+            $query->whereDate('login_at', '>=', $request->start_date);
+        }
+        if ($request->end_date) {
+            $query->whereDate('login_at', '<=', $request->end_date);
+        }
+        if ($request->username) {
+            $query->where('username', 'like', '%' . $request->username . '%');
+        }
+
+        $logs = $query->orderBy('created_at', 'desc')->get()->map(function($log) {
             $isBlocked = BlockedIp::where('ip_address', $log->ip_address)->exists();
             $log->is_blocked = $isBlocked;
             return $log;

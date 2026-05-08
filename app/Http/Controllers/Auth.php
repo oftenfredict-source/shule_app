@@ -39,15 +39,18 @@ class Auth extends Controller
 
     private function logUserLogin(User $user, Request $request)
     {
-        $agent = new Agent();
         $deviceType = 'Desktop';
-        if ($agent->isMobile()) $deviceType = 'Mobile';
-        elseif ($agent->isTablet()) $deviceType = 'Tablet';
+        $brand = 'Personal Computer';
+        $browser = 'Unknown';
+        $os = 'Unknown';
 
-        $brand = $agent->device(); // e.g. iPhone, Samsung, etc.
-        if (!$brand && $deviceType === 'Desktop') {
-            // Try to guess from user agent for desktop if possible, but agent->device() is usually for mobile
-            $brand = 'Personal Computer';
+        if (class_exists('Jenssegers\Agent\Agent')) {
+            $agent = new Agent();
+            if ($agent->isMobile()) $deviceType = 'Mobile';
+            elseif ($agent->isTablet()) $deviceType = 'Tablet';
+            $brand = $agent->device() ?: ($deviceType === 'Desktop' ? 'Personal Computer' : 'Unknown');
+            $browser = $agent->browser();
+            $os = $agent->platform();
         }
 
         $photoPath = null;
@@ -72,8 +75,8 @@ class Auth extends Controller
             'longitude' => $request->input('longitude'),
             'device_type' => $deviceType,
             'device_brand' => $brand,
-            'browser' => $agent->browser(),
-            'os' => $agent->platform(),
+            'browser' => $browser,
+            'os' => $os,
             'user_agent' => $request->userAgent(),
             'photo_path' => $photoPath,
             'login_at' => now(),
