@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('user_logs', function (Blueprint $table) {
-            $table->unsignedBigInteger('schoolID')->nullable()->after('user_id');
-        });
+        if (!Schema::hasColumn('user_logs', 'schoolID')) {
+            Schema::table('user_logs', function (Blueprint $table) {
+                $table->unsignedBigInteger('schoolID')->nullable()->after('user_id');
+            });
+        }
     }
 
     /**
@@ -21,8 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('user_logs', function (Blueprint $table) {
-            $table->dropColumn('schoolID');
-        });
+        if (Schema::hasColumn('user_logs', 'schoolID')) {
+            Schema::table('user_logs', function (Blueprint $table) {
+                $table->dropColumn('schoolID');
+            });
+        }
     }
 };
