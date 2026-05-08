@@ -29,9 +29,9 @@
                     <label class="form-label small fw-bold">User / Username</label>
                     <input type="text" id="filter_username" class="form-control form-control-sm" placeholder="Search by name...">
                 </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm w-100" onclick="loadLogs()">
-                        <i class="bx bx-filter-alt me-1"></i> Filter
+                <div class="col-md-2 d-none d-md-flex align-items-end">
+                    <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="loadLogs()">
+                        <i class="bx bx-filter-alt me-1"></i> Sync
                     </button>
                 </div>
             </form>
@@ -325,6 +325,17 @@
 
     $(document).ready(function() {
         loadLogs();
+
+        // Real-time filters
+        $('#start_date, #end_date').on('change', function() {
+            loadLogs();
+        });
+
+        let searchTimer;
+        $('#filter_username').on('keyup', function() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(loadLogs, 500);
+        });
     });
 </script>
 @endsection
