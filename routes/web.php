@@ -156,6 +156,10 @@ Route::post('super-admin/system-alerts/store', [SuperAdminController::class, 'st
 Route::post('super-admin/system-alerts/update', [SuperAdminController::class, 'updateSystemAlert'])->name('superadmin.system_alerts.update');
 Route::delete('super-admin/system-alerts/delete/{id}', [SuperAdminController::class, 'deleteSystemAlert'])->name('superadmin.system_alerts.delete');
 
+// Super Admin: Users
+Route::get('super-admin/users', [SuperAdminController::class, 'users'])->name('superadmin.users');
+Route::get('super-admin/users/data', [SuperAdminController::class, 'getUsersData'])->name('superadmin.users.data');
+
 // Super Admin: System Logs
 Route::get('super-admin/system-logs', [SuperAdminController::class, 'systemLogs'])->name('superadmin.system_logs');
 Route::get('super-admin/system-logs/data', [SuperAdminController::class, 'getSystemLogsData'])->name('superadmin.system_logs.data');

@@ -36,6 +36,11 @@ class LogUserActivity
                 'route_name' => $request->route() ? $request->route()->getName() : null,
                 'payload' => $request->method() === 'POST' ? json_encode($request->except(['password', '_token', 'photo_data'])) : null,
             ]);
+
+            // Update user last activity
+            if (Session::has('userID')) {
+                \App\Models\User::where('id', Session::get('userID'))->update(['last_activity_at' => now()]);
+            }
         }
 
         return $response;

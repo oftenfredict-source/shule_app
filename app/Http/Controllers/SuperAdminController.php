@@ -1162,6 +1162,60 @@ class SuperAdminController extends Controller
 
         return response()->json(['success' => true, 'message' => 'School information updated successfully']);
     }
+    public function users()
+    {
+        if ($resp = $this->ensureSuperAdmin()) return $resp;
+        $schools = School::all();
+        return view('SuperAdmin.users', compact('schools'));
+    }
+
+    public function getUsersData(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) return $resp;
+
+        $query = User::query();
+
+        if ($request->school_id) {
+            $query->where('schoolID', $request->school_id);
+        }
+        if ($request->user_type) {
+            $query->where('user_type', $request->user_type);
+        }
+
+        $users = $query->get()->map(function($user) {
+            // Determine online status (active in last 5 minutes)
+            $isOnline = false;
+            if ($user->last_activity_at) {
+                $isOnline = now()->diffInMinutes($user->last_activity_at) < 5;
+            }
+            $user->is_online = $isOnline;
+            
+            // Get latest log for photo/IP if needed
+            $latestLog = UserLog::where('user_id', $user->id)->orderBy('login_at', 'desc')->first();
+            $user->photo_path = $latestLog ? $latestLog->photo_path : null;
+            $user->last_ip = $latestLog ? $latestLog->ip_address : 'N/A';
+            
+            return $user;
+        });
+
+        // Filter by status if requested (this is done in collection for simplicity, or could be in query)
+        if ($request->status) {
+            $status = $request->status; // 'online' or 'offline'
+            $users = $users->filter(function($u) use ($status) {
+                return $status === 'online' ? $u->is_online : !$u->is_online;
+            })->values();
+        }
+
+        return response()->json([
+            'success' => true, 
+            'data' => $users,
+            'summary' => [
+                'online' => $users->where('is_online', true)->count(),
+                'offline' => $users->where('is_online', false)->count(),
+            ]
+        ]);
+    }
+
     public function systemLogs()
     {
         if ($resp = $this->ensureSuperAdmin()) return $resp;

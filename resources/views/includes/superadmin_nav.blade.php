@@ -253,6 +253,9 @@
         <a href="{{ route('superadmin.schools.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.schools.index') ? 'active' : '' }}">
             <i class="bx bx-building"></i> Registered Schools
         </a>
+        <a href="{{ route('superadmin.users') }}" class="sidebar-link {{ request()->routeIs('superadmin.users') ? 'active' : '' }}">
+            <i class="bx bx-group"></i> User Management
+        </a>
 
         <div class="sidebar-group-title">SYSTEM TOOLS</div>
         <a href="{{ route('superadmin.user_password') }}" class="sidebar-link {{ request()->routeIs('superadmin.user_password') ? 'active' : '' }}">
