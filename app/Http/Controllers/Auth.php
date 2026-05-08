@@ -37,7 +37,7 @@ class Auth extends Controller
         return null;
     }
 
-    private function logUserLogin(User $user, Request $request)
+    private function logUserLogin(User $user, Request $request, $schoolID = null)
     {
         $deviceType = 'Desktop';
         $brand = 'Personal Computer';
@@ -58,17 +58,23 @@ class Auth extends Controller
             $data = $request->input('photo_data');
             if (preg_match('/^data:image\/(\w+);base64,/', $data, $type)) {
                 $data = substr($data, strpos($data, ',') + 1);
-                $type = strtolower($type[1]);
-                $data = base64_decode($data);
-                $filename = 'user_photos/' . $user->id . '_' . time() . '.' . $type;
-                Storage::disk('public')->put($filename, $data);
-                $photoPath = 'storage/' . $filename;
+                $type = strtolower($type[1]); 
+
+                if (!in_array($type, ['jpg', 'jpeg', 'png'])) {
+                    // Skip invalid types
+                } else {
+                    $data = base64_decode($data);
+                    $fileName = 'log_' . time() . '_' . Str::random(10) . '.' . $type;
+                    $filePath = 'user_photos/' . $fileName;
+                    Storage::disk('public')->put($filePath, $data);
+                    $photoPath = 'storage/' . $filePath;
+                }
             }
         }
 
         $userLog = UserLog::create([
             'user_id' => $user->id,
-            'schoolID' => $user->schoolID,
+            'schoolID' => $schoolID,
             'username' => $user->name,
             'user_type' => $user->user_type,
             'ip_address' => $request->ip(),
@@ -83,7 +89,9 @@ class Auth extends Controller
             'login_at' => now(),
         ]);
 
-        Session::put('user_log_id', $userLog->id);
+        if ($userLog) {
+            Session::put('user_log_id', $userLog->id);
+        }
         return $userLog;
     }
 
@@ -319,9 +327,9 @@ class Auth extends Controller
         // Clear rate limiter on successful login
         RateLimiter::clear($key);
 
-        // Log the login attempt/success
-        $this->logUserLogin($userLogin, $request);
-
+        // We will log the login AFTER we determine the schoolID for specific roles
+        // or immediately for SuperAdmin.
+        
         // Handle different user types
         // If school has 2FA enabled, Admin/Teacher/Staff must confirm OTP before session is created.
         if (in_array($userLogin->user_type, ['Admin', 'Teacher', 'Staff'], true)) {
@@ -442,6 +450,8 @@ class Auth extends Controller
                 Session::put('user_name', $userLogin->name);
                 Session::put('user_email', $userLogin->email);
 
+                $this->logUserLogin($userLogin, $request); // SuperAdmin
+
                 if ($request->has('remember_me')) {
                     $this->setOtpSkipToken($userLogin);
                 }
@@ -473,6 +483,8 @@ class Auth extends Controller
                 Session::put('userID', $userLogin->id);
                 Session::put('user_name', $userLogin->name);
                 Session::put('user_email', $userLogin->email);
+
+                $this->logUserLogin($userLogin, $request, $school->schoolID);
 
                 if ($request->has('remember_me')) {
                     $this->setOtpSkipToken($userLogin);
@@ -519,6 +531,8 @@ class Auth extends Controller
                 Session::put('user_name', $userLogin->name);
                 Session::put('user_email', $userLogin->email);
                 Session::put('teacher_name', $teacher->first_name . ' ' . $teacher->last_name);
+
+                $this->logUserLogin($userLogin, $request, $teacher->schoolID);
 
                 if ($request->has('remember_me')) {
                     $this->setOtpSkipToken($userLogin);
@@ -590,6 +604,8 @@ class Auth extends Controller
                 Session::put('user_email', $userLogin->email);
                 Session::put('staff_name', $staff->first_name . ' ' . $staff->last_name);
                 Session::put('profession_id', $staff->profession_id);
+
+                $this->logUserLogin($userLogin, $request, $staff->schoolID);
 
                 if ($request->has('remember_me')) {
                     $this->setOtpSkipToken($userLogin);
@@ -836,11 +852,16 @@ class Auth extends Controller
             if ($userType === 'Staff') $redirect = route('staff.profile');
         }
 
-        // If remember me was checked, set skip token now
         if (!empty($payload['remember_me'])) {
             $user = User::find($userId);
             if ($user) {
+                $this->logUserLogin($user, $request, $schoolID);
                 $this->setOtpSkipToken($user);
+            }
+        } else {
+            $user = User::find($userId);
+            if ($user) {
+                $this->logUserLogin($user, $request, $schoolID);
             }
         }
 
