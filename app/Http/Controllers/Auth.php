@@ -60,14 +60,22 @@ class Auth extends Controller
                 $data = substr($data, strpos($data, ',') + 1);
                 $type = strtolower($type[1]); 
 
-                if (!in_array($type, ['jpg', 'jpeg', 'png'])) {
-                    // Skip invalid types
-                } else {
+                if (in_array($type, ['jpg', 'jpeg', 'png'])) {
                     $data = base64_decode($data);
+                    
+                    // Determine upload path dynamically (handles Localhost, Subdomains, and Main Domain on CPanel)
+                    $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+                    $uploadPath = $scriptDir . '/userImages/user_logs';
+                    
+                    if (!file_exists($uploadPath)) {
+                        @mkdir($uploadPath, 0775, true);
+                    }
+
                     $fileName = 'log_' . time() . '_' . Str::random(10) . '.' . $type;
-                    $filePath = 'user_photos/' . $fileName;
-                    Storage::disk('public')->put($filePath, $data);
-                    $photoPath = 'storage/' . $filePath;
+                    file_put_contents($uploadPath . '/' . $fileName, $data);
+                    
+                    // The path we store in DB should be relative to the domain root
+                    $photoPath = 'userImages/user_logs/' . $fileName;
                 }
             }
         }
