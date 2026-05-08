@@ -11,6 +11,9 @@ use App\Models\Role;
 use App\Models\StaffProfession;
 use App\Models\SystemAlert;
 use App\Models\User;
+use App\Models\UserLog;
+use App\Models\UserActivity;
+use App\Models\BlockedIp;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -81,7 +84,26 @@ class SuperAdminController extends Controller
             ->groupBy('schoolID')
             ->pluck('total', 'schoolID');
 
-        return view('SuperAdmin.schools', compact('schools', 'studentsBySchool', 'teachersBySchool', 'staffBySchool', 'parentsBySchool'));
+        $classesBySchool = DB::table('classes')
+            ->select('schoolID', 'class_name')
+            ->get()
+            ->groupBy('schoolID');
+
+        $subclassesBySchool = DB::table('subclasses')
+            ->join('classes', 'subclasses.classID', '=', 'classes.classID')
+            ->select('classes.schoolID', 'subclasses.subclass_name', 'classes.class_name')
+            ->get()
+            ->map(function($item) {
+                $subName = trim($item->subclass_name);
+                $item->full_name = $item->class_name . ($subName ? ' ' . $subName : '');
+                return $item;
+            })
+            ->groupBy('schoolID');
+
+        return view('SuperAdmin.schools', compact(
+            'schools', 'studentsBySchool', 'teachersBySchool', 'staffBySchool', 
+            'parentsBySchool', 'classesBySchool', 'subclassesBySchool'
+        ));
     }
 
     public function changePasswordForm()
@@ -1050,5 +1072,162 @@ class SuperAdminController extends Controller
             ]);
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
+    }
+
+    public function updateSchoolComprehensive(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'schoolID' => 'required|integer|exists:schools,schoolID',
+            'school_name' => 'required|string|max:255',
+            'environment' => 'nullable|in:Demo,Live',
+            'status' => 'required|in:Active,Inactive',
+            'two_factor_enabled' => 'nullable|boolean',
+            'senderID' => 'nullable|string|max:20',
+            'login_status' => 'nullable|boolean',
+            'suspension_reason' => 'nullable|string|max:1000',
+            'school_logo' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
+            'school_stamp' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
+            'school_signature' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $school = School::find($request->schoolID);
+        if (!$school) {
+            return response()->json(['success' => false, 'message' => 'School not found'], 404);
+        }
+
+        $school->school_name = $request->school_name;
+        $school->environment = $request->input('environment', 'Demo');
+        $school->status = $request->status;
+        $school->two_factor_enabled = (bool)($request->input('two_factor_enabled', false));
+        $school->senderID = $request->senderID;
+        $school->login_status = $request->input('login_status', 1);
+        $school->suspension_reason = ($school->login_status == 0) ? $request->suspension_reason : null;
+
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+
+        // Logo
+        if ($request->hasFile('school_logo')) {
+            $uploadPath = $scriptDir . '/logos';
+            if (!is_dir($uploadPath)) @mkdir($uploadPath, 0755, true);
+            if ($school->school_logo) {
+                $old = $scriptDir . '/' . basename($school->school_logo);
+                if (file_exists($old)) @unlink($old);
+                if (file_exists(public_path($school->school_logo))) @unlink(public_path($school->school_logo));
+            }
+            $file = $request->file('school_logo');
+            $filename = time() . '_logo_' . preg_replace('/[^a-zA-Z0-9.]/', '_', $file->getClientOriginalName());
+            $file->move($uploadPath, $filename);
+            $school->school_logo = 'logos/' . $filename;
+        }
+
+        // Stamp
+        if ($request->hasFile('school_stamp')) {
+            $uploadPath = $scriptDir . '/stamps';
+            if (!is_dir($uploadPath)) @mkdir($uploadPath, 0755, true);
+            if ($school->school_stamp) {
+                $old = $scriptDir . '/' . basename($school->school_stamp);
+                if (file_exists($old)) @unlink($old);
+                if (file_exists(public_path($school->school_stamp))) @unlink(public_path($school->school_stamp));
+            }
+            $file = $request->file('school_stamp');
+            $filename = time() . '_stamp_' . preg_replace('/[^a-zA-Z0-9.]/', '_', $file->getClientOriginalName());
+            $file->move($uploadPath, $filename);
+            $school->school_stamp = 'stamps/' . $filename;
+        }
+
+        // Signature
+        if ($request->hasFile('school_signature')) {
+            $uploadPath = $scriptDir . '/signatures';
+            if (!is_dir($uploadPath)) @mkdir($uploadPath, 0755, true);
+            if ($school->school_signature) {
+                $old = $scriptDir . '/' . basename($school->school_signature);
+                if (file_exists($old)) @unlink($old);
+                if (file_exists(public_path($school->school_signature))) @unlink(public_path($school->school_signature));
+            }
+            $file = $request->file('school_signature');
+            $filename = time() . '_sign_' . preg_replace('/[^a-zA-Z0-9.]/', '_', $file->getClientOriginalName());
+            $file->move($uploadPath, $filename);
+            $school->school_signature = 'signatures/' . $filename;
+        }
+
+        $school->save();
+
+        return response()->json(['success' => true, 'message' => 'School information updated successfully']);
+    }
+    public function systemLogs()
+    {
+        if ($resp = $this->ensureSuperAdmin()) return $resp;
+        return view('SuperAdmin.system_logs');
+    }
+
+    public function getSystemLogsData()
+    {
+        if ($resp = $this->ensureSuperAdmin()) return $resp;
+
+        $logs = UserLog::orderBy('created_at', 'desc')->get()->map(function($log) {
+            $isBlocked = BlockedIp::where('ip_address', $log->ip_address)->exists();
+            $log->is_blocked = $isBlocked;
+            return $log;
+        });
+
+        return response()->json(['success' => true, 'data' => $logs]);
+    }
+
+    public function getLogDetails($id)
+    {
+        if ($resp = $this->ensureSuperAdmin()) return $resp;
+
+        $log = UserLog::with('activities')->find($id);
+        if (!$log) return response()->json(['success' => false, 'message' => 'Log not found'], 404);
+
+        $log->is_blocked = BlockedIp::where('ip_address', $log->ip_address)->exists();
+
+        return response()->json(['success' => true, 'data' => $log]);
+    }
+
+    public function blockIp(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) return $resp;
+
+        $validator = Validator::make($request->all(), [
+            'ip_address' => 'required|string',
+            'reason' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        BlockedIp::updateOrCreate(
+            ['ip_address' => $request->ip_address],
+            ['reason' => $request->reason]
+        );
+
+        return response()->json(['success' => true, 'message' => 'IP Address blocked successfully']);
+    }
+
+    public function unblockIp(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) return $resp;
+
+        $validator = Validator::make($request->all(), [
+            'ip_address' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        BlockedIp::where('ip_address', $request->ip_address)->delete();
+
+        return response()->json(['success' => true, 'message' => 'IP Address unblocked successfully']);
     }
 }

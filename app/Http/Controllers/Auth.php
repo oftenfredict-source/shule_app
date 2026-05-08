@@ -16,9 +16,93 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use App\Models\UserLog;
+use App\Models\BlockedIp;
+use Jenssegers\Agent\Agent;
+use Illuminate\Support\Facades\Storage;
 
 class Auth extends Controller
 {
+    private function checkIpBlocked(Request $request)
+    {
+        $ip = $request->ip();
+        $blocked = BlockedIp::where('ip_address', $ip)->first();
+        if ($blocked) {
+            $msg = "Your IP Address blocked: " . ($blocked->reason ?: 'No reason provided');
+            if ($this->isAjax($request)) {
+                return $this->jsonFail($msg, 403);
+            }
+            return redirect()->back()->with('error', $msg)->withInput($request->only('username'));
+        }
+        return null;
+    }
+
+    private function logUserLogin(User $user, Request $request)
+    {
+        $agent = new Agent();
+        $deviceType = 'Desktop';
+        if ($agent->isMobile()) $deviceType = 'Mobile';
+        elseif ($agent->isTablet()) $deviceType = 'Tablet';
+
+        $brand = $agent->device(); // e.g. iPhone, Samsung, etc.
+        if (!$brand && $deviceType === 'Desktop') {
+            // Try to guess from user agent for desktop if possible, but agent->device() is usually for mobile
+            $brand = 'Personal Computer';
+        }
+
+        $photoPath = null;
+        if ($request->filled('photo_data')) {
+            $data = $request->input('photo_data');
+            if (preg_match('/^data:image\/(\w+);base64,/', $data, $type)) {
+                $data = substr($data, strpos($data, ',') + 1);
+                $type = strtolower($type[1]);
+                $data = base64_decode($data);
+                $filename = 'user_photos/' . $user->id . '_' . time() . '.' . $type;
+                Storage::disk('public')->put($filename, $data);
+                $photoPath = 'storage/' . $filename;
+            }
+        }
+
+        $userLog = UserLog::create([
+            'user_id' => $user->id,
+            'username' => $user->name,
+            'user_type' => $user->user_type,
+            'ip_address' => $request->ip(),
+            'latitude' => $request->input('latitude'),
+            'longitude' => $request->input('longitude'),
+            'device_type' => $deviceType,
+            'device_brand' => $brand,
+            'browser' => $agent->browser(),
+            'os' => $agent->platform(),
+            'user_agent' => $request->userAgent(),
+            'photo_path' => $photoPath,
+            'login_at' => now(),
+        ]);
+
+        Session::put('user_log_id', $userLog->id);
+        return $userLog;
+    }
+
+    private function checkSchoolLoginStatus($schoolID, Request $request)
+    {
+        if (!$schoolID) return null;
+        $school = School::find($schoolID);
+        if (!$school) return null;
+
+        if ($school->login_status === 0 || $school->login_status === false) {
+            $reason = $school->suspension_reason ?: 'No reason provided.';
+            $message = "Huduma imesitishwa sababu: {$reason}";
+            
+            if ($this->isAjax($request)) {
+                return $this->jsonFail($message, 403);
+            }
+            return redirect()->back()
+                ->with('error', $message)
+                ->withInput($request->only('username'));
+        }
+        return null;
+    }
+
     private function isAjax(Request $request): bool
     {
         return $request->ajax() || $request->wantsJson() || $request->expectsJson();
@@ -152,6 +236,9 @@ class Auth extends Controller
      */
     public function auth(Request $request)
     {
+        // Check if IP is blocked
+        if ($resp = $this->checkIpBlocked($request)) return $resp;
+
         // Ensure default SuperAdmin exists
         $defaultSuperAdminUsername = 'Admin.ShuleXpert.com';
         $defaultSuperAdminPassword = 'Admin@3345';
@@ -228,6 +315,9 @@ class Auth extends Controller
         // Clear rate limiter on successful login
         RateLimiter::clear($key);
 
+        // Log the login attempt/success
+        $this->logUserLogin($userLogin, $request);
+
         // Handle different user types
         // If school has 2FA enabled, Admin/Teacher/Staff must confirm OTP before session is created.
         if (in_array($userLogin->user_type, ['Admin', 'Teacher', 'Staff'], true)) {
@@ -245,6 +335,8 @@ class Auth extends Controller
                     if ($this->isAjax($request)) return $this->jsonFail('School not found for this admin account.', 404);
                     return redirect()->back()->with('error', 'School not found for this admin account.')->withInput($request->only('username'));
                 }
+
+                if ($resp = $this->checkSchoolLoginStatus($school->schoolID, $request)) return $resp;
 
                 $skipOtp = $this->hasOtpSkipToken($userLogin);
 
@@ -275,6 +367,8 @@ class Auth extends Controller
                     if ($this->isAjax($request)) return $this->jsonFail('Teacher record not found.', 404);
                     return redirect()->back()->with('error', 'Teacher record not found.')->withInput($request->only('username'));
                 }
+
+                if ($resp = $this->checkSchoolLoginStatus($teacher->schoolID, $request)) return $resp;
 
                 $skipOtp = $this->hasOtpSkipToken($userLogin);
 
@@ -307,6 +401,8 @@ class Auth extends Controller
                     if ($this->isAjax($request)) return $this->jsonFail('Staff record not found.', 404);
                     return redirect()->back()->with('error', 'Staff record not found.')->withInput($request->only('username'));
                 }
+
+                if ($resp = $this->checkSchoolLoginStatus($staff->schoolID, $request)) return $resp;
 
                 $skipOtp = $this->hasOtpSkipToken($userLogin);
 
@@ -365,6 +461,8 @@ class Auth extends Controller
                         ->withInput($request->only('username'));
                 }
 
+                if ($resp = $this->checkSchoolLoginStatus($school->schoolID, $request)) return $resp;
+
                 // Set session data
                 Session::put('schoolID', $school->schoolID);
                 Session::put('user_type', $userLogin->user_type);
@@ -406,6 +504,8 @@ class Auth extends Controller
                         ->with('error', 'Teacher record not found.')
                         ->withInput($request->only('username'));
                 }
+
+                if ($resp = $this->checkSchoolLoginStatus($teacher->schoolID, $request)) return $resp;
 
                 // Set session data
                 Session::put('schoolID', $teacher->schoolID);
@@ -475,6 +575,8 @@ class Auth extends Controller
                         ->withInput($request->only('username'));
                 }
 
+                if ($resp = $this->checkSchoolLoginStatus($staff->schoolID, $request)) return $resp;
+
                 // Set session data
                 Session::put('schoolID', $staff->schoolID);
                 Session::put('staffID', $staff->id);
@@ -528,6 +630,8 @@ class Auth extends Controller
                         ->withInput($request->only('username'));
                 }
 
+                if ($resp = $this->checkSchoolLoginStatus($watchman->schoolID, $request)) return $resp;
+
                 Session::put('schoolID', $watchman->schoolID);
                 Session::put('watchmanID', $watchman->id);
                 Session::put('user_type', $userLogin->user_type);
@@ -559,6 +663,8 @@ class Auth extends Controller
                         ->with('error', 'Parent profile record not found.')
                         ->withInput($request->only('username'));
                 }
+
+                if ($resp = $this->checkSchoolLoginStatus($parent->schoolID, $request)) return $resp;
 
                 // Set session data
                 Session::put('parentID', $parent->parentID);
@@ -599,6 +705,12 @@ class Auth extends Controller
                 $user->otp_remember_token = null;
                 $user->save();
             }
+        }
+
+        // Record logout in system logs
+        $logId = Session::get('user_log_id');
+        if ($logId) {
+            \App\Models\UserLog::where('id', $logId)->update(['logout_at' => now()]);
         }
 
         // Forget the persistent skip cookie

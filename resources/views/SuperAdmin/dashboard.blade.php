@@ -1,13 +1,11 @@
 @extends('includes.superadmin_nav')
 
 @section('content')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-
 <style>
     .dashboard-hero {
-        background: #fff7f7;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
         border: 1px solid #f0dada;
-        padding: 18px 20px;
+        padding: 24px;
         margin-bottom: 24px;
         display: flex;
         align-items: center;
@@ -15,150 +13,200 @@
         gap: 16px;
     }
     .dashboard-hero .hero-title {
-        font-size: 1.4rem;
-        margin-bottom: 6px;
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #940000;
+        margin-bottom: 4px;
     }
     .dashboard-hero .hero-subtitle {
-        color: #6c757d;
+        color: #666;
         margin-bottom: 0;
-    }
-    .dashboard-hero .hero-actions .btn {
-        margin-left: 8px;
+        font-size: 0.95rem;
     }
     .dashboard-card {
         border: 1px solid #f0f0f0;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        box-shadow: 0 4px 12px rgba(148,0,0,0.05);
         height: 100%;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-left: 4px solid #940000;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(148,0,0,0.1);
     }
     .dashboard-card .card-title {
-        font-weight: 600;
-        color: #940000;
-        margin-bottom: 8px;
-    }
-    .dashboard-card .stat-note {
+        font-weight: 700;
+        color: #444;
         font-size: 0.9rem;
-        color: #6c757d;
-        margin-bottom: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
     }
     .dashboard-card .card-icon {
-        font-size: 2rem;
-        color: rgba(148, 0, 0, 0.35);
+        font-size: 2.2rem;
+        color: #940000;
+        opacity: 0.9;
     }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #222;
+        line-height: 1;
+    }
+    .stat-desc {
+        font-size: 0.8rem;
+        color: #888;
+        margin-top: 8px;
+    }
+    /* Ensure no radius */
+    .card, .btn, .alert { border-radius: 0 !important; }
 </style>
 
 <div class="container-fluid mt-3">
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
-    @if (session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            {{ session('error') }}
+            <i class="bx bx-check-circle me-2"></i> {{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
     <div class="dashboard-hero">
         <div>
-            <div class="text-muted" style="font-size: 0.9rem;">{{ \Carbon\Carbon::now()->format('l, d M Y') }}</div>
-            <div class="hero-title">Hello, Super Admin</div>
-            <p class="hero-subtitle">Manage school registrations and view all registered schools.</p>
+            <div class="text-muted small fw-bold uppercase" style="letter-spacing: 1px;">{{ \Carbon\Carbon::now()->format('l, d M Y') }}</div>
+            <div class="hero-title">Welcome, Super Admin</div>
+            <p class="hero-subtitle">System Overview and Institutional Management Dashboard</p>
         </div>
-        <div class="hero-actions">
-            <a href="{{ route('superadmin.schools.register') }}" class="btn btn-primary-custom btn-sm">
-                <i class="fa fa-plus"></i> Register School
+        <div class="hero-actions d-none d-md-flex gap-2">
+            <a href="{{ route('superadmin.schools.register') }}" class="btn btn-primary-custom btn-sm py-2 px-3">
+                <i class="bx bx-plus-circle me-1"></i> New School
             </a>
-            <a href="{{ route('superadmin.schools.index') }}" class="btn btn-outline-primary-custom btn-sm">
-                <i class="fa fa-building"></i> View Schools
+            <a href="{{ route('superadmin.schools.index') }}" class="btn btn-outline-primary-custom btn-sm py-2 px-3">
+                <i class="bx bx-list-ul me-1"></i> All Schools
             </a>
         </div>
     </div>
 
     <div class="row">
+        <!-- Demo Schools -->
         <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
             <div class="card dashboard-card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                            <div class="card-title">Demo Schools</div>
-                            <p class="stat-note">Schools running in Demo environment.</p>
+                            <div class="card-title">Demo Environments</div>
+                            <div class="stat-value">{{ $demoSchoolsCount ?? 0 }}</div>
                         </div>
-                        <div class="card-icon"><i class="fa fa-flask"></i></div>
+                        <div class="card-icon"><i class="bx bx-test-tube"></i></div>
                     </div>
-                    <div class="mt-2" style="font-size: 1.8rem; font-weight: 800; color: #2f2f2f;">
-                        {{ $demoSchoolsCount ?? 0 }}
-                    </div>
+                    <p class="stat-desc mb-0">Institutions currently in trial or demo mode.</p>
                 </div>
             </div>
         </div>
 
+        <!-- Live Schools -->
         <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
             <div class="card dashboard-card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                            <div class="card-title">Live Schools</div>
-                            <p class="stat-note">Schools running in Live environment.</p>
+                            <div class="card-title">Live Environments</div>
+                            <div class="stat-value">{{ $liveSchoolsCount ?? 0 }}</div>
                         </div>
-                        <div class="card-icon"><i class="fa fa-rocket"></i></div>
+                        <div class="card-icon"><i class="bx bx-rocket"></i></div>
                     </div>
-                    <div class="mt-2" style="font-size: 1.8rem; font-weight: 800; color: #2f2f2f;">
-                        {{ $liveSchoolsCount ?? 0 }}
-                    </div>
+                    <p class="stat-desc mb-0">Active production environments for schools.</p>
                 </div>
             </div>
         </div>
 
+        <!-- Registered Schools -->
         <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
-            <div class="card dashboard-card">
+            <div class="card dashboard-card" style="border-left-color: #444;">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                            <div class="card-title">School Registration</div>
-                            <p class="stat-note">Create new school accounts and admin logins.</p>
+                            <div class="card-title">Total Institutions</div>
+                            <div class="stat-value">{{ ($demoSchoolsCount ?? 0) + ($liveSchoolsCount ?? 0) }}</div>
                         </div>
-                        <div class="card-icon"><i class="fa fa-plus"></i></div>
+                        <div class="card-icon" style="color: #444;"><i class="bx bx-building-house"></i></div>
                     </div>
-                    <div class="mt-3">
-                        <a href="{{ route('superadmin.schools.register') }}" class="btn btn-primary-custom btn-sm">Open</a>
-                    </div>
+                    <a href="{{ route('superadmin.schools.index') }}" class="btn btn-sm btn-outline-dark w-100 mt-2">Manage All</a>
                 </div>
             </div>
         </div>
 
+        <!-- Quick Actions -->
         <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
-            <div class="card dashboard-card">
+            <div class="card dashboard-card" style="border-left-color: #222; background: #fafafa;">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="card-title">Registered Schools</div>
-                            <p class="stat-note">View all schools in the system.</p>
-                        </div>
-                        <div class="card-icon"><i class="fa fa-building"></i></div>
-                    </div>
-                    <div class="mt-3">
-                        <a href="{{ route('superadmin.schools.index') }}" class="btn btn-primary-custom btn-sm">Open</a>
+                    <div class="card-title">System Quick Tools</div>
+                    <div class="d-grid gap-2">
+                        <a href="{{ route('superadmin.system_alerts') }}" class="btn btn-sm btn-dark text-start">
+                            <i class="bx bx-bullhorn me-2"></i> Broadcast Alert
+                        </a>
+                        <a href="{{ route('superadmin.user_password') }}" class="btn btn-sm btn-outline-dark text-start">
+                            <i class="bx bx-key me-2"></i> Reset User Password
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
-            <div class="card dashboard-card">
+    <!-- Secondary Row -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bx bx-info-circle me-2 text-primary"></i> Super Admin Information</h6>
+                </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="card-title">Security</div>
-                            <p class="stat-note">Change your Super Admin password.</p>
+                    <p>Welcome to the ShuleXpert Super Admin panel. This area allows you to oversee the entire platform, manage school licenses, and monitor system-wide alerts.</p>
+                    <div class="row text-center mt-4">
+                        <div class="col-md-4 mb-3">
+                            <div class="p-3 border">
+                                <i class="bx bx-shield-quarter d-block mb-2 text-primary" style="font-size: 1.5rem;"></i>
+                                <div class="small fw-bold">Secure Access</div>
+                                <div class="text-muted smaller">Multi-level Auth</div>
+                            </div>
                         </div>
-                        <div class="card-icon"><i class="fa fa-lock"></i></div>
+                        <div class="col-md-4 mb-3">
+                            <div class="p-3 border">
+                                <i class="bx bx-data d-block mb-2 text-primary" style="font-size: 1.5rem;"></i>
+                                <div class="small fw-bold">Data Control</div>
+                                <div class="text-muted smaller">Full CRUD Access</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="p-3 border">
+                                <i class="bx bx-support d-block mb-2 text-primary" style="font-size: 1.5rem;"></i>
+                                <div class="small fw-bold">Help Desk</div>
+                                <div class="text-muted smaller">24/7 Monitoring</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mt-3">
-                        <a href="{{ route('superadmin.change_password') }}" class="btn btn-outline-primary-custom btn-sm">Change Password</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bx bx-cog me-2 text-primary"></i> Account Settings</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="avatar-sa me-3" style="width: 50px; height: 50px; background: #940000; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem;">
+                            SA
+                        </div>
+                        <div>
+                            <div class="fw-bold">Super Administrator</div>
+                            <div class="text-muted small">system@shulelink.com</div>
+                        </div>
                     </div>
+                    <hr>
+                    <a href="{{ route('superadmin.change_password') }}" class="btn btn-outline-primary-custom w-100 mb-2">
+                        <i class="bx bx-lock-open-alt me-1"></i> Update Security
+                    </a>
                 </div>
             </div>
         </div>

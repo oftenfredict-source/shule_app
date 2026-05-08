@@ -134,6 +134,7 @@ Route::post('super-admin/schools/update-settings', [SuperAdminController::class,
 Route::post('super-admin/schools/update-logo', [SuperAdminController::class, 'updateSchoolLogo'])->name('superadmin.schools.update_logo');
 Route::post('super-admin/schools/update-stamp', [SuperAdminController::class, 'updateSchoolStamp'])->name('superadmin.schools.update_stamp');
 Route::post('super-admin/schools/update-signature', [SuperAdminController::class, 'updateSchoolSignature'])->name('superadmin.schools.update_signature');
+Route::post('super-admin/schools/update-comprehensive', [SuperAdminController::class, 'updateSchoolComprehensive'])->name('superadmin.schools.update_comprehensive');
 Route::get('super-admin/change-password', [SuperAdminController::class, 'changePasswordForm'])->name('superadmin.change_password');
 Route::post('super-admin/change-password', [SuperAdminController::class, 'changePassword'])->name('superadmin.change_password.store');
 
@@ -154,6 +155,13 @@ Route::get('super-admin/system-alerts/list', [SuperAdminController::class, 'list
 Route::post('super-admin/system-alerts/store', [SuperAdminController::class, 'storeSystemAlert'])->name('superadmin.system_alerts.store');
 Route::post('super-admin/system-alerts/update', [SuperAdminController::class, 'updateSystemAlert'])->name('superadmin.system_alerts.update');
 Route::delete('super-admin/system-alerts/delete/{id}', [SuperAdminController::class, 'deleteSystemAlert'])->name('superadmin.system_alerts.delete');
+
+// Super Admin: System Logs
+Route::get('super-admin/system-logs', [SuperAdminController::class, 'systemLogs'])->name('superadmin.system_logs');
+Route::get('super-admin/system-logs/data', [SuperAdminController::class, 'getSystemLogsData'])->name('superadmin.system_logs.data');
+Route::get('super-admin/system-logs/details/{id}', [SuperAdminController::class, 'getLogDetails'])->name('superadmin.system_logs.details');
+Route::post('super-admin/system-logs/block-ip', [SuperAdminController::class, 'blockIp'])->name('superadmin.system_logs.block_ip');
+Route::post('super-admin/system-logs/unblock-ip', [SuperAdminController::class, 'unblockIp'])->name('superadmin.system_logs.unblock_ip');
 
 // login Routes
 Route::get('login', [Auth::class, 'login'])->name('login');

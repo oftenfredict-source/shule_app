@@ -52,6 +52,8 @@ class ConfigurationController extends Controller
         'environment' => 'nullable|in:Demo,Live',
         'two_factor_enabled' => 'nullable|boolean',
         'senderID' => 'nullable|string|max:20',
+        'login_status' => 'nullable|boolean',
+        'suspension_reason' => 'nullable|string|max:1000',
     ]);
 
     if (!array_key_exists('environment', $validated) || !$validated['environment']) {

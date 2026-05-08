@@ -29,6 +29,9 @@ class School extends Model
         'status',
         'environment',
         'two_factor_enabled',
+        'senderID',
+        'login_status',
+        'suspension_reason',
     ];
 
     public function teachers()
