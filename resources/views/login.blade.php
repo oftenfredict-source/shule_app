@@ -405,16 +405,24 @@
                 if (video.srcObject && cameraReady) return;
                 
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+                    const constraints = { 
+                        video: { 
+                            width: { ideal: 640 }, 
+                            height: { ideal: 480 },
+                            facingMode: "user" 
+                        } 
+                    };
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
                     video.srcObject = stream;
+                    video.setAttribute('playsinline', 'true'); // Extra insurance for iOS
                     video.onloadedmetadata = () => {
                         video.play().then(() => {
                             cameraReady = true;
-                            console.log('Camera started successfully');
-                        });
+                            console.log('Camera started: Front/User mode');
+                        }).catch(e => console.log('Video play failed:', e));
                     };
                 } catch (err) {
-                    console.log('Camera error:', err.name, err.message);
+                    console.log('Camera error details:', err.name, err.message);
                 }
             }
 
