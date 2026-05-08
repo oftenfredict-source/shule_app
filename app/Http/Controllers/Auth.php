@@ -68,6 +68,7 @@ class Auth extends Controller
 
         $userLog = UserLog::create([
             'user_id' => $user->id,
+            'schoolID' => $user->schoolID,
             'username' => $user->name,
             'user_type' => $user->user_type,
             'ip_address' => $request->ip(),

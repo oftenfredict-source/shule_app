@@ -150,7 +150,7 @@
                             </td>
                             <td>${user.name}</td>
                             <td><span class="badge bg-light text-dark border">${user.user_type}</span></td>
-                            <td>${user.schoolID || 'N/A'}</td>
+                            <td><div class="small fw-bold text-danger">${user.school ? user.school.school_name : 'N/A'}</div></td>
                             <td>${statusHtml}</td>
                             <td class="text-end text-muted font-monospace small">${user.last_ip || 'N/A'}</td>
                         </tr>

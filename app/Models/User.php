@@ -58,4 +58,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(OtherStaff::class, 'employee_number', 'name');
     }
+
+    public function school()
+    {
+        return $this->belongsTo(School::class, 'schoolID');
+    }
 }

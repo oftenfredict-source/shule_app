@@ -1173,7 +1173,7 @@ class SuperAdminController extends Controller
     {
         if ($resp = $this->ensureSuperAdmin()) return $resp;
 
-        $query = User::query();
+        $query = User::with('school');
 
         if ($request->school_id) {
             $query->where('schoolID', $request->school_id);
@@ -1226,7 +1226,7 @@ class SuperAdminController extends Controller
     {
         if ($resp = $this->ensureSuperAdmin()) return $resp;
 
-        $query = UserLog::query();
+        $query = UserLog::with('school');
 
         if ($request->start_date) {
             $query->whereDate('login_at', '>=', $request->start_date);

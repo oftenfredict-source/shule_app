@@ -23,6 +23,7 @@ class UserLog extends Model
         'os',
         'user_agent',
         'photo_path',
+        'schoolID',
         'login_at',
         'logout_at',
     ];
@@ -35,5 +36,10 @@ class UserLog extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function school()
+    {
+        return $this->belongsTo(School::class, 'schoolID');
     }
 }

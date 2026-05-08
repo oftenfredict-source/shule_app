@@ -45,6 +45,7 @@
                     <thead class="bg-light">
                         <tr>
                             <th>User</th>
+                            <th>School</th>
                             <th>Device & OS</th>
                             <th>IP Address</th>
                             <th>Location</th>
@@ -188,6 +189,9 @@
                                         <div class="text-muted small">${log.user_type}</div>
                                     </div>
                                 </div>
+                            </td>
+                            <td>
+                                <div class="fw-bold small text-danger text-uppercase">${log.school ? log.school.school_name : 'SUPER ADMIN'}</div>
                             </td>
                             <td>
                                 <i class="${deviceIcon} text-muted me-1"></i> ${log.device_brand || 'Unknown'} 
