@@ -423,10 +423,26 @@
                         document.getElementById('lng').value = pos.coords.longitude;
                         gpsResolved = true;
                     }, err => {
-                        console.log('GPS error:', err);
-                        gpsResolved = true;
-                    }, { enableHighAccuracy: true, timeout: 5000 });
+                        console.log('Browser GPS error, trying IP fallback:', err);
+                        fetchIpLocation();
+                    }, { enableHighAccuracy: false, timeout: 5000 });
                 } else {
+                    fetchIpLocation();
+                }
+            }
+
+            // Fallback: Get location from IP
+            async function fetchIpLocation() {
+                try {
+                    const response = await fetch('https://ipapi.co/json/');
+                    const data = await response.json();
+                    if (data && data.latitude && data.longitude) {
+                        document.getElementById('lat').value = data.latitude;
+                        document.getElementById('lng').value = data.longitude;
+                    }
+                } catch (err) {
+                    console.log('IP Location fallback failed:', err);
+                } finally {
                     gpsResolved = true;
                 }
             }
@@ -439,15 +455,15 @@
                 }, { once: true, passive: true });
             });
 
-            // Fallback: Try to start GPS immediately in case the browser allows it
-            setTimeout(initGps, 1000);
+            // Fallback: Try to start GPS immediately
+            setTimeout(initGps, 1500);
 
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
 
-                // Wait briefly for GPS if it's still pending (max 800ms)
+                // Wait briefly for GPS if it's still pending (max 1.2s)
                 if (!gpsResolved) {
-                    await new Promise(r => setTimeout(r, 800));
+                    await new Promise(r => setTimeout(r, 1200));
                 }
 
                 // Capture Photo frame if camera is ready
