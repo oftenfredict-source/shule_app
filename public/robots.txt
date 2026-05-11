@@ -1,4 +1,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://shulelink.com/sitemap.xml
+Sitemap: https://test.shulexpert.com/sitemap.xml
