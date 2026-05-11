@@ -335,13 +335,26 @@ class ExamAttendanceController extends Controller
 
     public function downloadTemplate(Request $request)
     {
-        $exam = Examination::find($request->examID);
+        $exam    = Examination::find($request->examID);
         $subject = SchoolSubject::find($request->subjectID);
-        $class = ClassModel::find($request->classID);
-        $subclass = $request->subclassID ? Subclass::find($request->subclassID) : null;
-        $school = School::find(Session::get('schoolID'));
+        $class   = ClassModel::find($request->classID);
 
-        $students = $this->getStudentsWithExamNumbers($request->examID, $request->classID, $request->subclassID);
+        // Guard: return a clear error if any required model is missing
+        if (!$exam || !$subject || !$class) {
+            return response()->json([
+                'error' => 'Invalid exam, subject, or class ID. Please select valid values and try again.'
+            ], 422);
+        }
+
+        // Handle subclassID: treat empty string and "all" as null
+        $subclassRaw = $request->subclassID;
+        $subclass = ($subclassRaw && $subclassRaw !== '' && $subclassRaw !== 'all')
+            ? Subclass::find($subclassRaw)
+            : null;
+
+        $school   = School::find(Session::get('schoolID'));
+
+        $students = $this->getStudentsWithExamNumbers($request->examID, $request->classID, $subclassRaw);
 
         $records = [];
         if ($request->with_data) {
@@ -352,22 +365,24 @@ class ExamAttendanceController extends Controller
         }
 
         $data = [
-            'school' => $school,
-            'exam' => $exam,
-            'subject' => $subject,
-            'class' => $class,
-            'subclass' => $subclass,
-            'students' => $students,
-            'records' => $records,
-            'with_data' => $request->with_data ?? false,
-            'year' => $exam->year,
-            'term' => ($exam->term === 'first_term') ? 'First Term' : (($exam->term === 'second_term') ? 'Second Term' : 'All Terms')
+            'school'     => $school,
+            'exam'       => $exam,
+            'subject'    => $subject,
+            'class'      => $class,
+            'subclass'   => $subclass,
+            'students'   => $students,
+            'records'    => $records,
+            'with_data'  => $request->with_data ?? false,
+            'year'       => $exam->year,
+            'term'       => ($exam->term === 'first_term') ? 'First Term'
+                         : (($exam->term === 'second_term') ? 'Second Term' : 'All Terms'),
         ];
 
-        $pdf = PDF::loadView('Admin.pdf.exam_attendance_template', $data);
-        $filename = $request->with_data ? "Attendance_Report" : "Attendance_Template";
+        $pdf      = PDF::loadView('Admin.pdf.exam_attendance_template', $data);
+        $filename = $request->with_data ? 'Attendance_Report' : 'Attendance_Template';
         return $pdf->download("{$filename}_{$subject->subject_name}_{$class->class_name}.pdf");
     }
+
 
     public function getAttendanceSummary(Request $request, $examID)
     {

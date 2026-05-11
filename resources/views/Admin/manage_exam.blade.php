@@ -5730,7 +5730,16 @@ $(document).on('click', '#next_week_btn', function(e) {
 </div>
 
 <script>
-$(document).ready(function() {
+jQuery(document).ready(function($) {
+
+// Fix: blur any focused element inside modals before aria-hidden is applied
+// This suppresses the "Blocked aria-hidden on focused descendant" warning
+$(document).on('hide.bs.modal', '.modal', function() {
+    var $focused = $(this).find(':focus');
+    if ($focused.length) {
+        $focused.blur();
+    }
+});
 
 // Modal Open Handler
 $(document).on('click', '.view-exam-attendance-btn', function() {
@@ -6785,7 +6794,16 @@ function performDownloadWithProgress(url, defaultFilename) {
 
     fetch(url)
         .then(response => {
-            if (!response.ok) throw new Error('Server error: ' + response.statusText);
+            if (!response.ok) {
+                // Try to read JSON error message from server (e.g. 422 validation error)
+                return response.clone().json()
+                    .then(json => {
+                        throw new Error(json.error || 'Server error: ' + response.statusText);
+                    })
+                    .catch(() => {
+                        throw new Error('Server error: ' + response.statusText);
+                    });
+            }
             return response.blob();
         })
         .then(blob => {
