@@ -42,6 +42,7 @@ use App\Http\Controllers\GoalManagementController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\CharacterAssessmentController;
 use App\Http\Controllers\ExamAttendanceController;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 
@@ -101,6 +102,8 @@ Route::prefix('goals')->group(function () {
 Route::get('/', function () {
     return view('home');
 });
+
+Route::get('/sitemap.xml', [SitemapController::class, 'index']);
 
 // Pricing Route
 Route::get('pricing', [PricingController::class, 'index'])->name('pricing');
