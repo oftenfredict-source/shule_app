@@ -118,6 +118,9 @@ class SuperAdminController extends Controller
     public function changePassword(Request $request)
     {
         if ($resp = $this->ensureSuperAdmin()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+            }
             return $resp;
         }
 
@@ -127,22 +130,38 @@ class SuperAdminController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()->all()
+                ], 422);
+            }
             return redirect()->back()->withErrors($validator);
         }
 
         $user = User::find(Session::get('userID'));
         if (!$user || $user->user_type !== 'SuperAdmin') {
             Session::flush();
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Session expired. Please login again.'], 401);
+            }
             return redirect()->route('login')->with('error', 'Session expired. Please login again.');
         }
 
         if (!Hash::check($request->current_password, $user->password)) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Current password is incorrect.'], 422);
+            }
             return redirect()->back()->with('error', 'Current password is incorrect.');
         }
 
         $user->password = Hash::make($request->new_password);
         $user->save();
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Password updated successfully.']);
+        }
         return redirect()->back()->with('success', 'Password updated successfully.');
     }
 

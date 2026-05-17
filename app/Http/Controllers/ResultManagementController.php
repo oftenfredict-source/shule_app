@@ -107,18 +107,18 @@ class ResultManagementController extends Controller
         }
 
         // Get filter parameters
-        $termFilter = $request->get('term', '');
-        $yearFilter = $request->get('year', date('Y'));
-        $typeFilter = $request->get('type', 'exam'); // 'exam' or 'report'
-        $statusFilter = $request->get('status', 'active'); // 'active', 'all', 'history'
-        $classFilter = $request->get('class', '');
-        $subclassFilter = $request->get('subclass', '');
-        $subclassIDParam = $request->get('subclassID', ''); // From classManagement link
-        $classIDParam = $request->get('classID', ''); // From coordinator view
-        $isCoordinatorView = $request->get('coordinator') === 'true';
-        $examFilter = $request->get('examID', ''); // Specific exam filter
-        $weekFilter = $request->get('week', ''); // Week filter for weekly/monthly tests
-        $subjectFilter = $request->get('subjectID', ''); // Specific subject filter
+        $termFilter = $request->input('term', '');
+        $yearFilter = $request->input('year', date('Y'));
+        $typeFilter = $request->input('type', 'exam'); // 'exam' or 'report'
+        $statusFilter = $request->input('status', 'active'); // 'active', 'all', 'history'
+        $classFilter = $request->input('class', '');
+        $subclassFilter = $request->input('subclass', '');
+        $subclassIDParam = $request->input('subclassID', ''); // From classManagement link
+        $classIDParam = $request->input('classID', ''); // From coordinator view
+        $isCoordinatorView = $request->input('coordinator') === 'true';
+        $examFilter = $request->input('examID', ''); // Specific exam filter
+        $weekFilter = $request->input('week', ''); // Week filter for weekly/monthly tests
+        $subjectFilter = $request->input('subjectID', ''); // Specific subject filter
 
         // BROAD PERMISSION CHECK: If teacher has broad result view permissions, don't restrict to "assigned class"
         $hasBroadResultPermission = $this->hasPermission('view_results');
@@ -381,10 +381,10 @@ class ResultManagementController extends Controller
         })->values();
 
         // Check if this is a request for subject details (AJAX)
-        $getSubjectDetails = $request->get('getSubjectDetails', false);
-        $getIncompleteResults = $request->get('getIncompleteResults', false);
-        $studentIDFilter = $request->get('studentID', '');
-        $typeFilterForDetails = $request->get('type', 'exam');
+        $getSubjectDetails = $request->input('getSubjectDetails', false);
+        $getIncompleteResults = $request->input('getIncompleteResults', false);
+        $studentIDFilter = $request->input('studentID', '');
+        $typeFilterForDetails = $request->input('type', 'exam');
 
         // NEW: Fetch Incomplete Results logic (STABLE ULTRA-FAST BATCH SCAN)
         if ($getIncompleteResults && $examFilter) {
@@ -411,8 +411,8 @@ class ResultManagementController extends Controller
                 });
 
             // 3. Get active class subjects (Scoped correctly without non-existent schoolID column)
-            $classIDFilter = $request->get('classID', '');
-            $subclassIDFilter = $request->get('subclassID', '');
+            $classIDFilter = $request->input('classID', '');
+            $subclassIDFilter = $request->input('subclassID', '');
 
             $classSubjects = ClassSubject::where('status', 'Active')
                 ->whereHas('subclass.class', function($q) use ($schoolID) {

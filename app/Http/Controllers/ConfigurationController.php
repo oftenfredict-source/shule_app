@@ -37,6 +37,7 @@ class ConfigurationController extends Controller
     $validated = $request->validate([
         'school_name' => 'required|string|max:150',
         'registration_number' => 'required|string|max:50|unique:schools,registration_number',
+        'exam_center_number' => 'nullable|string|max:50|unique:schools,exam_center_number',
         'school_type' => 'required|in:Primary,Secondary',
         'ownership' => 'required|in:Public,Private',
         'region' => 'required|string|max:100',

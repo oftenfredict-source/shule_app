@@ -34,6 +34,8 @@ class PermissionRequest extends Model
         'reviewed_at',
         'is_read_by_admin',
         'is_read_by_requester',
+        'current_approval_order',
+        'is_chain_completed',
     ];
 
     protected $casts = [

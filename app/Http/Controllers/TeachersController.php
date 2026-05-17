@@ -702,14 +702,14 @@ class TeachersController extends Controller
                     $isWeekend = $today->isWeekend();
 
                     // Check for holidays
-                    $holidays = \App\Models\Holiday::where('schoolID', $schoolID)
+                    $holidays = Holiday::where('schoolID', $schoolID)
                         ->where(function ($query) use ($today) {
                             $query->whereDate('start_date', '<=', $today)
                                 ->whereDate('end_date', '>=', $today);
                         })
                         ->exists();
 
-                    $events = \App\Models\Event::where('schoolID', $schoolID)
+                    $events = Event::where('schoolID', $schoolID)
                         ->whereDate('event_date', $today)
                         ->where('is_non_working_day', true)
                         ->exists();
@@ -960,15 +960,15 @@ class TeachersController extends Controller
             'is_read_by_teacher' => true,
         ]);
 
-        $teacher = \App\Models\Teacher::where('id', $teacherID)->first();
-        $school = \App\Models\School::where('schoolID', $schoolID)->first();
+        $teacher = Teacher::find($teacherID);
+        $school = School::where('schoolID', $schoolID)->first();
         $adminPhone = $school->phone ?? null;
 
         if ($adminPhone) {
             $typeLabel = $validated['type'] === 'incident' ? 'Incident' : 'Suggestion';
             $teacherName = $teacher ? trim(($teacher->first_name ?? '') . ' ' . ($teacher->last_name ?? '')) : 'Teacher';
             $message = "New {$typeLabel} from {$teacherName}. Please review in the system.";
-            $smsService = new \App\Services\SmsService();
+            $smsService = new SmsService();
             $smsService->sendSms($adminPhone, $message);
         }
 
@@ -1138,12 +1138,12 @@ class TeachersController extends Controller
             // Get lesson plans count
             $currentYear = Carbon::now()->year;
             $lessonPlansCount = LessonPlan::where('teacherID', $teacherID)
-                ->whereYear('lesson_date', $currentYear)
+                ->where(DB::raw('YEAR(lesson_date)'), $currentYear)
                 ->count();
 
             $lessonPlansSentCount = LessonPlan::where('teacherID', $teacherID)
                 ->where('sent_to_admin', true)
-                ->whereYear('lesson_date', $currentYear)
+                ->where(DB::raw('YEAR(lesson_date)'), $currentYear)
                 ->count();
 
             $dashboardStats = [
@@ -1158,7 +1158,7 @@ class TeachersController extends Controller
             ];
 
             // Get menu items
-            $menuItems = $this->getTeacherMenuItems($teacherID);
+            $menuItems = $this->getTeacherMenuItems($teacherID, $schoolID);
 
             return response()->json([
                 'success' => true,
@@ -1183,8 +1183,11 @@ class TeachersController extends Controller
     /**
      * Get teacher menu items for API
      */
-    private function getTeacherMenuItems($teacherID)
+    private function getTeacherMenuItems($teacherID, $schoolID = null)
     {
+        if (!$schoolID) {
+            $schoolID = Session::get('schoolID');
+        }
         $menuItems = [
             [
                 'id' => 'dashboard',
@@ -1366,8 +1369,8 @@ class TeachersController extends Controller
                 'qualification' => $teacher->qualification,
                 'specialization' => $teacher->specialization,
                 'experience' => $teacher->experience,
-                'date_of_birth' => $teacher->date_of_birth ? $teacher->date_of_birth->format('Y-m-d') : null,
-                'date_hired' => $teacher->date_hired ? $teacher->date_hired->format('Y-m-d') : null,
+                'date_of_birth' => $teacher->date_of_birth ? Carbon::parse($teacher->date_of_birth)->format('Y-m-d') : null,
+                'date_hired' => $teacher->date_hired ? Carbon::parse($teacher->date_hired)->format('Y-m-d') : null,
                 'address' => $teacher->address,
                 'position' => $teacher->position,
                 'status' => $teacher->status,
@@ -1428,12 +1431,12 @@ class TeachersController extends Controller
             return redirect()->route('login')->with('error', 'Unauthorized access');
         }
 
-        $teacher = \App\Models\Teacher::where('id', $teacherID)->where('schoolID', $schoolID)->first();
+        $teacher = Teacher::where('id', $teacherID)->where('schoolID', $schoolID)->first();
         if (!$teacher) {
             return redirect()->back()->with('error', 'Teacher not found');
         }
 
-        $school = \App\Models\School::find($schoolID);
+        $school = School::find($schoolID);
         $logoPath = $school && $school->logo ? public_path('schoolLogos/' . $school->logo) : null;
         $teacherImgPath = $teacher->image ? public_path('userImages/' . $teacher->image) : null;
 
@@ -1465,7 +1468,7 @@ class TeachersController extends Controller
             return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
         }
 
-        $teacher = \App\Models\Teacher::find($teacherID);
+        $teacher = Teacher::find($teacherID);
         if (!$teacher) {
             return response()->json(['success' => false, 'message' => 'Teacher not found'], 404);
         }
@@ -1519,6 +1522,9 @@ class TeachersController extends Controller
         $userType = Session::get('user_type');
 
         if ($userType !== 'Teacher' || !$teacherID || !$schoolID) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+            }
             return redirect()->route('login')->with('error', 'Access denied');
         }
 
@@ -1543,6 +1549,13 @@ class TeachersController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()->all()
+                ], 422);
+            }
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
@@ -1551,19 +1564,31 @@ class TeachersController extends Controller
             ->first();
 
         if (!$teacher) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Teacher not found'], 404);
+            }
             return redirect()->back()->with('error', 'Teacher not found');
         }
 
         $user = User::where('name', $teacher->employee_number)->first();
         if (!$user) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'User account not found'], 404);
+            }
             return redirect()->back()->with('error', 'User account not found');
         }
 
         if (!Hash::check($request->current_password, $user->password)) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Current password is incorrect.'], 422);
+            }
             return redirect()->back()->with('error', 'Current password is incorrect.');
         }
 
         if (Hash::check($request->new_password, $user->password)) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'New password must be different from the current password.'], 422);
+            }
             return redirect()->back()->with('error', 'New password must be different from the current password.');
         }
 
@@ -1573,6 +1598,9 @@ class TeachersController extends Controller
 
         Session::forget('force_password_change');
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Password updated successfully.']);
+        }
         return redirect()->back()->with('success', 'Password updated successfully.');
     }
 
@@ -1739,7 +1767,7 @@ class TeachersController extends Controller
                 'qualification' => $teacher->qualification,
                 'specialization' => $teacher->specialization,
                 'experience' => $teacher->experience,
-                'date_of_birth' => $teacher->date_of_birth ? $teacher->date_of_birth->format('Y-m-d') : null,
+                'date_of_birth' => $teacher->date_of_birth ? Carbon::parse($teacher->date_of_birth)->format('Y-m-d') : null,
                 'address' => $teacher->address,
                 'position' => $teacher->position,
                 'image' => $teacher->image ? asset('userImages/' . $teacher->image) : ($teacher->gender == 'Female' ? asset('images/female.png') : asset('images/male.png')),
@@ -3345,8 +3373,8 @@ class TeachersController extends Controller
             ->get()
             ->map(function ($holiday) use ($currentYear) {
                 // Format dates properly
-                $startDate = \Carbon\Carbon::parse($holiday->start_date);
-                $endDate = \Carbon\Carbon::parse($holiday->end_date);
+                $startDate = Carbon::parse($holiday->start_date);
+                $endDate = Carbon::parse($holiday->end_date);
 
                 return [
                     'name' => $holiday->holiday_name,
@@ -4070,7 +4098,7 @@ class TeachersController extends Controller
             $options->set('isHtml5ParserEnabled', true);
             $options->setChroot(public_path());
 
-            $dompdf = new \Dompdf\Dompdf($options);
+            $dompdf = new Dompdf($options);
             $dompdf->loadHtml($html);
             $dompdf->setPaper('A4', 'landscape');
             $dompdf->render();
@@ -4515,7 +4543,7 @@ class TeachersController extends Controller
                 return redirect()->back()->with('error', 'Subject not found.');
 
             // Fetch results by joining with students to filter by schoolID
-            $query = \App\Models\Result::with(['student'])
+            $query = Result::with(['student'])
                 ->join('students', 'results.studentID', '=', 'students.studentID')
                 ->where('results.class_subjectID', $classSubjectID)
                 ->where('students.schoolID', $schoolID)
@@ -4534,17 +4562,17 @@ class TeachersController extends Controller
             $examName = 'All Examinations';
 
             if ($examID) {
-                $examination = \App\Models\Examination::find($examID);
+                $examination = Examination::find($examID);
                 $examName = $examination ? $examination->exam_name : 'Unknown';
 
-                $caDefinition = \App\Models\CaDefinition::where('schoolID', $schoolID)
+                $caDefinition = CaDefinition::where('schoolID', $schoolID)
                     ->where('examID', $examID)
                     ->first();
 
                 if ($caDefinition && !empty($caDefinition->test_ids)) {
                     $hasCA = true;
                     // Filter test results by schoolID via students join as well
-                    $allTestResults = \App\Models\Result::join('students', 'results.studentID', '=', 'students.studentID')
+                    $allTestResults = Result::join('students', 'results.studentID', '=', 'students.studentID')
                         ->where('results.class_subjectID', $classSubjectID)
                         ->where('students.schoolID', $schoolID)
                         ->whereIn('results.examID', $caDefinition->test_ids)
@@ -4647,7 +4675,7 @@ class TeachersController extends Controller
             $teacher = DB::table('teachers')->where('id', $teacherID)->first();
             $teacherName = $teacher ? ($teacher->first_name . ' ' . $teacher->last_name) : 'N/A';
 
-            $dompdf = new \Dompdf\Dompdf();
+            $dompdf = new Dompdf();
             $html = view('Teacher.subject_results_pdf', [
                 'results' => $results,
                 'class_subject' => $classSubject,
@@ -4958,7 +4986,7 @@ class TeachersController extends Controller
                 return response()->json(['error' => 'Teacher ID not found in session.'], 400);
             }
 
-            $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            $validator = Validator::make($request->all(), [
                 'class_subjectID' => 'required',
                 'examID' => 'required',
                 'results' => 'required|array',
@@ -4997,7 +5025,7 @@ class TeachersController extends Controller
                 }
             }
 
-            $examination = \App\Models\Examination::find($request->examID);
+            $examination = Examination::find($request->examID);
             if (!$examination || !$examination->enter_result) {
                 return response()->json(['error' => 'Examination results entry is disabled or exam not found.'], 403);
             }
@@ -5274,7 +5302,7 @@ class TeachersController extends Controller
             }
 
             // Create spreadsheet using PhpSpreadsheet
-            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle('Results Template');
 
@@ -5293,10 +5321,10 @@ class TeachersController extends Controller
             $headerStyle = [
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                 'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'fillType' => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '940000']
                 ],
-                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
             ];
             $sheet->getStyle('A1:F1')->applyFromArray($headerStyle);
 
@@ -5354,7 +5382,7 @@ class TeachersController extends Controller
             $spreadsheet->getCalculationEngine()->clearCalculationCache();
 
             // Create writer
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer = new Xlsx($spreadsheet);
             $writer->setPreCalculateFormulas(false); // Let Excel calculate formulas
 
             // Set headers for download
@@ -5570,7 +5598,7 @@ class TeachersController extends Controller
             $spreadsheet->getCalculationEngine()->clearCalculationCache();
 
             // Create writer
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer = new Xlsx($spreadsheet);
             $writer->setPreCalculateFormulas(false); // Let Excel calculate formulas
 
             // Set headers for download
@@ -5603,7 +5631,7 @@ class TeachersController extends Controller
                 ], 400);
             }
 
-            $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            $validator = Validator::make($request->all(), [
                 'class_subject_id' => 'required|exists:class_subjects,class_subjectID',
                 'exam_id' => 'required|exists:examinations,examID',
                 'excel_file' => 'required|mimes:xlsx,xls|max:10240'
@@ -11536,7 +11564,7 @@ class TeachersController extends Controller
                 if (!$year) {
                     return response()->json(['success' => false, 'error' => 'Please provide a year']);
                 }
-                $query->whereYear('lesson_date', $year);
+                $query->where(DB::raw('YEAR(lesson_date)'), $year);
             }
 
             $lessonPlans = $query->orderBy('lesson_date', 'desc')->get();
@@ -11704,13 +11732,31 @@ class TeachersController extends Controller
             return redirect()->route('login')->with('error', 'Unauthorized access');
         }
 
-        $activeTab = $request->get('tab', 'request');
+        $activeTab = $request->input('tab', 'request');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+        $filterType = $request->input('filter_type', 'all');
+        $filterMonth = $request->input('filter_month');
+        $filterMonthYear = $request->input('filter_month_year', date('Y'));
+        $filterYear = $request->input('filter_year', date('Y'));
 
-        $permissions = PermissionRequest::where('schoolID', $schoolID)
+        $query = PermissionRequest::where('schoolID', $schoolID)
             ->where('requester_type', 'teacher')
-            ->where('teacherID', $teacherID)
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->where('teacherID', $teacherID);
+
+        if ($filterType === 'range') {
+            if ($dateFrom) $query->whereDate('start_date', '>=', $dateFrom);
+            if ($dateTo) $query->whereDate('start_date', '<=', $dateTo);
+        } elseif ($filterType === 'month') {
+            if ($filterMonth) {
+                $query->whereMonth('start_date', $filterMonth)
+                      ->whereYear('start_date', $filterMonthYear);
+            }
+        } elseif ($filterType === 'year') {
+            if ($filterYear) $query->whereYear('start_date', $filterYear);
+        }
+
+        $permissions = $query->orderBy('created_at', 'desc')->get();
 
         $pendingPermissions = $permissions->where('status', 'pending');
         $approvedPermissions = $permissions->where('status', 'approved');
@@ -11743,6 +11789,17 @@ class TeachersController extends Controller
             ->where('is_read_by_requester', false)
             ->count();
 
+        $editPermission = null;
+        $editId = $request->input('edit_id');
+        if ($editId && $activeTab === 'request') {
+            $editPermission = PermissionRequest::where('schoolID', $schoolID)
+                ->where('requester_type', 'teacher')
+                ->where('teacherID', $teacherID)
+                ->where('permissionID', $editId)
+                ->where('status', 'rejected')
+                ->first();
+        }
+
         return view('Teacher.manage_permissions', [
             'activeTab' => $activeTab,
             'pendingPermissions' => $pendingPermissions,
@@ -11751,6 +11808,14 @@ class TeachersController extends Controller
             'unreadPendingCount' => $unreadPendingCount,
             'unreadApprovedCount' => $unreadApprovedCount,
             'unreadRejectedCount' => $unreadRejectedCount,
+            'permissionContext' => 'teacher',
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'filterType' => $filterType,
+            'filterMonth' => $filterMonth,
+            'filterMonthYear' => $filterMonthYear,
+            'filterYear' => $filterYear,
+            'editPermission' => $editPermission,
         ]);
     }
 
@@ -11785,9 +11850,7 @@ class TeachersController extends Controller
                 }
                 return redirect()->back()->with('error', 'Please provide days count and date range.')->withInput();
             }
-            $startDate = Carbon::parse($validated['start_date']);
-            $endDate = Carbon::parse($validated['end_date']);
-            $daysCount = $startDate->diffInDays($endDate) + 1;
+            $daysCount = $this->calculateWorkingDays($validated['start_date'], $validated['end_date']);
             if ($daysCount > 7) {
                 if ($request->ajax() || $request->expectsJson()) {
                     return response()->json(['success' => false, 'message' => 'Days exceed limit. Use 7 days or less.'], 422);
@@ -11815,12 +11878,17 @@ class TeachersController extends Controller
 
         $computedDays = null;
         if ($validated['time_mode'] === 'days') {
-            $startDate = Carbon::parse($validated['start_date']);
-            $endDate = Carbon::parse($validated['end_date']);
-            $computedDays = $startDate->diffInDays($endDate) + 1;
+            $computedDays = $this->calculateWorkingDays($validated['start_date'], $validated['end_date']);
         }
 
-        PermissionRequest::create([
+        // Check for approval chain
+        $hasChain = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', 'teacher')
+            ->exists();
+
+        $permissionId = $request->input('permission_id');
+        $permissionData = [
             'schoolID' => $schoolID,
             'requester_type' => 'teacher',
             'teacherID' => $teacherID,
@@ -11835,11 +11903,85 @@ class TeachersController extends Controller
             'status' => 'pending',
             'is_read_by_admin' => false,
             'is_read_by_requester' => true,
-        ]);
+            'current_approval_order' => $hasChain ? 1 : 0
+        ];
+
+        $isResubmission = false;
+        if ($permissionId) {
+            $permission = PermissionRequest::where('permissionID', $permissionId)
+                ->where('teacherID', $teacherID)
+                ->where('status', 'rejected')
+                ->first();
+            
+            if ($permission) {
+                // Determine if we should keep the current stage or reset
+                // User wants to keep the stage if it was rejected in the middle of a chain
+                $resubmissionOrder = $permission->current_approval_order;
+                
+                $permissionData['current_approval_order'] = $resubmissionOrder;
+                $permissionData['status'] = 'pending';
+
+                // Capture the rejector's info BEFORE clearing the rejected log
+                $rejectionLog = DB::table('permission_approval_logs')
+                    ->where('permissionID', $permissionId)
+                    ->where('status', 'rejected')
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                
+                $rejectorPhone = null;
+                $rejectorName = null;
+                if ($rejectionLog) {
+                    $rejectorTeacher = Teacher::where('id', $rejectionLog->approver_id)->first();
+                    if ($rejectorTeacher) {
+                        $rejectorPhone = $rejectorTeacher->phone_number;
+                    } else {
+                        $rejectorStaff = \App\Models\OtherStaff::where('id', $rejectionLog->approver_id)->first();
+                        if ($rejectorStaff) {
+                            $rejectorPhone = $rejectorStaff->phone_number;
+                        }
+                    }
+                }
+
+                $permission->update($permissionData);
+                
+                // Remove ONLY the rejected log so previous approvals stay
+                DB::table('permission_approval_logs')
+                    ->where('permissionID', $permissionId)
+                    ->where('status', 'rejected')
+                    ->delete();
+                
+                $isResubmission = true;
+
+                // Notify the rejector via SMS with specific message
+                if ($rejectorPhone) {
+                    $teacher = Teacher::where('id', $teacherID)->first();
+                    $requesterName = $teacher ? trim(($teacher->first_name ?? '') . ' ' . ($teacher->last_name ?? '')) : 'Teacher';
+                    $smsMsg = "Ruksa uliyoikataa ya {$requesterName}, amerekebisha na kutuma upya ingia kwenye mfumo kukagua.";
+                    (new SmsService())->sendSms($rejectorPhone, $smsMsg);
+                }
+            } else {
+                $permission = PermissionRequest::create($permissionData);
+            }
+        } else {
+            $permission = PermissionRequest::create($permissionData);
+        }
+
+        if ($hasChain) {
+            // Notify first approver
+            app(\App\Http\Controllers\AdminController::class)->notifyNextApprover($permission);
+        }
+
 
         $teacher = Teacher::where('id', $teacherID)->first();
         $school = School::where('schoolID', $schoolID)->first();
         $smsService = new SmsService();
+
+        $periodLabel = "";
+        if ($validated['time_mode'] === 'days') {
+            $periodLabel = $validated['start_date'] . " to " . $validated['end_date'] . " (" . $computedDays . " days)";
+        } else {
+            $periodLabel = $validated['start_time'] . " to " . $validated['end_time'];
+        }
 
         if ($teacher && $teacher->phone_number) {
             $smsService->sendSms($teacher->phone_number, 'Your permission request has been submitted to Admin. Please wait for approval.');

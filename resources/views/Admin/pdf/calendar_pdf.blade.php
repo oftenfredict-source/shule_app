@@ -126,19 +126,19 @@
     <table class="stats-grid">
         <tr>
             <td>
-                <div class="stat-val">{{ $stats['working_days'] }}</div>
+                <div class="stat-val">{{ $stats->working_days ?? 0 }}</div>
                 <div class="stat-label">Working Days</div>
             </td>
             <td>
-                <div class="stat-val">{{ $stats['holiday_days'] }}</div>
+                <div class="stat-val">{{ $stats->holiday_days ?? 0 }}</div>
                 <div class="stat-label">Holiday Days</div>
             </td>
             <td>
-                <div class="stat-val">{{ $stats['weekend_days'] }}</div>
+                <div class="stat-val">{{ $stats->weekend_days ?? 0 }}</div>
                 <div class="stat-label">Weekend Days</div>
             </td>
             <td>
-                <div class="stat-val">{{ $stats['event_days'] }}</div>
+                <div class="stat-val">{{ $stats->event_days ?? 0 }}</div>
                 <div class="stat-label">School Events</div>
             </td>
         </tr>

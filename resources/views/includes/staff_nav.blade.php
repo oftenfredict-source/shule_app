@@ -402,6 +402,31 @@
                                     style="list-style: none; padding-left: 20px; margin: 0;">
                                     <li><a href="{{ route('staff.permissions') }}" class="nav-link"><i
                                                 class="fa fa-check-square-o"></i> Permission</a></li>
+                                    <li>
+                                        @php
+                                            $navSchoolID = Session::get('schoolID');
+                                            $navStaffID = Session::get('staffID');
+                                            $sProf = $navStaffID ? \App\Models\OtherStaff::where('id', $navStaffID)->value('profession_id') : null;
+                                            
+                                            $permCount = \App\Models\PermissionRequest::where('schoolID', $navSchoolID)
+                                                ->where('status', 'pending')
+                                                ->where('current_approval_order', '>', 0)
+                                                ->whereExists(function($q) use ($sProf) {
+                                                    $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                                                        ->from('permission_approval_chains')
+                                                        ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID')
+                                                        ->whereColumn('permission_approval_chains.permission_type', 'permission_requests.requester_type')
+                                                        ->whereColumn('permission_approval_chains.approval_order', 'permission_requests.current_approval_order')
+                                                        ->where('profession_id', $sProf);
+                                                })->count();
+                                        @endphp
+                                        <a href="{{ route('admin.hr.permissions.pending_approvals') }}" class="nav-link">
+                                            <i class="fa fa-check-circle"></i> Permission Approvals
+                                            @if($permCount > 0)
+                                                <span class="badge badge-danger ml-1" style="font-size: 10px; border-radius: 50%;">{{ $permCount }}</span>
+                                            @endif
+                                        </a>
+                                    </li>
                                     <li><a href="{{ route('staff.leave') }}" class="nav-link"><i
                                                 class="fa fa-calendar"></i> Leave</a></li>
                                     <li><a href="{{ route('staff.payroll') }}" class="nav-link"><i

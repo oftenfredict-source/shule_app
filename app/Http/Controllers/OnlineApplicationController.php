@@ -129,7 +129,7 @@ class OnlineApplicationController extends Controller
         } catch (\Exception $e) {
             \Log::error('OnlineApplicationController index error: ' . $e->getMessage());
             return view('online_application', ['schools' => collect(), 'search' => $request->get('search', '')])
-                ->withErrors(['error' => 'An error occurred while loading schools. Please try again.']);
+                ->with('error', 'An error occurred while loading schools. Please try again.');
         }
     }
 

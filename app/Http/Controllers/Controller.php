@@ -36,7 +36,22 @@ abstract class Controller
                 return true;
             }
         }
-
         return false;
+    }
+
+    protected function calculateWorkingDays($startDate, $endDate)
+    {
+        $start = \Carbon\Carbon::parse($startDate);
+        $end = \Carbon\Carbon::parse($endDate);
+        $days = 0;
+
+        while ($start->lte($end)) {
+            if (!$start->isWeekend()) {
+                $days++;
+            }
+            $start->addDay();
+        }
+
+        return $days;
     }
 }

@@ -4126,7 +4126,7 @@ class ManageClassessController extends Controller
                     'success' => true,
                     'attendance' => [
                         'attendanceID' => $attendance->attendanceID,
-                        'attendance_date' => $attendance->attendance_date->format('Y-m-d'),
+                        'attendance_date' => $attendance->attendance_date ? \Carbon\Carbon::parse($attendance->attendance_date)->format('Y-m-d') : null,
                         'status' => $attendance->status,
                         'remark' => $attendance->remark,
                         'studentID' => $attendance->studentID,
@@ -4349,7 +4349,7 @@ class ManageClassessController extends Controller
             } else {
                 // For week/month, group by date
                 $grouped = $attendances->groupBy(function($item) {
-                    return $item->attendance_date->format('Y-m-d');
+                    return \Carbon\Carbon::parse($item->attendance_date)->format('Y-m-d');
                 });
 
                 foreach ($grouped as $date => $items) {

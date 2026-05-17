@@ -1334,7 +1334,7 @@ class TimeTableController extends Controller
                     $examTimetable->examID = $exam->examID;
                     $examTimetable->subclassID = $subclass->subclassID;
                     $examTimetable->teacherID = $teacher->id;
-                    $examTimetable->exam_date = $date->format('Y-m-d');
+                    $examTimetable->exam_date = $date->toDateString();
                     $examTimetable->start_time = $slot['start']->format('H:i');
                     $examTimetable->end_time = $slot['end']->format('H:i');
                     $examTimetable->timetable_type = 'school_wide';
@@ -1531,7 +1531,7 @@ class TimeTableController extends Controller
                         $examTimetable->examID = $exam->examID;
                         $examTimetable->subclassID = $subclass->subclassID;
                         $examTimetable->teacherID = $teacher->id;
-                        $examTimetable->exam_date = $date->format('Y-m-d');
+                        $examTimetable->exam_date = $date->toDateString();
                         $examTimetable->start_time = $startTime;
                         $examTimetable->end_time = $endTime;
                         $examTimetable->timetable_type = 'school_wide';
@@ -2082,8 +2082,8 @@ class TimeTableController extends Controller
             'exam' => [
                 'examID' => $exam->examID,
                 'exam_name' => $exam->exam_name,
-                'start_date' => $exam->start_date ? $exam->start_date->format('Y-m-d') : null,
-                'end_date' => $exam->end_date ? $exam->end_date->format('Y-m-d') : null,
+                'start_date' => $exam->start_date ? \Carbon\Carbon::parse($exam->start_date)->format('Y-m-d') : null,
+                'end_date' => $exam->end_date ? \Carbon\Carbon::parse($exam->end_date)->format('Y-m-d') : null,
             ]
         ]);
     }
@@ -2133,14 +2133,14 @@ class TimeTableController extends Controller
                         'subject_name' => $timetable->subject->subject_name ?? 'N/A',
                         'start_time' => $timetable->start_time,
                         'end_time' => $timetable->end_time,
-                        'halls' => $hallSupervisors->groupBy('exam_hallID')->map(function ($supervisors) {
-                            $hall = $supervisors->first()->examHall;
+                        'halls' => collect($hallSupervisors)->groupBy('exam_hallID')->map(function ($supervisors) {
+                            $hall = collect($supervisors)->first()->examHall;
                             return [
                                 'hall_name' => $hall->hall_name,
                                 'class_name' => $hall->class->class_name ?? 'N/A',
                                 'capacity' => $hall->capacity,
                                 'gender_allowed' => $hall->gender_allowed,
-                                'supervisors' => $supervisors->map(function ($s) {
+                                'supervisors' => collect($supervisors)->map(function ($s) {
                                     return [
                                         'teacher_name' => $s->teacher->name ?? 'N/A',
                                         'teacher_phone' => $s->teacher->phone ?? 'N/A',
@@ -2194,7 +2194,7 @@ class TimeTableController extends Controller
                         'subject_name' => $subjectName,
                         'start_time' => $startTime,
                         'end_time' => $endTime,
-                        'exam_date' => $examDate ? $examDate->format('Y-m-d') : null,
+                        'exam_date' => $examDate ? \Carbon\Carbon::parse($examDate)->format('Y-m-d') : null,
                         'exam_timetableID' => $st->exam_timetableID
                 ];
             });
@@ -2243,7 +2243,7 @@ class TimeTableController extends Controller
             $responseData['subject_name'] = $subjectName ?? 'N/A';
             $responseData['start_time'] = $startTime ?? 'N/A';
             $responseData['end_time'] = $endTime ?? 'N/A';
-            $responseData['exam_date'] = $examDate ? $examDate->format('Y-m-d') : null;
+            $responseData['exam_date'] = $examDate ? \Carbon\Carbon::parse($examDate)->format('Y-m-d') : null;
         }
 
         return response()->json($responseData);
@@ -2802,7 +2802,7 @@ class TimeTableController extends Controller
                     continue;
                 }
                 
-                $dateKey = $timetable->exam_date->format('Y-m-d');
+                $dateKey = \Carbon\Carbon::parse($timetable->exam_date)->format('Y-m-d');
                 if (!isset($byDate[$dateKey])) {
                     $byDate[$dateKey] = [
                         'date' => $timetable->exam_date,

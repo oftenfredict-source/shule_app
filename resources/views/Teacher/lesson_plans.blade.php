@@ -228,7 +228,7 @@
                                 style="width: 100%;">
                                 <option value="">-- Select Subject --</option>
                                 @foreach($subjects as $subject)
-                                    <option value="{{ $subject['subjectID'] }}">{{ $subject['subject_name'] }}</option>
+                                    <option value="{{ $subject->subjectID ?? $subject['subjectID'] ?? '' }}">{{ $subject->subject_name ?? $subject['subject_name'] ?? '' }}</option>
                                 @endforeach
                             </select>
                         </div>

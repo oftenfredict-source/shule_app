@@ -71,7 +71,7 @@
                 <div class="col-md-4">
                     <div class="card border-0 shadow-sm p-4 text-center" style="border-radius: 0; background-color: #FFF5F5;">
                         <span class="text-uppercase small font-weight-bold mb-2" style="color: #940000; letter-spacing: 1px;">Active Categories</span>
-                        <h2 class="mb-0 font-weight-bold" style="color: #2f2f2f;">{{ $categories->count() }}</h2>
+                        <h2 class="mb-0 font-weight-bold" style="color: #2f2f2f;">{{ is_array($categories) ? count($categories) : $categories->count() }}</h2>
                     </div>
                 </div>
                 <div class="col-md-4">

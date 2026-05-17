@@ -6953,7 +6953,9 @@ $(document).on('change', '.attendance-select-view', function() {
                                     <select class="form-control" name="teacherID" id="assign_attendance_teacher" required>
                                         <option value="">Select Teacher</option>
                                         @foreach($teachers ?? [] as $teacher)
-                                            <option value="{{ $teacher->id }}">{{ $teacher->first_name }} {{ $teacher->last_name }}</option>
+                                            @if(is_object($teacher))
+                                                <option value="{{ $teacher->id ?? '' }}">{{ ($teacher->first_name ?? '') . ' ' . ($teacher->last_name ?? '') }}</option>
+                                            @endif
                                         @endforeach
                                     </select>
                                 </div>

@@ -1679,7 +1679,7 @@ class LibraryController extends Controller
             $type = $request->incident_type; // 'loss' or 'damage'
             $incidentID = $request->incidentID;
             $bookID = $request->bookID;
-            $method = $request->method; // 'returned', 'replacenew', 'cash'
+            $method = $request->input('method'); // 'returned', 'replacenew', 'cash'
             $replacementIsbn = $request->replacement_isbn;
             $amount = $request->amount;
             $notes = $request->notes;

@@ -26,7 +26,7 @@ class GradeDefinitionController extends Controller
         }
 
         $schoolID = Session::get('schoolID');
-        $classID = $request->get('classID');
+        $classID = $request->input('classID');
         
         // Get all classes for this school
         $classes = ClassModel::where('schoolID', $schoolID)
@@ -187,6 +187,7 @@ class GradeDefinitionController extends Controller
      */
     public function bulkStore(Request $request)
     {
+        $selectedYear = $request->input('year', date('Y'));
         $grades = $request->input('grades');
         $classID = $request->input('classID');
 

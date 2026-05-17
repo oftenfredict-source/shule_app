@@ -42,7 +42,7 @@
                         <div class="mb-4">
                             <h6 class="fw-bold border-bottom pb-2 mb-4"><i class="bx bx-info-circle me-2 text-primary"></i> Basic Information</h6>
                             <div class="row g-4">
-                                <div class="col-md-8">
+                                <div class="col-md-5">
                                     <label class="form-label required" for="school_name">Official School Name</label>
                                     <div class="position-relative">
                                         <i class="bx bx-building input-icon"></i>
@@ -55,6 +55,13 @@
                                     <div class="position-relative">
                                         <i class="bx bx-hash input-icon"></i>
                                         <input type="text" id="registration_number" name="registration_number" class="form-control with-icon @error('registration_number') is-invalid @enderror" value="{{ old('registration_number') }}" placeholder="e.g. S927/123">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="exam_center_number">Exam Center No.</label>
+                                    <div class="position-relative">
+                                        <i class="bx bx-certification input-icon"></i>
+                                        <input type="text" id="exam_center_number" name="exam_center_number" class="form-control with-icon @error('exam_center_number') is-invalid @enderror" value="{{ old('exam_center_number') }}" placeholder="e.g. S0101">
                                     </div>
                                 </div>
                                 <div class="col-md-4">

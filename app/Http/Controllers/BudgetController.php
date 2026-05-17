@@ -14,7 +14,7 @@ class BudgetController extends Controller
     public function index(Request $request)
     {
         $schoolID = Session::get('schoolID');
-        $selectedYear = $request->get('year', date('Y'));
+        $selectedYear = $request->input('year', date('Y'));
         
         $budgets = Budget::where('schoolID', $schoolID)
             ->where('fiscal_year', $selectedYear)

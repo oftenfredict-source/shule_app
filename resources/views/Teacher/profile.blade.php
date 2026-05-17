@@ -223,7 +223,7 @@
                     <h5 class="mb-4">Account Security</h5>
                     <div class="row">
                         <div class="col-md-6">
-                            <form method="POST" action="{{ route('teacher.change_password') }}">
+                            <form id="teacherChangePasswordForm" method="POST" action="{{ route('teacher.change_password') }}">
                                 @csrf
                                 <div class="form-group">
                                     <label class="info-label">Current Password</label>
@@ -231,18 +231,41 @@
                                 </div>
                                 <div class="form-group">
                                     <label class="info-label">New Password</label>
-                                    <input type="password" class="form-control" name="new_password" id="new_pw" required>
+                                    <input type="password" class="form-control" name="new_password" id="new_pw" required autocomplete="new-password">
                                     <div class="mt-2">
                                         <div class="progress" style="height: 5px;">
                                             <div id="pw_bar" class="progress-bar" style="width: 0%;"></div>
                                         </div>
                                     </div>
+                                    <div class="mt-3 p-3 bg-light rounded" id="teacher_requirements_card" style="border: 1px solid #e3e6f0;">
+                                        <h6 class="font-weight-bold mb-2 small text-secondary">PASSWORD REQUIREMENTS:</h6>
+                                        <ul class="list-unstyled mb-0 small">
+                                            <li class="requirement-item text-danger" id="t_req_len">
+                                                <i class="fa fa-times-circle mr-2" id="t_icon_len"></i> At least 8 characters
+                                            </li>
+                                            <li class="requirement-item text-danger" id="t_req_upper">
+                                                <i class="fa fa-times-circle mr-2" id="t_icon_upper"></i> At least one uppercase letter (A-Z)
+                                            </li>
+                                            <li class="requirement-item text-danger" id="t_req_lower">
+                                                <i class="fa fa-times-circle mr-2" id="t_icon_lower"></i> At least one lowercase letter (a-z)
+                                            </li>
+                                            <li class="requirement-item text-danger" id="t_req_num">
+                                                <i class="fa fa-times-circle mr-2" id="t_icon_num"></i> At least one number (0-9)
+                                            </li>
+                                            <li class="requirement-item text-danger" id="t_req_spec">
+                                                <i class="fa fa-times-circle mr-2" id="t_icon_spec"></i> At least one special character (@, $, !, %, etc.)
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
                                 <div class="form-group">
                                     <label class="info-label">Confirm Password</label>
-                                    <input type="password" class="form-control" name="new_password_confirmation" required>
+                                    <input type="password" class="form-control" name="new_password_confirmation" id="teacher_confirm_password" required autocomplete="new-password">
+                                    <div class="mt-2 small" id="teacher_confirm_feedback" style="display: none;">
+                                        <span id="teacher_confirm_status"></span>
+                                    </div>
                                 </div>
-                                <button type="submit" class="btn btn-action btn-edit-profile m-0">Update Password</button>
+                                <button type="submit" id="teacherSubmitBtn" class="btn btn-action btn-edit-profile m-0" disabled>Update Password</button>
                             </form>
                         </div>
                     </div>
@@ -340,22 +363,195 @@ $(document).ready(function() {
         }
     });
 
-    // Password Strength
-    $('#new_pw').on('input', function() {
-        const pw = $(this).val();
+    // Password Strength & Realtime Validation
+    const teacherNewPassword = $('#new_pw');
+    const teacherConfirmPassword = $('#teacher_confirm_password');
+    const teacherSubmitBtn = $('#teacherSubmitBtn');
+
+    let teacherState = {
+        length: false,
+        upper: false,
+        lower: false,
+        number: false,
+        special: false,
+        match: false
+    };
+
+    function updateTeacherRequirementUI(elementId, iconId, isMet) {
+        const element = $(elementId);
+        const icon = $(iconId);
+        if (isMet) {
+            element.removeClass('text-danger').addClass('text-success');
+            icon.removeClass('fa-times-circle text-danger').addClass('fa-check-circle text-success');
+        } else {
+            element.removeClass('text-success').addClass('text-danger');
+            icon.removeClass('fa-check-circle text-success').addClass('fa-times-circle text-danger');
+        }
+    }
+
+    function checkTeacherPassword() {
+        const pw = teacherNewPassword.val();
+        
+        // 1. Length
+        teacherState.length = pw.length >= 8;
+        updateTeacherRequirementUI('#t_req_len', '#t_icon_len', teacherState.length);
+
+        // 2. Upper case
+        teacherState.upper = /[A-Z]/.test(pw);
+        updateTeacherRequirementUI('#t_req_upper', '#t_icon_upper', teacherState.upper);
+
+        // 3. Lower case
+        teacherState.lower = /[a-z]/.test(pw);
+        updateTeacherRequirementUI('#t_req_lower', '#t_icon_lower', teacherState.lower);
+
+        // 4. Number
+        teacherState.number = /[0-9]/.test(pw);
+        updateTeacherRequirementUI('#t_req_num', '#t_icon_num', teacherState.number);
+
+        // 5. Special Character
+        teacherState.special = /[^a-zA-Z0-9]/.test(pw);
+        updateTeacherRequirementUI('#t_req_spec', '#t_icon_spec', teacherState.special);
+
+        // Strength progress bar
         let score = 0;
-        if (pw.length >= 8) score += 25;
-        if (/[a-z]/.test(pw)) score += 15;
-        if (/[A-Z]/.test(pw)) score += 15;
-        if (/[0-9]/.test(pw)) score += 15;
-        if (/[^a-zA-Z0-9]/.test(pw)) score += 15;
-        if (pw.length >= 12) score += 15;
+        if (pw) {
+            if (teacherState.length) score += 25;
+            if (teacherState.upper) score += 15;
+            if (teacherState.lower) score += 15;
+            if (teacherState.number) score += 15;
+            if (teacherState.special) score += 15;
+            if (pw.length >= 12) score += 15;
+        }
 
         const p = Math.min(100, score);
         $('#pw_bar').css('width', p + '%');
-        if (p < 35) $('#pw_bar').removeClass().addClass('progress-bar bg-danger');
-        else if (p < 70) $('#pw_bar').removeClass().addClass('progress-bar bg-warning');
-        else $('#pw_bar').removeClass().addClass('progress-bar bg-success');
+        if (p < 35) $('#pw_bar').removeClass('bg-warning bg-success').addClass('bg-danger');
+        else if (p < 70) $('#pw_bar').removeClass('bg-danger bg-success').addClass('bg-warning');
+        else $('#pw_bar').removeClass('bg-danger bg-warning').addClass('bg-success');
+
+        checkTeacherMatch();
+    }
+
+    function checkTeacherMatch() {
+        const pw = teacherNewPassword.val();
+        const confirm = teacherConfirmPassword.val();
+        const feedback = $('#teacher_confirm_feedback');
+        const statusSpan = $('#teacher_confirm_status');
+
+        if (!confirm) {
+            feedback.hide();
+            teacherState.match = false;
+            toggleTeacherSubmit();
+            return;
+        }
+
+        feedback.show();
+        if (pw === confirm) {
+            teacherState.match = true;
+            statusSpan.html('<i class="fa fa-check-circle text-success mr-2"></i> Passwords match').removeClass('text-danger').addClass('text-success');
+        } else {
+            teacherState.match = false;
+            statusSpan.html('<i class="fa fa-times-circle text-danger mr-2"></i> Passwords do not match').removeClass('text-success').addClass('text-danger');
+        }
+
+        toggleTeacherSubmit();
+    }
+
+    function toggleTeacherSubmit() {
+        const allPassed = teacherState.length && teacherState.upper && teacherState.lower && teacherState.number && teacherState.special && teacherState.match;
+        teacherSubmitBtn.prop('disabled', !allPassed);
+    }
+
+    // Input event listeners
+    teacherNewPassword.on('input', checkTeacherPassword);
+    teacherConfirmPassword.on('input', checkTeacherMatch);
+
+    // Password Change AJAX
+    $('#teacherChangePasswordForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const form = $(this);
+        const submitBtn = $('#teacherSubmitBtn');
+        const originalBtnHtml = submitBtn.html();
+
+        // Clear previous alerts
+        $('.alert-dynamic').remove();
+
+        // Loading state
+        submitBtn.html('<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span> Updating...').attr('disabled', true);
+
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            dataType: 'json',
+            success: function(response) {
+                submitBtn.html(originalBtnHtml).attr('disabled', false);
+
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonColor: '#940000',
+                        timer: 3000,
+                        timerProgressBar: true
+                    }).then(() => {
+                        form.find('input[type="password"]').val('');
+                        $('#pw_bar').css('width', '0%');
+                        $('#teacher_confirm_feedback').hide();
+                        
+                        // Reset requirements checklist UI
+                        $('.requirement-item').removeClass('text-success').addClass('text-danger');
+                        $('.requirement-item i').removeClass('fa-check-circle text-success').addClass('fa-times-circle text-danger');
+                        
+                        teacherState = {
+                            length: false,
+                            upper: false,
+                            lower: false,
+                            number: false,
+                            special: false,
+                            match: false
+                        };
+                        toggleTeacherSubmit();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message || 'Something went wrong.',
+                        icon: 'error',
+                        confirmButtonColor: '#940000'
+                    });
+                    toggleTeacherSubmit();
+                }
+            },
+            error: function(xhr) {
+                submitBtn.html(originalBtnHtml).attr('disabled', false);
+
+                let errorMsg = 'Failed to change password. Please try again.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                }
+
+                const alertHtml = `
+                    <div class="alert alert-danger alert-dismissible fade show alert-dynamic mt-3" role="alert">
+                        <strong>Error:</strong> ${errorMsg}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                `;
+                form.before(alertHtml);
+
+                Swal.fire({
+                    title: 'Error!',
+                    text: errorMsg,
+                    icon: 'error',
+                    confirmButtonColor: '#940000'
+                });
+                toggleTeacherSubmit();
+            }
+        });
     });
 });
 </script>

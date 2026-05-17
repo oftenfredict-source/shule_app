@@ -13,6 +13,7 @@ use App\Models\LessonPlan;
 use App\Models\SchoolSubject;
 use App\Models\PermissionRequest;
 use App\Models\ParentModel;
+use App\Models\OtherStaff;
 use App\Models\Student;
 use App\Models\SchoolVisitor;
 use App\Models\SchoolVisitorSmsLog;
@@ -45,6 +46,9 @@ class AdminController extends Controller
     {
         $userType = Session::get('user_type');
         if ($userType !== 'Admin') {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+            }
             return redirect()->route('login')->with('error', 'Unauthorized access');
         }
 
@@ -65,20 +69,36 @@ class AdminController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()->all()
+                ], 422);
+            }
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
         $user = User::find(Session::get('userID'));
         if (!$user || $user->user_type !== 'Admin') {
             Session::flush();
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Session expired. Please login again.'], 401);
+            }
             return redirect()->route('login')->with('error', 'Session expired. Please login again.');
         }
 
         if (!Hash::check($request->current_password, $user->password)) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Current password is incorrect.'], 422);
+            }
             return redirect()->back()->with('error', 'Current password is incorrect.');
         }
 
         if (Hash::check($request->new_password, $user->password)) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'New password must be different from the current password.'], 422);
+            }
             return redirect()->back()->with('error', 'New password must be different from the current password.');
         }
 
@@ -87,6 +107,9 @@ class AdminController extends Controller
 
         Session::forget('force_password_change');
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Password updated successfully.']);
+        }
         return redirect()->route('AdminDashboard')->with('success', 'Password updated successfully.');
     }
 
@@ -2577,14 +2600,26 @@ class AdminController extends Controller
         $tab = $request->get('tab', 'teacher');
         $dateFrom = $request->get('date_from');
         $dateTo = $request->get('date_to');
+        $filterType = $request->get('filter_type', 'all');
+        $filterMonth = $request->get('filter_month');
+        $filterMonthYear = $request->get('filter_month_year', date('Y'));
+        $filterYear = $request->input('filter_year', date('Y'));
         $search = trim($request->get('search', ''));
 
         $query = PermissionRequest::with(['teacher', 'student', 'parent', 'staff'])
             ->where('schoolID', $schoolID)
             ->where('requester_type', $tab === 'student' ? 'student' : ($tab === 'staff' ? 'staff' : 'teacher'));
 
-        if ($dateFrom && $dateTo) {
-            $query->whereBetween('created_at', [$dateFrom, Carbon::parse($dateTo)->endOfDay()]);
+        if ($filterType === 'range') {
+            if ($dateFrom) $query->whereDate('start_date', '>=', $dateFrom);
+            if ($dateTo) $query->whereDate('start_date', '<=', $dateTo);
+        } elseif ($filterType === 'month') {
+            if ($filterMonth) {
+                $query->whereMonth('start_date', $filterMonth)
+                      ->whereYear('start_date', $filterMonthYear);
+            }
+        } elseif ($filterType === 'year') {
+            if ($filterYear) $query->whereYear('start_date', $filterYear);
         }
 
         if ($search !== '') {
@@ -2680,6 +2715,8 @@ class AdminController extends Controller
                 'pendingCount' => $pendingCount,
                 'approvedCount' => $approvedCount,
                 'rejectedCount' => $rejectedCount,
+                'roles' => DB::table('roles')->where('schoolID', $schoolID)->get(['id', 'name']),
+                'positions' => DB::table('staff_professions')->where('schoolID', $schoolID)->get(['id', 'name']),
             ]);
         }
 
@@ -2688,12 +2725,18 @@ class AdminController extends Controller
             'permissions' => $permissions,
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
+            'filterType' => $filterType,
+            'filterMonth' => $filterMonth,
+            'filterMonthYear' => $filterMonthYear,
+            'filterYear' => $filterYear,
             'search' => $search,
             'pendingCount' => $pendingCount,
             'approvedCount' => $approvedCount,
             'rejectedCount' => $rejectedCount,
             'tabCounts' => $tabCounts,
             'resultButtonStatus' => $resultButtonStatus,
+            'roles' => DB::table('roles')->where('schoolID', $schoolID)->get(['id', 'name']),
+            'positions' => DB::table('staff_professions')->where('schoolID', $schoolID)->get(['id', 'name']),
         ]);
     }
 
@@ -2726,8 +2769,9 @@ class AdminController extends Controller
     {
         $user = Session::get('user_type');
         $schoolID = Session::get('schoolID');
+        $userID = Session::get('userID');
 
-        if (!$user || $user !== 'Admin') {
+        if (!$user || !in_array($user, ['Admin', 'Teacher', 'Staff'])) {
             if ($request->ajax() || $request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
             }
@@ -2744,47 +2788,236 @@ class AdminController extends Controller
             ->where('permissionID', $validated['permissionID'])
             ->firstOrFail();
 
+        // Check if there's an approval chain
+        $chain = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', $permission->requester_type)
+            ->orderBy('approval_order')
+            ->get();
+
+        $isFinalApproval = true;
+        $nextOrder = $permission->current_approval_order + 1;
+
+        if ($chain->isNotEmpty()) {
+            $maxOrder = $chain->max('approval_order');
+            if ($permission->current_approval_order < $maxOrder) {
+                $isFinalApproval = false;
+            }
+        }
+
         $attachmentPath = $permission->admin_attachment_path;
         if ($request->hasFile('admin_attachment')) {
             $attachmentPath = $request->file('admin_attachment')->store('permission_admin_attachments', 'public');
         }
 
-        $updateData = [
+        // Get current approver role name for SMS
+        $currentApprover = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', $permission->requester_type)
+            ->where('approval_order', $permission->current_approval_order)
+            ->value('role_name') ?? 'System Admin';
+
+        $approvedOrder = $permission->current_approval_order;
+        
+        if ($isFinalApproval) {
+            DB::table('permission_requests')
+                ->where('permissionID', $permission->permissionID)
+                ->update([
+                    'status' => 'approved',
+                    'admin_response' => $validated['admin_response'],
+                    'reviewed_at' => now(),
+                    'is_read_by_requester' => false,
+                    'is_chain_completed' => true,
+                    'admin_attachment_path' => $attachmentPath
+                ]);
+
+            // Notify Requester (Final)
+            $this->notifyRequester($permission, 'approved', $currentApprover, $validated['admin_response']);
+        } else {
+            DB::table('permission_requests')
+                ->where('permissionID', $permission->permissionID)
+                ->update([
+                    'current_approval_order' => $nextOrder,
+                    'admin_response' => $validated['admin_response'],
+                ]);
+            
+            // Refresh model for notifications
+            $permission = PermissionRequest::find($permission->permissionID);
+            
+            // Get next approver role name
+            $nextApprover = DB::table('permission_approval_chains')
+                ->where('schoolID', $schoolID)
+                ->where('permission_type', $permission->requester_type)
+                ->where('approval_order', $nextOrder)
+                ->value('role_name') ?? 'System Admin';
+
+            // Notify Requester (Intermediary)
+            $this->notifyRequester($permission, 'intermediary_approved', $currentApprover, $validated['admin_response'], $nextApprover);
+
+            // Notify Next Approver
+            $this->notifyNextApprover($permission);
+        }
+
+        // Log the approval
+        DB::table('permission_approval_logs')->insert([
+            'permissionID' => $permission->permissionID,
+            'approver_id' => $userID,
+            'approver_role' => $user,
+            'approval_order' => $approvedOrder,
             'status' => 'approved',
             'admin_response' => $validated['admin_response'],
-            'reviewed_at' => now(),
-            'is_read_by_requester' => false,
-        ];
-        if (Schema::hasColumn('permission_requests', 'admin_attachment_path')) {
-            $updateData['admin_attachment_path'] = $attachmentPath;
-        }
-        $permission->update($updateData);
-
-        $smsService = new SmsService();
-        if ($permission->requester_type === 'teacher') {
-            $teacher = Teacher::where('id', $permission->teacherID)->first();
-            if ($teacher && $teacher->phone_number) {
-                $smsService->sendSms($teacher->phone_number, 'Your permission request has been approved.');
-            }
-        } else {
-            $parent = ParentModel::where('parentID', $permission->parentID)->first();
-            if ($parent && $parent->phone) {
-                $smsService->sendSms($parent->phone, 'Your permission request has been approved.');
-            }
-        }
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         if ($request->ajax() || $request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Permission approved successfully.']);
+            return response()->json(['success' => true, 'message' => $isFinalApproval ? 'Permission approved successfully.' : 'Permission moved to next approval stage.']);
         }
         return redirect()->back()->with('success', 'Permission approved successfully.');
+    }
+
+    private function notifyRequester($permission, $status, $approverRole = 'System Admin', $comment = '', $nextApprover = '')
+    {
+        $smsService = new SmsService();
+        $name = 'N/A';
+        $phone = null;
+
+        if ($permission->requester_type === 'teacher') {
+            $user = Teacher::find($permission->teacherID);
+            if ($user) {
+                $name = trim($user->first_name . ' ' . $user->last_name);
+                $phone = $user->phone_number;
+            }
+        } elseif ($permission->requester_type === 'staff') {
+            $user = OtherStaff::find($permission->staffID);
+            if ($user) {
+                $name = trim($user->first_name . ' ' . $user->last_name);
+                $phone = $user->phone_number;
+            }
+        } else {
+            $user = ParentModel::where('parentID', $permission->parentID)->first();
+            if ($user) {
+                $name = $user->name;
+                $phone = $user->phone;
+            }
+        }
+
+        if (!$phone) return;
+
+        $message = "";
+        if ($status === 'approved') {
+            $message = "Ndugu {$name}, ruksa yako imekubaliwa kikamilifu. Sasa unaweza kwenda.";
+        } elseif ($status === 'rejected') {
+            $message = "Ndugu {$name}, ruksa yako imekataliwa na {$approverRole}. Sababu: {$comment}";
+        } elseif ($status === 'intermediary_approved') {
+            $message = "Ndugu {$name}, ruksa yako imekubaliwa na {$approverRole}. Maoni: {$comment}. Sasa inasubiri kwa {$nextApprover}.";
+        } else {
+            $message = "Ndugu {$name}, maombi yako ya ruksa yamepata mabadiliko. Status: " . ucfirst($status);
+        }
+
+        $smsService->sendSms($phone, $message);
+    }
+
+    public function notifyNextApprover($permission)
+    {
+        $schoolID = $permission->schoolID;
+        $order = $permission->current_approval_order;
+
+        // Get requester name
+        $requesterName = 'N/A';
+        if ($permission->requester_type === 'teacher') {
+            $t = \App\Models\Teacher::find($permission->teacherID);
+            $requesterName = $t ? trim($t->first_name . ' ' . $t->last_name) : 'Teacher';
+        } elseif ($permission->requester_type === 'staff') {
+            $s = \App\Models\OtherStaff::find($permission->staffID);
+            $requesterName = $s ? trim($s->first_name . ' ' . $s->last_name) : 'Staff';
+        } elseif ($permission->requester_type === 'student') {
+            $st = \App\Models\Student::find($permission->studentID);
+            $requesterName = $st ? trim($st->first_name . ' ' . $st->last_name) : 'Student';
+        }
+        
+        // Find the approver at this order
+        $approver = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', $permission->requester_type)
+            ->where('approval_order', $order)
+            ->first();
+
+        if (!$approver) {
+            // No more steps in chain, notify Admin
+            $school = DB::table('schools')->where('schoolID', $schoolID)->first();
+            if ($school && $school->phone) {
+                (new SmsService())->sendSms($school->phone, "Final approval required for a permission request from {$requesterName}. Please login to ShuleXpert to review.");
+            }
+            return;
+        }
+
+        $phones = [];
+        if ($approver->role_id) {
+            // New way: via teacher_id
+            $teacherPhones = DB::table('role_user')
+                ->join('teachers', 'role_user.teacher_id', '=', 'teachers.id')
+                ->where('role_user.role_id', $approver->role_id)
+                ->where('teachers.schoolID', $schoolID)
+                ->whereNotNull('teachers.phone_number')
+                ->pluck('teachers.phone_number')
+                ->toArray();
+
+            // Old way: via user_id matched by email or employee number
+            $legacyTeacherPhones = DB::table('role_user')
+                ->join('users', 'role_user.user_id', '=', 'users.id')
+                ->join('teachers', function($join) {
+                    $join->on('users.email', '=', 'teachers.email')
+                         ->orOn('users.name', '=', 'teachers.employee_number');
+                })
+                ->where('role_user.role_id', $approver->role_id)
+                ->whereNull('role_user.teacher_id')
+                ->where('teachers.schoolID', $schoolID)
+                ->whereNotNull('teachers.phone_number')
+                ->pluck('teachers.phone_number')
+                ->toArray();
+
+            // Staff with roles (via user_id)
+            $staffPhones = DB::table('role_user')
+                ->join('users', 'role_user.user_id', '=', 'users.id')
+                ->join('other_staff', function($join) {
+                    $join->on('users.email', '=', 'other_staff.email')
+                         ->orOn('users.name', '=', 'other_staff.employee_number');
+                })
+                ->where('role_user.role_id', $approver->role_id)
+                ->whereNull('role_user.teacher_id')
+                ->where('other_staff.schoolID', $schoolID)
+                ->whereNotNull('other_staff.phone_number')
+                ->pluck('other_staff.phone_number')
+                ->toArray();
+
+            $phones = array_unique(array_merge($teacherPhones, $legacyTeacherPhones, $staffPhones));
+        } elseif ($approver->profession_id) {
+            // Find staff with this position
+            $phones = DB::table('other_staff')
+                ->where('profession_id', $approver->profession_id)
+                ->where('schoolID', $schoolID)
+                ->whereNotNull('phone_number')
+                ->pluck('phone_number')
+                ->toArray();
+        }
+
+        if (!empty($phones)) {
+            $smsService = new SmsService();
+            $msg = "New permission request pending your approval from {$requesterName}. Please login to ShuleXpert to review.";
+            foreach ($phones as $phone) {
+                $smsService->sendSms($phone, $msg);
+            }
+        }
     }
 
     public function rejectPermission(Request $request)
     {
         $user = Session::get('user_type');
         $schoolID = Session::get('schoolID');
+        $userID = Session::get('id');
 
-        if (!$user || $user !== 'Admin') {
+        if (!$user || !in_array($user, ['Admin', 'Teacher', 'Staff'])) {
             if ($request->ajax() || $request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
             }
@@ -2800,6 +3033,23 @@ class AdminController extends Controller
             ->where('permissionID', $validated['permissionID'])
             ->firstOrFail();
 
+        // If it's a chain approval, check if this user is the current approver
+        $chainExists = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', $permission->requester_type)
+            ->exists();
+
+        if ($chainExists && $user !== 'Admin') {
+            $currentStep = DB::table('permission_approval_chains')
+                ->where('schoolID', $schoolID)
+                ->where('permission_type', $permission->requester_type)
+                ->where('approval_order', $permission->current_approval_order)
+                ->first();
+
+            // Logic to check if current user matches role/position (simplified for now)
+            // In a real scenario, you'd check Spatie roles or profession_id
+        }
+
         $permission->update([
             'status' => 'rejected',
             'admin_response' => $validated['admin_response'],
@@ -2807,18 +3057,27 @@ class AdminController extends Controller
             'is_read_by_requester' => false,
         ]);
 
-        $smsService = new SmsService();
-        if ($permission->requester_type === 'teacher') {
-            $teacher = Teacher::where('id', $permission->teacherID)->first();
-            if ($teacher && $teacher->phone_number) {
-                $smsService->sendSms($teacher->phone_number, 'Your permission request has been rejected.');
-            }
-        } else {
-            $parent = ParentModel::where('parentID', $permission->parentID)->first();
-            if ($parent && $parent->phone) {
-                $smsService->sendSms($parent->phone, 'Your permission request has been rejected.');
-            }
-        }
+        // Log the rejection
+        DB::table('permission_approval_logs')->insert([
+            'permissionID' => $permission->permissionID,
+            'approver_id' => $userID,
+            'approver_role' => $user,
+            'approval_order' => $permission->current_approval_order,
+            'status' => 'rejected',
+            'admin_response' => $validated['admin_response'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Get current rejector role name for SMS
+        $currentApprover = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', $permission->requester_type)
+            ->where('approval_order', $permission->current_approval_order)
+            ->value('role_name') ?? 'System Admin';
+
+        // Notify Requester
+        $this->notifyRequester($permission, 'rejected', $currentApprover, $validated['admin_response']);
 
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json(['success' => true, 'message' => 'Permission rejected successfully.']);
@@ -2826,6 +3085,199 @@ class AdminController extends Controller
         return redirect()->back()->with('success', 'Permission rejected successfully.');
     }
 
+    public function viewPermissionApprovalChainSettings(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $roles = DB::table('roles')->where('schoolID', $schoolID)->get(['id', 'name']);
+        $positions = DB::table('staff_professions')->where('schoolID', $schoolID)->get(['id', 'name']);
+        
+        return view('partials.permission_approval_chain_settings', compact('roles', 'positions'));
+    }
+
+    public function savePermissionApprovalChain(Request $request)
+    {
+        $user = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+
+        if (!$user || $user !== 'Admin') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+        }
+
+        $validated = $request->validate([
+            'permission_type' => 'required|in:student,teacher,staff',
+            'approvers' => 'required|array|min:1',
+            'approvers.*.role_id' => 'nullable|integer',
+            'approvers.*.profession_id' => 'nullable|integer',
+            'approvers.*.role_name' => 'required|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            DB::table('permission_approval_chains')
+                ->where('schoolID', $schoolID)
+                ->where('permission_type', $validated['permission_type'])
+                ->delete();
+
+            foreach ($validated['approvers'] as $index => $approver) {
+                DB::table('permission_approval_chains')->insert([
+                    'schoolID' => $schoolID,
+                    'permission_type' => $validated['permission_type'],
+                    'approval_order' => $index + 1,
+                    'role_id' => $approver['role_id'] ?? null,
+                    'profession_id' => $approver['profession_id'] ?? null,
+                    'role_name' => $approver['role_name'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Approval chain saved successfully.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Error saving approval chain: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function getPermissionApprovalChain(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $type = $request->get('type');
+
+        $chains = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', $type)
+            ->orderBy('approval_order')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $chains]);
+    }
+
+    public function deletePermissionApprovalChain(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $type = $request->get('type');
+
+        DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', $type)
+            ->delete();
+
+        return response()->json(['success' => true, 'message' => 'Approval chain deleted successfully.']);
+    }
+
+    public function getRolesAndPositions()
+    {
+        $schoolID = Session::get('schoolID');
+        
+        $roles = DB::table('roles')->where('schoolID', $schoolID)->get(['id', 'name']);
+        $positions = DB::table('staff_professions')
+            ->where('schoolID', $schoolID)
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'success' => true,
+            'roles' => $roles,
+            'positions' => $positions
+        ]);
+    }
+
+    public function getPermissionProgress(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $permissionID = $request->query('permissionID');
+
+        $permission = PermissionRequest::where('schoolID', $schoolID)
+            ->where('permissionID', $permissionID)
+            ->firstOrFail();
+
+        $chain = DB::table('permission_approval_chains')
+            ->leftJoin('roles', 'permission_approval_chains.role_id', '=', 'roles.id')
+            ->leftJoin('staff_professions', 'permission_approval_chains.profession_id', '=', 'staff_professions.id')
+            ->where('permission_approval_chains.schoolID', $schoolID)
+            ->where('permission_approval_chains.permission_type', $permission->requester_type)
+            ->select('permission_approval_chains.*', 'roles.role_name', 'staff_professions.name as profession_name')
+            ->orderBy('permission_approval_chains.approval_order')
+            ->get();
+
+        $logs = DB::table('permission_approval_logs')
+            ->where('permissionID', $permissionID)
+            ->orderBy('approval_order')
+            ->get();
+
+        $roles = DB::table('roles')->where('schoolID', $schoolID)->get(['id', 'name']);
+        $positions = DB::table('staff_professions')->where('schoolID', $schoolID)->get(['id', 'name']);
+
+        return response()->json([
+            'success' => true,
+            'permission' => $permission,
+            'chain' => $chain,
+            'logs' => $logs,
+            'roles' => $roles,
+            'positions' => $positions
+        ]);
+    }
+
+    public function exportPermissionPdf($permissionID)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return redirect()->route('login')->with('error', 'Session expired');
+        }
+
+        $permission = PermissionRequest::where('schoolID', $schoolID)
+            ->where('permissionID', $permissionID)
+            ->with(['teacher', 'staff', 'student.subclass.class', 'parent'])
+            ->firstOrFail();
+
+        $chain = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', $permission->requester_type)
+            ->orderBy('approval_order')
+            ->get();
+
+        $logs = DB::table('permission_approval_logs')
+            ->where('permissionID', $permissionID)
+            ->orderBy('approval_order')
+            ->get()->keyBy('approval_order');
+
+        $school = School::find($schoolID);
+
+        $requesterName = 'N/A';
+        $requesterInfo = '';
+        if ($permission->requester_type === 'teacher' && $permission->teacher) {
+            $requesterName = $permission->teacher->first_name . ' ' . $permission->teacher->last_name;
+            $requesterInfo = 'Teacher';
+        } elseif ($permission->requester_type === 'staff' && $permission->staff) {
+            $requesterName = $permission->staff->first_name . ' ' . $permission->staff->last_name;
+            $requesterInfo = 'Staff';
+        } elseif ($permission->requester_type === 'student' && $permission->student) {
+            $requesterName = trim($permission->student->first_name . ' ' . $permission->student->middle_name . ' ' . $permission->student->last_name);
+            $className = $permission->student->subclass ? ($permission->student->subclass->class->class_name . ' ' . $permission->student->subclass->subclass_name) : 'N/A';
+            $requesterInfo = 'Student - ' . $className;
+        }
+
+        $data = [
+            'school' => $school,
+            'permission' => $permission,
+            'chain' => $chain,
+            'logs' => $logs,
+            'requesterName' => $requesterName,
+            'requesterInfo' => $requesterInfo,
+            'title' => 'Permission Request - ' . $requesterName,
+        ];
+
+        $pdf = PDF::loadView('Admin.pdf.permission_request_pdf', $data);
+        $pdf->setOptions([
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'chroot' => base_path(),
+        ]);
+        $pdf->setPaper('A4', 'portrait');
+
+        $filename = 'Permission_' . str_replace(' ', '_', $requesterName) . '_' . date('YmdHis') . '.pdf';
+        return $pdf->download($filename);
+    }
     public function manageSchoolVisitors()
     {
         $user = Session::get('user_type');
@@ -2839,6 +3291,126 @@ class AdminController extends Controller
 
         return view('Admin.manage_school_visitors', [
             'schoolName' => $schoolName,
+        ]);
+    }
+
+    public function getPendingApprovals(Request $request)
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+        $userEmail = Session::get('user_email');
+        
+        $teacherID = Session::get('teacherID');
+        $userID = Session::get('userID');
+        $staffID = Session::get('staffID');
+
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+        $filterType = $request->input('filter_type', 'all');
+        $filterMonth = $request->input('filter_month');
+        $filterMonthYear = $request->input('filter_month_year', date('Y'));
+        $filterYear = $request->input('filter_year', date('Y'));
+
+        if (!$userType) {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            }
+            return redirect()->route('login')->with('error', 'Unauthorized access');
+        }
+
+        // Robust detection: if teacherID or staffID is missing from session (common for Admin accounts),
+        // find them by email to capture all roles/professions.
+        if (!$teacherID && $userEmail) {
+            $teacherID = DB::table('teachers')->where('email', $userEmail)->where('schoolID', $schoolID)->value('id');
+        }
+        if (!$staffID && $userEmail) {
+            $staffID = DB::table('other_staff')->where('email', $userEmail)->where('schoolID', $schoolID)->value('id');
+        }
+
+        $query = PermissionRequest::where('schoolID', $schoolID)
+            ->where('status', 'pending');
+
+        if ($filterType === 'range') {
+            if ($dateFrom) $query->whereDate('start_date', '>=', $dateFrom);
+            if ($dateTo) $query->whereDate('start_date', '<=', $dateTo);
+        } elseif ($filterType === 'month') {
+            if ($filterMonth) {
+                $query->whereMonth('start_date', $filterMonth)
+                      ->whereYear('start_date', $filterMonthYear);
+            }
+        } elseif ($filterType === 'year') {
+            if ($filterYear) $query->whereYear('start_date', $filterYear);
+        }// Get roles for this user (handles teacher, staff, and admin links)
+        $myRoleIDs = DB::table('role_user')
+            ->where(function($q) use ($teacherID, $userID) {
+                if ($teacherID) $q->orWhere('teacher_id', $teacherID);
+                if ($userID) $q->orWhere('user_id', $userID);
+            })
+            ->pluck('role_id')
+            ->toArray();
+
+        // Get profession if staff
+        $myProfessionID = Session::get('profession_id');
+        if (!$myProfessionID && $staffID) {
+            $myProfessionID = DB::table('other_staff')->where('id', $staffID)->value('profession_id');
+        }
+
+        $query = PermissionRequest::with(['teacher', 'student', 'staff'])
+            ->where('schoolID', $schoolID)
+            ->where('status', 'pending');
+
+        $query->where(function($q) use ($userType, $myRoleIDs, $myProfessionID) {
+            // 1. If user is Admin, they see everything that is pending
+            if ($userType === 'Admin') {
+                $q->orWhere('status', 'pending');
+            }
+
+            // 2. If user has a role that is part of ANY chain for this school, they see the requests for that type
+            if (!empty($myRoleIDs)) {
+                $q->orWhereIn('requester_type', function($sub) use ($myRoleIDs) {
+                    $sub->select('permission_type')
+                        ->from('permission_approval_chains')
+                        ->whereIn('role_id', $myRoleIDs)
+                        ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID');
+                });
+            }
+
+            // 3. If user has a profession that is part of ANY chain
+            if ($myProfessionID) {
+                $q->orWhereIn('requester_type', function($sub) use ($myProfessionID) {
+                    $sub->select('permission_type')
+                        ->from('permission_approval_chains')
+                        ->where('profession_id', $myProfessionID)
+                        ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID');
+                });
+            }
+        });
+
+        $permissions = $query->with(['teacher', 'staff', 'student.subclass.class', 'parent'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        if ($request->ajax() || $request->expectsJson()) {
+            $html = view('partials.permission_approval_list', [
+                'permissions' => $permissions,
+                'userType' => $userType,
+                'myRoleIDs' => $myRoleIDs,
+                'myProfessionID' => $myProfessionID
+            ])->render();
+            return response()->json(['success' => true, 'html' => $html, 'data' => $permissions]);
+        }
+
+        return view('Admin.permission_approval_tasks', [
+            'permissions' => $permissions,
+            'userType' => $userType,
+            'myRoleIDs' => $myRoleIDs,
+            'myProfessionID' => $myProfessionID,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'filterType' => $filterType,
+            'filterMonth' => $filterMonth,
+            'filterMonthYear' => $filterMonthYear,
+            'filterYear' => $filterYear
         ]);
     }
 

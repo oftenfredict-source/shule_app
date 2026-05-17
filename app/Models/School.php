@@ -15,6 +15,7 @@ class School extends Model
     protected $fillable = [
         'school_name',
         'registration_number',
+        'exam_center_number',
         'school_type',
         'ownership',
         'region',

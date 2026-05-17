@@ -13,7 +13,7 @@ class ExpenseController extends Controller
     public function index(Request $request)
     {
         $schoolID = Session::get('schoolID');
-        $selectedYear = $request->get('year', date('Y'));
+        $selectedYear = $request->input('year', date('Y'));
         
         $expenses = Expense::where('schoolID', $schoolID)
             ->whereYear('date', $selectedYear)

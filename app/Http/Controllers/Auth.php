@@ -912,4 +912,74 @@ class Auth extends Controller
             'masked_phone' => $this->maskPhone($phone),
         ]);
     }
+
+    public function forgotPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'username' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => 'Username inahitajika (required).'], 422);
+        }
+
+        $username = $request->username;
+        $user = User::where('name', $username)->first();
+
+        if (!$user && preg_match('/^(?:0|255|)\d{9}$/', $username)) {
+            $purePhone = substr($username, -9);
+            $formats = ['255' . $purePhone, '0' . $purePhone, $purePhone];
+            foreach ($formats as $fmt) {
+                if ($fmt === $username) continue;
+                $user = User::where('name', $fmt)->first();
+                if ($user) {
+                    $username = $fmt;
+                    break;
+                }
+            }
+        }
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Hatujaona akaunti yenye username hii.'], 404);
+        }
+
+        $phone = null;
+        if ($user->user_type === 'Admin') {
+            $school = School::where('registration_number', $username)->first();
+            if ($school) $phone = $school->phone;
+        } elseif ($user->user_type === 'Teacher') {
+            $teacher = Teacher::where('employee_number', $username)->first();
+            if ($teacher) $phone = $teacher->phone_number;
+        } elseif ($user->user_type === 'Staff') {
+            $staff = OtherStaff::where('employee_number', $username)->first();
+            if ($staff) $phone = $staff->phone_number;
+        } elseif (strtolower($user->user_type) === 'parent' || $user->user_type === 'Watchman') {
+            $phone = $username;
+        }
+
+        if (!$phone) {
+            return response()->json(['success' => false, 'message' => 'Namba ya simu haijapatikana kwa akaunti hii. Wasiliana na msimamizi (Admin).'], 422);
+        }
+
+        $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $newPassword = '';
+        for ($i = 0; $i < 8; $i++) {
+            $newPassword .= $characters[random_int(0, strlen($characters) - 1)];
+        }
+
+        $user->password = Hash::make($newPassword);
+        $user->save();
+
+        $sms = new SmsService();
+        $msg = "Habari, password yako mpya ya ShuleXpert ni: {$newPassword}. Tafadhali ingia na ubadilishe uweke mpya.";
+        $sms->sendSms($phone, $msg);
+
+        $digits = preg_replace('/\D+/', '', $phone);
+        $maskedPhone = substr($digits, -4);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Password mpya imetumwa kwenye namba yako ya simu ********{$maskedPhone}"
+        ]);
+    }
 }

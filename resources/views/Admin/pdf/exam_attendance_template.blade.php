@@ -135,25 +135,23 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 40px; text-align: center;">S/N</th>
-                <th>STUDENT NAME</th>
+                <th style="width: 100px; text-align: center;">S/N</th>
+                <th>JINA LA MWANAFUNZI</th>
                 <th style="width: 40px; text-align: center;">SEX</th>
-                <th style="width: 110px; text-align: center;">EXAM NUMBER</th>
+                <th style="width: 60px; text-align: center;">SCORE</th>
                 @if(isset($with_data) && $with_data)
                     <th style="width: 80px; text-align: center;">STATUS</th>
                 @endif
-                @if(!(isset($with_data) && $with_data))
-                    <th style="width: 140px; text-align: center;">SIGNATURE</th>
-                @endif
+                <th style="width: 120px; text-align: center;">SIGN</th>
             </tr>
         </thead>
         <tbody>
             @foreach($students as $index => $student)
                 <tr @if($loop->even) style="background-color: #fcfcfc;" @endif>
-                    <td style="text-align: center;">{{ $loop->iteration }}</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 10px; font-weight: bold;">{{ $student->examination_number }}</td>
                     <td style="font-weight: bold;">{{ $student->first_name }} {{ $student->middle_name }} {{ $student->last_name }}</td>
                     <td style="text-align: center;">{{ substr($student->gender, 0, 1) }}</td>
-                    <td style="text-align: center; font-family: monospace; font-size: 10px;">{{ $student->examination_number }}</td>
+                    <td></td>
                     @if(isset($with_data) && $with_data)
                         <td style="text-align: center;">
                             @if(isset($records[$student->studentID]))
@@ -165,9 +163,7 @@
                             @endif
                         </td>
                     @endif
-                    @if(!(isset($with_data) && $with_data))
-                        <td></td>
-                    @endif
+                    <td></td>
                 </tr>
             @endforeach
         </tbody>

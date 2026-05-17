@@ -672,6 +672,28 @@
                                     </a>
                                 </li>
                                 <li>
+                                    @php
+                                        $navSchoolID = Session::get('schoolID');
+                                        $permCount = \App\Models\PermissionRequest::where('schoolID', $navSchoolID)
+                                            ->where('status', 'pending')
+                                            ->where(function($q) {
+                                                $q->where('current_approval_order', 0)
+                                                  ->orWhere('current_approval_order', '>', function($sub) {
+                                                      $sub->selectRaw('COALESCE(MAX(approval_order), 0)')
+                                                          ->from('permission_approval_chains')
+                                                          ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID')
+                                                          ->whereColumn('permission_approval_chains.permission_type', 'permission_requests.requester_type');
+                                                  });
+                                            })->count();
+                                    @endphp
+                                    <a href="{{ route('admin.hr.permissions.pending_approvals') }}" class="nav-link">
+                                        <i class="fa fa-check-circle"></i> Permission Approvals
+                                        @if($permCount > 0)
+                                            <span class="badge badge-danger ml-1" style="font-size: 10px; border-radius: 50%;">{{ $permCount }}</span>
+                                        @endif
+                                    </a>
+                                </li>
+                                <li>
                                     <!-- <a href="{{ \Illuminate\Support\Facades\Route::has('admin.hr.payroll') ? route('admin.hr.payroll') : '#' }}" class="nav-link">
                                         <i class="fa fa-money"></i> Payroll
                                     </a> -->

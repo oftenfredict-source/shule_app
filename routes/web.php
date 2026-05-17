@@ -175,6 +175,7 @@ Route::get('login', [Auth::class, 'login'])->name('login');
 Route::post('auth', [Auth::class, 'auth'])->name('auth');
 Route::post('auth/otp/verify', [Auth::class, 'verifyOtp'])->name('auth.otp.verify');
 Route::post('auth/otp/resend', [Auth::class, 'resendOtp'])->name('auth.otp.resend');
+Route::post('auth/forgot-password', [Auth::class, 'forgotPassword'])->name('auth.forgot_password');
 
 // logut route
 Route::match(['get', 'post'], 'logout', [Auth::class, 'logout'])->name('logout');
@@ -649,6 +650,14 @@ Route::get('admin/hr/permissions', [AdminController::class, 'managePermissionsAd
 Route::get('admin/hr/permissions/attachment/{permissionID}', [AdminController::class, 'viewPermissionAttachment'])->name('admin.permissions.attachment');
 Route::post('admin/hr/permissions/approve', [AdminController::class, 'approvePermission'])->name('admin.permissions.approve');
 Route::post('admin/hr/permissions/reject', [AdminController::class, 'rejectPermission'])->name('admin.permissions.reject');
+Route::post('admin/hr/permissions/chain/save', [AdminController::class, 'savePermissionApprovalChain'])->name('admin.permissions.chain.save');
+Route::get('admin/hr/permissions/chain/get', [AdminController::class, 'getPermissionApprovalChain'])->name('admin.permissions.chain.get');
+Route::get('admin/hr/permissions/chain/view', [AdminController::class, 'viewPermissionApprovalChainSettings'])->name('admin.permissions.chain.view');
+Route::get('admin/hr/permissions/chain/progress', [AdminController::class, 'getPermissionProgress'])->name('admin.permissions.progress');
+Route::delete('admin/hr/permissions/chain/delete', [AdminController::class, 'deletePermissionApprovalChain'])->name('admin.permissions.chain.delete');
+Route::get('admin/hr/permissions/export-pdf/{permissionID}', [AdminController::class, 'exportPermissionPdf'])->name('admin.permissions.download');
+Route::get('admin/hr/roles-positions', [AdminController::class, 'getRolesAndPositions'])->name('admin.hr.roles_positions');
+Route::get('admin/hr/permissions/pending-approvals', [AdminController::class, 'getPendingApprovals'])->name('admin.hr.permissions.pending_approvals');
 Route::get('admin/school-visitors', [AdminController::class, 'manageSchoolVisitors'])->name('admin.school_visitors');
 Route::get('admin/school-visitors/today', [AdminController::class, 'todaySchoolVisitors'])->name('admin.school_visitors.today');
 Route::get('admin/school-visitors/list', [AdminController::class, 'listSchoolVisitors'])->name('admin.school_visitors.list');

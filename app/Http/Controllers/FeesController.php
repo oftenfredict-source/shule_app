@@ -1709,6 +1709,7 @@ class FeesController extends Controller
         }
 
         try {
+            $school = School::find($schoolID);
             $payment = Payment::where('paymentID', $paymentID)
                 ->where('schoolID', $schoolID)
                 ->with(['student.parent'])

@@ -102,13 +102,32 @@ class StaffController extends Controller
             return redirect()->route('login')->with('error', 'Unauthorized access');
         }
 
-        $activeTab = $request->get('tab', 'request');
+        $activeTab = $request->input('tab', 'request');
 
-        $permissions = \App\Models\PermissionRequest::where('schoolID', $schoolID)
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+        $filterType = $request->input('filter_type', 'all');
+        $filterMonth = $request->input('filter_month');
+        $filterMonthYear = $request->input('filter_month_year', date('Y'));
+        $filterYear = $request->input('filter_year', date('Y'));
+
+        $query = \App\Models\PermissionRequest::where('schoolID', $schoolID)
             ->where('requester_type', 'staff')
-            ->where('staffID', $staffID)
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->where('staffID', $staffID);
+
+        if ($filterType === 'range') {
+            if ($dateFrom) $query->whereDate('start_date', '>=', $dateFrom);
+            if ($dateTo) $query->whereDate('start_date', '<=', $dateTo);
+        } elseif ($filterType === 'month') {
+            if ($filterMonth) {
+                $query->whereMonth('start_date', $filterMonth)
+                      ->whereYear('start_date', $filterMonthYear);
+            }
+        } elseif ($filterType === 'year') {
+            if ($filterYear) $query->whereYear('start_date', $filterYear);
+        }
+
+        $permissions = $query->orderBy('created_at', 'desc')->get();
 
         $pendingPermissions = $permissions->where('status', 'pending');
         $approvedPermissions = $permissions->where('status', 'approved');
@@ -146,6 +165,17 @@ class StaffController extends Controller
             return $context;
         }
 
+        $editPermission = null;
+        $editId = $request->input('edit_id');
+        if ($editId && $activeTab === 'request') {
+            $editPermission = \App\Models\PermissionRequest::where('schoolID', $schoolID)
+                ->where('requester_type', 'staff')
+                ->where('staffID', $staffID)
+                ->where('permissionID', $editId)
+                ->where('status', 'rejected')
+                ->first();
+        }
+
         return view('Teacher.manage_permissions', array_merge($context, [
             'activeTab' => $activeTab,
             'pendingPermissions' => $pendingPermissions,
@@ -155,6 +185,13 @@ class StaffController extends Controller
             'unreadApprovedCount' => $unreadApprovedCount,
             'unreadRejectedCount' => $unreadRejectedCount,
             'permissionContext' => 'staff',
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'filterType' => $filterType,
+            'filterMonth' => $filterMonth,
+            'filterMonthYear' => $filterMonthYear,
+            'filterYear' => $filterYear,
+            'editPermission' => $editPermission,
         ]));
     }
 
@@ -189,9 +226,7 @@ class StaffController extends Controller
                 }
                 return redirect()->back()->with('error', 'Please provide days count and date range.')->withInput();
             }
-            $startDate = \Carbon\Carbon::parse($validated['start_date']);
-            $endDate = \Carbon\Carbon::parse($validated['end_date']);
-            $daysCount = $startDate->diffInDays($endDate) + 1;
+            $daysCount = $this->calculateWorkingDays($validated['start_date'], $validated['end_date']);
             if ($daysCount > 7) {
                 if ($request->ajax() || $request->expectsJson()) {
                     return response()->json(['success' => false, 'message' => 'Days exceed limit. Use 7 days or less.'], 422);
@@ -219,12 +254,17 @@ class StaffController extends Controller
 
         $computedDays = null;
         if ($validated['time_mode'] === 'days') {
-            $startDate = \Carbon\Carbon::parse($validated['start_date']);
-            $endDate = \Carbon\Carbon::parse($validated['end_date']);
-            $computedDays = $startDate->diffInDays($endDate) + 1;
+            $computedDays = $this->calculateWorkingDays($validated['start_date'], $validated['end_date']);
         }
 
-        \App\Models\PermissionRequest::create([
+        // Check for approval chain
+        $hasChain = \Illuminate\Support\Facades\DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', 'staff')
+            ->exists();
+
+        $permissionId = $request->input('permission_id');
+        $permissionData = [
             'schoolID' => $schoolID,
             'requester_type' => 'staff',
             'staffID' => $staffID,
@@ -239,7 +279,70 @@ class StaffController extends Controller
             'status' => 'pending',
             'is_read_by_admin' => false,
             'is_read_by_requester' => true,
-        ]);
+            'current_approval_order' => $hasChain ? 1 : 0
+        ];
+
+        $isResubmission = false;
+        if ($permissionId) {
+            $permission = \App\Models\PermissionRequest::where('permissionID', $permissionId)
+                ->where('staffID', $staffID)
+                ->where('status', 'rejected')
+                ->first();
+            if ($permission) {
+                // Determine if we should keep the current stage or reset
+                $resubmissionOrder = $permission->current_approval_order;
+                
+                $permissionData['current_approval_order'] = $resubmissionOrder;
+                $permissionData['status'] = 'pending';
+
+                // Capture the rejector's info BEFORE clearing the rejected log
+                $rejectionLog = \Illuminate\Support\Facades\DB::table('permission_approval_logs')
+                    ->where('permissionID', $permissionId)
+                    ->where('status', 'rejected')
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                
+                $rejectorPhone = null;
+                if ($rejectionLog) {
+                    $rejectorTeacher = \App\Models\Teacher::where('id', $rejectionLog->approver_id)->first();
+                    if ($rejectorTeacher) {
+                        $rejectorPhone = $rejectorTeacher->phone_number;
+                    } else {
+                        $rejectorStaff = \App\Models\OtherStaff::where('id', $rejectionLog->approver_id)->first();
+                        if ($rejectorStaff) {
+                            $rejectorPhone = $rejectorStaff->phone_number;
+                        }
+                    }
+                }
+
+                $permission->update($permissionData);
+                
+                // Remove ONLY the rejected log
+                \Illuminate\Support\Facades\DB::table('permission_approval_logs')
+                    ->where('permissionID', $permissionId)
+                    ->where('status', 'rejected')
+                    ->delete();
+                
+                $isResubmission = true;
+
+                // Notify the rejector via SMS
+                if ($rejectorPhone) {
+                    $staffMember = \App\Models\OtherStaff::where('id', $staffID)->first();
+                    $requesterName = $staffMember ? trim(($staffMember->first_name ?? '') . ' ' . ($staffMember->last_name ?? '')) : 'Staff';
+                    $smsMsg = "Ruksa uliyoikataa ya {$requesterName}, amerekebisha na kutuma upya ingia kwenye mfumo kukagua.";
+                    (new \App\Services\SmsService())->sendSms($rejectorPhone, $smsMsg);
+                }
+            } else {
+                $permission = \App\Models\PermissionRequest::create($permissionData);
+            }
+        } else {
+            $permission = \App\Models\PermissionRequest::create($permissionData);
+        }
+
+        if ($hasChain) {
+            // Notify first approver
+            app(\App\Http\Controllers\AdminController::class)->notifyNextApprover($permission);
+        }
 
         $staff = \App\Models\OtherStaff::where('id', $staffID)->first();
         $school = \App\Models\School::where('schoolID', $schoolID)->first();
@@ -418,6 +521,9 @@ class StaffController extends Controller
     {
         $context = $this->getStaffContext();
         if ($context instanceof \Illuminate\Http\RedirectResponse) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+            }
             return $context;
         }
 
@@ -443,6 +549,9 @@ class StaffController extends Controller
 
         if ($request->filled('new_password')) {
             if (!$user || !$request->filled('current_password') || !Hash::check($request->current_password, $user->password)) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Current password is incorrect.'], 422);
+                }
                 return redirect()->back()->with('error', 'Current password is incorrect.');
             }
             $user->password = Hash::make($request->new_password);
@@ -480,6 +589,9 @@ class StaffController extends Controller
             $staff->save();
         }
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Profile updated successfully.']);
+        }
         return redirect()->back()->with('success', 'Profile updated successfully.');
     }
 }

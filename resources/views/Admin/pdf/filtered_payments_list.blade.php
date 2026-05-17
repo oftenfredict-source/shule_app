@@ -112,11 +112,11 @@
         <tbody>
             @foreach($students as $index => $studentData)
             @php
-                $payment = $studentData['payment'];
+                $payment = is_object($studentData) ? ($studentData->payment ?? null) : ($studentData['payment'] ?? null);
                 
-                $required = number_format($studentData['totalRequired'] ?? 0, 0);
-                $paid = number_format($studentData['totalPaid'] ?? 0, 0);
-                $balance = number_format($studentData['totalBalance'] ?? 0, 0);
+                $required = number_format(data_get($studentData, 'totalRequired', 0), 0);
+                $paid = number_format(data_get($studentData, 'totalPaid', 0), 0);
+                $balance = number_format(data_get($studentData, 'totalBalance', 0), 0);
                 $status = $payment ? $payment->payment_status : 'Pending';
                 
                 $colorStatus = '#940000';

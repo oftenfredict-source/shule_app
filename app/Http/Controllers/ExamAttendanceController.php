@@ -542,12 +542,11 @@ class ExamAttendanceController extends Controller
             ->orderBy('students.first_name', 'asc')
             ->get();
             
-        $currentYear = $exam->year ?? date('Y');
-        $schoolRegNo = $school->registration_number ?? 'REG';
+        $examCenterNo = !empty($school->exam_center_number) ? $school->exam_center_number : 'SET-CENTER-NO';
         
         foreach ($allStudentsInClass as $index => $student) {
-            $sequence = str_pad($index + 1, 3, '0', STR_PAD_LEFT);
-            $student->examination_number = "{$schoolRegNo}/{$sequence}/{$currentYear}";
+            $sequence = str_pad($index + 1, 4, '0', STR_PAD_LEFT);
+            $student->examination_number = "{$examCenterNo}/{$sequence}";
         }
         
         // Now filter by subclass if specified

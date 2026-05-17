@@ -27,7 +27,7 @@ class CalendarController extends Controller
             return redirect()->back()->with('error', 'Access denied');
         }
 
-        $currentYear = request()->get('year', date('Y'));
+        $currentYear = request()->input('year', date('Y'));
         
         // Get all holidays for the year
         $holidays = Holiday::where('schoolID', $schoolID)
@@ -66,7 +66,7 @@ class CalendarController extends Controller
             return redirect()->route('login')->with('error', 'Access denied');
         }
 
-        $currentYear = request()->get('year', date('Y'));
+        $currentYear = request()->input('year', date('Y'));
         
         // Get all holidays for the year
         $holidays = Holiday::where('schoolID', $schoolID)
@@ -605,8 +605,8 @@ class CalendarController extends Controller
     public function getCalendarData(Request $request)
     {
         $schoolID = Session::get('schoolID');
-        $year = $request->get('year', date('Y'));
-        $month = $request->get('month', date('m'));
+        $year = $request->input('year', date('Y'));
+        $month = $request->input('month', date('m'));
 
         $startDate = Carbon::create($year, $month, 1)->startOfDay();
         $endDate = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
@@ -646,7 +646,7 @@ class CalendarController extends Controller
             return redirect()->route('login');
         }
 
-        $currentYear = $request->get('year', date('Y'));
+        $currentYear = $request->input('year', date('Y'));
         $school = School::find($schoolID);
 
         // Get all holidays for the year

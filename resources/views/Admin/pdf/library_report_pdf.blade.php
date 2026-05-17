@@ -116,23 +116,23 @@
     <table class="stats-grid">
         <tr>
             <td>
-                <div class="stat-val">{{ $stats['total'] }}</div>
+                <div class="stat-val">{{ $stats->total ?? 0 }}</div>
                 <div class="stat-label">Total Books</div>
             </td>
             <td>
-                <div class="stat-val">{{ $stats['available'] }}</div>
+                <div class="stat-val">{{ $stats->available ?? 0 }}</div>
                 <div class="stat-label">Available</div>
             </td>
             <td>
-                <div class="stat-val">{{ $stats['borrowed'] }}</div>
+                <div class="stat-val">{{ $stats->borrowed ?? 0 }}</div>
                 <div class="stat-label">Borrowed</div>
             </td>
             <td>
-                <div class="stat-val">{{ $stats['lost'] }}</div>
+                <div class="stat-val">{{ $stats->lost ?? 0 }}</div>
                 <div class="stat-label">Lost (Unresolved)</div>
             </td>
             <td>
-                <div class="stat-val">{{ $stats['damaged'] }}</div>
+                <div class="stat-val">{{ $stats->damaged ?? 0 }}</div>
                 <div class="stat-label">Damaged (Unresolved)</div>
             </td>
         </tr>

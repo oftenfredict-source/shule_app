@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ $title }}</title>
+    <style>
+        body { font-family: 'Helvetica', sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #940000; padding-bottom: 15px; }
+        .school-name { font-size: 20px; font-weight: bold; color: #940000; text-transform: uppercase; margin-top: 10px; }
+        .report-title { font-size: 16px; font-weight: bold; margin-top: 15px; background: #f8f9fa; padding: 8px; text-transform: uppercase; border: 1px solid #ddd; }
+
+        .info-section { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        .info-table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 8px; border-bottom: 1px dashed #eee; }
+        .info-table tr:last-child td { border-bottom: none; }
+        .label { font-weight: bold; color: #555; width: 30%; }
+
+        .section-title { font-size: 14px; font-weight: bold; color: #940000; margin-bottom: 10px; border-bottom: 1px solid #940000; padding-bottom: 5px; }
+
+        .description-box {
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            padding: 15px;
+            min-height: 80px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+        }
+
+        table.chain-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.chain-table th, table.chain-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        table.chain-table th { background-color: #f8f9fa; font-weight: bold; color: #940000; }
+
+        /* ── SIGNATURE AND STAMP ─────────────────── */
+        .sig-table { width: 100%; margin-top: 40px; border-collapse: collapse; page-break-inside: avoid; }
+        .sig-table td { border: none; padding: 0; vertical-align: bottom; }
+        .stamp-cell { width: 50%; text-align: center; vertical-align: middle; }
+        .stamp-cell img { max-width: 120px; max-height: 120px; opacity: 0.85; }
+        .sign-cell { width: 45%; text-align: center; padding-bottom: 5px; }
+        .school-signature-img { height: 40px; margin-bottom: 4px; }
+        .school-signature-img img { max-width: 150px; max-height: 40px; }
+        .sig-line   { border-top: 1.5px solid #940000; width: 160px; margin: 0 auto; display: block; }
+        .sig-label  { font-size: 10px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase;}
+
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 10px; color: #777; border-top: 1px solid #eee; padding-top: 5px; }
+
+        /* ── WATERMARK ─────────────────── */
+        .watermark {
+            position: fixed;
+            top: 45%;
+            left: 5%;
+            width: 100%;
+            text-align: center;
+            opacity: 0.05;
+            transform: rotate(-45deg);
+            font-size: 100px;
+            font-weight: bold;
+            color: #000;
+            z-index: -1000;
+            text-transform: uppercase;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .status-approved { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-rejected { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status-pending { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    </style>
+</head>
+<body>
+    <div class="watermark">ShuleXpert</div>
+    @php
+        if (!function_exists('getSmartBase64')) {
+            function getSmartBase64($path) {
+                if (!$path) return null;
+                $path = ltrim($path, '/');
+                $base = base_path();
+                $parent = dirname($base);
+                $possibilities = [
+                    public_path($path),
+                    public_path('uploads/' . $path),
+                    $parent . '/public_html/' . $path,
+                    $parent . '/public_html/uploads/' . $path,
+                ];
+                if (isset($_SERVER['DOCUMENT_ROOT'])) {
+                    $docRoot = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
+                    $possibilities[] = $docRoot . '/' . $path;
+                    $possibilities[] = $docRoot . '/uploads/' . $path;
+                }
+                $possibilities[] = base_path($path);
+                $possibilities[] = base_path('public/' . $path);
+                $possibilities[] = base_path('../public_html/' . $path);
+                
+                foreach ($possibilities as $fullPath) {
+                    if (@file_exists($fullPath) && is_file($fullPath)) {
+                        try {
+                            $data = base64_encode(file_get_contents($fullPath));
+                            $ext = pathinfo($fullPath, PATHINFO_EXTENSION);
+                            return 'data:image/' . ($ext ?: 'png') . ';base64,' . $data;
+                        } catch (\Exception $e) {}
+                    }
+                }
+                return null;
+            }
+        }
+        $schoolLogoBase64  = getSmartBase64($school->school_logo ?? '');
+        $schoolStampBase64 = getSmartBase64($school->school_stamp ?? '');
+        $schoolSignBase64  = getSmartBase64($school->school_signature ?? '');
+    @endphp
+
+    <div class="header">
+        @if($schoolLogoBase64)
+            <img src="{{ $schoolLogoBase64 }}" style="max-height: 80px; margin-bottom: 5px;">
+        @endif
+        <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
+        <div>{{ $school->address ?? '' }}</div>
+        <div>Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+        <div class="report-title">PERMISSION REQUEST DETAILS</div>
+    </div>
+
+    <div class="info-section">
+        <table class="info-table">
+            <tr>
+                <td class="label">Requester Name:</td>
+                <td>{{ $requesterName }}</td>
+                <td class="label">Role:</td>
+                <td>{{ $requesterInfo }}</td>
+            </tr>
+            <tr>
+                <td class="label">Date Requested:</td>
+                <td>{{ $permission->created_at ? $permission->created_at->format('d M Y H:i') : 'N/A' }}</td>
+                <td class="label">Current Status:</td>
+                <td>
+                    <span class="status-badge status-{{ strtolower($permission->status) }}">
+                        {{ ucfirst($permission->status) }}
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="label">Reason Category:</td>
+                <td colspan="3">{{ ucfirst($permission->reason_type) }}</td>
+            </tr>
+            
+            @if($permission->time_mode === 'days')
+            <tr>
+                <td class="label">Duration:</td>
+                <td>{{ $permission->days_count }} Days</td>
+                <td class="label">Expected Return:</td>
+                <td>{{ $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->addDay()->format('d M Y') : 'N/A' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Period:</td>
+                <td colspan="3">
+                    {{ $permission->start_date ? \Carbon\Carbon::parse($permission->start_date)->format('d M Y') : 'N/A' }} 
+                    <strong>to</strong> 
+                    {{ $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->format('d M Y') : 'N/A' }}
+                </td>
+            </tr>
+            @else
+            <tr>
+                <td class="label">Time Range:</td>
+                <td colspan="3">{{ $permission->start_time }} - {{ $permission->end_time }}</td>
+            </tr>
+            @endif
+        </table>
+    </div>
+
+    <div class="section-title">Reason Description</div>
+    <div class="description-box">
+        {{ $permission->reason_description ?: 'No description provided.' }}
+    </div>
+
+    <div class="section-title">Approval Chain & Status</div>
+    @if($chain->count() > 0)
+        <table class="chain-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">Step</th>
+                    <th style="width: 30%;">Required Role</th>
+                    <th style="width: 30%;">Action By (User)</th>
+                    <th style="width: 15%;">Status</th>
+                    <th style="width: 15%;">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($chain as $index => $step)
+                    @php
+                        $log = $logs->get($step->approval_order);
+                    @endphp
+                    <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td>{{ $step->role_name }}</td>
+                        <td>
+                            @if($log && $log->approver_id)
+                                @php
+                                    $actionUser = \App\Models\User::find($log->approver_id);
+                                    echo $actionUser ? ($actionUser->name) : 'System';
+                                @endphp
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td>
+                            @if($log)
+                                <span class="status-badge status-{{ strtolower($log->status) }}">
+                                    {{ ucfirst($log->status) }}
+                                </span>
+                            @else
+                                <span class="status-badge status-pending">Pending</span>
+                            @endif
+                        </td>
+                        <td>
+                            {{ $log ? \Carbon\Carbon::parse($log->created_at)->format('d M Y') : '-' }}
+                        </td>
+                    </tr>
+                @endforeach
+
+                @php
+                    $maxOrder = $chain->max('approval_order') ?? 0;
+                    $finalOrder = $maxOrder + 1;
+                    $finalLog = $logs->get($finalOrder);
+                @endphp
+                <tr>
+                    <td>{{ $chain->count() + 1 }}</td>
+                    <td><strong>System Admin (Final)</strong></td>
+                    <td>
+                        @if($finalLog && $finalLog->approver_id)
+                            @php
+                                $actionUser = \App\Models\User::find($finalLog->approver_id);
+                                echo $actionUser ? ($actionUser->name) : 'System';
+                            @endphp
+                        @elseif($permission->status === 'approved' || $permission->status === 'rejected')
+                            Reviewer
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td>
+                        @if($permission->status === 'approved' || $permission->status === 'rejected')
+                             <span class="status-badge status-{{ strtolower($permission->status) }}">
+                                {{ ucfirst($permission->status) }}
+                            </span>
+                        @else
+                            <span class="status-badge status-pending">Pending</span>
+                        @endif
+                    </td>
+                    <td>
+                        {{ $permission->reviewed_at ? \Carbon\Carbon::parse($permission->reviewed_at)->format('d M Y') : '-' }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    @else
+        <div class="description-box" style="min-height: auto; margin-bottom: 10px;">
+            <table class="chain-table" style="margin-bottom: 0;">
+                 <thead>
+                    <tr>
+                        <th style="width: 10%;">Step</th>
+                        <th style="width: 30%;">Required Role</th>
+                        <th style="width: 30%;">Action By (User)</th>
+                        <th style="width: 15%;">Status</th>
+                        <th style="width: 15%;">Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td><strong>System Admin (Final)</strong></td>
+                        <td>
+                             @if($permission->reviewed_at)
+                                Reviewer
+                             @else
+                                -
+                             @endif
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ strtolower($permission->status) }}">
+                                {{ ucfirst($permission->status) }}
+                            </span>
+                        </td>
+                        <td>
+                            {{ $permission->reviewed_at ? \Carbon\Carbon::parse($permission->reviewed_at)->format('d M Y') : '-' }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    @if(strtolower($permission->status) === 'approved')
+    <table class="sig-table">
+        <tr>
+            <td class="stamp-cell">
+                @if($schoolStampBase64)
+                    <img src="{{ $schoolStampBase64 }}">
+                    <div style="font-size: 9px; color: #777; margin-top: 5px;">SCHOOL OFFICIAL STAMP</div>
+                @endif
+            </td>
+            <td class="sign-cell">
+                <div class="school-signature-img">
+                    @if($schoolSignBase64)
+                        <img src="{{ $schoolSignBase64 }}">
+                    @endif
+                </div>
+                <span class="sig-line"></span>
+                <span class="sig-label">AUTHORIZED SIGNATURE</span>
+            </td>
+        </tr>
+    </table>
+    @endif
+
+    <div class="footer">
+        Generated by ShuleXpert (School Management System), Powered By EmCa Techonology &copy; {{ date('Y') }}
+    </div>
+</body>
+</html>

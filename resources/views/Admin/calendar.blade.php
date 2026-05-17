@@ -230,27 +230,27 @@
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-label">Total Days</div>
-            <div class="stat-number">{{ $stats['total_days'] }}</div>
+            <div class="stat-number">{{ $stats->total_days }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Working Days</div>
-            <div class="stat-number">{{ $stats['working_days'] }}</div>
+            <div class="stat-number">{{ $stats->working_days }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Weekend Days</div>
-            <div class="stat-number">{{ $stats['weekend_days'] }}</div>
+            <div class="stat-number">{{ $stats->weekend_days }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Holiday Days</div>
-            <div class="stat-number">{{ $stats['holiday_days'] }}</div>
+            <div class="stat-number">{{ $stats->holiday_days }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Events</div>
-            <div class="stat-number">{{ $stats['event_days'] }}</div>
+            <div class="stat-number">{{ $stats->event_days }}</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">Teacher Sessions/Year</div>
-            <div class="stat-number">{{ $stats['total_sessions'] }}</div>
+            <div class="stat-number">{{ $stats->total_sessions }}</div>
         </div>
     </div>
 

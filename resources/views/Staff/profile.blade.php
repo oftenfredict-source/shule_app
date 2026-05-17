@@ -183,7 +183,7 @@
                 </div>
             </div>
 
-            <form action="{{ route('staff.profile.update') }}" method="POST" enctype="multipart/form-data">
+            <form id="staffProfileForm" action="{{ route('staff.profile.update') }}" method="POST" enctype="multipart/form-data">
                 @csrf
 
                 <div class="row">
@@ -200,27 +200,51 @@
                         <h6 class="text-primary-custom mb-3">Change Password</h6>
                         <div class="form-group">
                             <label for="current_password">Current Password</label>
-                            <input type="password" class="form-control" id="current_password" name="current_password">
+                            <input type="password" class="form-control" id="current_password" name="current_password" autocomplete="current-password">
                         </div>
                         <div class="form-group">
                             <label for="new_password">New Password</label>
-                            <input type="password" class="form-control" id="new_password" name="new_password">
+                            <input type="password" class="form-control" id="new_password" name="new_password" autocomplete="new-password">
                             <div class="mt-2">
                                 <div class="progress" style="height: 8px;">
                                     <div id="staff_pw_bar" class="progress-bar" role="progressbar" style="width: 0%;"></div>
                                 </div>
                                 <small id="staff_pw_label" class="text-muted">Strength: 0%</small>
                             </div>
+                            
+                            <div class="mt-3 p-3 bg-light rounded" id="staff_requirements_card" style="border: 1px solid #e3e6f0; display: none;">
+                                <h6 class="font-weight-bold mb-2 small text-secondary">PASSWORD REQUIREMENTS:</h6>
+                                <ul class="list-unstyled mb-0 small">
+                                    <li class="requirement-item text-danger" id="s_req_len">
+                                        <i class="fa fa-times-circle mr-2" id="s_icon_len"></i> At least 8 characters
+                                    </li>
+                                    <li class="requirement-item text-danger" id="s_req_upper">
+                                        <i class="fa fa-times-circle mr-2" id="s_icon_upper"></i> At least one uppercase letter (A-Z)
+                                    </li>
+                                    <li class="requirement-item text-danger" id="s_req_lower">
+                                        <i class="fa fa-times-circle mr-2" id="s_icon_lower"></i> At least one lowercase letter (a-z)
+                                    </li>
+                                    <li class="requirement-item text-danger" id="s_req_num">
+                                        <i class="fa fa-times-circle mr-2" id="s_icon_num"></i> At least one number (0-9)
+                                    </li>
+                                    <li class="requirement-item text-danger" id="s_req_spec">
+                                        <i class="fa fa-times-circle mr-2" id="s_icon_spec"></i> At least one special character (@, $, !, %, etc.)
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="new_password_confirmation">Confirm New Password</label>
-                            <input type="password" class="form-control" id="new_password_confirmation" name="new_password_confirmation">
+                            <input type="password" class="form-control" id="new_password_confirmation" name="new_password_confirmation" autocomplete="new-password">
+                            <div class="mt-2 small" id="staff_confirm_feedback" style="display: none;">
+                                <span id="staff_confirm_status"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-3">
-                    <button type="submit" class="btn btn-primary-custom">
+                    <button type="submit" id="staffSubmitBtn" class="btn btn-primary-custom">
                         <i class="fa fa-save"></i> Save Changes
                     </button>
                     <a href="{{ route('staffDashboard') }}" class="btn btn-outline-secondary">
@@ -232,38 +256,244 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-(function() {
-    const input = document.getElementById('new_password');
-    const bar = document.getElementById('staff_pw_bar');
-    const label = document.getElementById('staff_pw_label');
-    if (!input || !bar || !label) return;
+$(document).ready(function() {
+    const staffNewPassword = $('#new_password');
+    const staffConfirmPassword = $('#new_password_confirmation');
+    const staffCurrentPassword = $('#current_password');
+    const staffSubmitBtn = $('#staffSubmitBtn');
 
-    function calc(pw) {
+    let staffState = {
+        length: false,
+        upper: false,
+        lower: false,
+        number: false,
+        special: false,
+        match: false
+    };
+
+    function updateStaffRequirementUI(elementId, iconId, isMet) {
+        const element = $(elementId);
+        const icon = $(iconId);
+        if (isMet) {
+            element.removeClass('text-danger').addClass('text-success');
+            icon.removeClass('fa-times-circle text-danger').addClass('fa-check-circle text-success');
+        } else {
+            element.removeClass('text-success').addClass('text-danger');
+            icon.removeClass('fa-check-circle text-success').addClass('fa-times-circle text-danger');
+        }
+    }
+
+    function checkStaffPassword() {
+        const pw = staffNewPassword.val();
+        
+        if (!pw) {
+            $('#staff_requirements_card').slideUp(200);
+            $('#staff_confirm_feedback').slideUp(200);
+            $('#staff_pw_bar').css('width', '0%');
+            $('#staff_pw_label').text('Strength: 0%');
+            toggleStaffSubmit();
+            return;
+        }
+
+        $('#staff_requirements_card').slideDown(200);
+
+        // 1. Length
+        staffState.length = pw.length >= 8;
+        updateStaffRequirementUI('#s_req_len', '#s_icon_len', staffState.length);
+
+        // 2. Upper case
+        staffState.upper = /[A-Z]/.test(pw);
+        updateStaffRequirementUI('#s_req_upper', '#s_icon_upper', staffState.upper);
+
+        // 3. Lower case
+        staffState.lower = /[a-z]/.test(pw);
+        updateStaffRequirementUI('#s_req_lower', '#s_icon_lower', staffState.lower);
+
+        // 4. Number
+        staffState.number = /[0-9]/.test(pw);
+        updateStaffRequirementUI('#s_req_num', '#s_icon_num', staffState.number);
+
+        // 5. Special Character
+        staffState.special = /[^a-zA-Z0-9]/.test(pw);
+        updateStaffRequirementUI('#s_req_spec', '#s_icon_spec', staffState.special);
+
+        // Strength progress bar
         let score = 0;
-        if (!pw) return 0;
-        if (pw.length >= 8) score += 25;
-        if (/[a-z]/.test(pw)) score += 15;
-        if (/[A-Z]/.test(pw)) score += 15;
-        if (/[0-9]/.test(pw)) score += 15;
-        if (/[^a-zA-Z0-9]/.test(pw)) score += 15;
+        if (staffState.length) score += 25;
+        if (staffState.upper) score += 15;
+        if (staffState.lower) score += 15;
+        if (staffState.number) score += 15;
+        if (staffState.special) score += 15;
         if (pw.length >= 12) score += 15;
-        return Math.min(100, score);
+
+        const p = Math.min(100, score);
+        const bar = $('#staff_pw_bar');
+        bar.css('width', p + '%');
+        $('#staff_pw_label').text('Strength: ' + p + '%');
+
+        if (p < 35) {
+            bar.removeClass('bg-warning bg-success').addClass('bg-danger');
+        } else if (p < 70) {
+            bar.removeClass('bg-danger bg-success').addClass('bg-warning');
+        } else {
+            bar.removeClass('bg-danger bg-warning').addClass('bg-success');
+        }
+
+        checkStaffMatch();
     }
 
-    function color(p) {
-        if (p < 35) return 'bg-danger';
-        if (p < 70) return 'bg-warning';
-        return 'bg-success';
+    function checkStaffMatch() {
+        const pw = staffNewPassword.val();
+        const confirm = staffConfirmPassword.val();
+        const feedback = $('#staff_confirm_feedback');
+        const statusSpan = $('#staff_confirm_status');
+
+        if (!pw) {
+            feedback.slideUp(200);
+            staffState.match = false;
+            toggleStaffSubmit();
+            return;
+        }
+
+        if (!confirm) {
+            feedback.slideUp(200);
+            staffState.match = false;
+            toggleStaffSubmit();
+            return;
+        }
+
+        feedback.slideDown(200);
+        if (pw === confirm) {
+            staffState.match = true;
+            statusSpan.html('<i class="fa fa-check-circle text-success mr-2"></i> Passwords match').removeClass('text-danger').addClass('text-success');
+        } else {
+            staffState.match = false;
+            statusSpan.html('<i class="fa fa-times-circle text-danger mr-2"></i> Passwords do not match').removeClass('text-success').addClass('text-danger');
+        }
+
+        toggleStaffSubmit();
     }
 
-    input.addEventListener('input', function() {
-        const p = calc(input.value);
-        bar.style.width = p + '%';
-        bar.className = 'progress-bar ' + color(p);
-        label.textContent = 'Strength: ' + p + '%';
+    function toggleStaffSubmit() {
+        const pw = staffNewPassword.val();
+        if (!pw) {
+            // Password is empty, they can submit the profile form normally
+            staffSubmitBtn.prop('disabled', false);
+            return;
+        }
+
+        const currentFilled = staffCurrentPassword.val().length > 0;
+        const allPassed = staffState.length && staffState.upper && staffState.lower && staffState.number && staffState.special && staffState.match && currentFilled;
+        staffSubmitBtn.prop('disabled', !allPassed);
+    }
+
+    // Input event listeners
+    staffNewPassword.on('input', checkStaffPassword);
+    staffConfirmPassword.on('input', checkStaffMatch);
+    staffCurrentPassword.on('input', toggleStaffSubmit);
+
+    // Profile form submit AJAX
+    $('#staffProfileForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const form = $(this);
+        const submitBtn = $('#staffSubmitBtn');
+        const originalBtnHtml = submitBtn.html();
+
+        // Clear dynamic alerts
+        $('.alert-dynamic').remove();
+
+        // Loading state
+        submitBtn.html('<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span> Saving...').attr('disabled', true);
+
+        // Construct FormData for file uploads
+        const formData = new FormData(this);
+
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            success: function(response) {
+                submitBtn.html(originalBtnHtml).attr('disabled', false);
+
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonColor: '#940000',
+                        timer: 3000,
+                        timerProgressBar: true
+                    }).then(() => {
+                        // Clear password inputs
+                        form.find('input[type="password"]').val('');
+                        $('#staff_pw_bar').css('width', '0%');
+                        $('#staff_pw_label').text('Strength: 0%');
+                        $('#staff_requirements_card').hide();
+                        $('#staff_confirm_feedback').hide();
+
+                        // Reset states
+                        staffState = {
+                            length: false,
+                            upper: false,
+                            lower: false,
+                            number: false,
+                            special: false,
+                            match: false
+                        };
+                        
+                        // Reload page to show updated profile photo if one was uploaded
+                        if (form.find('input[type="file"]').val()) {
+                            window.location.reload();
+                        } else {
+                            toggleStaffSubmit();
+                        }
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message || 'Something went wrong.',
+                        icon: 'error',
+                        confirmButtonColor: '#940000'
+                    });
+                    toggleStaffSubmit();
+                }
+            },
+            error: function(xhr) {
+                submitBtn.html(originalBtnHtml).attr('disabled', false);
+
+                let errorMsg = 'Failed to update profile. Please try again.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                }
+
+                const alertHtml = `
+                    <div class="alert alert-danger alert-dismissible fade show alert-dynamic mt-3" role="alert">
+                        <strong>Error:</strong> ${errorMsg}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                `;
+                form.before(alertHtml);
+
+                Swal.fire({
+                    title: 'Error!',
+                    text: errorMsg,
+                    icon: 'error',
+                    confirmButtonColor: '#940000'
+                });
+                toggleStaffSubmit();
+            }
+        });
     });
-})();
+});
 </script>
 
 @include('includes.footer')

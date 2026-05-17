@@ -21,7 +21,7 @@ class AccountantReportController extends Controller
             return redirect()->route('login')->with('error', 'Please login first');
         }
         
-        $selectedYear = $request->get('year', date('Y'));
+        $selectedYear = $request->input('year', date('Y'));
 
         // Summary Statistics
         $totalIncome = Income::where('schoolID', $schoolID)->whereYear('date', $selectedYear)->sum('amount');
@@ -59,7 +59,7 @@ class AccountantReportController extends Controller
     public function getChartData(Request $request)
     {
         $schoolID = Session::get('schoolID');
-        $year = $request->get('year', date('Y'));
+        $year = $request->input('year', date('Y'));
         
         // Trends for the selected year (by month)
         $months = [];
@@ -240,7 +240,7 @@ class AccountantReportController extends Controller
     public function exportReportPdf(Request $request)
     {
         $schoolID = Session::get('schoolID');
-        $year = $request->get('year', date('Y'));
+        $year = $request->input('year', date('Y'));
         $school = School::find($schoolID);
 
         // Fetch Overview Stats
@@ -307,7 +307,7 @@ class AccountantReportController extends Controller
     public function exportExpensesPdf(Request $request)
     {
         $schoolID = Session::get('schoolID');
-        $year = $request->get('year', date('Y'));
+        $year = $request->input('year', date('Y'));
         $school = School::find($schoolID);
 
         $expenses = Expense::where('schoolID', $schoolID)
@@ -338,7 +338,7 @@ class AccountantReportController extends Controller
     public function exportIncomePdf(Request $request)
     {
         $schoolID = Session::get('schoolID');
-        $year = $request->get('year', date('Y'));
+        $year = $request->input('year', date('Y'));
         $school = School::find($schoolID);
 
         $incomes = Income::where('schoolID', $schoolID)
@@ -368,7 +368,7 @@ class AccountantReportController extends Controller
     public function exportBudgetPdf(Request $request)
     {
         $schoolID = Session::get('schoolID');
-        $year = $request->get('year', date('Y'));
+        $year = $request->input('year', date('Y'));
         $school = School::find($schoolID);
 
         $budgets = Budget::where('schoolID', $schoolID)

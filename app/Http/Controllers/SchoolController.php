@@ -127,6 +127,7 @@ class SchoolController extends Controller
         $validated = $request->validate([
             'school_name' => 'required|string|max:150',
             'registration_number' => 'nullable|string|max:50|unique:schools,registration_number,' . $schoolID . ',schoolID',
+            'exam_center_number' => 'nullable|string|max:50|unique:schools,exam_center_number,' . $schoolID . ',schoolID',
             'school_type' => 'required|in:Primary,Secondary',
             'ownership' => 'required|in:Public,Private',
             'region' => 'required|string|max:100',
@@ -215,6 +216,7 @@ class SchoolController extends Controller
             'school' => [
                 'school_name' => $school->school_name,
                 'registration_number' => $school->registration_number,
+                'exam_center_number' => $school->exam_center_number,
                 'school_logo' => $school->school_logo ? asset($school->school_logo) : null,
                 'school_type' => $school->school_type,
                 'region' => $school->region,

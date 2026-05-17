@@ -120,12 +120,16 @@
             </div>
         </div>
 
-        {{-- Pasword --}}
+        {{-- Password --}}
         <div class="col-md-12">
-            <label class="form-label" for="registration_number">Password</label>
+            <div class="d-flex justify-content-between align-items-center">
+                <label class="form-label required" for="registration_number">Password</label>
+                <a href="#" class="small text-decoration-none brand-text fw-bold" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal">Forgot Password?</a>
+            </div>
             <div class="position-relative">
                 <i class="bi bi-hash input-icon"></i>
-                <input type="password" id="registration_number" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="password" required>
+                <input type="password" id="registration_number" name="password" class="form-control with-icon @error('password') is-invalid @enderror" placeholder="password" required style="padding-right: 40px;">
+                <i class="bi bi-eye-slash position-absolute" id="togglePassword" style="right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #6c757d; z-index: 10;"></i>
                 @error('password')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -197,9 +201,37 @@
 
                     </div>
                 </div>
+        </div>
+    </div>
+
+<!-- Forgot Password Modal -->
+<div class="modal fade" id="forgotPasswordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-brand" style="border-radius: 0;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title brand-text fw-bold"><i class="bi bi-key me-2"></i>Forgot Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Weka username yako. Password mpya itatumwa kwenye namba yako ya simu uliyosajiliwa nayo.</p>
+                <form id="forgotPasswordForm" method="POST" action="{{ route('auth.forgot_password') }}">
+                    @csrf
+                    <div class="mb-3 position-relative">
+                        <label class="form-label required" for="fp_username">Username</label>
+                        <i class="bi bi-person input-icon" style="z-index: 10;"></i>
+                        <input type="text" id="fp_username" name="username" class="form-control with-icon" placeholder="Weka username yako" required>
+                    </div>
+                    <div id="fpAlert"></div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-brand" id="fpSubmitBtn">
+                            <i class="bi bi-send me-1"></i> Get Password
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
+</div>
 
 </body>
 
@@ -639,5 +671,61 @@
                 });
             }
         })();
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Toggle Password Visibility
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordField = document.getElementById('registration_number');
+            if (togglePassword && passwordField) {
+                togglePassword.addEventListener('click', function (e) {
+                    const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordField.setAttribute('type', type);
+                    this.classList.toggle('bi-eye');
+                    this.classList.toggle('bi-eye-slash');
+                });
+            }
+
+            // Forgot Password AJAX
+            const fpForm = document.getElementById('forgotPasswordForm');
+            if (fpForm) {
+                fpForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const btn = document.getElementById('fpSubmitBtn');
+                    const alertBox = document.getElementById('fpAlert');
+                    
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Inatuma...';
+                    alertBox.innerHTML = '';
+
+                    try {
+                        const fd = new FormData(this);
+                        const res = await fetch(this.action, {
+                            method: 'POST',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json'
+                            },
+                            body: fd
+                        });
+                        
+                        const data = await res.json();
+                        
+                        if (data && data.success) {
+                            alertBox.innerHTML = `<div class="alert alert-success small mb-0">${data.message}</div>`;
+                            this.reset();
+                        } else {
+                            const msg = data.message || 'Tatizo limetokea. Tafadhali jaribu tena.';
+                            alertBox.innerHTML = `<div class="alert alert-danger small mb-0">${msg}</div>`;
+                        }
+                    } catch (err) {
+                        alertBox.innerHTML = `<div class="alert alert-danger small mb-0">Tatizo la mtandao. Tafadhali jaribu tena.</div>`;
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-send me-1"></i> Get Password';
+                    }
+                });
+            }
+        });
     </script>
 </html>

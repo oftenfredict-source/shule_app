@@ -588,7 +588,7 @@
     </div>
 
     <!-- Students by Class Distribution -->
-    @if($studentsByClass->count() > 0)
+    @if((is_array($studentsByClass) ? count($studentsByClass) : $studentsByClass->count()) > 0)
     <div class="row mb-3">
         <div class="col-12">
             <h3 class="section-header">
@@ -625,13 +625,17 @@
                 @csrf
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-8">
+                        <div class="col-md-5">
                             <label class="form-label">School Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="school_name" value="{{ $school->school_name }}" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Registration Number</label>
                             <input type="text" class="form-control" name="registration_number" value="{{ $school->registration_number }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Exam Center No.</label>
+                            <input type="text" class="form-control" name="exam_center_number" value="{{ $school->exam_center_number ?? '' }}" placeholder="e.g. S0101">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">School Type <span class="text-danger">*</span></label>
@@ -831,7 +835,7 @@
         }
     });
 
-    @if($studentsByClass->count() > 0)
+    @if((is_array($studentsByClass) ? count($studentsByClass) : $studentsByClass->count()) > 0)
     // Students by Class Chart
     const classCtx = document.getElementById('studentsByClassChart').getContext('2d');
     const studentsByClassChart = new Chart(classCtx, {

@@ -43,6 +43,50 @@
         padding: 30px;
         box-shadow: 0 5px 20px rgba(0,0,0,0.05);
     }
+    .form-control {
+        border: 1px solid #ced4da !important;
+        padding: 12px 15px !important;
+        font-size: 14px !important;
+        background-color: #fff !important;
+    }
+    .form-control:focus {
+        border-color: #940000 !important;
+        box-shadow: 0 0 0 4px rgba(148, 0, 0, 0.05) !important;
+    }
+    .form-label {
+        color: #444 !important;
+        margin-bottom: 8px !important;
+    }
+    .form-loading {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border: 1px solid rgba(148, 0, 0, 0.25);
+        background: rgba(148, 0, 0, 0.05);
+        margin-bottom: 12px;
+    }
+    .form-progress {
+        position: relative;
+        flex: 1;
+        height: 8px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .form-progress::after {
+        content: "";
+        position: absolute;
+        left: -40%;
+        width: 40%;
+        height: 100%;
+        background: #940000;
+        animation: progressSlide 1.1s linear infinite;
+    }
+    @keyframes progressSlide {
+        0% { left: -40%; }
+        100% { left: 100%; }
+    }
 </style>
 
 <div class="row">
@@ -76,35 +120,121 @@
             </div>
 
             <div class="card-body p-0 mt-4 tab-content-area">
+                @if($activeTab !== 'request')
+                <div class="form-loading" id="parentFilterLoading">
+                    <span><i class="bx bx-loader-alt bx-spin text-danger"></i> Filtering...</span>
+                    <div class="form-progress"></div>
+                </div>
+                <div class="row mb-3 px-3">
+                    <div class="col-md-12">
+                        <form id="parentFilterForm" method="GET" action="{{ route('parent.permissions') }}" class="p-3 bg-light border shadow-sm">
+                            <input type="hidden" name="tab" value="{{ $activeTab }}">
+                            <div class="row align-items-end g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label small font-weight-bold text-uppercase">Filter By:</label>
+                                    <select name="filter_type" id="filter_type" class="form-control" onchange="toggleFilterInputs()">
+                                        <option value="all" {{ ($filterType ?? '') == 'all' ? 'selected' : '' }}>All Records</option>
+                                        <option value="range" {{ ($filterType ?? '') == 'range' ? 'selected' : '' }}>Date Range</option>
+                                        <option value="month" {{ ($filterType ?? '') == 'month' ? 'selected' : '' }}>Specific Month</option>
+                                        <option value="year" {{ ($filterType ?? '') == 'year' ? 'selected' : '' }}>Specific Year</option>
+                                    </select>
+                                </div>
+
+                                <div id="range_inputs" class="col-md-6 filter-input-group" style="display: {{ ($filterType ?? '') == 'range' ? 'flex' : 'none' }}; gap: 10px;">
+                                    <div class="flex-grow-1">
+                                        <label class="form-label small font-weight-bold text-uppercase">From:</label>
+                                        <input type="date" name="date_from" id="filterDateFrom" class="form-control" value="{{ $dateFrom ?? '' }}">
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <label class="form-label small font-weight-bold text-uppercase">To:</label>
+                                        <input type="date" name="date_to" id="filterDateTo" class="form-control" value="{{ $dateTo ?? '' }}">
+                                    </div>
+                                </div>
+
+                                <div id="month_inputs" class="col-md-6 filter-input-group" style="display: {{ ($filterType ?? '') == 'month' ? 'flex' : 'none' }}; gap: 10px;">
+                                    <div class="flex-grow-1">
+                                        <label class="form-label small font-weight-bold text-uppercase">Month:</label>
+                                        <select name="filter_month" class="form-control">
+                                            @foreach(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as $index => $monthName)
+                                                <option value="{{ $index + 1 }}" {{ ($filterMonth ?? date('n')) == ($index + 1) ? 'selected' : '' }}>{{ $monthName }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <label class="form-label small font-weight-bold text-uppercase">Year:</label>
+                                        <select name="filter_month_year" class="form-control">
+                                            @for($y = date('Y'); $y >= date('Y')-5; $y--)
+                                                <option value="{{ $y }}" {{ ($filterMonthYear ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                            @endfor
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div id="year_inputs" class="col-md-3 filter-input-group" style="display: {{ ($filterType ?? '') == 'year' ? 'block' : 'none' }};">
+                                    <label class="form-label small font-weight-bold text-uppercase">Year:</label>
+                                    <select name="filter_year" class="form-control">
+                                        @for($y = date('Y'); $y >= date('Y')-5; $y--)
+                                            <option value="{{ $y }}" {{ ($filterYear ?? date('Y')) == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                        @endfor
+                                    </select>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-danger w-100 mb-1" style="border-radius: 0; font-weight: bold;" type="submit"><i class="bx bx-filter"></i> FILTER</button>
+                                    <button class="btn btn-secondary w-100" style="border-radius: 0; font-weight: bold;" type="button" onclick="resetParentFilters()"><i class="bx bx-undo"></i> RESET</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                @endif
+
                 @if($activeTab === 'request')
-                    <h6 class="font-weight-bold mb-4" style="color:#940000; border-left:4px solid #940000; padding-left:15px;">SUBMIT NEW PERMISSION REQUEST</h6>
+                    @isset($editPermission)
+                    <div class="alert alert-warning d-flex align-items-center gap-2 mb-3 px-3" style="border-radius:0; border-left: 4px solid #ff9800;">
+                        <i class="bx bx-edit text-warning me-2" style="font-size:20px;"></i>
+                        <div><strong>Editing Rejected Request</strong> &mdash; Make your changes below and click <em>Update & Resubmit</em>.</div>
+                        <a href="{{ url()->current() }}?tab=request" class="btn btn-sm btn-outline-secondary ms-auto" style="border-radius:0;"><i class="bx bx-x"></i> Cancel</a>
+                    </div>
+                    @endisset
+                    <h6 class="font-weight-bold mb-4" style="color:#940000; border-left:4px solid #940000; padding-left:15px;">{{ isset($editPermission) ? 'EDIT & RESUBMIT PERMISSION' : 'SUBMIT NEW PERMISSION REQUEST' }}</h6>
                     <form method="POST" action="{{ route('parent.permissions.store') }}" enctype="multipart/form-data" id="parentPermissionForm">
                         @csrf
+                        @isset($editPermission)
+                        <input type="hidden" name="permission_id" value="{{ $editPermission->permissionID }}">
+                        @endisset
                         <div class="row g-3">
                             <div class="col-md-12 mb-2">
                                 <label class="form-label small font-weight-bold text-uppercase">Student</label>
-                                <select class="form-select" name="student_id" required>
+                                <select class="form-control" name="student_id" required>
                                     <option value="">-- Select Child --</option>
                                     @foreach($students as $student)
-                                        <option value="{{ $student->studentID }}">{{ $student->first_name }} {{ $student->last_name }}</option>
+                                        <option value="{{ $student->studentID }}" {{ isset($editPermission) && $editPermission->studentID == $student->studentID ? 'selected' : '' }}>{{ $student->first_name }} {{ $student->last_name }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label small font-weight-bold text-uppercase">Departure Date</label>
-                                <input type="date" class="form-control" name="start_date" id="parentStartDate" required>
+                                <input type="date" class="form-control" name="start_date" id="parentStartDate"
+                                    value="{{ isset($editPermission) && $editPermission->start_date ? \Carbon\Carbon::parse($editPermission->start_date)->format('Y-m-d') : '' }}" required>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label small font-weight-bold text-uppercase">Expected Return</label>
-                                <input type="date" class="form-control" name="end_date" id="parentEndDate" required>
+                                <input type="date" class="form-control" name="end_date" id="parentEndDate"
+                                    value="{{ isset($editPermission) && $editPermission->end_date ? \Carbon\Carbon::parse($editPermission->end_date)->format('Y-m-d') : '' }}" required>
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label small font-weight-bold text-uppercase">Total Working Days (Excluding Weekends)</label>
+                                <input type="text" class="form-control" id="parentDaysDisplay" readonly style="background-color: #f8f9fa; font-weight: bold; color: #940000;">
+                                <small class="text-danger d-none" id="parentDaysError" style="font-weight: bold;">Days exceed limit. Maximum 7 working days allowed.</small>
                             </div>
                             <div class="col-md-12 mb-2">
                                 <label class="form-label small font-weight-bold text-uppercase">Permission Category</label>
-                                <select class="form-select" name="reason_type" id="parentReasonType" required>
-                                    <option value="medical">Medical / Health</option>
-                                    <option value="official">Official Matters</option>
-                                    <option value="emergency">Family Emergency</option>
-                                    <option value="other">Other Reason</option>
+                                <select class="form-control" name="reason_type" id="parentReasonType" required>
+                                    <option value="medical" {{ isset($editPermission) && $editPermission->reason_type === 'medical' ? 'selected' : '' }}>Medical / Health</option>
+                                    <option value="official" {{ isset($editPermission) && $editPermission->reason_type === 'official' ? 'selected' : '' }}>Official Matters</option>
+                                    <option value="emergency" {{ isset($editPermission) && $editPermission->reason_type === 'emergency' ? 'selected' : '' }}>Family Emergency</option>
+                                    <option value="other" {{ isset($editPermission) && $editPermission->reason_type === 'other' ? 'selected' : '' }}>Other Reason</option>
                                 </select>
                             </div>
                             <div class="col-md-12 mb-2" id="medicalAttachmentField" style="display:none;">
@@ -113,10 +243,16 @@
                             </div>
                             <div class="col-12 mb-3">
                                 <label class="form-label small font-weight-bold text-uppercase">Detailed Description</label>
-                                <textarea class="form-control" name="reason_description" rows="4" placeholder="Explain the reason for permission clearly..." required></textarea>
+                                <textarea class="form-control" name="reason_description" rows="4" placeholder="Explain the reason for permission clearly..." required>{{ isset($editPermission) ? $editPermission->reason_description : '' }}</textarea>
                             </div>
                             <div class="col-12">
-                                <button class="btn btn-primary px-5" type="submit" id="parentPermissionSubmit"><i class="bx bx-paper-plane"></i> SEND REQUEST</button>
+                                <button class="btn btn-primary px-5" type="submit" id="parentPermissionSubmit">
+                                    @isset($editPermission)
+                                        <i class="bx bx-refresh"></i> UPDATE & RESUBMIT
+                                    @else
+                                        <i class="bx bx-paper-plane"></i> SEND REQUEST
+                                    @endisset
+                                </button>
                             </div>
                         </div>
                     </form>
@@ -127,23 +263,117 @@
         </div>
     </div>
 </div>
+
+@include('partials.permission_progress_modal')
+
 @endsection
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function() {
+        function initPermViewToggle() {
+            var isMobile = window.innerWidth <= 991;
+            var storageKey = 'parent_perm_view_pref';
+            var savedView = sessionStorage.getItem(storageKey);
+            var activeView = savedView || (isMobile ? 'grid' : 'list');
+
+            function applyView(view) {
+                var listEl = document.getElementById('perm-list-view');
+                var gridEl = document.getElementById('perm-grid-view');
+                var btns = document.querySelectorAll('.perm-view-btn');
+                if (!listEl || !gridEl) return;
+                listEl.style.display = view === 'list' ? 'block' : 'none';
+                gridEl.style.display = view === 'grid' ? 'block' : 'none';
+                btns.forEach(function(btn) {
+                    var isActive = btn.getAttribute('data-view') === view;
+                    btn.classList.toggle('active', isActive);
+                    btn.classList.toggle('btn-secondary', isActive);
+                    btn.classList.toggle('btn-outline-secondary', !isActive);
+                });
+                sessionStorage.setItem(storageKey, view);
+            }
+
+            applyView(activeView);
+
+            document.querySelectorAll('.perm-view-btn').forEach(function(btn) {
+                btn.removeEventListener('click', btn._permViewHandler);
+                btn._permViewHandler = function() { applyView(this.getAttribute('data-view')); };
+                btn.addEventListener('click', btn._permViewHandler);
+            });
+        }
+
+        initPermViewToggle();
+
+        const startDateInput = $('#parentStartDate');
+        const endDateInput = $('#parentEndDate');
+        const daysDisplay = $('#parentDaysDisplay');
+        const daysError = $('#parentDaysError');
+
+        function calculateParentDays() {
+            const startVal = startDateInput.val();
+            const endVal = endDateInput.val();
+            if (!startVal || !endVal) {
+                daysDisplay.val('');
+                daysError.addClass('d-none');
+                return;
+            }
+
+            const start = new Date(startVal);
+            const end = new Date(endVal);
+            
+            let count = 0;
+            let current = new Date(start);
+            current.setHours(0, 0, 0, 0);
+            let endCopy = new Date(end);
+            endCopy.setHours(0, 0, 0, 0);
+
+            while (current <= endCopy) {
+                const dayOfWeek = current.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Sunday, 6 = Saturday
+                    count++;
+                }
+                current.setDate(current.getDate() + 1);
+            }
+
+            daysDisplay.val(count > 0 ? count : '');
+            if (count > 7) {
+                daysError.removeClass('d-none');
+            } else {
+                daysError.addClass('d-none');
+            }
+        }
+
+        startDateInput.on('change', calculateParentDays);
+        endDateInput.on('change', calculateParentDays);
+        // Recalculate on load if dates are pre-filled (edit mode)
+        if (startDateInput.val() && endDateInput.val()) {
+            calculateParentDays();
+        }
+
         $('#parentReasonType').on('change', function() {
             if ($(this).val() === 'medical') $('#medicalAttachmentField').show();
             else $('#medicalAttachmentField').hide();
         });
+        // Trigger reason type on load for edit mode
+        if ($('#parentReasonType').val() === 'medical') $('#medicalAttachmentField').show();
 
         $('#parentPermissionForm').on('submit', function(e) {
+            const daysCount = parseInt(daysDisplay.val() || '0', 10);
+            if (daysCount > 7) {
+                e.preventDefault();
+                Swal.fire({ icon: 'error', title: 'Limit Exceeded', text: 'Days exceed limit. Maximum 7 working days allowed.', confirmButtonColor: '#940000' });
+                return;
+            }
+
             e.preventDefault();
             const btn = $('#parentPermissionSubmit');
             btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>SENDING...');
             
             let formData = new FormData(this);
+            // Add days_count to formData
+            formData.append('days_count', daysCount);
+
             $.ajax({
                 url: $(this).attr('action'),
                 method: 'POST',
@@ -164,6 +394,44 @@
                 }
             });
         });
+
+        const parentFilterForm = $('#parentFilterForm');
+        if (parentFilterForm.length) {
+            parentFilterForm.on('submit', function() {
+                const loadingBar = document.getElementById('parentFilterLoading');
+                if (loadingBar) loadingBar.style.display = 'flex';
+                const btn = $(this).find('button[type="submit"]');
+                btn.html('<i class="bx bx-loader-alt bx-spin"></i> APPLYING...');
+                btn.prop('disabled', true);
+            });
+        }
+
+        window.toggleFilterInputs = function() {
+            const type = $('#filter_type').val();
+            $('.filter-input-group').hide();
+            if (type === 'range') {
+                $('#range_inputs').css('display', 'flex');
+            } else if (type === 'month') {
+                $('#month_inputs').css('display', 'flex');
+            } else if (type === 'year') {
+                $('#year_inputs').show();
+            }
+        };
+
+        window.resetParentFilters = function() {
+            window.location.href = "{{ route('parent.permissions') }}?tab={{ $activeTab }}";
+        };
+
+        // Fix for dropdowns being cut off inside table-responsive
+        $(document).on('show.bs.dropdown', '.table-responsive', function () {
+            $(this).css('overflow', 'inherit');
+        });
+
+        $(document).on('hide.bs.dropdown', '.table-responsive', function () {
+            $(this).css('overflow', 'auto');
+        });
     });
 </script>
 @endpush
+
+@include('partials.permission_details_modal')

@@ -238,11 +238,30 @@ class ParentsContoller extends Controller
             return [$student->studentID => $name ?: 'N/A'];
         });
 
-        $permissions = PermissionRequest::where('schoolID', $schoolID)
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+        $filterType = $request->input('filter_type', 'all');
+        $filterMonth = $request->input('filter_month');
+        $filterMonthYear = $request->input('filter_month_year', date('Y'));
+        $filterYear = $request->input('filter_year', date('Y'));
+
+        $query = PermissionRequest::where('schoolID', $schoolID)
             ->where('requester_type', 'student')
-            ->where('parentID', $parentID)
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->where('parentID', $parentID);
+
+        if ($filterType === 'range') {
+            if ($dateFrom) $query->whereDate('start_date', '>=', $dateFrom);
+            if ($dateTo) $query->whereDate('start_date', '<=', $dateTo);
+        } elseif ($filterType === 'month') {
+            if ($filterMonth) {
+                $query->whereMonth('start_date', $filterMonth)
+                      ->whereYear('start_date', $filterMonthYear);
+            }
+        } elseif ($filterType === 'year') {
+            if ($filterYear) $query->whereYear('start_date', $filterYear);
+        }
+
+        $permissions = $query->orderBy('created_at', 'desc')->get();
 
         $pendingPermissions = $permissions->where('status', 'pending');
         $approvedPermissions = $permissions->where('status', 'approved');
@@ -275,6 +294,17 @@ class ParentsContoller extends Controller
             ->where('is_read_by_requester', false)
             ->count();
 
+        $editPermission = null;
+        $editId = $request->input('edit_id');
+        if ($editId && $activeTab === 'request') {
+            $editPermission = PermissionRequest::where('schoolID', $schoolID)
+                ->where('requester_type', 'student')
+                ->where('parentID', $parentID)
+                ->where('permissionID', $editId)
+                ->where('status', 'rejected')
+                ->first();
+        }
+
         return view('Parent.manage_permissions', [
             'activeTab' => $activeTab,
             'students' => $students,
@@ -285,6 +315,13 @@ class ParentsContoller extends Controller
             'unreadPendingCount' => $unreadPendingCount,
             'unreadApprovedCount' => $unreadApprovedCount,
             'unreadRejectedCount' => $unreadRejectedCount,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'filterType' => $filterType,
+            'filterMonth' => $filterMonth,
+            'filterMonthYear' => $filterMonthYear,
+            'filterYear' => $filterYear,
+            'editPermission' => $editPermission,
         ]);
     }
 
@@ -330,9 +367,7 @@ class ParentsContoller extends Controller
             $attachmentPath = $request->file('attachment')->store('permission_attachments', 'public');
         }
 
-        $startDate = Carbon::parse($validated['start_date']);
-        $endDate = Carbon::parse($validated['end_date']);
-        $daysCount = $startDate->diffInDays($endDate) + 1;
+        $daysCount = $this->calculateWorkingDays($validated['start_date'], $validated['end_date']);
         if ($daysCount > 7) {
             if ($request->ajax() || $request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => 'Days exceed limit. Use 7 days or less.'], 422);
@@ -340,7 +375,14 @@ class ParentsContoller extends Controller
             return redirect()->back()->with('error', 'Days exceed limit. Use 7 days or less.')->withInput();
         }
 
-        PermissionRequest::create([
+        // Check for approval chain
+        $hasChain = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', 'student')
+            ->exists();
+
+        $permissionId = $request->input('permission_id');
+        $permissionData = [
             'schoolID' => $schoolID,
             'requester_type' => 'student',
             'studentID' => $student->studentID,
@@ -351,11 +393,76 @@ class ParentsContoller extends Controller
             'end_date' => $validated['end_date'],
             'reason_type' => $validated['reason_type'],
             'reason_description' => $validated['reason_description'],
-            'attachment_path' => $attachmentPath,
             'status' => 'pending',
             'is_read_by_admin' => false,
             'is_read_by_requester' => true,
-        ]);
+            'current_approval_order' => $hasChain ? 1 : 0
+        ];
+
+        if ($attachmentPath) {
+            $permissionData['attachment_path'] = $attachmentPath;
+        }
+
+        $isResubmission = false;
+        if ($permissionId) {
+            $permission = PermissionRequest::where('permissionID', $permissionId)
+                ->where('parentID', $parentID)
+                ->where('status', 'rejected')
+                ->first();
+            if ($permission) {
+                // Determine if we should keep the current stage or reset
+                $resubmissionOrder = $permission->current_approval_order;
+                
+                $permissionData['current_approval_order'] = $resubmissionOrder;
+                $permissionData['status'] = 'pending';
+
+                // Capture the rejector's info BEFORE clearing the rejected log
+                $rejectionLog = DB::table('permission_approval_logs')
+                    ->where('permissionID', $permissionId)
+                    ->where('status', 'rejected')
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                
+                $rejectorPhone = null;
+                if ($rejectionLog) {
+                    $rejectorTeacher = \App\Models\Teacher::where('id', $rejectionLog->approver_id)->first();
+                    if ($rejectorTeacher) {
+                        $rejectorPhone = $rejectorTeacher->phone_number;
+                    } else {
+                        $rejectorStaff = \App\Models\OtherStaff::where('id', $rejectionLog->approver_id)->first();
+                        if ($rejectorStaff) {
+                            $rejectorPhone = $rejectorStaff->phone_number;
+                        }
+                    }
+                }
+
+                $permission->update($permissionData);
+                
+                // Remove ONLY the rejected log
+                DB::table('permission_approval_logs')
+                    ->where('permissionID', $permissionId)
+                    ->where('status', 'rejected')
+                    ->delete();
+                
+                $isResubmission = true;
+
+                // Notify the rejector via SMS
+                if ($rejectorPhone) {
+                    $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
+                    $smsMsg = "Ruksa uliyoikataa ya mwanafunzi {$studentName}, amerekebisha na kutuma upya ingia kwenye mfumo kukagua.";
+                    (new SmsService())->sendSms($rejectorPhone, $smsMsg);
+                }
+            } else {
+                $permission = PermissionRequest::create($permissionData);
+            }
+        } else {
+            $permission = PermissionRequest::create($permissionData);
+        }
+
+        if ($hasChain) {
+            // Notify first approver
+            app(\App\Http\Controllers\AdminController::class)->notifyNextApprover($permission);
+        }
 
         $parent = ParentModel::where('parentID', $parentID)->first();
         $school = School::where('schoolID', $schoolID)->first();
@@ -571,7 +678,8 @@ class ParentsContoller extends Controller
                 ->toArray();
             
             foreach ($studentResults as $studentID => $studentResultList) {
-                $student = $studentResultList->first()->student;
+                $student = $studentResultList->first()->student ?? null;
+                if (!$student) continue;
                 
                 // Check if the student's class has published reports
                 $studentClassID = $student->subclass ? $student->subclass->classID : null;
@@ -589,7 +697,7 @@ class ParentsContoller extends Controller
                 $subjectData = [];
                 
                 foreach ($examResults as $examID => $examResultList) {
-                    $exam = $examResultList->first()->examination;
+                    $exam = $examResultList->first()->examination ?? null;
                     if (!$exam) continue;
                     
                     $examTotalMarks = 0;
@@ -708,7 +816,8 @@ class ParentsContoller extends Controller
             // For exam: Group by subject to support the new UI table (Somo, Mitihani, Alama...)
             $studentResults = $results->groupBy('studentID');
             foreach ($studentResults as $studentID => $studentResultList) {
-                $student = $studentResultList->first()->student;
+                $student = $studentResultList->first()->student ?? null;
+                if (!$student) continue;
                 $mainExam = Examination::find($examFilter);
                 
                 $className = $student->subclass && $student->subclass->class ? $student->subclass->class->class_name : null;
@@ -1001,11 +1110,11 @@ class ParentsContoller extends Controller
             ->get();
 
         // Get filter parameters
-        $studentFilter = $request->get('student', '');
-        $yearFilter = $request->get('year', date('Y'));
-        $monthFilter = $request->get('month', date('m'));
-        $dateFilter = $request->get('date', '');
-        $searchType = $request->get('search_type', 'month'); // month, year, date
+        $studentFilter = $request->input('student', '');
+        $yearFilter = $request->input('year', date('Y'));
+        $monthFilter = $request->input('month', date('m'));
+        $dateFilter = $request->input('date', '');
+        $searchType = $request->input('search_type', 'month'); // month, year, date
 
         // Get school details
         $school = School::where('schoolID', $schoolID)->first();
@@ -1231,13 +1340,13 @@ class ParentsContoller extends Controller
             $groupedRecords = [];
             foreach ($dailyRecords->groupBy('attendance_date') as $date => $records) {
                 $dateObj = \Carbon\Carbon::parse($date);
-                $firstRecord = $records->first();
+                $firstRecord = collect($records)->first();
                 $groupedRecords[] = [
                     'date' => $dateObj->format('Y-m-d'),
                     'date_formatted' => $dateObj->format('l, F d, Y'),
                     'status' => $firstRecord->status ?? null,
                     'remark' => $firstRecord->remark ?? null,
-                    'students' => $records->map(function($rec) {
+                    'students' => collect($records)->map(function($rec) {
                         return [
                             'studentID' => $rec->student->studentID ?? null,
                             'first_name' => $rec->student->first_name ?? '',
@@ -1520,7 +1629,8 @@ class ParentsContoller extends Controller
                 $studentResults = $results->groupBy('studentID');
                 
                 foreach ($studentResults as $studentID => $studentResultList) {
-                    $student = $studentResultList->first()->student;
+                    $student = $studentResultList->first()->student ?? null;
+                    if (!$student) continue;
                     $className = $student->subclass && $student->subclass->class
                         ? $student->subclass->class->class_name
                         : null;
@@ -1531,7 +1641,7 @@ class ParentsContoller extends Controller
                     $subjectData = [];
                     
                     foreach ($examResults as $examID => $examResultList) {
-                        $exam = $examResultList->first()->examination;
+                        $exam = $examResultList->first()->examination ?? null;
                         if (!$exam) continue;
                         
                         $examTotalMarks = 0;
@@ -2612,7 +2722,7 @@ class ParentsContoller extends Controller
                 $tuitionAllowPartial = false;
                 foreach ($tuitionFees as $fee) {
                     // Reload fee with installments if not already loaded
-                    if (!$fee->relationLoaded('installments')) {
+                    if (method_exists($fee, 'relationLoaded') && !$fee->relationLoaded('installments')) {
                         $fee->load(['installments' => function($q) {
                             $q->where('status', 'Active');
                         }]);
@@ -2632,12 +2742,12 @@ class ParentsContoller extends Controller
                 $otherFeesDetails = collect();
                 foreach ($otherFees as $fee) {
                     // Reload fee with installments and otherFeeDetails if not already loaded
-                    if (!$fee->relationLoaded('installments')) {
+                    if (method_exists($fee, 'relationLoaded') && !$fee->relationLoaded('installments')) {
                         $fee->load(['installments' => function($q) {
                             $q->where('status', 'Active');
                         }]);
                     }
-                    if (!$fee->relationLoaded('otherFeeDetails')) {
+                    if (method_exists($fee, 'relationLoaded') && !$fee->relationLoaded('otherFeeDetails')) {
                         $fee->load(['otherFeeDetails' => function($q) {
                             $q->where('status', 'Active');
                         }]);
@@ -3115,7 +3225,7 @@ class ParentsContoller extends Controller
                 $tuitionInstallments = collect();
                 $tuitionAllowPartial = false;
                 foreach ($tuitionFees as $fee) {
-                    if (!$fee->relationLoaded('installments')) {
+                    if (method_exists($fee, 'relationLoaded') && !$fee->relationLoaded('installments')) {
                         $fee->load(['installments' => function($q) {
                             $q->where('status', 'Active');
                         }]);
@@ -3134,12 +3244,12 @@ class ParentsContoller extends Controller
                 $otherAllowPartial = false;
                 $otherFeesDetails = collect();
                 foreach ($otherFees as $fee) {
-                    if (!$fee->relationLoaded('installments')) {
+                    if (method_exists($fee, 'relationLoaded') && !$fee->relationLoaded('installments')) {
                         $fee->load(['installments' => function($q) {
                             $q->where('status', 'Active');
                         }]);
                     }
-                    if (!$fee->relationLoaded('otherFeeDetails')) {
+                    if (method_exists($fee, 'relationLoaded') && !$fee->relationLoaded('otherFeeDetails')) {
                         $fee->load(['otherFeeDetails' => function($q) {
                             $q->where('status', 'Active');
                         }]);
@@ -3556,11 +3666,11 @@ class ParentsContoller extends Controller
     {
         $schoolID = Session::get('schoolID');
         $parentID = Session::get('parentID');
-        $studentID = $request->get('student');
-        $examID = $request->get('exam');
-        $type = $request->get('type', 'exam');
-        $year = $request->get('year');
-        $term = $request->get('term');
+        $studentID = $request->input('student');
+        $examID = $request->input('exam');
+        $type = $request->input('type', 'exam');
+        $year = $request->input('year');
+        $term = $request->input('term');
 
         $student = Student::where('studentID', $studentID)
             ->where('parentID', $parentID)
@@ -3676,11 +3786,11 @@ class ParentsContoller extends Controller
 
     public function downloadStudentResult(Request $request)
     {
-        $examID = $request->get('examID');
-        $studentID = $request->get('studentID');
-        $year = $request->get('year');
-        $term = $request->get('term');
-        $type = $request->get('type', 'exam');
+        $examID = $request->input('examID');
+        $studentID = $request->input('studentID');
+        $year = $request->input('year');
+        $term = $request->input('term');
+        $type = $request->input('type', 'exam');
         
         return redirect()->route('admin.download_results_pdf', [
             'option' => 'single',
