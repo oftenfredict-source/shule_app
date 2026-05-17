@@ -19,10 +19,13 @@
         
         // 1. If user is Admin and it's stage 0 or final
         if ($userType === 'Admin') {
-            $maxChainOrder = DB::table('permission_approval_chains')
-                ->where('schoolID', $permission->schoolID)
-                ->where('permission_type', $permission->requester_type)
-                ->max('approval_order') ?? 0;
+            $maxChainOrder = 0;
+            if (\Illuminate\Support\Facades\Schema::hasTable('permission_approval_chains')) {
+                $maxChainOrder = DB::table('permission_approval_chains')
+                    ->where('schoolID', $permission->schoolID)
+                    ->where('permission_type', $permission->requester_type)
+                    ->max('approval_order') ?? 0;
+            }
             
             if ($permission->current_approval_order == 0 || $permission->current_approval_order > $maxChainOrder) {
                 $isMyTurn = true;
@@ -31,15 +34,18 @@
 
         // 2. If user is in the chain and it matches their order
         if (!$isMyTurn) {
-            $myChainOrders = DB::table('permission_approval_chains')
-                ->where('schoolID', $permission->schoolID)
-                ->where('permission_type', $permission->requester_type)
-                ->where(function($q) use ($myRoleIDs, $myProfessionID) {
-                    if (!empty($myRoleIDs)) $q->orWhereIn('role_id', $myRoleIDs);
-                    if ($myProfessionID) $q->orWhere('profession_id', $myProfessionID);
-                })
-                ->pluck('approval_order')
-                ->toArray();
+            $myChainOrders = [];
+            if (\Illuminate\Support\Facades\Schema::hasTable('permission_approval_chains')) {
+                $myChainOrders = DB::table('permission_approval_chains')
+                    ->where('schoolID', $permission->schoolID)
+                    ->where('permission_type', $permission->requester_type)
+                    ->where(function($q) use ($myRoleIDs, $myProfessionID) {
+                        if (!empty($myRoleIDs)) $q->orWhereIn('role_id', $myRoleIDs);
+                        if ($myProfessionID) $q->orWhere('profession_id', $myProfessionID);
+                    })
+                    ->pluck('approval_order')
+                    ->toArray();
+            }
             
             if (in_array($permission->current_approval_order, $myChainOrders)) {
                 $isMyTurn = true;

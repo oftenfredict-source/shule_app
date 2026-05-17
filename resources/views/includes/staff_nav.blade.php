@@ -406,19 +406,22 @@
                                         @php
                                             $navSchoolID = Session::get('schoolID');
                                             $navStaffID = Session::get('staffID');
-                                            $sProf = $navStaffID ? \App\Models\OtherStaff::where('id', $navStaffID)->value('profession_id') : null;
-                                            
-                                            $permCount = \App\Models\PermissionRequest::where('schoolID', $navSchoolID)
-                                                ->where('status', 'pending')
-                                                ->where('current_approval_order', '>', 0)
-                                                ->whereExists(function($q) use ($sProf) {
-                                                    $q->select(\Illuminate\Support\Facades\DB::raw(1))
-                                                        ->from('permission_approval_chains')
-                                                        ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID')
-                                                        ->whereColumn('permission_approval_chains.permission_type', 'permission_requests.requester_type')
-                                                        ->whereColumn('permission_approval_chains.approval_order', 'permission_requests.current_approval_order')
-                                                        ->where('profession_id', $sProf);
-                                                })->count();
+                                            $permCount = 0;
+                                            if (\Illuminate\Support\Facades\Schema::hasTable('permission_approval_chains') && \Illuminate\Support\Facades\Schema::hasTable('permission_requests')) {
+                                                $sProf = $navStaffID ? \App\Models\OtherStaff::where('id', $navStaffID)->value('profession_id') : null;
+                                                
+                                                $permCount = \App\Models\PermissionRequest::where('schoolID', $navSchoolID)
+                                                    ->where('status', 'pending')
+                                                    ->where('current_approval_order', '>', 0)
+                                                    ->whereExists(function($q) use ($sProf) {
+                                                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                                                            ->from('permission_approval_chains')
+                                                            ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID')
+                                                            ->whereColumn('permission_approval_chains.permission_type', 'permission_requests.requester_type')
+                                                            ->whereColumn('permission_approval_chains.approval_order', 'permission_requests.current_approval_order')
+                                                            ->where('profession_id', $sProf);
+                                                    })->count();
+                                            }
                                         @endphp
                                         <a href="{{ route('admin.hr.permissions.pending_approvals') }}" class="nav-link">
                                             <i class="fa fa-check-circle"></i> Permission Approvals
