@@ -489,10 +489,22 @@
                         <div class="col-md-3">
                             <label class="form-label small font-weight-bold text-uppercase" style="color:#666;">Academic Year</label>
                             <select class="form-control" name="academic_yearID" id="ttYear" required style="border-radius: 0;">
-                                @foreach($academicYears as $ay)
-                                    <option value="{{ $ay->academic_yearID }}">{{ $ay->year_name ?? $ay->year }}</option>
+                                <option value="">Select Year</option>
+                                @php
+                                    $yearsToDisplay = [2024, 2025, 2026];
+                                @endphp
+                                @foreach($yearsToDisplay as $yearValue)
+                                    @php
+                                        $matchingYear = $academicYears->first(function($ay) use ($yearValue) {
+                                            return ($ay->year_name == $yearValue || $ay->year == $yearValue);
+                                        });
+                                        $finalValue = $matchingYear ? $matchingYear->academic_yearID : $yearValue;
+                                        $isRegistered = $matchingYear ? 'true' : 'false';
+                                    @endphp
+                                    <option value="{{ $finalValue }}" data-registered="{{ $isRegistered }}">{{ $yearValue }}</option>
                                 @endforeach
                             </select>
+                            <span id="ttYearValidationError" class="text-danger small font-weight-bold" style="display: none; margin-top: 5px;"></span>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label small font-weight-bold text-uppercase" style="color:#666;">Select Term</label>
@@ -1045,9 +1057,49 @@
         select.val('');
     }
 
+    // Real-time validation on Academic Year change
+    $('#ttYear').on('change', function() {
+        const selected = $(this).find('option:selected');
+        const isRegistered = selected.data('registered');
+        const errorSpan = $('#ttYearValidationError');
+
+        if (selected.val() === '') {
+            errorSpan.hide().text('');
+            $(this).css('border-color', '#ced4da');
+            return;
+        }
+
+        if (isRegistered === 'false' || isRegistered === false) {
+            errorSpan.show().html('<i class="fa fa-exclamation-triangle"></i> Mwaka huu bado haujasajiliwa mfumoni. Nenda kwenye <strong>Academic Years</strong> uunde kwanza.');
+            $(this).css('border-color', '#940000');
+        } else {
+            errorSpan.hide().text('');
+            $(this).css('border-color', '#28a745');
+        }
+    });
+
     $('#timetableForm').on('submit', function(e) {
         e.preventDefault();
-        
+
+        // Validate academic year is a registered DB record
+        const selectedYear = $('#ttYear find option:selected');
+        const yearOption = $('#ttYear').find('option:selected');
+        if (!yearOption.val() || yearOption.val() === '') {
+            $('#ttYearValidationError').show().html('<i class="fa fa-exclamation-triangle"></i> Tafadhali chagua mwaka wa masomo.');
+            $('#ttYear').css('border-color', '#940000').focus();
+            return;
+        }
+        if (yearOption.data('registered') === 'false' || yearOption.data('registered') === false) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Mwaka Haujasajiliwa!',
+                html: 'Mwaka <strong>' + yearOption.text() + '</strong> haujasajiliwa mfumoni.<br>Nenda kwenye <b>Academic Years</b> uunde mwaka huu kwanza kabla ya kuunda timetable.',
+                confirmButtonColor: '#940000'
+            });
+            $('#ttYear').css('border-color', '#940000').focus();
+            return;
+        }
+
         const targetClasses = [];
         $('.class-selector:checked').each(function() {
             targetClasses.push($(this).val());
