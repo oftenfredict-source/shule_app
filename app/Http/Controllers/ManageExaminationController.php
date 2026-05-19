@@ -4993,7 +4993,7 @@ class ManageExaminationController extends Controller
             // Determine if current user can approve
             $canUserApprove = false;
             if ($pendingLog) {
-                if ($currentUserType === 'Admin') {
+                if ($currentUserType === 'Admin' || $this->hasPermission('approve_exam_paper')) {
                     // Mkuu (Admin) can only approve once it reaches the final 'admin' step
                     if ($pendingLog->special_role_type === 'admin') {
                         $canUserApprove = true;
@@ -5017,7 +5017,7 @@ class ManageExaminationController extends Controller
                 }
             } else {
                 if ($paper->status === 'wait_approval') {
-                    if ($currentUserType === 'Admin') {
+                    if ($currentUserType === 'Admin' || $this->hasPermission('approve_exam_paper')) {
                         $canUserApprove = true;
                     }
                 }
