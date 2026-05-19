@@ -1787,6 +1787,22 @@ class ManageExaminationController extends Controller
             $examData['approval_role_ids'] = $approvalRoles;
             $examData['use_result_approval'] = count($approvalRoles) > 0;
             $examData['number_of_approvals'] = count($approvalRoles);
+            
+            // Paper Approval chain
+            $paperApprovalRoles = DB::table('paper_approval_chains')->where('examID', $examID)
+                ->orderBy('approval_order')
+                ->get()
+                ->map(function ($approval) {
+                    return $approval->special_role_type ?: $approval->role_id;
+                })
+                ->filter()
+                ->values()
+                ->toArray();
+
+            $examData['paper_approval_role_ids'] = $paperApprovalRoles;
+            $examData['use_paper_approval'] = $exam->use_paper_approval == 1;
+            $examData['number_of_paper_approvals'] = count($paperApprovalRoles) > 0 ? count($paperApprovalRoles) : 1;
+
             $examData['has_exam_attendance'] = DB::table('exam_attendance')->where('examID', $examID)->exists();
 
             // Exam halls
@@ -2076,6 +2092,7 @@ class ManageExaminationController extends Controller
                 'student_shifting_status' => ($examCategory === 'school_exams' || $examCategory === 'test') ? ($request->student_shifting_status ?? 'none') : 'none',
                 'status' => $status,
                 'use_paper_approval' => $request->has('use_paper_approval') && $request->use_paper_approval == '1',
+                'no_approval_required' => $request->has('no_approval_required') && $request->no_approval_required == '1',
             ]);
 
             // Rebuild halls: clear old, insert new, then allocate students
@@ -4996,6 +5013,12 @@ class ManageExaminationController extends Controller
                             ->where('teacherID', $currentTeacherID)
                             ->exists();
                         if ($isCoordinator) $canUserApprove = true;
+                    }
+                }
+            } else {
+                if ($paper->status === 'wait_approval') {
+                    if ($currentUserType === 'Admin') {
+                        $canUserApprove = true;
                     }
                 }
             }

@@ -1180,6 +1180,16 @@
                             </div>
                             <div id="edit_paper_approval_role_selections"></div>
                         </div>
+
+                        <div class="mt-2" id="edit_no_approval_required_group">
+                            <label>
+                                <input type="checkbox" id="edit_no_approval_required" name="no_approval_required" value="1">
+                                <strong>Exam upload without approval</strong>
+                            </label>
+                            <small class="form-text text-muted d-block">
+                                <i class="bi bi-info-circle"></i> Ikishachaguliwa hii, mwalimu aki-upload mtihani unakuwa approved moja kwa moja.
+                            </small>
+                        </div>
                     </div>
 
                     <!-- Exam Attendance Tracking -->
@@ -3348,6 +3358,8 @@ jQuery(document).ready(function($) {
         $('#edit_number_of_approvals').val(1).prop('required', false);
         $('#edit_use_except').prop('checked', false);
         $('#edit_use_result_approval').prop('checked', false);
+        $('#edit_use_paper_approval').prop('checked', false);
+        $('#edit_no_approval_required').prop('checked', false);
         $('#edit_enable_exam_attendance').prop('checked', false);
         $('.edit-except-class-checkbox, .edit-include-class-checkbox').prop('checked', false);
         resetHalls('edit');
@@ -3553,10 +3565,19 @@ jQuery(document).ready(function($) {
             $('#edit_paper_approval_fields').show();
             $('#edit_number_of_paper_approvals').prop('required', true);
             generateEditPaperApprovalRoleSelects();
+            // Uncheck no_approval_required if paper approval chain is enabled
+            $('#edit_no_approval_required').prop('checked', false);
         } else {
             $('#edit_paper_approval_fields').hide();
             $('#edit_number_of_paper_approvals').prop('required', false);
             $('#edit_paper_approval_role_selections').empty();
+        }
+    });
+
+    $('#edit_no_approval_required').on('change', function() {
+        if ($(this).is(':checked')) {
+            // Uncheck and hide paper approval chain if no approval required is checked
+            $('#edit_use_paper_approval').prop('checked', false).trigger('change');
         }
     });
 
@@ -3683,6 +3704,21 @@ jQuery(document).ready(function($) {
                     } else {
                         $('#edit_result_approval_fields').hide();
                         $('#edit_approval_role_selections').empty();
+                    }
+
+                    const paperApprovalRoles = exam.paper_approval_role_ids || [];
+                    const paperApprovalsCount = exam.number_of_paper_approvals || paperApprovalRoles.length || 1;
+                    
+                    $('#edit_use_paper_approval').prop('checked', exam.use_paper_approval || paperApprovalRoles.length > 0);
+                    $('#edit_no_approval_required').prop('checked', !!exam.no_approval_required);
+                    
+                    if (exam.use_paper_approval || paperApprovalRoles.length > 0) {
+                        $('#edit_paper_approval_fields').show();
+                        $('#edit_number_of_paper_approvals').val(paperApprovalsCount);
+                        generateEditPaperApprovalRoleSelects(paperApprovalRoles);
+                    } else {
+                        $('#edit_paper_approval_fields').hide();
+                        $('#edit_paper_approval_role_selections').empty();
                     }
 
                     $('#editExamFormErrors').hide().html('');
@@ -3854,6 +3890,42 @@ jQuery(document).ready(function($) {
             formData.delete('use_result_approval');
             formData.delete('number_of_approvals');
             formData.delete('approval_role_ids[]');
+        }
+
+        if ($('#edit_use_paper_approval').is(':checked')) {
+            formData.set('use_paper_approval', '1');
+            const numPaperApprovals = parseInt($('#edit_number_of_paper_approvals').val()) || 0;
+            formData.set('number_of_paper_approvals', numPaperApprovals);
+
+            const paperApprovalRoleIds = [];
+            $('.edit-paper-approval-role-select').each(function() {
+                const roleId = $(this).val();
+                if (roleId) {
+                    paperApprovalRoleIds.push(roleId);
+                }
+            });
+
+            if (paperApprovalRoleIds.length !== numPaperApprovals) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Validation Error',
+                    text: 'Please select a role for all paper approval steps.'
+                });
+                return false;
+            }
+
+            formData.delete('paper_approval_role_ids[]');
+            paperApprovalRoleIds.forEach((id) => formData.append('paper_approval_role_ids[]', id));
+        } else {
+            formData.delete('use_paper_approval');
+            formData.delete('number_of_paper_approvals');
+            formData.delete('paper_approval_role_ids[]');
+        }
+
+        if ($('#edit_no_approval_required').is(':checked')) {
+            formData.append('no_approval_required', '1');
+        } else {
+            formData.delete('no_approval_required');
         }
 
         if ($('#edit_enable_exam_attendance').is(':checked')) {
