@@ -5491,12 +5491,25 @@ class ManageExaminationController extends Controller
 
     public function approveRejectExamPaper(Request $request, $examPaperID)
     {
-        $validator = Validator::make($request->all(), [
+        $examPaper = ExamPaper::with(['teacher', 'classSubject.subject', 'examination'])->findOrFail($examPaperID);
+        $userType = Session::get('user_type');
+        
+        $isWaitApprovalBypass = false;
+        if ($examPaper->status === 'wait_approval' && ($userType === 'Admin' || $this->hasPermission('approve_exam_paper'))) {
+            $isWaitApprovalBypass = true;
+        }
+
+        $rules = [
             'action' => 'required|in:approve,reject',
             'rejection_reason' => 'nullable|string|max:500',
             'approval_comment' => 'nullable|string|max:500',
-            'paper_approval_log_id' => 'required|exists:paper_approval_logs,paper_approval_logID',
-        ]);
+        ];
+
+        if (!$isWaitApprovalBypass) {
+            $rules['paper_approval_log_id'] = 'required|exists:paper_approval_logs,paper_approval_logID';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
@@ -5505,15 +5518,36 @@ class ManageExaminationController extends Controller
         try {
             DB::beginTransaction();
 
-            $examPaper = ExamPaper::with(['teacher', 'classSubject.subject', 'examination'])->findOrFail($examPaperID);
-            $log = PaperApprovalLog::findOrFail($request->paper_approval_log_id);
-            $userType = Session::get('user_type');
             $teacherID = Session::get('teacherID');
             $staffID = Session::get('staffID');
             $adminID = Session::get('adminID') ?? Session::get('userID');
             $schoolID = Session::get('schoolID');
 
             $approverID = $teacherID ?? $staffID ?? $adminID;
+
+            if ($isWaitApprovalBypass) {
+                if ($request->action === 'approve') {
+                    $examPaper->status = 'approved';
+                    $examPaper->current_approval_order = 0;
+                    $examPaper->approval_comment = $request->approval_comment;
+                    $examPaper->rejection_reason = null;
+                    $message = 'Exam paper fully approved successfully';
+
+                    $this->sendPaperApprovalSms($examPaper, 'approve', $request->approval_comment);
+                } else {
+                    $examPaper->status = 'rejected';
+                    $examPaper->current_approval_order = 0;
+                    $examPaper->rejection_reason = $request->rejection_reason;
+                    $message = 'Exam paper rejected and returned to the teacher.';
+
+                    $this->sendPaperApprovalSms($examPaper, 'reject', $request->rejection_reason);
+                }
+                $examPaper->save();
+                DB::commit();
+                return response()->json(['success' => true, 'message' => $message]);
+            }
+
+            $log = PaperApprovalLog::findOrFail($request->paper_approval_log_id);
 
             // Verify if the user can approve this specific log entry
             $canApprove = false;
