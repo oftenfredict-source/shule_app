@@ -6177,6 +6177,10 @@ $(document).on('click', '.view-students-att-btn', function() {
     $(target).slideToggle();
 });
 
+$(document).on('click', '.class-header-toggle', function() {
+    $(this).next('.subclass-container').slideToggle();
+});
+
 $(document).on('click', '.download-template-btn', function() {
     const examID = $(this).data('exam-id');
     const subjectID = $(this).data('subject-id');
@@ -6206,7 +6210,7 @@ function loadAttendanceSummary(examID) {
                 response.summary.forEach(c => {
                     html += `
                         <div class="card mb-4 border-0 shadow-sm overflow-hidden" style="border-radius: 0 !important;">
-                            <div class="card-header bg-white border-0 py-4 d-flex justify-content-between align-items-center" style="cursor: pointer; border-left: 5px solid #940000 !important;" onclick="$(this).next('.subclass-container').slideToggle()">
+                            <div class="card-header bg-white border-0 py-4 d-flex justify-content-between align-items-center class-header-toggle" style="cursor: pointer; border-left: 5px solid #940000 !important;">
                                 <div>
                                     <h4 class="mb-1 fw-bold text-dark text-uppercase letter-spacing-1">${c.class_name}</h4>
                                     <div class="d-flex align-items-center">
