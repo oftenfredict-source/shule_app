@@ -166,12 +166,12 @@ class CharacterAssessmentController extends Controller
             $id = $request->id;
 
             $query = CharacterAssessmentTimetable::where('schoolID', $schoolID)
-                ->with(['academicYear', 'termDetails', 'assignments.class', 'assignments.subclass', 'assignments.teacher']);
-            
+            ->with(['termDetails', 'assignments.class', 'assignments.subclass', 'assignments.teacher']);
+    
             if ($id) {
                 $query->where('timetableID', $id);
             } else {
-                if ($year) $query->where('academic_yearID', $year);
+                if ($year) $query->where('year', $year);
                 if ($term) $query->where('term', $term);
             }
 
@@ -194,7 +194,7 @@ class CharacterAssessmentController extends Controller
             if ($id) {
                 $timetable = CharacterAssessmentTimetable::findOrFail($id);
                 $timetable->update([
-                    'academic_yearID' => $request->academic_yearID,
+                    'year' => $request->year,
                     'term' => $request->term,
                     'start_date' => $request->start_date,
                     'end_date' => $request->end_date,
@@ -205,7 +205,7 @@ class CharacterAssessmentController extends Controller
             } else {
                 $timetable = CharacterAssessmentTimetable::create([
                     'schoolID' => $schoolID,
-                    'academic_yearID' => $request->academic_yearID,
+                    'year' => $request->year,
                     'term' => $request->term,
                     'start_date' => $request->start_date,
                     'end_date' => $request->end_date,
@@ -315,15 +315,12 @@ class CharacterAssessmentController extends Controller
             $schoolID = Session::get('schoolID');
             $teacherID = Session::get('teacherID');
             
-            $activeYear = \App\Models\AcademicYear::where('schoolID', $schoolID)->where('status', 'Active')->first();
-            if (!$activeYear) {
-                return response()->json(['success' => false, 'message' => 'No active academic year found. Please contact Admin.'], 400);
-            }
-            $academicYearID = $activeYear->academic_yearID;
-
             $data = $request->assessments; // Array of {studentID, timetableID, categories: [{categoryID, choiceID, description}]}
 
             foreach ($data as $studentEntry) {
+                $timetable = CharacterAssessmentTimetable::find($studentEntry['timetableID']);
+                $year = $timetable ? $timetable->year : date('Y');
+
                 foreach ($studentEntry['categories'] as $cat) {
                     \App\Models\StudentCharacterAssessment::updateOrCreate(
                         [
@@ -333,7 +330,7 @@ class CharacterAssessmentController extends Controller
                             'categoryID' => $cat['categoryID'],
                         ],
                         [
-                            'academic_yearID' => $academicYearID,
+                            'year' => $year,
                             'choiceID' => isset($cat['choiceID']) && $cat['choiceID'] ? $cat['choiceID'] : null,
                             'description' => isset($cat['description']) ? $cat['description'] : null,
                             'assessed_by' => $teacherID

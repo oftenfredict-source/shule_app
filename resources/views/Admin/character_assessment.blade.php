@@ -96,10 +96,10 @@
                         <div class="card-header border-0 p-4" style="background: #fafafa;">
                             <div class="row align-items-end">
                                 <div class="col-md-3">
-                                    <label class="small font-weight-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">Academic Year</label>
+                                    <label class="small font-weight-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">Year</label>
                                     <select id="filterYear" class="form-control" style="border-radius:0; border:1px solid #ddd; font-weight:600;">
                                         @foreach($academicYears as $ay)
-                                            <option value="{{ $ay->academic_yearID }}">{{ $ay->year_name ?? $ay->year }}</option>
+                                            <option value="{{ $ay->year_name ?? $ay->year }}">{{ $ay->year_name ?? $ay->year }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -487,24 +487,17 @@
                 <div class="modal-body p-4 custom-scrollbar" style="max-height: 75vh; overflow-y: auto;">
                     <div class="row mb-4">
                         <div class="col-md-3">
-                            <label class="form-label small font-weight-bold text-uppercase" style="color:#666;">Academic Year</label>
-                            <select class="form-control" name="academic_yearID" id="ttYear" required style="border-radius: 0;">
+                            <label class="form-label small font-weight-bold text-uppercase" style="color:#666;">Year</label>
+                            <select class="form-control" name="year" id="ttYear" required style="border-radius: 0;">
                                 <option value="">Select Year</option>
                                 @php
-                                    $yearsToDisplay = [2024, 2025, 2026];
+                                    $currentYear = date('Y');
+                                    $yearsToDisplay = [$currentYear - 1, $currentYear, $currentYear + 1, $currentYear + 2];
                                 @endphp
                                 @foreach($yearsToDisplay as $yearValue)
-                                    @php
-                                        $matchingYear = $academicYears->first(function($ay) use ($yearValue) {
-                                            return ($ay->year_name == $yearValue || $ay->year == $yearValue);
-                                        });
-                                        $finalValue = $matchingYear ? $matchingYear->academic_yearID : $yearValue;
-                                        $isRegistered = $matchingYear ? 'true' : 'false';
-                                    @endphp
-                                    <option value="{{ $finalValue }}" data-registered="{{ $isRegistered }}">{{ $yearValue }}</option>
+                                    <option value="{{ $yearValue }}">{{ $yearValue }}</option>
                                 @endforeach
                             </select>
-                            <span id="ttYearValidationError" class="text-danger small font-weight-bold" style="display: none; margin-top: 5px;"></span>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label small font-weight-bold text-uppercase" style="color:#666;">Select Term</label>
@@ -588,7 +581,7 @@
                     <select class="form-control form-control-sm" id="filterTtYear" onchange="loadTimetables()" style="width: 150px; border-radius: 0;">
                         <option value="">All Years</option>
                         @foreach($academicYears as $ay)
-                            <option value="{{ $ay->academic_yearID }}">{{ $ay->year_name ?? $ay->year }}</option>
+                            <option value="{{ $ay->year_name ?? $ay->year }}">{{ $ay->year_name ?? $ay->year }}</option>
                         @endforeach
                     </select>
                     <select class="form-control form-control-sm" id="filterTtTerm" onchange="loadTimetables()" style="width: 150px; border-radius: 0;">
@@ -1057,45 +1050,14 @@
         select.val('');
     }
 
-    // Real-time validation on Academic Year change
-    $('#ttYear').on('change', function() {
-        const selected = $(this).find('option:selected');
-        const isRegistered = selected.data('registered');
-        const errorSpan = $('#ttYearValidationError');
-
-        if (selected.val() === '') {
-            errorSpan.hide().text('');
-            $(this).css('border-color', '#ced4da');
-            return;
-        }
-
-        if (isRegistered === 'false' || isRegistered === false) {
-            errorSpan.show().html('<i class="fa fa-exclamation-triangle"></i> Mwaka huu bado haujasajiliwa mfumoni. Nenda kwenye <strong>Academic Years</strong> uunde kwanza.');
-            $(this).css('border-color', '#940000');
-        } else {
-            errorSpan.hide().text('');
-            $(this).css('border-color', '#28a745');
-        }
-    });
+    // Real-time validation removed as it is no longer required
 
     $('#timetableForm').on('submit', function(e) {
         e.preventDefault();
 
-        // Validate academic year is a registered DB record
-        const selectedYear = $('#ttYear find option:selected');
-        const yearOption = $('#ttYear').find('option:selected');
-        if (!yearOption.val() || yearOption.val() === '') {
-            $('#ttYearValidationError').show().html('<i class="fa fa-exclamation-triangle"></i> Tafadhali chagua mwaka wa masomo.');
-            $('#ttYear').css('border-color', '#940000').focus();
-            return;
-        }
-        if (yearOption.data('registered') === 'false' || yearOption.data('registered') === false) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Mwaka Haujasajiliwa!',
-                html: 'Mwaka <strong>' + yearOption.text() + '</strong> haujasajiliwa mfumoni.<br>Nenda kwenye <b>Academic Years</b> uunde mwaka huu kwanza kabla ya kuunda timetable.',
-                confirmButtonColor: '#940000'
-            });
+        const yearOption = $('#ttYear').val();
+        if (!yearOption || yearOption === '') {
+            Swal.fire('Error', 'Tafadhali chagua mwaka wa masomo.', 'error');
             $('#ttYear').css('border-color', '#940000').focus();
             return;
         }
@@ -1145,7 +1107,7 @@
         const data = {
             _token: '{{ csrf_token() }}',
             timetableID: $('#ttID').val(),
-            academic_yearID: $('#ttYear').val(),
+            year: $('#ttYear').val(),
             term: $('#ttTerm').val(),
             start_date: $('#ttStart').val(),
             end_date: $('#ttEnd').val(),
@@ -1155,7 +1117,7 @@
 
         const jsonData = {
             timetableID: data.timetableID,
-            academic_yearID: data.academic_yearID,
+            year: data.year,
             term: data.term,
             start_date: data.start_date,
             end_date: data.end_date,
@@ -1305,7 +1267,7 @@
                 
                 $('#timetableForm')[0].reset();
                 $('#ttID').val(tt.timetableID);
-                $('#ttYear').val(tt.academic_yearID);
+                $('#ttYear').val(tt.year);
                 $('#ttTerm').val(tt.term);
                 $('#ttStart').val(tt.start_date);
                 $('#ttEnd').val(tt.end_date);

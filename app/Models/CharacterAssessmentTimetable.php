@@ -13,7 +13,7 @@ class CharacterAssessmentTimetable extends Model
 
     protected $fillable = [
         'schoolID',
-        'academic_yearID',
+        'year',
         'term',
         'start_date',
         'end_date',
@@ -29,10 +29,6 @@ class CharacterAssessmentTimetable extends Model
         return $this->hasMany(CharacterAssessmentAssignment::class, 'timetableID', 'timetableID');
     }
 
-    public function academicYear()
-    {
-        return $this->belongsTo(AcademicYear::class, 'academic_yearID', 'academic_yearID');
-    }
 
     public function termDetails()
     {

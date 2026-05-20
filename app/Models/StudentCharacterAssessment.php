@@ -11,7 +11,7 @@ class StudentCharacterAssessment extends Model
     protected $fillable = [
         'schoolID',
         'studentID',
-        'academic_yearID',
+        'year',
         'timetableID',
         'categoryID',
         'choiceID',
