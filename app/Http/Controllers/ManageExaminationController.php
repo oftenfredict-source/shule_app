@@ -6,6 +6,7 @@ use App\Models\ClassModel;
 use App\Models\ClassSubject;
 use App\Models\Examination;
 use App\Models\ExamPaper;
+use App\Models\OtherStaff;
 use App\Models\ExamPaperNotification;
 use App\Models\ExamPaperQuestion;
 use App\Models\ExamPaperOptionalRange;
@@ -1787,7 +1788,7 @@ class ManageExaminationController extends Controller
             $examData['approval_role_ids'] = $approvalRoles;
             $examData['use_result_approval'] = count($approvalRoles) > 0;
             $examData['number_of_approvals'] = count($approvalRoles);
-            
+
             // Paper Approval chain
             $paperApprovalRoles = DB::table('paper_approval_chains')->where('examID', $examID)
                 ->orderBy('approval_order')
@@ -4518,11 +4519,11 @@ class ManageExaminationController extends Controller
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
                 $fileName = time().'_'.$file->getClientOriginalName();
-                
+
                 // Determine upload path - Prioritize the directory where index.php is located
                 $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
                 $uploadPath = $scriptDir . '/exam_papers';
-                
+
                 // If scriptDir doesn't exist or isn't writable, fallback to other common paths
                 if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
                     $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/exam_papers' : null;
@@ -4994,7 +4995,7 @@ class ManageExaminationController extends Controller
             $canUserApprove = false;
             if ($pendingLog) {
                 if ($currentUserType === 'Admin' || $this->hasPermission('approve_exam_paper')) {
-                    // Mkuu (Admin) can only approve once it reaches the final 'admin' step
+                    // Mkuu (Admin) can approve once it reaches the final 'admin' step
                     if ($pendingLog->special_role_type === 'admin') {
                         $canUserApprove = true;
                     }
@@ -5016,8 +5017,9 @@ class ManageExaminationController extends Controller
                     }
                 }
             } else {
-                if ($paper->status === 'wait_approval') {
-                    if ($currentUserType === 'Admin' || $this->hasPermission('approve_exam_paper')) {
+                // Admin can always approve papers without pending log (bypass mode)
+                if ($currentUserType === 'Admin' || $this->hasPermission('approve_exam_paper')) {
+                    if ($paper->status === 'wait_approval' || $paper->status === 'pending') {
                         $canUserApprove = true;
                     }
                 }
@@ -5313,7 +5315,7 @@ class ManageExaminationController extends Controller
                 if ($log->special_role_type === 'head_of_department') return in_array($log->examPaper->classSubject->subjectID ?? 0, $hodSubjectIds);
                 return false;
             });
-            
+
             // History only ones they approved
             $historyLogs = $historyQuery->where('approved_by', $teacherID)->get();
         } elseif ($userType === 'Staff' && $this->hasPermission('view_exam_papers')) {
@@ -5493,7 +5495,7 @@ class ManageExaminationController extends Controller
     {
         $examPaper = ExamPaper::with(['teacher', 'classSubject.subject', 'examination'])->findOrFail($examPaperID);
         $userType = Session::get('user_type');
-        
+
         $isWaitApprovalBypass = false;
         if ($examPaper->status === 'wait_approval' && ($userType === 'Admin' || $this->hasPermission('approve_exam_paper'))) {
             $isWaitApprovalBypass = true;
@@ -5534,6 +5536,7 @@ class ManageExaminationController extends Controller
                     $message = 'Exam paper fully approved successfully';
 
                     $this->sendPaperApprovalSms($examPaper, 'approve', $request->approval_comment);
+                    $this->sendPrintingUnitNotificationSms($examPaper);
                 } else {
                     $examPaper->status = 'rejected';
                     $examPaper->current_approval_order = 0;
@@ -5633,6 +5636,7 @@ class ManageExaminationController extends Controller
 
                         // Send SMS to teacher
                         $this->sendPaperApprovalSms($examPaper, 'approve', $request->approval_comment);
+                        $this->sendPrintingUnitNotificationSms($examPaper);
                     } else {
                         // Move to Admin as final step
                         $nextOrder = $log->approval_order + 1;
@@ -5901,7 +5905,7 @@ class ManageExaminationController extends Controller
                 // Determine upload path - Prioritize the directory where index.php is located
                 $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
                 $uploadPath = $scriptDir . '/exam_papers';
-                
+
                 // If scriptDir doesn't exist or isn't writable, fallback to other common paths
                 if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
                     $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/exam_papers' : null;
@@ -6577,7 +6581,7 @@ class ManageExaminationController extends Controller
                             // Check special roles (class teacher / coordinator / head_of_department)
                             $subclassIds = Subclass::where('teacherID', $teacherID)->pluck('subclassID')->toArray();
                             $classIds = ClassModel::where('teacherID', $teacherID)->pluck('classID')->toArray();
-                            
+
                             $hodDepartmentIds = \App\Models\Department::where('head_teacherID', $teacherID)->pluck('departmentID')->toArray();
                             $hodSubjectIds = !empty($hodDepartmentIds)
                                 ? \Illuminate\Support\Facades\DB::table('department_subjects')->whereIn('departmentID', $hodDepartmentIds)->pluck('subjectID')->toArray()
@@ -6772,8 +6776,8 @@ class ManageExaminationController extends Controller
             $newStatus = !$permission->result_button_status;
             $permission->update(['result_button_status' => $newStatus]);
 
-            $message = $newStatus 
-                ? 'Success: You have enabled teachers to add results.' 
+            $message = $newStatus
+                ? 'Success: You have enabled teachers to add results.'
                 : 'Success: You have disabled teachers from adding results.';
 
             return response()->json([
@@ -8997,6 +9001,85 @@ class ManageExaminationController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error in getScheduledSubjects: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get all staff members with printing_unit permission
+     */
+    private function getPrintingUnitStaff($schoolID)
+    {
+        // Get all profession_ids that have printing_unit permission
+        $professionIdsWithPrintingUnit = DB::table('staff_permissions')
+            ->where(function ($q) {
+                $q->where('permission_category', 'printing_unit')
+                    ->orWhere('name', 'printing_unit');
+            })
+            ->pluck('profession_id')
+            ->unique()
+            ->toArray();
+
+        if (empty($professionIdsWithPrintingUnit)) {
+            return collect();
+        }
+
+        // Get all staff members with these profession_ids
+        return OtherStaff::where('schoolID', $schoolID)
+            ->whereIn('profession_id', $professionIdsWithPrintingUnit)
+            ->whereNotNull('phone_number')
+            ->where('phone_number', '!=', '')
+            ->get();
+    }
+
+    /**
+     * Send SMS notification to printing unit staff when exam paper is approved
+     */
+    private function sendPrintingUnitNotificationSms($examPaper)
+    {
+        $schoolID = Session::get('schoolID');
+        $school = School::find($schoolID);
+        $schoolName = $school ? $school->school_name : 'ShuleXpert';
+
+        // Get printing unit staff
+        $printingUnitStaff = $this->getPrintingUnitStaff($schoolID);
+
+        if ($printingUnitStaff->isEmpty()) {
+            Log::info('No printing unit staff found to notify for exam paper ID: ' . $examPaper->exam_paperID);
+            return;
+        }
+
+        $subject = $examPaper->classSubject->subject ?? null;
+        $examination = $examPaper->examination ?? null;
+        $subjectName = $subject ? $subject->subject_name : 'somo';
+        $examName = $examination ? $examination->exam_name : 'mtihani';
+
+        // Check if school has senderID
+        $hasSenderID = $school && !empty($school->senderID);
+
+        $smsService = new SmsService();
+
+        foreach ($printingUnitStaff as $staff) {
+            try {
+                $staffName = trim(($staff->first_name ?? '') . ' ' . ($staff->last_name ?? ''));
+
+                // If school has senderID, don't include school name at beginning
+                // because senderID already identifies the school
+                if ($hasSenderID) {
+                    $smsMessage = "New examination paper sent to your account. Subject: {$subjectName}, Exam: {$examName}. Please login to your account to print the exam paper.";
+                } else {
+                    $smsMessage = "{$schoolName}. New examination paper sent to your account. Subject: {$subjectName}, Exam: {$examName}. Please login to your account to print the exam paper.";
+                }
+
+                $smsResult = $smsService->sendSms($staff->phone_number, $smsMessage);
+
+                if ($smsResult['success']) {
+                    Log::info("Printing unit notification SMS sent to staff {$staff->id} ({$staffName}) for exam paper {$examPaper->exam_paperID}");
+                } else {
+                    Log::warning("Failed to send printing unit notification SMS to staff {$staff->id}: " . ($smsResult['message'] ?? 'Unknown error'));
+                }
+            } catch (\Exception $e) {
+                Log::error('Error sending printing unit notification SMS to staff ' . $staff->id . ': ' . $e->getMessage());
+            }
         }
     }
 
