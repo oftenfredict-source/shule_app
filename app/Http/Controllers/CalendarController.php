@@ -28,7 +28,7 @@ class CalendarController extends Controller
         }
 
         $currentYear = request()->input('year', date('Y'));
-        
+
         // Get all holidays for the year
         $holidays = Holiday::where('schoolID', $schoolID)
             ->whereYear('start_date', '<=', $currentYear)
@@ -44,10 +44,10 @@ class CalendarController extends Controller
 
         // Get auto-detected Tanzania holidays
         $autoHolidays = TanzaniaHolidaysService::getHolidaysForYear($currentYear);
-        
+
         // Calculate statistics
         $stats = $this->calculateYearStatistics($schoolID, $currentYear);
-        
+
         // Calculate monthly working days
         $monthlyStats = $this->calculateMonthlyStatistics($schoolID, $currentYear, $holidays, $events);
 
@@ -67,7 +67,7 @@ class CalendarController extends Controller
         }
 
         $currentYear = request()->input('year', date('Y'));
-        
+
         // Get all holidays for the year
         $holidays = Holiday::where('schoolID', $schoolID)
             ->whereYear('start_date', '<=', $currentYear)
@@ -83,10 +83,10 @@ class CalendarController extends Controller
 
         // Get auto-detected Tanzania holidays
         $autoHolidays = TanzaniaHolidaysService::getHolidaysForYear($currentYear);
-        
+
         // Calculate statistics
         $stats = $this->calculateYearStatistics($schoolID, $currentYear);
-        
+
         // Calculate monthly working days
         $monthlyStats = $this->calculateMonthlyStatistics($schoolID, $currentYear, $holidays, $events);
 
@@ -139,7 +139,7 @@ class CalendarController extends Controller
     public function getHoliday($holidayID)
     {
         $schoolID = Session::get('schoolID');
-        
+
         $holiday = Holiday::where('holidayID', $holidayID)
             ->where('schoolID', $schoolID)
             ->first();
@@ -337,7 +337,7 @@ class CalendarController extends Controller
     public function getEvent($eventID)
     {
         $schoolID = Session::get('schoolID');
-        
+
         $event = Event::where('eventID', $eventID)
             ->where('schoolID', $schoolID)
             ->first();
@@ -381,7 +381,7 @@ class CalendarController extends Controller
 
         try {
             $event->update($request->only([
-                'event_name', 'event_date', 'start_time', 'end_time', 
+                'event_name', 'event_date', 'start_time', 'end_time',
                 'description', 'type', 'is_non_working_day'
             ]));
 
@@ -468,12 +468,12 @@ class CalendarController extends Controller
                 $current->addDay();
             }
         }
-        
+
         // Add auto-detected holidays
         foreach ($autoHolidays as $autoHoliday) {
             $holidayDates[] = $autoHoliday['date']->format('Y-m-d');
         }
-        
+
         $holidayDates = array_unique($holidayDates);
 
         // Get non-working event dates
@@ -515,7 +515,7 @@ class CalendarController extends Controller
         $weeksInYear = floor($workingDays / 5); // Approximate weeks
         $totalSessions = $weeksInYear * $sessionsPerWeek;
 
-        return [
+        return (object) [
             'total_days' => $totalDays,
             'working_days' => $workingDays,
             'weekend_days' => $weekendDays,
@@ -533,7 +533,7 @@ class CalendarController extends Controller
     private function calculateMonthlyStatistics($schoolID, $year, $holidays, $events)
     {
         $monthlyStats = [];
-        
+
         // Get all holiday dates from manual holidays
         $holidayDates = [];
         foreach ($holidays as $holiday) {
@@ -544,15 +544,15 @@ class CalendarController extends Controller
                 $current->addDay();
             }
         }
-        
+
         // Add auto-detected holidays
         $autoHolidays = TanzaniaHolidaysService::getHolidaysForYear($year);
         foreach ($autoHolidays as $autoHoliday) {
             $holidayDates[] = $autoHoliday['date']->format('Y-m-d');
         }
-        
+
         $holidayDates = array_unique($holidayDates);
-        
+
         // Get non-working event dates
         $nonWorkingEventDates = $events->where('is_non_working_day', true)
             ->pluck('event_date')
@@ -561,21 +561,21 @@ class CalendarController extends Controller
             })
             ->unique()
             ->toArray();
-        
+
         // Calculate for each month
         for ($month = 1; $month <= 12; $month++) {
             $startDate = Carbon::create($year, $month, 1)->startOfDay();
             $endDate = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
-            
+
             $workingDays = 0;
             $weekendDays = 0;
             $holidayDays = 0;
             $current = $startDate->copy();
-            
+
             while ($current <= $endDate) {
                 $dateStr = $current->format('Y-m-d');
                 $dayOfWeek = $current->dayOfWeek; // 0 = Sunday, 6 = Saturday
-                
+
                 if ($dayOfWeek == 0 || $dayOfWeek == 6) {
                     $weekendDays++;
                 } elseif (in_array($dateStr, $holidayDates)) {
@@ -587,7 +587,7 @@ class CalendarController extends Controller
                 }
                 $current->addDay();
             }
-            
+
             $monthlyStats[$month] = [
                 'working_days' => $workingDays,
                 'weekend_days' => $weekendDays,
@@ -595,7 +595,7 @@ class CalendarController extends Controller
                 'total_days' => (int)($startDate->diffInDays($endDate) + 1)
             ];
         }
-        
+
         return $monthlyStats;
     }
 
@@ -664,10 +664,10 @@ class CalendarController extends Controller
 
         // Get auto-detected Tanzania holidays
         $autoHolidays = TanzaniaHolidaysService::getHolidaysForYear($currentYear);
-        
+
         // Calculate statistics
         $stats = $this->calculateYearStatistics($schoolID, $currentYear);
-        
+
         // Calculate monthly working days
         $monthlyStats = $this->calculateMonthlyStatistics($schoolID, $currentYear, $holidays, $events);
 
