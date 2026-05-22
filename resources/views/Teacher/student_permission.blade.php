@@ -627,16 +627,21 @@
                 resultsDiv.empty();
 
                 if (data.students && data.students.length > 0) {
+                    const malePlaceholder = '{{ asset("images/male.png") }}';
+                    const femalePlaceholder = '{{ asset("images/female.png") }}';
+
                     data.students.forEach(student => {
                         let studentPhoto = student.photo;
                         if (!studentPhoto || studentPhoto === 'undefined' || studentPhoto === null || studentPhoto === '') {
-                            studentPhoto = student.gender === 'Female' ? '{{ asset("images/female.png") }}' : '{{ asset("images/male.png") }}';
+                            studentPhoto = student.gender === 'Female' ? femalePlaceholder : malePlaceholder;
                         }
+
+                        const fallbackPhoto = student.gender === 'Female' ? femalePlaceholder : malePlaceholder;
 
                         resultsDiv.append(`
                             <div class="student-result-item" onclick="selectStudent(${student.studentID}, '${student.first_name} ${student.last_name}')">
                                 <div class="d-flex align-items-center">
-                                    <img src="${studentPhoto}" alt="${student.first_name}" class="student-photo-thumbnail me-3" onerror="this.src='${student.gender === 'Female' ? '{{ asset("images/female.png") }}' : '{{ asset("images/male.png") }}'}">
+                                    <img src="${studentPhoto}" alt="${student.first_name}" class="student-photo-thumbnail me-3" onerror="this.src='${fallbackPhoto}'">
                                     <div>
                                         <div class="student-name">${student.first_name} ${student.last_name}</div>
                                         <div class="student-details">${student.class_name || 'No Class'} | ${student.gender || 'N/A'}</div>
