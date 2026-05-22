@@ -11,19 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('student_permission_requesters', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('schoolID');
-            $table->unsignedBigInteger('user_id');
-            $table->string('user_type'); // 'teacher' or 'staff'
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
+        if (!Schema::hasTable('student_permission_requesters')) {
+            Schema::create('student_permission_requesters', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('schoolID');
+                $table->unsignedBigInteger('user_id');
+                $table->string('user_type'); // 'teacher' or 'staff'
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
 
-            $table->foreign('schoolID')->references('schoolID')->on('schools')->onDelete('cascade');
-            $table->index('schoolID');
-            $table->index('user_id');
-            $table->index('user_type');
-        });
+                $table->foreign('schoolID')->references('schoolID')->on('schools')->onDelete('cascade');
+                $table->index('schoolID');
+                $table->index('user_id');
+                $table->index('user_type');
+            });
+        }
     }
 
     /**
