@@ -1148,17 +1148,71 @@
     function openStudentRequesterModal() {
         $('#studentRequesterModal').modal('show');
         loadStudentRequesters();
+        loadAvailableUsers();
     }
 
-    function addRequester() {
-        const select = $('#requesterSelect');
-        const value = select.val();
-        const name = select.find('option:selected').text();
+    function loadAvailableUsers() {
+        $.ajax({
+            url: '{{ route("admin.student_permission_requesters.get_users") }}',
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(data) {
+                const optionsDiv = $('#requesterDropdownOptions');
+                optionsDiv.empty();
 
-        alert('Selected value: ' + value + ', Name: ' + name);
+                if (data.success) {
+                    if (data.teachers && data.teachers.length > 0) {
+                        optionsDiv.append('<div class="dropdown-header font-weight-bold small text-muted">Teachers</div>');
+                        data.teachers.forEach(teacher => {
+                            optionsDiv.append(`<a class="dropdown-item requester-option" href="#" data-value="teacher_${teacher.teacherID}" data-name="${teacher.first_name} ${teacher.last_name} (Teacher)">${teacher.first_name} ${teacher.last_name} (Teacher)</a>`);
+                        });
+                    }
 
-        if (!value) return;
+                    if (data.staff && data.staff.length > 0) {
+                        optionsDiv.append('<div class="dropdown-header font-weight-bold small text-muted mt-2">Staff</div>');
+                        data.staff.forEach(staff => {
+                            optionsDiv.append(`<a class="dropdown-item requester-option" href="#" data-value="staff_${staff.staffID}" data-name="${staff.first_name} ${staff.last_name} (Staff)">${staff.first_name} ${staff.last_name} (Staff)</a>`);
+                        });
+                    }
 
+                    // Add click handlers to options
+                    $('.requester-option').on('click', function(e) {
+                        e.preventDefault();
+                        const value = $(this).data('value');
+                        const name = $(this).data('name');
+                        addRequesterFromDropdown(value, name);
+                        $('#requesterDropdownBtn').dropdown('toggle');
+                    });
+                } else {
+                    optionsDiv.append('<div class="dropdown-item text-muted">Failed to load users</div>');
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Failed to load users';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                $('#requesterDropdownOptions').html('<div class="dropdown-item text-muted">' + errorMessage + '</div>');
+            }
+        });
+    }
+
+    function filterDropdownOptions() {
+        const searchQuery = $('#requesterDropdownSearch').val().toLowerCase();
+        $('.requester-option').each(function() {
+            const optionText = $(this).text().toLowerCase();
+            if (optionText.includes(searchQuery)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    }
+
+    function addRequesterFromDropdown(value, name) {
         // Check if already added
         if ($(`#selectedRequesters .badge[data-id="${value}"]`).length) return;
 
@@ -1168,21 +1222,10 @@
                 <i class="fa fa-times cursor-pointer" onclick="$(this).parent().remove();"></i>
             </span>`;
         $('#selectedRequesters').append(badge);
-        select.val('');
     }
 
     function filterRequesterOptions() {
-        const searchQuery = $('#requesterSearch').val().toLowerCase();
-        const select = $('#requesterSelect');
-
-        select.find('option').each(function() {
-            const optionText = $(this).text().toLowerCase();
-            if (optionText.includes(searchQuery) || $(this).val() === '') {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
-        });
+        // This function is no longer needed, using filterDropdownOptions instead
     }
 
     function loadStudentRequesters() {
@@ -1315,34 +1358,22 @@
                 <div class="row mb-3">
                     <div class="col-md-12">
                         <label class="font-weight-bold small">Assign Teachers/Staff to Request Student Permissions</label>
-                        <input type="text" id="requesterSearch" class="form-control mb-2" placeholder="Search teachers/staff..." onkeyup="filterRequesterOptions()">
                         <div class="teacher-list d-flex flex-wrap gap-1 mb-2 p-2 border bg-light" id="selectedRequesters" style="min-height: 40px; border-style: dashed !important; background-color: #fcfcfc;">
                             <!-- Selected requesters badges go here -->
                         </div>
-                        <div class="input-group input-group-sm">
-                            <select class="form-control" id="requesterSelect" style="border-radius: 0;">
-                                <option value="">Choose Teacher/Staff...</option>
-                                <option value="teacher_1">Michael Shirima (Teacher)</option>
-                                <option value="teacher_2">MAYENGA MAGAKA (Teacher)</option>
-                                <option value="teacher_3">Lucina Kimaro (Teacher)</option>
-                                <option value="teacher_4">Claudia Kimaro (Teacher)</option>
-                                <option value="teacher_5">MARRY HAMIS (Teacher)</option>
-                                <option value="teacher_6">Palmer Poguba (Teacher)</option>
-                                <option value="teacher_7">Eliana Masaga (Teacher)</option>
-                                <option value="teacher_8">HARRIETH MKUMBO (Teacher)</option>
-                                <option value="teacher_9">HASSANI MWAKIPESILE (Teacher)</option>
-                                <option value="teacher_10">MASSAWE MBALIZI (Teacher)</option>
-                                <option value="teacher_11">Lucina Shija (Teacher)</option>
-                                <option value="teacher_12">DIANA MAFUMBU (Teacher)</option>
-                                <option value="teacher_13">HASSANI HASSANI (Teacher)</option>
-                                <option value="teacher_14">Mariana Swai (Teacher)</option>
-                                <option value="staff_1">NANA HASSANI (Staff)</option>
-                            </select>
-                            <div class="input-group-append">
-                                <button class="btn btn-outline-danger font-weight-bold" type="button" onclick="addRequester()" style="border-radius: 0; border: 1px solid #ced4da; border-left: none; background: #940000; color: white;">+ ADD</button>
+                        <div class="dropdown" style="position: relative;">
+                            <button class="btn btn-outline-secondary form-control text-left d-flex justify-content-between align-items-center" type="button" id="requesterDropdownBtn" data-toggle="dropdown" style="border-radius: 0;">
+                                <span id="requesterDropdownText">Choose Teacher/Staff...</span>
+                                <i class="fa fa-chevron-down"></i>
+                            </button>
+                            <div class="dropdown-menu w-100 p-2" style="max-height: 300px; overflow-y: auto; border-radius: 0;">
+                                <input type="text" class="form-control mb-2" id="requesterDropdownSearch" placeholder="Search teachers/staff..." onkeyup="filterDropdownOptions()">
+                                <div id="requesterDropdownOptions">
+                                    <!-- Options will be loaded via AJAX -->
+                                </div>
                             </div>
                         </div>
-                        <small class="text-muted">Type to search, select and add teachers/staff to assign them</small>
+                        <small class="text-muted">Click to select, search to filter teachers/staff</small>
                     </div>
                 </div>
                 <div class="row">

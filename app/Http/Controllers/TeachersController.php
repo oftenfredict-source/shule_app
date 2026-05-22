@@ -12412,25 +12412,104 @@ class TeachersController extends Controller
         return view('Teacher.student_permission');
     }
 
+    public function getTeacherPermissionRequests()
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        \Log::info('getTeacherPermissionRequests called', ['teacherID' => $teacherID, 'schoolID' => $schoolID]);
+
+        if (!$teacherID || !$schoolID) {
+            \Log::error('Unauthorized access - missing session data', ['teacherID' => $teacherID, 'schoolID' => $schoolID]);
+            return response()->json(['success' => false, 'message' => 'Unauthorized access']);
+        }
+
+        try {
+            $requests = DB::table('student_permissions as sp')
+                ->where('sp.schoolID', $schoolID)
+                ->where('sp.requester_id', $teacherID)
+                ->where('sp.requester_type', 'teacher')
+                ->select(
+                    'sp.id',
+                    'sp.student_id',
+                    'sp.time_mode',
+                    'sp.days_count',
+                    'sp.start_date',
+                    'sp.end_date',
+                    'sp.start_time',
+                    'sp.end_time',
+                    'sp.reason_type',
+                    'sp.reason_description',
+                    'sp.status',
+                    'sp.hod_status',
+                    'sp.principal_status',
+                    'sp.final_status'
+                )
+                ->orderBy('sp.created_at', 'desc')
+                ->get()
+                ->map(function($item) {
+                    $item->student_name = 'Student ID: ' . $item->student_id;
+                    $item->duration = $item->time_mode === 'days' ? $item->days_count . ' days' : 'Hours';
+                    $item->date_range = $item->time_mode === 'days'
+                        ? ($item->start_date . ' to ' . $item->end_date)
+                        : ($item->start_date . ' ' . $item->start_time . ' to ' . $item->end_time);
+                    $item->reason_details = $item->reason_description;
+                    $item->class_name = '';
+                    return $item;
+                });
+
+            \Log::info('Teacher permission requests loaded', ['count' => $requests->count()]);
+
+            $pending = $requests->where('status', 'pending')->values();
+            $approved = $requests->where('status', 'approved')->values();
+            $rejected = $requests->where('status', 'rejected')->values();
+
+            return response()->json([
+                'success' => true,
+                'pending' => $pending,
+                'approved' => $approved,
+                'rejected' => $rejected
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error loading teacher permission requests', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Error loading requests: ' . $e->getMessage()]);
+        }
+    }
+
     public function searchStudentsForPermission(Request $request)
     {
         $query = $request->input('query');
         $schoolID = Session::get('schoolID');
 
-        $students = DB::table('students')
-            ->where('schoolID', $schoolID)
-            ->where(function($q) use ($query) {
-                $q->where('first_name', 'like', '%' . $query . '%')
-                  ->orWhere('last_name', 'like', '%' . $query . '%');
-            })
-            ->leftJoin('subclasses', 'students.subclass_id', '=', 'subclasses.id')
-            ->leftJoin('classes', 'subclasses.class_id', '=', 'classes.id')
-            ->select('students.id as studentID', 'students.first_name', 'students.last_name', 'students.gender',
-                    DB::raw('CONCAT(classes.class_name, " ", subclasses.subclass_name) as class_name'))
-            ->limit(10)
-            ->get();
+        \Log::info('searchStudentsForPermission called', ['query' => $query, 'schoolID' => $schoolID]);
 
-        return response()->json(['success' => true, 'students' => $students]);
+        try {
+            $students = DB::table('students')
+                ->where('students.schoolID', $schoolID)
+                ->where(function($q) use ($query) {
+                    $q->where('students.first_name', 'like', '%' . $query . '%')
+                      ->orWhere('students.last_name', 'like', '%' . $query . '%');
+                })
+                ->leftJoin('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
+                ->leftJoin('classes', 'subclasses.classID', '=', 'classes.classID')
+                ->select(
+                    'students.studentID',
+                    'students.first_name',
+                    'students.last_name',
+                    'students.gender',
+                    'students.photo',
+                    DB::raw('CONCAT(classes.class_name, " ", subclasses.subclass_name) as class_name')
+                )
+                ->limit(10)
+                ->get();
+
+            \Log::info('Students found', ['count' => $students->count()]);
+
+            return response()->json(['success' => true, 'students' => $students]);
+        } catch (\Exception $e) {
+            \Log::error('Error searching students', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Error searching students: ' . $e->getMessage()]);
+        }
     }
 
     public function storeStudentPermission(Request $request)

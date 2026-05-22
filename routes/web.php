@@ -312,6 +312,7 @@ Route::get('teacher/incidents', [TeachersController::class, 'manageTeacherFeedba
 Route::post('teacher/feedback', [TeachersController::class, 'storeTeacherFeedback'])->name('teacher.feedback.store');
 Route::get('teacher/permissions', [TeachersController::class, 'manageTeacherPermissions'])->name('teacher.permissions');
 Route::get('teacher/student-permission', [TeachersController::class, 'showStudentPermissionForm'])->name('teacher.student_permission');
+Route::get('teacher/student-permission/index', [TeachersController::class, 'getTeacherPermissionRequests'])->name('teacher.student_permission.index');
 Route::get('teacher/student-permission/search', [TeachersController::class, 'searchStudentsForPermission'])->name('teacher.student_permission.search');
 Route::post('teacher/student-permission', [TeachersController::class, 'storeStudentPermission'])->name('teacher.student_permission.store');
 Route::post('teacher/permissions', [TeachersController::class, 'storeTeacherPermission'])->name('teacher.permissions.store');
@@ -399,6 +400,7 @@ Route::post('staff/feedback', [StaffController::class, 'storeStaffFeedback'])->n
 Route::get('staff/permissions', [StaffController::class, 'permissions'])->name('staff.permissions');
 Route::post('staff/permissions', [StaffController::class, 'storeStaffPermission'])->name('staff.permissions.store');
 Route::get('staff/student-permission', [StaffController::class, 'showStudentPermissionForm'])->name('staff.student_permission');
+Route::get('staff/student-permission/index', [StaffController::class, 'getStaffPermissionRequests'])->name('staff.student_permission.index');
 Route::get('staff/student-permission/search', [StaffController::class, 'searchStudentsForPermission'])->name('staff.student_permission.search');
 Route::post('staff/student-permission', [StaffController::class, 'storeStudentPermission'])->name('staff.student_permission.store');
 Route::prefix('accountant')->name('accountant.')->group(function () {
