@@ -16,6 +16,12 @@
     .bg-primary-custom { background-color: #940000 !important; }
     .btn-primary-custom { background-color: #940000; border-color: #940000; color: #fff; }
     .btn-primary-custom:hover { background-color: #b30000; border-color: #b30000; color: #fff; }
+    .table thead th {
+        background-color: #f8f9fa;
+        color: #333;
+        font-weight: 700;
+        border-bottom: 2px solid #dee2e6 !important;
+    }
 
     /* Timeline Styles */
     .progress-timeline { position: relative; padding-left: 30px; margin-top: 20px; }
@@ -30,7 +36,7 @@
     .timeline-role { font-weight: 600; color: #333; display: block; }
     .timeline-status { font-size: 0.8rem; color: #666; }
     .timeline-time { font-size: 0.75rem; color: #999; display: block; margin-top: 2px; }
-    
+
     .form-loading {
         display: none;
         align-items: center;
@@ -209,9 +215,9 @@
 
             <div id="perm-list-view">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-hover">
-                        <thead>
-                            <tr class="bg-light">
+                    <table class="table table-bordered table-hover table-striped">
+                        <thead class="bg-primary-custom text-white">
+                            <tr>
                                 <th>Requester</th>
                                 <th>Type</th>
                                 <th>Date/Time</th>
@@ -243,7 +249,7 @@
                             } elseif($permission->teacher) {
                                 $requesterName = trim($permission->teacher->first_name . ' ' . $permission->teacher->last_name);
                             }
-                            
+
                             $requesterInfo = ucfirst($permission->requester_type);
                             if($permission->requester_type === 'student' && $permission->student && $permission->student->class) {
                                 $requesterInfo .= ' | ' . $permission->student->class->class_name;
@@ -258,10 +264,10 @@
                                             <small class="text-muted">{{ $requesterInfo }}</small>
                                         </div>
                                         <div class="dropdown">
-                                            <div class="action-circle" data-toggle="dropdown">
-                                                <i class="fa fa-ellipsis-v"></i>
-                                            </div>
-                                            <div class="dropdown-menu dropdown-menu-right">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                <i class="bx bx-cog"></i>
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-right shadow border">
                                                 <a class="dropdown-item text-success" href="#" onclick="openApprovalModal({{ $permission->permissionID }}); return false;">
                                                     <i class="fa fa-check-circle"></i> Approve
                                                 </a>
@@ -299,10 +305,10 @@
                                     <div class="mb-2">
                                         <small class="text-muted d-block">Period:</small>
                                         @if($permission->time_mode === 'days')
-                                            <i class="fa fa-calendar-alt text-primary-custom"></i> {{ $permission->start_date->format('d M') }} - {{ $permission->end_date->format('d M Y') }}
+                                            <i class="fa fa-calendar-alt text-primary-custom"></i> {{ $permission->start_date->format('j F Y') }} - {{ $permission->end_date->format('j F Y') }}
                                             <span class="badge badge-light border ml-1">{{ $permission->days_count }} days</span>
                                         @else
-                                            <i class="fa fa-clock text-primary-custom"></i> {{ $permission->start_date->format('d M Y') }} ({{ $permission->start_time }} - {{ $permission->end_time }})
+                                            <i class="fa fa-clock text-primary-custom"></i> {{ $permission->start_date->format('j F Y') }} ({{ $permission->start_time }} - {{ $permission->end_time }})
                                         @endif
                                     </div>
                                     <div>
@@ -469,14 +475,14 @@
     function submitAction(url, $form) {
         const modalBody = $form.find('.modal-body')[0];
         const internalLoading = modalBody ? modalBody.querySelector('.modal-loading') : null;
-        
+
         if (internalLoading) {
             internalLoading.style.display = 'flex';
         } else {
             const loadingBar = document.getElementById('approvalLoading');
             if (loadingBar) loadingBar.style.display = 'flex';
         }
-        
+
         const $submitBtn = $form.find('button[type="submit"]');
         $submitBtn.prop('disabled', true);
 

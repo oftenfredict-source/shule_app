@@ -347,6 +347,19 @@
                             <li><a href="{{ route('staffDashboard') }}" class="nav-link"><i
                                         class="fa fa-tachometer"></i> Dashboard</a></li>
 
+                            @php
+                                $isStudentRequester = \Illuminate\Support\Facades\DB::table('student_permission_requesters')
+                                    ->where('schoolID', $schoolID)
+                                    ->where('user_id', $staffID)
+                                    ->where('user_type', 'staff')
+                                    ->where('is_active', true)
+                                    ->exists();
+                            @endphp
+
+                            @if($isStudentRequester)
+                            <li><a href="{{ route('staff.student_permission') }}" class="nav-link"><i class="fa fa-user-plus"></i> Student Permission</a></li>
+                            @endif
+
                             <li class="dropdown-nav-item">
                                 <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse"
                                     data-target="#staffFeedback" aria-expanded="false">
@@ -409,18 +422,28 @@
                                             $permCount = 0;
                                             if (\Illuminate\Support\Facades\Schema::hasTable('permission_approval_chains') && \Illuminate\Support\Facades\Schema::hasTable('permission_requests')) {
                                                 $sProf = $navStaffID ? \App\Models\OtherStaff::where('id', $navStaffID)->value('profession_id') : null;
-                                                
-                                                $permCount = \App\Models\PermissionRequest::where('schoolID', $navSchoolID)
+                                                $navUserType = Session::get('user_type');
+
+                                                $query = \App\Models\PermissionRequest::where('schoolID', $navSchoolID)
                                                     ->where('status', 'pending')
-                                                    ->where('current_approval_order', '>', 0)
-                                                    ->whereExists(function($q) use ($sProf) {
-                                                        $q->select(\Illuminate\Support\Facades\DB::raw(1))
-                                                            ->from('permission_approval_chains')
-                                                            ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID')
-                                                            ->whereColumn('permission_approval_chains.permission_type', 'permission_requests.requester_type')
-                                                            ->whereColumn('permission_approval_chains.approval_order', 'permission_requests.current_approval_order')
-                                                            ->where('profession_id', $sProf);
-                                                    })->count();
+                                                    ->where('current_approval_order', '>', 0);
+
+                                                // Check if staff has matching profession OR if user is Admin and current step has is_admin
+                                                $query->whereExists(function($q) use ($sProf, $navUserType) {
+                                                    $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                                                        ->from('permission_approval_chains')
+                                                        ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID')
+                                                        ->whereColumn('permission_approval_chains.permission_type', 'permission_requests.requester_type')
+                                                        ->whereColumn('permission_approval_chains.approval_order', 'permission_requests.current_approval_order')
+                                                        ->where(function($sub) use ($sProf, $navUserType) {
+                                                            $sub->where('profession_id', $sProf);
+                                                            if ($navUserType === 'Admin') {
+                                                                $sub->orWhere('is_admin', true);
+                                                            }
+                                                        });
+                                                });
+
+                                                $permCount = $query->count();
                                             }
                                         @endphp
                                         <a href="{{ route('admin.hr.permissions.pending_approvals') }}" class="nav-link">
@@ -956,7 +979,7 @@
                     setTimeout(initializeMenuDropdowns, 100);
                     return;
                 }
-                
+
                 const $ = jQuery;
 
                 const menuLinks = document.querySelectorAll('#left-panel .nav-link');

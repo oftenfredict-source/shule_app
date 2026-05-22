@@ -8,7 +8,7 @@
         } elseif($permission->teacher) {
             $requesterName = trim($permission->teacher->first_name . ' ' . $permission->teacher->last_name);
         }
-        
+
         $requesterInfo = ucfirst($permission->requester_type);
         if($permission->requester_type === 'student' && $permission->student && $permission->student->subclass) {
             $requesterInfo .= ' | ' . ($permission->student->subclass->class->class_name ?? '') . ' ' . ($permission->student->subclass->subclass_name ?? '');
@@ -16,19 +16,30 @@
 
         // Logic to determine if it's THIS user's turn
         $isMyTurn = false;
-        
-        // 1. If user is Admin and it's stage 0 or final
+
+        // 1. If user is Admin, check if they are in the chain and at their step
         if ($userType === 'Admin') {
+            $adminChain = null;
             $maxChainOrder = 0;
             if (\Illuminate\Support\Facades\Schema::hasTable('permission_approval_chains')) {
+                $adminChain = DB::table('permission_approval_chains')
+                    ->where('schoolID', $permission->schoolID)
+                    ->where('permission_type', $permission->requester_type)
+                    ->where('is_admin', true)
+                    ->first();
+
                 $maxChainOrder = DB::table('permission_approval_chains')
                     ->where('schoolID', $permission->schoolID)
                     ->where('permission_type', $permission->requester_type)
                     ->max('approval_order') ?? 0;
             }
-            
-            if ($permission->current_approval_order == 0 || $permission->current_approval_order > $maxChainOrder) {
-                $isMyTurn = true;
+
+            if ($adminChain) {
+                // Admin is in the chain - check if it's their step
+                $isMyTurn = ($permission->current_approval_order == $adminChain->approval_order);
+            } else {
+                // Admin is not in the chain - only approve if chain is complete (current_approval_order > maxChainOrder or 0)
+                $isMyTurn = ($permission->current_approval_order == 0 || $permission->current_approval_order > $maxChainOrder);
             }
         }
 
@@ -46,7 +57,7 @@
                     ->pluck('approval_order')
                     ->toArray();
             }
-            
+
             if (in_array($permission->current_approval_order, $myChainOrders)) {
                 $isMyTurn = true;
             }
@@ -60,10 +71,10 @@
         <td>{{ ucfirst($permission->time_mode) }}</td>
         <td>
             @if($permission->time_mode === 'days')
-                {{ $permission->start_date->format('M d, Y') }} - {{ $permission->end_date->format('M d, Y') }}
+                {{ $permission->start_date->format('j F Y') }} - {{ $permission->end_date->format('j F Y') }}
                 <br><span class="badge badge-light border">({{ $permission->days_count }} days)</span>
             @else
-                {{ $permission->start_date->format('M d, Y') }}<br>
+                {{ $permission->start_date->format('j F Y') }}<br>
                 {{ $permission->start_time }} - {{ $permission->end_time }}
             @endif
         </td>
@@ -79,10 +90,10 @@
         </td>
         <td class="text-center">
             <div class="dropdown">
-                <div class="action-circle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <i class="fa fa-ellipsis-v"></i>
-                </div>
-                <div class="dropdown-menu dropdown-menu-right">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="bx bx-cog"></i>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right shadow border">
                     @if($isMyTurn)
                     <a class="dropdown-item text-success" href="#" onclick="openApprovalModal({{ $permission->permissionID }}); return false;">
                         <i class="fa fa-check-circle"></i> Approve

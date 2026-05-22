@@ -311,6 +311,9 @@ Route::get('teacher/suggestions', [TeachersController::class, 'manageTeacherFeed
 Route::get('teacher/incidents', [TeachersController::class, 'manageTeacherFeedback'])->name('teacher.incidents');
 Route::post('teacher/feedback', [TeachersController::class, 'storeTeacherFeedback'])->name('teacher.feedback.store');
 Route::get('teacher/permissions', [TeachersController::class, 'manageTeacherPermissions'])->name('teacher.permissions');
+Route::get('teacher/student-permission', [TeachersController::class, 'showStudentPermissionForm'])->name('teacher.student_permission');
+Route::get('teacher/student-permission/search', [TeachersController::class, 'searchStudentsForPermission'])->name('teacher.student_permission.search');
+Route::post('teacher/student-permission', [TeachersController::class, 'storeStudentPermission'])->name('teacher.student_permission.store');
 Route::post('teacher/permissions', [TeachersController::class, 'storeTeacherPermission'])->name('teacher.permissions.store');
 Route::get('teacher/my-tasks', [TeachersController::class, 'myTasks'])->name('teacher.myTasks');
 Route::get('teacher/get-session-students', [TeachersController::class, 'getSessionStudents'])->name('teacher.get_session_students');
@@ -395,6 +398,9 @@ Route::get('staff/incidents', [StaffController::class, 'incidents'])->name('staf
 Route::post('staff/feedback', [StaffController::class, 'storeStaffFeedback'])->name('staff.feedback.store');
 Route::get('staff/permissions', [StaffController::class, 'permissions'])->name('staff.permissions');
 Route::post('staff/permissions', [StaffController::class, 'storeStaffPermission'])->name('staff.permissions.store');
+Route::get('staff/student-permission', [StaffController::class, 'showStudentPermissionForm'])->name('staff.student_permission');
+Route::get('staff/student-permission/search', [StaffController::class, 'searchStudentsForPermission'])->name('staff.student_permission.search');
+Route::post('staff/student-permission', [StaffController::class, 'storeStudentPermission'])->name('staff.student_permission.store');
 Route::prefix('accountant')->name('accountant.')->group(function () {
     Route::get('expenses', [ExpenseController::class, 'index'])->name('expenses.index');
     Route::get('expenses/create', [ExpenseController::class, 'create'])->name('expenses.create');
@@ -585,7 +591,7 @@ Route::prefix('accountant')->name('accountant.')->group(function () {
     Route::get('reports/chart-data', [AccountantReportController::class, 'getChartData'])->name('reports.chart_data');
     Route::get('reports/export/expenses', [AccountantReportController::class, 'exportExpenses'])->name('reports.export_expenses');
     Route::get('reports/export/income', [AccountantReportController::class, 'exportIncome'])->name('reports.export_income');
-    
+
     // PDF Exports
     Route::get('reports/export-pdf', [AccountantReportController::class, 'exportReportPdf'])->name('reports.export_pdf');
     Route::get('reports/export-expenses-pdf', [AccountantReportController::class, 'exportExpensesPdf'])->name('reports.export_expenses_pdf');
@@ -658,6 +664,11 @@ Route::delete('admin/hr/permissions/chain/delete', [AdminController::class, 'del
 Route::get('admin/hr/permissions/export-pdf/{permissionID}', [AdminController::class, 'exportPermissionPdf'])->name('admin.permissions.download');
 Route::get('admin/hr/roles-positions', [AdminController::class, 'getRolesAndPositions'])->name('admin.hr.roles_positions');
 Route::get('admin/hr/permissions/pending-approvals', [AdminController::class, 'getPendingApprovals'])->name('admin.hr.permissions.pending_approvals');
+Route::get('admin/student-permission-requesters/users', [AdminController::class, 'getStudentPermissionRequestersUsers'])->name('admin.student_permission_requesters.get_users');
+Route::get('admin/student-permission-requesters', [AdminController::class, 'indexStudentPermissionRequesters'])->name('admin.student_permission_requesters.index');
+Route::post('admin/student-permission-requesters', [AdminController::class, 'storeStudentPermissionRequesters'])->name('admin.student_permission_requesters.store');
+Route::delete('admin/student-permission-requesters/{id}', [AdminController::class, 'destroyStudentPermissionRequester'])->name('admin.student_permission_requesters.destroy');
+
 Route::get('admin/school-visitors', [AdminController::class, 'manageSchoolVisitors'])->name('admin.school_visitors');
 Route::get('admin/school-visitors/today', [AdminController::class, 'todaySchoolVisitors'])->name('admin.school_visitors.today');
 Route::get('admin/school-visitors/list', [AdminController::class, 'listSchoolVisitors'])->name('admin.school_visitors.list');

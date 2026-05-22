@@ -2644,36 +2644,41 @@ class AdminController extends Controller
             }
         }
 
+        // Check if Admin is assigned in the approval chain
+        $chain = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', $tab === 'student' ? 'student' : ($tab === 'staff' ? 'staff' : 'teacher'))
+            ->where('is_admin', true)
+            ->orderBy('approval_order')
+            ->first();
+
+        $adminInChain = $chain ? true : false;
+        $adminApprovalOrder = $chain ? $chain->approval_order : null;
+
         $permissions = $query->orderBy('created_at', 'desc')->get();
 
         $pendingCount = PermissionRequest::where('schoolID', $schoolID)
             ->where('status', 'pending')
-            ->where('is_read_by_admin', false)
             ->count();
         $approvedCount = PermissionRequest::where('schoolID', $schoolID)
             ->where('status', 'approved')
-            ->where('is_read_by_admin', false)
             ->count();
         $rejectedCount = PermissionRequest::where('schoolID', $schoolID)
             ->where('status', 'rejected')
-            ->where('is_read_by_admin', false)
             ->count();
 
         $tabCounts = [
             'teacher' => PermissionRequest::where('schoolID', $schoolID)
                 ->where('requester_type', 'teacher')
                 ->where('status', 'pending')
-                ->where('is_read_by_admin', false)
                 ->count(),
             'student' => PermissionRequest::where('schoolID', $schoolID)
                 ->where('requester_type', 'student')
                 ->where('status', 'pending')
-                ->where('is_read_by_admin', false)
                 ->count(),
             'staff' => PermissionRequest::where('schoolID', $schoolID)
                 ->where('requester_type', 'staff')
                 ->where('status', 'pending')
-                ->where('is_read_by_admin', false)
                 ->count(),
         ];
 
@@ -2735,6 +2740,8 @@ class AdminController extends Controller
             'rejectedCount' => $rejectedCount,
             'tabCounts' => $tabCounts,
             'resultButtonStatus' => $resultButtonStatus,
+            'adminInChain' => $adminInChain,
+            'adminApprovalOrder' => $adminApprovalOrder,
             'roles' => DB::table('roles')->where('schoolID', $schoolID)->get(['id', 'name']),
             'positions' => DB::table('staff_professions')->where('schoolID', $schoolID)->get(['id', 'name']),
         ]);
@@ -2795,6 +2802,14 @@ class AdminController extends Controller
             ->orderBy('approval_order')
             ->get();
 
+        // If Admin is in the approval chain, check if they are at the current approval step
+        if ($user === 'Admin' && $chain->isNotEmpty()) {
+            $adminStep = $chain->where('is_admin', true)->first();
+            if ($adminStep && $adminStep->approval_order !== $permission->current_approval_order) {
+                return response()->json(['success' => false, 'message' => 'This permission is not at your approval step in the chain.'], 403);
+            }
+        }
+
         $isFinalApproval = true;
         $nextOrder = $permission->current_approval_order + 1;
 
@@ -2818,7 +2833,7 @@ class AdminController extends Controller
             ->value('role_name') ?? 'System Admin';
 
         $approvedOrder = $permission->current_approval_order;
-        
+
         if ($isFinalApproval) {
             DB::table('permission_requests')
                 ->where('permissionID', $permission->permissionID)
@@ -2840,10 +2855,10 @@ class AdminController extends Controller
                     'current_approval_order' => $nextOrder,
                     'admin_response' => $validated['admin_response'],
                 ]);
-            
+
             // Refresh model for notifications
             $permission = PermissionRequest::find($permission->permissionID);
-            
+
             // Get next approver role name
             $nextApprover = DB::table('permission_approval_chains')
                 ->where('schoolID', $schoolID)
@@ -2935,7 +2950,7 @@ class AdminController extends Controller
             $st = \App\Models\Student::find($permission->studentID);
             $requesterName = $st ? trim($st->first_name . ' ' . $st->last_name) : 'Student';
         }
-        
+
         // Find the approver at this order
         $approver = DB::table('permission_approval_chains')
             ->where('schoolID', $schoolID)
@@ -3090,7 +3105,7 @@ class AdminController extends Controller
         $schoolID = Session::get('schoolID');
         $roles = DB::table('roles')->where('schoolID', $schoolID)->get(['id', 'name']);
         $positions = DB::table('staff_professions')->where('schoolID', $schoolID)->get(['id', 'name']);
-        
+
         return view('partials.permission_approval_chain_settings', compact('roles', 'positions'));
     }
 
@@ -3108,6 +3123,7 @@ class AdminController extends Controller
             'approvers' => 'required|array|min:1',
             'approvers.*.role_id' => 'nullable|integer',
             'approvers.*.profession_id' => 'nullable|integer',
+            'approvers.*.is_admin' => 'nullable|boolean',
             'approvers.*.role_name' => 'required|string',
         ]);
 
@@ -3125,6 +3141,7 @@ class AdminController extends Controller
                     'approval_order' => $index + 1,
                     'role_id' => $approver['role_id'] ?? null,
                     'profession_id' => $approver['profession_id'] ?? null,
+                    'is_admin' => $approver['is_admin'] ?? false,
                     'role_name' => $approver['role_name'],
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -3169,7 +3186,7 @@ class AdminController extends Controller
     public function getRolesAndPositions()
     {
         $schoolID = Session::get('schoolID');
-        
+
         $roles = DB::table('roles')->where('schoolID', $schoolID)->get(['id', 'name']);
         $positions = DB::table('staff_professions')
             ->where('schoolID', $schoolID)
@@ -3196,7 +3213,11 @@ class AdminController extends Controller
             ->leftJoin('staff_professions', 'permission_approval_chains.profession_id', '=', 'staff_professions.id')
             ->where('permission_approval_chains.schoolID', $schoolID)
             ->where('permission_approval_chains.permission_type', $permission->requester_type)
-            ->select('permission_approval_chains.*', 'roles.role_name', 'staff_professions.name as profession_name')
+            ->select(
+                'permission_approval_chains.*',
+                DB::raw('COALESCE(permission_approval_chains.role_name, roles.name) as role_name'),
+                'staff_professions.name as profession_name'
+            )
             ->orderBy('permission_approval_chains.approval_order')
             ->get();
 
@@ -3299,7 +3320,7 @@ class AdminController extends Controller
         $userType = Session::get('user_type');
         $schoolID = Session::get('schoolID');
         $userEmail = Session::get('user_email');
-        
+
         $teacherID = Session::get('teacherID');
         $userID = Session::get('userID');
         $staffID = Session::get('staffID');
@@ -3359,10 +3380,32 @@ class AdminController extends Controller
             ->where('schoolID', $schoolID)
             ->where('status', 'pending');
 
-        $query->where(function($q) use ($userType, $myRoleIDs, $myProfessionID) {
-            // 1. If user is Admin, they see everything that is pending
+        $query->where(function($q) use ($userType, $myRoleIDs, $myProfessionID, $schoolID) {
+            // 1. If user is Admin, check if they are in the chain and show permissions at their step
             if ($userType === 'Admin') {
-                $q->orWhere('status', 'pending');
+                $adminChain = null;
+                $maxChainOrder = 0;
+                if (Schema::hasTable('permission_approval_chains')) {
+                    $adminChain = DB::table('permission_approval_chains')
+                        ->where('schoolID', $schoolID)
+                        ->where('is_admin', true)
+                        ->first();
+
+                    $maxChainOrder = DB::table('permission_approval_chains')
+                        ->where('schoolID', $schoolID)
+                        ->max('approval_order') ?? 0;
+                }
+
+                if ($adminChain) {
+                    // Admin is in the chain - only show permissions at their step
+                    $q->where('current_approval_order', $adminChain->approval_order);
+                } else {
+                    // Admin is not in the chain - only show permissions where chain is complete
+                    $q->where(function($sub) use ($maxChainOrder) {
+                        $sub->where('current_approval_order', 0)
+                          ->orWhere('current_approval_order', '>', DB::raw($maxChainOrder));
+                    });
+                }
             }
 
             // 2. If user has a role that is part of ANY chain for this school, they see the requests for that type
@@ -4118,6 +4161,115 @@ class AdminController extends Controller
             });
 
         return response()->json(['success' => true, 'visitors' => $visitors]);
+    }
+
+    // Student Permission Requesters Management
+    public function getStudentPermissionRequestersUsers()
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'message' => 'School ID not found in session'], 401);
+            }
+
+            $teachers = DB::table('teachers')
+                ->where('schoolID', $schoolID)
+                ->get(['id as teacherID', 'first_name', 'last_name']);
+
+            $staff = DB::table('other_staff')
+                ->where('schoolID', $schoolID)
+                ->get(['id as staffID', 'first_name', 'last_name']);
+
+            return response()->json([
+                'success' => true,
+                'teachers' => $teachers,
+                'staff' => $staff
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function indexStudentPermissionRequesters()
+    {
+        $schoolID = Session::get('schoolID');
+
+        $requesters = DB::table('student_permission_requesters as spr')
+            ->leftJoin('teachers', function($join) {
+                $join->on('spr.user_id', '=', 'teachers.id')
+                     ->where('spr.user_type', '=', 'teacher');
+            })
+            ->leftJoin('other_staff', function($join) {
+                $join->on('spr.user_id', '=', 'other_staff.id')
+                     ->where('spr.user_type', '=', 'staff');
+            })
+            ->where('spr.schoolID', $schoolID)
+            ->where('spr.is_active', true)
+            ->select(
+                'spr.id',
+                'spr.user_id',
+                'spr.user_type',
+                DB::raw('COALESCE(teachers.first_name, other_staff.first_name) as first_name'),
+                DB::raw('COALESCE(teachers.last_name, other_staff.last_name) as last_name')
+            )
+            ->get()
+            ->map(function($item) {
+                $item->name = $item->first_name . ' ' . $item->last_name;
+                $item->type = ucfirst($item->user_type);
+                return $item;
+            });
+
+        \Log::info('Student Permission Requesters loaded:', ['requesters' => $requesters, 'schoolID' => $schoolID]);
+
+        return response()->json([
+            'success' => true,
+            'requesters' => $requesters
+        ]);
+    }
+
+    public function storeStudentPermissionRequesters(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        $users = $request->input('users', []);
+
+        if (empty($users)) {
+            return response()->json(['success' => false, 'message' => 'No users selected']);
+        }
+
+        foreach ($users as $user) {
+            // Check if already assigned
+            $exists = DB::table('student_permission_requesters')
+                ->where('schoolID', $schoolID)
+                ->where('user_id', $user['user_id'])
+                ->where('user_type', $user['type'])
+                ->exists();
+
+            if (!$exists) {
+                DB::table('student_permission_requesters')->insert([
+                    'schoolID' => $schoolID,
+                    'user_id' => $user['user_id'],
+                    'user_type' => $user['type'],
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => 'Requesters assigned successfully']);
+    }
+
+    public function destroyStudentPermissionRequester($id)
+    {
+        $schoolID = Session::get('schoolID');
+
+        DB::table('student_permission_requesters')
+            ->where('id', $id)
+            ->where('schoolID', $schoolID)
+            ->delete();
+
+        return response()->json(['success' => true, 'message' => 'Requester removed successfully']);
     }
 }
 

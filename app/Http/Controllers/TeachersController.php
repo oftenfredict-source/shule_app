@@ -28,10 +28,9 @@ use App\Models\SchemeOfWork;
 use App\Models\SchemeOfWorkItem;
 use App\Models\SchemeOfWorkLearningObjective;
 use App\Models\LessonPlan;
-use App\Models\Logbook;
-use App\Models\Department;
 use App\Models\PermissionRequest;
-use App\Models\TeacherResultAssignment;
+use Illuminate\Support\Facades\DB;
+use App\Models\Logbook;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Dompdf\Dompdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -46,7 +45,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use App\Models\User;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 // PhpSpreadsheet will be used with fully qualified names if available
 
@@ -4230,7 +4228,7 @@ class TeachersController extends Controller
             if ($userType !== 'Admin' && $userType !== 'Staff') {
                 // Check if direct owner
                 $isOwner = $classSubject->teacherID == $teacherID;
-                
+
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
                 if (!$isOwner) {
@@ -4333,7 +4331,7 @@ class TeachersController extends Controller
             if ($userType !== 'Admin' && $userType !== 'Staff') {
                 // Check if direct owner
                 $isOwner = $classSubject->teacherID == $teacherID;
-                
+
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
                 if (!$isOwner) {
@@ -4728,7 +4726,7 @@ class TeachersController extends Controller
             if ($userType !== 'Admin' && $userType !== 'Staff') {
                 // Check if direct owner
                 $isOwner = $classSubject->teacherID == $teacherID;
-                
+
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
                 if (!$isOwner) {
@@ -11912,12 +11910,12 @@ class TeachersController extends Controller
                 ->where('teacherID', $teacherID)
                 ->where('status', 'rejected')
                 ->first();
-            
+
             if ($permission) {
                 // Determine if we should keep the current stage or reset
                 // User wants to keep the stage if it was rejected in the middle of a chain
                 $resubmissionOrder = $permission->current_approval_order;
-                
+
                 $permissionData['current_approval_order'] = $resubmissionOrder;
                 $permissionData['status'] = 'pending';
 
@@ -11927,7 +11925,7 @@ class TeachersController extends Controller
                     ->where('status', 'rejected')
                     ->orderBy('created_at', 'desc')
                     ->first();
-                
+
                 $rejectorPhone = null;
                 $rejectorName = null;
                 if ($rejectionLog) {
@@ -11943,13 +11941,13 @@ class TeachersController extends Controller
                 }
 
                 $permission->update($permissionData);
-                
+
                 // Remove ONLY the rejected log so previous approvals stay
                 DB::table('permission_approval_logs')
                     ->where('permissionID', $permissionId)
                     ->where('status', 'rejected')
                     ->delete();
-                
+
                 $isResubmission = true;
 
                 // Notify the rejector via SMS with specific message
@@ -12399,5 +12397,111 @@ class TeachersController extends Controller
         } catch (\Exception $e) {
             Log::error('Error sending logbook notification SMS: ' . $e->getMessage());
         }
+    }
+
+    // Student Permission Request Methods
+    public function showStudentPermissionForm()
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID || !$schoolID) {
+            return redirect()->route('login')->with('error', 'Unauthorized access');
+        }
+
+        return view('Teacher.student_permission');
+    }
+
+    public function searchStudentsForPermission(Request $request)
+    {
+        $query = $request->input('query');
+        $schoolID = Session::get('schoolID');
+
+        $students = DB::table('students')
+            ->where('schoolID', $schoolID)
+            ->where(function($q) use ($query) {
+                $q->where('first_name', 'like', '%' . $query . '%')
+                  ->orWhere('last_name', 'like', '%' . $query . '%');
+            })
+            ->leftJoin('subclasses', 'students.subclass_id', '=', 'subclasses.id')
+            ->leftJoin('classes', 'subclasses.class_id', '=', 'classes.id')
+            ->select('students.id as studentID', 'students.first_name', 'students.last_name', 'students.gender',
+                    DB::raw('CONCAT(classes.class_name, " ", subclasses.subclass_name) as class_name'))
+            ->limit(10)
+            ->get();
+
+        return response()->json(['success' => true, 'students' => $students]);
+    }
+
+    public function storeStudentPermission(Request $request)
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID || !$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access']);
+        }
+
+        $validated = $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'time_mode' => 'required|in:days,hours',
+            'reason_type' => 'required|string',
+            'reason_description' => 'required|string',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120'
+        ]);
+
+        // Check if teacher is authorized to request student permissions
+        $isAuthorized = DB::table('student_permission_requesters')
+            ->where('schoolID', $schoolID)
+            ->where('user_id', $teacherID)
+            ->where('user_type', 'teacher')
+            ->where('is_active', true)
+            ->exists();
+
+        if (!$isAuthorized) {
+            return response()->json(['success' => false, 'message' => 'You are not authorized to request student permissions']);
+        }
+
+        $permission = new PermissionRequest();
+        $permission->schoolID = $schoolID;
+        $permission->student_id = $validated['student_id'];
+        $permission->requester_type = 'student';
+        $permission->requested_by_teacher_id = $teacherID;
+        $permission->time_mode = $validated['time_mode'];
+        $permission->reason_type = $validated['reason_type'];
+        $permission->reason_description = $validated['reason_description'];
+        $permission->status = 'pending';
+        $permission->current_approval_order = 0;
+
+        if ($validated['time_mode'] === 'days') {
+            $request->validate([
+                'days_count' => 'required|integer|min:1',
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date'
+            ]);
+            $permission->days_count = $request->days_count;
+            $permission->start_date = $request->start_date;
+            $permission->end_date = $request->end_date;
+        } else {
+            $request->validate([
+                'start_date_hours' => 'required|date',
+                'start_time' => 'required',
+                'end_time' => 'required|after:start_time'
+            ]);
+            $permission->start_date = $request->start_date_hours;
+            $permission->start_time = $request->start_time;
+            $permission->end_time = $request->end_time;
+        }
+
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('permission_attachments', $fileName, 'public');
+            $permission->attachment_path = $filePath;
+        }
+
+        $permission->save();
+
+        return response()->json(['success' => true, 'message' => 'Student permission request submitted successfully']);
     }
 }

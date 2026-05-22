@@ -11,6 +11,39 @@ class SmsService
     private $baseUrl = 'https://messaging-service.co.tz/link/sms/v1/text/single';
 
     /**
+     * Format SMS message with school name prefix.
+     * If school has senderID, no school name prefix is added.
+     * If school has no senderID, school name is added as prefix.
+     *
+     * @param string $message The message content (without school prefix)
+     * @param string|null $schoolName School name for fallback (optional, will auto-detect if null)
+     * @return string Formatted message
+     */
+    public function formatMessage(string $message, ?string $schoolName = null): string
+    {
+        $schoolID = session('schoolID');
+        $hasSenderID = false;
+        $detectedSchoolName = $schoolName;
+
+        if ($schoolID) {
+            $school = \App\Models\School::find($schoolID);
+            $hasSenderID = $school && !empty($school->senderID);
+            if ($school && !$detectedSchoolName) {
+                $detectedSchoolName = $school->school_name;
+            }
+        }
+
+        // If school has senderID, don't add school name prefix
+        if ($hasSenderID) {
+            return $message;
+        }
+
+        // Add school name prefix if no senderID
+        $prefix = $detectedSchoolName ? "{$detectedSchoolName}. " : '';
+        return $prefix . $message;
+    }
+
+    /**
      * Send SMS to a phone number
      *
      * @param string $phoneNumber Phone number (e.g., 255614863345)
@@ -151,7 +184,7 @@ class SmsService
         if ($schoolID) {
             $school = \App\Models\School::find($schoolID);
         }
-        
+
         $prefix = ($school && $school->senderID) ? "" : "{$schoolName}. ";
         $message = "{$prefix}Usajili umekamilika. Username: {$username}. Password: {$password}. Login: https://shulexpert.com/login";
 

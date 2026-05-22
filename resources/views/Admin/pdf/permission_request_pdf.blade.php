@@ -4,40 +4,40 @@
     <meta charset="utf-8">
     <title>{{ $title }}</title>
     <style>
-        body { font-family: 'Helvetica', sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #940000; padding-bottom: 15px; }
-        .school-name { font-size: 20px; font-weight: bold; color: #940000; text-transform: uppercase; margin-top: 10px; }
-        .report-title { font-size: 16px; font-weight: bold; margin-top: 15px; background: #f8f9fa; padding: 8px; text-transform: uppercase; border: 1px solid #ddd; }
+        body { font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif; font-size: 14px; color: #333; line-height: 1.4; }
+        .header { text-align: center; margin-bottom: 10px; border-bottom: 2px solid #940000; padding-bottom: 8px; }
+        .school-name { font-size: 16px; font-weight: bold; color: #940000; text-transform: uppercase; margin-top: 5px; }
+        .report-title { font-size: 12px; font-weight: bold; margin-top: 8px; background: #f8f9fa; padding: 5px; text-transform: uppercase; border: 1px solid #ddd; }
 
-        .info-section { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        .info-section { margin-bottom: 10px; border: 1px solid #ddd; padding: 8px; border-radius: 3px; }
         .info-table { width: 100%; border-collapse: collapse; }
-        .info-table td { padding: 8px; border-bottom: 1px dashed #eee; }
+        .info-table td { padding: 4px; border-bottom: 1px dashed #eee; vertical-align: top; }
         .info-table tr:last-child td { border-bottom: none; }
-        .label { font-weight: bold; color: #555; width: 30%; }
+        .label { font-weight: bold; color: #555; width: 25%; }
 
-        .section-title { font-size: 14px; font-weight: bold; color: #940000; margin-bottom: 10px; border-bottom: 1px solid #940000; padding-bottom: 5px; }
+        .section-title { font-size: 16px; font-weight: bold; color: #940000; margin-bottom: 5px; border-bottom: 1px solid #940000; padding-bottom: 3px; }
 
         .description-box {
             background: #f9f9f9;
             border: 1px solid #eee;
-            padding: 15px;
-            min-height: 80px;
-            margin-bottom: 20px;
+            padding: 5px;
+            min-height: auto;
+            margin-bottom: 8px;
             white-space: pre-wrap;
         }
 
-        table.chain-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        table.chain-table th, table.chain-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        table.chain-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        table.chain-table th, table.chain-table td { border: 1px solid #ddd; padding: 3px; text-align: left; font-size: 13px; }
         table.chain-table th { background-color: #f8f9fa; font-weight: bold; color: #940000; }
 
         /* ── SIGNATURE AND STAMP ─────────────────── */
-        .sig-table { width: 100%; margin-top: 40px; border-collapse: collapse; page-break-inside: avoid; }
+        .sig-table { width: 100%; margin-top: 20px; border-collapse: collapse; page-break-inside: avoid; }
         .sig-table td { border: none; padding: 0; vertical-align: bottom; }
-        .stamp-cell { width: 50%; text-align: center; vertical-align: middle; }
-        .stamp-cell img { max-width: 120px; max-height: 120px; opacity: 0.85; }
+        .stamp-cell { width: 40%; text-align: center; vertical-align: middle; }
+        .stamp-cell img { max-width: 240px; max-height: 240px; opacity: 1; }
         .sign-cell { width: 45%; text-align: center; padding-bottom: 5px; }
-        .school-signature-img { height: 40px; margin-bottom: 4px; }
-        .school-signature-img img { max-width: 150px; max-height: 40px; }
+        .school-signature-img { height: 60px; margin-bottom: 4px; }
+        .school-signature-img img { max-width: 200px; max-height: 60px; }
         .sig-line   { border-top: 1.5px solid #940000; width: 160px; margin: 0 auto; display: block; }
         .sig-label  { font-size: 10px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase;}
 
@@ -95,7 +95,7 @@
                 $possibilities[] = base_path($path);
                 $possibilities[] = base_path('public/' . $path);
                 $possibilities[] = base_path('../public_html/' . $path);
-                
+
                 foreach ($possibilities as $fullPath) {
                     if (@file_exists($fullPath) && is_file($fullPath)) {
                         try {
@@ -117,74 +117,74 @@
         @if($schoolLogoBase64)
             <img src="{{ $schoolLogoBase64 }}" style="max-height: 80px; margin-bottom: 5px;">
         @endif
-        <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
+        <div class="school-name">{{ $school->school_name ?? 'Shule' }}</div>
         <div>{{ $school->address ?? '' }}</div>
-        <div>Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
-        <div class="report-title">PERMISSION REQUEST DETAILS</div>
+        <div>Simu: {{ $school->phone ?? '' }} | Barua pepe: {{ $school->email ?? '' }}</div>
+        <div class="report-title">MAELEZO YA OMBI LA RUHUSA</div>
     </div>
 
     <div class="info-section">
         <table class="info-table">
             <tr>
-                <td class="label">Requester Name:</td>
-                <td>{{ $requesterName }}</td>
-                <td class="label">Role:</td>
+                <td class="label">Jina la Mtoaji Ombi:</td>
+                <td><strong>{{ $requesterName }}</strong></td>
+                <td class="label">Nafasi:</td>
                 <td>{{ $requesterInfo }}</td>
             </tr>
             <tr>
-                <td class="label">Date Requested:</td>
+                <td class="label">Tarehe ya Ombi:</td>
                 <td>{{ $permission->created_at ? $permission->created_at->format('d M Y H:i') : 'N/A' }}</td>
-                <td class="label">Current Status:</td>
+                <td class="label">Hali ya Sasa:</td>
                 <td>
                     <span class="status-badge status-{{ strtolower($permission->status) }}">
-                        {{ ucfirst($permission->status) }}
+                        {{ $permission->status === 'approved' ? 'IMEIDHINISHWA' : ($permission->status === 'rejected' ? 'IMEKATALIWA' : 'INASUBIRI') }}
                     </span>
                 </td>
             </tr>
             <tr>
-                <td class="label">Reason Category:</td>
+                <td class="label">Kundi la Sababu:</td>
                 <td colspan="3">{{ ucfirst($permission->reason_type) }}</td>
             </tr>
-            
+
             @if($permission->time_mode === 'days')
             <tr>
-                <td class="label">Duration:</td>
-                <td>{{ $permission->days_count }} Days</td>
-                <td class="label">Expected Return:</td>
-                <td>{{ $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->addDay()->format('d M Y') : 'N/A' }}</td>
+                <td class="label">Muda:</td>
+                <td>{{ $permission->days_count }} Siku</td>
+                <td class="label">Tarehe ya Kurudi:</td>
+                <td>{{ $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->addDay()->format('d M Y') : 'Hapana' }}</td>
             </tr>
             <tr>
-                <td class="label">Period:</td>
+                <td class="label">Kipindi:</td>
                 <td colspan="3">
-                    {{ $permission->start_date ? \Carbon\Carbon::parse($permission->start_date)->format('d M Y') : 'N/A' }} 
-                    <strong>to</strong> 
+                    {{ $permission->start_date ? \Carbon\Carbon::parse($permission->start_date)->format('d M Y') : 'N/A' }}
+                    <strong>mpaka</strong>
                     {{ $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->format('d M Y') : 'N/A' }}
                 </td>
             </tr>
             @else
             <tr>
-                <td class="label">Time Range:</td>
+                <td class="label">Muda wa Saa:</td>
                 <td colspan="3">{{ $permission->start_time }} - {{ $permission->end_time }}</td>
             </tr>
             @endif
         </table>
     </div>
 
-    <div class="section-title">Reason Description</div>
+    <div class="section-title">Maelezo ya Sababu</div>
     <div class="description-box">
-        {{ $permission->reason_description ?: 'No description provided.' }}
+        {{ $permission->reason_description ?: 'Hakuna maelezo yamepatikana.' }}
     </div>
 
-    <div class="section-title">Approval Chain & Status</div>
+    <div class="section-title">Msimu wa Idhinisho na Hali</div>
     @if($chain->count() > 0)
         <table class="chain-table">
             <thead>
                 <tr>
-                    <th style="width: 10%;">Step</th>
-                    <th style="width: 30%;">Required Role</th>
-                    <th style="width: 30%;">Action By (User)</th>
-                    <th style="width: 15%;">Status</th>
-                    <th style="width: 15%;">Date</th>
+                    <th style="width: 10%;">Hatua</th>
+                    <th style="width: 30%;">Nafasi Inayohitajika</th>
+                    <th style="width: 30%;">Maoni</th>
+                    <th style="width: 15%;">Hali</th>
+                    <th style="width: 15%;">Tarehe</th>
                 </tr>
             </thead>
             <tbody>
@@ -196,11 +196,8 @@
                         <td>{{ $index + 1 }}</td>
                         <td>{{ $step->role_name }}</td>
                         <td>
-                            @if($log && $log->approver_id)
-                                @php
-                                    $actionUser = \App\Models\User::find($log->approver_id);
-                                    echo $actionUser ? ($actionUser->name) : 'System';
-                                @endphp
+                            @if($log)
+                                {{ $log->admin_response ?? '-' }}
                             @else
                                 -
                             @endif
@@ -208,10 +205,10 @@
                         <td>
                             @if($log)
                                 <span class="status-badge status-{{ strtolower($log->status) }}">
-                                    {{ ucfirst($log->status) }}
+                                    {{ $log->status === 'approved' ? 'Imeidhinishwa' : ($log->status === 'rejected' ? 'Imekataliwa' : 'Inasubiri') }}
                                 </span>
                             @else
-                                <span class="status-badge status-pending">Pending</span>
+                                <span class="status-badge status-pending">Inasubiri</span>
                             @endif
                         </td>
                         <td>
@@ -219,76 +216,11 @@
                         </td>
                     </tr>
                 @endforeach
-
-                @php
-                    $maxOrder = $chain->max('approval_order') ?? 0;
-                    $finalOrder = $maxOrder + 1;
-                    $finalLog = $logs->get($finalOrder);
-                @endphp
-                <tr>
-                    <td>{{ $chain->count() + 1 }}</td>
-                    <td><strong>System Admin (Final)</strong></td>
-                    <td>
-                        @if($finalLog && $finalLog->approver_id)
-                            @php
-                                $actionUser = \App\Models\User::find($finalLog->approver_id);
-                                echo $actionUser ? ($actionUser->name) : 'System';
-                            @endphp
-                        @elseif($permission->status === 'approved' || $permission->status === 'rejected')
-                            Reviewer
-                        @else
-                            -
-                        @endif
-                    </td>
-                    <td>
-                        @if($permission->status === 'approved' || $permission->status === 'rejected')
-                             <span class="status-badge status-{{ strtolower($permission->status) }}">
-                                {{ ucfirst($permission->status) }}
-                            </span>
-                        @else
-                            <span class="status-badge status-pending">Pending</span>
-                        @endif
-                    </td>
-                    <td>
-                        {{ $permission->reviewed_at ? \Carbon\Carbon::parse($permission->reviewed_at)->format('d M Y') : '-' }}
-                    </td>
-                </tr>
             </tbody>
         </table>
     @else
         <div class="description-box" style="min-height: auto; margin-bottom: 10px;">
-            <table class="chain-table" style="margin-bottom: 0;">
-                 <thead>
-                    <tr>
-                        <th style="width: 10%;">Step</th>
-                        <th style="width: 30%;">Required Role</th>
-                        <th style="width: 30%;">Action By (User)</th>
-                        <th style="width: 15%;">Status</th>
-                        <th style="width: 15%;">Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>1</td>
-                        <td><strong>System Admin (Final)</strong></td>
-                        <td>
-                             @if($permission->reviewed_at)
-                                Reviewer
-                             @else
-                                -
-                             @endif
-                        </td>
-                        <td>
-                            <span class="status-badge status-{{ strtolower($permission->status) }}">
-                                {{ ucfirst($permission->status) }}
-                            </span>
-                        </td>
-                        <td>
-                            {{ $permission->reviewed_at ? \Carbon\Carbon::parse($permission->reviewed_at)->format('d M Y') : '-' }}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <em>Hakuna msimu wa idhinisho umewekwa.</em>
         </div>
     @endif
 
@@ -298,7 +230,6 @@
             <td class="stamp-cell">
                 @if($schoolStampBase64)
                     <img src="{{ $schoolStampBase64 }}">
-                    <div style="font-size: 9px; color: #777; margin-top: 5px;">SCHOOL OFFICIAL STAMP</div>
                 @endif
             </td>
             <td class="sign-cell">
@@ -308,14 +239,14 @@
                     @endif
                 </div>
                 <span class="sig-line"></span>
-                <span class="sig-label">AUTHORIZED SIGNATURE</span>
+                <span class="sig-label">SAINI ILIYOIDHINISHWA</span>
             </td>
         </tr>
     </table>
     @endif
 
     <div class="footer">
-        Generated by ShuleXpert (School Management System), Powered By EmCa Techonology &copy; {{ date('Y') }}
+        Imetengenezwa na ShuleXpert (Mfumo wa Usimamizi wa Shule), Inaendeshwa na EmCa Technology &copy; {{ date('Y') }}
     </div>
 </body>
 </html>

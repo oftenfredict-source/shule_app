@@ -31,7 +31,7 @@
     .timeline-role { font-weight: 600; color: #333; display: block; font-size: 14px; }
     .timeline-status { font-size: 12px; color: #666; font-weight: 500; }
     .timeline-time { font-size: 11px; color: #999; display: block; margin-top: 5px; }
-    
+
     .spinner-custom { color: #940000; }
 </style>
 
@@ -55,7 +55,7 @@
                 const positions = response.positions || [];
 
                 let html = '<div class="progress-timeline">';
-                
+
                 // Build the full chain steps
                 chain.forEach(step => {
                     const name = step.role_name || step.profession_name || 'Approval Stage';
@@ -74,21 +74,6 @@
                         </div>
                     `;
                 });
-
-                // Add final Admin step
-                const isAdminCompleted = p.is_chain_completed || p.status === 'approved';
-                const isAdminCurrent = !isAdminCompleted && p.status === 'pending' && (chain.length === 0 || p.current_approval_order > chain.length || (chain.length > 0 && p.current_approval_order == (Math.max(...chain.map(c => c.approval_order)) + 1)));
-
-                html += `
-                    <div class="timeline-item ${isAdminCompleted ? 'completed' : (isAdminCurrent ? 'current' : '')}">
-                        <div class="timeline-dot ${isAdminCompleted ? 'completed' : (isAdminCurrent ? 'current' : '')}"></div>
-                        <div class="timeline-content">
-                            <span class="timeline-role">System Admin (Final Approval)</span>
-                            <span class="timeline-status">${isAdminCompleted ? 'Completed' : (isAdminCurrent ? 'Awaiting Action' : (p.status === 'rejected' ? 'Terminated' : 'Pending'))}</span>
-                            ${isAdminCompleted && p.reviewed_at ? `<span class="timeline-time"><i class="fa fa-clock"></i> ${new Date(p.reviewed_at).toLocaleString()}</span>` : ''}
-                        </div>
-                    </div>
-                `;
 
                 // Add rejection status if applicable
                 if (p.status === 'rejected') {

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\OtherStaff;
 use App\Models\StaffPermission;
 use App\Models\StaffProfession;
+use App\Models\PermissionRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
@@ -291,7 +293,7 @@ class StaffController extends Controller
             if ($permission) {
                 // Determine if we should keep the current stage or reset
                 $resubmissionOrder = $permission->current_approval_order;
-                
+
                 $permissionData['current_approval_order'] = $resubmissionOrder;
                 $permissionData['status'] = 'pending';
 
@@ -301,7 +303,7 @@ class StaffController extends Controller
                     ->where('status', 'rejected')
                     ->orderBy('created_at', 'desc')
                     ->first();
-                
+
                 $rejectorPhone = null;
                 if ($rejectionLog) {
                     $rejectorTeacher = \App\Models\Teacher::where('id', $rejectionLog->approver_id)->first();
@@ -316,13 +318,13 @@ class StaffController extends Controller
                 }
 
                 $permission->update($permissionData);
-                
+
                 // Remove ONLY the rejected log
                 \Illuminate\Support\Facades\DB::table('permission_approval_logs')
                     ->where('permissionID', $permissionId)
                     ->where('status', 'rejected')
                     ->delete();
-                
+
                 $isResubmission = true;
 
                 // Notify the rejector via SMS
@@ -362,7 +364,7 @@ class StaffController extends Controller
             } else {
                 $periodLabel = ($validated['start_time'] ?? '') . ' to ' . ($validated['end_time'] ?? '');
             }
-            
+
             $prefix = ($school && $school->senderID) ? "" : "{$schoolName}: ";
             $message = "{$prefix}New staff permission request by {$staffName}. Period: {$periodLabel}. Reason: {$reasonLabel}. Please review.";
             $smsService->sendSms($school->phone, $message);
@@ -564,7 +566,7 @@ class StaffController extends Controller
             // Determine upload path - Prioritize the directory where index.php is located
             $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
             $uploadPath = $scriptDir . '/userImages';
-            
+
             // If scriptDir doesn't exist or isn't writable, fallback to other common paths
             if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
                 $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/userImages' : null;
@@ -593,5 +595,111 @@ class StaffController extends Controller
             return response()->json(['success' => true, 'message' => 'Profile updated successfully.']);
         }
         return redirect()->back()->with('success', 'Profile updated successfully.');
+    }
+
+    // Student Permission Request Methods
+    public function showStudentPermissionForm()
+    {
+        $staffID = Session::get('staffID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$staffID || !$schoolID) {
+            return redirect()->route('login')->with('error', 'Unauthorized access');
+        }
+
+        return view('Staff.student_permission');
+    }
+
+    public function searchStudentsForPermission(Request $request)
+    {
+        $query = $request->input('query');
+        $schoolID = Session::get('schoolID');
+
+        $students = DB::table('students')
+            ->where('schoolID', $schoolID)
+            ->where(function($q) use ($query) {
+                $q->where('first_name', 'like', '%' . $query . '%')
+                  ->orWhere('last_name', 'like', '%' . $query . '%');
+            })
+            ->leftJoin('subclasses', 'students.subclass_id', '=', 'subclasses.id')
+            ->leftJoin('classes', 'subclasses.class_id', '=', 'classes.id')
+            ->select('students.id as studentID', 'students.first_name', 'students.last_name', 'students.gender',
+                    DB::raw('CONCAT(classes.class_name, " ", subclasses.subclass_name) as class_name'))
+            ->limit(10)
+            ->get();
+
+        return response()->json(['success' => true, 'students' => $students]);
+    }
+
+    public function storeStudentPermission(Request $request)
+    {
+        $staffID = Session::get('staffID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$staffID || !$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access']);
+        }
+
+        $validated = $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'time_mode' => 'required|in:days,hours',
+            'reason_type' => 'required|string',
+            'reason_description' => 'required|string',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120'
+        ]);
+
+        // Check if staff is authorized to request student permissions
+        $isAuthorized = DB::table('student_permission_requesters')
+            ->where('schoolID', $schoolID)
+            ->where('user_id', $staffID)
+            ->where('user_type', 'staff')
+            ->where('is_active', true)
+            ->exists();
+
+        if (!$isAuthorized) {
+            return response()->json(['success' => false, 'message' => 'You are not authorized to request student permissions']);
+        }
+
+        $permission = new PermissionRequest();
+        $permission->schoolID = $schoolID;
+        $permission->student_id = $validated['student_id'];
+        $permission->requester_type = 'student';
+        $permission->requested_by_staff_id = $staffID;
+        $permission->time_mode = $validated['time_mode'];
+        $permission->reason_type = $validated['reason_type'];
+        $permission->reason_description = $validated['reason_description'];
+        $permission->status = 'pending';
+        $permission->current_approval_order = 0;
+
+        if ($validated['time_mode'] === 'days') {
+            $request->validate([
+                'days_count' => 'required|integer|min:1',
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date'
+            ]);
+            $permission->days_count = $request->days_count;
+            $permission->start_date = $request->start_date;
+            $permission->end_date = $request->end_date;
+        } else {
+            $request->validate([
+                'start_date_hours' => 'required|date',
+                'start_time' => 'required',
+                'end_time' => 'required|after:start_time'
+            ]);
+            $permission->start_date = $request->start_date_hours;
+            $permission->start_time = $request->start_time;
+            $permission->end_time = $request->end_time;
+        }
+
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('permission_attachments', $fileName, 'public');
+            $permission->attachment_path = $filePath;
+        }
+
+        $permission->save();
+
+        return response()->json(['success' => true, 'message' => 'Student permission request submitted successfully']);
     }
 }

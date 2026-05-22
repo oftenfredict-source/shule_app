@@ -1389,8 +1389,11 @@ class ManageExaminationController extends Controller
                             ->get();
 
                         $smsService = new SmsService();
+                        $school = \App\Models\School::find($schoolID);
+                        $schoolName = $school ? $school->school_name : 'ShuleXpert';
                         foreach ($classTeachers as $teacher) {
-                            $message = "Habari {$teacher->first_name}, umeteuliwa kuapprove matokeo ya mtihani: {$examination->exam_name} kama Class Teacher. Tafadhali fanya approval wakwanza ili wengine waweze kuendelea.";
+                            $baseMessage = "Habari {$teacher->first_name}, umeteuliwa kuapprove matokeo ya mtihani: {$examination->exam_name} kama Class Teacher. Tafadhali fanya approval wakwanza ili wengine waweze kuendelea.";
+                            $message = $smsService->formatMessage($baseMessage, $schoolName);
                             try {
                                 $smsService->sendSms($teacher->phone_number, $message);
                             } catch (\Exception $e) {
@@ -1409,8 +1412,11 @@ class ManageExaminationController extends Controller
                             ->get();
 
                         $smsService = new SmsService();
+                        $school = \App\Models\School::find($schoolID);
+                        $schoolName = $school ? $school->school_name : 'ShuleXpert';
                         foreach ($coordinators as $teacher) {
-                            $message = "Habari {$teacher->first_name}, umeteuliwa kuapprove matokeo ya mtihani: {$examination->exam_name} kama Coordinator. Tafadhali fanya approval wakwanza ili wengine waweze kuendelea.";
+                            $baseMessage = "Habari {$teacher->first_name}, umeteuliwa kuapprove matokeo ya mtihani: {$examination->exam_name} kama Coordinator. Tafadhali fanya approval wakwanza ili wengine waweze kuendelea.";
+                            $message = $smsService->formatMessage($baseMessage, $schoolName);
                             try {
                                 $smsService->sendSms($teacher->phone_number, $message);
                             } catch (\Exception $e) {
@@ -1428,8 +1434,11 @@ class ManageExaminationController extends Controller
                             ->get();
 
                         $smsService = new SmsService();
+                        $school = \App\Models\School::find($schoolID);
+                        $schoolName = $school ? $school->school_name : 'ShuleXpert';
                         foreach ($teachersWithRole as $teacher) {
-                            $message = "Habari {$teacher->first_name}, umeteuliwa kuapprove matokeo ya mtihani: {$examination->exam_name}. Tafadhali fanya approval wakwanza ili wengine waweze kuendelea.";
+                            $baseMessage = "Habari {$teacher->first_name}, umeteuliwa kuapprove matokeo ya mtihani: {$examination->exam_name}. Tafadhali fanya approval wakwanza ili wengine waweze kuendelea.";
+                            $message = $smsService->formatMessage($baseMessage, $schoolName);
                             try {
                                 $smsService->sendSms($teacher->phone_number, $message);
                             } catch (\Exception $e) {
@@ -2769,7 +2778,8 @@ class ManageExaminationController extends Controller
                                         $school = \App\Models\School::find($schoolID);
                                         $schoolName = $school ? $school->school_name : 'ShuleXpert';
 
-                                        $smsMessage = "{$schoolName}. Mwalimu {$creatorName}, mtihani wako '{$examName}' umekataliwa na kufutwa. Sababu: {$rejectionReason}. Asante";
+                                        $baseMessage = "Mwalimu {$creatorName}, mtihani wako '{$examName}' umekataliwa na kufutwa. Sababu: {$rejectionReason}. Asante";
+                                        $smsMessage = $smsService->formatMessage($baseMessage, $schoolName);
 
                                         $smsResult = $smsService->sendSms($creator->phone_number, $smsMessage);
 
@@ -4815,13 +4825,16 @@ class ManageExaminationController extends Controller
 
                     if (($isWeeklyTest || $isMonthlyTest) && $examPaper->test_week_range) {
                         $weekInfo = $examPaper->test_week . ' (' . $examPaper->test_week_range . ')';
-                        $smsMessage = "New exam paper uploaded: {$examName}, {$weekInfo}, Teacher: {$teacherName}, Subject: {$subjectName}, Class: {$classDisplay}. Login to approve.";
+                        $baseMessage = "New exam paper uploaded: {$examName}, {$weekInfo}, Teacher: {$teacherName}, Subject: {$subjectName}, Class: {$classDisplay}. Login to approve.";
                     } else {
                         $dateText = now()->format('d M Y');
-                        $smsMessage = "New exam paper uploaded: {$examName}, Teacher: {$teacherName}, Subject: {$subjectName}, Class: {$classDisplay}, Date: {$dateText}. Login to approve.";
+                        $baseMessage = "New exam paper uploaded: {$examName}, Teacher: {$teacherName}, Subject: {$subjectName}, Class: {$classDisplay}, Date: {$dateText}. Login to approve.";
                     }
 
                     $smsService = new SmsService();
+                    $school = \App\Models\School::find($schoolID);
+                    $schoolName = $school ? $school->school_name : 'ShuleXpert';
+                    $smsMessage = $smsService->formatMessage($baseMessage, $schoolName);
                     $smsResult = $smsService->sendSms($schoolPhone, $smsMessage);
 
                     if (!($smsResult['success'] ?? false)) {
@@ -4838,9 +4851,12 @@ class ManageExaminationController extends Controller
                 if ($teacherPhone) {
                     $subjectName = $classSubject->subject->subject_name ?? 'subject';
                     $examName = $examination->exam_name ?? 'exam';
-                    $teacherSms = "You have successfully submitted your exam paper. Subject: {$subjectName}, Exam: {$examName}. Please wait for approval.";
+                    $baseMessage = "You have successfully submitted your exam paper. Subject: {$subjectName}, Exam: {$examName}. Please wait for approval.";
 
                     $smsService = new SmsService();
+                    $school = \App\Models\School::find($schoolID);
+                    $schoolName = $school ? $school->school_name : 'ShuleXpert';
+                    $teacherSms = $smsService->formatMessage($baseMessage, $schoolName);
                     $smsResult = $smsService->sendSms($teacherPhone, $teacherSms);
 
                     if (!($smsResult['success'] ?? false)) {
@@ -5733,9 +5749,10 @@ class ManageExaminationController extends Controller
         $school = \App\Models\School::find(Session::get('schoolID'));
         $schoolName = $school ? $school->school_name : 'ShuleXpert';
 
-        $message = "{$schoolName}. Karatasi ya mtihani ya {$subjectName} ({$examName}) imewasilishwa kwako kwa hatua inayofuata ya ukaguzi. Tafadhali pitia ShuleXpert.";
-
         $smsService = new SmsService();
+        $baseMessage = "Karatasi ya mtihani ya {$subjectName} ({$examName}) imewasilishwa kwako kwa hatua inayofuata ya ukaguzi. Tafadhali pitia ShuleXpert.";
+        $message = $smsService->formatMessage($baseMessage, $schoolName);
+
         foreach ($phones as $phone) {
             if ($phone) $smsService->sendSms($phone, $message);
         }
@@ -5749,9 +5766,10 @@ class ManageExaminationController extends Controller
         $school = \App\Models\School::find(Session::get('schoolID'));
         $schoolName = $school ? $school->school_name : 'ShuleXpert';
 
-        $message = "{$schoolName}. Karatasi ya mtihani ya {$subjectName} ({$examName}) imekataliwa na hatua ya mbele yako na kurudishwa kwako. Sababu: {$reason}. Tafadhali kagua tena.";
-
         $smsService = new SmsService();
+        $baseMessage = "Karatasi ya mtihani ya {$subjectName} ({$examName}) imekataliwa na hatua ya mbele yako na kurudishwa kwako. Sababu: {$reason}. Tafadhali kagua tena.";
+        $message = $smsService->formatMessage($baseMessage, $schoolName);
+
         foreach ($phones as $phone) {
             if ($phone) $smsService->sendSms($phone, $message);
         }
@@ -5766,9 +5784,11 @@ class ManageExaminationController extends Controller
         if ($schoolPhone) {
             $subjectName = $examPaper->classSubject->subject->subject_name ?? 'Subject';
             $examName = $examPaper->examination->exam_name ?? 'Exam';
-            $message = "{$schoolName}. Admnin, hatua za awali za ukaguzi wa karatasi ya mtihani ya {$subjectName} ({$examName}) zimekamilika. Inasubiri idhini yako ya mwisho.";
 
             $smsService = new SmsService();
+            $baseMessage = "Admin, hatua za awali za ukaguzi wa karatasi ya mtihani ya {$subjectName} ({$examName}) zimekamilika. Inasubiri idhini yako ya mwisho.";
+            $message = $smsService->formatMessage($baseMessage, $schoolName);
+
             $smsService->sendSms($schoolPhone, $message);
         }
     }
@@ -5833,12 +5853,13 @@ class ManageExaminationController extends Controller
 
                 if ($action === 'approve') {
                     $comment = $commentOrReason ? " Maoni: {$commentOrReason}" : '';
-                    $smsMessage = "{$schoolName}. Mwalimu {$teacherName}, karatasi ya mtihani ya {$subjectName} kwa {$examName} imekubaliwa kabisa na ipo Printing Unit.{$comment}";
+                    $baseMessage = "Mwalimu {$teacherName}, karatasi ya mtihani ya {$subjectName} kwa {$examName} imekubaliwa kabisa na ipo Printing Unit.{$comment}";
                 } else {
                     $reason = $commentOrReason ?? 'Hakuna sababu iliyotolewa';
-                    $smsMessage = "{$schoolName}. Mwalimu {$teacherName}, karatasi ya mtihani ya {$subjectName} kwa {$examName} imekataliwa. Sababu: {$reason}";
+                    $baseMessage = "Mwalimu {$teacherName}, karatasi ya mtihani ya {$subjectName} kwa {$examName} imekataliwa. Sababu: {$reason}";
                 }
 
+                $smsMessage = $smsService->formatMessage($baseMessage, $schoolName);
                 $smsResult = $smsService->sendSms($teacher->phone_number, $smsMessage);
                 if (!$smsResult['success']) {
                     Log::warning("Failed to send SMS to teacher {$teacher->id}: " . ($smsResult['message'] ?? 'Unknown error'));
@@ -6928,11 +6949,12 @@ class ManageExaminationController extends Controller
                         $teacherName = trim(($teacher->first_name ?? '') . ' ' . ($teacher->last_name ?? ''));
 
                         if ($enterResult) {
-                            $message = "{$schoolName}. Habari {$teacherName}, mtihani '{$examName}' umeruhusiwa kujaza matokeo. Tafadhali jaza matokeo kwa wanafunzi wako. Asante";
+                            $baseMessage = "Habari {$teacherName}, mtihani '{$examName}' umeruhusiwa kujaza matokeo. Tafadhali jaza matokeo kwa wanafunzi wako. Asante";
                         } else {
-                            $message = "{$schoolName}. Habari {$teacherName}, kujaza matokeo kwa mtihani '{$examName}' kumekatizwa. Tafadhali usijaze matokeo mpaka kuruhusiwa tena. Asante";
+                            $baseMessage = "Habari {$teacherName}, kujaza matokeo kwa mtihani '{$examName}' kumekatizwa. Tafadhali usijaze matokeo mpaka kuruhusiwa tena. Asante";
                         }
 
+                        $message = $smsService->formatMessage($baseMessage, $schoolName);
                         $smsResult = $smsService->sendSms($teacher->phone_number, $message);
 
                         if ($smsResult['success']) {
@@ -9053,22 +9075,15 @@ class ManageExaminationController extends Controller
         $subjectName = $subject ? $subject->subject_name : 'somo';
         $examName = $examination ? $examination->exam_name : 'mtihani';
 
-        // Check if school has senderID
-        $hasSenderID = $school && !empty($school->senderID);
-
         $smsService = new SmsService();
 
         foreach ($printingUnitStaff as $staff) {
             try {
                 $staffName = trim(($staff->first_name ?? '') . ' ' . ($staff->last_name ?? ''));
 
-                // If school has senderID, don't include school name at beginning
-                // because senderID already identifies the school
-                if ($hasSenderID) {
-                    $smsMessage = "New examination paper sent to your account. Subject: {$subjectName}, Exam: {$examName}. Please login to your account to print the exam paper.";
-                } else {
-                    $smsMessage = "{$schoolName}. New examination paper sent to your account. Subject: {$subjectName}, Exam: {$examName}. Please login to your account to print the exam paper.";
-                }
+                // Use formatMessage helper to automatically handle school name prefix
+                $baseMessage = "New examination paper sent to your account. Subject: {$subjectName}, Exam: {$examName}. Please login to your account to print the exam paper.";
+                $smsMessage = $smsService->formatMessage($baseMessage, $schoolName);
 
                 $smsResult = $smsService->sendSms($staff->phone_number, $smsMessage);
 

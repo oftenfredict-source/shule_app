@@ -16,6 +16,12 @@
     .bg-primary-custom { background-color: #940000 !important; }
     .btn-primary-custom { background-color: #940000; border-color: #940000; color: #fff; }
     .btn-primary-custom:hover { background-color: #b30000; border-color: #b30000; color: #fff; }
+    .table thead th {
+        background-color: #f8f9fa;
+        color: #333;
+        font-weight: 700;
+        border-bottom: 2px solid #dee2e6 !important;
+    }
     .permission-tabs .nav-link { cursor: pointer; color: #940000; border-radius: 0; }
     .permission-tabs .nav-link.active { background: #fff5f5; color: #940000; font-weight: 600; border-color: #940000; }
     .badge-count { background: #940000; color: #fff; border-radius: 10px; padding: 2px 6px; font-size: 0.75rem; margin-left: 6px; }
@@ -110,9 +116,16 @@
     <div class="card">
         <div class="card-header bg-primary-custom text-white d-flex justify-content-between align-items-center">
             <strong>Permission Requests</strong>
-            <button type="button" class="btn btn-sm btn-light border-0" style="border-radius: 0;" onclick="openApprovalChainModal()">
-                <i class="fa fa-link"></i> Approval Chain
-            </button>
+            <div class="btn-group">
+                @if($adminInChain ?? false)
+                <button type="button" class="btn btn-sm btn-light border-0" style="border-radius: 0;" onclick="openApprovalChainModal()">
+                    <i class="fa fa-link"></i> Approval Chain
+                </button>
+                @endif
+                <button type="button" class="btn btn-sm btn-light border-0" style="border-radius: 0;" onclick="openStudentRequesterModal()">
+                    <i class="fa fa-user-plus"></i> Student Permission Requesters
+                </button>
+            </div>
         </div>
         <div class="card-body">
             <div class="form-loading" id="permissionLoading">
@@ -236,7 +249,7 @@
 
             <div id="perm-list-view">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-hover">
+                    <table class="table table-bordered table-hover table-striped">
                         <thead class="bg-primary-custom text-white">
                             <tr>
                                 <th>Requester</th>
@@ -285,10 +298,10 @@
                                     </td>
                                     <td class="text-center">
                                         <div class="dropdown">
-                                            <div class="action-circle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                                <i class="fa fa-ellipsis-v"></i>
-                                            </div>
-                                            <div class="dropdown-menu dropdown-menu-right">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                <i class="bx bx-cog"></i>
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-right shadow border">
                                                 <a class="dropdown-item" href="#" onclick="viewPermissionProgress({{ $permission->permissionID }}); return false;">
                                                     <i class="fa fa-project-diagram text-info"></i> View Progress
                                                 </a>
@@ -317,6 +330,10 @@
                                                     </a>
                                                 @endif
                                                 @if($permission->status === 'pending')
+                                                    @php
+                                                        $canApprove = !($adminInChain ?? false) || ($permission->current_approval_order == $adminApprovalOrder);
+                                                    @endphp
+                                                    @if($canApprove)
                                                     <div class="dropdown-divider"></div>
                                                     <a class="dropdown-item text-success" href="#" data-toggle="modal" data-target="#approveModal{{ $permission->permissionID }}">
                                                         <i class="fa fa-check"></i> Approve
@@ -324,6 +341,7 @@
                                                     <a class="dropdown-item text-danger" href="#" data-toggle="modal" data-target="#rejectModal{{ $permission->permissionID }}">
                                                         <i class="fa fa-times"></i> Reject
                                                     </a>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </div>
@@ -429,6 +447,10 @@
             <div id="permissionModals">
                 @foreach($permissions as $permission)
                     @if($permission->status === 'pending')
+                        @php
+                            $canApprove = !($adminInChain ?? false) || ($permission->current_approval_order == $adminApprovalOrder);
+                        @endphp
+                        @if($canApprove)
                         <div class="modal fade" id="approveModal{{ $permission->permissionID }}" tabindex="-1">
                             <div class="modal-dialog modal-lg">
                                 <div class="modal-content">
@@ -489,6 +511,7 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                     @endif
                 @endforeach
             </div>
@@ -541,25 +564,25 @@
             if (modalContainer) modalContainer.innerHTML = '';
             return;
         }
-        
+
         let modalsHtml = '';
-        
+
         // Render List View
         tableBody.innerHTML = items.map(item => {
             const period = item.timeMode === 'days'
                 ? `${item.startDate || ''} - ${item.endDate || ''} (${item.daysCount || 0} days)`
                 : `${item.startTime || ''} - ${item.endTime || ''}`;
-            
+
             const statusBadge = item.status === 'approved'
                 ? '<span class="badge badge-success">Approved</span>'
                 : item.status === 'rejected'
                     ? '<span class="badge badge-danger">Rejected</span>'
                     : '<span class="badge badge-warning">Pending</span>';
-            
+
             const attachmentLink = item.attachment
                 ? `<a class="dropdown-item" href="${item.attachment}" target="_blank"><i class="fa fa-paperclip text-warning"></i> View Attachment</a>`
                 : '';
-            
+
             let actionButtons = '';
             if (item.status === 'pending') {
                 actionButtons = `
@@ -685,7 +708,7 @@
         gridContainer.innerHTML = items.map(item => {
             const borderColor = item.status === 'approved' ? '#28a745' : (item.status === 'rejected' ? '#dc3545' : '#ffc107');
             const statusClass = item.status === 'approved' ? 'success' : (item.status === 'rejected' ? 'danger' : 'warning');
-            
+
             const period = item.timeMode === 'days'
                 ? `<i class="fa fa-calendar-alt text-primary-custom"></i> ${item.startDate} - ${item.endDate} <span class="badge badge-light border ml-1">${item.daysCount} days</span>`
                 : `<i class="fa fa-clock text-primary-custom"></i> ${item.startTime} - ${item.endTime}`;
@@ -693,7 +716,7 @@
             const attachmentLink = item.attachment
                 ? `<a class="dropdown-item" href="${item.attachment}" target="_blank"><i class="fa fa-paperclip text-warning"></i> View Attachment</a>`
                 : '';
-            
+
             let actionButtons = '';
             if (item.status === 'pending') {
                 actionButtons = `
@@ -886,6 +909,194 @@
         .then(res => res.text())
         .then(html => {
             document.getElementById('approvalChainModalBody').innerHTML = html;
+            // Initialize the chain after loading
+            initApprovalChain();
+        });
+    }
+
+    // Approval Chain Functions
+    let availableRoles = [];
+    let availablePositions = [];
+
+    function addChainStep(existingData = null) {
+        const container = document.getElementById('chainStepsContainer');
+        const stepCount = container.querySelectorAll('.chain-step').length + 1;
+
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'chain-step p-3 mb-2 border rounded bg-light position-relative';
+
+        let roleOptions = '<optgroup label="Special">';
+        roleOptions += `<option value="admin">Admin (School Administrator)</option>`;
+        roleOptions += '</optgroup><optgroup label="Roles">';
+        availableRoles.forEach(r => {
+            roleOptions += `<option value="role_${r.id}">${r.name}</option>`;
+        });
+        roleOptions += '</optgroup><optgroup label="Positions">';
+        availablePositions.forEach(p => {
+            roleOptions += `<option value="prof_${p.id}">${p.name}</option>`;
+        });
+        roleOptions += '</optgroup>';
+
+        stepDiv.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="mr-3 font-weight-bold step-number">Step ${stepCount}</div>
+                <div class="flex-grow-1 mr-3">
+                    <select class="form-control approver-select">
+                        <option value="">-- Select Approver --</option>
+                        ${roleOptions}
+                    </select>
+                </div>
+                <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.chain-step').remove(); updateStepNumbers();">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(stepDiv);
+
+        if (existingData) {
+            const select = stepDiv.querySelector('.approver-select');
+            if (existingData.is_admin) {
+                select.value = 'admin';
+            } else if (existingData.role_id) {
+                select.value = 'role_' + existingData.role_id;
+            } else if (existingData.profession_id) {
+                select.value = 'prof_' + existingData.profession_id;
+            }
+        }
+    }
+
+    function updateStepNumbers() {
+        const steps = document.querySelectorAll('.chain-step');
+        steps.forEach((step, index) => {
+            step.querySelector('.step-number').innerText = 'Step ' + (index + 1);
+        });
+    }
+
+    function loadChainForType(type) {
+        document.querySelectorAll('.chain-step').forEach(e => e.remove());
+        document.getElementById('chainLoading').style.display = 'block';
+
+        fetch("{{ route('admin.permissions.chain.get') }}?type=" + type, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('chainLoading').style.display = 'none';
+            if (data.success && data.data && data.data.length > 0) {
+                data.data.forEach(chain => addChainStep(chain));
+            } else {
+                addChainStep();
+            }
+        });
+    }
+
+    function saveChainSetup() {
+        const type = document.getElementById('chainTypeSelect').value;
+        const steps = document.querySelectorAll('.chain-step');
+
+        let approvers = [];
+        let valid = true;
+
+        steps.forEach((step, index) => {
+            const val = step.querySelector('.approver-select').value;
+            const select = step.querySelector('.approver-select');
+            const text = select.options[select.selectedIndex].text;
+            if (!val) { valid = false; return; }
+
+            if (val === 'admin') {
+                approvers.push({ is_admin: true, role_name: text });
+            } else if (val.startsWith('role_')) {
+                approvers.push({ role_id: val.split('_')[1], role_name: text });
+            } else if (val.startsWith('prof_')) {
+                approvers.push({ profession_id: val.split('_')[1], role_name: text });
+            }
+        });
+
+        if (!valid || approvers.length === 0) {
+            Swal.fire({ icon: 'warning', title: 'Incomplete', text: 'Please define at least one valid approver.' });
+            return;
+        }
+
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+        btn.disabled = true;
+
+        fetch("{{ route('admin.permissions.chain.save') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                permission_type: type,
+                approvers: approvers
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            if (data.success) {
+                Swal.fire({ icon: 'success', title: 'Saved', text: data.message, confirmButtonColor: '#940000' });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Operation failed' });
+            }
+        });
+    }
+
+    function deleteChainSetup() {
+        const type = document.getElementById('chainTypeSelect').value;
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "This will remove all approval steps for " + type + " permissions.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch("{{ route('admin.permissions.chain.delete') }}?type=" + type, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({ icon: 'success', title: 'Deleted', text: data.message, confirmButtonColor: '#940000' });
+                        document.querySelectorAll('.chain-step').forEach(e => e.remove());
+                        addChainStep();
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Operation failed' });
+                    }
+                });
+            }
+        });
+    }
+
+    function initApprovalChain() {
+        // Fetch roles and positions
+        fetch("{{ route('admin.hr.roles_positions') }}", {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                availableRoles = data.roles || [];
+                availablePositions = data.positions || [];
+
+                // Load chain for current type
+                const tabInput = document.querySelector('#permissionFilterForm input[name="tab"]');
+                if (tabInput && tabInput.value) {
+                    document.getElementById('chainTypeSelect').value = tabInput.value;
+                }
+                loadChainForType(document.getElementById('chainTypeSelect').value);
+            }
         });
     }
 
@@ -900,7 +1111,7 @@
         const formData = new FormData(form);
         const modalBody = form.querySelector('.modal-body');
         const internalLoading = modalBody ? modalBody.querySelector('.modal-loading') : null;
-        
+
         if (internalLoading) {
             internalLoading.style.display = 'flex';
         } else {
@@ -932,4 +1143,232 @@
             if (internalLoading) internalLoading.style.display = 'none';
         });
     });
+
+    // Student Permission Requesters Modal Functions
+    function openStudentRequesterModal() {
+        $('#studentRequesterModal').modal('show');
+        loadStudentRequesters();
+    }
+
+    function addRequester() {
+        const select = $('#requesterSelect');
+        const value = select.val();
+        const name = select.find('option:selected').text();
+
+        alert('Selected value: ' + value + ', Name: ' + name);
+
+        if (!value) return;
+
+        // Check if already added
+        if ($(`#selectedRequesters .badge[data-id="${value}"]`).length) return;
+
+        const badge = `
+            <span class="badge px-3 py-2 text-white d-flex align-items-center gap-2" data-id="${value}" style="background: #940000; border-radius: 0; font-size: 11px;">
+                ${name}
+                <i class="fa fa-times cursor-pointer" onclick="$(this).parent().remove();"></i>
+            </span>`;
+        $('#selectedRequesters').append(badge);
+        select.val('');
+    }
+
+    function filterRequesterOptions() {
+        const searchQuery = $('#requesterSearch').val().toLowerCase();
+        const select = $('#requesterSelect');
+
+        select.find('option').each(function() {
+            const optionText = $(this).text().toLowerCase();
+            if (optionText.includes(searchQuery) || $(this).val() === '') {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    }
+
+    function loadStudentRequesters() {
+        $.ajax({
+            url: '{{ route("admin.student_permission_requesters.index") }}',
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(data) {
+                const tbody = $('#assignedRequestersTable tbody');
+                tbody.empty();
+
+                if (data.requesters && data.requesters.length > 0) {
+                    data.requesters.forEach(requester => {
+                        tbody.append(`
+                            <tr>
+                                <td>${requester.name}</td>
+                                <td>${requester.type}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeStudentRequester(${requester.id})">
+                                        <i class="fa fa-trash"></i> Remove
+                                    </button>
+                                </td>
+                            </tr>
+                        `);
+                    });
+                } else {
+                    tbody.append('<tr><td colspan="3" class="text-center">No assigned requesters</td></tr>');
+                }
+            },
+            error: function() {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load requesters.', confirmButtonColor: '#940000' });
+            }
+        });
+    }
+
+    function saveStudentRequesters() {
+        const selectedUsers = [];
+        $('#selectedRequesters .badge').each(function() {
+            const value = $(this).data('id');
+            const parts = value.split('_');
+            const userId = parseInt(parts[1]);
+            const userType = parts[0];
+
+            console.log('Badge value:', value, 'Parts:', parts, 'User ID:', userId, 'User Type:', userType);
+
+            selectedUsers.push({ type: userType, user_id: userId });
+        });
+
+        console.log('Final selected users array:', selectedUsers);
+
+        if (selectedUsers.length === 0) {
+            Swal.fire({ icon: 'warning', title: 'Warning', text: 'Please select at least one user.', confirmButtonColor: '#940000' });
+            return;
+        }
+
+        $.ajax({
+            url: '{{ route("admin.student_permission_requesters.store") }}',
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                users: selectedUsers
+            },
+            success: function(data) {
+                if (data.success) {
+                    Swal.fire({ icon: 'success', title: 'Success', text: data.message, confirmButtonColor: '#940000' });
+                    loadStudentRequesters();
+                    $('#selectedRequesters').empty();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Operation failed.', confirmButtonColor: '#940000' });
+                }
+            },
+            error: function() {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to save requesters.', confirmButtonColor: '#940000' });
+            }
+        });
+    }
+
+    function removeStudentRequester(id) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Are you sure?',
+            text: 'This will remove the requester. Do you want to continue?',
+            showCancelButton: true,
+            confirmButtonColor: '#940000',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, remove it'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '{{ route("admin.student_permission_requesters.destroy", ':id') }}'.replace(':id', id),
+                    method: 'DELETE',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(data) {
+                        if (data.success) {
+                            Swal.fire({ icon: 'success', title: 'Success', text: data.message, confirmButtonColor: '#940000' });
+                            loadStudentRequesters();
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Operation failed.', confirmButtonColor: '#940000' });
+                        }
+                    },
+                    error: function() {
+                        Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to remove requester.', confirmButtonColor: '#940000' });
+                    }
+                });
+            }
+        });
+    }
 </script>
+
+<!-- Student Permission Requesters Modal -->
+<div class="modal fade" id="studentRequesterModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title">Manage Student Permission Requesters</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="font-weight-bold small">Assign Teachers/Staff to Request Student Permissions</label>
+                        <input type="text" id="requesterSearch" class="form-control mb-2" placeholder="Search teachers/staff..." onkeyup="filterRequesterOptions()">
+                        <div class="teacher-list d-flex flex-wrap gap-1 mb-2 p-2 border bg-light" id="selectedRequesters" style="min-height: 40px; border-style: dashed !important; background-color: #fcfcfc;">
+                            <!-- Selected requesters badges go here -->
+                        </div>
+                        <div class="input-group input-group-sm">
+                            <select class="form-control" id="requesterSelect" style="border-radius: 0;">
+                                <option value="">Choose Teacher/Staff...</option>
+                                <option value="teacher_1">Michael Shirima (Teacher)</option>
+                                <option value="teacher_2">MAYENGA MAGAKA (Teacher)</option>
+                                <option value="teacher_3">Lucina Kimaro (Teacher)</option>
+                                <option value="teacher_4">Claudia Kimaro (Teacher)</option>
+                                <option value="teacher_5">MARRY HAMIS (Teacher)</option>
+                                <option value="teacher_6">Palmer Poguba (Teacher)</option>
+                                <option value="teacher_7">Eliana Masaga (Teacher)</option>
+                                <option value="teacher_8">HARRIETH MKUMBO (Teacher)</option>
+                                <option value="teacher_9">HASSANI MWAKIPESILE (Teacher)</option>
+                                <option value="teacher_10">MASSAWE MBALIZI (Teacher)</option>
+                                <option value="teacher_11">Lucina Shija (Teacher)</option>
+                                <option value="teacher_12">DIANA MAFUMBU (Teacher)</option>
+                                <option value="teacher_13">HASSANI HASSANI (Teacher)</option>
+                                <option value="teacher_14">Mariana Swai (Teacher)</option>
+                                <option value="staff_1">NANA HASSANI (Staff)</option>
+                            </select>
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-danger font-weight-bold" type="button" onclick="addRequester()" style="border-radius: 0; border: 1px solid #ced4da; border-left: none; background: #940000; color: white;">+ ADD</button>
+                            </div>
+                        </div>
+                        <small class="text-muted">Type to search, select and add teachers/staff to assign them</small>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <label class="font-weight-bold small">Current Assigned Requesters</label>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm" id="assignedRequestersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Assigned requesters will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary-custom" onclick="saveStudentRequesters()">Save Assignments</button>
+            </div>
+        </div>
+    </div>
+</div>

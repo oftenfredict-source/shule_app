@@ -54,4 +54,33 @@ abstract class Controller
 
         return $days;
     }
+
+    /**
+     * Format SMS message with school name prefix.
+     * If school has senderID, no school name prefix is added.
+     * If school has no senderID, school name is added as prefix.
+     *
+     * @param string $message The message content (without school prefix)
+     * @param string|null $schoolName School name for fallback
+     * @return string Formatted message
+     */
+    protected function formatSmsMessage(string $message, ?string $schoolName = null): string
+    {
+        $schoolID = \Illuminate\Support\Facades\Session::get('schoolID');
+        $hasSenderID = false;
+
+        if ($schoolID) {
+            $school = \App\Models\School::find($schoolID);
+            $hasSenderID = $school && !empty($school->senderID);
+        }
+
+        // If school has senderID, don't add school name prefix
+        if ($hasSenderID) {
+            return $message;
+        }
+
+        // Add school name prefix if no senderID
+        $prefix = $schoolName ? "{$schoolName}. " : '';
+        return $prefix . $message;
+    }
 }

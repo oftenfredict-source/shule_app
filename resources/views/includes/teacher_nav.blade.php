@@ -521,7 +521,20 @@
                         @endif
 
                         <li><a href="{{ route('teachersDashboard') }}" class="nav-link"><i class="fa fa-building"></i> Dashboard</a></li>
-                        
+
+                        @php
+                            $isStudentRequester = \Illuminate\Support\Facades\DB::table('student_permission_requesters')
+                                ->where('schoolID', $schoolID)
+                                ->where('user_id', $teacherID)
+                                ->where('user_type', 'teacher')
+                                ->where('is_active', true)
+                                ->exists();
+                        @endphp
+
+                        @if($isStudentRequester)
+                        <li><a href="{{ route('teacher.student_permission') }}" class="nav-link"><i class="fa fa-user-plus"></i> Student Permission</a></li>
+                        @endif
+
                         @php
                             $activeAssessmentAssignment = \App\Models\CharacterAssessmentAssignment::where('teacherID', $teacherID)
                                 ->whereHas('timetable', function($q) {
@@ -576,7 +589,7 @@
                                     $canAddResultsByAssignment = false;
                                     $navTeacherID = Session::get('teacherID');
                                     $navSchoolID = Session::get('schoolID');
-                                    
+
                                     $globalResultPermission = \App\Models\TeacherResultPermission::where('schoolID', $navSchoolID)->first();
                                     $isGlobalEnabled = $globalResultPermission ? $globalResultPermission->result_button_status : true;
 
@@ -607,7 +620,7 @@
                                     // Special roles count
                                     $classTeacherSubclassIds = \App\Models\Subclass::where('teacherID', $teacherID)->pluck('subclassID')->toArray();
                                     $coordinatorClassIds = \App\Models\ClassModel::where('teacherID', $teacherID)->pluck('classID')->toArray();
-                                    
+
                                     // HOD logic — find departments where this teacher is head
                                     $hodDepartments = \App\Models\Department::where('head_teacherID', $teacherID)->get();
                                     $hodDepartmentIds = $hodDepartments->pluck('departmentID')->toArray();
@@ -689,21 +702,31 @@
                                     @php
                                         $navSchoolID = Session::get('schoolID');
                                         $navUserID = Session::get('userID');
+                                        $navUserType = Session::get('user_type');
                                         $permCount = 0;
                                         if (\Illuminate\Support\Facades\Schema::hasTable('permission_approval_chains') && \Illuminate\Support\Facades\Schema::hasTable('permission_requests')) {
                                             $uRoles = $navUserID ? \Illuminate\Support\Facades\DB::table('role_user')->where('user_id', $navUserID)->pluck('role_id')->toArray() : [];
-                                            
-                                            $permCount = \App\Models\PermissionRequest::where('schoolID', $navSchoolID)
+
+                                            $query = \App\Models\PermissionRequest::where('schoolID', $navSchoolID)
                                                 ->where('status', 'pending')
-                                                ->where('current_approval_order', '>', 0)
-                                                ->whereExists(function($q) use ($uRoles) {
-                                                    $q->select(\Illuminate\Support\Facades\DB::raw(1))
-                                                        ->from('permission_approval_chains')
-                                                        ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID')
-                                                        ->whereColumn('permission_approval_chains.permission_type', 'permission_requests.requester_type')
-                                                        ->whereColumn('permission_approval_chains.approval_order', 'permission_requests.current_approval_order')
-                                                        ->whereIn('role_id', $uRoles);
-                                                })->count();
+                                                ->where('current_approval_order', '>', 0);
+
+                                            // Check if user has matching role OR if user is Admin and current step has is_admin
+                                            $query->whereExists(function($q) use ($uRoles, $navUserType) {
+                                                $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                                                    ->from('permission_approval_chains')
+                                                    ->whereColumn('permission_approval_chains.schoolID', 'permission_requests.schoolID')
+                                                    ->whereColumn('permission_approval_chains.permission_type', 'permission_requests.requester_type')
+                                                    ->whereColumn('permission_approval_chains.approval_order', 'permission_requests.current_approval_order')
+                                                    ->where(function($sub) use ($uRoles, $navUserType) {
+                                                        $sub->whereIn('role_id', $uRoles);
+                                                        if ($navUserType === 'Admin') {
+                                                            $sub->orWhere('is_admin', true);
+                                                        }
+                                                    });
+                                            });
+
+                                            $permCount = $query->count();
                                         }
                                     @endphp
                                     <a href="{{ route('admin.hr.permissions.pending_approvals') }}" class="nav-link">
@@ -846,7 +869,7 @@
                                 if ($teacherPermissionsByCategory->has('examination')) {
                                     $hasExaminationPermission = $teacherPermissionsByCategory->get('examination')->count() > 0;
                                 }
-                                
+
                                 // Fallback: Check raw permissions for any examination keywords
                                 if (!$hasExaminationPermission && isset($teacherPermissions)) {
                                     $hasExaminationPermission = $teacherPermissions->contains(function($p) {
