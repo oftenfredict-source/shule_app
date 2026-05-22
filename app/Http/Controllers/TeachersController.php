@@ -4303,10 +4303,19 @@ class TeachersController extends Controller
                 $electedStudentIds = SubjectElector::where('classSubjectID', $classSubjectID)->pluck('studentID')->toArray();
             }
 
+            // Get exam center number for exam number generation
+            $school = School::find(Session::get('schoolID'));
+            $examCenterNo = !empty($school->exam_center_number) ? $school->exam_center_number : 'SET-CENTER-NO';
+
             if ($subclassID) {
                 $query = Student::with(['subclass.class', 'parent'])
                     ->where('subclassID', $subclassID)
-                    ->where('status', 'Active');
+                    ->where('status', 'Active')
+                    ->orderByRaw("CASE
+                        WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1
+                        ELSE 2
+                    END ASC")
+                    ->orderBy('first_name', 'asc');
             } else {
                 $subclassIds = DB::table('subclasses')
                     ->where('classID', $classID)
@@ -4315,7 +4324,12 @@ class TeachersController extends Controller
 
                 $query = Student::with(['subclass.class', 'parent'])
                     ->whereIn('subclassID', $subclassIds)
-                    ->where('status', 'Active');
+                    ->where('status', 'Active')
+                    ->orderByRaw("CASE
+                        WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1
+                        ELSE 2
+                    END ASC")
+                    ->orderBy('first_name', 'asc');
             }
 
             if ($isOptional) {
@@ -4324,9 +4338,41 @@ class TeachersController extends Controller
 
             $students = $query->get();
 
+            // Generate exam numbers for students
+            $allStudentsInClass = Student::join('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
+                ->where('subclasses.classID', $classID)
+                ->where('students.status', 'Active')
+                ->select('students.*')
+                ->orderByRaw("CASE
+                    WHEN students.gender LIKE 'F%' OR students.gender LIKE 'K%' THEN 1
+                    ELSE 2
+                END ASC")
+                ->orderBy('students.first_name', 'asc')
+                ->get();
+
+            foreach ($allStudentsInClass as $index => $student) {
+                $sequence = str_pad($index + 1, 4, '0', STR_PAD_LEFT);
+                $student->examination_number = "{$examCenterNo}/{$sequence}";
+            }
+
+            // Filter students to only those in the query result
+            $studentIds = $students->pluck('studentID')->toArray();
+            $students = $allStudentsInClass->whereIn('studentID', $studentIds);
+
+            \Log::info('getSubjectStudents result', [
+                'classSubjectID' => $classSubjectID,
+                'classID' => $classID,
+                'subclassID' => $subclassID,
+                'total_students_in_class' => $allStudentsInClass->count(),
+                'filtered_students_count' => $students->count(),
+                'student_ids' => $studentIds,
+                'isOptional' => $isOptional,
+                'electedStudentIds' => $electedStudentIds
+            ]);
+
             return response()->json([
                 'success' => true,
-                'students' => $students,
+                'students' => $students->values(), // Convert to array
                 'class_subject' => $classSubject
             ], 200);
 

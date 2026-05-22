@@ -1071,6 +1071,25 @@ jQuery(document).ready(function($) {
                         `;
                     });
                     $tbody.html(html);
+                    
+                    // Initialize DataTable
+                    if (jQuery.fn.DataTable && !jQuery('#assignmentsTable').hasClass('dataTable')) {
+                        jQuery('#assignmentsTable').DataTable({
+                            "pageLength": 25,
+                            "order": [[0, "asc"]],
+                            "language": {
+                                "search": "Search:",
+                                "lengthMenu": "Show _MENU_ entries",
+                                "info": "Showing _START_ to _END_ of _TOTAL_ entries",
+                                "paginate": {
+                                    "first": "First",
+                                    "last": "Last",
+                                    "next": "Next",
+                                    "previous": "Previous"
+                                }
+                            }
+                        });
+                    }
                 } else {
                     $tbody.html('<tr><td colspan="6" class="text-center py-4 text-muted">No teacher assignments found.</td></tr>');
                 }
@@ -1573,7 +1592,7 @@ function viewStudents(classSubjectID) {
                                      onclick="showStudentPhoto('${photoUrl.replace(/'/g, "\\'")}', '${studentName.replace(/'/g, "\\'")}')"
                                      onerror="this.src='${fallbackPhoto}'">
                             </td>
-                            <td><strong>${student.admission_number || 'N/A'}</strong></td>
+                            <td><strong>${student.examination_number || 'N/A'}</strong></td>
                             <td>${studentName}${healthAlarmIcon}</td>
                             <td>${student.subclass ? (student.subclass.subclass_name || 'N/A') : 'N/A'}</td>
                             <td>${student.gender || 'N/A'}</td>
@@ -1785,7 +1804,7 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
                                     <th>#</th>
                                     <th>Photo</th>
                                     <th>Student Name</th>
-                                    <th>Admission No.</th>
+                                    <th>Index No.</th>
                                     <th>Examination</th>
                                     ${response.has_ca ? '<th>Exam Marks</th><th>CA</th><th>Total</th><th>Avg</th>' : '<th>Marks</th>'}
                                     <th>Grade</th>
@@ -1861,7 +1880,7 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
                                      onerror="this.src='${fallbackPhoto}'">
                             </td>
                             <td>${studentName || 'N/A'}${healthAlarmIcon}</td>
-                            <td>${student.admission_number || 'N/A'}</td>
+                            <td>${student.examination_number || 'N/A'}</td>
                             <td>
                                 ${result.examination ? result.examination.exam_name : 'N/A'}
                                 ${result.test_week ? `<br><small class="badge badge-info">${result.test_week}</small>` : ''}
@@ -2105,12 +2124,15 @@ function editResults(classSubjectID) {
                                         </div>
                                     `}
                                     <div class="table-responsive mt-3">
-                                        <table class="table table-hover">
+                                        <div class="mb-3">
+                                            <input type="text" class="form-control" id="studentSearchInput" placeholder="Search student or index no..." onkeyup="filterStudentsTable()">
+                                        </div>
+                                        <table class="table table-hover" id="studentsResultsTable">
                                             <thead class="bg-primary-custom text-white">
                                                 <tr>
                                                     <th>#</th>
                                                     <th>Student Name</th>
-                                                    <th>Admission No.</th>
+                                                    <th>Index No.</th>
                                                     <th class="text-center questions-column-header" style="${isSecondarySchool ? '' : 'display:none;'}"><i class="bi bi-list-check"></i></th>
                                                     <th>Marks</th>
                                                     <th>Grade</th>
@@ -2126,7 +2148,7 @@ function editResults(classSubjectID) {
                                         <tr>
                                             <td>${index + 1}</td>
                                             <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}</td>
-                                            <td>${student.admission_number || 'N/A'}</td>
+                                            <td>${student.examination_number || 'N/A'}</td>
                                             <td class="text-center questions-column-cell" style="${isSecondarySchool ? '' : 'display:none;'}">
                                                 <button type="button" class="btn btn-sm btn-outline-primary toggle-question-btn" data-student="${student.studentID}" title="Add result questions">
                                                     <i class="bi bi-list-check"></i>
@@ -2322,11 +2344,13 @@ function addResults(classSubjectID, isEdit = false) {
         url: '/get_subject_students/' + classSubjectID,
         method: 'GET',
         success: function(studentsResponse) {
+            console.log('Students response:', studentsResponse);
             loader.update(70, "Fetching examinations...");
             jQuery.ajax({
                 url: '/get_examinations_for_subject/' + classSubjectID,
                 method: 'GET',
                 success: function(examsResponse) {
+                    console.log('Exams response:', examsResponse);
                     loader.update(100, "Finalizing interface...");
                     
                     // Small delay to let user see 100%
@@ -2410,12 +2434,15 @@ function addResults(classSubjectID, isEdit = false) {
                                 `}
                             </div>
                             <div class="table-responsive mt-3">
-                                <table class="table table-hover">
+                                <div class="mb-3">
+                                    <input type="text" class="form-control" id="studentSearchInputEdit" placeholder="Search student or index no..." onkeyup="filterStudentsTableEdit()">
+                                </div>
+                                <table class="table table-hover" id="studentsResultsTableEdit">
                                     <thead class="bg-primary-custom text-white">
                                         <tr>
                                             <th>#</th>
                                             <th>Student Name</th>
-                                            <th>Admission No.</th>
+                                            <th>Index No.</th>
                                              <th class="text-center questions-column-header" style="${isSecondarySchool ? '' : 'display:none;'}"><i class="bi bi-list-check"></i></th>
                                             <th>Marks</th>
                                             <th>Grade</th>
@@ -2431,7 +2458,7 @@ function addResults(classSubjectID, isEdit = false) {
                                 <tr>
                                     <td>${index + 1}</td>
                                     <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}</td>
-                                    <td>${student.admission_number || 'N/A'}</td>
+                                    <td>${student.examination_number || 'N/A'}</td>
                                     <td class="text-center questions-column-cell" style="${isSecondarySchool ? '' : 'display:none;'}">
                                         <button type="button" class="btn btn-sm btn-outline-primary toggle-question-btn" data-student="${student.studentID}" title="Add result questions">
                                             <i class="bi bi-list-check"></i>
@@ -3294,7 +3321,7 @@ function loadStudentsForElection(classSubjectID, subclassID) {
                         html += '<tr>';
                         html += '<th>#</th>';
                         html += '<th>Student Name</th>';
-                        html += '<th>Admission No</th>';
+                        html += '<th>Index No</th>';
                         html += '<th style="text-align: center;">Election</th>';
                         html += '</tr>';
                         html += '</thead>';
@@ -3305,7 +3332,7 @@ function loadStudentsForElection(classSubjectID, subclassID) {
                             html += '<tr data-student-id="' + student.studentID + '">';
                             html += '<td>' + (index + 1) + '</td>';
                             html += '<td>' + student.first_name + ' ' + (student.middle_name ? student.middle_name + ' ' : '') + student.last_name + '</td>';
-                            html += '<td>' + (student.admission_number || 'N/A') + '</td>';
+                            html += '<td>' + (student.examination_number || 'N/A') + '</td>';
                             html += '<td style="text-align: center;">';
                             if (isElected) {
                                 html += '<button class="btn btn-sm btn-danger deselect-student-btn" ';
@@ -3477,6 +3504,38 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
         }
     });
 });
+
+// Filter students table function
+function filterStudentsTable() {
+    const searchTerm = jQuery('#studentSearchInput').val().toLowerCase();
+    jQuery('#studentsResultsTable tbody tr').each(function() {
+        const row = jQuery(this);
+        const studentName = row.find('td:nth-child(2)').text().toLowerCase();
+        const indexNo = row.find('td:nth-child(3)').text().toLowerCase();
+        
+        if (studentName.includes(searchTerm) || indexNo.includes(searchTerm)) {
+            row.show();
+        } else {
+            row.hide();
+        }
+    });
+}
+
+// Filter students table function for edit mode
+function filterStudentsTableEdit() {
+    const searchTerm = jQuery('#studentSearchInputEdit').val().toLowerCase();
+    jQuery('#studentsResultsTableEdit tbody tr').each(function() {
+        const row = jQuery(this);
+        const studentName = row.find('td:nth-child(2)').text().toLowerCase();
+        const indexNo = row.find('td:nth-child(3)').text().toLowerCase();
+        
+        if (studentName.includes(searchTerm) || indexNo.includes(searchTerm)) {
+            row.show();
+        } else {
+            row.hide();
+        }
+    });
+}
 </script>
 
 @include('includes.footer')
