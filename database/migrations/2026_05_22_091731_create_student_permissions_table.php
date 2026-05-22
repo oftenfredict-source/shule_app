@@ -31,6 +31,8 @@ return new class extends Migration
             $table->string('hod_status')->default('pending');
             $table->string('principal_status')->default('pending');
             $table->string('final_status')->default('pending');
+            $table->integer('current_approval_order')->default(0);
+            $table->boolean('is_chain_completed')->default(false);
             $table->timestamps();
         });
     }

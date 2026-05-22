@@ -12429,6 +12429,9 @@ class TeachersController extends Controller
                 ->where('sp.schoolID', $schoolID)
                 ->where('sp.requester_id', $teacherID)
                 ->where('sp.requester_type', 'teacher')
+                ->leftJoin('students', 'sp.student_id', '=', 'students.studentID')
+                ->leftJoin('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
+                ->leftJoin('classes', 'subclasses.classID', '=', 'classes.classID')
                 ->select(
                     'sp.id',
                     'sp.student_id',
@@ -12443,18 +12446,25 @@ class TeachersController extends Controller
                     'sp.status',
                     'sp.hod_status',
                     'sp.principal_status',
-                    'sp.final_status'
+                    'sp.final_status',
+                    'sp.created_at',
+                    'students.first_name as student_first_name',
+                    'students.last_name as student_last_name',
+                    'students.middle_name as student_middle_name',
+                    'classes.class_name',
+                    'subclasses.subclass_name'
                 )
                 ->orderBy('sp.created_at', 'desc')
                 ->get()
                 ->map(function($item) {
-                    $item->student_name = 'Student ID: ' . $item->student_id;
+                    $studentName = trim(($item->student_first_name ?? '') . ' ' . ($item->student_middle_name ?? '') . ' ' . ($item->student_last_name ?? ''));
+                    $item->student_name = $studentName ?: 'Student ID: ' . $item->student_id;
                     $item->duration = $item->time_mode === 'days' ? $item->days_count . ' days' : 'Hours';
                     $item->date_range = $item->time_mode === 'days'
                         ? ($item->start_date . ' to ' . $item->end_date)
-                        : ($item->start_date . ' ' . $item->start_time . ' to ' . $item->end_time);
+                        : ($item->start_time . ' to ' . $item->end_time);
                     $item->reason_details = $item->reason_description;
-                    $item->class_name = '';
+                    $item->class_name = ($item->class_name ?? '') . ' ' . ($item->subclass_name ?? '');
                     return $item;
                 });
 
@@ -12522,7 +12532,7 @@ class TeachersController extends Controller
         }
 
         $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
+            'student_id' => 'required|exists:students,studentID',
             'time_mode' => 'required|in:days,hours',
             'reason_type' => 'required|string',
             'reason_description' => 'required|string',
@@ -12541,16 +12551,19 @@ class TeachersController extends Controller
             return response()->json(['success' => false, 'message' => 'You are not authorized to request student permissions']);
         }
 
-        $permission = new PermissionRequest();
-        $permission->schoolID = $schoolID;
-        $permission->student_id = $validated['student_id'];
-        $permission->requester_type = 'student';
-        $permission->requested_by_teacher_id = $teacherID;
-        $permission->time_mode = $validated['time_mode'];
-        $permission->reason_type = $validated['reason_type'];
-        $permission->reason_description = $validated['reason_description'];
-        $permission->status = 'pending';
-        $permission->current_approval_order = 0;
+        $permissionData = [
+            'schoolID' => $schoolID,
+            'student_id' => $validated['student_id'],
+            'requester_id' => $teacherID,
+            'requester_type' => 'teacher',
+            'time_mode' => $validated['time_mode'],
+            'reason_type' => $validated['reason_type'],
+            'reason_description' => $validated['reason_description'],
+            'status' => 'pending',
+            'hod_status' => 'pending',
+            'principal_status' => 'pending',
+            'final_status' => 'pending',
+        ];
 
         if ($validated['time_mode'] === 'days') {
             $request->validate([
@@ -12558,29 +12571,194 @@ class TeachersController extends Controller
                 'start_date' => 'required|date',
                 'end_date' => 'required|date|after_or_equal:start_date'
             ]);
-            $permission->days_count = $request->days_count;
-            $permission->start_date = $request->start_date;
-            $permission->end_date = $request->end_date;
+            $permissionData['days_count'] = $request->days_count;
+            $permissionData['start_date'] = $request->start_date;
+            $permissionData['end_date'] = $request->end_date;
         } else {
             $request->validate([
                 'start_date_hours' => 'required|date',
                 'start_time' => 'required',
                 'end_time' => 'required|after:start_time'
             ]);
-            $permission->start_date = $request->start_date_hours;
-            $permission->start_time = $request->start_time;
-            $permission->end_time = $request->end_time;
+            $permissionData['start_date_hours'] = $request->start_date_hours;
+            $permissionData['start_time'] = $request->start_time;
+            $permissionData['end_time'] = $request->end_time;
         }
 
+        // Handle file upload
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
             $fileName = time() . '_' . $file->getClientOriginalName();
-            $filePath = $file->storeAs('permission_attachments', $fileName, 'public');
-            $permission->attachment_path = $filePath;
+            $file->move(public_path('uploads/permissions'), $fileName);
+            $permissionData['attachment'] = $fileName;
         }
 
-        $permission->save();
+        DB::table('student_permissions')->insert($permissionData);
+
+        // Check for approval chain for student permissions
+        $hasChain = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', 'student')
+            ->exists();
+
+        if ($hasChain) {
+            // Get the inserted permission ID
+            $permissionId = DB::getPdo()->lastInsertId();
+
+            // Update with approval chain info
+            DB::table('student_permissions')
+                ->where('id', $permissionId)
+                ->update([
+                    'current_approval_order' => 1,
+                    'is_chain_completed' => false
+                ]);
+
+            // Notify first approver
+            $this->notifyNextStudentApprover($permissionId, $schoolID);
+        }
 
         return response()->json(['success' => true, 'message' => 'Student permission request submitted successfully']);
+    }
+
+    public function getStudentPermissionDetails($id)
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID || !$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access']);
+        }
+
+        $permission = DB::table('student_permissions as sp')
+            ->where('sp.id', $id)
+            ->where('sp.schoolID', $schoolID)
+            ->where('sp.requester_id', $teacherID)
+            ->where('sp.requester_type', 'teacher')
+            ->leftJoin('students', 'sp.student_id', '=', 'students.studentID')
+            ->select(
+                'sp.*',
+                'students.first_name as student_first_name',
+                'students.last_name as student_last_name',
+                'students.middle_name as student_middle_name'
+            )
+            ->first();
+
+        if (!$permission) {
+            return response()->json(['success' => false, 'message' => 'Permission not found']);
+        }
+
+        $studentName = trim(($permission->student_first_name ?? '') . ' ' . ($permission->student_middle_name ?? '') . ' ' . ($permission->student_last_name ?? ''));
+
+        $returnDate = null;
+        if ($permission->time_mode === 'days' && $permission->end_date) {
+            $returnDate = \Carbon\Carbon::parse($permission->end_date)->addDay()->format('d M Y');
+        }
+
+        return response()->json([
+            'success' => true,
+            'permission' => [
+                'id' => $permission->id,
+                'status' => $permission->status,
+                'requested_at' => $permission->created_at ? \Carbon\Carbon::parse($permission->created_at)->format('d M Y H:i') : 'N/A',
+                'time_mode' => $permission->time_mode,
+                'days_count' => $permission->days_count,
+                'start_date' => $permission->start_date ? \Carbon\Carbon::parse($permission->start_date)->format('d M Y') : 'N/A',
+                'end_date' => $permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->format('d M Y') : 'N/A',
+                'return_date' => $returnDate,
+                'start_time' => $permission->start_time,
+                'end_time' => $permission->end_time,
+                'reason_type' => $permission->reason_type,
+                'reason_description' => $permission->reason_description,
+                'student_name' => $studentName
+            ]
+        ]);
+    }
+
+    public function getStudentPermissionProgress($id)
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+
+        if (!$teacherID || !$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access']);
+        }
+
+        $permission = DB::table('student_permissions as sp')
+            ->where('sp.id', $id)
+            ->where('sp.schoolID', $schoolID)
+            ->where('sp.requester_id', $teacherID)
+            ->where('sp.requester_type', 'teacher')
+            ->first();
+
+        if (!$permission) {
+            return response()->json(['success' => false, 'message' => 'Permission not found']);
+        }
+
+        $chain = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', 'student')
+            ->orderBy('approval_order')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'permission' => $permission,
+            'chain' => $chain
+        ]);
+    }
+
+    private function notifyNextStudentApprover($permissionId, $schoolID)
+    {
+        $permission = DB::table('student_permissions')->where('id', $permissionId)->first();
+        if (!$permission) return;
+
+        $chain = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', 'student')
+            ->where('approval_order', $permission->current_approval_order)
+            ->first();
+
+        if (!$chain) {
+            // No more steps in chain, notify Admin
+            $school = DB::table('schools')->where('schoolID', $schoolID)->first();
+            if ($school && $school->phone) {
+                $smsService = new \App\Services\SmsService();
+                $smsService->sendSms($school->phone, "Final approval required for a student permission request. Please login to ShuleXpert to review.");
+            }
+            return;
+        }
+
+        $phones = [];
+        if ($chain->role_id) {
+            $teacherPhones = DB::table('role_user')
+                ->join('teachers', 'role_user.teacher_id', '=', 'teachers.id')
+                ->where('role_user.role_id', $chain->role_id)
+                ->pluck('teachers.phone_number')
+                ->toArray();
+            $phones = array_merge($phones, $teacherPhones);
+        }
+
+        if ($chain->profession_id) {
+            $staffPhones = DB::table('other_staff')
+                ->where('profession_id', $chain->profession_id)
+                ->where('schoolID', $schoolID)
+                ->pluck('phone_number')
+                ->toArray();
+            $phones = array_merge($phones, $staffPhones);
+        }
+
+        if ($chain->is_admin) {
+            $school = DB::table('schools')->where('schoolID', $schoolID)->first();
+            if ($school && $school->phone) {
+                $phones[] = $school->phone;
+            }
+        }
+
+        $smsService = new \App\Services\SmsService();
+        foreach ($phones as $phone) {
+            if ($phone) {
+                $smsService->sendSms($phone, "You have a student permission request to approve. Please login to ShuleXpert to review.");
+            }
+        }
     }
 }

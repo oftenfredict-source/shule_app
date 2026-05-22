@@ -3299,6 +3299,85 @@ class AdminController extends Controller
         $filename = 'Permission_' . str_replace(' ', '_', $requesterName) . '_' . date('YmdHis') . '.pdf';
         return $pdf->download($filename);
     }
+
+    public function exportStudentPermissionPdf($id)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return redirect()->route('login')->with('error', 'Session expired');
+        }
+
+        $permission = DB::table('student_permissions as sp')
+            ->where('sp.schoolID', $schoolID)
+            ->where('sp.id', $id)
+            ->leftJoin('students', 'sp.student_id', '=', 'students.studentID')
+            ->leftJoin('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
+            ->leftJoin('classes', 'subclasses.classID', '=', 'classes.classID')
+            ->leftJoin('teachers', 'sp.requester_id', '=', 'teachers.id')
+            ->leftJoin('other_staff', 'sp.requester_id', '=', 'other_staff.id')
+            ->select(
+                'sp.*',
+                'students.first_name as student_first_name',
+                'students.last_name as student_last_name',
+                'students.middle_name as student_middle_name',
+                'students.photo as student_photo',
+                'students.gender as student_gender',
+                'classes.class_name',
+                'subclasses.subclass_name',
+                'teachers.first_name as teacher_first_name',
+                'teachers.last_name as teacher_last_name',
+                'other_staff.first_name as staff_first_name',
+                'other_staff.last_name as staff_last_name'
+            )
+            ->first();
+
+        if (!$permission) {
+            return redirect()->back()->with('error', 'Permission not found');
+        }
+
+        $chain = DB::table('permission_approval_chains')
+            ->where('schoolID', $schoolID)
+            ->where('permission_type', 'student')
+            ->orderBy('approval_order')
+            ->get();
+
+        $school = School::find($schoolID);
+
+        $requesterName = 'N/A';
+        $requesterInfo = '';
+        if ($permission->requester_type === 'teacher') {
+            $requesterName = $permission->teacher_first_name . ' ' . $permission->teacher_last_name;
+            $requesterInfo = 'Teacher';
+        } elseif ($permission->requester_type === 'staff') {
+            $requesterName = $permission->staff_first_name . ' ' . $permission->staff_last_name;
+            $requesterInfo = 'Staff';
+        }
+
+        $studentName = trim($permission->student_first_name . ' ' . $permission->student_middle_name . ' ' . $permission->student_last_name);
+        $className = $permission->class_name . ' ' . $permission->subclass_name;
+
+        $data = [
+            'school' => $school,
+            'permission' => $permission,
+            'chain' => $chain,
+            'requesterName' => $requesterName,
+            'requesterInfo' => $requesterInfo,
+            'studentName' => $studentName,
+            'className' => $className,
+            'title' => 'Student Permission Request - ' . $studentName,
+        ];
+
+        $pdf = PDF::loadView('Admin.pdf.student_permission_pdf', $data);
+        $pdf->setOptions([
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'chroot' => base_path(),
+        ]);
+        $pdf->setPaper('A4', 'portrait');
+
+        $filename = 'Student_Permission_' . str_replace(' ', '_', $studentName) . '_' . date('YmdHis') . '.pdf';
+        return $pdf->download($filename);
+    }
     public function manageSchoolVisitors()
     {
         $user = Session::get('user_type');

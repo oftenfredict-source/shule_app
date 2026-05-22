@@ -22,6 +22,7 @@
     <script src="{{ asset('vendors/jquery/dist/jquery.min.js') }}"></script>
     <script src="{{ asset('vendors/popper.js/dist/umd/popper.min.js') }}"></script>
     <script src="{{ asset('vendors/bootstrap/dist/js/bootstrap.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         window.$ = window.jQuery;
     </script>

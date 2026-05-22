@@ -348,6 +348,8 @@
                                         class="fa fa-tachometer"></i> Dashboard</a></li>
 
                             @php
+                                $staffID = Session::get('staffID');
+                                $schoolID = Session::get('schoolID');
                                 $isStudentRequester = \Illuminate\Support\Facades\DB::table('student_permission_requesters')
                                     ->where('schoolID', $schoolID)
                                     ->where('user_id', $staffID)
