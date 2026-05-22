@@ -322,6 +322,7 @@
                                 <table class="table table-bordered table-sm">
                                     <thead class="bg-light">
                                         <tr>
+                                            <th>Student</th>
                                             <th>Requested At</th>
                                             <th>Mode</th>
                                             <th>Period</th>
@@ -331,7 +332,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="pendingTableBody">
-                                        <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                                        <tr><td colspan="7" class="text-center">Loading...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -364,6 +365,7 @@
                                 <table class="table table-bordered table-sm">
                                     <thead class="bg-light">
                                         <tr>
+                                            <th>Student</th>
                                             <th>Requested At</th>
                                             <th>Mode</th>
                                             <th>Period</th>
@@ -373,7 +375,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="approvedTableBody">
-                                        <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                                        <tr><td colspan="7" class="text-center">Loading...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -406,6 +408,7 @@
                                 <table class="table table-bordered table-sm">
                                     <thead class="bg-light">
                                         <tr>
+                                            <th>Student</th>
                                             <th>Requested At</th>
                                             <th>Mode</th>
                                             <th>Period</th>
@@ -415,7 +418,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="rejectedTableBody">
-                                        <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                                        <tr><td colspan="7" class="text-center">Loading...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -683,9 +686,9 @@
                 } else if (xhr.responseText) {
                     errorMsg = 'Server error: ' + xhr.status;
                 }
-                $('#pendingTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
-                $('#approvedTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
-                $('#rejectedTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                $('#pendingTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                $('#approvedTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                $('#rejectedTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
             }
         });
     }
@@ -697,7 +700,7 @@
         gridBody.empty();
 
         if (requests.length === 0) {
-            tbody.append('<tr><td colspan="6" class="text-center">No requests found</td></tr>');
+            tbody.append('<tr><td colspan="7" class="text-center">No requests found</td></tr>');
             gridBody.append('<div class="col-12 text-center">No requests found</div>');
             return;
         }
@@ -722,6 +725,7 @@
             // List view
             tbody.append(`
                 <tr>
+                    <td><strong>${request.student_name || 'N/A'}</strong></td>
                     <td>${requestedAt}</td>
                     <td>${mode.charAt(0).toUpperCase() + mode.slice(1)}</td>
                     <td>${period}</td>
@@ -729,7 +733,7 @@
                     <td><span class="${statusClass} font-weight-bold">${statusText}</span></td>
                     <td>
                         <div class="dropdown">
-                            <button class="btn btn-sm btn-primary dropdown-toggle" type="button" data-toggle="dropdown">
+                            <button class="btn btn-sm btn-primary-custom dropdown-toggle" type="button" data-toggle="dropdown">
                                 <i class="bx bx-dots-vertical-rounded"></i> Actions
                             </button>
                             <div class="dropdown-menu">
@@ -759,7 +763,7 @@
                             <div class="small mb-1"><strong>Reason:</strong> ${reason.charAt(0).toUpperCase() + reason.slice(1)}</div>
                             <div class="small mb-2"><strong>Status:</strong> <span class="${statusClass} font-weight-bold">${statusText}</span></div>
                             <div class="dropdown">
-                                <button class="btn btn-sm btn-primary dropdown-toggle w-100" type="button" data-toggle="dropdown">
+                                <button class="btn btn-sm btn-primary-custom dropdown-toggle w-100" type="button" data-toggle="dropdown">
                                     <i class="bx bx-dots-vertical-rounded"></i> Actions
                                 </button>
                                 <div class="dropdown-menu">
@@ -912,7 +916,7 @@
         var isMobile = window.innerWidth <= 991;
         var storageKey = 'student_perm_view_pref';
         var savedView = sessionStorage.getItem(storageKey);
-        var activeView = savedView || (isMobile ? 'list' : 'list');
+        var activeView = savedView || (isMobile ? 'grid' : 'list');
 
         function applyView(view) {
             var listEl = document.getElementById('perm-list-view');

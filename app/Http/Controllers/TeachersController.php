@@ -29,6 +29,7 @@ use App\Models\SchemeOfWorkItem;
 use App\Models\SchemeOfWorkLearningObjective;
 use App\Models\LessonPlan;
 use App\Models\PermissionRequest;
+use App\Models\TeacherResultAssignment;
 use Illuminate\Support\Facades\DB;
 use App\Models\Logbook;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
@@ -4232,7 +4233,32 @@ class TeachersController extends Controller
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
                 if (!$isOwner) {
-                    $isAssigned = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
+                    // Debug: Get all assignments for this teacher
+                    $allAssignments = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
+                        ->where('teacherID', $teacherID)
+                        ->where('status', true)
+                        ->get();
+
+                    \Log::info('Teacher assignments found', [
+                        'teacherID' => $teacherID,
+                        'schoolID' => Session::get('schoolID'),
+                        'classID_needed' => $classSubject->classID,
+                        'subclassID_needed' => $classSubject->subclassID,
+                        'subjectID_needed' => $classSubject->subjectID,
+                        'total_assignments' => $allAssignments->count(),
+                        'assignments' => $allAssignments->map(function($a) {
+                            return [
+                                'id' => $a->id,
+                                'classID' => $a->classID,
+                                'subclassID' => $a->subclassID,
+                                'subject_ids' => $a->subject_ids,
+                                'examID' => $a->examID,
+                                'status' => $a->status
+                            ];
+                        })
+                    ]);
+
+                    $assignmentQuery = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
                         ->where('teacherID', $teacherID)
                         ->where('classID', $classSubject->classID)
                         ->where(function($q) use ($classSubject) {
@@ -4240,13 +4266,29 @@ class TeachersController extends Controller
                               ->orWhereNull('subclassID');
                         })
                         ->where('status', true)
-                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
-                        ->exists();
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID);
+
+                    $isAssigned = $assignmentQuery->exists();
+
+                    \Log::info('Assignment check result', [
+                        'isAssigned' => $isAssigned,
+                        'query_sql' => $assignmentQuery->toSql()
+                    ]);
                 }
 
                 if (!$isOwner && !$isAssigned) {
+                    \Log::error('Teacher authorization failed', [
+                        'teacherID' => $teacherID,
+                        'schoolID' => Session::get('schoolID'),
+                        'classSubjectID' => $classSubjectID,
+                        'classID' => $classSubject->classID,
+                        'subclassID' => $classSubject->subclassID,
+                        'subjectID' => $classSubject->subjectID,
+                        'isOwner' => $isOwner,
+                        'isAssigned' => $isAssigned
+                    ]);
                     return response()->json([
-                        'error' => 'Unauthorized access to this class subject.'
+                        'error' => 'Unauthorized access to this class subject. You are not the assigned teacher. Please contact admin for assignment.'
                     ], 403);
                 }
             }
@@ -4335,7 +4377,32 @@ class TeachersController extends Controller
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
                 if (!$isOwner) {
-                    $isAssigned = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
+                    // Debug: Get all assignments for this teacher
+                    $allAssignments = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
+                        ->where('teacherID', $teacherID)
+                        ->where('status', true)
+                        ->get();
+
+                    \Log::info('Teacher assignments found', [
+                        'teacherID' => $teacherID,
+                        'schoolID' => Session::get('schoolID'),
+                        'classID_needed' => $classSubject->classID,
+                        'subclassID_needed' => $classSubject->subclassID,
+                        'subjectID_needed' => $classSubject->subjectID,
+                        'total_assignments' => $allAssignments->count(),
+                        'assignments' => $allAssignments->map(function($a) {
+                            return [
+                                'id' => $a->id,
+                                'classID' => $a->classID,
+                                'subclassID' => $a->subclassID,
+                                'subject_ids' => $a->subject_ids,
+                                'examID' => $a->examID,
+                                'status' => $a->status
+                            ];
+                        })
+                    ]);
+
+                    $assignmentQuery = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
                         ->where('teacherID', $teacherID)
                         ->where('classID', $classSubject->classID)
                         ->where(function($q) use ($classSubject) {
@@ -4343,13 +4410,29 @@ class TeachersController extends Controller
                               ->orWhereNull('subclassID');
                         })
                         ->where('status', true)
-                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
-                        ->exists();
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID);
+
+                    $isAssigned = $assignmentQuery->exists();
+
+                    \Log::info('Assignment check result', [
+                        'isAssigned' => $isAssigned,
+                        'query_sql' => $assignmentQuery->toSql()
+                    ]);
                 }
 
                 if (!$isOwner && !$isAssigned) {
+                    \Log::error('Teacher authorization failed', [
+                        'teacherID' => $teacherID,
+                        'schoolID' => Session::get('schoolID'),
+                        'classSubjectID' => $classSubjectID,
+                        'classID' => $classSubject->classID,
+                        'subclassID' => $classSubject->subclassID,
+                        'subjectID' => $classSubject->subjectID,
+                        'isOwner' => $isOwner,
+                        'isAssigned' => $isAssigned
+                    ]);
                     return response()->json([
-                        'error' => 'Unauthorized access to this class subject.'
+                        'error' => 'Unauthorized access to this class subject. You are not the assigned teacher. Please contact admin for assignment.'
                     ], 403);
                 }
             }
@@ -4730,7 +4813,32 @@ class TeachersController extends Controller
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
                 if (!$isOwner) {
-                    $isAssigned = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
+                    // Debug: Get all assignments for this teacher
+                    $allAssignments = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
+                        ->where('teacherID', $teacherID)
+                        ->where('status', true)
+                        ->get();
+
+                    \Log::info('Teacher assignments found', [
+                        'teacherID' => $teacherID,
+                        'schoolID' => Session::get('schoolID'),
+                        'classID_needed' => $classSubject->classID,
+                        'subclassID_needed' => $classSubject->subclassID,
+                        'subjectID_needed' => $classSubject->subjectID,
+                        'total_assignments' => $allAssignments->count(),
+                        'assignments' => $allAssignments->map(function($a) {
+                            return [
+                                'id' => $a->id,
+                                'classID' => $a->classID,
+                                'subclassID' => $a->subclassID,
+                                'subject_ids' => $a->subject_ids,
+                                'examID' => $a->examID,
+                                'status' => $a->status
+                            ];
+                        })
+                    ]);
+
+                    $assignmentQuery = TeacherResultAssignment::where('schoolID', Session::get('schoolID'))
                         ->where('teacherID', $teacherID)
                         ->where('classID', $classSubject->classID)
                         ->where(function($q) use ($classSubject) {
@@ -4738,13 +4846,29 @@ class TeachersController extends Controller
                               ->orWhereNull('subclassID');
                         })
                         ->where('status', true)
-                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
-                        ->exists();
+                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID);
+
+                    $isAssigned = $assignmentQuery->exists();
+
+                    \Log::info('Assignment check result', [
+                        'isAssigned' => $isAssigned,
+                        'query_sql' => $assignmentQuery->toSql()
+                    ]);
                 }
 
                 if (!$isOwner && !$isAssigned) {
+                    \Log::error('Teacher authorization failed', [
+                        'teacherID' => $teacherID,
+                        'schoolID' => Session::get('schoolID'),
+                        'classSubjectID' => $classSubjectID,
+                        'classID' => $classSubject->classID,
+                        'subclassID' => $classSubject->subclassID,
+                        'subjectID' => $classSubject->subjectID,
+                        'isOwner' => $isOwner,
+                        'isAssigned' => $isAssigned
+                    ]);
                     return response()->json([
-                        'error' => 'Unauthorized access to this class subject.'
+                        'error' => 'Unauthorized access to this class subject. You are not the assigned teacher. Please contact admin for assignment.'
                     ], 403);
                 }
             }
@@ -4847,7 +4971,7 @@ class TeachersController extends Controller
                               ->orWhereNull('subclassID');
                         })
                         ->where('status', true)
-                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->whereJsonContains('subject_ids', $classSubject->subjectID)
                         ->exists();
                 }
                 if (!$isOwner && !$isAssigned) {
@@ -5015,7 +5139,7 @@ class TeachersController extends Controller
                               ->orWhereNull('subclassID');
                         })
                         ->where('status', true)
-                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->whereJsonContains('subject_ids', $classSubject->subjectID)
                         ->exists();
                 }
                 if (!$isOwner && !$isAssigned) {
@@ -5448,7 +5572,7 @@ class TeachersController extends Controller
                               ->orWhereNull('subclassID');
                         })
                         ->where('status', true)
-                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->whereJsonContains('subject_ids', $classSubject->subjectID)
                         ->exists();
                 }
                 if (!$isOwner && !$isAssigned) {
@@ -5665,7 +5789,7 @@ class TeachersController extends Controller
                               ->orWhereNull('subclassID');
                         })
                         ->where('status', true)
-                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->whereJsonContains('subject_ids', $classSubject->subjectID)
                         ->exists();
                 }
                 if (!$isOwner && !$isAssigned) {
@@ -8350,7 +8474,7 @@ class TeachersController extends Controller
                               ->orWhereNull('subclassID');
                         })
                         ->where('status', true)
-                        ->whereJsonContains('subject_ids', (string)$classSubject->subjectID)
+                        ->whereJsonContains('subject_ids', $classSubject->subjectID)
                         ->exists();
                 }
                 if (!$isOwner && !$isAssigned) {

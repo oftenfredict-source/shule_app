@@ -594,8 +594,9 @@
                                     $globalResultPermission = \App\Models\TeacherResultPermission::where('schoolID', $navSchoolID)->first();
                                     $isGlobalEnabled = $globalResultPermission ? $globalResultPermission->result_button_status : true;
 
-                                    if ($isGlobalEnabled && $navTeacherID) {
-                                        $canAddResultsByAssignment = \App\Models\TeacherResultAssignment::where('teacherID', $navTeacherID)
+                                    if ($isGlobalEnabled && $navTeacherID && $navSchoolID) {
+                                        $canAddResultsByAssignment = \App\Models\TeacherResultAssignment::where('schoolID', $navSchoolID)
+                                            ->where('teacherID', $navTeacherID)
                                             ->where('status', true)
                                             ->exists();
                                     }
