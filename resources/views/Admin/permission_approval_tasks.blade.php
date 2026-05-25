@@ -241,18 +241,25 @@
                 <div class="row">
                     @forelse($permissions as $permission)
                         @php
+                            $isStudentPerm = $permission->is_student_permission ?? false;
                             $requesterName = 'N/A';
-                            if($permission->requester_type === 'student' && $permission->student) {
+                            if($isStudentPerm) {
+                                $requesterName = $permission->student_name ?? 'N/A';
+                                $requesterInfo = 'Student | ' . ($permission->class_name ?? 'N/A');
+                            } elseif($permission->requester_type === 'student' && $permission->student) {
                                 $requesterName = trim($permission->student->first_name . ' ' . $permission->student->last_name);
+                                $requesterInfo = ucfirst($permission->requester_type);
+                                if($permission->student && $permission->student->class) {
+                                    $requesterInfo .= ' | ' . $permission->student->class->class_name;
+                                }
                             } elseif($permission->requester_type === 'staff' && $permission->staff) {
                                 $requesterName = trim($permission->staff->first_name . ' ' . $permission->staff->last_name);
+                                $requesterInfo = ucfirst($permission->requester_type);
                             } elseif($permission->teacher) {
                                 $requesterName = trim($permission->teacher->first_name . ' ' . $permission->teacher->last_name);
-                            }
-
-                            $requesterInfo = ucfirst($permission->requester_type);
-                            if($permission->requester_type === 'student' && $permission->student && $permission->student->class) {
-                                $requesterInfo .= ' | ' . $permission->student->class->class_name;
+                                $requesterInfo = ucfirst($permission->requester_type);
+                            } else {
+                                $requesterInfo = ucfirst($permission->requester_type ?? 'Unknown');
                             }
                         @endphp
                         <div class="col-md-6 col-lg-4 mb-3">
@@ -268,14 +275,14 @@
                                                 <i class="bx bx-cog"></i>
                                             </button>
                                             <div class="dropdown-menu dropdown-menu-right shadow border">
-                                                <a class="dropdown-item text-success" href="#" onclick="openApprovalModal({{ $permission->permissionID }}); return false;">
+                                                <a class="dropdown-item text-success" href="#" onclick="openApprovalModal({{ $permission->permissionID }}, {{ $isStudentPerm ? 'true' : 'false' }}); return false;">
                                                     <i class="fa fa-check-circle"></i> Approve
                                                 </a>
-                                                <a class="dropdown-item text-danger" href="#" onclick="openRejectionModal({{ $permission->permissionID }}); return false;">
+                                                <a class="dropdown-item text-danger" href="#" onclick="openRejectionModal({{ $permission->permissionID }}, {{ $isStudentPerm ? 'true' : 'false' }}); return false;">
                                                     <i class="fa fa-times-circle"></i> Reject
                                                 </a>
                                                 <div class="dropdown-divider"></div>
-                                                <a class="dropdown-item" href="#" onclick="viewPermissionProgress({{ $permission->permissionID }}); return false;">
+                                                <a class="dropdown-item" href="#" onclick="viewPermissionProgress({{ $permission->permissionID }}, {{ $isStudentPerm ? 'true' : 'false' }}); return false;">
                                                     <i class="fa fa-project-diagram"></i> View Progress
                                                 </a>
                                                 <a class="dropdown-item" href="#" onclick="viewPermissionDetails({{ json_encode([
@@ -284,18 +291,19 @@
                                                     'requester_info' => $requesterInfo,
                                                     'time_mode' => ucfirst($permission->time_mode),
                                                     'days_count' => $permission->days_count,
-                                                    'start_date' => $permission->start_date ? $permission->start_date->format('j F Y') : null,
-                                                    'end_date' => $permission->end_date ? $permission->end_date->format('j F Y') : null,
+                                                    'start_date' => $isStudentPerm ? ($permission->start_date ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y') : null) : ($permission->start_date ? $permission->start_date->format('j F Y') : null),
+                                                    'end_date' => $isStudentPerm ? ($permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->format('j F Y') : null) : ($permission->end_date ? $permission->end_date->format('j F Y') : null),
                                                     'start_time' => $permission->start_time,
                                                     'end_time' => $permission->end_time,
                                                     'reason_type' => ucfirst($permission->reason_type),
                                                     'reason_description' => $permission->reason_description,
                                                     'status' => ucfirst($permission->status),
-                                                    'requested_at' => $permission->created_at ? $permission->created_at->format('j F Y H:i') : 'N/A'
+                                                    'requested_at' => $isStudentPerm ? ($permission->created_at ? \Carbon\Carbon::parse($permission->created_at)->format('j F Y H:i') : 'N/A') : ($permission->created_at ? $permission->created_at->format('j F Y H:i') : 'N/A'),
+                                                    'is_student_permission' => $isStudentPerm
                                                 ]) }}); return false;">
                                                     <i class="fa fa-list-alt"></i> View More
                                                 </a>
-                                                <a class="dropdown-item" href="{{ route('admin.permissions.download', $permission->permissionID) }}">
+                                                <a class="dropdown-item" href="{{ $isStudentPerm ? route('admin.student_permissions.download', $permission->permissionID) : route('admin.permissions.download', $permission->permissionID) }}">
                                                     <i class="fa fa-file-pdf"></i> Download PDF
                                                 </a>
                                             </div>
@@ -305,10 +313,10 @@
                                     <div class="mb-2">
                                         <small class="text-muted d-block">Period:</small>
                                         @if($permission->time_mode === 'days')
-                                            <i class="fa fa-calendar-alt text-primary-custom"></i> {{ $permission->start_date->format('j F Y') }} - {{ $permission->end_date->format('j F Y') }}
+                                            <i class="fa fa-calendar-alt text-primary-custom"></i> {{ $isStudentPerm ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y') : $permission->start_date->format('j F Y') }} - {{ $isStudentPerm ? \Carbon\Carbon::parse($permission->end_date)->format('j F Y') : $permission->end_date->format('j F Y') }}
                                             <span class="badge badge-light border ml-1">{{ $permission->days_count }} days</span>
                                         @else
-                                            <i class="fa fa-clock text-primary-custom"></i> {{ $permission->start_date->format('j F Y') }} ({{ $permission->start_time }} - {{ $permission->end_time }})
+                                            <i class="fa fa-clock text-primary-custom"></i> {{ $isStudentPerm ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y') : $permission->start_date->format('j F Y') }} ({{ $permission->start_time }} - {{ $permission->end_time }})
                                         @endif
                                     </div>
                                     <div>
@@ -342,6 +350,7 @@
             <form id="approveForm">
                 @csrf
                 <input type="hidden" name="permissionID" id="approvePermissionID">
+                <input type="hidden" name="is_student_permission" id="isStudentPermission" value="false">
                 <div class="modal-body position-relative">
                     <div class="modal-loading">
                         <i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i>
@@ -374,6 +383,7 @@
             <form id="rejectForm">
                 @csrf
                 <input type="hidden" name="permissionID" id="rejectPermissionID">
+                <input type="hidden" name="is_student_permission" id="isStudentPermissionReject" value="false">
                 <div class="modal-body position-relative">
                     <div class="modal-loading">
                         <i class="fa fa-spinner fa-spin fa-2x text-primary-custom"></i>
@@ -452,13 +462,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    function openApprovalModal(id) {
+    function openApprovalModal(id, isStudentPermission = false) {
         $('#approvePermissionID').val(id);
+        $('#isStudentPermission').val(isStudentPermission ? '1' : '0');
         $('#approveModal').modal('show');
     }
 
-    function openRejectionModal(id) {
+    function openRejectionModal(id, isStudentPermission = false) {
         $('#rejectPermissionID').val(id);
+        $('#isStudentPermissionReject').val(isStudentPermission ? '1' : '0');
         $('#rejectModal').modal('show');
     }
 

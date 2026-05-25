@@ -171,6 +171,36 @@
         background: #dc3545;
         color: white;
     }
+    .form-loading {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border: 1px solid rgba(148, 0, 0, 0.25);
+        background: rgba(148, 0, 0, 0.05);
+        margin-bottom: 12px;
+    }
+    .form-progress {
+        position: relative;
+        flex: 1;
+        height: 8px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .form-progress::after {
+        content: "";
+        position: absolute;
+        left: -40%;
+        width: 40%;
+        height: 100%;
+        background: #940000;
+        animation: progressSlide 1.1s linear infinite;
+    }
+    @keyframes progressSlide {
+        0% { left: -40%; }
+        100% { left: 100%; }
+    }
 </style>
 
 <div class="row" style="margin-left: 0; margin-right: 0;">
@@ -307,6 +337,10 @@
             <div class="tab-pane fade" id="pending" role="tabpanel">
                 <div class="card border-0">
                     <div class="card-body">
+                        <div class="form-loading" id="pendingTabLoading" style="display: none;">
+                            <span><i class="fa fa-spinner fa-spin text-primary-custom"></i> Loading...</span>
+                            <div class="form-progress"></div>
+                        </div>
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="perm-view-toggle">
                                 <button class="btn btn-sm btn-outline-secondary perm-view-btn" data-view="list">
@@ -315,6 +349,72 @@
                                 <button class="btn btn-sm btn-outline-secondary perm-view-btn" data-view="grid">
                                     <i class="bx bx-grid"></i> Grid
                                 </button>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <form id="pendingFilterForm" method="GET" class="p-3 bg-light border shadow-sm">
+                                    <input type="hidden" name="tab" value="pending">
+                                    <div class="row align-items-end">
+                                        <div class="col-md-3">
+                                            <label class="font-weight-bold small">Filter By:</label>
+                                            <select name="filter_type" id="pending_filter_type" class="form-control form-control-sm" onchange="togglePendingFilterInputs()">
+                                                <option value="all" selected>All Records</option>
+                                                <option value="range">Date Range</option>
+                                                <option value="month">Specific Month</option>
+                                                <option value="year">Specific Year</option>
+                                            </select>
+                                        </div>
+
+                                        <div id="pending_range_inputs" class="col-md-6 filter-input-group" style="display: none; gap: 10px;">
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">From:</label>
+                                                <input type="date" name="date_from" id="pending_date_from" class="form-control form-control-sm">
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">To:</label>
+                                                <input type="date" name="date_to" id="pending_date_to" class="form-control form-control-sm">
+                                            </div>
+                                        </div>
+
+                                        <div id="pending_month_inputs" class="col-md-6 filter-input-group" style="display: none; gap: 10px;">
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">Month:</label>
+                                                <select name="filter_month" class="form-control form-control-sm">
+                                                    @foreach(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as $index => $monthName)
+                                                        <option value="{{ $index + 1 }}">{{ $monthName }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">Year:</label>
+                                                <select name="filter_month_year" class="form-control form-control-sm">
+                                                    @for($y = date('Y'); $y >= date('Y')-5; $y--)
+                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div id="pending_year_inputs" class="col-md-3 filter-input-group" style="display: none;">
+                                            <label class="font-weight-bold small">Year:</label>
+                                            <select name="filter_year" class="form-control form-control-sm">
+                                                @for($y = date('Y'); $y >= date('Y')-5; $y--)
+                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                @endfor
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <button type="submit" class="btn btn-primary-custom btn-sm w-100 mb-1">
+                                                <i class="fa fa-search"></i> Apply Filter
+                                            </button>
+                                            <button type="button" onclick="resetPendingFilters()" class="btn btn-outline-secondary btn-sm w-100">
+                                                <i class="fa fa-undo"></i> Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                         <div id="perm-list-view">
@@ -350,6 +450,10 @@
             <div class="tab-pane fade" id="approved" role="tabpanel">
                 <div class="card border-0">
                     <div class="card-body">
+                        <div class="form-loading" id="approvedTabLoading" style="display: none;">
+                            <span><i class="fa fa-spinner fa-spin text-primary-custom"></i> Loading...</span>
+                            <div class="form-progress"></div>
+                        </div>
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="perm-view-toggle">
                                 <button class="btn btn-sm btn-outline-secondary perm-view-btn" data-view="list">
@@ -358,6 +462,72 @@
                                 <button class="btn btn-sm btn-outline-secondary perm-view-btn" data-view="grid">
                                     <i class="bx bx-grid"></i> Grid
                                 </button>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <form id="approvedFilterForm" method="GET" class="p-3 bg-light border shadow-sm">
+                                    <input type="hidden" name="tab" value="approved">
+                                    <div class="row align-items-end">
+                                        <div class="col-md-3">
+                                            <label class="font-weight-bold small">Filter By:</label>
+                                            <select name="filter_type" id="approved_filter_type" class="form-control form-control-sm" onchange="toggleApprovedFilterInputs()">
+                                                <option value="all" selected>All Records</option>
+                                                <option value="range">Date Range</option>
+                                                <option value="month">Specific Month</option>
+                                                <option value="year">Specific Year</option>
+                                            </select>
+                                        </div>
+
+                                        <div id="approved_range_inputs" class="col-md-6 filter-input-group" style="display: none; gap: 10px;">
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">From:</label>
+                                                <input type="date" name="date_from" id="approved_date_from" class="form-control form-control-sm">
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">To:</label>
+                                                <input type="date" name="date_to" id="approved_date_to" class="form-control form-control-sm">
+                                            </div>
+                                        </div>
+
+                                        <div id="approved_month_inputs" class="col-md-6 filter-input-group" style="display: none; gap: 10px;">
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">Month:</label>
+                                                <select name="filter_month" class="form-control form-control-sm">
+                                                    @foreach(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as $index => $monthName)
+                                                        <option value="{{ $index + 1 }}">{{ $monthName }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">Year:</label>
+                                                <select name="filter_month_year" class="form-control form-control-sm">
+                                                    @for($y = date('Y'); $y >= date('Y')-5; $y--)
+                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div id="approved_year_inputs" class="col-md-3 filter-input-group" style="display: none;">
+                                            <label class="font-weight-bold small">Year:</label>
+                                            <select name="filter_year" class="form-control form-control-sm">
+                                                @for($y = date('Y'); $y >= date('Y')-5; $y--)
+                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                @endfor
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <button type="submit" class="btn btn-primary-custom btn-sm w-100 mb-1">
+                                                <i class="fa fa-search"></i> Apply Filter
+                                            </button>
+                                            <button type="button" onclick="resetApprovedFilters()" class="btn btn-outline-secondary btn-sm w-100">
+                                                <i class="fa fa-undo"></i> Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                         <div id="perm-list-view">
@@ -393,6 +563,10 @@
             <div class="tab-pane fade" id="rejected" role="tabpanel">
                 <div class="card border-0">
                     <div class="card-body">
+                        <div class="form-loading" id="rejectedTabLoading" style="display: none;">
+                            <span><i class="fa fa-spinner fa-spin text-primary-custom"></i> Loading...</span>
+                            <div class="form-progress"></div>
+                        </div>
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="perm-view-toggle">
                                 <button class="btn btn-sm btn-outline-secondary perm-view-btn" data-view="list">
@@ -401,6 +575,72 @@
                                 <button class="btn btn-sm btn-outline-secondary perm-view-btn" data-view="grid">
                                     <i class="bx bx-grid"></i> Grid
                                 </button>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <form id="rejectedFilterForm" method="GET" class="p-3 bg-light border shadow-sm">
+                                    <input type="hidden" name="tab" value="rejected">
+                                    <div class="row align-items-end">
+                                        <div class="col-md-3">
+                                            <label class="font-weight-bold small">Filter By:</label>
+                                            <select name="filter_type" id="rejected_filter_type" class="form-control form-control-sm" onchange="toggleRejectedFilterInputs()">
+                                                <option value="all" selected>All Records</option>
+                                                <option value="range">Date Range</option>
+                                                <option value="month">Specific Month</option>
+                                                <option value="year">Specific Year</option>
+                                            </select>
+                                        </div>
+
+                                        <div id="rejected_range_inputs" class="col-md-6 filter-input-group" style="display: none; gap: 10px;">
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">From:</label>
+                                                <input type="date" name="date_from" id="rejected_date_from" class="form-control form-control-sm">
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">To:</label>
+                                                <input type="date" name="date_to" id="rejected_date_to" class="form-control form-control-sm">
+                                            </div>
+                                        </div>
+
+                                        <div id="rejected_month_inputs" class="col-md-6 filter-input-group" style="display: none; gap: 10px;">
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">Month:</label>
+                                                <select name="filter_month" class="form-control form-control-sm">
+                                                    @foreach(['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as $index => $monthName)
+                                                        <option value="{{ $index + 1 }}">{{ $monthName }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <label class="font-weight-bold small">Year:</label>
+                                                <select name="filter_month_year" class="form-control form-control-sm">
+                                                    @for($y = date('Y'); $y >= date('Y')-5; $y--)
+                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div id="rejected_year_inputs" class="col-md-3 filter-input-group" style="display: none;">
+                                            <label class="font-weight-bold small">Year:</label>
+                                            <select name="filter_year" class="form-control form-control-sm">
+                                                @for($y = date('Y'); $y >= date('Y')-5; $y--)
+                                                    <option value="{{ $y }}">{{ $y }}</option>
+                                                @endfor
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <button type="submit" class="btn btn-primary-custom btn-sm w-100 mb-1">
+                                                <i class="fa fa-search"></i> Apply Filter
+                                            </button>
+                                            <button type="button" onclick="resetRejectedFilters()" class="btn btn-outline-secondary btn-sm w-100">
+                                                <i class="fa fa-undo"></i> Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                         <div id="perm-list-view">
@@ -659,10 +899,11 @@
         }
     }
 
-    function loadPermissionRequests() {
+    function loadPermissionRequests(filters = {}) {
         $.ajax({
             url: '{{ route("teacher.student_permission.index") }}',
             method: 'GET',
+            data: filters,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -692,6 +933,205 @@
             }
         });
     }
+
+    function togglePendingFilterInputs() {
+        const type = $('#pending_filter_type').val();
+        $('#pending_range_inputs, #pending_month_inputs, #pending_year_inputs').hide();
+        if (type === 'range') {
+            $('#pending_range_inputs').css('display', 'flex');
+        } else if (type === 'month') {
+            $('#pending_month_inputs').css('display', 'flex');
+        } else if (type === 'year') {
+            $('#pending_year_inputs').show();
+        }
+    }
+
+    function toggleApprovedFilterInputs() {
+        const type = $('#approved_filter_type').val();
+        $('#approved_range_inputs, #approved_month_inputs, #approved_year_inputs').hide();
+        if (type === 'range') {
+            $('#approved_range_inputs').css('display', 'flex');
+        } else if (type === 'month') {
+            $('#approved_month_inputs').css('display', 'flex');
+        } else if (type === 'year') {
+            $('#approved_year_inputs').show();
+        }
+    }
+
+    function toggleRejectedFilterInputs() {
+        const type = $('#rejected_filter_type').val();
+        $('#rejected_range_inputs, #rejected_month_inputs, #rejected_year_inputs').hide();
+        if (type === 'range') {
+            $('#rejected_range_inputs').css('display', 'flex');
+        } else if (type === 'month') {
+            $('#rejected_month_inputs').css('display', 'flex');
+        } else if (type === 'year') {
+            $('#rejected_year_inputs').show();
+        }
+    }
+
+    function resetPendingFilters() {
+        $('#pendingFilterForm')[0].reset();
+        $('#pending_range_inputs, #pending_month_inputs, #pending_year_inputs').hide();
+        loadPermissionRequests();
+    }
+
+    function resetApprovedFilters() {
+        $('#approvedFilterForm')[0].reset();
+        $('#approved_range_inputs, #approved_month_inputs, #approved_year_inputs').hide();
+        loadPermissionRequests();
+    }
+
+    function resetRejectedFilters() {
+        $('#rejectedFilterForm')[0].reset();
+        $('#rejected_range_inputs, #rejected_month_inputs, #rejected_year_inputs').hide();
+        loadPermissionRequests();
+    }
+
+    // Handle filter form submissions
+    $('#pendingFilterForm').on('submit', function(e) {
+        e.preventDefault();
+        const loadingBar = $('#pendingTabLoading');
+        loadingBar.css('display', 'flex');
+
+        const formData = new FormData(this);
+        const filters = {};
+        for (let [key, value] of formData.entries()) {
+            if (value) filters[key] = value;
+        }
+
+        $.ajax({
+            url: '{{ route("teacher.student_permission.index") }}',
+            method: 'GET',
+            data: filters,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(data) {
+                if (data.success) {
+                    populateTable('pending', data.pending || []);
+                    populateTable('approved', data.approved || []);
+                    populateTable('rejected', data.rejected || []);
+                } else {
+                    const errorMsg = data.message || 'Failed to load requests';
+                    $('#pendingTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                    $('#approvedTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                    $('#rejectedTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                }
+            },
+            error: function(xhr) {
+                let errorMsg = 'Failed to load requests';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                } else if (xhr.responseText) {
+                    errorMsg = 'Server error: ' + xhr.status;
+                }
+                $('#pendingTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                $('#approvedTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                $('#rejectedTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+            },
+            complete: function() {
+                loadingBar.css('display', 'none');
+            }
+        });
+    });
+
+    $('#approvedFilterForm').on('submit', function(e) {
+        e.preventDefault();
+        const loadingBar = $('#approvedTabLoading');
+        loadingBar.css('display', 'flex');
+
+        const formData = new FormData(this);
+        const filters = {};
+        for (let [key, value] of formData.entries()) {
+            if (value) filters[key] = value;
+        }
+
+        $.ajax({
+            url: '{{ route("teacher.student_permission.index") }}',
+            method: 'GET',
+            data: filters,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(data) {
+                if (data.success) {
+                    populateTable('pending', data.pending || []);
+                    populateTable('approved', data.approved || []);
+                    populateTable('rejected', data.rejected || []);
+                } else {
+                    const errorMsg = data.message || 'Failed to load requests';
+                    $('#pendingTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                    $('#approvedTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                    $('#rejectedTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                }
+            },
+            error: function(xhr) {
+                let errorMsg = 'Failed to load requests';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                } else if (xhr.responseText) {
+                    errorMsg = 'Server error: ' + xhr.status;
+                }
+                $('#pendingTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                $('#approvedTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                $('#rejectedTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+            },
+            complete: function() {
+                loadingBar.css('display', 'none');
+            }
+        });
+    });
+
+    $('#rejectedFilterForm').on('submit', function(e) {
+        e.preventDefault();
+        const loadingBar = $('#rejectedTabLoading');
+        loadingBar.css('display', 'flex');
+
+        const formData = new FormData(this);
+        const filters = {};
+        for (let [key, value] of formData.entries()) {
+            if (value) filters[key] = value;
+        }
+
+        $.ajax({
+            url: '{{ route("teacher.student_permission.index") }}',
+            method: 'GET',
+            data: filters,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(data) {
+                if (data.success) {
+                    populateTable('pending', data.pending || []);
+                    populateTable('approved', data.approved || []);
+                    populateTable('rejected', data.rejected || []);
+                } else {
+                    const errorMsg = data.message || 'Failed to load requests';
+                    $('#pendingTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                    $('#approvedTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                    $('#rejectedTableBody').html('<tr><td colspan="6" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                }
+            },
+            error: function(xhr) {
+                let errorMsg = 'Failed to load requests';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                } else if (xhr.responseText) {
+                    errorMsg = 'Server error: ' + xhr.status;
+                }
+                $('#pendingTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                $('#approvedTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+                $('#rejectedTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + errorMsg + '</td></tr>');
+            },
+            complete: function() {
+                loadingBar.css('display', 'none');
+            }
+        });
+    });
 
     function populateTable(status, requests) {
         const tbody = $(`#${status}TableBody`);
@@ -1085,7 +1525,14 @@
                         text: data.message,
                         confirmButtonColor: '#940000'
                     }).then(() => {
-                        window.location.href = "{{ route('teachersDashboard') }}";
+                        $('#studentPermissionForm')[0].reset();
+                        $('#selectedStudentId').val('');
+                        $('#studentSearch').val('');
+                        $('#studentSearchResults').hide().empty();
+                        togglePermissionMode();
+                        if (typeof loadPermissionRequests === 'function') {
+                            loadPermissionRequests();
+                        }
                     });
                 } else {
                     Swal.fire({

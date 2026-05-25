@@ -1,21 +1,31 @@
 @forelse($permissions as $permission)
     @php
         $requesterName = 'N/A';
-        if($permission->requester_type === 'student' && $permission->student) {
+        $isStudentPerm = $permission->is_student_permission ?? false;
+
+        if($isStudentPerm) {
+            // Handle student permissions from student_permissions table
+            $requesterName = $permission->student_name ?? 'N/A';
+            $requesterInfo = 'Student | ' . ($permission->class_name ?? 'N/A');
+        } elseif($permission->requester_type === 'student' && $permission->student) {
             $requesterName = trim($permission->student->first_name . ' ' . $permission->student->last_name);
+            $requesterInfo = ucfirst($permission->requester_type);
+            if($permission->student && $permission->student->subclass) {
+                $requesterInfo .= ' | ' . ($permission->student->subclass->class->class_name ?? '') . ' ' . ($permission->student->subclass->subclass_name ?? '');
+            }
         } elseif($permission->requester_type === 'staff' && $permission->staff) {
             $requesterName = trim($permission->staff->first_name . ' ' . $permission->staff->last_name);
+            $requesterInfo = ucfirst($permission->requester_type);
         } elseif($permission->teacher) {
             $requesterName = trim($permission->teacher->first_name . ' ' . $permission->teacher->last_name);
-        }
-
-        $requesterInfo = ucfirst($permission->requester_type);
-        if($permission->requester_type === 'student' && $permission->student && $permission->student->subclass) {
-            $requesterInfo .= ' | ' . ($permission->student->subclass->class->class_name ?? '') . ' ' . ($permission->student->subclass->subclass_name ?? '');
+            $requesterInfo = ucfirst($permission->requester_type);
+        } else {
+            $requesterInfo = ucfirst($permission->requester_type ?? 'Unknown');
         }
 
         // Logic to determine if it's THIS user's turn
         $isMyTurn = false;
+        $permissionType = $isStudentPerm ? 'student' : $permission->requester_type;
 
         // 1. If user is Admin, check if they are in the chain and at their step
         if ($userType === 'Admin') {
@@ -24,13 +34,13 @@
             if (\Illuminate\Support\Facades\Schema::hasTable('permission_approval_chains')) {
                 $adminChain = DB::table('permission_approval_chains')
                     ->where('schoolID', $permission->schoolID)
-                    ->where('permission_type', $permission->requester_type)
+                    ->where('permission_type', $permissionType)
                     ->where('is_admin', true)
                     ->first();
 
                 $maxChainOrder = DB::table('permission_approval_chains')
                     ->where('schoolID', $permission->schoolID)
-                    ->where('permission_type', $permission->requester_type)
+                    ->where('permission_type', $permissionType)
                     ->max('approval_order') ?? 0;
             }
 
@@ -49,7 +59,7 @@
             if (\Illuminate\Support\Facades\Schema::hasTable('permission_approval_chains')) {
                 $myChainOrders = DB::table('permission_approval_chains')
                     ->where('schoolID', $permission->schoolID)
-                    ->where('permission_type', $permission->requester_type)
+                    ->where('permission_type', $permissionType)
                     ->where(function($q) use ($myRoleIDs, $myProfessionID) {
                         if (!empty($myRoleIDs)) $q->orWhereIn('role_id', $myRoleIDs);
                         if ($myProfessionID) $q->orWhere('profession_id', $myProfessionID);
@@ -71,11 +81,21 @@
         <td>{{ ucfirst($permission->time_mode) }}</td>
         <td>
             @if($permission->time_mode === 'days')
-                {{ $permission->start_date->format('j F Y') }} - {{ $permission->end_date->format('j F Y') }}
-                <br><span class="badge badge-light border">({{ $permission->days_count }} days)</span>
+                @if($isStudentPerm)
+                    {{ \Carbon\Carbon::parse($permission->start_date)->format('j F Y') }} - {{ \Carbon\Carbon::parse($permission->end_date)->format('j F Y') }}
+                    <br><span class="badge badge-light border">({{ $permission->days_count }} days)</span>
+                @else
+                    {{ $permission->start_date->format('j F Y') }} - {{ $permission->end_date->format('j F Y') }}
+                    <br><span class="badge badge-light border">({{ $permission->days_count }} days)</span>
+                @endif
             @else
-                {{ $permission->start_date->format('j F Y') }}<br>
-                {{ $permission->start_time }} - {{ $permission->end_time }}
+                @if($isStudentPerm)
+                    {{ \Carbon\Carbon::parse($permission->start_date)->format('j F Y') }}<br>
+                    {{ $permission->start_time }} - {{ $permission->end_time }}
+                @else
+                    {{ $permission->start_date->format('j F Y') }}<br>
+                    {{ $permission->start_time }} - {{ $permission->end_time }}
+                @endif
             @endif
         </td>
         <td>
@@ -95,10 +115,10 @@
                 </button>
                 <div class="dropdown-menu dropdown-menu-right shadow border">
                     @if($isMyTurn)
-                    <a class="dropdown-item text-success" href="#" onclick="openApprovalModal({{ $permission->permissionID }}); return false;">
+                    <a class="dropdown-item text-success" href="#" onclick="openApprovalModal({{ $permission->permissionID }}, {{ $isStudentPerm ? 'true' : 'false' }}); return false;">
                         <i class="fa fa-check-circle"></i> Approve
                     </a>
-                    <a class="dropdown-item text-danger" href="#" onclick="openRejectionModal({{ $permission->permissionID }}); return false;">
+                    <a class="dropdown-item text-danger" href="#" onclick="openRejectionModal({{ $permission->permissionID }}, {{ $isStudentPerm ? 'true' : 'false' }}); return false;">
                         <i class="fa fa-times-circle"></i> Reject
                     </a>
                     @else
@@ -107,7 +127,7 @@
                     </a>
                     @endif
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="#" onclick="viewPermissionProgress({{ $permission->permissionID }}); return false;">
+                    <a class="dropdown-item" href="#" onclick="viewPermissionProgress({{ $permission->permissionID }}, {{ $isStudentPerm ? 'true' : 'false' }}); return false;">
                         <i class="fa fa-project-diagram"></i> View Progress
                     </a>
                     <a class="dropdown-item" href="#" onclick="viewPermissionDetails({{ json_encode([
@@ -116,18 +136,19 @@
                         'requester_info' => $requesterInfo,
                         'time_mode' => ucfirst($permission->time_mode),
                         'days_count' => $permission->days_count,
-                        'start_date' => $permission->start_date ? $permission->start_date->format('j F Y') : null,
-                        'end_date' => $permission->end_date ? $permission->end_date->format('j F Y') : null,
+                        'start_date' => $isStudentPerm ? ($permission->start_date ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y') : null) : ($permission->start_date ? $permission->start_date->format('j F Y') : null),
+                        'end_date' => $isStudentPerm ? ($permission->end_date ? \Carbon\Carbon::parse($permission->end_date)->format('j F Y') : null) : ($permission->end_date ? $permission->end_date->format('j F Y') : null),
                         'start_time' => $permission->start_time,
                         'end_time' => $permission->end_time,
                         'reason_type' => ucfirst($permission->reason_type),
                         'reason_description' => $permission->reason_description,
                         'status' => ucfirst($permission->status),
-                        'requested_at' => $permission->created_at ? $permission->created_at->format('j F Y H:i') : 'N/A'
+                        'requested_at' => $isStudentPerm ? ($permission->created_at ? \Carbon\Carbon::parse($permission->created_at)->format('j F Y H:i') : 'N/A') : ($permission->created_at ? $permission->created_at->format('j F Y H:i') : 'N/A'),
+                        'is_student_permission' => $isStudentPerm
                     ]) }}); return false;">
                         <i class="fa fa-list-alt"></i> View More
                     </a>
-                    <a class="dropdown-item" href="{{ route('admin.permissions.download', $permission->permissionID) }}">
+                    <a class="dropdown-item" href="{{ $isStudentPerm ? route('admin.student_permissions.download', $permission->permissionID) : route('admin.permissions.download', $permission->permissionID) }}">
                         <i class="fa fa-file-pdf"></i> Download PDF
                     </a>
                 </div>

@@ -14,7 +14,7 @@
         font-family: 'Century Gothic', Muli, sans-serif !important;
     }
     .bg-light-warning { background-color: #fff9f0 !important; }
-    
+
     .subject-row:hover { background-color: rgba(243, 156, 18, 0.05); }
 
     .already-assigned-wrapper {
@@ -36,7 +36,7 @@
         border-radius: 8px !important;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
     }
-    
+
     /* Progress Bar */
     .progress-container { width: 100%; background-color: #f3f3f3; border-radius: 8px; overflow: hidden; margin: 20px 0; }
     .progress-bar-premium { width: 0%; height: 12px; background: linear-gradient(90deg, #940000 0%, #d40000 50%, #940000 100%); background-size: 200% 100%; animation: gradient-pulse 2s infinite linear; border-radius: 8px; transition: width 0.4s ease-out; }
@@ -65,7 +65,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center">
                     <div class="form-check form-switch me-4" style="padding-left: 3.5em;">
-                        <input class="form-check-input" type="checkbox" id="globalTeacherResultToggle" {{ $resultButtonStatus ? 'checked' : '' }} 
+                        <input class="form-check-input" type="checkbox" id="globalTeacherResultToggle" {{ $resultButtonStatus ? 'checked' : '' }}
                                style="width: 3em; height: 1.5em; cursor: pointer; margin-left: -3.5em;">
                     </div>
                     <div>
@@ -215,15 +215,15 @@
 <script>
     (function($) {
         "use strict";
-        
+
         // Auto-filter subclasses based on class
         $('#classID').on('change', function() {
             var classID = $(this).val();
             var $subclassSelect = $('#subclassID');
-            
+
             // Keep the "All" option
             $subclassSelect.html('<option value="">All Subclasses</option>');
-            
+
             if (classID) {
                 // Get all original subclasses from a template or hidden data
                 @foreach($subclasses as $sub)
@@ -266,13 +266,16 @@
                 success: function(res) {
                     Swal.close();
                     if (res.success && res.class_subjectID) {
+                        // Store all_subclasses state globally so addResults/viewResults can use it
+                        window._allSubclassesMode = !!res.all_subclasses;
+                        window._classSubjectMap = res.class_subject_map || {};
                         if (action === 'add') {
                             if (typeof addResults === 'function') addResults(res.class_subjectID);
                         } else if (action === 'view') {
                             if (typeof viewResults === 'function') viewResults(res.class_subjectID);
                         }
                     } else {
-                        Swal.fire('Not Found', 'This subject is not assigned to the selected class/subclass.', 'warning');
+                        Swal.fire('Error', 'Could not map this subject. Please try again.', 'error');
                     }
                 },
                 error: function() {
@@ -457,7 +460,7 @@
                         <div class="col-12 mt-3">
                             <label class="form-label fw-bold">6. Select Allowed Subjects</label>
                             <div class="p-3 border rounded bg-light" id="assign_subjects_container" style="max-height: 200px; overflow-y: auto;">
-                                <div class="text-muted small">Select class and subclass to see subjects.</div>
+                                <div class="text-muted small">Select class to see subjects.</div>
                             </div>
                         </div>
                     </div>
@@ -499,10 +502,10 @@ function getResultsCacheKey() {
 function saveMarkToCache(studentID, fieldKey, marks) {
     const key = getResultsCacheKey();
     if (!key) return;
-    
+
     let cache = JSON.parse(localStorage.getItem(key) || '{}');
     if (!cache[studentID]) cache[studentID] = {};
-    
+
     cache[studentID][fieldKey] = marks;
     localStorage.setItem(key, JSON.stringify(cache));
 }
@@ -510,15 +513,15 @@ function saveMarkToCache(studentID, fieldKey, marks) {
 function restoreMarksFromCache() {
     const key = getResultsCacheKey();
     if (!key) return;
-    
+
     const cache = JSON.parse(localStorage.getItem(key) || '{}');
     if (Object.keys(cache).length === 0) return;
-    
+
     let restoredCount = 0;
-    
+
     Object.keys(cache).forEach(studentID => {
         const studentMarks = cache[studentID];
-        
+
         // Restore Main Marks
         if (studentMarks['main'] !== undefined) {
             const $mainInput = jQuery(`#marks_${studentID}`);
@@ -528,7 +531,7 @@ function restoreMarksFromCache() {
                 restoredCount++;
             }
         }
-        
+
         // Restore Question Marks
         Object.keys(studentMarks).forEach(qID => {
             if (qID !== 'main') {
@@ -536,32 +539,32 @@ function restoreMarksFromCache() {
                     examQuestionData.marksByStudent[studentID] = {};
                 }
                 examQuestionData.marksByStudent[studentID][qID] = studentMarks[qID];
-                
+
                 const $qInput = jQuery(`.question-mark-input[data-student="${studentID}"][data-question-id="${qID}"]`);
                 if ($qInput.length) {
                     $qInput.val(studentMarks[qID]);
-                    
+
                     // Auto-check the optional box if it has marks
                     const $optionalCheck = jQuery(`.optional-select[data-student="${studentID}"][data-question-id="${qID}"]`);
                     if ($optionalCheck.length && studentMarks[qID] > 0) {
                         $optionalCheck.prop('checked', true);
                         $qInput.prop('disabled', false);
                     }
-                    
+
                     restoredCount++;
                 }
             }
         });
-        
+
         // Update DOM inputs if they happen to be rendered
         updateStudentTotal(studentID);
     });
-    
+
     // Recalculate all main totals from the cache object (crucial since DOM inputs might not be rendered yet)
     if (typeof updateTotalsFromCache === 'function') {
         updateTotalsFromCache();
     }
-    
+
     if (restoredCount > 0) {
         Swal.fire({
             toast: true,
@@ -590,12 +593,12 @@ jQuery(document).on('input', '.question-mark-input', function() {
     const studentID = jQuery(this).data('student');
     const questionID = jQuery(this).data('question-id');
     const marks = jQuery(this).val();
-    
+
     if (!examQuestionData.marksByStudent[studentID]) {
         examQuestionData.marksByStudent[studentID] = {};
     }
     examQuestionData.marksByStudent[studentID][questionID] = marks;
-    
+
     updateStudentTotal(studentID);
     saveMarkToCache(studentID, questionID, marks);
 });
@@ -663,7 +666,7 @@ jQuery(document).ready(function($) {
     $('#globalTeacherResultToggle').on('change', function() {
         const isEnabled = this.checked;
         const label = $('#globalToggleLabel');
-        
+
         Swal.fire({
             title: isEnabled ? 'Enable Teacher Result Entry?' : 'Disable Teacher Result Entry?',
             text: isEnabled ? 'Teachers will be able to add and edit results.' : 'The "Add Result" button will be hidden for all teachers.',
@@ -676,7 +679,7 @@ jQuery(document).ready(function($) {
         }).then((result) => {
             if (result.isConfirmed) {
                 Swal.fire({ title: 'Updating...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                
+
                 fetch("{{ route('toggle_teacher_result_permission') }}", {
                     method: 'POST',
                     headers: {
@@ -725,16 +728,16 @@ jQuery(document).ready(function($) {
         e.preventDefault();
         const $btn = jQuery(this);
         const originalHtml = $btn.html();
-        
+
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
-        
+
         const teacherID = jQuery('#filter_teacherID').val();
         const year = jQuery('#filter_year').val();
         const term = jQuery('#filter_term').val();
         const examID = jQuery('#filter_examID').val();
-        
+
         loadTeacherAssignmentsTable({ teacherID, year, term, examID });
-        
+
         // Restore button after a short delay (the table will show its own loading)
         setTimeout(() => {
             $btn.prop('disabled', false).html(originalHtml);
@@ -784,14 +787,14 @@ jQuery(document).ready(function($) {
 
         $form[0].reset();
         jQuery('#assignment_id').val('');
-        jQuery('#assign_subjects_container').html('<div class="text-muted small">Select class and subclass to see subjects.</div>');
+        jQuery('#assign_subjects_container').html('<div class="text-muted small">Select class to see subjects.</div>');
 
         if (id) {
             $title.html('<i class="bi bi-pencil-square me-2"></i> Edit Teacher Assignment');
             $btn.html('<i class="bi bi-check-circle me-1"></i> Update Assignment');
-            
+
             Swal.fire({ title: 'Loading...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            
+
             fetch(`{{ url('admin/get-assignment-details') }}/${id}`)
                 .then(res => res.json())
                 .then(data => {
@@ -799,14 +802,14 @@ jQuery(document).ready(function($) {
                     if (data.success) {
                         const a = data.assignment;
                         jQuery('#assignment_id').val(a.id);
-                        
+
                         // Load teachers first then select
                         loadTeachersAssignment(() => {
                             jQuery('#assign_teacherID').val(a.teacherID).trigger('change');
                         });
-                        
+
                         jQuery('#assign_classID').val(a.classID);
-                        
+
                         // Load subclasses
                         const $subSelect = jQuery('#assign_subclassID');
                         $subSelect.html('<option value="all">All Subclasses</option>');
@@ -816,7 +819,7 @@ jQuery(document).ready(function($) {
                             }
                         @endforeach
                         $subSelect.val(a.subclassID || 'all');
-                        
+
                         // Set Term and Exam
                         if (a.examID) {
                             // Find the exam to get its term
@@ -830,7 +833,7 @@ jQuery(document).ready(function($) {
 
                         // Load subjects and check the ones assigned
                         loadSubjectsForAssignment(a.subject_ids);
-                        
+
                         $modal.modal('show');
                     } else {
                         Swal.fire('Error', data.message, 'error');
@@ -875,23 +878,23 @@ jQuery(document).ready(function($) {
         const year = jQuery('#filter_year').val();
         const term = jQuery('#filter_term').val();
         const $examSelect = jQuery('#filter_examID');
-        
+
         $examSelect.val(''); // Reset selected exam
-        
+
         $examSelect.find('option').each(function() {
             const $opt = jQuery(this);
             if ($opt.val() === '') {
                 $opt.show();
                 return;
             }
-            
+
             const optYear = $opt.data('year');
             const optTerm = $opt.data('term');
-            
+
             let show = true;
             if (year && optYear != year) show = false;
             if (term && optTerm != term) show = false;
-            
+
             if (show) $opt.show();
             else $opt.hide();
         });
@@ -901,9 +904,9 @@ jQuery(document).ready(function($) {
     jQuery('#assign_term').on('change', function() {
         const term = jQuery(this).val();
         const $examSelect = jQuery('#assign_examID');
-        
+
         $examSelect.val(''); // Reset exam selection
-        
+
         if (!term) {
             $examSelect.find('option').show();
         } else {
@@ -923,7 +926,7 @@ jQuery(document).ready(function($) {
     function loadTeachersAssignment(callback = null) {
         const $select = jQuery('#assign_teacherID');
         $select.html('<option value="">Loading...</option>');
-        
+
         fetch("{{ route('admin.get_teachers_for_assignment') }}")
             .then(res => res.json())
             .then(data => {
@@ -948,6 +951,12 @@ jQuery(document).ready(function($) {
             return;
         }
 
+        // Reset subclass to 'all' label if it has no selection yet (first load on class change)
+        const $subSelectCurrent = jQuery('#assign_subclassID');
+        if (!$subSelectCurrent.val()) {
+            $subSelectCurrent.val('all');
+        }
+
         $container.html('<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div> Loading subjects...</div>');
 
         fetch(`{{ route('admin.get_subjects_for_assignment') }}?classID=${classID}&subclassID=${subclassID}&examID=${examID || ''}`)
@@ -959,7 +968,7 @@ jQuery(document).ready(function($) {
                         const sID = String(s.subjectID);
                         const isChecked = selectedIds.some(id => String(id) === sID);
                         const isAlreadyAssigned = data.alreadyAssignedIds.some(id => String(id) === sID) && !isChecked;
-                        
+
                         html += `
                             <div class="col-md-6 mb-2">
                                 <div class="form-check d-flex align-items-center ${isAlreadyAssigned ? 'already-assigned-wrapper' : ''}">
@@ -1045,7 +1054,7 @@ jQuery(document).ready(function($) {
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group">
-                                        <button class="btn btn-sm btn-outline-info view-assignment-details" 
+                                        <button class="btn btn-sm btn-outline-info view-assignment-details"
                                             data-teacher="${a.teacher.first_name} ${a.teacher.last_name}"
                                             data-class="${a.class.class_name}"
                                             data-subclass="${a.subclass ? a.subclass.subclass_name : 'All'}"
@@ -1071,7 +1080,7 @@ jQuery(document).ready(function($) {
                         `;
                     });
                     $tbody.html(html);
-                    
+
                     // Initialize DataTable
                     if (jQuery.fn.DataTable && !jQuery('#assignmentsTable').hasClass('dataTable')) {
                         jQuery('#assignmentsTable').DataTable({
@@ -1308,7 +1317,7 @@ function loadExamQuestionData(classSubjectID, examID) {
                     setTimeout(restoreMarksFromCache, 600);
                     return;
                 }
-                
+
                 jQuery('.question-detail-container').html(
                     '<div class="alert alert-warning mb-0">' +
                     '<i class="bi bi-exclamation-triangle"></i> ' + (response.message || 'No approved exam paper question formats found for this subject.') +
@@ -1464,15 +1473,15 @@ function updateTotalsFromCache() {
 
 function updateStudentTotal(studentID) {
     if (!studentID) return;
-    
+
     let total = 0;
     let optionalTotal = 0;
     let optionalTotalsByRange = {};
     let hasMarks = false;
-    
+
     // Find inputs strictly for this student
     const $studentRow = jQuery(`input[id="marks_${studentID}"], .marks-input[data-student="${studentID}"]`).closest('tr');
-    
+
     jQuery(`.question-mark-input[data-student="${studentID}"]`).each(function() {
         const value = parseFloat(jQuery(this).val());
         const isOptional = jQuery(this).data('optional') == 1;
@@ -1505,7 +1514,7 @@ function updateStudentTotal(studentID) {
     }
 
     const displayTotal = Number.isInteger(total) ? total : total.toFixed(2);
-    
+
     // Update UI elements only for this student
     jQuery(`.student-question-total[data-student="${studentID}"]`).text(hasMarks ? displayTotal : 0);
     const $mainMarksInput = jQuery(`#marks_${studentID}`);
@@ -1528,7 +1537,7 @@ function viewStudents(classSubjectID) {
     const loader = showPremiumLoading('studentsModalBody', "Loading Student List...", "Fetching all registered students for this subject...");
 
     jQuery.ajax({
-        url: '/get_subject_students/' + classSubjectID,
+        url: '/get_subject_students/' + classSubjectID + (window._allSubclassesMode ? '?all_subclasses=1' : ''),
         method: 'GET',
         success: function(response) {
             loader.update(100, "Formatting student list...");
@@ -1630,7 +1639,7 @@ function viewResults(classSubjectID) {
     // Get subject name and class from the card or from the filter form
     let subjectName, className;
     const card = jQuery(`i.view-results[onclick="viewResults(${classSubjectID})"]`).closest('.card');
-    
+
     if (card.length > 0) {
         subjectName = card.find('.card-title').text().trim();
         className = card.find('strong').first().text().trim();
@@ -1642,10 +1651,10 @@ function viewResults(classSubjectID) {
             className += ' ' + subclass;
         }
     }
-    
+
     // Grab the teacher's name from Auth::user or session if possible
     const teacherName = "{{ Auth::user()->name ?? 'N/A' }}";
-    
+
     window.currentViewSubject = subjectName;
     window.currentViewClass = className;
     window.currentViewTeacher = teacherName;
@@ -1929,26 +1938,26 @@ function filterViewResultsOptions(classSubjectID) {
     const year = jQuery('#view_year_filter').val();
     const term = jQuery('#view_term_filter').val();
     const selector = jQuery('#examSelector');
-    
+
     selector.find('option').each(function() {
         const opt = jQuery(this);
         if (!opt.val()) return; // Skip "All"
-        
+
         const optYear = opt.data('year');
         const optTerm = opt.data('term');
-        
+
         let show = true;
         if (year && optYear != year) show = false;
         if (term && optTerm != term) show = false;
-        
+
         if (show) opt.show(); else opt.hide();
     });
-    
+
     // Reset selection if hidden
     if (selector.find('option:selected').css('display') === 'none') {
         selector.val('');
     }
-    
+
     // Trigger result reload
     handleViewResultsExamSelection(classSubjectID, selector.val());
 }
@@ -1957,12 +1966,12 @@ function filterViewResultsOptions(classSubjectID) {
 function exportResultsToPDF(classSubjectID) {
     const examID = jQuery('#examSelector').val() || '';
     const testWeek = jQuery('#view_test_week').val() || '';
-    
+
     let url = `/export_subject_results_pdf/${classSubjectID}`;
     if (examID) {
         url += `/${examID}`;
     }
-    
+
     const params = new URLSearchParams();
     if (testWeek) params.append('test_week', testWeek);
     const queryString = params.toString();
@@ -1988,16 +1997,16 @@ function exportResultsToPDF(classSubjectID) {
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = downloadUrl;
-            
+
             // Generate dynamic filename
             const subjectName = window.currentViewSubject ? window.currentViewSubject.replace(/\s+/g, '_') : 'Subject';
             const className = window.currentViewClass ? window.currentViewClass.replace(/\s+/g, '_') : 'Class';
             a.download = `${className}_${subjectName}_Results.pdf`;
-            
+
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(downloadUrl);
-            
+
             Swal.fire({
                 title: 'Success!',
                 text: 'Your PDF has been downloaded.',
@@ -2052,7 +2061,7 @@ function editResults(classSubjectID) {
             // Get students, examinations, and existing results
             loader.update(60, "Fetching students...");
             jQuery.ajax({
-                url: '/get_subject_students/' + classSubjectID,
+                url: '/get_subject_students/' + classSubjectID + (window._allSubclassesMode ? '?all_subclasses=1' : ''),
                 method: 'GET',
                 success: function(studentsResponse) {
                     loader.update(80, "Fetching existing marks...");
@@ -2283,12 +2292,12 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
 function fillRandomPrimaryResults() {
     jQuery('.marks-input:not([readonly])').each(function() {
         const studentID = jQuery(this).data('student');
-        
+
         // Distribution targets:
         // A: 15%, B: 25%, C: 30%, D: 20%, F: 10%
         const rand = Math.random();
         let marks = 0;
-        
+
         if (rand < 0.15) { // A: 75-100
             marks = 75 + Math.random() * 25;
         } else if (rand < 0.40) { // B: 65-74
@@ -2300,7 +2309,7 @@ function fillRandomPrimaryResults() {
         } else { // F: 5-29
             marks = 5 + Math.random() * 25;
         }
-        
+
         jQuery(this).val(marks.toFixed(2));
         autoCalculateGrade(studentID);
     });
@@ -2308,7 +2317,7 @@ function fillRandomPrimaryResults() {
 
 function autoCalculateGrade(studentID, $row = null) {
     if (!studentID) return;
-    
+
     const $targetRow = $row || jQuery(`input[id="marks_${studentID}"], .marks-input[data-student="${studentID}"]`).closest('tr');
     const marksInput = $targetRow.find(`.marks-input[data-student="${studentID}"]`);
     const gradeInput = $targetRow.find(`.grade-input[data-student="${studentID}"]`);
@@ -2331,7 +2340,7 @@ function addResults(classSubjectID, isEdit = false) {
     const modalTitle = isEdit ? 'Edit Results' : 'Add Results';
     jQuery('#addEditResultsModalLabel').html(`<i class="bi bi-${isEdit ? 'pencil' : 'plus-circle'}"></i> ${modalTitle}`);
     jQuery('#addEditResultsModal').modal('show');
-    
+
     // Show Premium Progress Bar
     const loader = showPremiumLoading('addEditResultsModalBody', "Preparing Details...", "Fetching student lists and examinations...");
 
@@ -2340,8 +2349,13 @@ function addResults(classSubjectID, isEdit = false) {
     resetQuestionData();
 
     // Get students and examinations for this subject
+    // When all_subclasses mode is active, append query param so backend fetches students from ALL subclasses
+    var studentFetchUrl = '/get_subject_students/' + classSubjectID;
+    if (window._allSubclassesMode) {
+        studentFetchUrl += '?all_subclasses=1';
+    }
     jQuery.ajax({
-        url: '/get_subject_students/' + classSubjectID,
+        url: studentFetchUrl,
         method: 'GET',
         success: function(studentsResponse) {
             console.log('Students response:', studentsResponse);
@@ -2352,7 +2366,7 @@ function addResults(classSubjectID, isEdit = false) {
                 success: function(examsResponse) {
                     console.log('Exams response:', examsResponse);
                     loader.update(100, "Finalizing interface...");
-                    
+
                     // Small delay to let user see 100%
                     setTimeout(() => {
                     let html = `
@@ -2934,10 +2948,10 @@ function enableResultsForm(exam = null) {
         'color': ''
     });
     jQuery('.grade-input, .remark-input').prop('readonly', true); // Keep readonly for grade and remark
-    
+
     // Check allow_no_format
     const allowNoFormat = exam && (exam.allow_no_format == 1);
-    
+
     if (isSecondarySchool && !allowNoFormat) {
         jQuery('.marks-input').prop('readonly', true);
     } else {
@@ -3384,7 +3398,7 @@ jQuery(document).on('click', '#electionSelectAllBtn', function() {
         });
     }
     jQuery('.election-checkbox').prop('checked', true);
-    
+
     Swal.fire({
         icon: 'success',
         title: 'Selected All',
@@ -3405,7 +3419,7 @@ jQuery(document).on('click', '#electionDeselectAllBtn', function() {
         });
     }
     jQuery('.election-checkbox').prop('checked', false);
-    
+
     Swal.fire({
         icon: 'info',
         title: 'Deselected All',
@@ -3421,7 +3435,7 @@ jQuery(document).on('click', '#saveElectionBtn', function() {
     var classSubjectID = jQuery(this).data('class-subject-id');
     var subclassID = jQuery(this).data('subclass-id');
     var selectedStudents = [];
-    
+
     if (typeof jQuery.fn.DataTable !== 'undefined' && jQuery.fn.DataTable.isDataTable('#electionStudentsTable')) {
         var table = jQuery('#electionStudentsTable').DataTable();
         table.rows().every(function() {
@@ -3512,7 +3526,7 @@ function filterStudentsTable() {
         const row = jQuery(this);
         const studentName = row.find('td:nth-child(2)').text().toLowerCase();
         const indexNo = row.find('td:nth-child(3)').text().toLowerCase();
-        
+
         if (studentName.includes(searchTerm) || indexNo.includes(searchTerm)) {
             row.show();
         } else {
@@ -3528,7 +3542,7 @@ function filterStudentsTableEdit() {
         const row = jQuery(this);
         const studentName = row.find('td:nth-child(2)').text().toLowerCase();
         const indexNo = row.find('td:nth-child(3)').text().toLowerCase();
-        
+
         if (studentName.includes(searchTerm) || indexNo.includes(searchTerm)) {
             row.show();
         } else {

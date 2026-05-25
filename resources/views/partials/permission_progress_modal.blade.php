@@ -36,7 +36,7 @@
 </style>
 
 <script>
-    function viewPermissionProgress(permissionID) {
+    function viewPermissionProgress(permissionID, isStudentPermission = false) {
         // Ensure jQuery is loaded
         if (typeof $ === 'undefined') {
             console.error('jQuery is required for viewPermissionProgress');
@@ -46,7 +46,7 @@
         $('#progressContent').html('<div class="text-center p-4"><i class="fa fa-spinner fa-spin fa-2x spinner-custom"></i><p class="mt-2">Loading progress...</p></div>');
         $('#progressModal').modal('show');
 
-        $.get("{{ route('admin.permissions.progress') }}", { permissionID: permissionID }, function(response) {
+        $.get("{{ route('admin.permissions.progress') }}", { permissionID: permissionID, is_student_permission: isStudentPermission ? 1 : 0 }, function(response) {
             if (response.success) {
                 const p = response.permission;
                 const chain = response.chain;

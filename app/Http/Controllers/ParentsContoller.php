@@ -42,7 +42,7 @@ class ParentsContoller extends Controller
 
 
 
-        
+
 
 
     public function parentDashboard()
@@ -412,7 +412,7 @@ class ParentsContoller extends Controller
             if ($permission) {
                 // Determine if we should keep the current stage or reset
                 $resubmissionOrder = $permission->current_approval_order;
-                
+
                 $permissionData['current_approval_order'] = $resubmissionOrder;
                 $permissionData['status'] = 'pending';
 
@@ -422,7 +422,7 @@ class ParentsContoller extends Controller
                     ->where('status', 'rejected')
                     ->orderBy('created_at', 'desc')
                     ->first();
-                
+
                 $rejectorPhone = null;
                 if ($rejectionLog) {
                     $rejectorTeacher = \App\Models\Teacher::where('id', $rejectionLog->approver_id)->first();
@@ -437,13 +437,13 @@ class ParentsContoller extends Controller
                 }
 
                 $permission->update($permissionData);
-                
+
                 // Remove ONLY the rejected log
                 DB::table('permission_approval_logs')
                     ->where('permissionID', $permissionId)
                     ->where('status', 'rejected')
                     ->delete();
-                
+
                 $isResubmission = true;
 
                 // Notify the rejector via SMS
@@ -460,8 +460,8 @@ class ParentsContoller extends Controller
         }
 
         if ($hasChain) {
-            // Notify first approver
-            app(\App\Http\Controllers\AdminController::class)->notifyNextApprover($permission);
+            // Notify first approver using unified function
+            app(\App\Http\Controllers\AdminController::class)->notifyNextApprover($permission, false);
         }
 
         $parent = ParentModel::where('parentID', $parentID)->first();
@@ -496,7 +496,7 @@ class ParentsContoller extends Controller
         if (!$userType || !$schoolID || !$parentID) {
             return redirect()->route('login')->with('error', 'Access denied');
         }
-        
+
         // Set locale from session
         $locale = Session::get('locale', 'sw');
         app()->setLocale($locale);
@@ -664,11 +664,11 @@ class ParentsContoller extends Controller
 
         // Process results based on type (exam or report)
         $processedResults = [];
-        
+
         if ($typeFilter === 'report' && !empty($termFilter) && !empty($yearFilter)) {
             // For report: Group by student and calculate term averages
             $studentResults = $results->groupBy('studentID');
-            
+
             // Filter by published reports only
             $publishedReports = \App\Models\PublishedReport::where('schoolID', $schoolID)
                 ->where('term', $termFilter)
@@ -676,11 +676,11 @@ class ParentsContoller extends Controller
                 ->where('status', 'enabled')
                 ->pluck('classID')
                 ->toArray();
-            
+
             foreach ($studentResults as $studentID => $studentResultList) {
                 $student = $studentResultList->first()->student ?? null;
                 if (!$student) continue;
-                
+
                 // Check if the student's class has published reports
                 $studentClassID = $student->subclass ? $student->subclass->classID : null;
                 if (!in_array($studentClassID, $publishedReports)) {
@@ -690,25 +690,25 @@ class ParentsContoller extends Controller
                 $className = $student->subclass && $student->subclass->class
                     ? $student->subclass->class->class_name
                     : null;
-                
+
                 // Group results by exam
                 $examResults = $studentResultList->groupBy('examID');
                 $examsData = [];
                 $subjectData = [];
-                
+
                 foreach ($examResults as $examID => $examResultList) {
                     $exam = $examResultList->first()->examination ?? null;
                     if (!$exam) continue;
-                    
+
                     $examTotalMarks = 0;
                     $examSubjectCount = 0;
-                    
+
                     foreach ($examResultList as $result) {
                         if ($result->marks !== null && $result->marks !== '') {
                             $examTotalMarks += (float)$result->marks;
                             $examSubjectCount++;
                         }
-                        
+
                         $subjectName = $result->classSubject->subject->subject_name ?? 'N/A';
                         if (!isset($subjectData[$subjectName])) {
                             $subjectData[$subjectName] = [
@@ -716,7 +716,7 @@ class ParentsContoller extends Controller
                                 'exams' => []
                             ];
                         }
-                        
+
                         $gradeOrDivision = $this->calculateGradeOrDivision($result->marks, $school->school_type ?? 'Secondary', $className, $studentClassID);
                         $subjectData[$subjectName]['exams'][$examID] = [
                             'marks' => $result->marks,
@@ -724,10 +724,10 @@ class ParentsContoller extends Controller
                             'exam_name' => $exam->exam_name
                         ];
                     }
-                    
+
                     $examAverage = $examSubjectCount > 0 ? round($examTotalMarks / $examSubjectCount, 0) : 0;
                     $examGradeOrDiv = $this->calculateTotalDivision(0, $school->school_type ?? 'Secondary', $className, $examAverage, $studentClassID);
-                    
+
                     $examsData[] = [
                         'exam' => $exam,
                         'average' => $examAverage,
@@ -735,7 +735,7 @@ class ParentsContoller extends Controller
                         'division' => $examGradeOrDiv['division'] ?? null
                     ];
                 }
-                
+
                 // Get all exams for this term to use as divisor for missing marks
                 $termExamsCount = \App\Models\Examination::where('schoolID', $schoolID)
                     ->where('year', $yearFilter)
@@ -754,12 +754,12 @@ class ParentsContoller extends Controller
                             $subjectMarks[] = (float)$examData['marks'];
                         }
                     }
-                    
+
                     // Divisor should be the total number of exams in the term to treat missing as zero
                     $reportExamsCount = $termExamsCount > 0 ? $termExamsCount : (count($subjectMarks) > 0 ? count($subjectMarks) : 1);
                     $subjectAverage = round(array_sum($subjectMarks) / $reportExamsCount, 0);
                     $subjectAverages[] = $subjectAverage;
-                    
+
                     // Calculate points for this subject average
                     $gradePoints = $this->calculateGradeOrDivision($subjectAverage, $school->school_type ?? 'Secondary', $className, $studentClassID);
                     if ($gradePoints['points'] !== null) {
@@ -767,7 +767,7 @@ class ParentsContoller extends Controller
                     }
 
                     $subjectGradeOrDiv = $this->calculateTotalDivision(0, $school->school_type ?? 'Secondary', $className, $subjectAverage, $studentClassID);
-                    
+
                     $subjects[] = [
                         'subject_name' => $subjectName,
                         'exams' => array_values($data['exams']),
@@ -776,9 +776,9 @@ class ParentsContoller extends Controller
                         'points' => $gradePoints['points'] ?? null
                     ];
                 }
-                
+
                 $overallAverage = $termExamsCount > 0 && !empty($subjectAverages) ? round(array_sum($subjectAverages) / $termExamsCount, 0) : (!empty($subjectAverages) ? round(array_sum($subjectAverages) / count($subjectAverages), 0) : 0);
-                
+
                 // Calculate total points for division (Best 7 for O-Level, Best 3 for A-Level)
                 $totalPoints = 0;
                 $classNameLower = strtolower(preg_replace('/[\s\-]+/', '_', $className ?? ''));
@@ -798,7 +798,7 @@ class ParentsContoller extends Controller
                 }
 
                 $overallGradeOrDiv = $this->calculateTotalDivision($totalPoints, $school->school_type ?? 'Secondary', $className, $overallAverage, $studentClassID);
-                
+
                 $processedResults[] = [
                     'type' => 'report',
                     'student' => $student,
@@ -819,10 +819,10 @@ class ParentsContoller extends Controller
                 $student = $studentResultList->first()->student ?? null;
                 if (!$student) continue;
                 $mainExam = Examination::find($examFilter);
-                
+
                 $className = $student->subclass && $student->subclass->class ? $student->subclass->class->class_name : null;
                 $classID = $student->subclass && $student->subclass->class ? $student->subclass->class->classID : null;
-                
+
                 $subjectData = [];
                 foreach ($studentResultList as $result) {
                     $subjectName = $result->classSubject->subject->subject_name ?? 'N/A';
@@ -845,7 +845,7 @@ class ParentsContoller extends Controller
                 // Process subject aggregates (Halving Rule if CA exists)
                 $caDef = \App\Models\CaDefinition::where('examID', $examFilter)->where('schoolID', $schoolID)->first();
                 $involvedCount = ($caDef && !empty($caDef->test_ids)) ? count($caDef->test_ids) + 1 : 1;
-                
+
                 $totalMarks = 0; $subjectCount = 0; $allSubjectPoints = [];
                 $finalSubjects = [];
 
@@ -857,10 +857,10 @@ class ParentsContoller extends Controller
                     $avg = round($mSum / $involvedCount, 0);
                     $totalMarks += $avg;
                     $subjectCount++;
-                    
+
                     $gradePoints = $this->calculateGradeOrDivision($avg, $school->school_type ?? 'Secondary', $className, $classID);
                     if ($gradePoints['points'] !== null) $allSubjectPoints[] = $gradePoints['points'];
-                    
+
                     $sData['average'] = $avg;
                     $sData['grade'] = $gradePoints['grade'] ?? 'F';
                     $sData['points'] = $gradePoints['points'];
@@ -869,7 +869,7 @@ class ParentsContoller extends Controller
                 }
 
                 $overallAverage = $subjectCount > 0 ? round($totalMarks / $subjectCount, 0) : 0;
-                
+
                 // Calculate points
                 $totalPoints = 0;
                 $classNameLower = strtolower(preg_replace('/[\s\-]+/', '_', $className ?? ''));
@@ -882,7 +882,7 @@ class ParentsContoller extends Controller
                 }
 
                 $overallGradeOrDiv = $this->calculateTotalDivision($totalPoints, $school->school_type ?? 'Secondary', $className, $overallAverage, $classID);
-                
+
                 $processedResults[] = [
                     'type' => 'exam',
                     'student' => $student,
@@ -897,7 +897,7 @@ class ParentsContoller extends Controller
                 ];
             }
         }
-        
+
         // No further processing needed for $processedResults as overhaul handles it
         $resultsWithDivisions = $processedResults;
 
@@ -1089,7 +1089,7 @@ class ParentsContoller extends Controller
         if (!$userType || !$schoolID || !$parentID) {
             return redirect()->route('login')->with('error', 'Access denied');
         }
-        
+
         // Set locale from session
         $locale = Session::get('locale', 'sw');
         app()->setLocale($locale);
@@ -1623,36 +1623,36 @@ class ParentsContoller extends Controller
 
             // Process results based on type (exam or report) - same logic as parentResults
             $processedResults = [];
-            
+
             if ($typeFilter === 'report' && !empty($termFilter) && !empty($yearFilter)) {
                 // For report: Group by student and calculate term averages
                 $studentResults = $results->groupBy('studentID');
-                
+
                 foreach ($studentResults as $studentID => $studentResultList) {
                     $student = $studentResultList->first()->student ?? null;
                     if (!$student) continue;
                     $className = $student->subclass && $student->subclass->class
                         ? $student->subclass->class->class_name
                         : null;
-                    
+
                     // Group results by exam
                     $examResults = $studentResultList->groupBy('examID');
                     $examsData = [];
                     $subjectData = [];
-                    
+
                     foreach ($examResults as $examID => $examResultList) {
                         $exam = $examResultList->first()->examination ?? null;
                         if (!$exam) continue;
-                        
+
                         $examTotalMarks = 0;
                         $examSubjectCount = 0;
-                        
+
                         foreach ($examResultList as $result) {
                             if ($result->marks !== null && $result->marks !== '') {
                                 $examTotalMarks += (float)$result->marks;
                                 $examSubjectCount++;
                             }
-                            
+
                             $subjectName = $result->classSubject->subject->subject_name ?? 'N/A';
                             if (!isset($subjectData[$subjectName])) {
                                 $subjectData[$subjectName] = [
@@ -1660,7 +1660,7 @@ class ParentsContoller extends Controller
                                     'exams' => []
                                 ];
                             }
-                            
+
                             $gradeOrDivision = $this->calculateGradeOrDivision($result->marks, $school->school_type ?? 'Secondary', $className);
                             $subjectData[$subjectName]['exams'][$examID] = [
                                 'marks' => $result->marks,
@@ -1668,10 +1668,10 @@ class ParentsContoller extends Controller
                                 'exam_name' => $exam->exam_name
                             ];
                         }
-                        
+
                         $examAverage = $examSubjectCount > 0 ? $examTotalMarks / $examSubjectCount : 0;
                         $examGradeOrDiv = $this->calculateTotalDivision(0, $school->school_type ?? 'Secondary', $className, $examAverage);
-                        
+
                         $examsData[] = [
                             'exam' => $exam,
                             'average' => $examAverage,
@@ -1679,7 +1679,7 @@ class ParentsContoller extends Controller
                             'division' => $examGradeOrDiv['division'] ?? null
                         ];
                     }
-                    
+
                     // Calculate overall average and grade
                     $overallTotalMarks = 0;
                     $overallSubjectCount = 0;
@@ -1695,10 +1695,10 @@ class ParentsContoller extends Controller
                             $overallSubjectCount += count($subjectMarks);
                         }
                     }
-                    
+
                     $overallAverage = $overallSubjectCount > 0 ? $overallTotalMarks / $overallSubjectCount : 0;
                     $overallGradeOrDiv = $this->calculateTotalDivision(0, $school->school_type ?? 'Secondary', $className, $overallAverage);
-                    
+
                     // Calculate subjects with averages
                     $subjects = [];
                     foreach ($subjectData as $subjectName => $data) {
@@ -1710,7 +1710,7 @@ class ParentsContoller extends Controller
                         }
                         $subjectAverage = !empty($subjectMarks) ? array_sum($subjectMarks) / count($subjectMarks) : 0;
                         $subjectGradeOrDiv = $this->calculateTotalDivision(0, $school->school_type ?? 'Secondary', $className, $subjectAverage);
-                        
+
                         $subjects[] = [
                             'subject_name' => $subjectName,
                             'exams' => array_values($data['exams']),
@@ -1718,7 +1718,7 @@ class ParentsContoller extends Controller
                             'grade' => $subjectGradeOrDiv['grade'] ?? null
                         ];
                     }
-                    
+
                     $processedResults[] = [
                         'type' => 'report',
                         'student' => $student,
@@ -1772,7 +1772,7 @@ class ParentsContoller extends Controller
                 if (isset($group['type']) && $group['type'] === 'report') {
                     continue;
                 }
-                
+
                 $student = $group['student'];
                 $examID = $group['exam']->examID ?? null;
                 $className = $student->subclass && $student->subclass->class
@@ -2089,7 +2089,7 @@ class ParentsContoller extends Controller
         if (!$userType || !$schoolID || !$parentID) {
             return redirect()->route('login')->with('error', 'Access denied');
         }
-        
+
         // Set locale from session
         $locale = Session::get('locale', 'sw');
         app()->setLocale($locale);
@@ -2120,12 +2120,12 @@ class ParentsContoller extends Controller
 
         // Get current year
         $currentYear = date('Y');
-        
+
         // Add current year if not in list
         if (!in_array($currentYear, $availableYears)) {
             $availableYears[] = $currentYear;
         }
-        
+
         // Add past years (last 10 years) to show historical data option
         for ($i = 1; $i <= 10; $i++) {
             $pastYear = $currentYear - $i;
@@ -2133,7 +2133,7 @@ class ParentsContoller extends Controller
                 $availableYears[] = $pastYear;
             }
         }
-        
+
         // Sort years in descending order (newest first)
         rsort($availableYears);
 
@@ -2230,7 +2230,7 @@ class ParentsContoller extends Controller
                         : ($student->gender == 'Female'
                             ? asset('images/female.png')
                             : asset('images/male.png'));
-                    
+
                     $studentData = [
                         'studentID' => $student->studentID,
                         'first_name' => $student->first_name,
@@ -2361,7 +2361,7 @@ class ParentsContoller extends Controller
 
             // Unified Control Number Logic
             $controlNumber = $this->generateSingleStudentBill($student, $academicYearID, $schoolID);
-            
+
             DB::commit();
 
             return response()->json([
@@ -2404,16 +2404,16 @@ class ParentsContoller extends Controller
         do {
             // Generate 5 random digits (0-9)
             $randomDigits = str_pad(rand(0, 99999), 5, '0', STR_PAD_LEFT);
-            
+
             // Format: 3345 + 5 random digits = 9 digits total
             $controlNumber = '3345' . $randomDigits;
-            
+
             // Check if control number already exists in active payments
             $existsActive = DB::table('payments')->where('control_number', $controlNumber)->exists();
-            
+
             // Check if control number exists in history
             $existsHistory = DB::table('payments_history')->where('control_number', $controlNumber)->exists();
-            
+
         } while ($existsActive || $existsHistory);
 
         return $controlNumber;
@@ -2426,14 +2426,14 @@ class ParentsContoller extends Controller
     {
         try {
             $payment->load(['student.parent', 'school']);
-            
+
             if (!$payment->student || !$payment->student->parent || !$payment->student->parent->phone) {
                 return false;
             }
 
             $parent = $payment->student->parent;
             $school = $payment->school ?? School::find($schoolID);
-            
+
             $studentName = trim($student->first_name . ' ' . $student->last_name);
             $controlNumber = $payment->control_number;
             $totalAmount = number_format($payment->amount_required, 0);
@@ -2445,7 +2445,7 @@ class ParentsContoller extends Controller
             $schoolName = $school->school_name ?? 'School';
             $prefix = ($school && $school->senderID) ? "" : "{$schoolName}: ";
             $message = "{$prefix}Mzazi wa {$student->first_name}, Control Number ya Ada ni {$payment->control_number}. Jumla Sh {$amount}. Ahsante.";
-            
+
             $smsResult = $this->smsService->sendSms($parent->phone, $message);
 
             if ($smsResult['success']) {
@@ -2471,10 +2471,10 @@ class ParentsContoller extends Controller
 
         $totalAmount = $fees->sum('amount');
         $mustPayAmount = $fees->where('must_start_pay', true)->sum('amount');
-        
+
         $previousYearBalance = $this->getPreviousYearBalance($student->studentID, $schoolID);
         $debt = $previousYearBalance['school_fee_balance'] + $previousYearBalance['other_contribution_balance'];
-        
+
         $totalRequired = $totalAmount + $debt;
 
         $payment = Payment::where('studentID', $student->studentID)
@@ -2484,7 +2484,7 @@ class ParentsContoller extends Controller
         if (!$payment) {
             $school = School::find($schoolID);
             $controlNumber = $this->generateControlNumber($schoolID, $student->studentID);
-            
+
             $payment = Payment::create([
                 'schoolID' => $schoolID,
                 'academic_yearID' => $academicYearID,
@@ -2510,7 +2510,7 @@ class ParentsContoller extends Controller
 
         // Send SMS
         $this->sendControlNumberSMS($payment, $student, $schoolID);
-        
+
         return $payment->control_number;
     }
 
@@ -2531,31 +2531,31 @@ class ParentsContoller extends Controller
             ->where('status', 'Closed')
             ->orderBy('year', 'desc')
             ->first();
-        
+
         if (!$closed) {
             return ['school_fee_balance' => 0, 'other_contribution_balance' => 0];
         }
-        
+
         // Get payments from history
         $previousYearPayments = DB::table('payments_history')
             ->where('studentID', $studentID)
             ->where('academic_yearID', $closed->academic_yearID)
             ->get();
-            
+
         $schoolFeeBalance = 0;
         $otherContributionBalance = 0;
-        
+
         foreach ($previousYearPayments as $payment) {
             $balance = (float) $payment->balance;
-            
+
             // Only count positive balances as debt
             if ($balance > 0) {
                  $schoolFeeBalance += $balance;
             }
         }
-            
+
         return [
-            'school_fee_balance' => max(0, $schoolFeeBalance), 
+            'school_fee_balance' => max(0, $schoolFeeBalance),
             'other_contribution_balance' => max(0, $otherContributionBalance)
         ];
     }
@@ -2566,16 +2566,16 @@ class ParentsContoller extends Controller
     public function changeLanguage(Request $request)
     {
         $locale = $request->input('locale', 'sw');
-        
+
         // Validate locale
         if (!in_array($locale, ['en', 'sw'])) {
             $locale = 'sw';
         }
-        
+
         // Set locale in session
         Session::put('locale', $locale);
         app()->setLocale($locale);
-        
+
         return response()->json([
             'success' => true,
             'locale' => $locale,
@@ -2592,7 +2592,7 @@ class ParentsContoller extends Controller
         if (!$userType || !$schoolID || !$parentID) {
             return redirect()->route('login')->with('error', 'Access denied');
         }
-        
+
         // Set locale from session
         $locale = Session::get('locale', 'sw');
         app()->setLocale($locale);
@@ -2623,12 +2623,12 @@ class ParentsContoller extends Controller
 
         // Get current year
         $currentYear = date('Y');
-        
+
         // Add current year if not in list
         if (!in_array($currentYear, $availableYears)) {
             $availableYears[] = $currentYear;
         }
-        
+
         // Add past years (last 10 years) to show historical data option
         for ($i = 1; $i <= 10; $i++) {
             $pastYear = $currentYear - $i;
@@ -2636,7 +2636,7 @@ class ParentsContoller extends Controller
                 $availableYears[] = $pastYear;
             }
         }
-        
+
         // Sort years in descending order (newest first)
         rsort($availableYears);
 
@@ -2727,7 +2727,7 @@ class ParentsContoller extends Controller
                             $q->where('status', 'Active');
                         }]);
                     }
-                    
+
                     if ($fee->allow_installments && $fee->installments && $fee->installments->count() > 0) {
                         $tuitionInstallments = $tuitionInstallments->merge($fee->installments);
                         if ($fee->allow_partial_payment) {
@@ -2752,7 +2752,7 @@ class ParentsContoller extends Controller
                             $q->where('status', 'Active');
                         }]);
                     }
-                    
+
                     if ($fee->allow_installments && $fee->installments && $fee->installments->count() > 0) {
                         $otherInstallments = $otherInstallments->merge($fee->installments);
                         if ($fee->allow_partial_payment) {
@@ -3230,7 +3230,7 @@ class ParentsContoller extends Controller
                             $q->where('status', 'Active');
                         }]);
                     }
-                    
+
                     if ($fee->allow_installments && $fee->installments && $fee->installments->count() > 0) {
                         $tuitionInstallments = $tuitionInstallments->merge($fee->installments);
                         if ($fee->allow_partial_payment) {
@@ -3254,7 +3254,7 @@ class ParentsContoller extends Controller
                             $q->where('status', 'Active');
                         }]);
                     }
-                    
+
                     if ($fee->allow_installments && $fee->installments && $fee->installments->count() > 0) {
                         $otherInstallments = $otherInstallments->merge($fee->installments);
                         if ($fee->allow_partial_payment) {
@@ -3421,7 +3421,7 @@ class ParentsContoller extends Controller
                         ->where('status', 'Active')
                         ->count();
                     $nonElectors = $totalStudents - $totalElectors;
-                    
+
                     // Check if this student has elected this subject
                     $isElected = SubjectElector::where('studentID', $student->studentID)
                         ->where('classSubjectID', $classSubject->class_subjectID)
@@ -3716,7 +3716,7 @@ class ParentsContoller extends Controller
             'year' => $year,
             'term' => $term
         ]);
-        
+
         $detailedData = [];
         $res = $resultController->index($reqClone);
         if ($res instanceof \Illuminate\Http\JsonResponse) {
@@ -3747,7 +3747,7 @@ class ParentsContoller extends Controller
         // For exam type (updated for multi-assessment UI)
         $hasCa = CaDefinition::where('examID', $examID)->exists();
         $position = $detailedData['position'] ?? 'N/A';
-        
+
         $processedResults = [];
         if (!empty($detailedData['subjects'])) {
             foreach ($detailedData['subjects'] as $subject) {
@@ -3791,7 +3791,7 @@ class ParentsContoller extends Controller
         $year = $request->input('year');
         $term = $request->input('term');
         $type = $request->input('type', 'exam');
-        
+
         return redirect()->route('admin.download_results_pdf', [
             'option' => 'single',
             'studentID' => $studentID,
@@ -3831,7 +3831,7 @@ class ParentsContoller extends Controller
             $examinationsQuery = Examination::where('schoolID', Session::get('schoolID'))
                 ->where('year', $year)
                 ->where('approval_status', 'Approved');
-            
+
             if ($term) {
                 $examinationsQuery->where('term', $term);
             }

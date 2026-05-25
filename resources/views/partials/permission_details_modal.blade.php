@@ -80,7 +80,7 @@
 <script>
     function viewPermissionDetails(permission) {
         $('#pd_status').text(permission.status);
-        
+
         // Handle badge color
         $('#pd_status').removeClass('badge-success badge-danger badge-warning badge-secondary');
         if (permission.status.toLowerCase() === 'approved') {
@@ -106,7 +106,7 @@
         if(permission.time_mode.toLowerCase() === 'days') {
             $('#pd_days_row, #pd_period_row, #pd_return_row').show();
             $('#pd_time_row').hide();
-            
+
             $('#pd_days_count').text(permission.days_count);
             $('#pd_start_date').text(permission.start_date);
             $('#pd_end_date').text(permission.end_date);
@@ -114,7 +114,7 @@
         } else {
             $('#pd_days_row, #pd_period_row, #pd_return_row').hide();
             $('#pd_time_row').show();
-            
+
             $('#pd_start_time').text(permission.start_time);
             $('#pd_end_time').text(permission.end_time);
         }
@@ -126,12 +126,15 @@
             const progressContainer = $('#pd_pdf_progress_container');
             const progressBar = $('#pd_pdf_progress_bar');
             const progressText = $('#pd_pdf_progress_text');
-            const pdfUrl = "{{ url('admin/hr/permissions/export-pdf') }}/" + permission.id;
+            const isStudentPerm = permission.is_student_permission || false;
+            const pdfUrl = isStudentPerm
+                ? "{{ url('admin/student-permissions/export-pdf') }}/" + permission.id
+                : "{{ url('admin/hr/permissions/export-pdf') }}/" + permission.id;
 
             btn.prop('disabled', true);
             btn.find('span').text('Generating...');
             progressContainer.css('display', 'flex');
-            
+
             let percent = 0;
             // Simulate generation progress up to 85% while waiting for server TTFB
             const interval = setInterval(() => {
@@ -146,13 +149,13 @@
             fetch(pdfUrl)
                 .then(response => {
                     if(!response.ok) throw new Error('Network response was not ok');
-                    
+
                     let filename = 'Permission_Request_' + permission.id + '.pdf';
                     const disposition = response.headers.get('content-disposition');
                     if (disposition && disposition.indexOf('attachment') !== -1) {
                         const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
                         const matches = filenameRegex.exec(disposition);
-                        if (matches != null && matches[1]) { 
+                        if (matches != null && matches[1]) {
                             filename = matches[1].replace(/['"]/g, '');
                         }
                     }
@@ -163,7 +166,7 @@
                     percent = 100;
                     progressBar.css('width', '100%').attr('aria-valuenow', 100);
                     progressText.text('100%');
-                    
+
                     setTimeout(() => {
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
@@ -173,7 +176,7 @@
                         document.body.appendChild(a);
                         a.click();
                         window.URL.revokeObjectURL(url);
-                        
+
                         // Reset UI
                         btn.prop('disabled', false).html(originalContent);
                         progressContainer.hide();

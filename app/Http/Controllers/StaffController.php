@@ -761,6 +761,8 @@ class StaffController extends Controller
             'hod_status' => 'pending',
             'principal_status' => 'pending',
             'final_status' => 'pending',
+            'created_at' => now(),
+            'updated_at' => now(),
         ];
 
         if ($validated['time_mode'] === 'days') {
@@ -800,8 +802,21 @@ class StaffController extends Controller
             ->exists();
 
         if ($hasChain) {
-            // Get the inserted permission ID
-            $permissionId = DB::getPdo()->lastInsertId();
+            // Get the inserted permission ID using insertGetId
+            $permissionId = DB::table('student_permissions')
+                ->where('schoolID', $schoolID)
+                ->where('student_id', $validated['student_id'])
+                ->where('requester_id', $staffID)
+                ->where('requester_type', 'staff')
+                ->orderBy('id', 'desc')
+                ->value('id');
+
+            \Log::info('Student permission inserted (Staff)', ['permissionId' => $permissionId, 'schoolID' => $schoolID]);
+
+            if (!$permissionId) {
+                \Log::error('Failed to get permission ID after insert (Staff)');
+                return response()->json(['success' => true, 'message' => 'Student permission request submitted successfully']);
+            }
 
             // Update with approval chain info
             DB::table('student_permissions')
@@ -811,8 +826,17 @@ class StaffController extends Controller
                     'is_chain_completed' => false
                 ]);
 
-            // Notify first approver
-            $this->notifyNextStudentApprover($permissionId, $schoolID);
+            // Get the permission object
+            $permission = DB::table('student_permissions')->where('id', $permissionId)->first();
+
+            \Log::info('Permission object retrieved (Staff)', ['permission' => $permission, 'permissionId' => $permissionId]);
+
+            if ($permission) {
+                // Notify first approver using unified function
+                app(\App\Http\Controllers\AdminController::class)->notifyNextApprover($permission, true);
+            } else {
+                \Log::error('Failed to retrieve permission object (Staff)', ['permissionId' => $permissionId]);
+            }
         }
 
         return response()->json(['success' => true, 'message' => 'Student permission request submitted successfully']);
