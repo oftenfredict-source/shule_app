@@ -943,7 +943,7 @@ class ManageAttendanceController extends Controller
         return $result;
     }
 
-    private function calculateWorkingDays($startDate, $endDate)
+    protected function calculateWorkingDays($startDate, $endDate)
     {
         $workingDays = 0;
         $currentDate = $startDate->copy();

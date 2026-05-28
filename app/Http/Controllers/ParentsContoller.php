@@ -3729,6 +3729,10 @@ class ParentsContoller extends Controller
 
         // For report type, the structure is slightly different (contains averages across exams)
         if ($type === 'report') {
+            $isSecondary = strcasecmp($detailedData['schoolType'] ?? '', 'Secondary') === 0;
+            $overallDisplay = $isSecondary
+                ? ($detailedData['division'] ?? '-')
+                : ($detailedData['grade'] ?? '-');
             return response()->json([
                 'success' => true,
                 'is_report' => true,
@@ -3737,7 +3741,9 @@ class ParentsContoller extends Controller
                     'total_marks' => isset($detailedData['totalMarks']) ? round($detailedData['totalMarks'], 1) : '-',
                     'average' => isset($detailedData['averageMarks']) ? round($detailedData['averageMarks'], 1) : '-',
                     'position' => $detailedData['position'] ?? 'N/A',
-                    'overall_grade' => $detailedData['grade'] ?? '-',
+                    'overall_grade' => $overallDisplay,
+                    'overall_division' => $detailedData['division'] ?? '-',
+                    'school_type' => $detailedData['schoolType'] ?? 'Secondary',
                     'results' => $detailedData['subjects'] ?? [],
                     'exams_included' => $detailedData['exams'] ?? []
                 ]

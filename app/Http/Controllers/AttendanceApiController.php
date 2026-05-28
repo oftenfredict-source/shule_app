@@ -1777,7 +1777,7 @@ class AttendanceApiController extends Controller
     /**
      * Calculate working days (excluding weekends)
      */
-    private function calculateWorkingDays($startDate, $endDate)
+    protected function calculateWorkingDays($startDate, $endDate)
     {
         $workingDays = 0;
         $current = $startDate->copy();

@@ -210,6 +210,71 @@
     
     .subject-row:hover { background-color: rgba(243, 156, 18, 0.05); }
 
+    .result-color-def-container {
+        text-align: center;
+        margin: 10px 0 18px 0;
+        width: 100%;
+    }
+    .result-color-def-title {
+        font-weight: 700;
+        color: #6c757d;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    .result-color-blocks {
+        display: flex;
+        width: 100%;
+        border: 1px solid #ddd;
+        overflow: hidden;
+    }
+    .result-color-block {
+        flex: 1 1 33.333%;
+        padding: 8px 10px;
+        font-size: 13px;
+        color: #555;
+        text-align: center;
+        border-right: 1px solid #ddd;
+    }
+    .result-color-block:last-child { border-right: none; }
+    .result-color-pass {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .result-color-fail {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .result-color-inc {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    .colored-remark {
+        text-align: center;
+        font-weight: 500;
+    }
+    .bg-pass { background-color: #d4edda !important; color: #155724 !important; }
+    .bg-fail { background-color: #f8d7da !important; color: #721c24 !important; }
+    .bg-inc { background-color: #d1ecf1 !important; color: #0c5460 !important; }
+    .bg-orange-bootstrap { background-color: #fd7e14 !important; color: #ffffff !important; }
+    .colored-remark.bg-warning {
+        background-color: #ffc107 !important;
+        border-color: #e0a800 !important;
+        color: #212529 !important;
+        font-weight: 700;
+    }
+    .result-color-block.bg-warning {
+        background-color: #ffc107 !important;
+        color: #212529 !important;
+    }
+    .colored-remark.bg-success,
+    .colored-remark.bg-danger,
+    .colored-remark.bg-info,
+    .colored-remark.bg-orange-bootstrap { color: #fff !important; font-weight: 700; }
+    #subjectStatsTable, #subjectStatsTable th, #subjectStatsTable td,
+    #reportSubjectStatsTable, #reportSubjectStatsTable th, #reportSubjectStatsTable td {
+        border: 1px solid rgba(148, 0, 0, 0.25) !important;
+    }
+
     .student-tag {
         display: inline-block;
         padding: 4px 12px;
@@ -1824,7 +1889,28 @@
                                                     ksort($subjectStats);
                                                 @endphp
                                                 <div class="mt-4">
-                                                    <h6 class="mb-3"><i class="bi bi-book"></i> Subject Performance Statistics</h6>
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <h6 class="mb-0"><i class="bi bi-book"></i> Subject Performance Statistics</h6>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger btn-export-subject-stats-pdf" data-table-id="subjectStatsTable" data-title="Subject Performance Statistics">
+                                                            <i class="bi bi-file-pdf"></i> Download PDF
+                                                        </button>
+                                                    </div>
+                                                    <div class="result-color-def-container">
+                                                        <div class="result-color-def-title">Remark Color Definition</div>
+                                                        <div class="result-color-blocks">
+                                                            @if($schoolType === 'Secondary')
+                                                                <div class="result-color-block result-color-pass">A/B - Perfect/Very good</div>
+                                                                <div class="result-color-block bg-warning text-dark">C - Good</div>
+                                                                <div class="result-color-block bg-orange-bootstrap text-white">D - Average</div>
+                                                                <div class="result-color-block result-color-fail">F - Fail</div>
+                                                                <div class="result-color-block result-color-inc">Incomplete</div>
+                                                            @else
+                                                                <div class="result-color-block result-color-pass">Pass</div>
+                                                                <div class="result-color-block result-color-fail">Failed</div>
+                                                                <div class="result-color-block result-color-inc">Incomplete</div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
                                                     <div class="table-responsive">
                                                         <table class="table table-bordered table-striped table-sm" id="subjectStatsTable">
                                                             <thead class="bg-primary-custom text-white">
@@ -1839,6 +1925,8 @@
                                                                     @endif
                                                                     <th>F</th>
                                                                     <th>GPA</th>
+                                                                    <th>Grade</th>
+                                                                    <th>Remark</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
@@ -1887,10 +1975,46 @@
                                                                                 $sPoints += ($c * ($ptMap[$sg] ?? 0));
                                                                             }
                                                                             $sGPA = ($sTotal > 0) ? number_format($sPoints / $sTotal, 2) : '0.00';
+                                                                            if ($schoolType === 'Primary') {
+                                                                                if ($sTotal === 0) $subjectGrade = 'Incomplete';
+                                                                                elseif ($sGPA >= 4.5) $subjectGrade = 'A';
+                                                                                elseif ($sGPA >= 3.5) $subjectGrade = 'B';
+                                                                                elseif ($sGPA >= 2.5) $subjectGrade = 'C';
+                                                                                elseif ($sGPA >= 1.5) $subjectGrade = 'D';
+                                                                                elseif ($sGPA >= 0.5) $subjectGrade = 'E';
+                                                                                else $subjectGrade = 'F';
+                                                                            } else {
+                                                                                if ($sTotal === 0) $subjectGrade = 'Incomplete';
+                                                                                elseif ($sGPA <= 1.5) $subjectGrade = 'A';
+                                                                                elseif ($sGPA <= 2.5) $subjectGrade = 'B';
+                                                                                elseif ($sGPA <= 3.5) $subjectGrade = 'C';
+                                                                                elseif ($sGPA <= 4.5) $subjectGrade = 'D';
+                                                                                else $subjectGrade = 'F';
+                                                                            }
+                                                                            if ($schoolType === 'Secondary') {
+                                                                                if ($subjectGrade === 'A') { $remarkClass = 'bg-pass'; $remarkText = 'Perfect'; }
+                                                                                elseif ($subjectGrade === 'B') { $remarkClass = 'bg-pass'; $remarkText = 'Very good'; }
+                                                                                elseif ($subjectGrade === 'C') { $remarkClass = 'bg-warning'; $remarkText = 'Good'; }
+                                                                                elseif ($subjectGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Average'; }
+                                                                                elseif ($subjectGrade === 'F') { $remarkClass = 'bg-fail'; $remarkText = 'Fail'; }
+                                                                                else { $remarkClass = 'bg-inc'; $remarkText = 'Incomplete'; }
+                                                                            } else {
+                                                                                $remarkClass = 'bg-danger';
+                                                                                $remarkText = 'Failed';
+                                                                                if ($subjectGrade === 'Incomplete') {
+                                                                                    $remarkClass = 'bg-info';
+                                                                                    $remarkText = 'Incomplete';
+                                                                                } elseif (in_array($subjectGrade, ['A', 'B', 'C', 'D'])) {
+                                                                                    $remarkClass = 'bg-success';
+                                                                                    $remarkText = 'Pass';
+                                                                                }
+                                                                            }
                                                                         @endphp
                                                                         <td class="tc font-weight-bold" style="background-color: #f8f9fa;">
                                                                             {{ $sGPA }}
                                                                         </td>
+                                                                        <td class="tc font-weight-bold">{{ $subjectGrade }}</td>
+                                                                        <td class="tc colored-remark {{ $remarkClass }}">{{ $remarkText }}</td>
                                                                     </tr>
                                                                 @endforeach
                                                             </tbody>
@@ -2163,7 +2287,7 @@
                                                             <th>Student Number</th>
                                                             <th>Student Name</th>
                                                             @if($schoolType === 'Primary')
-                                                                <th>Grade</th>
+                                                                <th>{{ $schoolType === 'Secondary' ? 'Division' : 'Grade' }}</th>
                                                             @else
                                                                 <th>Division</th>
                                                             @endif
@@ -2180,7 +2304,11 @@
                                                                     {{ $topStudent['student']->last_name }}
                                                                 </td>
                                                                 @if($schoolType === 'Primary')
-                                                                    <td><span class="badge badge-info">{{ $topStudent['grade'] ?? 'N/A' }}</span></td>
+                                                                    <td>
+                                                                        <span class="badge badge-info">
+                                                                            {{ $schoolType === 'Secondary' ? ($topStudent['division'] ?? 'N/A') : ($topStudent['grade'] ?? 'N/A') }}
+                                                                        </span>
+                                                                    </td>
                                                                 @else
                                                                     <td><span class="badge badge-warning">{{ $topStudent['division'] ?? 'N/A' }}</span></td>
                                                                 @endif
@@ -2657,6 +2785,16 @@
                                         // Add to sorted array
                                         $sortedReportStudents = array_merge($sortedReportStudents, $classStudents);
                                     }
+
+                                    // Sort all students by position ascending (1, 2, 3...)
+                                    usort($sortedReportStudents, function ($a, $b) {
+                                        $posA = $a['position'] ?? 9999;
+                                        $posB = $b['position'] ?? 9999;
+                                        if ($posA != $posB) {
+                                            return $posA <=> $posB;
+                                        }
+                                        return strcmp($a['class_name'] ?? '', $b['class_name'] ?? '');
+                                    });
                                     
                                     // Replace reportStudents with sorted and positioned students
                                     $reportStudents = $sortedReportStudents;
@@ -2893,8 +3031,8 @@
                                             </div>
                                         </div>
                                         
-                                        @if($schoolType === 'Primary' || ($filters['type'] ?? '') === 'report')
-                                            <!-- Grade Distribution -->
+                                        @if($schoolType === 'Primary')
+                                            <!-- Grade Distribution (Primary) -->
                                             <div class="col-12 mt-3">
                                                 <h6 class="mb-2"><i class="bi bi-award"></i> Grade Distribution</h6>
                                                 <div class="row">
@@ -2911,7 +3049,7 @@
                                                 </div>
                                             </div>
                                             
-                                            <!-- Male/Female per Grade -->
+                                            <!-- Male/Female per Grade (Primary) -->
                                             <div class="col-12 mt-4">
                                                 <h6 class="mb-3"><i class="bi bi-gender-ambiguous"></i> Male/Female per Grade</h6>
                                                 <div class="table-responsive">
@@ -2951,7 +3089,7 @@
                                                 </div>
                                             </div>
                                         @else
-                                            <!-- Division Distribution (Only for Secondary Exams) -->
+                                            <!-- Division Distribution (Secondary: exam + term report) -->
                                             <div class="col-12 mt-3">
                                                 <h6 class="mb-2"><i class="bi bi-trophy"></i> Division Distribution</h6>
                                                 <div class="row">
@@ -2968,7 +3106,7 @@
                                                 </div>
                                             </div>
                                             
-                                            <!-- Male/Female per Division -->
+                                            <!-- Male/Female per Division (Secondary: exam + term report) -->
                                             <div class="col-12 mt-4">
                                                 <h6 class="mb-3"><i class="bi bi-gender-ambiguous"></i> Male/Female per Division</h6>
                                                 <div class="table-responsive">
@@ -3053,7 +3191,28 @@
                                                 ksort($subjectStats);
                                             @endphp
                                             <div class="col-12 mt-4">
-                                                <h6 class="mb-3"><i class="bi bi-book"></i> Subject Performance Statistics</h6>
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <h6 class="mb-0"><i class="bi bi-book"></i> Subject Performance Statistics</h6>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger btn-export-subject-stats-pdf" data-table-id="reportSubjectStatsTable" data-title="Term Report Subject Performance Statistics">
+                                                        <i class="bi bi-file-pdf"></i> Download PDF
+                                                    </button>
+                                                </div>
+                                                <div class="result-color-def-container">
+                                                    <div class="result-color-def-title">Remark Color Definition</div>
+                                                    <div class="result-color-blocks">
+                                                        @if($schoolType === 'Secondary')
+                                                            <div class="result-color-block result-color-pass">A/B - Perfect/Very good</div>
+                                                            <div class="result-color-block bg-warning text-dark">C - Good</div>
+                                                            <div class="result-color-block bg-orange-bootstrap text-white">D - Average</div>
+                                                            <div class="result-color-block result-color-fail">F - Fail</div>
+                                                            <div class="result-color-block result-color-inc">Incomplete</div>
+                                                        @else
+                                                            <div class="result-color-block result-color-pass">Pass</div>
+                                                            <div class="result-color-block result-color-fail">Failed</div>
+                                                            <div class="result-color-block result-color-inc">Incomplete</div>
+                                                        @endif
+                                                    </div>
+                                                </div>
                                                 <div class="table-responsive">
                                                     <table class="table table-bordered table-striped table-sm" id="reportSubjectStatsTable">
                                                         <thead class="bg-primary-custom text-white">
@@ -3068,6 +3227,8 @@
                                                                 @endif
                                                                 <th>F</th>
                                                                 <th>GPA</th>
+                                                                <th>Grade</th>
+                                                                <th>Remark</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -3114,10 +3275,46 @@
                                                                             $sPoints += ($c * ($ptMap[$sg] ?? 0));
                                                                         }
                                                                         $sGPA = ($sTotal > 0) ? number_format($sPoints / $sTotal, 2) : '0.00';
+                                                                        if ($schoolType === 'Primary') {
+                                                                            if ($sTotal === 0) $subjectGrade = 'Incomplete';
+                                                                            elseif ($sGPA >= 4.5) $subjectGrade = 'A';
+                                                                            elseif ($sGPA >= 3.5) $subjectGrade = 'B';
+                                                                            elseif ($sGPA >= 2.5) $subjectGrade = 'C';
+                                                                            elseif ($sGPA >= 1.5) $subjectGrade = 'D';
+                                                                            elseif ($sGPA >= 0.5) $subjectGrade = 'E';
+                                                                            else $subjectGrade = 'F';
+                                                                        } else {
+                                                                            if ($sTotal === 0) $subjectGrade = 'Incomplete';
+                                                                            elseif ($sGPA <= 1.5) $subjectGrade = 'A';
+                                                                            elseif ($sGPA <= 2.5) $subjectGrade = 'B';
+                                                                            elseif ($sGPA <= 3.5) $subjectGrade = 'C';
+                                                                            elseif ($sGPA <= 4.5) $subjectGrade = 'D';
+                                                                            else $subjectGrade = 'F';
+                                                                        }
+                                                                        if ($schoolType === 'Secondary') {
+                                                                            if ($subjectGrade === 'A') { $remarkClass = 'bg-pass'; $remarkText = 'Perfect'; }
+                                                                            elseif ($subjectGrade === 'B') { $remarkClass = 'bg-pass'; $remarkText = 'Very good'; }
+                                                                            elseif ($subjectGrade === 'C') { $remarkClass = 'bg-warning'; $remarkText = 'Good'; }
+                                                                            elseif ($subjectGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Average'; }
+                                                                            elseif ($subjectGrade === 'F') { $remarkClass = 'bg-fail'; $remarkText = 'Fail'; }
+                                                                            else { $remarkClass = 'bg-inc'; $remarkText = 'Incomplete'; }
+                                                                        } else {
+                                                                            $remarkClass = 'bg-danger';
+                                                                            $remarkText = 'Failed';
+                                                                            if ($subjectGrade === 'Incomplete') {
+                                                                                $remarkClass = 'bg-info';
+                                                                                $remarkText = 'Incomplete';
+                                                                            } elseif (in_array($subjectGrade, ['A', 'B', 'C', 'D'])) {
+                                                                                $remarkClass = 'bg-success';
+                                                                                $remarkText = 'Pass';
+                                                                            }
+                                                                        }
                                                                     @endphp
                                                                     <td class="tc font-weight-bold" style="background-color: #f8f9fa;">
                                                                         {{ $sGPA }}
                                                                     </td>
+                                                                    <td class="tc font-weight-bold">{{ $subjectGrade }}</td>
+                                                                    <td class="tc colored-remark {{ $remarkClass }}">{{ $remarkText }}</td>
                                                                 </tr>
                                                             @endforeach
                                                         </tbody>
@@ -3204,7 +3401,7 @@
                                                             <th>Student Name</th>
                                                             <th>Examinations</th>
                                                             <th>Average</th>
-                                                            <th>Div/Grade</th>
+                                                            <th>{{ $schoolType === 'Secondary' ? 'Division' : 'Grade' }}</th>
                                                             <th>Actions</th>
                                                         </tr>
                                                     </thead>
@@ -3218,14 +3415,16 @@
                                                                     foreach ($reportStudent['exams'] as $examData) {
                                                                         $examName = strtoupper($examData['exam']->exam_name ?? 'N/A');
                                                                         $examAvg = number_format($examData['average'] ?? 0, 1);
-                                                                        $examGrade = $examData['grade'] ?? 'N/A';
+                                                                        $examGrade = $schoolType === 'Secondary'
+                                                                            ? ($examData['division'] ?? $examData['grade'] ?? 'N/A')
+                                                                            : ($examData['grade'] ?? 'N/A');
                                                                         $examStrings[] = $examName . ' ' . $examAvg . '-' . $examGrade;
                                                                     }
                                                                     $examsString = implode(', ', $examStrings);
                                                                 }
                                                             @endphp
                                                             <tr class="student-row" data-student-id="{{ $reportStudent['student']->studentID }}">
-                                                                <td>
+                                                                <td data-order="{{ $reportStudent['position'] ?? 9999 }}">
                                                                     <span class="badge badge-success">
                                                                         {{ $reportStudent['position'] ?? 'N/A' }} out of {{ $reportStudent['total_class_students'] ?? count($reportStudents) }}
                                                                     </span>
@@ -3237,7 +3436,11 @@
                                                                 </td>
                                                                 <td>{{ $examsString ?: 'N/A' }}</td>
                                                                 <td>{{ number_format($reportStudent['average_marks'], 1) }}</td>
-                                                                <td><span class="badge badge-info">{{ $reportStudent['grade'] ?? 'N/A' }}</span></td>
+                                                                <td>
+                                                                    <span class="badge badge-info">
+                                                                        {{ $schoolType === 'Secondary' ? ($reportStudent['division'] ?? 'N/A') : ($reportStudent['grade'] ?? 'N/A') }}
+                                                                    </span>
+                                                                </td>
                                                                 <td>
                                                                     <button class="btn btn-sm btn-primary view-report-student-details" 
                                                                             data-student-id="{{ $reportStudent['student']->studentID }}" 
@@ -3347,21 +3550,39 @@
                                                             <tr>
                                                                 <td colspan="{{ $schoolType === 'Primary' ? '5' : '4' }}" class="p-0">
                                                                     <div class="collapse" id="subjects-{{ $student->studentID }}-{{ $examResult['exam']->examID }}">
-                                                                        <div class="card card-body">
-                                                                            <table class="table table-sm mb-0">
+                                                                                                        <div class="card card-body">
+                                                                            @php $isSecondaryInline = strtolower($schoolType ?? 'Secondary') === 'secondary'; @endphp
+                                                                            <table class="table table-sm mb-0 report-subject-table">
                                                                                 <thead>
                                                                                     <tr>
                                                                                         <th>Subject</th>
                                                                                         <th>Marks</th>
-                                                                                        <th>Grade</th>
+                                                                                        <th>{{ $schoolType === 'Secondary' ? 'Division' : 'Grade' }}</th>
+                                                                                        <th>Remark</th>
                                                                                     </tr>
                                                                                 </thead>
                                                                                 <tbody>
                                                                                     @foreach($examResult['subjects'] as $subject)
+                                                                                        @php
+                                                                                            $subGrade = strtoupper(trim($subject['grade'] ?? ''));
+                                                                                            $remarkClass = 'bg-fail';
+                                                                                            $remarkText = 'Failed';
+                                                                                            if (!$subGrade || $subGrade === 'N/A' || $subGrade === 'INCOMPLETE') {
+                                                                                                $remarkClass = 'bg-inc';
+                                                                                                $remarkText = 'Incomplete';
+                                                                                            } elseif ($isSecondaryInline && preg_match('/^(I|II|III|IV)\./', $subGrade)) {
+                                                                                                $remarkClass = 'bg-pass';
+                                                                                                $remarkText = 'Pass';
+                                                                                            } elseif (in_array($subGrade, ['A', 'B', 'C', 'D'])) {
+                                                                                                $remarkClass = 'bg-pass';
+                                                                                                $remarkText = 'Pass';
+                                                                                            }
+                                                                                        @endphp
                                                                                         <tr>
                                                                                             <td>{{ $subject['subject_name'] }}</td>
                                                                                             <td>{{ is_numeric($subject['marks']) ? number_format($subject['marks'], 0) : $subject['marks'] }}</td>
                                                                                             <td>{{ $subject['grade'] ?? 'N/A' }}</td>
+                                                                                            <td class="text-center colored-remark {{ $remarkClass }}">{{ $remarkText }}</td>
                                                                                         </tr>
                                                                                     @endforeach
                                                                                 </tbody>
@@ -3412,12 +3633,6 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-danger export-student-pdf-btn" data-student-id="" data-exam-id="" title="Export PDF">
-                    <i class="bi bi-file-pdf"></i> Export PDF
-                </button>
-                <button type="button" class="btn btn-success export-student-excel-btn" data-student-id="" data-exam-id="" title="Export Excel">
-                    <i class="bi bi-file-excel"></i> Export Excel
-                </button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             </div>
         </div>
@@ -3534,7 +3749,7 @@ $(document).ready(function() {
                 'ordering': true,
                 'info': true,
                 'autoWidth': false,
-                'pageLength': 5,
+                'pageLength': 25,
                 'lengthMenu': [[5, 10, 25, 50, -1], [5, 10, 25, 50, "All"]],
                 'language': {
                     'search': 'Search:',
@@ -3551,7 +3766,7 @@ $(document).ready(function() {
                 },
                 'order': [[0, 'asc']], // Sort by Subject name ascending
                 'columnDefs': [
-                    { 'orderable': true, 'targets': [0, 1, 2, 3, 4, 5, 6] } // All columns sortable
+                    { 'orderable': true, 'targets': '_all' } // All columns sortable
                 ]
             });
         }
@@ -3590,6 +3805,7 @@ $(document).ready(function() {
                 },
                 'order': [[0, 'asc']], // Sort by Position column ascending
                 'columnDefs': [
+                    { 'type': 'num', 'targets': 0 },
                     { 'orderable': true, 'targets': [0, 1, 2, 3, 4] }, // Position, Student Name, Examinations, Average, Grade
                     { 'orderable': false, 'targets': [5] } // Actions column
                 ]
@@ -3613,7 +3829,7 @@ $(document).ready(function() {
                 'ordering': true,
                 'info': true,
                 'autoWidth': false,
-                'pageLength': 5,
+                'pageLength': 25,
                 'lengthMenu': [[5, 10, 25, 50, -1], [5, 10, 25, 50, "All"]],
                 'language': {
                     'search': 'Search:',
@@ -3630,7 +3846,7 @@ $(document).ready(function() {
                 },
                 'order': [[0, 'asc']], // Sort by Subject name ascending
                 'columnDefs': [
-                    { 'orderable': true, 'targets': [0, 1, 2, 3, 4, 5, 6] } // All columns sortable
+                    { 'orderable': true, 'targets': '_all' } // All columns sortable
                 ]
             });
         }
@@ -3641,6 +3857,81 @@ $(document).ready(function() {
     initializeSubjectStatsDataTable();
     initializeReportStudentsDataTable();
     initializeReportSubjectStatsDataTable();
+
+    function getReportSubjectRemark(grade, isSecondary) {
+        const normalizedGrade = String(grade || '').toUpperCase();
+        if (!grade || normalizedGrade === 'N/A' || normalizedGrade === 'INCOMPLETE') {
+            return { text: 'Incomplete', cssClass: 'bg-inc' };
+        }
+        if (isSecondary) {
+            if (/^(I|II|III|IV)\./.test(normalizedGrade)) {
+                return { text: 'Pass', cssClass: 'bg-pass' };
+            }
+        } else if (['A', 'B', 'C', 'D'].includes(normalizedGrade)) {
+            return { text: 'Pass', cssClass: 'bg-pass' };
+        }
+        if (['A', 'B', 'C', 'D'].includes(normalizedGrade)) {
+            return { text: 'Pass', cssClass: 'bg-pass' };
+        }
+        return { text: 'Failed', cssClass: 'bg-fail' };
+    }
+
+    function getRemarkPdfColors(cssClass) {
+        const map = {
+            'bg-pass': { fillColor: [212, 237, 218], textColor: [21, 87, 36] },
+            'bg-fail': { fillColor: [248, 215, 218], textColor: [114, 28, 36] },
+            'bg-inc': { fillColor: [209, 236, 241], textColor: [12, 84, 96] }
+        };
+        return map[cssClass] || map['bg-fail'];
+    }
+
+    function renderRemarkCellHtml(grade, isSecondary) {
+        const remarkInfo = getReportSubjectRemark(grade, isSecondary);
+        return `<td class="text-center colored-remark ${remarkInfo.cssClass}">${remarkInfo.text}</td>`;
+    }
+
+    function getRemarkColorDefinitionHtml(isSecondary) {
+        return `
+            <div class="result-color-def-container">
+                <div class="result-color-def-title">Remark Color Definition</div>
+                <div class="result-color-blocks">
+                    <div class="result-color-block result-color-pass">Pass</div>
+                    <div class="result-color-block result-color-fail">Fail</div>
+                    <div class="result-color-block result-color-inc">Incomplete</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function drawRemarkColorLegendPdf(doc, startY, marginLeft, pageWidth) {
+        const legendY = startY;
+        const normalizedMargin = (typeof marginLeft === 'number') ? marginLeft : (marginLeft && marginLeft.left ? marginLeft.left : 14);
+        const usableWidth = pageWidth - (normalizedMargin * 2);
+        const blockW = usableWidth / 3;
+        const blockH = 7;
+        const items = [
+            { label: 'Pass', colors: getRemarkPdfColors('bg-pass') },
+            { label: 'Failed', colors: getRemarkPdfColors('bg-fail') },
+            { label: 'Incomplete', colors: getRemarkPdfColors('bg-inc') }
+        ];
+        let x = normalizedMargin;
+        doc.setFontSize(8);
+        doc.setTextColor(108, 117, 125);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Remark Color Definition', pageWidth / 2, legendY, { align: 'center' });
+        const rowY = legendY + 5;
+        items.forEach(function(item) {
+            doc.setFillColor(item.colors.fillColor[0], item.colors.fillColor[1], item.colors.fillColor[2]);
+            doc.setDrawColor(221, 221, 221);
+            doc.rect(x, rowY, blockW, blockH, 'FD');
+            doc.setTextColor(item.colors.textColor[0], item.colors.textColor[1], item.colors.textColor[2]);
+            doc.setFont('helvetica', 'normal');
+            doc.text(item.label, x + blockW / 2, rowY + blockH / 2 + 1, { align: 'center' });
+            x += blockW;
+        });
+        doc.setTextColor(0, 0, 0);
+        return rowY + blockH + 6;
+    }
 
     // Handle view report student details button click
     $(document).on('click', '.view-report-student-details', function() {
@@ -3654,7 +3945,7 @@ $(document).ready(function() {
         const studentName = $row.find('td').eq(1).text().trim(); // Student Name column
         const examsString = $row.find('td').eq(2).text().trim(); // Examinations column
         const average = $row.find('td').eq(3).text().trim(); // Average column
-        const gradeOrDivision = $row.find('td').eq(4).text().trim(); // Grade column
+        const gradeOrDivision = $row.find('td').eq(4).text().trim(); // Grade/Division column
         
         // Show modal
         $('#studentDetailsModal').modal('show');
@@ -3697,6 +3988,7 @@ $(document).ready(function() {
         updateViewProgress(40, "Requesting details...");
         
         const schoolType = '{{ $schoolType ?? "Secondary" }}';
+        const isSecondary = (schoolType || '').toLowerCase() === 'secondary';
         const termName = term ? term.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : '';
         
         // Fetch subject details via AJAX
@@ -3732,8 +4024,10 @@ $(document).ready(function() {
                     totalStudentsCount: response.totalStudentsCount || 0,
                     averageMarks: response.averageMarks || 0,
                     grade: response.grade || gradeOrDivision,
+                    division: response.division || null,
                     subjects: response.subjects || [],
                     exams: response.exams || [],
+                    examinationSummaries: response.examinationSummaries || [],
                     teacher: response.teacher || null
                 };
                 
@@ -3752,65 +4046,29 @@ $(document).ready(function() {
                                 </div>
                                 <div class="col-md-6">
                                     <p><strong>Position:</strong> <span class="badge badge-success">${position}</span></p>
-                                    <p><strong>Grade:</strong> ${gradeOrDivision}</p>
+                                    <p><strong>${isSecondary ? 'Division' : 'Grade'}:</strong> ${gradeOrDivision}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    ${getRemarkColorDefinitionHtml(isSecondary)}
                     <div class="card mb-3">
-                        <div class="card-header bg-primary-custom text-white">
-                            <h6 class="mb-0"><i class="bi bi-book"></i> Examinations</h6>
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><strong>Results Summary</strong></h6>
                         </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered">
-                                    <thead class="bg-light">
-                                        <tr>
-                                            <th>Examination</th>
-                                            <th>Average</th>
-                                            <th>Grade</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                `;
-                
-                // Parse exams string (format: "EXAM1 avg-grade, EXAM2 avg-grade")
-                if (examsString && examsString !== 'N/A') {
-                    const examPairs = examsString.split(',');
-                    examPairs.forEach(function(examPair) {
-                        const trimmed = examPair.trim();
-                        // Format: "EXAMNAME avg-grade"
-                        const match = trimmed.match(/^(.+?)\s+([\d.]+)-([A-Z])$/);
-                        if (match) {
-                            const examName = match[1];
-                            const examAvg = match[2];
-                            const examGrade = match[3];
-                            content += `
-                                <tr>
-                                    <td>${examName}</td>
-                                    <td>${examAvg}</td>
-                                    <td><span class="badge badge-info">${examGrade}</span></td>
-                                </tr>
-                            `;
-                        }
-                    });
-                } else {
-                    content += `
-                        <tr>
-                            <td colspan="3" class="text-center text-muted">No examinations found</td>
-                        </tr>
-                    `;
-                }
-                
-                content += `
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="card-body p-0">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    <tr><td><strong>Position</strong></td><td>${position}</td></tr>
+                                    <tr><td><strong>Average</strong></td><td>${average || 'N/A'}</td></tr>
+                                    <tr><td><strong>${isSecondary ? 'Division' : 'Grade'}</strong></td><td>${gradeOrDivision || 'N/A'}</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 `;
                 
-                // Build Subject Results Table
+                // Build Subject Results Table (per-exam columns kept; summary Examinations table removed)
                 if (response.subjects && response.subjects.length > 0 && response.exams && response.exams.length > 0) {
                     content += `
                         <div class="card mb-3">
@@ -3819,20 +4077,21 @@ $(document).ready(function() {
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive">
-                                    <table class="table table-sm table-bordered table-striped" id="reportSubjectResultsTable">
+                                    <table class="table table-sm table-bordered table-striped report-subject-table" id="reportSubjectResultsTable">
                                         <thead class="bg-primary-custom text-white">
                                             <tr>
                                                 <th>Subject</th>
                     `;
                     
-                    // Add dynamic exam columns
+                    // Exam columns (e.g. WEEKLY TEST, Midterm)
                     response.exams.forEach(function(exam) {
-                        content += `<th>${exam.exam_name}</th>`;
+                        content += `<th class="text-center">${exam.exam_name}</th>`;
                     });
                     
                     content += `
-                                                <th>Average</th>
-                                                <th>Grade</th>
+                                                <th class="text-center">Average</th>
+                                                <th class="text-center">Grade</th>
+                                                <th class="text-center">Remark</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -3842,24 +4101,23 @@ $(document).ready(function() {
                     response.subjects.forEach(function(subject) {
                         content += `<tr><td><strong>${subject.subject_name}</strong></td>`;
                         
-                        // Add marks for each exam
+                        // Marks per exam (numbers only)
                         response.exams.forEach(function(exam) {
                             const examResult = (subject.exams && subject.exams[exam.examID]) ? subject.exams[exam.examID] : null;
                             
                             if (examResult && examResult.marks !== null && examResult.marks !== '') {
-                                const marks = parseFloat(examResult.marks).toFixed(0);
-                                const grade = examResult.grade || 'N/A';
-                                content += `<td>${marks}-${grade}</td>`;
+                                content += `<td class="text-center">${parseFloat(examResult.marks).toFixed(0)}</td>`;
                             } else {
-                                content += `<td>-</td>`;
+                                content += `<td class="text-center">-</td>`;
                             }
                         });
                         
-                        // Add average and grade
                         const avg = subject.average ? parseFloat(subject.average).toFixed(1) : '0.0';
                         const grade = subject.grade || 'N/A';
-                        content += `<td><strong>${avg}</strong></td>`;
-                        content += `<td><span class="badge badge-info">${grade}</span></td>`;
+                        const remarkInfo = getReportSubjectRemark(grade, isSecondary);
+                        content += `<td class="text-center"><strong>${avg}</strong></td>`;
+                        content += `<td class="text-center">${grade}</td>`;
+                        content += `<td class="text-center colored-remark ${remarkInfo.cssClass}">${remarkInfo.text}</td>`;
                         content += `</tr>`;
                     });
                     
@@ -3966,6 +4224,7 @@ $(document).ready(function() {
         // Get exam name
         const examName = $('#examID option:selected').text().split('(')[0].trim();
         const schoolType = '{{ $schoolType ?? "Secondary" }}';
+        const isSecondaryExamDetails = (schoolType || '').toLowerCase() === 'secondary';
         
         // Build content
         let content = `
@@ -3987,6 +4246,21 @@ $(document).ready(function() {
                     </div>
                 </div>
             </div>
+                    ${getRemarkColorDefinitionHtml(isSecondaryExamDetails)}
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><strong>Results Summary</strong></h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    <tr><td><strong>Exam</strong></td><td>${examName}</td></tr>
+                                    <tr><td><strong>Position</strong></td><td>${position}</td></tr>
+                                    <tr><td><strong>${schoolType === 'Primary' ? 'Grade' : 'Division'}</strong></td><td>${gradeOrDivision || 'N/A'}</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
         `;
         
         // Make AJAX request to get detailed subject results
@@ -4059,6 +4333,7 @@ $(document).ready(function() {
                                 examHeaders += `<th class="text-center">${ex.exam_name}</th>`;
                             });
                             
+                            const isSecondaryExam = (schoolType || '').toLowerCase() === 'secondary';
                             subjectsHtml = `
                                 <div class="card">
                                     <div class="card-header bg-primary-custom text-white">
@@ -4066,13 +4341,14 @@ $(document).ready(function() {
                                     </div>
                                     <div class="card-body">
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-bordered table-striped">
+                                            <table class="table table-sm table-bordered table-striped report-subject-table">
                                                 <thead class="bg-light">
                                                     <tr>
                                                         <th>Subject</th>
                                                         ${examHeaders}
                                                         <th class="text-center">Average</th>
-                                                        <th class="text-center">Grade</th>
+                                                        <th class="text-center">${schoolType === 'Secondary' ? 'Division' : 'Grade'}</th>
+                                                        <th class="text-center">Remark</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -4094,7 +4370,8 @@ $(document).ready(function() {
                                         <td><strong>${subject.subject_name}</strong></td>
                                         ${examCells}
                                         <td class="text-center align-middle font-weight-bold">${Math.round(parseFloat(subject.average))}</td>
-                                        <td class="text-center align-middle"><span class="badge badge-info">${subject.grade ?? 'N/A'}</span></td>
+                                        <td class="text-center align-middle">${subject.grade ?? 'N/A'}</td>
+                                        ${renderRemarkCellHtml(subject.grade, isSecondaryExam)}
                                     </tr>
                                 `;
                             });
@@ -4108,6 +4385,7 @@ $(document).ready(function() {
                             `;
                         } else {
                             // ORIGINAL CA OR SINGLE EXAM VIEW
+                            const isSecondaryExamSingle = (schoolType || '').toLowerCase() === 'secondary';
                             subjectsHtml = `
                                 <div class="card">
                                     <div class="card-header bg-primary-custom text-white">
@@ -4115,12 +4393,13 @@ $(document).ready(function() {
                                     </div>
                                     <div class="card-body">
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-bordered">
+                                            <table class="table table-sm table-bordered report-subject-table">
                                                 <thead class="bg-light">
                                                     <tr>
                                                         <th>Subject</th>
                                                         <th>Marks</th>
-                                                        <th>Grade</th>
+                                                        <th>${schoolType === 'Secondary' ? 'Division' : 'Grade'}</th>
+                                                        <th>Remark</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -4146,7 +4425,8 @@ $(document).ready(function() {
                                     
                                     subjectsHtml += `</div></td>
                                         <td class="text-center align-middle h5"><strong>${Math.round(parseFloat(subject.marks))}</strong></td>
-                                        <td class="text-center align-middle font-weight-bold h5 text-primary"><strong>${subject.grade ?? 'N/A'}</strong></td>
+                                        <td class="text-center align-middle font-weight-bold h5"><strong>${subject.grade ?? 'N/A'}</strong></td>
+                                        ${renderRemarkCellHtml(subject.grade, isSecondaryExamSingle)}
                                     </tr>`;
                                 } else {
                                     // Single Exam View
@@ -4156,6 +4436,7 @@ $(document).ready(function() {
                                         <td>${subject.subject_name}</td>
                                         <td class="text-center">${marks}</td>
                                         <td class="text-center font-weight-bold">${subject.grade ?? 'N/A'}</td>
+                                        ${renderRemarkCellHtml(subject.grade, isSecondaryExamSingle)}
                                     </tr>`;
                                 }
                             });
@@ -4225,8 +4506,8 @@ $(document).ready(function() {
                 
                 content += subjectsHtml;
                 
-                // Store student data globally for PDF export
-                window.currentReportStudentData = {
+                // Store student data globally for PDF/Excel export
+                window.currentStudentData = {
                     studentID: response.student.studentID,
                     studentName: (response.student.first_name + ' ' + (response.student.middle_name || '') + ' ' + response.student.last_name).trim(),
                     studentNumber: response.student.admission_number,
@@ -4243,6 +4524,20 @@ $(document).ready(function() {
                     gender: response.student.gender,
                     teacher: response.teacher || null
                 };
+
+                // Add a single export actions row for exam view
+                content += `
+                    <div class="card mt-3">
+                        <div class="card-body text-center">
+                            <button class="btn btn-danger export-student-pdf-btn" data-student-id="${studentID}" data-exam-id="${examID}" title="Export PDF">
+                                <i class="bi bi-file-pdf"></i> Export PDF
+                            </button>
+                            <button class="btn btn-success export-student-excel-btn ml-2" data-student-id="${studentID}" data-exam-id="${examID}" title="Export Excel">
+                                <i class="bi bi-file-excel"></i> Export Excel
+                            </button>
+                        </div>
+                    </div>
+                `;
 
                 $('#studentDetailsContent').html(content);
                 }, 400); // end of setTimeout
@@ -5725,6 +6020,7 @@ $(document).ready(function() {
                 doc.setFont('helvetica', 'bold');
                 doc.text(examName + ' - ' + examDate, 14, yPos);
                 yPos += 8;
+                yPos = drawRemarkColorLegendPdf(doc, yPos, 14, pageWidth);
 
                 // Get subjects from collapsed section
                 const collapseButton = firstExamRow.find('button[data-toggle="collapse"]');
@@ -5739,7 +6035,10 @@ $(document).ready(function() {
                     const subjectRows = collapseSection.find('table tbody tr');
                     
                     if (subjectRows.length > 0) {
+                        const isSecondaryListPdf = (schoolType || '').toLowerCase() === 'secondary';
                         const subjectData = [];
+                        const remarkCellStyles = [];
+                        const gradeColLabel = schoolType === 'Primary' ? 'Grade' : 'Division';
                         subjectRows.each(function() {
                             const subject = $(this).find('td').eq(0).text().trim();
                             let marks = $(this).find('td').eq(1).text().trim();
@@ -5751,26 +6050,42 @@ $(document).ready(function() {
                                 }
                             }
                             const subjectGrade = $(this).find('td').eq(2).text().trim();
+                            let remarkText = $(this).find('td').eq(3).text().trim();
+                            if (!remarkText) {
+                                remarkText = getReportSubjectRemark(subjectGrade, isSecondaryListPdf).text;
+                            }
+                            const remarkStyle = getRemarkPdfColors(getReportSubjectRemark(subjectGrade, isSecondaryListPdf).cssClass);
                             if (subject && subject !== 'N/A') {
-                                subjectData.push([subject, marks, subjectGrade]);
+                                subjectData.push([subject, marks, subjectGrade, remarkText]);
+                                remarkCellStyles.push(remarkStyle);
                             }
                         });
 
                         if (subjectData.length > 0) {
                             doc.autoTable({
                                 startY: yPos,
-                                head: [['Subject', 'Marks', 'Grade']],
+                                head: [['Subject', 'Marks', gradeColLabel, 'Remark']],
                                 body: subjectData,
                                 theme: 'striped',
                                 headStyles: { fillColor: [148, 0, 0], textColor: 255, fontStyle: 'bold' },
                                 styles: { fontSize: 10 },
                                 margin: { left: 14 },
                                 columnStyles: {
-                                    0: { cellWidth: 120 },
-                                    1: { cellWidth: 40, halign: 'right' },
-                                    2: { cellWidth: 40, halign: 'center' }
+                                    0: { cellWidth: 90 },
+                                    1: { cellWidth: 35, halign: 'right' },
+                                    2: { cellWidth: 35, halign: 'center' },
+                                    3: { cellWidth: 35, halign: 'center', fontStyle: 'bold' }
                                 },
-                                tableWidth: 'auto'
+                                tableWidth: 'auto',
+                                didParseCell: function(data) {
+                                    if (data.section === 'body' && data.column.index === 3) {
+                                        const style = remarkCellStyles[data.row.index];
+                                        if (style) {
+                                            data.cell.styles.fillColor = style.fillColor;
+                                            data.cell.styles.textColor = style.textColor;
+                                        }
+                                    }
+                                }
                             });
                             
                             yPos = doc.lastAutoTable.finalY + 15;
@@ -5793,30 +6108,35 @@ $(document).ready(function() {
                             doc.text(comment, 14, yPos);
                             yPos += 10;
                             
-                            // Teacher Signature Line
+                            // Left signature block (Headmaster)
                             doc.setDrawColor(0, 0, 0);
                             doc.setLineWidth(0.3);
                             doc.line(14, yPos + 10, 70, yPos + 10);
                             
                             doc.setFont('helvetica', 'bold');
-                            doc.text('Class Teacher: ' + (teacherName || 'N/A'), 14, yPos + 15);
+                            doc.text('Headmaster:', 14, yPos + 15);
                             
-                            // Draw Teacher Signature Image
-                            if (teacherSignImg) {
+                            // Draw Headmaster Signature Image (swapped from right to left)
+                            if (signImg) {
                                 const tsW = 35;
-                                const tsH = (teacherSignImg.height * tsW) / teacherSignImg.width;
-                                doc.addImage(teacherSignImg, 'PNG', 20, yPos - 5, tsW, tsH);
+                                const tsH = (signImg.height * tsW) / signImg.width;
+                                doc.addImage(signImg, 'PNG', 20, yPos - 5, tsW, tsH);
                             }
 
-                            // Headmaster's Sign after subjects table
+                            // Right signature block (Class Teacher) - swapped to right
                             yPos += 20;
                             doc.setDrawColor(0, 0, 255); // Blue color
                             doc.setLineWidth(0.5);
                             doc.line(pageWidth - 50, yPos, pageWidth - 10, yPos); // Signature line
+                            if (teacherSignImg) {
+                                const ctW = 34;
+                                const ctH = (teacherSignImg.height * ctW) / teacherSignImg.width;
+                                doc.addImage(teacherSignImg, 'PNG', pageWidth - 48, yPos - 14, ctW, ctH);
+                            }
                             doc.setFontSize(10);
                             doc.setTextColor(0, 0, 255); // Blue text
                             doc.setFont('helvetica', 'bold');
-                            doc.text('Headmaster\'s Sign', pageWidth - 30, yPos + 5, { align: 'center' });
+                            doc.text('Class Teacher\'s Sign', pageWidth - 30, yPos + 5, { align: 'center' });
                         }
                     }
                 }
@@ -5847,9 +6167,9 @@ $(document).ready(function() {
 
             // DRAW STAMP IMAGE
             if (stampImg) {
-                const stW = 35;
+                const stW = 50;
                 const stH = (stampImg.height * stW) / stampImg.width;
-                doc.addImage(stampImg, 'PNG', pageWidth - 100, pageHeight - 55, stW, stH, undefined, 'FAST');
+                doc.addImage(stampImg, 'PNG', pageWidth - 120, pageHeight - 70, stW, stH, undefined, 'FAST');
             }
 
             // Standard Footer Brand
@@ -7059,6 +7379,9 @@ $(document).ready(function() {
         const doc = new jsPDF('p', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.height;
+        const schoolType = '{{ $schoolType ?? "Secondary" }}';
+        const logoWidth = 25;
+        const studentImageWidth = 30;
         
         const schoolName = '{{ $school->school_name ?? "School" }}';
         const schoolLogo = '{{ $school->school_logo ? asset($school->school_logo) : "" }}';
@@ -7085,7 +7408,7 @@ $(document).ready(function() {
         const schoolSignPromise = schoolSignature ? loadImage(schoolSignature) : Promise.resolve(null);
         const teacherSignPromise = teacherSignature ? loadImage(teacherSignature) : Promise.resolve(null);
         const studentImagePath = studentData.photo || 
-            (studentData.gender === 'Female' ? '{{ asset("placeholder/female.png") }}' : '{{ asset("placeholder/male.png") }}');
+            (studentData.gender === 'Female' ? '{{ asset("images/female.png") }}' : '{{ asset("images/male.png") }}');
         const studentImagePromise = loadImage(studentImagePath);
         
         Promise.all([logoPromise, studentImagePromise, stampPromise, schoolSignPromise, teacherSignPromise]).then(function(images) {
@@ -7179,13 +7502,18 @@ $(document).ready(function() {
                 }
             });
             yPos = doc.lastAutoTable.finalY + 10;
+            yPos = drawRemarkColorLegendPdf(doc, yPos, tableMargin, pageWidth);
             
             // Subjects Table
             if (studentData.subjects && studentData.subjects.length > 0) {
+                const isSecondaryExamPdf = (schoolType || '').toLowerCase() === 'secondary';
                 const hasCA = studentData.subjects.some(s => s.is_ca_averaged && s.exams && s.exams.length > 1);
-                const headers = hasCA ? [['Subject', 'CA', 'Exam', 'Total', 'Grade']] : [['Subject', 'Marks', 'Grade']];
+                const headers = hasCA
+                    ? [['Subject', 'CA', 'Exam', 'Total', schoolType === 'Secondary' ? 'Division' : 'Grade', 'Remark']]
+                    : [['Subject', 'Marks', schoolType === 'Secondary' ? 'Division' : 'Grade', 'Remark']];
                 
                 const subjectData = [];
+                const remarkCellStyles = [];
                 studentData.subjects.forEach(function(subject) {
                     let marks = 'N/A';
                     if (subject.marks === 'incomplete') {
@@ -7193,6 +7521,9 @@ $(document).ready(function() {
                     } else if (subject.marks !== null && subject.marks !== '') {
                         marks = parseFloat(subject.marks).toFixed(0);
                     }
+                    const gradeVal = subject.grade || 'N/A';
+                    const remarkInfo = getReportSubjectRemark(gradeVal, isSecondaryExamPdf);
+                    remarkCellStyles.push(getRemarkPdfColors(remarkInfo.cssClass));
 
                     if (hasCA) {
                         let caMarks = '-';
@@ -7215,27 +7546,32 @@ $(document).ready(function() {
                             caMarks,
                             examMarks,
                             marks,
-                            subject.grade || 'N/A'
+                            gradeVal,
+                            remarkInfo.text
                         ]);
                     } else {
                         subjectData.push([
                             subject.subject_name || 'N/A',
                             marks,
-                            subject.grade || 'N/A'
+                            gradeVal,
+                            remarkInfo.text
                         ]);
                     }
                 });
                 
+                const remarkColIndex = hasCA ? 5 : 3;
                 const columnStyles = hasCA ? {
-                    0: { cellWidth: tableWidth * 0.4 },
-                    1: { cellWidth: tableWidth * 0.15, halign: 'center' },
-                    2: { cellWidth: tableWidth * 0.15, halign: 'center' },
-                    3: { cellWidth: tableWidth * 0.15, halign: 'center' },
-                    4: { cellWidth: tableWidth * 0.15, halign: 'center' }
+                    0: { cellWidth: tableWidth * 0.32 },
+                    1: { cellWidth: tableWidth * 0.12, halign: 'center' },
+                    2: { cellWidth: tableWidth * 0.12, halign: 'center' },
+                    3: { cellWidth: tableWidth * 0.12, halign: 'center' },
+                    4: { cellWidth: tableWidth * 0.14, halign: 'center' },
+                    5: { cellWidth: tableWidth * 0.18, halign: 'center', fontStyle: 'bold' }
                 } : {
-                    0: { cellWidth: tableWidth * 0.6 },
-                    1: { cellWidth: tableWidth * 0.2, halign: 'right' },
-                    2: { cellWidth: tableWidth * 0.2, halign: 'center' }
+                    0: { cellWidth: tableWidth * 0.45 },
+                    1: { cellWidth: tableWidth * 0.18, halign: 'right' },
+                    2: { cellWidth: tableWidth * 0.18, halign: 'center' },
+                    3: { cellWidth: tableWidth * 0.19, halign: 'center', fontStyle: 'bold' }
                 };
 
                 doc.autoTable({
@@ -7252,7 +7588,17 @@ $(document).ready(function() {
                         bottom: 10
                     },
                     tableWidth: tableWidth,
-                    columnStyles: columnStyles
+                    columnStyles: columnStyles,
+                    didParseCell: function(data) {
+                        if (data.section === 'body' && data.column.index === remarkColIndex) {
+                            const style = remarkCellStyles[data.row.index];
+                            if (style) {
+                                data.cell.styles.fillColor = style.fillColor;
+                                data.cell.styles.textColor = style.textColor;
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
+                    }
                 });
             }
             
@@ -7294,30 +7640,35 @@ $(document).ready(function() {
             doc.text(comment, 14, yPos);
             yPos += 10;
             
-            // Teacher Signature Line
+            // Left signature block (Headmaster)
             doc.setDrawColor(0, 0, 0);
             doc.setLineWidth(0.3);
             doc.line(14, yPos + 10, 70, yPos + 10);
             
             doc.setFont('helvetica', 'bold');
-            doc.text('Class Teacher: ' + (teacherName || 'N/A'), 14, yPos + 15);
+            doc.text('Headmaster:', 14, yPos + 15);
             
-            // Draw Teacher Signature Image
-            if (teacherSignImg) {
+            // Draw Headmaster Signature Image (swapped from right to left)
+            if (schoolSignImg) {
                 const tsW = 35;
-                const tsH = (teacherSignImg.height * tsW) / teacherSignImg.width;
-                doc.addImage(teacherSignImg, 'PNG', 20, yPos - 5, tsW, tsH);
+                const tsH = (schoolSignImg.height * tsW) / schoolSignImg.width;
+                doc.addImage(schoolSignImg, 'PNG', 20, yPos - 5, tsW, tsH);
             }
 
-            // Headmaster's Sign
+            // Right signature block (Class Teacher) - swapped to right
             yPos += 20;
             doc.setDrawColor(0, 0, 255); // Blue color
             doc.setLineWidth(0.5);
             doc.line(pageWidth - 50, pageHeight - 10, pageWidth - 10, pageHeight - 10); // Signature line
+            if (teacherSignImg) {
+                const ctW = 34;
+                const ctH = (teacherSignImg.height * ctW) / teacherSignImg.width;
+                doc.addImage(teacherSignImg, 'PNG', pageWidth - 48, pageHeight - 24, ctW, ctH);
+            }
             doc.setFontSize(10);
             doc.setTextColor(0, 0, 255); // Blue text
             doc.setFont('helvetica', 'bold');
-            doc.text('Headmaster\'s Sign', pageWidth - 30, pageHeight - 5, { align: 'center' });
+            doc.text('Class Teacher\'s Sign', pageWidth - 30, pageHeight - 5, { align: 'center' });
             }
             
             // Generate filename
@@ -7469,7 +7820,7 @@ $(document).ready(function() {
         const schoolSignPromise = schoolSignature ? loadImage(schoolSignature) : Promise.resolve(null);
         const teacherSignPromise = teacherSignature ? loadImage(teacherSignature) : Promise.resolve(null);
         const studentImagePath = reportStudentData.photo || 
-            (reportStudentData.gender === 'Female' ? '{{ asset("placeholder/female.png") }}' : '{{ asset("placeholder/male.png") }}');
+            (reportStudentData.gender === 'Female' ? '{{ asset("images/female.png") }}' : '{{ asset("images/male.png") }}');
         const studentImagePromise = loadImage(studentImagePath);
         
         Promise.all([logoPromise, studentImagePromise, stampPromise, schoolSignPromise, teacherSignPromise]).then(function(images) {
@@ -7555,56 +7906,49 @@ $(document).ready(function() {
                 }
             });
             yPos = doc.lastAutoTable.finalY + 10;
+            yPos = drawRemarkColorLegendPdf(doc, yPos, tableMargin, pageWidth);
             
             // Subject Results Table
             if (reportStudentData.subjects && reportStudentData.subjects.length > 0 && reportStudentData.exams && reportStudentData.exams.length > 0) {
-                // Build headers: Subject, [Exam columns], Average, Grade
+                const isSecondaryPdf = ('{{ $schoolType ?? "Secondary" }}' || '').toLowerCase() === 'secondary';
                 const headers = ['Subject'];
                 reportStudentData.exams.forEach(function(exam) {
                     headers.push(exam.exam_name);
                 });
-                headers.push('Average', 'Grade');
+                headers.push('Average', 'Grade', 'Remark');
                 
-                // Build table data
                 const subjectData = [];
+                const remarkCellStyles = [];
                 reportStudentData.subjects.forEach(function(subject) {
                     const row = [subject.subject_name];
                     
-                    // Add marks for each exam (format: "marks-grade")
                     reportStudentData.exams.forEach(function(exam) {
                         const examResult = (subject.exams && subject.exams[exam.examID]) ? subject.exams[exam.examID] : null;
                         
                         if (examResult && examResult.marks !== null && examResult.marks !== '') {
-                            let marks = 'N/A';
-                            if (examResult.marks === 'incomplete') {
-                                marks = 'incomplete';
-                            } else {
-                                marks = parseFloat(examResult.marks).toFixed(0);
-                            }
-                            const grade = examResult.grade || 'N/A';
-                            row.push(marks + '-' + grade);
+                            row.push(parseFloat(examResult.marks).toFixed(0));
                         } else {
                             row.push('-');
                         }
                     });
                     
-                    // Add average and grade
                     const avg = subject.average ? parseFloat(subject.average).toFixed(1) : '0.0';
                     const grade = subject.grade || 'N/A';
-                    row.push(avg, grade);
+                    const remarkInfo = getReportSubjectRemark(grade, isSecondaryPdf);
+                    row.push(avg, grade, remarkInfo.text);
+                    remarkCellStyles.push(getRemarkPdfColors(remarkInfo.cssClass));
                     
                     subjectData.push(row);
                 });
                 
-                // Calculate column widths as percentages of tableWidth to match overview table width
                 const numExams = reportStudentData.exams.length;
-                const totalColumns = 1 + numExams + 2; // Subject + Exams + Average + Grade
+                const totalColumns = 1 + numExams + 3;
                 
-                // Use percentage-based widths to ensure table width matches overview
-                const subjectColPercent = 0.25; // 25% for subject name
-                const examColPercent = (0.55 / numExams); // 55% divided by number of exams
-                const avgColPercent = 0.10; // 10% for average
-                const gradeColPercent = 0.10; // 10% for grade
+                const subjectColPercent = 0.22;
+                const examColPercent = (0.48 / numExams);
+                const avgColPercent = 0.10;
+                const gradeColPercent = 0.10;
+                const remarkColPercent = 0.10;
                 
                 const columnStyles = {};
                 columnStyles[0] = { cellWidth: tableWidth * subjectColPercent, fontStyle: 'bold' };
@@ -7613,6 +7957,8 @@ $(document).ready(function() {
                 }
                 columnStyles[numExams + 1] = { cellWidth: tableWidth * avgColPercent, halign: 'center', fontStyle: 'bold' };
                 columnStyles[numExams + 2] = { cellWidth: tableWidth * gradeColPercent, halign: 'center', fontStyle: 'bold' };
+                columnStyles[numExams + 3] = { cellWidth: tableWidth * remarkColPercent, halign: 'center', fontStyle: 'bold' };
+                const remarkColIndex = numExams + 3;
                 
                 doc.autoTable({
                     startY: yPos,
@@ -7629,8 +7975,17 @@ $(document).ready(function() {
                     },
                     tableWidth: tableWidth,
                     columnStyles: columnStyles,
+                    didParseCell: function(data) {
+                        if (data.section === 'body' && data.column.index === remarkColIndex) {
+                            const style = remarkCellStyles[data.row.index];
+                            if (style) {
+                                data.cell.styles.fillColor = style.fillColor;
+                                data.cell.styles.textColor = style.textColor;
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
+                    },
                     didDrawCell: function(data) {
-                        // Apply bold font to subject names, average, and grade
                         if (data.section === 'body') {
                             if (data.column.index === 0 || data.column.index === numExams + 1 || data.column.index === numExams + 2) {
                                 doc.setFont('helvetica', 'bold');
@@ -7679,19 +8034,19 @@ $(document).ready(function() {
             doc.text(commentReport, 20, yPos);
             yPos += 10;
             
-            // Teacher Signature Line
+            // Left signature block (Headmaster)
             doc.setDrawColor(0, 0, 0);
             doc.setLineWidth(0.3);
             doc.line(20, yPos + 10, 80, yPos + 10);
             
             doc.setFont('helvetica', 'bold');
-            doc.text('Class Teacher: ' + (teacherName || 'N/A'), 20, yPos + 15);
+            doc.text('Headmaster:', 20, yPos + 15);
             
-            // Draw Teacher Signature Image
-            if (teacherSignImg) {
-                const tsW = 35;
-                const tsH = (teacherSignImg.height * tsW) / teacherSignImg.width;
-                doc.addImage(teacherSignImg, 'PNG', 25, yPos - 5, tsW, tsH);
+            // Draw Headmaster Signature Image (swapped from right to left)
+            if (schoolSignImg) {
+                const tsW = 45;
+                const tsH = (schoolSignImg.height * tsW) / schoolSignImg.width;
+                doc.addImage(schoolSignImg, 'PNG', 25, yPos - 5, tsW, tsH);
             }
 
             // Official Stamp & Headmaster's Sign (moved down)
@@ -7699,27 +8054,27 @@ $(document).ready(function() {
             
             // Draw Stamp
             if (stampImg) {
-                const stW = 30;
+                const stW = 58;
                 const stH = (stampImg.height * stW) / stampImg.width;
-                doc.addImage(stampImg, 'PNG', pageWidth / 2 - 15, yPos - 15, stW, stH);
+                doc.addImage(stampImg, 'PNG', pageWidth / 2 - 29, yPos - 24, stW, stH);
             }
 
-            // Headmaster's Sign (Blue ink)
+            // Right signature block (Class Teacher) - swapped to right
             doc.setDrawColor(0, 0, 255); // Blue color
             doc.setLineWidth(0.5);
             doc.line(pageWidth - 80, yPos + 10, pageWidth - 20, yPos + 10); // Signature line
             
-            // Draw School Signature
-            if (schoolSignImg) {
-                const ssW = 35;
-                const ssH = (schoolSignImg.height * ssW) / schoolSignImg.width;
-                doc.addImage(schoolSignImg, 'PNG', pageWidth - 70, yPos - 5, ssW, ssH);
+            // Draw Class Teacher Signature
+            if (teacherSignImg) {
+                const ssW = 50;
+                const ssH = (teacherSignImg.height * ssW) / teacherSignImg.width;
+                doc.addImage(teacherSignImg, 'PNG', pageWidth - 78, yPos - 8, ssW, ssH);
             }
 
             doc.setFontSize(10);
             doc.setTextColor(0, 0, 255); // Blue text
             doc.setFont('helvetica', 'bold');
-            doc.text('Headmaster\'s Sign & Stamp', pageWidth - 50, yPos + 15, { align: 'center' });
+            doc.text('Class Teacher\'s Sign & Stamp', pageWidth - 50, yPos + 15, { align: 'center' });
             }
             
             // Generate filename
@@ -7762,40 +8117,31 @@ $(document).ready(function() {
         
         // Subject Results Table
         if (reportStudentData.subjects && reportStudentData.subjects.length > 0 && reportStudentData.exams && reportStudentData.exams.length > 0) {
-            // Headers: Subject, [Exam columns], Average, Grade
+            const isSecondaryExcel = ('{{ $schoolType ?? "Secondary" }}' || '').toLowerCase() === 'secondary';
             const headers = ['Subject'];
             reportStudentData.exams.forEach(function(exam) {
                 headers.push(exam.exam_name);
             });
-            headers.push('Average', 'Grade');
+            headers.push('Average', 'Grade', 'Remark');
             data.push(headers);
             
-            // Add subject data
             reportStudentData.subjects.forEach(function(subject) {
                 const row = [subject.subject_name];
                 
-                // Add marks for each exam
                 reportStudentData.exams.forEach(function(exam) {
                     const examResult = (subject.exams && subject.exams[exam.examID]) ? subject.exams[exam.examID] : null;
                     
                     if (examResult && examResult.marks !== null && examResult.marks !== '') {
-                        let marks = 'N/A';
-                        if (examResult.marks === 'incomplete') {
-                            marks = 'incomplete';
-                        } else {
-                            marks = parseFloat(examResult.marks).toFixed(0);
-                        }
-                        const grade = examResult.grade || 'N/A';
-                        row.push(marks + '-' + grade);
+                        row.push(parseFloat(examResult.marks).toFixed(0));
                     } else {
                         row.push('-');
                     }
                 });
                 
-                // Add average and grade
                 const avg = subject.average ? parseFloat(subject.average).toFixed(1) : '0.0';
                 const grade = subject.grade || 'N/A';
-                row.push(avg, grade);
+                const remarkInfo = getReportSubjectRemark(grade, isSecondaryExcel);
+                row.push(avg, grade, remarkInfo.text);
                 
                 data.push(row);
             });
@@ -9297,6 +9643,133 @@ $(document).ready(function() {
         doc.save(`${subject}_Results_${weekLabel.replace(/[^a-z0-9]/gi, '_')}.pdf`);
     });
 
+    // Export Subject Performance Statistics only (PDF)
+    $(document).on('click', '.btn-export-subject-stats-pdf', function() {
+        const tableId = $(this).data('table-id');
+        const tableSelector = '#' + tableId;
+        const tableEl = $(tableSelector);
+        if (!tableEl.length) {
+            Swal.fire('Error', 'Subject statistics table not found.', 'error');
+            return;
+        }
+
+        let exportProgress = 0;
+        const progressHtml = `
+            <div class="text-center">
+                <div class="mb-2"><i class="bi bi-file-earmark-pdf text-danger" style="font-size: 2rem;"></i></div>
+                <div class="progress mb-2" style="height:10px;">
+                    <div id="subjectStatsPdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" style="width:0%"></div>
+                </div>
+                <div id="subjectStatsPdfProgressText" class="small text-muted">0%</div>
+            </div>
+        `;
+        Swal.fire({
+            title: 'Generating Subject Performance PDF',
+            html: progressHtml,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false
+        });
+        const progressTimer = setInterval(function() {
+            if (exportProgress < 92) {
+                exportProgress += Math.random() * 9;
+                if (exportProgress > 92) exportProgress = 92;
+                $('#subjectStatsPdfProgressBar').css('width', Math.round(exportProgress) + '%');
+                $('#subjectStatsPdfProgressText').text(Math.round(exportProgress) + '%');
+            }
+        }, 250);
+
+        const schoolTypePdf = ('{{ $schoolType ?? "Secondary" }}' || '').toLowerCase();
+        const gradeLabels = (schoolTypePdf === 'primary') ? ['A', 'B', 'C', 'D', 'E', 'F'] : ['A', 'B', 'C', 'D', 'F'];
+        const classLabel = ($('#class option:selected').text() || '').trim() || 'ALL CLASSES';
+        const subclassLabel = ($('#subclass option:selected').text() || '').trim();
+        const displayClass = subclassLabel ? `${classLabel} ${subclassLabel}` : classLabel;
+
+        const parseGenderCounts = function(cell) {
+            const strongTxt = $(cell).find('strong').first().text().trim();
+            const total = parseInt(strongTxt, 10) || 0;
+            const smallTxt = $(cell).find('small').text().replace(/\s+/g, ' ').trim();
+            const mMatch = smallTxt.match(/M\s*:\s*(\d+)/i);
+            const fMatch = smallTxt.match(/F\s*:\s*(\d+)/i);
+            return {
+                total: total,
+                male: mMatch ? parseInt(mMatch[1], 10) : 0,
+                female: fMatch ? parseInt(fMatch[1], 10) : 0
+            };
+        };
+
+        const rowsPayload = [];
+        tableEl.find('tbody tr').each(function() {
+            const tds = $(this).find('td');
+            if (!tds.length) return;
+            const subject = tds.eq(0).text().trim();
+            if (!subject) return;
+            let cursor = 1;
+            const gradeBreakdown = {};
+            gradeLabels.forEach(function(grade) {
+                gradeBreakdown[grade] = parseGenderCounts(tds.eq(cursor));
+                cursor++;
+            });
+            const gpa = parseFloat(tds.eq(cursor).text().trim()) || 0;
+            const grade = tds.eq(cursor + 1).text().trim() || 'Incomplete';
+            rowsPayload.push({
+                subject: subject,
+                grade_breakdown: gradeBreakdown,
+                gpa: gpa,
+                grade: grade
+            });
+        });
+
+        if (!rowsPayload.length) {
+            clearInterval(progressTimer);
+            Swal.fire('Info', 'No subject rows found to export.', 'info');
+            return;
+        }
+
+        fetch('{{ route("admin.export_subject_performance_statistics_pdf") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                rows: rowsPayload,
+                school_type: schoolTypePdf,
+                term: $('#term option:selected').text() || '-',
+                year: $('#year').val() || '-',
+                class_label: displayClass
+            })
+        })
+        .then(function(response) {
+            if (!response.ok) throw new Error('Server error: ' + response.status);
+            return response.blob();
+        })
+        .then(function(blob) {
+            clearInterval(progressTimer);
+            $('#subjectStatsPdfProgressBar').css('width', '100%');
+            $('#subjectStatsPdfProgressText').text('100%');
+
+            setTimeout(function() {
+                Swal.close();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const safeClass = String(displayClass || 'Class').replace(/[^a-z0-9]/gi, '_');
+                a.href = downloadUrl;
+                a.download = `Subject_Performance_Summary_${safeClass}_${$('#year').val() || new Date().getFullYear()}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(downloadUrl);
+                document.body.removeChild(a);
+            }, 350);
+        })
+        .catch(function(error) {
+            clearInterval(progressTimer);
+            Swal.close();
+            Swal.fire('Error', 'Failed to generate Subject Performance PDF: ' + error.message, 'error');
+        });
+    });
+
     // Export Subject to Excel
     $(document).on('click', '.btn-export-subject-excel', function() {
         const subject = $(this).data('subject');
@@ -9919,6 +10392,11 @@ $(document).ready(function() {
         const currentStatus = btn.data('status');
         const isPublished = (currentStatus === 'enabled');
 
+        if (!classID || !term || !year) {
+            Swal.fire('Missing Filter', 'Please select class, term, and year before publishing reports.', 'warning');
+            return;
+        }
+
         Swal.fire({
             title: isPublished ? 'Unpublish Reports?' : 'Publish Reports?',
             text: isPublished 
@@ -9974,8 +10452,9 @@ $(document).ready(function() {
                         Swal.fire('Error', response.message, 'error');
                     }
                 },
-                error: function() {
-                    Swal.fire('Error', 'Failed to update publication status.', 'error');
+                error: function(xhr) {
+                    const msg = xhr?.responseJSON?.message || 'Failed to update publication status.';
+                    Swal.fire('Error', msg, 'error');
                 }
             });
         });

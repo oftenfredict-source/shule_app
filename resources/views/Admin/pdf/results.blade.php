@@ -12,24 +12,32 @@
             function getSmartBase64($path) {
                 if (!$path) return null;
                 
-                $path = ltrim($path, '/');
+                // Accept absolute URL, /path, or plain filename (e.g. "photo.jpg")
+                $originalPath = trim((string) $path);
+                $urlPath = parse_url($originalPath, PHP_URL_PATH);
+                $path = ltrim($urlPath ?: $originalPath, '/');
                 $base = base_path();
                 $parent = dirname($base);
+                $filename = basename($path);
                 
                 $possibilities = [
                     public_path($path),                             // Standard Laravel Public
+                    public_path('userImages/' . $filename),        // Student photos folder
                     public_path('uploads/' . $path),                // Standard Laravel Public Uploads
                     $parent . '/public_html/' . $path,              // cPanel / Shared Hosting
+                    $parent . '/public_html/userImages/' . $filename, // cPanel student photos
                     $parent . '/public_html/uploads/' . $path,      // cPanel / Shared Hosting Uploads
                 ];
                 
                 if (isset($_SERVER['DOCUMENT_ROOT'])) {
                     $docRoot = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
                     $possibilities[] = $docRoot . '/' . $path;
+                    $possibilities[] = $docRoot . '/userImages/' . $filename;
                     $possibilities[] = $docRoot . '/uploads/' . $path;
                 }
                 
                 $possibilities[] = base_path($path);
+                $possibilities[] = base_path('public/userImages/' . $filename);
                 $possibilities[] = base_path('public/' . $path);
                 $possibilities[] = base_path('../public_html/' . $path);
                 
@@ -50,6 +58,26 @@
         $schoolLogoBase64  = getSmartBase64($school->school_logo ?? '');
         $schoolStampBase64 = getSmartBase64($school->school_stamp ?? '');
         $schoolSignBase64  = getSmartBase64($school->school_signature ?? '');
+
+        if (!function_exists('getSubjectRemarkInfo')) {
+            function getSubjectRemarkInfo($grade, $isSecondary) {
+                $normalizedGrade = strtoupper(trim((string) ($grade ?? '')));
+                if ($grade === null || $grade === '' || $normalizedGrade === 'N/A' || $normalizedGrade === 'INCOMPLETE') {
+                    return ['text' => 'Incomplete', 'class' => 'remark-inc'];
+                }
+                if ($isSecondary) {
+                    if (preg_match('/^(I|II|III|IV)\./', $normalizedGrade)) {
+                        return ['text' => 'Pass', 'class' => 'remark-pass'];
+                    }
+                } elseif (in_array($normalizedGrade, ['A', 'B', 'C', 'D'])) {
+                    return ['text' => 'Pass', 'class' => 'remark-pass'];
+                }
+                if (in_array($normalizedGrade, ['A', 'B', 'C', 'D'])) {
+                    return ['text' => 'Pass', 'class' => 'remark-pass'];
+                }
+                return ['text' => 'Failed', 'class' => 'remark-fail'];
+            }
+        }
 
         if (!function_exists('getAutomaticComment')) {
             function getAutomaticComment($gradeOrDivision) {
@@ -94,8 +122,10 @@
         /* ── HEADER ─────────────────────────────── */
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
         .header-table td { border: none; padding: 0; vertical-align: middle; }
-        .logo-cell { width: 68px; padding-right: 10px; }
-        .logo-cell img { display: block; width: 65px; height: 65px; border: none; outline: none; }
+        .logo-cell { width: 72px; padding-right: 10px; }
+        .logo-cell img { display: block; width: 68px; height: 68px; border: none; outline: none; object-fit: cover; }
+        .student-photo-cell { width: 72px; text-align: right; padding-right: 0; padding-left: 10px; }
+        .student-photo-cell img { display: block; width: 68px; height: 68px; margin-left: auto; border: none; outline: none; object-fit: cover; }
         .school-name-cell { text-align: center; }
         .school-name { font-size: 16px; font-weight: bold; color: #940000; text-transform: uppercase; letter-spacing: 0.5px; }
         .school-sub  { font-size: 8px; color: #555; margin: 0; }
@@ -170,10 +200,10 @@
         .sig-table { width: 100%; margin-top: 30px; border-collapse: collapse; }
         .sig-table td { border: none; padding: 0; vertical-align: bottom; }
         .stamp-cell { width: 50%; text-align: center; vertical-align: middle; }
-        .stamp-cell img { max-width: 125px; max-height: 125px; opacity: 0.85; }
+        .stamp-cell img { max-width: 210px; max-height: 210px; opacity: 0.92; }
         .sign-cell { width: 50%; text-align: center; padding-bottom: 5px; }
-        .school-signature-img { height: 45px; margin-bottom: 4px; }
-        .school-signature-img img { max-width: 170px; max-height: 45px; }
+        .school-signature-img { height: 62px; margin-bottom: 4px; }
+        .school-signature-img img { max-width: 220px; max-height: 62px; }
         .sig-line   { border-top: 1.5px solid #940000; width: 180px; margin: 0 auto; display: block; }
         .sig-label  { font-size: 8.5px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase;}
 
@@ -200,6 +230,38 @@
             font-size: 7px;
             overflow: hidden;
         }
+
+        .remark-color-legend {
+            text-align: center;
+            margin: 8px 0 12px 0;
+            width: 100%;
+        }
+        .remark-color-legend-title {
+            font-weight: bold;
+            color: #6c757d;
+            font-size: 8px;
+            margin-bottom: 5px;
+        }
+        .remark-color-blocks {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+            border: 1px solid #ddd;
+            overflow: hidden;
+        }
+        .remark-color-block {
+            display: table-cell;
+            width: 33.3333%;
+            box-sizing: border-box;
+            padding: 5px 8px;
+            font-size: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .remark-pass { background-color: #d4edda; color: #155724; }
+        .remark-fail { background-color: #f8d7da; color: #721c24; }
+        .remark-inc { background-color: #d1ecf1; color: #0c5460; }
+        table.data td.remark-cell { text-align: center; font-weight: bold; }
 
         /* ── WATERMARK ───────────────────────────── */
         .watermark {
@@ -235,6 +297,10 @@
             if ($option === 'bulk_single' && isset($detailedBulkData[$student->studentID])) {
                 $detailedSingleData = $detailedBulkData[$student->studentID];
             }
+            $studentPhotoBase64 = getSmartBase64($student->photo ?? '');
+            if (!$studentPhotoBase64) {
+                $studentPhotoBase64 = getSmartBase64(($student->gender ?? '') === 'Female' ? 'images/female.png' : 'images/male.png');
+            }
         @endphp
 
         {{-- HEADER (Printed for each student) --}}
@@ -254,11 +320,11 @@
                         <div class="school-sub">Tel: {{ $school->phone ?? 'N/A' }}  |  Email: {{ $school->email ?? '' }}</div>
                     @endif
                 </td>
-                <td class="logo-cell" style="text-align:right; padding-right:0; padding-left:10px;">
-                    @if($schoolLogoBase64)
-                        <img src="{{ $schoolLogoBase64 }}" alt="Logo" style="margin-left:auto;">
+                <td class="student-photo-cell">
+                    @if($studentPhotoBase64)
+                        <img src="{{ $studentPhotoBase64 }}" alt="Student Photo">
                     @else
-                        <div class="placeholder-img" style="width:65px; height:65px; margin-left:auto;">LOGO</div>
+                        <div class="placeholder-img" style="width:68px; height:68px; margin-left:auto;">PHOTO</div>
                     @endif
                 </td>
             </tr>
@@ -315,6 +381,15 @@
 
     @if($result)
         @if(isset($detailedSingleData) && isset($detailedSingleData['subjects']) && count($detailedSingleData['subjects']) > 0)
+            @php $isSecondaryPdf = strtolower($schoolType ?? 'Secondary') === 'secondary'; @endphp
+            <div class="remark-color-legend">
+                <div class="remark-color-legend-title">Remark Color Definition</div>
+                <div class="remark-color-blocks">
+                    <span class="remark-color-block remark-pass">Pass</span>
+                    <span class="remark-color-block remark-fail">Failed</span>
+                    <span class="remark-color-block remark-inc">Incomplete</span>
+                </div>
+            </div>
             <div class="section-title">Detailed Performance Breakdown</div>
             <table class="data">
                 <thead>
@@ -344,11 +419,16 @@
                             @endforeach
                         @endif
                         <th class="tc">Average</th>
-                        <th class="tc">Grade</th>
+                        <th class="tc">{{ $isSecondaryPdf ? 'Division' : 'Grade' }}</th>
+                        <th class="tc">Remark</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($detailedSingleData['subjects'] as $i => $subj)
+                        @php
+                            $subjGrade = $subj['grade'] ?? 'N/A';
+                            $remarkInfo = getSubjectRemarkInfo($subjGrade, $isSecondaryPdf);
+                        @endphp
                         <tr class="{{ $i % 2 == 0 ? '' : 'even' }}">
                             <td>{{ $subj['subject_name'] }}</td>
                             @if($hasBreakdown)
@@ -380,7 +460,8 @@
                             <td class="tc bold">
                                 {{ isset($subj['average']) ? number_format((float)$subj['average'], 0) : (isset($subj['marks']) ? number_format((float)$subj['marks'], 0) : '—') }}
                             </td>
-                            <td class="tc"><span class="badge-red">{{ $subj['grade'] ?? 'N/A' }}</span></td>
+                            <td class="tc">{{ $subjGrade }}</td>
+                            <td class="tc remark-cell {{ $remarkInfo['class'] }}">{{ $remarkInfo['text'] }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -428,6 +509,15 @@
                 </tbody>
             </table>
         @else
+            @php $isSecondaryExamPdf = strtolower($schoolType ?? 'Secondary') === 'secondary'; @endphp
+            <div class="remark-color-legend">
+                <div class="remark-color-legend-title">Remark Color Definition</div>
+                <div class="remark-color-blocks">
+                    <span class="remark-color-block remark-pass">Pass</span>
+                    <span class="remark-color-block remark-fail">Failed</span>
+                    <span class="remark-color-block remark-inc">Incomplete</span>
+                </div>
+            </div>
             @foreach($result as $examResult)
                 <div class="section-title">{{ $examResult['exam']->exam_name ?? 'N/A' }} - {{ $examResult['exam']->start_date ?? '' }}</div>
                 <table class="data">
@@ -435,15 +525,21 @@
                         <tr>
                             <th>Subject</th>
                             <th class="tc">Marks</th>
-                            <th class="tc">Grade</th>
+                            <th class="tc">{{ $isSecondaryExamPdf ? 'Division' : 'Grade' }}</th>
+                            <th class="tc">Remark</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($examResult['subjects'] as $i => $subject)
+                            @php
+                                $examSubjGrade = $subject['grade'] ?? 'N/A';
+                                $examRemarkInfo = getSubjectRemarkInfo($examSubjGrade, $isSecondaryExamPdf);
+                            @endphp
                             <tr class="{{ $i % 2 == 0 ? '' : 'even' }}">
                                 <td>{{ $subject['subject_name'] }}</td>
                                 <td class="tc bold">{{ isset($subject['marks']) ? number_format((float)$subject['marks'], 0) : 'N/A' }}</td>
-                                <td class="tc"><span class="badge-pale">{{ $subject['grade'] ?? 'N/A' }}</span></td>
+                                <td class="tc">{{ $examSubjGrade }}</td>
+                                <td class="tc remark-cell {{ $examRemarkInfo['class'] }}">{{ $examRemarkInfo['text'] }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -982,7 +1078,7 @@
                     </td>
                     <td class="stamp-cell" style="width: 33%;">
                         @if($schoolStampBase64)
-                            <img src="{{ $schoolStampBase64 }}" alt="Stamp" style="max-height: 80px;">
+                            <img src="{{ $schoolStampBase64 }}" alt="Stamp" style="max-height: 120px;">
                         @else
                             <div class="placeholder-img" style="width:80px; height:80px; margin: 0 auto;">STAMP</div>
                         @endif
@@ -1218,7 +1314,7 @@
                 </td>
                 <td class="stamp-cell" style="width: 33%;">
                     @if($schoolStampBase64)
-                        <img src="{{ $schoolStampBase64 }}" alt="Stamp" style="max-height: 80px;">
+                        <img src="{{ $schoolStampBase64 }}" alt="Stamp" style="max-height: 120px;">
                     @else
                         <div class="placeholder-img" style="width:80px; height:80px; margin: 0 auto;">STAMP</div>
                     @endif

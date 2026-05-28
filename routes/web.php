@@ -2388,6 +2388,10 @@ Route::get("admin/export-subject-analysis-pdf", [
     ResultManagementController::class,
     "exportSubjectAnalysisPdf",
 ])->name("admin.export_subject_analysis_pdf");
+Route::post("admin/export-subject-performance-statistics-pdf", [
+    ResultManagementController::class,
+    "exportSubjectPerformanceStatisticsPdf",
+])->name("admin.export_subject_performance_statistics_pdf");
 Route::get("admin/get-class-subjects", [
     ResultManagementController::class,
     "getClassSubjectsForAnalysis",

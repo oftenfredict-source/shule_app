@@ -80,7 +80,7 @@
                     <div class="col-md-2 mb-3">
                         <label>Subclass</label>
                         <select class="form-control" name="subclassID" id="analysis_subclass">
-                            <option value="">All</option>
+                            <option value="">All Subclasses</option>
                         </select>
                     </div>
                     <div class="col-md-3 mb-3">
@@ -488,7 +488,7 @@ $(document).ready(function() {
     });
     function loadSubclasses(classID, selectedId) {
         if (!classID) {
-            $('#analysis_subclass').html('<option value="">All</option>');
+            $('#analysis_subclass').html('<option value="">All Subclasses</option>');
             return;
         }
         $.ajax({
@@ -497,7 +497,7 @@ $(document).ready(function() {
             data: { classID: classID },
             success: function(response) {
                 if (response.success) {
-                    let options = '<option value="">All</option>';
+                    let options = '<option value="">All Subclasses</option>';
                     response.subclasses.forEach(function(subclass) {
                         const selected = String(subclass.subclassID) === String(selectedId) ? 'selected' : '';
                         options += `<option value="${subclass.subclassID}" ${selected}>${subclass.subclass_name}</option>`;
@@ -562,24 +562,26 @@ $(document).ready(function() {
 
     if (initialClass) {
         loadSubclasses(initialClass, initialSubclass);
-        if (initialSubclass) {
-            loadSubjects(initialClass, initialSubclass, initialSubject);
-        }
+        loadSubjects(initialClass, initialSubclass, initialSubject);
     }
 
     $('#analysis_class').on('change', function() {
         const classID = $(this).val();
         loadSubclasses(classID, '');
-        $('#analysis_subject').html('<option value="">All</option>');
+        if (classID) {
+            loadSubjects(classID, '', '');
+        } else {
+            $('#analysis_subject').html('<option value="">All</option>');
+        }
     });
 
     $('#analysis_subclass').on('change', function() {
         const classID = $('#analysis_class').val();
-        if (classID && $(this).val()) {
-            loadSubjects(classID, $(this).val(), '');
-        } else {
+        if (!classID) {
             $('#analysis_subject').html('<option value="">All</option>');
+            return;
         }
+        loadSubjects(classID, $(this).val(), '');
     });
 
     $('#analysis_year, #analysis_term').on('change', function() {

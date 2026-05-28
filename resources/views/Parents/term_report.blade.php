@@ -715,12 +715,15 @@ $(document).ready(function() {
     });
 
     const renderResults = (data) => {
+        const isSecondary = (data.school_type || '').toLowerCase() === 'secondary';
+        const overallLabel = isSecondary ? 'Divisheni ya Muhula:' : 'Daraja la Muhula:';
+        const overallValue = isSecondary ? (data.overall_division || '-') : (data.overall_grade || '-');
         // Overview
         $('#overviewBody').html(`
             <tr><td class="label">Jina la Mwanafunzi:</td><td>${data.student.first_name} ${data.student.last_name}</td></tr>
             <tr><td class="label">Jumla ya Alama:</td><td>${data.total_marks ? parseFloat(data.total_marks).toFixed(0) : '-'}</td></tr>
             <tr><td class="label">Wastani wa Muhula:</td><td>${data.average ? parseFloat(data.average).toFixed(0) : '-'}</td></tr>
-            <tr><td class="label">Daraja la Muhula:</td><td>${data.overall_grade || '-'}</td></tr>
+            <tr><td class="label">${overallLabel}</td><td>${overallValue}</td></tr>
             <tr><td class="label">Nafasi:</td><td>${data.position || 'N/A'}</td></tr>
         `);
 
@@ -730,7 +733,7 @@ $(document).ready(function() {
                 <th class="col-somo">Somo</th>
                 <th class="col-mtihani">Mitihani</th>
                 <th class="col-small text-center">Wastani</th>
-                <th class="col-small text-center">Daraja</th>
+                <th class="col-small text-center">${isSecondary ? 'Div/Grade' : 'Daraja'}</th>
                 <th class="col-small text-center">Remark</th>
             </tr>
         `;
@@ -753,6 +756,11 @@ $(document).ready(function() {
             if (!hasMarks || gradeText === 'Incomplete') {
                 remarkClass = 'bg-inc';
                 remarkText = 'Incomplete';
+            } else if (isSecondary) {
+                if (/^(I|II|III|IV)\./.test(String(gradeText).toUpperCase())) {
+                    remarkClass = 'bg-pass';
+                    remarkText = 'Pass';
+                }
             } else if (['A', 'B', 'C', 'D'].includes(gradeText)) {
                 remarkClass = 'bg-pass';
                 remarkText = 'Pass';
