@@ -226,6 +226,7 @@
                                     <div class="detail-row"><span class="detail-label">Email:</span> <span class="detail-value" id="v_email"></span></div>
                                     <div class="detail-row"><span class="detail-label">Sender ID:</span> <span class="detail-value" id="v_sender"></span></div>
                                     <div class="detail-row"><span class="detail-label">2FA Enabled:</span> <span class="detail-value" id="v_2fa"></span></div>
+                                    <div class="detail-row"><span class="detail-label">Must Change Default Password:</span> <span class="detail-value" id="v_must_change_password"></span></div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="detail-row"><span class="detail-label">Students:</span> <span class="detail-value text-primary" id="v_students"></span></div>
@@ -316,6 +317,10 @@
                                     <input type="checkbox" class="form-check-input" id="e_2fa" name="two_factor_enabled" value="1">
                                     <label class="form-check-label fw-bold" for="e_2fa">Two-Factor Authentication (2FA)</label>
                                 </div>
+                                <div class="form-check form-switch mt-2">
+                                    <input type="checkbox" class="form-check-input" id="e_must_change_password" name="must_change_default_password" value="1">
+                                    <label class="form-check-label fw-bold" for="e_must_change_password">Must Change Default Password</label>
+                                </div>
                             </div>
                         </div>
                         <hr>
@@ -403,6 +408,7 @@
             $('#v_email').text(s.email || 'N/A');
             $('#v_sender').text(s.senderID || 'N/A');
             $('#v_2fa').text(s.two_factor_enabled ? 'Yes' : 'No');
+            $('#v_must_change_password').text(s.must_change_default_password ? 'Yes' : 'No');
             
             $('#v_login_status').html(s.login_status != 0 ? '<span class="badge bg-success">ACTIVE</span>' : '<span class="badge bg-danger">SUSPENDED</span>');
             if (s.login_status == 0) {
@@ -440,6 +446,7 @@
             $('#e_status').val(s.status);
             $('#e_sender').val(s.senderID);
             $('#e_2fa').prop('checked', s.two_factor_enabled == 1);
+            $('#e_must_change_password').prop('checked', s.must_change_default_password == 1);
             $('#e_login_status').val(s.login_status == 0 ? '0' : '1');
             $('#e_suspension_reason').val(s.suspension_reason || '');
             

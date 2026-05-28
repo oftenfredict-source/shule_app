@@ -1,6 +1,8 @@
 @extends('includes.superadmin_nav')
 
 @section('content')
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
 <div class="container-fluid py-4">
     <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
@@ -49,7 +51,7 @@
                     <select id="filter_school" class="form-select form-select-sm shadow-none border">
                         <option value="">All Schools</option>
                         @foreach($schools as $school)
-                            <option value="{{ $school->id }}">{{ $school->school_name }}</option>
+                            <option value="{{ $school->schoolID }}">{{ $school->school_name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -113,10 +115,17 @@
     .user-avatar { width: 40px; height: 40px; object-fit: cover; border: 1px solid #dee2e6; }
 </style>
 
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 <script>
     let dataTable;
 
     function loadUsers() {
+        if (!$.fn || !$.fn.DataTable) {
+            console.error('DataTables plugin not loaded.');
+            return;
+        }
+
         if (dataTable) {
             dataTable.destroy();
         }
@@ -160,7 +169,8 @@
                 
                 dataTable = $('#usersTable').DataTable({
                     order: [[4, 'asc']], // Online users first
-                    pageLength: 25,
+                    pageLength: 10,
+                    responsive: true,
                     language: {
                         search: "_INPUT_",
                         searchPlaceholder: "Quick search..."

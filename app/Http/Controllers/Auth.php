@@ -181,7 +181,9 @@ class Auth extends Controller
     private function shouldForcePasswordChange(string $userType, ?int $schoolID, ?string $username): bool
     {
         if (!in_array($userType, ['Admin', 'Teacher', 'Staff'], true)) return false;
-        if (!$this->isLiveEnvironment($schoolID)) return false;
+        if (!$schoolID) return false;
+        $mustChangeDefaultPassword = (bool) School::where('schoolID', $schoolID)->value('must_change_default_password');
+        if (!$mustChangeDefaultPassword) return false;
         if (!$username) return false;
 
         $user = User::where('name', $username)->where('user_type', $userType)->first();
@@ -192,14 +194,18 @@ class Auth extends Controller
         }
 
         if ($userType === 'Teacher') {
-            $teacher = Teacher::where('employee_number', $username)->first();
+            $teacher = Teacher::where('employee_number', $username)
+                ->where('schoolID', $schoolID)
+                ->first();
             if (!$teacher) return false;
             $default = (string) ($teacher->last_name ?? '');
             return $default !== '' && Hash::check($default, $user->password);
         }
 
         if ($userType === 'Staff') {
-            $staff = OtherStaff::where('employee_number', $username)->first();
+            $staff = OtherStaff::where('employee_number', $username)
+                ->where('schoolID', $schoolID)
+                ->first();
             if (!$staff) return false;
             $default = (string) ($staff->last_name ?? '');
             return $default !== '' && Hash::check($default, $user->password);
@@ -224,6 +230,99 @@ class Auth extends Controller
 
         // Set cookie for 30 days
         cookie()->queue('otp_remember_token', $token, 30 * 24 * 60);
+    }
+
+    private function clearAuthSessionContext(): void
+    {
+        Session::forget([
+            'schoolID',
+            'teacherID',
+            'teacher_name',
+            'teacher_permissions',
+            'teacher_roles',
+            'staffID',
+            'staff_name',
+            'profession_id',
+            'staff_permissions',
+            'parentID',
+            'watchmanID',
+            'watchman_name',
+            'force_password_change',
+            'user_log_id',
+            'otp_pending',
+            'otp_token',
+            'otp_code_hash',
+            'otp_expires_at',
+            'otp_payload',
+        ]);
+    }
+
+    private function resolveUserByCredentials(string $username, string $password): array
+    {
+        $candidateUsernames = [$username];
+        if (preg_match('/^(?:0|255|)\d{9}$/', $username)) {
+            $purePhone = substr($username, -9);
+            $candidateUsernames = array_values(array_unique([
+                $username,
+                '255' . $purePhone,
+                '0' . $purePhone,
+                $purePhone,
+            ]));
+        }
+
+        $candidates = User::whereIn('name', $candidateUsernames)->get();
+        $matched = $candidates->filter(function ($user) use ($password) {
+            return Hash::check($password, $user->password);
+        })->values();
+
+        if ($matched->count() === 0) {
+            return ['user' => null, 'error' => null];
+        }
+        if ($matched->count() > 1) {
+            return ['user' => null, 'error' => 'Multiple accounts matched these credentials. Please contact system administrator.'];
+        }
+
+        return ['user' => $matched->first(), 'error' => null];
+    }
+
+    private function resolveTeacherForLogin(string $username, User $userLogin): ?Teacher
+    {
+        $query = Teacher::where('employee_number', $username);
+        if (!empty($userLogin->schoolID)) {
+            $query->where('schoolID', $userLogin->schoolID);
+        }
+        $teachers = $query->get();
+
+        if ($teachers->count() === 1) return $teachers->first();
+
+        if ($teachers->count() > 1) {
+            $distinctSchoolCount = $teachers->pluck('schoolID')->filter()->unique()->count();
+            if ($distinctSchoolCount > 1) return null;
+            return $teachers->first();
+        }
+
+        // last fallback for legacy data where user.schoolID may be empty
+        return Teacher::where('employee_number', $username)->first();
+    }
+
+    private function resolveStaffForLogin(string $username, User $userLogin): ?OtherStaff
+    {
+        $query = OtherStaff::where('employee_number', $username);
+        if (!empty($userLogin->schoolID)) {
+            $query->where('schoolID', $userLogin->schoolID);
+        }
+        $staffRows = $query->get();
+
+        if ($staffRows->count() === 1) return $staffRows->first();
+
+        if ($staffRows->count() > 1) {
+            $distinctSchoolCount = $staffRows->pluck('schoolID')->filter()->unique()->count();
+            if ($distinctSchoolCount > 1) return null;
+            return $staffRows->first();
+        }
+
+        // last fallback for legacy data where user.schoolID may be empty
+        return OtherStaff::where('employee_number', $username)->first();
     }
 
     /**
@@ -304,25 +403,21 @@ class Auth extends Controller
                 ->withInput($request->only('username'));
         }
 
-        // User Authentication
-        $userLogin = User::where('name', $username)->first();
+        $resolvedUser = $this->resolveUserByCredentials($username, $password);
+        $userLogin = $resolvedUser['user'];
+        $resolveError = $resolvedUser['error'];
 
-        // If not found and username looks like a Tanzanian phone number, try alternative formats
-        if (!$userLogin && preg_match('/^(?:0|255|)\d{9}$/', $username)) {
-            $purePhone = substr($username, -9);
-            $formats = ['255' . $purePhone, '0' . $purePhone, $purePhone];
-            foreach ($formats as $fmt) {
-                if ($fmt === $username) continue;
-                $userLogin = User::where('name', $fmt)->first();
-                if ($userLogin) {
-                    $username = $fmt; // Update username to match found user
-                    break;
-                }
+        if ($resolveError) {
+            RateLimiter::hit($key, 60);
+            if ($this->isAjax($request)) {
+                return $this->jsonFail($resolveError, 401);
             }
+            return redirect()->back()
+                ->with('error', $resolveError)
+                ->withInput($request->only('username'));
         }
 
-        // Check if user exists and password is correct
-        if (!$userLogin || !Hash::check($password, $userLogin->password)) {
+        if (!$userLogin) {
             RateLimiter::hit($key, 60); // 60 seconds lockout
             if ($this->isAjax($request)) {
                 return $this->jsonFail('Incorrect username or password!', 401);
@@ -331,6 +426,12 @@ class Auth extends Controller
                 ->with('error', 'Incorrect username or password!')
                 ->withInput($request->only('username'));
         }
+
+        // Always use the exact stored username for downstream lookups
+        $username = (string) $userLogin->name;
+
+        // Clear cross-role leftovers before building a new auth session
+        $this->clearAuthSessionContext();
 
         // Clear rate limiter on successful login
         RateLimiter::clear($key);
@@ -382,7 +483,7 @@ class Auth extends Controller
             }
 
             if ($userLogin->user_type === 'Teacher') {
-                $teacher = Teacher::where('employee_number', $username)->first();
+                $teacher = $this->resolveTeacherForLogin($username, $userLogin);
                 if (!$teacher) {
                     if ($this->isAjax($request)) return $this->jsonFail('Teacher record not found.', 404);
                     return redirect()->back()->with('error', 'Teacher record not found.')->withInput($request->only('username'));
@@ -416,7 +517,7 @@ class Auth extends Controller
             }
 
             if ($userLogin->user_type === 'Staff') {
-                $staff = OtherStaff::where('employee_number', $username)->first();
+                $staff = $this->resolveStaffForLogin($username, $userLogin);
                 if (!$staff) {
                     if ($this->isAjax($request)) return $this->jsonFail('Staff record not found.', 404);
                     return redirect()->back()->with('error', 'Staff record not found.')->withInput($request->only('username'));
@@ -521,7 +622,7 @@ class Auth extends Controller
                 break;
 
             case 'Teacher':
-                $teacher = Teacher::where('employee_number', $username)->first();
+                $teacher = $this->resolveTeacherForLogin($username, $userLogin);
 
                 if (!$teacher) {
                     return redirect()->back()
@@ -593,7 +694,7 @@ class Auth extends Controller
                 break;
 
             case 'Staff':
-                $staff = OtherStaff::where('employee_number', $username)->first();
+                $staff = $this->resolveStaffForLogin($username, $userLogin);
 
                 if (!$staff) {
                     return redirect()->back()
@@ -731,6 +832,7 @@ class Auth extends Controller
             $user = User::find($userId);
             if ($user) {
                 $user->otp_remember_token = null;
+                $user->last_activity_at = null; // immediately mark offline on logout
                 $user->save();
             }
         }

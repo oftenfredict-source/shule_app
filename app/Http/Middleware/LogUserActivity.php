@@ -29,12 +29,24 @@ class LogUserActivity
                 return $response;
             }
 
+            // Prevent DB errors when query string is very long (e.g. DataTables server-side params)
+            // Most schemas use varchar for url; keep a safe cap.
+            $safeUrl = mb_substr($url, 0, 250);
+
+            $payload = null;
+            if ($request->method() === 'POST') {
+                $payload = json_encode($request->except(['password', '_token', 'photo_data']));
+                if ($payload !== null) {
+                    $payload = mb_substr($payload, 0, 5000);
+                }
+            }
+
             UserActivity::create([
                 'user_log_id' => Session::get('user_log_id'),
-                'url' => $url,
+                'url' => $safeUrl,
                 'method' => $request->method(),
                 'route_name' => $request->route() ? $request->route()->getName() : null,
-                'payload' => $request->method() === 'POST' ? json_encode($request->except(['password', '_token', 'photo_data'])) : null,
+                'payload' => $payload,
             ]);
 
             // Update user last activity

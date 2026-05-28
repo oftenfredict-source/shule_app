@@ -30,6 +30,7 @@ class School extends Model
         'status',
         'environment',
         'two_factor_enabled',
+        'must_change_default_password',
         'senderID',
         'login_status',
         'suspension_reason',

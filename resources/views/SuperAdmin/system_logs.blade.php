@@ -3,6 +3,8 @@
 @section('content')
 <!-- Add Bootstrap Icons for better compatibility with existing styles if needed -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
 
 <div class="container-fluid py-4">
     <div class="d-flex align-items-center justify-content-between mb-4">
@@ -143,7 +145,9 @@
     .captured-photo-img { width: 40px; height: 40px; object-fit: cover; border: 1px solid #dee2e6; }
 </style>
 
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyChAk-LYD4BqrIktIngfd1r2EWC1hL-PTI&callback=initMap"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyChAk-LYD4BqrIktIngfd1r2EWC1hL-PTI&callback=initMap&loading=async"></script>
 
 <script>
     let map;
@@ -161,72 +165,104 @@
         });
     }
 
-    function loadLogs() {
-        if (dataTable) {
-            dataTable.destroy();
+    function initLogsTable() {
+        if (!$.fn || !$.fn.DataTable) {
+            console.error('DataTables plugin not loaded.');
+            $('#logsBody').html('<tr><td colspan="7" class="text-center text-danger py-4">Failed to initialize DataTable. Please refresh the page.</td></tr>');
+            return;
         }
-        
-        const params = {
-            start_date: $('#start_date').val(),
-            end_date: $('#end_date').val(),
-            username: $('#filter_username').val()
-        };
 
-        $.get("{{ route('superadmin.system_logs.data') }}", params, function(res) {
-            if (res.success) {
-                let html = '';
-                res.data.forEach(log => {
-                    let photoHtml = log.photo_path ? `<img src="/${log.photo_path}" class="rounded-circle me-2 captured-photo-img">` : `<div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center me-2" style="width:40px; height:40px; font-size:14px;">${log.username.charAt(0)}</div>`;
-                    let deviceIcon = log.device_type === 'Mobile' ? 'bx bx-mobile-alt' : (log.device_type === 'Tablet' ? 'bx bx-tablet' : 'bx bx-laptop');
-                    
-                    html += `
-                        <tr>
-                            <td>
-                                <div class="d-flex align-items-center">
+        dataTable = $('#logsTable').DataTable({
+            processing: true,
+            serverSide: true,
+            deferRender: true,
+            responsive: true,
+            pageLength: 10,
+            order: [[5, 'desc']],
+            searchDelay: 500,
+            ajax: {
+                url: "{{ route('superadmin.system_logs.data') }}",
+                type: 'GET',
+                data: function (d) {
+                    d.start_date = $('#start_date').val();
+                    d.end_date = $('#end_date').val();
+                    d.username = $('#filter_username').val();
+                }
+            },
+            columns: [
+                {
+                    data: null,
+                    orderable: false,
+                    render: function(log) {
+                        const photoHtml = log.photo_path
+                            ? `<img src="/${log.photo_path}" class="rounded-circle me-2 captured-photo-img">`
+                            : `<div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center me-2" style="width:40px; height:40px; font-size:14px;">${(log.username || 'U').charAt(0)}</div>`;
+                        return `<div class="d-flex align-items-center">
                                     ${photoHtml}
                                     <div>
-                                        <div class="fw-bold">${log.username}</div>
-                                        <div class="text-muted small">${log.user_type}</div>
+                                        <div class="fw-bold">${log.username || ''}</div>
+                                        <div class="text-muted small">${log.user_type || ''}</div>
                                     </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="fw-bold small text-danger text-uppercase">${log.school ? log.school.school_name : 'SUPER ADMIN'}</div>
-                            </td>
-                            <td>
-                                <i class="${deviceIcon} text-muted me-1"></i> ${log.device_brand || 'Unknown'} 
-                                <div class="text-muted small">${log.os} / ${log.browser}</div>
-                            </td>
-                            <td>
-                                ${log.ip_address}
-                                ${log.is_blocked ? '<span class="badge bg-danger ms-1">Blocked</span>' : ''}
-                            </td>
-                            <td>
-                                <span class="small text-muted"><i class="bx bx-map-pin me-1"></i> ${log.latitude ? (parseFloat(log.latitude).toFixed(4) + ', ' + parseFloat(log.longitude).toFixed(4)) : 'No GPS'}</span>
-                            </td>
-                            <td>
-                                <div class="fw-bold small">${new Date(log.login_at).toLocaleDateString()}</div>
-                                <div class="text-muted small">${new Date(log.login_at).toLocaleTimeString()}</div>
-                            </td>
-                            <td class="text-end">
-                                <button class="btn btn-outline-danger btn-sm border-0" onclick="viewDetails(${log.id})"><i class="bx bx-show fs-5"></i></button>
-                            </td>
-                        </tr>
-                    `;
-                });
-                $('#logsBody').html(html);
-                
-                // Initialize DataTable
-                dataTable = $('#logsTable').DataTable({
-                    order: [[4, 'desc']],
-                    pageLength: 25,
-                    language: {
-                        search: "_INPUT_",
-                        searchPlaceholder: "Quick search..."
+                                </div>`;
                     }
-                });
+                },
+                {
+                    data: null,
+                    render: function(log) {
+                        return `<div class="fw-bold small text-danger text-uppercase">${log.school ? log.school.school_name : 'SUPER ADMIN'}</div>`;
+                    }
+                },
+                {
+                    data: null,
+                    render: function(log) {
+                        const deviceIcon = log.device_type === 'Mobile' ? 'bx bx-mobile-alt' : (log.device_type === 'Tablet' ? 'bx bx-tablet' : 'bx bx-laptop');
+                        return `<i class="${deviceIcon} text-muted me-1"></i> ${log.device_brand || 'Unknown'}
+                                <div class="text-muted small">${log.os || '-'} / ${log.browser || '-'}</div>`;
+                    }
+                },
+                {
+                    data: null,
+                    render: function(log) {
+                        return `${log.ip_address || '-'} ${log.is_blocked ? '<span class="badge bg-danger ms-1">Blocked</span>' : ''}`;
+                    }
+                },
+                {
+                    data: null,
+                    render: function(log) {
+                        return `<span class="small text-muted"><i class="bx bx-map-pin me-1"></i> ${log.latitude ? (parseFloat(log.latitude).toFixed(4) + ', ' + parseFloat(log.longitude).toFixed(4)) : 'No GPS'}</span>`;
+                    }
+                },
+                {
+                    data: 'login_at',
+                    render: function(value) {
+                        if (!value) return '-';
+                        const dt = new Date(value);
+                        return `<div class="fw-bold small">${dt.toLocaleDateString()}</div><div class="text-muted small">${dt.toLocaleTimeString()}</div>`;
+                    }
+                },
+                {
+                    data: 'id',
+                    searchable: false,
+                    orderable: false,
+                    className: 'text-end',
+                    render: function(id) {
+                        return `<button class="btn btn-outline-danger btn-sm border-0" onclick="viewDetails(${id})"><i class="bx bx-show fs-5"></i></button>`;
+                    }
+                }
+            ],
+            language: {
+                search: "_INPUT_",
+                searchPlaceholder: "Quick search..."
             }
         });
+    }
+
+    function loadLogs() {
+        if (!dataTable) {
+            initLogsTable();
+            return;
+        }
+        dataTable.ajax.reload(null, true);
     }
 
     function viewDetails(id) {
@@ -330,11 +366,12 @@
     $(document).ready(function() {
         loadLogs();
 
-        // Real-time filters
+        // Date filters
         $('#start_date, #end_date').on('change', function() {
             loadLogs();
         });
 
+        // Username filter (debounced)
         let searchTimer;
         $('#filter_username').on('keyup', function() {
             clearTimeout(searchTimer);

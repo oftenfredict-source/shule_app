@@ -176,6 +176,7 @@ class SuperAdminController extends Controller
             'environment' => 'nullable|in:Demo,Live',
             'status' => 'required|in:Active,Inactive',
             'two_factor_enabled' => 'nullable|boolean',
+            'must_change_default_password' => 'nullable|boolean',
             'senderID' => 'nullable|string|max:20',
         ]);
 
@@ -196,6 +197,7 @@ class SuperAdminController extends Controller
         $school->environment = $environment;
         $school->status = $request->status;
         $school->two_factor_enabled = (bool)($request->input('two_factor_enabled', false));
+        $school->must_change_default_password = (bool)($request->input('must_change_default_password', false));
         $school->senderID = $request->senderID;
         $school->save();
 
@@ -207,6 +209,7 @@ class SuperAdminController extends Controller
                 'environment' => $school->environment ?: 'Demo',
                 'status' => $school->status,
                 'two_factor_enabled' => (bool)$school->two_factor_enabled,
+                'must_change_default_password' => (bool)$school->must_change_default_password,
                 'senderID' => $school->senderID,
             ]
         ]);
@@ -1105,6 +1108,7 @@ class SuperAdminController extends Controller
             'environment' => 'nullable|in:Demo,Live',
             'status' => 'required|in:Active,Inactive',
             'two_factor_enabled' => 'nullable|boolean',
+            'must_change_default_password' => 'nullable|boolean',
             'senderID' => 'nullable|string|max:20',
             'login_status' => 'nullable|boolean',
             'suspension_reason' => 'nullable|string|max:1000',
@@ -1126,6 +1130,7 @@ class SuperAdminController extends Controller
         $school->environment = $request->input('environment', 'Demo');
         $school->status = $request->status;
         $school->two_factor_enabled = (bool)($request->input('two_factor_enabled', false));
+        $school->must_change_default_password = (bool)($request->input('must_change_default_password', false));
         $school->senderID = $request->senderID;
         $school->login_status = $request->input('login_status', 1);
         $school->suspension_reason = ($school->login_status == 0) ? $request->suspension_reason : null;
@@ -1192,6 +1197,20 @@ class SuperAdminController extends Controller
     {
         if ($resp = $this->ensureSuperAdmin()) return $resp;
 
+        $activityWindowSeconds = 120;
+        $activityCutoff = now()->subSeconds($activityWindowSeconds);
+
+        // Hard cleanup: close stale "active" login logs with no recent activity
+        UserLog::whereNull('logout_at')
+            ->where('login_at', '<', $activityCutoff)
+            ->where(function ($q) use ($activityCutoff) {
+                $q->whereDoesntHave('activities')
+                    ->orWhereDoesntHave('activities', function ($aq) use ($activityCutoff) {
+                        $aq->where('created_at', '>=', $activityCutoff);
+                    });
+            })
+            ->update(['logout_at' => now()]);
+
         $query = User::with('school');
 
         if ($request->school_id) {
@@ -1201,21 +1220,133 @@ class SuperAdminController extends Controller
             $query->where('user_type', $request->user_type);
         }
 
-        $users = $query->get()->map(function($user) {
-            // Determine online status (active in last 5 minutes)
-            $isOnline = false;
-            if ($user->last_activity_at) {
-                $isOnline = now()->diffInMinutes($user->last_activity_at) < 5;
+        $users = $query->get();
+        $userIds = $users->pluck('id')->filter()->values();
+
+        // Pull latest login log per user in bulk (avoid per-user queries)
+        $latestLogs = collect();
+        if ($userIds->isNotEmpty()) {
+            $latestLogs = UserLog::whereIn('user_id', $userIds)
+                ->with('school')
+                ->orderByDesc('login_at')
+                ->get()
+                ->unique('user_id')
+                ->keyBy('user_id');
+        }
+
+        // Strict realtime online users:
+        // - login record still active (logout_at is null)
+        // - has activity within the configured window
+        $onlineUserIds = UserLog::whereIn('user_id', $userIds)
+            ->whereNull('logout_at')
+            ->whereHas('activities', function ($q) use ($activityCutoff) {
+                $q->where('created_at', '>=', $activityCutoff);
+            })
+            ->pluck('user_id')
+            ->unique()
+            ->values()
+            ->all();
+        $onlineUserMap = array_flip($onlineUserIds);
+
+        // Ensure current logged-in session user is counted as online
+        // even if activity row hasn't been flushed yet.
+        $currentSessionUserId = Session::get('userID');
+        $currentSessionLogId = Session::get('user_log_id');
+        if ($currentSessionUserId && $currentSessionLogId) {
+            $currentLogActive = UserLog::where('id', $currentSessionLogId)
+                ->where('user_id', $currentSessionUserId)
+                ->whereNull('logout_at')
+                ->exists();
+            if ($currentLogActive) {
+                $onlineUserMap[$currentSessionUserId] = true;
             }
-            $user->is_online = $isOnline;
-            
-            // Get latest log for photo/IP if needed
-            $latestLog = UserLog::where('user_id', $user->id)->orderBy('login_at', 'desc')->first();
+        }
+        // Final fallback: if current request has an authenticated session user,
+        // treat that specific user as online for this realtime response.
+        if ($currentSessionUserId) {
+            $onlineUserMap[$currentSessionUserId] = true;
+        }
+
+        // Pull latest activity timestamp per latest user_log_id in bulk
+        $latestActivitiesByLogId = collect();
+        $latestLogIds = $latestLogs->pluck('id')->filter()->values();
+        if ($latestLogIds->isNotEmpty()) {
+            $latestActivitiesByLogId = UserActivity::whereIn('user_log_id', $latestLogIds)
+                ->select('user_log_id', DB::raw('MAX(created_at) as last_activity_at'))
+                ->groupBy('user_log_id')
+                ->pluck('last_activity_at', 'user_log_id');
+        }
+
+        // Resolve school fallback by username for legacy users missing schoolID in users/user_logs
+        $adminUsernames = $users->where('user_type', 'Admin')->pluck('name')->filter()->unique()->values();
+        $teacherUsernames = $users->where('user_type', 'Teacher')->pluck('name')->filter()->unique()->values();
+        $staffUsernames = $users->where('user_type', 'Staff')->pluck('name')->filter()->unique()->values();
+
+        $adminSchoolIdByUsername = $adminUsernames->isNotEmpty()
+            ? School::whereIn('registration_number', $adminUsernames)->pluck('schoolID', 'registration_number')
+            : collect();
+        $teacherSchoolIdByUsername = $teacherUsernames->isNotEmpty()
+            ? Teacher::whereIn('employee_number', $teacherUsernames)->pluck('schoolID', 'employee_number')
+            : collect();
+        $staffSchoolIdByUsername = $staffUsernames->isNotEmpty()
+            ? OtherStaff::whereIn('employee_number', $staffUsernames)->pluck('schoolID', 'employee_number')
+            : collect();
+
+        $fallbackSchoolIds = collect()
+            ->merge($adminSchoolIdByUsername->values())
+            ->merge($teacherSchoolIdByUsername->values())
+            ->merge($staffSchoolIdByUsername->values())
+            ->filter()
+            ->unique()
+            ->values();
+        $fallbackSchoolsById = $fallbackSchoolIds->isNotEmpty()
+            ? School::whereIn('schoolID', $fallbackSchoolIds)->get()->keyBy('schoolID')
+            : collect();
+
+        $users = $users->map(function($user) use (
+            $latestLogs,
+            $latestActivitiesByLogId,
+            $onlineUserMap,
+            $currentSessionUserId,
+            $adminSchoolIdByUsername,
+            $teacherSchoolIdByUsername,
+            $staffSchoolIdByUsername,
+            $fallbackSchoolsById
+        ) {
+            $latestLog = $latestLogs->get($user->id);
+            if (!$user->school && $latestLog && $latestLog->school) {
+                $user->setRelation('school', $latestLog->school);
+            }
+
+            if (!$user->school) {
+                $resolvedSchoolId = $user->schoolID ?? null;
+                if (!$resolvedSchoolId && $latestLog) {
+                    $resolvedSchoolId = $latestLog->schoolID;
+                }
+                if (!$resolvedSchoolId) {
+                    if ($user->user_type === 'Admin') {
+                        $resolvedSchoolId = $adminSchoolIdByUsername->get($user->name);
+                    } elseif ($user->user_type === 'Teacher') {
+                        $resolvedSchoolId = $teacherSchoolIdByUsername->get($user->name);
+                    } elseif ($user->user_type === 'Staff') {
+                        $resolvedSchoolId = $staffSchoolIdByUsername->get($user->name);
+                    }
+                }
+                if ($resolvedSchoolId && $fallbackSchoolsById->has($resolvedSchoolId)) {
+                    $user->setRelation('school', $fallbackSchoolsById->get($resolvedSchoolId));
+                }
+            }
+
+            $isCurrentSessionUser = $currentSessionUserId && ((int) $user->id === (int) $currentSessionUserId);
+            $user->is_online = $isCurrentSessionUser || isset($onlineUserMap[$user->id]);
             $user->photo_path = $latestLog ? $latestLog->photo_path : null;
-            $user->last_ip = $latestLog ? $latestLog->ip_address : 'N/A';
-            
+            $user->last_ip = $latestLog ? ($latestLog->ip_address ?: 'N/A') : 'N/A';
+
             return $user;
         });
+
+        $onlineCount = $users->where('is_online', true)->count();
+        $offlineCount = $users->where('is_online', false)->count();
 
         // Filter by status if requested (this is done in collection for simplicity, or could be in query)
         if ($request->status) {
@@ -1229,8 +1360,8 @@ class SuperAdminController extends Controller
             'success' => true, 
             'data' => $users,
             'summary' => [
-                'online' => $users->where('is_online', true)->count(),
-                'offline' => $users->where('is_online', false)->count(),
+                'online' => $onlineCount,
+                'offline' => $offlineCount,
             ]
         ]);
     }
@@ -1246,6 +1377,7 @@ class SuperAdminController extends Controller
         if ($resp = $this->ensureSuperAdmin()) return $resp;
 
         $query = UserLog::with('school');
+        $recordsTotal = UserLog::count();
 
         if ($request->start_date) {
             $query->whereDate('login_at', '>=', $request->start_date);
@@ -1257,13 +1389,76 @@ class SuperAdminController extends Controller
             $query->where('username', 'like', '%' . $request->username . '%');
         }
 
-        $logs = $query->orderBy('created_at', 'desc')->get()->map(function($log) {
-            $isBlocked = BlockedIp::where('ip_address', $log->ip_address)->exists();
-            $log->is_blocked = $isBlocked;
-            return $log;
-        });
+        // DataTables global search
+        $searchValue = trim((string) $request->input('search.value', ''));
+        if ($searchValue !== '') {
+            $query->where(function ($q) use ($searchValue) {
+                $q->where('username', 'like', "%{$searchValue}%")
+                    ->orWhere('user_type', 'like', "%{$searchValue}%")
+                    ->orWhere('ip_address', 'like', "%{$searchValue}%")
+                    ->orWhere('device_brand', 'like', "%{$searchValue}%")
+                    ->orWhere('os', 'like', "%{$searchValue}%")
+                    ->orWhere('browser', 'like', "%{$searchValue}%");
+            });
+        }
 
-        return response()->json(['success' => true, 'data' => $logs]);
+        $recordsFiltered = (clone $query)->count();
+
+        // DataTables ordering
+        $orderColumnIndex = (int) $request->input('order.0.column', 5);
+        $orderDirection = strtolower((string) $request->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $columnMap = [
+            0 => 'username',
+            1 => 'username',
+            2 => 'device_brand',
+            3 => 'ip_address',
+            4 => 'latitude',
+            5 => 'login_at',
+        ];
+        $orderColumn = $columnMap[$orderColumnIndex] ?? 'login_at';
+
+        $start = max(0, (int) $request->input('start', 0));
+        $length = (int) $request->input('length', 10);
+        if ($length <= 0) {
+            $length = 10;
+        }
+        $length = min($length, 100);
+
+        $logs = $query
+            ->orderBy($orderColumn, $orderDirection)
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $blockedIps = BlockedIp::whereIn('ip_address', $logs->pluck('ip_address')->filter()->unique()->values())
+            ->pluck('ip_address')
+            ->flip();
+
+        $data = $logs->map(function ($log) use ($blockedIps) {
+            return [
+                'id' => $log->id,
+                'username' => $log->username,
+                'user_type' => $log->user_type,
+                'photo_path' => $log->photo_path,
+                'device_type' => $log->device_type,
+                'device_brand' => $log->device_brand,
+                'os' => $log->os,
+                'browser' => $log->browser,
+                'ip_address' => $log->ip_address,
+                'latitude' => $log->latitude,
+                'longitude' => $log->longitude,
+                'login_at' => $log->login_at,
+                'is_blocked' => isset($blockedIps[$log->ip_address]),
+                'school' => $log->school ? ['school_name' => $log->school->school_name] : null,
+            ];
+        })->values();
+
+        return response()->json([
+            'draw' => (int) $request->input('draw', 1),
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data,
+        ]);
     }
 
     public function getLogDetails($id)
