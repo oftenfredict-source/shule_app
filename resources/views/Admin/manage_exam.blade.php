@@ -2083,7 +2083,29 @@ jQuery(document).ready(function($) {
         if (!window.userPermissions || !Array.isArray(window.userPermissions)) {
             return false;
         }
-        return window.userPermissions.includes(permissionName);
+
+        if (window.userPermissions.includes(permissionName)) {
+            return true;
+        }
+
+        // Permission aliases / hierarchy for new + legacy formats
+        const permissionAliases = {
+            'view_exam_papers': [
+                'examination_read_only',
+                'examination_create',
+                'examination_update',
+                'examination_delete',
+                'manage_exam',
+                'view_exams'
+            ],
+            'approve_exam_paper': ['examination_update', 'approve_exam_paper'],
+            'reject_exam_paper': ['examination_update', 'reject_exam_paper']
+        };
+
+        const aliases = permissionAliases[permissionName] || [];
+        return aliases.some(function(alias) {
+            return window.userPermissions.includes(alias);
+        });
     };
 
     // Form submission

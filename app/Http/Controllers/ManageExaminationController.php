@@ -4900,8 +4900,16 @@ class ManageExaminationController extends Controller
      */
     public function getExamPapers(Request $request, $examID)
     {
-        // Check permission - Admin can always access, others need view_exam_papers permission
-        if (! $this->hasPermission('view_exam_papers')) {
+        // Check permission - support both new and legacy examination permissions
+        $canViewExamPapers = $this->hasPermission('view_exam_papers')
+            || $this->hasPermission('examination_read_only')
+            || $this->hasPermission('examination_create')
+            || $this->hasPermission('examination_update')
+            || $this->hasPermission('examination_delete')
+            || $this->hasPermission('manage_exam')
+            || $this->hasPermission('view_exams');
+
+        if (! $canViewExamPapers) {
             return response()->json(['error' => 'You are not allowed to perform this action. You need the view_exam_papers permission to view exam papers.'], 403);
         }
 

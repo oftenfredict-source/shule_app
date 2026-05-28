@@ -156,7 +156,19 @@
                 @endif
                 
                 <!-- View Exam Papers -->
-                @if(($user_type ?? '') == 'Admin' || ($teacherPermissions ?? collect())->contains('view_exam_papers'))
+                @php
+                    $canViewExamPapers = ($user_type ?? '') == 'Admin' ||
+                        ($teacherPermissions ?? collect())->intersect([
+                            'view_exam_papers',
+                            'examination_read_only',
+                            'examination_create',
+                            'examination_update',
+                            'examination_delete',
+                            'manage_exam',
+                            'view_exams'
+                        ])->isNotEmpty();
+                @endphp
+                @if($canViewExamPapers)
                 <button class="btn exam-widget-action view-exam-papers-btn"
                         data-exam-id="{{ $exam->examID }}"
                         data-exam-name="{{ $exam->exam_name }}"
