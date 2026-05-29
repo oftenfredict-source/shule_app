@@ -62,20 +62,41 @@
         if (!function_exists('getSubjectRemarkInfo')) {
             function getSubjectRemarkInfo($grade, $isSecondary) {
                 $normalizedGrade = strtoupper(trim((string) ($grade ?? '')));
-                if ($grade === null || $grade === '' || $normalizedGrade === 'N/A' || $normalizedGrade === 'INCOMPLETE') {
+                if ($grade === null || $grade === '' || $normalizedGrade === 'N/A' || $normalizedGrade === 'INCOMPLETE' || $normalizedGrade === '-') {
                     return ['text' => 'Incomplete', 'class' => 'remark-inc'];
                 }
+
                 if ($isSecondary) {
+                    switch ($normalizedGrade) {
+                        case 'A':
+                            return ['text' => 'Excellent', 'class' => 'remark-excellent'];
+                        case 'B':
+                            return ['text' => 'Very Good', 'class' => 'remark-pass'];
+                        case 'C':
+                            return ['text' => 'Good', 'class' => 'remark-good'];
+                        case 'D':
+                            return ['text' => 'Satisfactory', 'class' => 'remark-avg'];
+                        case 'F':
+                        case 'E':
+                            return ['text' => 'Fail', 'class' => 'remark-fail'];
+                    }
                     if (preg_match('/^(I|II|III|IV)\./', $normalizedGrade)) {
                         return ['text' => 'Pass', 'class' => 'remark-pass'];
                     }
-                } elseif (in_array($normalizedGrade, ['A', 'B', 'C', 'D'])) {
-                    return ['text' => 'Pass', 'class' => 'remark-pass'];
+                    if (preg_match('/^(0|FAIL)/', $normalizedGrade)) {
+                        return ['text' => 'Fail', 'class' => 'remark-fail'];
+                    }
+                    return ['text' => 'Fail', 'class' => 'remark-fail'];
                 }
+
                 if (in_array($normalizedGrade, ['A', 'B', 'C', 'D'])) {
                     return ['text' => 'Pass', 'class' => 'remark-pass'];
                 }
-                return ['text' => 'Failed', 'class' => 'remark-fail'];
+                if (in_array($normalizedGrade, ['E', 'F'])) {
+                    return ['text' => 'Fail', 'class' => 'remark-fail'];
+                }
+
+                return ['text' => 'Fail', 'class' => 'remark-fail'];
             }
         }
 
@@ -258,7 +279,15 @@
             font-weight: bold;
             text-align: center;
         }
+        .remark-color-blocks.secondary-legend .remark-color-block {
+            width: 16.6666%;
+            font-size: 6.5px;
+            padding: 4px 2px;
+        }
+        .remark-excellent { background-color: #28a745; color: #ffffff; }
         .remark-pass { background-color: #d4edda; color: #155724; }
+        .remark-good { background-color: #ffc107; color: #212529; }
+        .remark-avg { background-color: #fd7e14; color: #ffffff; }
         .remark-fail { background-color: #f8d7da; color: #721c24; }
         .remark-inc { background-color: #d1ecf1; color: #0c5460; }
         table.data td.remark-cell { text-align: center; font-weight: bold; }
@@ -384,11 +413,22 @@
             @php $isSecondaryPdf = strtolower($schoolType ?? 'Secondary') === 'secondary'; @endphp
             <div class="remark-color-legend">
                 <div class="remark-color-legend-title">Remark Color Definition</div>
-                <div class="remark-color-blocks">
-                    <span class="remark-color-block remark-pass">Pass</span>
-                    <span class="remark-color-block remark-fail">Failed</span>
+                @if($isSecondaryPdf)
+                <div class="remark-color-blocks secondary-legend">
+                    <span class="remark-color-block remark-excellent">A - Excellent</span>
+                    <span class="remark-color-block remark-pass">B - Very Good</span>
+                    <span class="remark-color-block remark-good">C - Good</span>
+                    <span class="remark-color-block remark-avg">D - Satisfactory</span>
+                    <span class="remark-color-block remark-fail">F - Fail</span>
                     <span class="remark-color-block remark-inc">Incomplete</span>
                 </div>
+                @else
+                <div class="remark-color-blocks">
+                    <span class="remark-color-block remark-pass">Pass</span>
+                    <span class="remark-color-block remark-fail">Fail</span>
+                    <span class="remark-color-block remark-inc">Incomplete</span>
+                </div>
+                @endif
             </div>
             <div class="section-title">Detailed Performance Breakdown</div>
             <table class="data">
@@ -512,11 +552,22 @@
             @php $isSecondaryExamPdf = strtolower($schoolType ?? 'Secondary') === 'secondary'; @endphp
             <div class="remark-color-legend">
                 <div class="remark-color-legend-title">Remark Color Definition</div>
-                <div class="remark-color-blocks">
-                    <span class="remark-color-block remark-pass">Pass</span>
-                    <span class="remark-color-block remark-fail">Failed</span>
+                @if($isSecondaryExamPdf)
+                <div class="remark-color-blocks secondary-legend">
+                    <span class="remark-color-block remark-excellent">A - Excellent</span>
+                    <span class="remark-color-block remark-pass">B - Very Good</span>
+                    <span class="remark-color-block remark-good">C - Good</span>
+                    <span class="remark-color-block remark-avg">D - Satisfactory</span>
+                    <span class="remark-color-block remark-fail">F - Fail</span>
                     <span class="remark-color-block remark-inc">Incomplete</span>
                 </div>
+                @else
+                <div class="remark-color-blocks">
+                    <span class="remark-color-block remark-pass">Pass</span>
+                    <span class="remark-color-block remark-fail">Fail</span>
+                    <span class="remark-color-block remark-inc">Incomplete</span>
+                </div>
+                @endif
             </div>
             @foreach($result as $examResult)
                 <div class="section-title">{{ $examResult['exam']->exam_name ?? 'N/A' }} - {{ $examResult['exam']->start_date ?? '' }}</div>

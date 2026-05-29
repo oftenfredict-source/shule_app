@@ -86,6 +86,7 @@
         .legend { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         .legend td { border: 1px solid #eee; text-align: center; padding: 5px; font-weight: bold; font-size: 14px; }
         
+        .remark-excellent { background: #28a745; color: #ffffff; }
         .remark-pass { background: #d4edda; color: #155724; }
         .remark-good { background: #fff3cd; color: #856404; }
         .remark-avg { background: #ffe8d6; color: #a04000; }
@@ -168,9 +169,10 @@
     <table class="legend">
         <tr>
             @if(strtolower($schoolType) === 'secondary')
-                <td class="remark-pass">A/B - Perfect/Very good</td>
+                <td class="remark-excellent">A - Excellent</td>
+                <td class="remark-pass">B - Very Good</td>
                 <td class="remark-good">C - Good</td>
-                <td class="remark-avg">D - Average</td>
+                <td class="remark-avg">D - Satisfactory</td>
                 <td class="remark-fail">F - Fail</td>
                 <td class="remark-inc">Incomplete</td>
             @else

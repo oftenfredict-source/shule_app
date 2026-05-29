@@ -240,6 +240,11 @@
         background-color: #d4edda;
         color: #155724;
     }
+    .result-color-excellent {
+        background-color: #28a745;
+        color: #ffffff;
+        font-weight: 700;
+    }
     .result-color-fail {
         background-color: #f8d7da;
         color: #721c24;
@@ -253,6 +258,8 @@
         font-weight: 500;
     }
     .bg-pass { background-color: #d4edda !important; color: #155724 !important; }
+    .bg-grade-a { background-color: #28a745 !important; color: #ffffff !important; font-weight: 700; }
+    .colored-remark.bg-grade-a { color: #ffffff !important; }
     .bg-fail { background-color: #f8d7da !important; color: #721c24 !important; }
     .bg-inc { background-color: #d1ecf1 !important; color: #0c5460 !important; }
     .bg-orange-bootstrap { background-color: #fd7e14 !important; color: #ffffff !important; }
@@ -1899,9 +1906,10 @@
                                                         <div class="result-color-def-title">Remark Color Definition</div>
                                                         <div class="result-color-blocks">
                                                             @if($schoolType === 'Secondary')
-                                                                <div class="result-color-block result-color-pass">A/B - Perfect/Very good</div>
+                                                                <div class="result-color-block result-color-excellent">A - Excellent</div>
+                                                                <div class="result-color-block result-color-pass">B - Very Good</div>
                                                                 <div class="result-color-block bg-warning text-dark">C - Good</div>
-                                                                <div class="result-color-block bg-orange-bootstrap text-white">D - Average</div>
+                                                                <div class="result-color-block bg-orange-bootstrap text-white">D - Satisfactory</div>
                                                                 <div class="result-color-block result-color-fail">F - Fail</div>
                                                                 <div class="result-color-block result-color-inc">Incomplete</div>
                                                             @else
@@ -1992,10 +2000,10 @@
                                                                                 else $subjectGrade = 'F';
                                                                             }
                                                                             if ($schoolType === 'Secondary') {
-                                                                                if ($subjectGrade === 'A') { $remarkClass = 'bg-pass'; $remarkText = 'Perfect'; }
-                                                                                elseif ($subjectGrade === 'B') { $remarkClass = 'bg-pass'; $remarkText = 'Very good'; }
+                                                                                if ($subjectGrade === 'A') { $remarkClass = 'bg-grade-a'; $remarkText = 'Excellent'; }
+                                                                                elseif ($subjectGrade === 'B') { $remarkClass = 'bg-pass'; $remarkText = 'Very Good'; }
                                                                                 elseif ($subjectGrade === 'C') { $remarkClass = 'bg-warning'; $remarkText = 'Good'; }
-                                                                                elseif ($subjectGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Average'; }
+                                                                                elseif ($subjectGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Satisfactory'; }
                                                                                 elseif ($subjectGrade === 'F') { $remarkClass = 'bg-fail'; $remarkText = 'Fail'; }
                                                                                 else { $remarkClass = 'bg-inc'; $remarkText = 'Incomplete'; }
                                                                             } else {
@@ -3201,9 +3209,10 @@
                                                     <div class="result-color-def-title">Remark Color Definition</div>
                                                     <div class="result-color-blocks">
                                                         @if($schoolType === 'Secondary')
-                                                            <div class="result-color-block result-color-pass">A/B - Perfect/Very good</div>
+                                                            <div class="result-color-block result-color-excellent">A - Excellent</div>
+                                                            <div class="result-color-block result-color-pass">B - Very Good</div>
                                                             <div class="result-color-block bg-warning text-dark">C - Good</div>
-                                                            <div class="result-color-block bg-orange-bootstrap text-white">D - Average</div>
+                                                            <div class="result-color-block bg-orange-bootstrap text-white">D - Satisfactory</div>
                                                             <div class="result-color-block result-color-fail">F - Fail</div>
                                                             <div class="result-color-block result-color-inc">Incomplete</div>
                                                         @else
@@ -3292,10 +3301,10 @@
                                                                             else $subjectGrade = 'F';
                                                                         }
                                                                         if ($schoolType === 'Secondary') {
-                                                                            if ($subjectGrade === 'A') { $remarkClass = 'bg-pass'; $remarkText = 'Perfect'; }
-                                                                            elseif ($subjectGrade === 'B') { $remarkClass = 'bg-pass'; $remarkText = 'Very good'; }
+                                                                            if ($subjectGrade === 'A') { $remarkClass = 'bg-grade-a'; $remarkText = 'Excellent'; }
+                                                                            elseif ($subjectGrade === 'B') { $remarkClass = 'bg-pass'; $remarkText = 'Very Good'; }
                                                                             elseif ($subjectGrade === 'C') { $remarkClass = 'bg-warning'; $remarkText = 'Good'; }
-                                                                            elseif ($subjectGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Average'; }
+                                                                            elseif ($subjectGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Satisfactory'; }
                                                                             elseif ($subjectGrade === 'F') { $remarkClass = 'bg-fail'; $remarkText = 'Fail'; }
                                                                             else { $remarkClass = 'bg-inc'; $remarkText = 'Incomplete'; }
                                                                         } else {
@@ -3566,13 +3575,17 @@
                                                                                         @php
                                                                                             $subGrade = strtoupper(trim($subject['grade'] ?? ''));
                                                                                             $remarkClass = 'bg-fail';
-                                                                                            $remarkText = 'Failed';
-                                                                                            if (!$subGrade || $subGrade === 'N/A' || $subGrade === 'INCOMPLETE') {
+                                                                                            $remarkText = 'Fail';
+                                                                                            if (!$subGrade || $subGrade === 'N/A' || $subGrade === 'INCOMPLETE' || $subGrade === '-') {
                                                                                                 $remarkClass = 'bg-inc';
                                                                                                 $remarkText = 'Incomplete';
-                                                                                            } elseif ($isSecondaryInline && preg_match('/^(I|II|III|IV)\./', $subGrade)) {
-                                                                                                $remarkClass = 'bg-pass';
-                                                                                                $remarkText = 'Pass';
+                                                                                            } elseif ($isSecondaryInline) {
+                                                                                                if ($subGrade === 'A') { $remarkClass = 'bg-grade-a'; $remarkText = 'Excellent'; }
+                                                                                                elseif ($subGrade === 'B') { $remarkClass = 'bg-pass'; $remarkText = 'Very Good'; }
+                                                                                                elseif ($subGrade === 'C') { $remarkClass = 'bg-warning'; $remarkText = 'Good'; }
+                                                                                                elseif ($subGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Satisfactory'; }
+                                                                                                elseif ($subGrade === 'F') { $remarkClass = 'bg-fail'; $remarkText = 'Fail'; }
+                                                                                                elseif (preg_match('/^(I|II|III|IV)\./', $subGrade)) { $remarkClass = 'bg-pass'; $remarkText = 'Pass'; }
                                                                                             } elseif (in_array($subGrade, ['A', 'B', 'C', 'D'])) {
                                                                                                 $remarkClass = 'bg-pass';
                                                                                                 $remarkText = 'Pass';
@@ -3859,28 +3872,53 @@ $(document).ready(function() {
     initializeReportSubjectStatsDataTable();
 
     function getReportSubjectRemark(grade, isSecondary) {
-        const normalizedGrade = String(grade || '').toUpperCase();
-        if (!grade || normalizedGrade === 'N/A' || normalizedGrade === 'INCOMPLETE') {
+        const normalizedGrade = String(grade || '').toUpperCase().trim();
+        if (!grade || normalizedGrade === 'N/A' || normalizedGrade === 'INCOMPLETE' || normalizedGrade === '-') {
             return { text: 'Incomplete', cssClass: 'bg-inc' };
         }
+
         if (isSecondary) {
+            switch (normalizedGrade) {
+                case 'A':
+                    return { text: 'Excellent', cssClass: 'bg-grade-a' };
+                case 'B':
+                    return { text: 'Very Good', cssClass: 'bg-pass' };
+                case 'C':
+                    return { text: 'Good', cssClass: 'bg-warning' };
+                case 'D':
+                    return { text: 'Satisfactory', cssClass: 'bg-orange-bootstrap' };
+                case 'F':
+                case 'E':
+                    return { text: 'Fail', cssClass: 'bg-fail' };
+            }
             if (/^(I|II|III|IV)\./.test(normalizedGrade)) {
                 return { text: 'Pass', cssClass: 'bg-pass' };
             }
-        } else if (['A', 'B', 'C', 'D'].includes(normalizedGrade)) {
-            return { text: 'Pass', cssClass: 'bg-pass' };
+            if (/^(0|FAIL)/.test(normalizedGrade)) {
+                return { text: 'Fail', cssClass: 'bg-fail' };
+            }
+            return { text: 'Fail', cssClass: 'bg-fail' };
         }
+
         if (['A', 'B', 'C', 'D'].includes(normalizedGrade)) {
             return { text: 'Pass', cssClass: 'bg-pass' };
         }
-        return { text: 'Failed', cssClass: 'bg-fail' };
+        if (['E', 'F'].includes(normalizedGrade)) {
+            return { text: 'Fail', cssClass: 'bg-fail' };
+        }
+
+        return { text: 'Fail', cssClass: 'bg-fail' };
     }
 
     function getRemarkPdfColors(cssClass) {
         const map = {
+            'bg-grade-a': { fillColor: [40, 167, 69], textColor: [255, 255, 255] },
             'bg-pass': { fillColor: [212, 237, 218], textColor: [21, 87, 36] },
+            'bg-warning': { fillColor: [255, 193, 7], textColor: [33, 37, 41] },
+            'bg-orange-bootstrap': { fillColor: [253, 126, 20], textColor: [255, 255, 255] },
             'bg-fail': { fillColor: [248, 215, 218], textColor: [114, 28, 36] },
-            'bg-inc': { fillColor: [209, 236, 241], textColor: [12, 84, 96] }
+            'bg-inc': { fillColor: [209, 236, 241], textColor: [12, 84, 96] },
+            'bg-success': { fillColor: [40, 167, 69], textColor: [255, 255, 255] }
         };
         return map[cssClass] || map['bg-fail'];
     }
@@ -3891,6 +3929,21 @@ $(document).ready(function() {
     }
 
     function getRemarkColorDefinitionHtml(isSecondary) {
+        if (isSecondary) {
+            return `
+                <div class="result-color-def-container">
+                    <div class="result-color-def-title">Remark Color Definition</div>
+                    <div class="result-color-blocks">
+                        <div class="result-color-block result-color-excellent">A - Excellent</div>
+                        <div class="result-color-block result-color-pass">B - Very Good</div>
+                        <div class="result-color-block bg-warning text-dark">C - Good</div>
+                        <div class="result-color-block bg-orange-bootstrap text-white">D - Satisfactory</div>
+                        <div class="result-color-block result-color-fail">F - Fail</div>
+                        <div class="result-color-block result-color-inc">Incomplete</div>
+                    </div>
+                </div>
+            `;
+        }
         return `
             <div class="result-color-def-container">
                 <div class="result-color-def-title">Remark Color Definition</div>
@@ -3903,19 +3956,26 @@ $(document).ready(function() {
         `;
     }
 
-    function drawRemarkColorLegendPdf(doc, startY, marginLeft, pageWidth) {
+    function drawRemarkColorLegendPdf(doc, startY, marginLeft, pageWidth, isSecondary) {
         const legendY = startY;
         const normalizedMargin = (typeof marginLeft === 'number') ? marginLeft : (marginLeft && marginLeft.left ? marginLeft.left : 14);
         const usableWidth = pageWidth - (normalizedMargin * 2);
-        const blockW = usableWidth / 3;
         const blockH = 7;
-        const items = [
+        const items = isSecondary ? [
+            { label: 'A - Excellent', colors: getRemarkPdfColors('bg-grade-a') },
+            { label: 'B - Very Good', colors: getRemarkPdfColors('bg-pass') },
+            { label: 'C - Good', colors: getRemarkPdfColors('bg-warning') },
+            { label: 'D - Satisfactory', colors: getRemarkPdfColors('bg-orange-bootstrap') },
+            { label: 'F - Fail', colors: getRemarkPdfColors('bg-fail') },
+            { label: 'Incomplete', colors: getRemarkPdfColors('bg-inc') }
+        ] : [
             { label: 'Pass', colors: getRemarkPdfColors('bg-pass') },
-            { label: 'Failed', colors: getRemarkPdfColors('bg-fail') },
+            { label: 'Fail', colors: getRemarkPdfColors('bg-fail') },
             { label: 'Incomplete', colors: getRemarkPdfColors('bg-inc') }
         ];
+        const blockW = usableWidth / items.length;
         let x = normalizedMargin;
-        doc.setFontSize(8);
+        doc.setFontSize(isSecondary ? 6 : 8);
         doc.setTextColor(108, 117, 125);
         doc.setFont('helvetica', 'bold');
         doc.text('Remark Color Definition', pageWidth / 2, legendY, { align: 'center' });
@@ -6020,7 +6080,7 @@ $(document).ready(function() {
                 doc.setFont('helvetica', 'bold');
                 doc.text(examName + ' - ' + examDate, 14, yPos);
                 yPos += 8;
-                yPos = drawRemarkColorLegendPdf(doc, yPos, 14, pageWidth);
+                yPos = drawRemarkColorLegendPdf(doc, yPos, 14, pageWidth, (schoolType || '').toLowerCase() === 'secondary');
 
                 // Get subjects from collapsed section
                 const collapseButton = firstExamRow.find('button[data-toggle="collapse"]');
@@ -7502,11 +7562,11 @@ $(document).ready(function() {
                 }
             });
             yPos = doc.lastAutoTable.finalY + 10;
-            yPos = drawRemarkColorLegendPdf(doc, yPos, tableMargin, pageWidth);
-            
+            const isSecondaryExamPdf = (schoolType || '').toLowerCase() === 'secondary';
+            yPos = drawRemarkColorLegendPdf(doc, yPos, tableMargin, pageWidth, isSecondaryExamPdf);
+
             // Subjects Table
             if (studentData.subjects && studentData.subjects.length > 0) {
-                const isSecondaryExamPdf = (schoolType || '').toLowerCase() === 'secondary';
                 const hasCA = studentData.subjects.some(s => s.is_ca_averaged && s.exams && s.exams.length > 1);
                 const headers = hasCA
                     ? [['Subject', 'CA', 'Exam', 'Total', schoolType === 'Secondary' ? 'Division' : 'Grade', 'Remark']]
@@ -7906,11 +7966,11 @@ $(document).ready(function() {
                 }
             });
             yPos = doc.lastAutoTable.finalY + 10;
-            yPos = drawRemarkColorLegendPdf(doc, yPos, tableMargin, pageWidth);
+            const isSecondaryPdf = ('{{ $schoolType ?? "Secondary" }}' || '').toLowerCase() === 'secondary';
+            yPos = drawRemarkColorLegendPdf(doc, yPos, tableMargin, pageWidth, isSecondaryPdf);
             
             // Subject Results Table
             if (reportStudentData.subjects && reportStudentData.subjects.length > 0 && reportStudentData.exams && reportStudentData.exams.length > 0) {
-                const isSecondaryPdf = ('{{ $schoolType ?? "Secondary" }}' || '').toLowerCase() === 'secondary';
                 const headers = ['Subject'];
                 reportStudentData.exams.forEach(function(exam) {
                     headers.push(exam.exam_name);

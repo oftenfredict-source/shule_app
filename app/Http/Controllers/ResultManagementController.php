@@ -2824,21 +2824,21 @@ class ResultManagementController extends Controller
                 if ($overall > 0) {
                     if (!$isPrimary) {
                         if ($grade === "A") {
-                            $remarkText = "Perfect";
-                            $remarkClass = "remark-pass";
-                            $competency = "Grade A (Perfect)";
+                            $remarkText = "Excellent";
+                            $remarkClass = "remark-excellent";
+                            $competency = "Grade A (Excellent)";
                         } elseif ($grade === "B") {
-                            $remarkText = "Very good";
+                            $remarkText = "Very Good";
                             $remarkClass = "remark-pass";
-                            $competency = "Grade B (Very good)";
+                            $competency = "Grade B (Very Good)";
                         } elseif ($grade === "C") {
                             $remarkText = "Good";
                             $remarkClass = "remark-good";
                             $competency = "Grade C (Good)";
                         } elseif ($grade === "D") {
-                            $remarkText = "Average";
+                            $remarkText = "Satisfactory";
                             $remarkClass = "remark-avg";
-                            $competency = "Grade D (Average)";
+                            $competency = "Grade D (Satisfactory)";
                         } elseif ($grade === "F") {
                             $remarkText = "Fail";
                             $remarkClass = "remark-fail";
