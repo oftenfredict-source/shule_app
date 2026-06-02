@@ -4215,8 +4215,11 @@ $(document).ready(function() {
                             }
                         });
                         
-                        const avg = subject.average ? parseFloat(subject.average).toFixed(1) : '0.0';
-                        const grade = subject.grade || 'N/A';
+                        const isIncompleteRow = subject.is_incomplete || String(subject.grade || '').toLowerCase() === 'incomplete';
+                        const avg = isIncompleteRow || subject.average === null || subject.average === undefined || subject.average === ''
+                            ? '-'
+                            : parseFloat(subject.average).toFixed(1);
+                        const grade = isIncompleteRow ? 'Incomplete' : (subject.grade || 'N/A');
                         const remarkInfo = getReportSubjectRemark(grade, isSecondary);
                         content += `<td class="text-center"><strong>${avg}</strong></td>`;
                         content += `<td class="text-center">${grade}</td>`;
@@ -4460,6 +4463,11 @@ $(document).ready(function() {
                             `;
                             
                             response.subjects.forEach(function(subject) {
+                                const isIncomplete = subject.is_incomplete || String(subject.grade || '').toLowerCase() === 'incomplete';
+                                const gradeDisplay = isIncomplete ? 'Incomplete' : (subject.grade ?? 'N/A');
+                                const avgDisplay = (isIncomplete || subject.average === null || subject.average === undefined || subject.average === '')
+                                    ? '-'
+                                    : Math.round(parseFloat(subject.average));
                                 let examCells = '';
                                 response.exams.forEach(ex => {
                                     const res = (subject.exams && subject.exams[ex.examID]) ? subject.exams[ex.examID] : null;
@@ -4474,9 +4482,9 @@ $(document).ready(function() {
                                     <tr>
                                         <td><strong>${subject.subject_name}</strong></td>
                                         ${examCells}
-                                        <td class="text-center align-middle font-weight-bold">${Math.round(parseFloat(subject.average))}</td>
-                                        <td class="text-center align-middle">${subject.grade ?? 'N/A'}</td>
-                                        ${renderRemarkCellHtml(subject.grade, isSecondaryExam)}
+                                        <td class="text-center align-middle font-weight-bold">${avgDisplay}</td>
+                                        <td class="text-center align-middle">${gradeDisplay}</td>
+                                        ${renderRemarkCellHtml(gradeDisplay, isSecondaryExam)}
                                     </tr>
                                 `;
                             });
@@ -8037,8 +8045,11 @@ $(document).ready(function() {
                         }
                     });
                     
-                    const avg = subject.average ? parseFloat(subject.average).toFixed(1) : '0.0';
-                    const grade = subject.grade || 'N/A';
+                    const isIncompleteRow = subject.is_incomplete || String(subject.grade || '').toLowerCase() === 'incomplete';
+                    const avg = isIncompleteRow || subject.average === null || subject.average === undefined || subject.average === ''
+                        ? '-'
+                        : parseFloat(subject.average).toFixed(1);
+                    const grade = isIncompleteRow ? 'Incomplete' : (subject.grade || 'N/A');
                     const remarkInfo = getReportSubjectRemark(grade, isSecondaryPdf);
                     row.push(avg, grade, remarkInfo.text);
                     remarkCellStyles.push(getRemarkPdfColors(remarkInfo.cssClass));
@@ -8243,8 +8254,11 @@ $(document).ready(function() {
                     }
                 });
                 
-                const avg = subject.average ? parseFloat(subject.average).toFixed(1) : '0.0';
-                const grade = subject.grade || 'N/A';
+                const isIncompleteRow = subject.is_incomplete || String(subject.grade || '').toLowerCase() === 'incomplete';
+                const avg = isIncompleteRow || subject.average === null || subject.average === undefined || subject.average === ''
+                    ? '-'
+                    : parseFloat(subject.average).toFixed(1);
+                const grade = isIncompleteRow ? 'Incomplete' : (subject.grade || 'N/A');
                 const remarkInfo = getReportSubjectRemark(grade, isSecondaryExcel);
                 row.push(avg, grade, remarkInfo.text);
                 

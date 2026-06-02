@@ -751,6 +751,15 @@ class ResultManagementController extends Controller
                 $results = $resultsQuery->with(["classSubject.subject"])->get();
             }
 
+            $electedClassSubjectIds = $this->getElectedClassSubjectIdsForStudent(
+                $studentIDFilter,
+            );
+            $results = $this->filterResultsForStudentElection(
+                $results,
+                $studentIDFilter,
+                $electedClassSubjectIds,
+            );
+
             // Get class name and classID
             $className = "";
             $classID = null;
@@ -900,67 +909,63 @@ class ResultManagementController extends Controller
                 $effectiveExamCount = max(1, $effectiveExaminations->count());
 
                 foreach ($subjectData as $subjectName => $data) {
-                    $effectiveMarksSum = 0;
+                    $slotMarksList = [];
+                    $subjectIncomplete = false;
 
                     foreach ($effectiveExaminations as $exam) {
-                        $caDefinition = $caDefinitionsByExam->get(
-                            $exam->examID,
+                        $slotMarks = $this->resolveTermReportExamSlotMarks(
+                            $data,
+                            $exam,
+                            $caDefinitionsByExam,
                         );
-
-                        if (
-                            $caDefinition &&
-                            !empty($caDefinition->test_ids)
-                        ) {
-                            $involvedExamIDs = array_values(
-                                array_unique(
-                                    array_merge(
-                                        [$exam->examID],
-                                        $caDefinition->test_ids,
-                                    ),
-                                ),
-                            );
-                            $involvedCount = count($involvedExamIDs);
-                            $involvedSum = 0;
-                            $hasMarks = false;
-
-                            foreach ($involvedExamIDs as $involvedExamID) {
-                                if (
-                                    isset(
-                                        $data["exams"][$involvedExamID][
-                                            "marks"
-                                        ],
-                                    )
-                                ) {
-                                    $involvedSum +=
-                                        $data["exams"][$involvedExamID][
-                                            "marks"
-                                        ];
-                                    $hasMarks = true;
-                                }
-                            }
-
-                            if ($hasMarks) {
-                                $effectiveMarksSum +=
-                                    $involvedSum / $involvedCount;
-                            }
-                        } elseif (isset($data["exams"][$exam->examID])) {
-                            $effectiveMarksSum +=
-                                $data["exams"][$exam->examID]["marks"];
+                        if ($slotMarks === null) {
+                            $subjectIncomplete = true;
+                            break;
                         }
+                        $slotMarksList[] = $slotMarks;
                     }
 
-                    $average = $effectiveMarksSum / $effectiveExamCount;
+                    if ($subjectIncomplete || count($slotMarksList) === 0) {
+                        $subjects[] = [
+                            "subject_name" => $subjectName,
+                            "exams" => $data["exams"],
+                            "average" => null,
+                            "grade" => "Incomplete",
+                            "is_term_report" => true,
+                            "is_incomplete" => true,
+                        ];
+                        continue;
+                    }
 
-                    // Calculate grade based on average using grade_definitions
-                    $overallGrade = null;
-                    if ($classID && $average > 0) {
-                        $gradeResult = $this->getGradeFromDefinition(
+                    $average =
+                        array_sum($slotMarksList) / count($slotMarksList);
+
+                    if ($schoolType === "Secondary") {
+                        $overallGrade = $this->getSecondaryHardcodedGrade(
+                            $average,
+                            $className,
+                        )["grade"];
+                    } elseif ($classID) {
+                        $overallGrade = $this->getGradeFromDefinition(
                             $average,
                             $classID,
-                        );
-                        $overallGrade = $gradeResult["grade"];
+                            $schoolType,
+                            $className,
+                        )["grade"];
+                        if (!$overallGrade) {
+                            if ($average >= 75) {
+                                $overallGrade = "A";
+                            } elseif ($average >= 65) {
+                                $overallGrade = "B";
+                            } elseif ($average >= 45) {
+                                $overallGrade = "C";
+                            } elseif ($average >= 30) {
+                                $overallGrade = "D";
+                            } else {
+                                $overallGrade = "F";
+                            }
+                        }
                     } else {
-                        // Fallback to old logic
                         if ($average >= 75) {
                             $overallGrade = "A";
                         } elseif ($average >= 65) {
@@ -976,22 +981,20 @@ class ResultManagementController extends Controller
 
                     $subjects[] = [
                         "subject_name" => $subjectName,
-                        "exams" => $data["exams"], // Associative array keyed by examID
+                        "exams" => $data["exams"],
                         "average" => $average,
                         "grade" => $overallGrade,
                         "is_term_report" => true,
+                        "is_incomplete" => false,
                     ];
 
                     $totalMarks += $average;
                     $subjectCount++;
 
-                    // Store points for division calculation
-                    if ($schoolType === "Secondary" && $average > 0) {
-                        $avgGradePoints = $this->calculateGradePoints(
+                    if ($schoolType === "Secondary") {
+                        $avgGradePoints = $this->getSecondaryHardcodedGrade(
                             $average,
-                            $schoolType,
                             $className,
-                            $classID,
                         );
                         $subjectPoints[] = [
                             "points" => $avgGradePoints["points"] ?? 5,
@@ -1044,10 +1047,17 @@ class ResultManagementController extends Controller
                     if ($examSubjectCount > 0) {
                         $examAverage = $examTotalMarks / $examSubjectCount;
 
-                        if ($classID && $examAverage > 0) {
+                        if ($schoolType === "Secondary") {
+                            $examGrade = $this->getSecondaryHardcodedGrade(
+                                $examAverage,
+                                $className,
+                            )["grade"];
+                        } elseif ($classID && $examAverage > 0) {
                             $gradeResult = $this->getGradeFromDefinition(
                                 $examAverage,
                                 $classID,
+                                $schoolType,
+                                $className,
                             );
                             $examGrade = $gradeResult["grade"];
                         }
@@ -1118,6 +1128,11 @@ class ResultManagementController extends Controller
                     ->whereIn("examID", $allInvolvedExams)
                     ->with(["classSubject.subject", "examination"])
                     ->get();
+                $caResults = $this->filterResultsForStudentElection(
+                    $caResults,
+                    $studentIDFilter,
+                    $electedClassSubjectIds,
+                );
 
                 foreach ($caResults as $result) {
                     $subjectName =
@@ -1170,22 +1185,33 @@ class ResultManagementController extends Controller
                                 ? $data["marks_count"]
                                 : 1);
                     $average = round($data["marks_sum"] / $divisor, 2);
-                    $gradeResult = $classID
-                        ? $this->getGradeFromDefinition($average, $classID)
-                        : null;
-                    $overallGrade = $gradeResult ? $gradeResult["grade"] : null;
-                    // Fallback: if grade_definitions table has no data, calculate manually
-                    if (!$overallGrade) {
-                        if ($average >= 75) {
-                            $overallGrade = "A";
-                        } elseif ($average >= 65) {
-                            $overallGrade = "B";
-                        } elseif ($average >= 45) {
-                            $overallGrade = "C";
-                        } elseif ($average >= 30) {
-                            $overallGrade = "D";
-                        } else {
-                            $overallGrade = "F";
+                    if ($schoolType === "Secondary") {
+                        $overallGrade = $this->getSecondaryHardcodedGrade(
+                            $average,
+                            $className,
+                        )["grade"];
+                    } else {
+                        $gradeResult = $classID
+                            ? $this->getGradeFromDefinition(
+                                $average,
+                                $classID,
+                                $schoolType,
+                                $className,
+                            )
+                            : null;
+                        $overallGrade = $gradeResult ? $gradeResult["grade"] : null;
+                        if (!$overallGrade) {
+                            if ($average >= 75) {
+                                $overallGrade = "A";
+                            } elseif ($average >= 65) {
+                                $overallGrade = "B";
+                            } elseif ($average >= 45) {
+                                $overallGrade = "C";
+                            } elseif ($average >= 30) {
+                                $overallGrade = "D";
+                            } else {
+                                $overallGrade = "F";
+                            }
                         }
                     }
 
@@ -1355,24 +1381,36 @@ class ResultManagementController extends Controller
             }
 
             // Always calculate a literal grade (A,B,C,D,F) for the overall average to avoid nulls
-            $overallGradeResult = $classID
-                ? $this->getGradeFromDefinition($averageMarks, $classID)
-                : null;
-            $calculatedOverallGrade = $overallGradeResult
-                ? $overallGradeResult["grade"]
-                : null;
+            if ($schoolType === "Secondary") {
+                $calculatedOverallGrade = $this->getSecondaryHardcodedGrade(
+                    $averageMarks,
+                    $className,
+                )["grade"];
+            } else {
+                $overallGradeResult = $classID
+                    ? $this->getGradeFromDefinition(
+                        $averageMarks,
+                        $classID,
+                        $schoolType,
+                        $className,
+                    )
+                    : null;
+                $calculatedOverallGrade = $overallGradeResult
+                    ? $overallGradeResult["grade"]
+                    : null;
 
-            if (!$calculatedOverallGrade) {
-                if ($averageMarks >= 75) {
-                    $calculatedOverallGrade = "A";
-                } elseif ($averageMarks >= 65) {
-                    $calculatedOverallGrade = "B";
-                } elseif ($averageMarks >= 45) {
-                    $calculatedOverallGrade = "C";
-                } elseif ($averageMarks >= 30) {
-                    $calculatedOverallGrade = "D";
-                } else {
-                    $calculatedOverallGrade = "F";
+                if (!$calculatedOverallGrade) {
+                    if ($averageMarks >= 75) {
+                        $calculatedOverallGrade = "A";
+                    } elseif ($averageMarks >= 65) {
+                        $calculatedOverallGrade = "B";
+                    } elseif ($averageMarks >= 45) {
+                        $calculatedOverallGrade = "C";
+                    } elseif ($averageMarks >= 30) {
+                        $calculatedOverallGrade = "D";
+                    } else {
+                        $calculatedOverallGrade = "F";
+                    }
                 }
             }
 
@@ -2277,6 +2315,89 @@ class ResultManagementController extends Controller
                 500,
             );
         }
+    }
+
+    /**
+     * class_subjectIDs this student elected (optional subjects only).
+     *
+     * @return list<int>
+     */
+    private function getElectedClassSubjectIdsForStudent(int $studentID): array
+    {
+        return SubjectElector::where("studentID", $studentID)
+            ->pluck("classSubjectID")
+            ->map(fn($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * @param  list<int>|null  $electedClassSubjectIds
+     */
+    private function shouldIncludeClassSubjectForStudent(
+        int $studentID,
+        ?ClassSubject $classSubject,
+        ?array $electedClassSubjectIds = null,
+    ): bool {
+        if (!$classSubject) {
+            return false;
+        }
+
+        if (strtolower(trim((string) ($classSubject->student_status ?? ""))) !== "optional") {
+            return true;
+        }
+
+        $electedClassSubjectIds ??= $this->getElectedClassSubjectIdsForStudent(
+            $studentID,
+        );
+
+        return in_array(
+            (int) $classSubject->class_subjectID,
+            $electedClassSubjectIds,
+            true,
+        );
+    }
+
+    /**
+     * @param  list<int>|null  $electedClassSubjectIds
+     */
+    private function shouldIncludeResultForStudent(
+        int $studentID,
+        $result,
+        ?array $electedClassSubjectIds = null,
+    ): bool {
+        return $this->shouldIncludeClassSubjectForStudent(
+            $studentID,
+            $result->classSubject ?? null,
+            $electedClassSubjectIds,
+        );
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, \App\Models\Result>  $results
+     * @param  list<int>|null  $electedClassSubjectIds
+     * @return \Illuminate\Support\Collection<int, \App\Models\Result>
+     */
+    private function filterResultsForStudentElection(
+        $results,
+        int $studentID,
+        ?array $electedClassSubjectIds = null,
+    ) {
+        $electedClassSubjectIds ??= $this->getElectedClassSubjectIdsForStudent(
+            $studentID,
+        );
+
+        return $results
+            ->filter(function ($result) use (
+                $studentID,
+                $electedClassSubjectIds,
+            ) {
+                return $this->shouldIncludeResultForStudent(
+                    $studentID,
+                    $result,
+                    $electedClassSubjectIds,
+                );
+            })
+            ->values();
     }
 
     /**
@@ -3435,6 +3556,9 @@ class ResultManagementController extends Controller
 
         foreach ($students as $student) {
             $studentResults = [];
+            $electedClassSubjectIds = $this->getElectedClassSubjectIdsForStudent(
+                $student->studentID,
+            );
 
             // Get examinations for this term and year
             $examinationsQuery = Examination::where(
@@ -3484,6 +3608,11 @@ class ResultManagementController extends Controller
                 $results = $resultsQuery
                     ->with(["classSubject.subject", "examination"])
                     ->get();
+                $results = $this->filterResultsForStudentElection(
+                    $results,
+                    $student->studentID,
+                    $electedClassSubjectIds,
+                );
 
                 if (!$results->isEmpty()) {
                     $involvedCount = count($examID);
@@ -3545,6 +3674,11 @@ class ResultManagementController extends Controller
                         ->whereIn("examID", $allInvolvedExams)
                         ->with(["classSubject.subject", "examination"])
                         ->get();
+                    $results = $this->filterResultsForStudentElection(
+                        $results,
+                        $student->studentID,
+                        $electedClassSubjectIds,
+                    );
 
                     if ($results->isEmpty()) {
                         continue;
@@ -3595,6 +3729,11 @@ class ResultManagementController extends Controller
                     $results = $resultsQuery
                         ->with(["classSubject.subject", "examination"])
                         ->get();
+                    $results = $this->filterResultsForStudentElection(
+                        $results,
+                        $student->studentID,
+                        $electedClassSubjectIds,
+                    );
                 }
 
                 if (!$results->isEmpty()) {
@@ -3703,7 +3842,21 @@ class ResultManagementController extends Controller
             $student->subclass->class->classID ??
             ($student->oldSubclass->class->classID ?? null);
 
+        $electedClassSubjectIds = $this->getElectedClassSubjectIdsForStudent(
+            $student->studentID,
+        );
+
         foreach ($results as $result) {
+            if (
+                !$this->shouldIncludeResultForStudent(
+                    $student->studentID,
+                    $result,
+                    $electedClassSubjectIds,
+                )
+            ) {
+                continue;
+            }
+
             if ($result->marks !== null && $result->marks !== "") {
                 $totalMarks += (float) $result->marks;
                 $subjectCount++;
@@ -3932,6 +4085,17 @@ class ResultManagementController extends Controller
 
         $allResults = $allResultsQuery->get()->groupBy("studentID");
 
+        $electorsByStudent = SubjectElector::whereIn("studentID", $studentIDs)
+            ->get()
+            ->groupBy("studentID")
+            ->map(function ($rows) {
+                return $rows
+                    ->pluck("classSubjectID")
+                    ->map(fn($id) => (int) $id)
+                    ->all();
+            })
+            ->all();
+
         // Store results by studentID and examID for quick lookup
         $resultsByStudentAndExam = [];
         foreach ($allResults as $studentID => $studentResults) {
@@ -3947,6 +4111,9 @@ class ResultManagementController extends Controller
             if ($studentResultsByExam->isEmpty()) {
                 continue;
             }
+
+            $electedClassSubjectIds =
+                $electorsByStudent[$student->studentID] ?? [];
 
             // Get class name and classID once
             $className = "";
@@ -3988,6 +4155,11 @@ class ResultManagementController extends Controller
                             ),
                         );
                     }
+                    $rawResults = $this->filterResultsForStudentElection(
+                        $rawResults,
+                        $student->studentID,
+                        $electedClassSubjectIds,
+                    );
 
                     $results = $rawResults
                         ->groupBy("class_subjectID")
@@ -4012,6 +4184,11 @@ class ResultManagementController extends Controller
                         $exam->examID,
                         collect(),
                     );
+                    $results = $this->filterResultsForStudentElection(
+                        $results,
+                        $student->studentID,
+                        $electedClassSubjectIds,
+                    );
                 }
 
                 if ($results->isEmpty()) {
@@ -4022,6 +4199,16 @@ class ResultManagementController extends Controller
                 $examSubjectCount = 0;
 
                 foreach ($results as $result) {
+                    if (
+                        !$this->shouldIncludeResultForStudent(
+                            $student->studentID,
+                            $result,
+                            $electedClassSubjectIds,
+                        )
+                    ) {
+                        continue;
+                    }
+
                     if ($result->marks !== null && $result->marks !== "") {
                         $marks = (float) $result->marks;
                         $examTotalMarks += $marks;
@@ -4205,17 +4392,114 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Get grade from grade_definitions table based on classID and marks
+     * Secondary schools: fixed letter grades (do not use grade_definitions).
+     * A 75–100, B 65–74, C 45–64, D 30–44, F 0–29
      */
-    private function getGradeFromDefinition($marks, $classID)
-    {
-        if ($marks === null || $marks === "" || !$classID) {
+    private function getSecondaryHardcodedGrade(
+        $marks,
+        ?string $className = null,
+    ): array {
+        if ($marks === null || $marks === "") {
             return ["grade" => null, "points" => null];
         }
 
         $marksNum = round((float) $marks, 2);
 
-        // Get grade definition from database
+        if ($marksNum >= 75) {
+            return ["grade" => "A", "points" => 1];
+        }
+        if ($marksNum >= 65) {
+            return ["grade" => "B", "points" => 2];
+        }
+        if ($marksNum >= 45) {
+            return ["grade" => "C", "points" => 3];
+        }
+        if ($marksNum >= 30) {
+            return ["grade" => "D", "points" => 4];
+        }
+
+        return ["grade" => "F", "points" => 5];
+    }
+
+    /**
+     * Marks for one term-report exam column (CA bundle = all parts must have marks).
+     */
+    private function resolveTermReportExamSlotMarks(
+        array $data,
+        $exam,
+        $caDefinitionsByExam,
+    ): ?float {
+        $caDefinition = $caDefinitionsByExam->get($exam->examID);
+
+        if ($caDefinition && !empty($caDefinition->test_ids)) {
+            $involvedExamIDs = array_values(
+                array_unique(
+                    array_merge([$exam->examID], $caDefinition->test_ids),
+                ),
+            );
+            $involvedCount = count($involvedExamIDs);
+            if ($involvedCount === 0) {
+                return null;
+            }
+
+            $involvedSum = 0;
+            foreach ($involvedExamIDs as $involvedExamID) {
+                if (
+                    !isset($data["exams"][$involvedExamID]["marks"]) ||
+                    $data["exams"][$involvedExamID]["marks"] === null ||
+                    $data["exams"][$involvedExamID]["marks"] === ""
+                ) {
+                    return null;
+                }
+                $involvedSum += (float) $data["exams"][$involvedExamID]["marks"];
+            }
+
+            return $involvedSum / $involvedCount;
+        }
+
+        if (
+            !isset($data["exams"][$exam->examID]["marks"]) ||
+            $data["exams"][$exam->examID]["marks"] === null ||
+            $data["exams"][$exam->examID]["marks"] === ""
+        ) {
+            return null;
+        }
+
+        return (float) $data["exams"][$exam->examID]["marks"];
+    }
+
+    /**
+     * Get grade from grade_definitions table based on classID and marks
+     */
+    private function getGradeFromDefinition(
+        $marks,
+        $classID,
+        $schoolType = null,
+        $className = null,
+    ) {
+        if ($marks === null || $marks === "") {
+            return ["grade" => null, "points" => null];
+        }
+
+        if ($schoolType === null && $classID) {
+            $class = ClassModel::find($classID);
+            $className = $className ?? ($class->class_name ?? "");
+            if ($class && $class->schoolID) {
+                $schoolType = School::find($class->schoolID)->school_type ?? null;
+            }
+        }
+
+        if (strtolower(trim((string) ($schoolType ?? ""))) === "secondary") {
+            return $this->getSecondaryHardcodedGrade($marks, $className);
+        }
+
+        if (!$classID) {
+            return ["grade" => null, "points" => null];
+        }
+
+        $marksNum = round((float) $marks, 2);
+
+        // Get grade definition from database (Primary / non-secondary)
         $gradeDefinition = GradeDefinition::where("classID", $classID)
             ->where("first", "<=", $marksNum)
             ->where("last", ">=", $marksNum)
@@ -4290,9 +4574,18 @@ class ResultManagementController extends Controller
             return ["grade" => null, "points" => null];
         }
 
-        // If classID is provided, use grade_definitions table
+        if (strtolower(trim((string) ($schoolType ?? ""))) === "secondary") {
+            return $this->getSecondaryHardcodedGrade($marks, $className);
+        }
+
+        // Primary: use grade_definitions when class is known
         if ($classID) {
-            return $this->getGradeFromDefinition($marks, $classID);
+            return $this->getGradeFromDefinition(
+                $marks,
+                $classID,
+                $schoolType,
+                $className,
+            );
         }
 
         // Fallback to old logic if classID not provided (for backward compatibility)

@@ -469,7 +469,8 @@
                 <tbody>
                     @foreach($detailedSingleData['subjects'] as $i => $subj)
                         @php
-                            $subjGrade = $subj['grade'] ?? 'N/A';
+                            $isIncompleteSubj = !empty($subj['is_incomplete']) || strtoupper(trim((string)($subj['grade'] ?? ''))) === 'INCOMPLETE';
+                            $subjGrade = $isIncompleteSubj ? 'Incomplete' : ($subj['grade'] ?? 'N/A');
                             $remarkInfo = getSubjectRemarkInfo($subjGrade, $isSecondaryPdf);
                         @endphp
                         <tr class="{{ $i % 2 == 0 ? '' : 'even' }}">
@@ -501,7 +502,15 @@
                                 @endforeach
                             @endif
                             <td class="tc bold">
-                                {{ isset($subj['average']) ? number_format((float)$subj['average'], 0) : (isset($subj['marks']) ? number_format((float)$subj['marks'], 0) : '—') }}
+                                @if($isIncompleteSubj)
+                                    —
+                                @elseif(isset($subj['average']) && $subj['average'] !== null && $subj['average'] !== '')
+                                    {{ number_format((float)$subj['average'], 0) }}
+                                @elseif(isset($subj['marks']) && $subj['marks'] !== null && $subj['marks'] !== '')
+                                    {{ number_format((float)$subj['marks'], 0) }}
+                                @else
+                                    —
+                                @endif
                             </td>
                             <td class="tc">{{ $subjGrade }}</td>
                             <td class="tc remark-cell {{ $remarkInfo['class'] }}">{{ $remarkInfo['text'] }}</td>
