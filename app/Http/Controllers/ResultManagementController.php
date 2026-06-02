@@ -34,6 +34,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
+use App\Support\CenturyGothicPdfFont;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -4919,6 +4920,7 @@ class ResultManagementController extends Controller
 
         // Generate PDF
         $pdf = PDF::loadView("Admin.pdf.results", $data);
+        CenturyGothicPdfFont::ensureRegistered($pdf->getDomPDF());
         $pdf->setPaper("A4", "portrait");
 
         // Generate filename

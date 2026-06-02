@@ -124,21 +124,23 @@
     @endphp
     <style>
         @page { margin: 12mm 14mm; }
-        body {
-            font-family: 'DejaVu Sans', sans-serif;
-            font-size: 9px;
+        body, table, td, th, p, div, span, li {
+            font-family: "century gothic", "Century Gothic", CenturyGothic, AppleGothic, sans-serif;
+            font-size: 14px;
             color: #1a1a1a;
             line-height: 1.4;
         }
+        /* Reserve space so fixed footer does not overlap last lines */
+        body { padding-bottom: 40px; }
 
         /* ── TEACHER COMMENT ─────────────────────── */
         .teacher-comment-box { border: 1px dashed #940000; padding: 10px; margin-top: 15px; margin-bottom: 10px; }
-        .comment-title { font-weight: bold; color: #940000; margin-bottom: 5px; text-transform: uppercase; font-size: 9.5px; }
-        .comment-text { font-style: italic; font-size: 9px; min-height: 15px; border-bottom: 1px dotted #ccc; padding-bottom: 3px; }
+        .comment-title { font-weight: bold; color: #940000; margin-bottom: 5px; text-transform: uppercase; font-size: 13px; }
+        .comment-text { font-style: italic; font-size: 14px; min-height: 15px; border-bottom: 1px dotted #ccc; padding-bottom: 3px; }
         .teacher-sig-area { margin-top: 5px; }
         .teacher-sig-img { height: 35px; margin-bottom: 3px; }
         .teacher-sig-img img { max-width: 140px; max-height: 35px; }
-        .teacher-name { font-weight: bold; font-size: 8.5px; border-top: 1px solid #000; width: 150px; padding-top: 2px; }
+        .teacher-name { font-weight: bold; font-size: 13px; border-top: 1px solid #000; width: 150px; padding-top: 2px; }
 
         /* ── HEADER ─────────────────────────────── */
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
@@ -148,8 +150,8 @@
         .student-photo-cell { width: 72px; text-align: right; padding-right: 0; padding-left: 10px; }
         .student-photo-cell img { display: block; width: 68px; height: 68px; margin-left: auto; border: none; outline: none; object-fit: cover; }
         .school-name-cell { text-align: center; }
-        .school-name { font-size: 16px; font-weight: bold; color: #940000; text-transform: uppercase; letter-spacing: 0.5px; }
-        .school-sub  { font-size: 8px; color: #555; margin: 0; }
+        .school-name { font-size: 18px; font-weight: bold; color: #940000; text-transform: uppercase; letter-spacing: 0.5px; }
+        .school-sub  { font-size: 12px; color: #555; margin: 0; }
         .header-line { border-bottom: 2px solid #940000; margin: 8px 0 10px 0; }
 
         /* ── TITLE BAND ──────────────────────────── */
@@ -158,7 +160,7 @@
             color: #ffffff;
             text-align: center;
             padding: 7px 10px;
-            font-size: 11px;
+            font-size: 15px;
             font-weight: bold;
             text-transform: uppercase;
             margin-bottom: 8px;
@@ -170,7 +172,7 @@
             border-left: 4px solid #940000;
             padding: 5px 8px;
             margin-bottom: 10px;
-            font-size: 8px;
+            font-size: 13px;
             color: #444;
         }
 
@@ -180,7 +182,7 @@
             border: 1px solid #e0cdcd;
             padding: 6px 8px;
             margin-bottom: 10px;
-            font-size: 8.5px;
+            font-size: 14px;
         }
         .s-label { color: #940000; font-weight: bold; }
 
@@ -188,7 +190,7 @@
         .section-title {
             color: #940000;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 13px;
             text-transform: uppercase;
             border-bottom: 1px solid #e0cdcd;
             padding-bottom: 2px;
@@ -196,26 +198,27 @@
         }
 
         /* ── TABLES ──────────────────────────────── */
-        table.data { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 8px; }
+        table.data { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 14px; }
         table.data thead tr { background-color: #940000; color: #ffffff; }
-        table.data th { padding: 5px 5px; text-align: left; font-weight: bold; border: 1px solid #b50000; }
-        table.data td { padding: 4px 5px; border: 1px solid #e0cdcd; }
+        table.data thead th { color: #ffffff !important; }
+        table.data th { padding: 6px 6px; text-align: left; font-weight: bold; border: 1px solid #b50000; font-size: 13px; }
+        table.data td { padding: 5px 6px; border: 1px solid #e0cdcd; font-size: 14px; }
         table.data tbody tr.even { background-color: #FFF5F5; }
         .tc  { text-align: center; }
         .tr  { text-align: right; }
         .bold { font-weight: bold; }
 
         /* ── BADGES ──────────────────────────────── */
-        .badge-red  { background-color: #940000; color: #fff; padding: 1px 5px; font-size: 7px; font-weight: bold; }
-        .badge-pale { background-color: #FFF5F5; color: #940000; padding: 1px 5px; font-size: 7px; font-weight: bold; border: 1px solid #940000; }
-        .badge-grn  { background-color: #155724; color: #fff; padding: 1px 5px; font-size: 7px; font-weight: bold; }
+        .badge-red  { background-color: #940000; color: #fff; padding: 2px 6px; font-size: 12px; font-weight: bold; }
+        .badge-pale { background-color: #FFF5F5; color: #940000; padding: 2px 6px; font-size: 12px; font-weight: bold; border: 1px solid #940000; }
+        .badge-grn  { background-color: #155724; color: #fff; padding: 2px 6px; font-size: 12px; font-weight: bold; }
 
         /* ── GROUP HEADERS ───────────────────────── */
-        .group-head { background-color: #940000; color: #fff; font-size: 9px; font-weight: bold; padding: 4px 7px; margin: 12px 0 0 0; }
-        .sub-head   { background-color: #FFF5F5; color: #940000; font-size: 8.5px; font-weight: bold; border-left: 3px solid #940000; padding: 2px 6px; margin: 6px 0 3px 0; }
+        .group-head { background-color: #940000; color: #fff; font-size: 14px; font-weight: bold; padding: 5px 8px; margin: 12px 0 0 0; }
+        .sub-head   { background-color: #FFF5F5; color: #940000; font-size: 13px; font-weight: bold; border-left: 3px solid #940000; padding: 3px 7px; margin: 6px 0 3px 0; }
 
         /* ── RESULT SUMMARY BAR ──────────────────── */
-        .result-bar { background-color: #FFF5F5; border-left: 3px solid #940000; padding: 3px 7px; margin-bottom: 6px; font-size: 8px; }
+        .result-bar { background-color: #FFF5F5; border-left: 3px solid #940000; padding: 4px 8px; margin-bottom: 6px; font-size: 14px; }
 
         /* ── SIGNATURE AND STAMP ─────────────────── */
         .sig-table { width: 100%; margin-top: 30px; border-collapse: collapse; }
@@ -226,7 +229,7 @@
         .school-signature-img { height: 62px; margin-bottom: 4px; }
         .school-signature-img img { max-width: 220px; max-height: 62px; }
         .sig-line   { border-top: 1.5px solid #940000; width: 180px; margin: 0 auto; display: block; }
-        .sig-label  { font-size: 8.5px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase;}
+        .sig-label  { font-size: 13px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase;}
 
         /* ── FOOTER ──────────────────────────────── */
         .footer {
@@ -234,7 +237,7 @@
             bottom: 0;
             left: 0; right: 0;
             text-align: center;
-            font-size: 7.5px;
+            font-size: 11px;
             color: #777;
             border-top: 1px solid #e0cdcd;
             padding-top: 3px;
@@ -248,7 +251,7 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            font-size: 7px;
+            font-size: 11px;
             overflow: hidden;
         }
 
@@ -260,7 +263,7 @@
         .remark-color-legend-title {
             font-weight: bold;
             color: #6c757d;
-            font-size: 8px;
+            font-size: 12px;
             margin-bottom: 5px;
         }
         .remark-color-blocks {
@@ -275,14 +278,14 @@
             width: 33.3333%;
             box-sizing: border-box;
             padding: 5px 8px;
-            font-size: 8px;
+            font-size: 12px;
             font-weight: bold;
             text-align: center;
         }
         .remark-color-blocks.secondary-legend .remark-color-block {
             width: 16.6666%;
-            font-size: 6.5px;
-            padding: 4px 2px;
+            font-size: 11px;
+            padding: 4px 3px;
         }
         .remark-excellent { background-color: #28a745; color: #ffffff; }
         .remark-pass { background-color: #d4edda; color: #155724; }
@@ -519,7 +522,7 @@
             </div>
 
             @if(isset($detailedSingleData['remarks']))
-            <div style="margin-top: 10px; border: 1px dashed #e0cdcd; padding: 6px; font-size: 8px;">
+            <div style="margin-top: 10px; border: 1px dashed #e0cdcd; padding: 6px; font-size: 14px;">
                 <strong>Remarks:</strong> {{ $detailedSingleData['remarks'] }}
             </div>
             @endif
@@ -610,7 +613,7 @@
     {{-- Character & Behavioral Assessment --}}
     @if(isset($characterAssessments) && isset($characterAssessments[$student->studentID]) && count($characterAssessments[$student->studentID]) > 0)
         <div class="section-title">Character & Behavioral Assessment</div>
-        <table class="data" style="margin-bottom: 5px;">
+        <table class="data character-assessment-table" style="margin-bottom: 45px;">
             <thead>
                 <tr>
                     <th style="width: 40%;">Assessment Category</th>
@@ -622,9 +625,9 @@
                     <tr class="{{ $idx % 2 == 0 ? '' : 'even' }}">
                         <td>{{ $ca->category->name }}</td>
                         <td class="tc">
-                            <span class="bold" style="color:#940000; font-size:8.5px;">{{ $ca->choice->choice_name ?? 'N/A' }}</span>
+                            <span class="bold" style="color:#940000; font-size:14px;">{{ $ca->choice->choice_name ?? 'N/A' }}</span>
                             @if($ca->description)
-                                <br><span style="font-size:7px; font-style:italic; color:#555;">{{ $ca->description }}</span>
+                                <br><span style="font-size:14px; font-style:italic; color:#555;">{{ $ca->description }}</span>
                             @endif
                         </td>
                     </tr>
@@ -760,7 +763,7 @@
         @endphp
 
         @foreach($groupedStudents as $className => $classStudents)
-            <div class="group-head" style="font-size: 11px;">{{ $className }} - PERFORMANCE OVERVIEW</div>
+            <div class="group-head" style="font-size: 15px;">{{ $className }} - PERFORMANCE OVERVIEW</div>
             
             @php
                 // CALCULATE STATISTICS FOR THIS GROUP
@@ -883,7 +886,7 @@
                         @endphp
                         <tr><td colspan="2">
                             <strong>Performance Remark:</strong> {{ $rmk }}<br>
-                            <strong>Performance Comment:</strong><br><span style="font-size: 8px;">{{ $cmt }}</span>
+                            <strong>Performance Comment:</strong><br><span style="font-size: 14px;">{{ $cmt }}</span>
                         </td></tr>
                     </tbody>
                 </table>
@@ -959,7 +962,7 @@
                             <tr class="{{ $si % 2 == 0 ? '' : 'even' }}">
                                 <td class="bold">{{ $sName }}</td>
                                 @foreach($gradeHeaders as $gr)
-                                <td class="tc" style="font-size:7.5px;">
+                                <td class="tc" style="font-size:14px;">
                                     <strong>{{ $sGrades[$gr]['T'] ?? 0 }}</strong><br>
                                     <span style="color:#666;">M:{{ $sGrades[$gr]['M'] ?? 0 }}, F:{{ $sGrades[$gr]['F'] ?? 0 }}</span>
                                 </td>
@@ -972,7 +975,7 @@
                 </table>
             @endif
 
-            <div class="group-head" style="font-size:10px;">STUDENT RESULTS DETAILED LIST</div>
+            <div class="group-head" style="font-size:14px;">STUDENT RESULTS DETAILED LIST</div>
 
             @php
                 // Sort students by academic rank weight descending/ascending order
@@ -1046,10 +1049,10 @@
 
                             $html .= '<tr class="'.$cls.'">
                                 <td class="tc">'.$pos.'</td>
-                                <td class="bold" style="font-size:7.5px;">'.$name.'</td>
-                                <td style="font-size:7px;">'.$cn.'</td>
-                                <td style="font-size:7px; line-height:1.2;">'.$subText.'</td>
-                                <td style="font-size:6.5px; color:#555; line-height:1.1;">'.$caSummary.'</td>
+                                <td class="bold" style="font-size:14px;">'.$name.'</td>
+                                <td style="font-size:14px;">'.$cn.'</td>
+                                <td style="font-size:14px; line-height:1.2;">'.$subText.'</td>
+                                <td style="font-size:12px; color:#555; line-height:1.1;">'.$caSummary.'</td>
                                 <td class="tc bold">'.$divstr.'</td>
                             </tr>';
                             $pos++;
@@ -1160,7 +1163,7 @@
         @endphp
 
         @foreach($allGrouped as $className => $classStudents)
-            <div class="group-head" style="font-size:11px;">{{ $className }} — RESULTS</div>
+            <div class="group-head" style="font-size:15px;">{{ $className }} — RESULTS</div>
             @php
                 // Build stats for this class group
                 $sTotal = 0; $sMale = 0; $sFemale = 0; $sPass = 0;
@@ -1287,7 +1290,7 @@
                                 <tr class="{{ $si2 % 2 == 0 ? '' : 'even' }}">
                                     <td class="bold">{{ $sName }}</td>
                                     @foreach($gradeHdrs as $gr)
-                                    <td class="tc" style="font-size:7.5px;">
+                                    <td class="tc" style="font-size:14px;">
                                         <strong>{{ $sGrades[$gr]['T'] ?? 0 }}</strong><br>
                                         <span style="color:#666;">M:{{ $sGrades[$gr]['M'] ?? 0 }}, F:{{ $sGrades[$gr]['F'] ?? 0 }}</span>
                                     </td>
@@ -1301,7 +1304,7 @@
                 @endif
 
                 {{-- Students list sorted by marks descending --}}
-                <div class="group-head" style="font-size:10px;">STUDENT RESULTS DETAILED LIST</div>
+                <div class="group-head" style="font-size:14px;">STUDENT RESULTS DETAILED LIST</div>
                 <table class="data">
                     <thead>
                         <tr>
@@ -1329,8 +1332,8 @@
                             @endphp
                             <tr class="{{ $cls2 }}">
                                 <td class="tc">{{ $pIdx + 1 }}</td>
-                                <td class="bold" style="font-size:7.5px;">{{ $name2 }}</td>
-                                <td style="font-size:7px; line-height:1.2;">{{ implode(', ', $subjStrs2) }}</td>
+                                <td class="bold" style="font-size:14px;">{{ $name2 }}</td>
+                                <td style="font-size:14px; line-height:1.2;">{{ implode(', ', $subjStrs2) }}</td>
                                 <td class="tc bold">{{ number_format($item['marks'], 0) }}</td>
                                 <td class="tc bold">{{ $item['div'] }}</td>
                             </tr>
