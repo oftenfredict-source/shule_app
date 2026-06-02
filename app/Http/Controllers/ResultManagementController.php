@@ -999,6 +999,7 @@ class ResultManagementController extends Controller
                         $subjectPoints[] = [
                             "points" => $avgGradePoints["points"] ?? 5,
                             "marks" => $average,
+                            "grade" => $avgGradePoints["grade"] ?? $overallGrade,
                         ];
                     }
                 }
@@ -1035,6 +1036,7 @@ class ResultManagementController extends Controller
                                 $examSubjectPoints[] = [
                                     "points" => $gradePoints["points"] ?? 5,
                                     "marks" => $marks,
+                                    "grade" => $gradePoints["grade"] ?? null,
                                 ];
                             }
                         }
@@ -1079,10 +1081,11 @@ class ResultManagementController extends Controller
                             $schoolType === "Secondary" &&
                             !empty($examSubjectPoints)
                         ) {
-                            $examTotalPoints =
-                                $this->computeTotalPointsFromSubjectEntries(
+                            $examDivisionPick =
+                                $this->resolveSecondaryBestSubjectsForDivision(
                                     $examSubjectPoints,
                                     $className,
+                                    $schoolType,
                                 );
                             $examGradeDivision = $this->calculateGradeDivision(
                                 $examTotalMarks,
@@ -1090,8 +1093,9 @@ class ResultManagementController extends Controller
                                 $examSubjectCount,
                                 $schoolType,
                                 $className,
-                                $examTotalPoints,
+                                $examDivisionPick["total_points"],
                                 $classID,
+                                $examDivisionPick["grades"],
                             );
                             $examDivision =
                                 $examGradeDivision["division"] ?? null;
@@ -1283,87 +1287,17 @@ class ResultManagementController extends Controller
                     $subjectCount > 0 ? $totalMarks / $subjectCount : 0;
             }
 
-            // Calculate total points for secondary school (best 7 subjects for O-Level, best 3 for A-Level)
+            // NECTA division: sum of points from best 7 subjects (one grade per subject from term average)
+            $bestSevenGrades = [];
             $totalPoints = 0;
             if ($schoolType === "Secondary" && !empty($subjectPoints)) {
-                $classNameLower = strtolower(
-                    preg_replace("/[\s\-]+/", "_", $className),
+                $divisionPick = $this->resolveSecondaryBestSubjectsForDivision(
+                    $subjectPoints,
+                    $className,
+                    $schoolType,
                 );
-
-                if (
-                    in_array($classNameLower, [
-                        "form_one",
-                        "form_two",
-                        "form_three",
-                        "form_four",
-                        "form_1",
-                        "form_2",
-                        "form_3",
-                        "form_4",
-                    ]) ||
-                    preg_match(
-                        "/form\s*(one|two|three|four|1|2|3|4)/i",
-                        $className,
-                    )
-                ) {
-                    // O-Level: Best 7 subjects (ascending order of points = best)
-                    usort($subjectPoints, function ($a, $b) {
-                        if ($a["points"] != $b["points"]) {
-                            return $a["points"] <=> $b["points"]; // Ascending (lower points = better)
-                        }
-                        return $b["marks"] <=> $a["marks"]; // If points equal, higher marks = better
-                    });
-
-                    // Take best 7 if available
-                    $bestSubjects = array_slice(
-                        $subjectPoints,
-                        0,
-                        min(7, count($subjectPoints)),
-                    );
-
-                    // Sum actual best subjects
-                    foreach ($bestSubjects as $subject) {
-                        $totalPoints += $subject["points"];
-                    }
-
-                    // PAD MISSING SUBJECTS: If less than 7 subjects, add 5 points for each missing subject
-                    if (count($bestSubjects) < 7) {
-                        $missingCount = 7 - count($bestSubjects);
-                        $totalPoints += $missingCount * 5;
-                    }
-                } elseif (
-                    in_array($classNameLower, [
-                        "form_five",
-                        "form_six",
-                        "form_5",
-                        "form_6",
-                    ]) ||
-                    preg_match("/form\s*(five|six|5|6)/i", $className)
-                ) {
-                    // A-Level: Best 3 subjects (descending order of points = best)
-                    usort($subjectPoints, function ($a, $b) {
-                        if ($a["points"] != $b["points"]) {
-                            return $b["points"] <=> $a["points"]; // Descending (higher points = better)
-                        }
-                        return $b["marks"] <=> $a["marks"];
-                    });
-                    $bestSubjects = array_slice(
-                        $subjectPoints,
-                        0,
-                        min(3, count($subjectPoints)),
-                    );
-
-                    // Sum points of best subjects
-                    foreach ($bestSubjects as $subject) {
-                        $totalPoints += $subject["points"];
-                    }
-                } else {
-                    $bestSubjects = $subjectPoints;
-                    // Sum points of all subjects for other levels
-                    foreach ($bestSubjects as $subject) {
-                        $totalPoints += $subject["points"];
-                    }
-                }
+                $totalPoints = $divisionPick["total_points"];
+                $bestSevenGrades = $divisionPick["grades"];
             }
 
             // Calculate grade/division (SKIPPED if specific week is selected for weekly/monthly tests)
@@ -1377,6 +1311,7 @@ class ResultManagementController extends Controller
                     $className,
                     $totalPoints,
                     $classID,
+                    $bestSevenGrades,
                 );
             }
 
@@ -3888,67 +3823,20 @@ class ResultManagementController extends Controller
                 $marksPointsArray[] = [
                     "marks" => (float) $s["marks"],
                     "points" => $s["points"],
+                    "grade" => $s["grade"] ?? null,
                 ];
             }
         }
 
+        $bestSevenGrades = [];
         if ($schoolType === "Secondary" && !empty($marksPointsArray)) {
-            $classNameLower = strtolower(
-                preg_replace("/[\s\-]+/", "_", $className),
+            $divisionPick = $this->resolveSecondaryBestSubjectsForDivision(
+                $marksPointsArray,
+                $className,
+                $schoolType,
             );
-            if (
-                in_array($classNameLower, [
-                    "form_one",
-                    "form_two",
-                    "form_three",
-                    "form_four",
-                    "form_1",
-                    "form_2",
-                    "form_3",
-                    "form_4",
-                ]) ||
-                preg_match("/form\s*(one|two|three|four|1|2|3|4)/i", $className)
-            ) {
-                usort(
-                    $marksPointsArray,
-                    fn($a, $b) => $a["points"] != $b["points"]
-                        ? $a["points"] <=> $b["points"]
-                        : $b["marks"] <=> $a["marks"],
-                );
-                $bestSubjects = array_slice(
-                    $marksPointsArray,
-                    0,
-                    min(7, count($marksPointsArray)),
-                );
-                $totalPoints = array_sum(array_column($bestSubjects, "points"));
-                if (count($bestSubjects) < 7) {
-                    $totalPoints += (7 - count($bestSubjects)) * 5;
-                }
-                $bestSevenTotalMarks = array_sum(
-                    array_column($bestSubjects, "marks"),
-                );
-            } elseif (
-                in_array($classNameLower, [
-                    "form_five",
-                    "form_six",
-                    "form_5",
-                    "form_6",
-                ]) ||
-                preg_match("/form\s*(five|six|5|6)/i", $className)
-            ) {
-                usort(
-                    $marksPointsArray,
-                    fn($a, $b) => $a["points"] != $b["points"]
-                        ? $b["points"] <=> $a["points"]
-                        : $b["marks"] <=> $a["marks"],
-                );
-                $bestSubjects = array_slice(
-                    $marksPointsArray,
-                    0,
-                    min(3, count($marksPointsArray)),
-                );
-                $totalPoints = array_sum(array_column($bestSubjects, "points"));
-            }
+            $totalPoints = $divisionPick["total_points"];
+            $bestSevenGrades = $divisionPick["grades"];
         }
 
         $gradeDivision =
@@ -3961,6 +3849,7 @@ class ResultManagementController extends Controller
                     $className,
                     $totalPoints,
                     $classID,
+                    $bestSevenGrades,
                 )
                 : ["grade" => null, "division" => null];
 
@@ -4133,7 +4022,6 @@ class ResultManagementController extends Controller
             $allExamResults = [];
             $totalMarksAllExams = 0;
             $totalSubjectCount = 0;
-            $allSubjectPoints = []; // Collect points from all exams
 
             foreach ($effectiveExaminations as $exam) {
                 $caDefinition = $caDefinitionsByExam->get($exam->examID);
@@ -4213,33 +4101,28 @@ class ResultManagementController extends Controller
                         $marks = (float) $result->marks;
                         $examTotalMarks += $marks;
                         $examSubjectCount++;
-
-                        // OPTIMIZATION: Calculate points here instead of querying again
-                        $gradePoints = $this->calculateGradePoints(
-                            $marks,
-                            $schoolType,
-                            $className,
-                            $classID,
-                        );
-                        if ($gradePoints["points"] !== null) {
-                            $allSubjectPoints[] = $gradePoints["points"];
-                        }
                     }
                 }
 
                 if ($examSubjectCount > 0) {
                     $examAverage = $examTotalMarks / $examSubjectCount;
 
-                    // Calculate grade for this exam based on average using grade_definitions
                     $examGrade = null;
-                    if ($classID && $examAverage > 0) {
+                    if ($schoolType === "Secondary") {
+                        $examGrade = $this->getSecondaryHardcodedGrade(
+                            $examAverage,
+                            $className,
+                        )["grade"];
+                    } elseif ($classID && $examAverage > 0) {
                         $gradeResult = $this->getGradeFromDefinition(
                             $examAverage,
                             $classID,
+                            $schoolType,
+                            $className,
                         );
                         $examGrade = $gradeResult["grade"];
-                    } else {
-                        // Fallback to old logic
+                    }
+                    if (!$examGrade) {
                         if ($examAverage >= 75) {
                             $examGrade = "A";
                         } elseif ($examAverage >= 65) {
@@ -4276,72 +4159,55 @@ class ResultManagementController extends Controller
                         ? $examAveragesSum / count($effectiveExaminations)
                         : 0;
 
-                // Calculate total points for division
-                $totalPoints = 0;
-                if (
-                    $schoolType === "Secondary" &&
-                    (in_array($classNameLower, [
-                        "form_one",
-                        "form_two",
-                        "form_three",
-                        "form_four",
-                        "form_1",
-                        "form_2",
-                        "form_3",
-                        "form_4",
-                    ]) ||
-                        preg_match(
-                            "/form\s*(one|two|three|four|1|2|3|4)/i",
-                            $className,
-                        ))
-                ) {
-                    // O-Level: Use 7 best subjects (lowest points = best performance)
-                    if (count($allSubjectPoints) > 0) {
-                        sort($allSubjectPoints); // Sort ascending (lowest first = best)
-                        $bestSeven = array_slice(
-                            $allSubjectPoints,
-                            0,
-                            min(7, count($allSubjectPoints)),
-                        );
-                        $totalPoints = array_sum($bestSeven);
+                // NECTA division: one grade per subject (term average), then best 7 subjects
+                $allStudentResults = collect();
+                foreach ($examIDs as $examIdForDivision) {
+                    $allStudentResults = $allStudentResults->merge(
+                        $studentResultsByExam->get($examIdForDivision, collect()),
+                    );
+                }
+                $allStudentResults = $this->filterResultsForStudentElection(
+                    $allStudentResults,
+                    $student->studentID,
+                    $electedClassSubjectIds,
+                );
 
-                        // PAD MISSING SUBJECTS: O-Level always uses 7 subjects
-                        if (count($bestSeven) < 7) {
-                            $totalPoints += (7 - count($bestSeven)) * 5;
-                        }
-                    }
-                } elseif (
-                    $schoolType === "Secondary" &&
-                    (in_array($classNameLower, [
-                        "form_five",
-                        "form_six",
-                        "form_5",
-                        "form_6",
-                    ]) ||
-                        preg_match("/form\s*(five|six|5|6)/i", $className))
-                ) {
-                    // A-Level: Use 3 best principal subjects (highest points)
-                    if (count($allSubjectPoints) > 0) {
-                        rsort($allSubjectPoints); // Sort descending (highest first)
-                        $bestThree = array_slice(
-                            $allSubjectPoints,
-                            0,
-                            min(3, count($allSubjectPoints)),
-                        );
-                        $totalPoints = array_sum($bestThree);
-                    }
+                $subjectPointEntries = $this->buildTermReportSubjectPointEntries(
+                    $allStudentResults,
+                    $effectiveExaminations,
+                    $caDefinitionsByExam,
+                    $schoolType,
+                    $className,
+                    $student->studentID,
+                    $electedClassSubjectIds,
+                );
+
+                $bestSevenGrades = [];
+                $totalPoints = 0;
+                if ($schoolType === "Secondary" && !empty($subjectPointEntries)) {
+                    $divisionPick = $this->resolveSecondaryBestSubjectsForDivision(
+                        $subjectPointEntries,
+                        $className,
+                        $schoolType,
+                    );
+                    $totalPoints = $divisionPick["total_points"];
+                    $bestSevenGrades = $divisionPick["grades"];
                 }
 
-                // Calculate overall grade based on overall average using grade_definitions
-                $overallGrade = null;
-                if ($classID && $overallAverage > 0) {
+                if ($schoolType === "Secondary") {
+                    $overallGrade = $this->getSecondaryHardcodedGrade(
+                        $overallAverage,
+                        $className,
+                    )["grade"];
+                } elseif ($classID && $overallAverage > 0) {
                     $gradeResult = $this->getGradeFromDefinition(
                         $overallAverage,
                         $classID,
+                        $schoolType,
+                        $className,
                     );
                     $overallGrade = $gradeResult["grade"];
                 } else {
-                    // Fallback to old logic
                     if ($overallAverage >= 75) {
                         $overallGrade = "A";
                     } elseif ($overallAverage >= 65) {
@@ -4355,7 +4221,6 @@ class ResultManagementController extends Controller
                     }
                 }
 
-                // Calculate division for Secondary using points
                 $gradeDivision = $this->calculateGradeDivision(
                     $totalMarksAllExams,
                     $overallAverage,
@@ -4364,6 +4229,7 @@ class ResultManagementController extends Controller
                     $className,
                     $totalPoints,
                     $classID,
+                    $bestSevenGrades,
                 );
 
                 // OPTIMIZATION: Skip position calculation here - it's very expensive and will be calculated in the view per class
@@ -4466,6 +4332,256 @@ class ResultManagementController extends Controller
         }
 
         return (float) $data["exams"][$exam->examID]["marks"];
+    }
+
+    /**
+     * One grade-point entry per subject from term averages (NECTA: division = sum of best 7 subjects).
+     *
+     * @return list<array{points: int, marks: float, grade: string}>
+     */
+    private function buildTermReportSubjectPointEntries(
+        $results,
+        $effectiveExaminations,
+        $caDefinitionsByExam,
+        string $schoolType,
+        string $className,
+        int $studentID,
+        array $electedClassSubjectIds = [],
+    ): array {
+        if (
+            strtolower(trim($schoolType)) !== "secondary" ||
+            $results->isEmpty()
+        ) {
+            return [];
+        }
+
+        $entries = [];
+        foreach ($results->groupBy("class_subjectID") as $subjectResults) {
+            $first = $subjectResults->first();
+            if (
+                !$this->shouldIncludeClassSubjectForStudent(
+                    $studentID,
+                    $first->classSubject ?? null,
+                    $electedClassSubjectIds,
+                )
+            ) {
+                continue;
+            }
+
+            $data = ["exams" => []];
+            foreach ($subjectResults as $result) {
+                if ($result->marks !== null && $result->marks !== "") {
+                    $data["exams"][$result->examID] = [
+                        "marks" => (float) $result->marks,
+                    ];
+                }
+            }
+
+            $slotMarksList = [];
+            $incomplete = false;
+            foreach ($effectiveExaminations as $exam) {
+                $slotMarks = $this->resolveTermReportExamSlotMarks(
+                    $data,
+                    $exam,
+                    $caDefinitionsByExam,
+                );
+                if ($slotMarks === null) {
+                    $incomplete = true;
+                    break;
+                }
+                $slotMarksList[] = $slotMarks;
+            }
+
+            if ($incomplete || count($slotMarksList) === 0) {
+                continue;
+            }
+
+            $average = array_sum($slotMarksList) / count($slotMarksList);
+            $gradeInfo = $this->getSecondaryHardcodedGrade($average, $className);
+            if ($gradeInfo["grade"] === null) {
+                continue;
+            }
+
+            $entries[] = [
+                "points" => (int) ($gradeInfo["points"] ?? 5),
+                "marks" => $average,
+                "grade" => $gradeInfo["grade"],
+            ];
+        }
+
+        return $entries;
+    }
+
+    /**
+     * NECTA secondary: pick best subjects by points (O-Level 7, A-Level 3).
+     *
+     * @param  list<array{points: int, marks: float, grade?: string|null}>  $subjectPoints
+     * @return array{total_points: int, grades: list<string>, counted_subjects: int}
+     */
+    private function resolveSecondaryBestSubjectsForDivision(
+        array $subjectPoints,
+        string $className,
+        string $schoolType,
+    ): array {
+        $empty = [
+            "total_points" => 0,
+            "grades" => [],
+            "counted_subjects" => 0,
+        ];
+
+        if (
+            empty($subjectPoints) ||
+            strtolower(trim($schoolType)) !== "secondary"
+        ) {
+            return $empty;
+        }
+
+        $classNameLower = strtolower(
+            preg_replace("/[\s\-]+/", "_", $className),
+        );
+
+        if (
+            in_array($classNameLower, [
+                "form_one",
+                "form_two",
+                "form_three",
+                "form_four",
+                "form_1",
+                "form_2",
+                "form_3",
+                "form_4",
+            ]) ||
+            preg_match(
+                "/form\s*(one|two|three|four|1|2|3|4)/i",
+                $className,
+            )
+        ) {
+            usort($subjectPoints, function ($a, $b) {
+                if ($a["points"] != $b["points"]) {
+                    return $a["points"] <=> $b["points"];
+                }
+                return $b["marks"] <=> $a["marks"];
+            });
+
+            $bestSubjects = array_slice($subjectPoints, 0, min(7, count($subjectPoints)));
+            $totalPoints = 0;
+            foreach ($bestSubjects as $subject) {
+                $totalPoints += (int) $subject["points"];
+            }
+
+            if (count($bestSubjects) < 7) {
+                $totalPoints += (7 - count($bestSubjects)) * 5;
+            }
+
+            $grades = array_values(
+                array_filter(
+                    array_map(
+                        fn($s) => strtoupper(trim((string) ($s["grade"] ?? ""))),
+                        $bestSubjects,
+                    ),
+                    fn($g) => $g !== "",
+                ),
+            );
+
+            return [
+                "total_points" => $totalPoints,
+                "grades" => $grades,
+                "counted_subjects" => count($bestSubjects),
+            ];
+        }
+
+        if (
+            in_array($classNameLower, [
+                "form_five",
+                "form_six",
+                "form_5",
+                "form_6",
+            ]) ||
+            preg_match("/form\s*(five|six|5|6)/i", $className)
+        ) {
+            usort($subjectPoints, function ($a, $b) {
+                if ($a["points"] != $b["points"]) {
+                    return $b["points"] <=> $a["points"];
+                }
+                return $b["marks"] <=> $a["marks"];
+            });
+
+            $bestSubjects = array_slice($subjectPoints, 0, min(3, count($subjectPoints)));
+            $totalPoints = 0;
+            foreach ($bestSubjects as $subject) {
+                $totalPoints += (int) $subject["points"];
+            }
+
+            $grades = array_values(
+                array_filter(
+                    array_map(
+                        fn($s) => strtoupper(trim((string) ($s["grade"] ?? ""))),
+                        $bestSubjects,
+                    ),
+                    fn($g) => $g !== "",
+                ),
+            );
+
+            return [
+                "total_points" => $totalPoints,
+                "grades" => $grades,
+                "counted_subjects" => count($bestSubjects),
+            ];
+        }
+
+        $totalPoints = 0;
+        $grades = [];
+        foreach ($subjectPoints as $subject) {
+            $totalPoints += (int) $subject["points"];
+            if (!empty($subject["grade"])) {
+                $grades[] = strtoupper(trim((string) $subject["grade"]));
+            }
+        }
+
+        return [
+            "total_points" => $totalPoints,
+            "grades" => $grades,
+            "counted_subjects" => count($subjectPoints),
+        ];
+    }
+
+    /**
+     * NECTA O-Level Division IV: 26–33 points and at least 2×D or 1×C in the best seven.
+     */
+    private function meetsOLevelDivisionIVGradeCriteria(array $bestSevenGrades): bool
+    {
+        if (empty($bestSevenGrades)) {
+            return true;
+        }
+
+        $cCount = 0;
+        $dCount = 0;
+        foreach ($bestSevenGrades as $grade) {
+            $grade = strtoupper(trim((string) $grade));
+            if ($grade === "C") {
+                $cCount++;
+            }
+            if ($grade === "D") {
+                $dCount++;
+            }
+        }
+
+        return $cCount >= 1 || $dCount >= 2;
+    }
+
+    /**
+     * NECTA: at least five subjects with grade D or better to earn a division.
+     */
+    private function countOLevelPassingSubjects(array $grades): int
+    {
+        $pass = 0;
+        foreach ($grades as $grade) {
+            if (in_array(strtoupper(trim((string) $grade)), ["A", "B", "C", "D"], true)) {
+                $pass++;
+            }
+        }
+
+        return $pass;
     }
 
     /**
@@ -4658,84 +4774,13 @@ class ResultManagementController extends Controller
     private function computeTotalPointsFromSubjectEntries(
         array $subjectPoints,
         string $className,
+        string $schoolType = "Secondary",
     ): int {
-        if (empty($subjectPoints)) {
-            return 0;
-        }
-
-        $classNameLower = strtolower(
-            preg_replace("/[\s\-]+/", "_", $className),
-        );
-
-        if (
-            in_array($classNameLower, [
-                "form_one",
-                "form_two",
-                "form_three",
-                "form_four",
-                "form_1",
-                "form_2",
-                "form_3",
-                "form_4",
-            ]) ||
-            preg_match(
-                "/form\s*(one|two|three|four|1|2|3|4)/i",
-                $className,
-            )
-        ) {
-            usort($subjectPoints, function ($a, $b) {
-                if ($a["points"] != $b["points"]) {
-                    return $a["points"] <=> $b["points"];
-                }
-                return $b["marks"] <=> $a["marks"];
-            });
-            $bestSubjects = array_slice(
-                $subjectPoints,
-                0,
-                min(7, count($subjectPoints)),
-            );
-            $totalPoints = 0;
-            foreach ($bestSubjects as $subject) {
-                $totalPoints += $subject["points"];
-            }
-            if (count($bestSubjects) < 7) {
-                $totalPoints += (7 - count($bestSubjects)) * 5;
-            }
-            return $totalPoints;
-        }
-
-        if (
-            in_array($classNameLower, [
-                "form_five",
-                "form_six",
-                "form_5",
-                "form_6",
-            ]) ||
-            preg_match("/form\s*(five|six|5|6)/i", $className)
-        ) {
-            usort($subjectPoints, function ($a, $b) {
-                if ($a["points"] != $b["points"]) {
-                    return $b["points"] <=> $a["points"];
-                }
-                return $b["marks"] <=> $a["marks"];
-            });
-            $bestSubjects = array_slice(
-                $subjectPoints,
-                0,
-                min(3, count($subjectPoints)),
-            );
-            $totalPoints = 0;
-            foreach ($bestSubjects as $subject) {
-                $totalPoints += $subject["points"];
-            }
-            return $totalPoints;
-        }
-
-        $totalPoints = 0;
-        foreach ($subjectPoints as $subject) {
-            $totalPoints += $subject["points"];
-        }
-        return $totalPoints;
+        return $this->resolveSecondaryBestSubjectsForDivision(
+            $subjectPoints,
+            $className,
+            $schoolType,
+        )["total_points"];
     }
 
     /**
@@ -4750,6 +4795,7 @@ class ResultManagementController extends Controller
         $className,
         $totalPoints = 0,
         $classID = null,
+        array $bestSevenGrades = [],
     ) {
         $classNameLower = strtolower(
             preg_replace("/[\s\-]+/", "_", $className),
@@ -4772,31 +4818,32 @@ class ResultManagementController extends Controller
                     $className,
                 ))
         ) {
-            // O-Level: Calculate division based on total points (7 best subjects)
-            // Points mapping: A=1, B=2, C=3, D=4, F=5
-
-            // Standard NECTA O-Level Thresholds:
-            // Division I: 7 - 17
-            // Division II: 18 - 21
-            // Division III: 22 - 25
-            // Division IV: 26 - 33 (MUST have at least 2 D's or 1 C)
-            // Division 0: 34 - 35 or failing to meet Div IV criteria
-
-            // To properly check Div IV criteria, we'd need the grades, but here we can approximate
-            // or assume the points passed in already account for the best 7.
-            // However, we can add the point-based thresholds first.
+            // NECTA O-Level: sum of points from best 7 subjects (A=1 … F=5)
+            if (
+                !empty($bestSevenGrades) &&
+                $this->countOLevelPassingSubjects($bestSevenGrades) < 5
+            ) {
+                return ["grade" => null, "division" => "0." . $totalPoints];
+            }
 
             if ($totalPoints >= 7 && $totalPoints <= 17) {
                 return ["grade" => null, "division" => "I." . $totalPoints];
-            } elseif ($totalPoints >= 18 && $totalPoints <= 21) {
+            }
+            if ($totalPoints >= 18 && $totalPoints <= 21) {
                 return ["grade" => null, "division" => "II." . $totalPoints];
-            } elseif ($totalPoints >= 22 && $totalPoints <= 25) {
+            }
+            if ($totalPoints >= 22 && $totalPoints <= 25) {
                 return ["grade" => null, "division" => "III." . $totalPoints];
-            } elseif ($totalPoints >= 26 && $totalPoints <= 33) {
-                return ["grade" => null, "division" => "IV." . $totalPoints];
-            } else {
+            }
+            if ($totalPoints >= 26 && $totalPoints <= 33) {
+                if ($this->meetsOLevelDivisionIVGradeCriteria($bestSevenGrades)) {
+                    return ["grade" => null, "division" => "IV." . $totalPoints];
+                }
+
                 return ["grade" => null, "division" => "0." . $totalPoints];
             }
+
+            return ["grade" => null, "division" => "0." . $totalPoints];
         } elseif (
             $schoolType === "Secondary" &&
             (in_array($classNameLower, [
