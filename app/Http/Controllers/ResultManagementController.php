@@ -1684,6 +1684,32 @@ class ResultManagementController extends Controller
                 $responseData["year"] = $yearFilter;
             }
 
+            // Include latest character assessment in timetable range
+            // so it can be shown in individual student result modal/PDF.
+            $referenceDate = null;
+            if ($typeFilterForDetails === "exam" && $examFilter) {
+                $selectedExam = Examination::find($examFilter);
+                if ($selectedExam) {
+                    $referenceDate =
+                        $selectedExam->end_date ?: $selectedExam->start_date;
+                    // Fill missing term/year from selected exam when needed
+                    if (!$termFilter && !empty($selectedExam->term)) {
+                        $termFilter = $selectedExam->term;
+                    }
+                    if (!$yearFilter && !empty($selectedExam->year)) {
+                        $yearFilter = $selectedExam->year;
+                    }
+                }
+            }
+
+            $responseData["characterAssessment"] = $this->getLatestCharacterAssessmentForStudent(
+                $studentIDFilter,
+                $termFilter,
+                $yearFilter,
+                $schoolID,
+                $referenceDate,
+            );
+
             return response()->json($responseData);
         }
 
@@ -5573,27 +5599,135 @@ class ResultManagementController extends Controller
         $year,
         $schoolID,
     ) {
-        $latestTimetable = \App\Models\CharacterAssessmentTimetable::where(
+        $studentIDs = $students->pluck("studentID")->filter()->values();
+        if ($studentIDs->isEmpty()) {
+            return collect();
+        }
+
+        $candidateTimetables = CharacterAssessmentTimetable::where(
             "schoolID",
             $schoolID,
         )
             ->where("term", $term)
             ->where("year", $year)
             ->orderBy("end_date", "desc")
-            ->first();
+            ->orderBy("start_date", "desc")
+            ->get();
+
+        if ($candidateTimetables->isEmpty()) {
+            return collect();
+        }
+
+        $latestTimetable = null;
+        foreach ($candidateTimetables as $tt) {
+            $hasAnyAssessment = StudentCharacterAssessment::where(
+                "timetableID",
+                $tt->timetableID,
+            )
+                ->whereIn("studentID", $studentIDs)
+                ->exists();
+            if ($hasAnyAssessment) {
+                $latestTimetable = $tt;
+                break;
+            }
+        }
 
         if (!$latestTimetable) {
             return collect();
         }
 
-        return \App\Models\StudentCharacterAssessment::where(
+        return StudentCharacterAssessment::where(
             "timetableID",
             $latestTimetable->timetableID,
         )
-            ->whereIn("studentID", $students->pluck("studentID"))
+            ->whereIn("studentID", $studentIDs)
             ->with(["category", "choice"])
             ->get()
             ->groupBy("studentID");
+    }
+
+    /**
+     * Get latest character assessment for one student in selected timetable range.
+     */
+    private function getLatestCharacterAssessmentForStudent(
+        $studentID,
+        $term,
+        $year,
+        $schoolID,
+        $referenceDate = null,
+    ) {
+        if (!$studentID || !$schoolID || !$term || !$year) {
+            return null;
+        }
+
+        $resolveTimetable = function ($withDateRange = true) use (
+            $studentID,
+            $term,
+            $year,
+            $schoolID,
+            $referenceDate,
+        ) {
+            $query = CharacterAssessmentTimetable::where("schoolID", $schoolID)
+                ->where("term", $term)
+                ->where("year", $year);
+
+            if ($withDateRange && $referenceDate) {
+                $query
+                    ->whereDate("start_date", "<=", $referenceDate)
+                    ->whereDate("end_date", ">=", $referenceDate);
+            }
+
+            return $query
+                ->whereExists(function ($sub) use ($studentID) {
+                    $sub->select(DB::raw(1))
+                        ->from("student_character_assessments as sca")
+                        ->whereColumn("sca.timetableID", "character_assessment_timetables.timetableID")
+                        ->where("sca.studentID", $studentID);
+                })
+                ->orderBy("end_date", "desc")
+                ->orderBy("start_date", "desc")
+                ->first();
+        };
+
+        $latestTimetable = $resolveTimetable(true);
+        if (!$latestTimetable) {
+            $latestTimetable = $resolveTimetable(false);
+        }
+        if (!$latestTimetable) {
+            return null;
+        }
+
+        $items = StudentCharacterAssessment::where(
+            "timetableID",
+            $latestTimetable->timetableID,
+        )
+            ->where("studentID", $studentID)
+            ->with(["category", "choice"])
+            ->orderBy("categoryID")
+            ->get();
+
+        if ($items->isEmpty()) {
+            return null;
+        }
+
+        return [
+            "timetable" => [
+                "timetableID" => $latestTimetable->timetableID,
+                "year" => $latestTimetable->year,
+                "term" => $latestTimetable->term,
+                "start_date" => $latestTimetable->start_date,
+                "end_date" => $latestTimetable->end_date,
+            ],
+            "items" => $items
+                ->map(function ($row) {
+                    return [
+                        "category" => $row->category->name ?? "N/A",
+                        "choice" => $row->choice->choice_name ?? null,
+                        "description" => $row->description,
+                    ];
+                })
+                ->values(),
+        ];
     }
     public function toggleExamPublication(Request $request)
     {

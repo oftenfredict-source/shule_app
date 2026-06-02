@@ -3956,6 +3956,47 @@ $(document).ready(function() {
         `;
     }
 
+    function renderCharacterAssessmentHtml(characterAssessment) {
+        if (!characterAssessment || !Array.isArray(characterAssessment.items) || !characterAssessment.items.length) {
+            return '';
+        }
+        const timetable = characterAssessment.timetable || {};
+        const period = `${timetable.start_date || '-'} to ${timetable.end_date || '-'}`;
+        let rows = '';
+        characterAssessment.items.forEach(function(item) {
+            const category = item.category || 'N/A';
+            const value = item.choice ? `<strong>${item.choice}</strong>` : '<strong>N/A</strong>';
+            const note = item.description ? `<br><small class="text-muted">${item.description}</small>` : '';
+            rows += `
+                <tr>
+                    <td>${category}</td>
+                    <td class="text-center">${value}${note}</td>
+                </tr>
+            `;
+        });
+        return `
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><strong>Character Assessment</strong></h6>
+                    <small class="text-muted">Latest timetable period: ${period}</small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Assessment Category</th>
+                                    <th class="text-center">Rating / Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     function drawRemarkColorLegendPdf(doc, startY, marginLeft, pageWidth, isSecondary) {
         const legendY = startY;
         const normalizedMargin = (typeof marginLeft === 'number') ? marginLeft : (marginLeft && marginLeft.left ? marginLeft.left : 14);
@@ -4088,6 +4129,7 @@ $(document).ready(function() {
                     subjects: response.subjects || [],
                     exams: response.exams || [],
                     examinationSummaries: response.examinationSummaries || [],
+                    characterAssessment: response.characterAssessment || null,
                     teacher: response.teacher || null
                 };
                 
@@ -4127,6 +4169,7 @@ $(document).ready(function() {
                         </div>
                     </div>
                 `;
+                content += renderCharacterAssessmentHtml(response.characterAssessment);
                 
                 // Build Subject Results Table (per-exam columns kept; summary Examinations table removed)
                 if (response.subjects && response.subjects.length > 0 && response.exams && response.exams.length > 0) {
@@ -4368,6 +4411,7 @@ $(document).ready(function() {
                         division: response.division || null,
                         totalStudentsCount: response.totalStudentsCount || 0,
                         subjects: response.subjects || [],
+                        characterAssessment: response.characterAssessment || null,
                         position: studentPosition,
                         gradeOrDivision: gradeOrDivision,
                         teacher: response.teacher || null
@@ -4382,6 +4426,7 @@ $(document).ready(function() {
                         `<p><strong>${schoolType === 'Primary' ? 'Grade' : 'Division'}:</strong> ${gradeOrDivision}</p>`,
                         `<p><strong>${schoolType === 'Primary' ? 'Grade' : 'Division'}:</strong> ${displayGradeOrDivision}</p>`
                     );
+                    content += renderCharacterAssessmentHtml(response.characterAssessment);
                     
                     if (response.subjects && response.subjects.length > 0) {
                         const isTermReport = response.subjects[0].is_term_report;
