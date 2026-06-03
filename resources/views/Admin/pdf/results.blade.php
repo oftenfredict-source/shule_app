@@ -1037,9 +1037,13 @@
                             if(isset($res['subjects']) && is_array($res['subjects'])) {
                                 foreach($res['subjects'] as $subj) {
                                     $sn = $subj['subject_name'] ?? 'U';
-                                    $mk = number_format(floatval($subj['marks'] ?? 0), 0);
                                     $gr = $subj['grade'] ?? 'F';
-                                    $subjStrs[] = "{$sn}-{$mk}-{$gr}";
+                                    if (strtolower((string) $gr) === 'incomplete') {
+                                        $subjStrs[] = "{$sn}-Incomplete";
+                                    } else {
+                                        $mk = number_format(floatval($subj['marks'] ?? 0), 0);
+                                        $subjStrs[] = "{$sn}-{$mk}-{$gr}";
+                                    }
                                 }
                             }
                             $subText = implode(', ', $subjStrs);

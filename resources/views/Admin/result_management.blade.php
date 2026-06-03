@@ -622,6 +622,24 @@
             </div>
 
             <!-- Results Display -->
+            @php
+                if (!function_exists('resolveStudentParentPhoneForSms')) {
+                    function resolveStudentParentPhoneForSms($student)
+                    {
+                        $pPhone = '';
+                        if ($student && !empty($student->parent) && !empty($student->parent->phone)) {
+                            $pPhone = $student->parent->phone;
+                        } elseif ($student && !empty($student->emergency_contact_phone)) {
+                            $pPhone = $student->emergency_contact_phone;
+                        }
+                        $pPhone = trim((string) $pPhone);
+                        if ($pPhone === '' || in_array(strtolower($pPhone), ['null', 'undefined', 'n/a'], true)) {
+                            return '';
+                        }
+                        return $pPhone;
+                    }
+                }
+            @endphp
             <div class="card border-0 shadow-sm">
                 <div class="card-body" id="resultsContainer">
                     <!-- Search Box for Students and Export All -->
@@ -1548,23 +1566,14 @@
                                         }, $top5Students),
                                         'allStudents' => array_map(function($s) {
                                             $st = $s['student'];
-                                            $pPhone = '';
-                                            if (!empty($st->parent) && !empty($st->parent->phone)) {
-                                                $pPhone = $st->parent->phone;
-                                            } elseif (!empty($st->emergency_contact_phone)) {
-                                                $pPhone = $st->emergency_contact_phone;
-                                            }
-                                            
-                                            // Final sanitization
-                                            $pPhone = trim((string)$pPhone);
-                                            if (in_array(strtolower($pPhone), ['null', 'undefined', 'n/a', ''])) $pPhone = '';
+                                            $pPhone = resolveStudentParentPhoneForSms($st);
 
                                             return [
                                                 'studentID' => $st->studentID,
                                                 'firstName' => trim(($st->first_name ?? '') . ' ' . ($st->middle_name ?? '')),
                                                 'lastName' => $st->last_name ?? '',
                                                 'studentName' => ($st->first_name ?? '') . ' ' . ($st->middle_name ?? '') . ' ' . ($st->last_name ?? ''),
-                                                'parentPhone' => (string)$pPhone,
+                                                'parentPhone' => $pPhone,
                                                 'className' => $s['class_name'] ?? 'N/A',
                                                 'totalMarks' => $s['total_marks'] ?? 0,
                                                 'grade' => $s['grade'] ?? null,
@@ -2616,15 +2625,15 @@
                                     foreach ($reportStudents as $reportStudent) {
                                         $gender = $reportStudent['student']->gender ?? '';
                                         $grade = $reportStudent['grade'] ?? null;
-                                        $fullDivision = $reportStudent['division'] ?? null;
+                                        $fullDivision = $reportStudent['division'] ?? $reportStudent['grade'] ?? null;
                                         
-                                        // Extract main division part (e.g., "III" from "III.21")
+                                        // Extract main division part (e.g., "III" from "III.21", "0" from "0.34")
                                         $division = '';
-                                        if ($fullDivision) {
-                                            if (preg_match('/^([IVX0]+)\./', $fullDivision, $matches)) {
+                                        if ($fullDivision !== null && $fullDivision !== '') {
+                                            if (preg_match('/^([0IVX]+)\./', (string) $fullDivision, $matches)) {
                                                 $division = $matches[1];
                                             } else {
-                                                $division = $fullDivision;
+                                                $division = (string) $fullDivision;
                                             }
                                         }
 
@@ -2641,8 +2650,8 @@
                                             }
                                         }
 
-                                        // Count divisions
-                                        if ($division && in_array($division, ['I', 'II', 'III', 'IV', '0'])) {
+                                        // Count divisions ('0' is valid — do not use truthy check on $division)
+                                        if (in_array($division, ['I', 'II', 'III', 'IV', '0'], true)) {
                                             if (!isset($divisionStats[$division])) $divisionStats[$division] = 0;
                                             $divisionStats[$division]++;
                                             if ($gender === 'Male') {
@@ -2949,6 +2958,7 @@
                                         }, array_slice($reportStudents, 0, 5)),
                                         'allStudents' => array_map(function($s) {
                                             $st = $s['student'];
+                                            $pPhone = resolveStudentParentPhoneForSms($st);
                                             
                                             // Format exams summary as a single subject for the PDF table
                                             $examsSummary = '';
@@ -2965,7 +2975,10 @@
 
                                             return [
                                                 'studentID' => $st->studentID,
+                                                'firstName' => trim(($st->first_name ?? '') . ' ' . ($st->middle_name ?? '')),
+                                                'lastName' => $st->last_name ?? '',
                                                 'studentName' => trim($st->first_name . ' ' . ($st->middle_name ?? '') . ' ' . $st->last_name),
+                                                'parentPhone' => $pPhone,
                                                 'className' => $s['class_name'] ?? 'N/A',
                                                 'totalMarks' => number_format($s['average_marks'], 1), // In report view, total shows average
                                                 'grade' => $s['grade'] ?? null,

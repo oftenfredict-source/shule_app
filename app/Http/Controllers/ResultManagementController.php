@@ -110,6 +110,36 @@ class ResultManagementController extends Controller
     }
 
     /**
+     * Parent phone from parents.phone (manage_parents), else student emergency contact.
+     */
+    private function resolveParentPhoneForStudent(Student $student): ?string
+    {
+        $phone = null;
+        if ($student->parent && !empty(trim((string) $student->parent->phone))) {
+            $phone = $student->parent->phone;
+        } elseif ($student->parentID) {
+            $parent = $student->relationLoaded("parent")
+                ? $student->parent
+                : ParentModel::find($student->parentID);
+            if ($parent && !empty(trim((string) $parent->phone))) {
+                $phone = $parent->phone;
+            }
+        }
+        if (!$phone && !empty($student->emergency_contact_phone)) {
+            $phone = $student->emergency_contact_phone;
+        }
+        $phone = trim((string) $phone);
+        if (
+            $phone === "" ||
+            in_array(strtolower($phone), ["null", "undefined", "n/a"], true)
+        ) {
+            return null;
+        }
+
+        return $phone;
+    }
+
+    /**
      * Display result management page
      */
     public function index(Request $request)
@@ -905,7 +935,6 @@ class ResultManagementController extends Controller
                 $subjects = [];
                 $totalMarks = 0;
                 $subjectCount = 0;
-                $subjectPoints = [];
                 $effectiveExamCount = max(1, $effectiveExaminations->count());
 
                 foreach ($subjectData as $subjectName => $data) {
@@ -990,18 +1019,6 @@ class ResultManagementController extends Controller
 
                     $totalMarks += $average;
                     $subjectCount++;
-
-                    if ($schoolType === "Secondary") {
-                        $avgGradePoints = $this->getSecondaryHardcodedGrade(
-                            $average,
-                            $className,
-                        );
-                        $subjectPoints[] = [
-                            "points" => $avgGradePoints["points"] ?? 5,
-                            "marks" => $average,
-                            "grade" => $avgGradePoints["grade"] ?? $overallGrade,
-                        ];
-                    }
                 }
 
                 $averageMarks =
@@ -1287,7 +1304,27 @@ class ResultManagementController extends Controller
                     $subjectCount > 0 ? $totalMarks / $subjectCount : 0;
             }
 
-            // NECTA division: sum of points from best 7 subjects (one grade per subject from term average)
+            // NECTA division: term report uses CA-aware term averages (same as bulk list / PDF)
+            $allSubjectGrades = [];
+            if ($typeFilterForDetails === "report") {
+                $subjectPoints = $this->buildTermReportSubjectPointEntries(
+                    $results,
+                    $effectiveExaminations,
+                    $caDefinitionsByExam,
+                    $schoolType,
+                    $className,
+                    $studentIDFilter,
+                    $electedClassSubjectIds,
+                );
+                $allSubjectGrades = $this->extractSubjectGradesFromPointEntries(
+                    $subjectPoints,
+                );
+            } else {
+                $allSubjectGrades = $this->extractSubjectGradesFromPointEntries(
+                    $subjectPoints,
+                );
+            }
+
             $bestSevenGrades = [];
             $totalPoints = 0;
             if ($schoolType === "Secondary" && !empty($subjectPoints)) {
@@ -1312,6 +1349,7 @@ class ResultManagementController extends Controller
                     $totalPoints,
                     $classID,
                     $bestSevenGrades,
+                    $allSubjectGrades,
                 );
             }
 
@@ -3136,25 +3174,9 @@ class ResultManagementController extends Controller
             ]);
         }
 
-        $parentPhone =
-            isset($student->parent) && !empty($student->parent->phone)
-                ? $student->parent->phone
-                : null;
-        if (
-            !$parentPhone ||
-            $parentPhone === "null" ||
-            $parentPhone === "undefined"
-        ) {
-            $parentPhone = !empty($student->emergency_contact_phone)
-                ? $student->emergency_contact_phone
-                : null;
-        }
+        $parentPhone = $this->resolveParentPhoneForStudent($student);
 
-        if (
-            empty($parentPhone) ||
-            $parentPhone === "null" ||
-            $parentPhone === "undefined"
-        ) {
+        if (empty($parentPhone)) {
             \Illuminate\Support\Facades\Log::warning(
                 "sendResultSms: No valid phone for student {$studentID}",
             );
@@ -3829,6 +3851,9 @@ class ResultManagementController extends Controller
         }
 
         $bestSevenGrades = [];
+        $allSubjectGrades = $this->extractSubjectGradesFromPointEntries(
+            $marksPointsArray,
+        );
         if ($schoolType === "Secondary" && !empty($marksPointsArray)) {
             $divisionPick = $this->resolveSecondaryBestSubjectsForDivision(
                 $marksPointsArray,
@@ -3850,6 +3875,7 @@ class ResultManagementController extends Controller
                     $totalPoints,
                     $classID,
                     $bestSevenGrades,
+                    $allSubjectGrades,
                 )
                 : ["grade" => null, "division" => null];
 
@@ -4182,9 +4208,24 @@ class ResultManagementController extends Controller
                     $electedClassSubjectIds,
                 );
 
+                $subjectSummaries = $this->buildTermReportSubjectSummaries(
+                    $allStudentResults,
+                    $effectiveExaminations,
+                    $caDefinitionsByExam,
+                    $schoolType,
+                    $className,
+                    $student->studentID,
+                    $electedClassSubjectIds,
+                    $classID,
+                );
+
                 $bestSevenGrades = [];
                 $totalPoints = 0;
+                $allSubjectGrades = [];
                 if ($schoolType === "Secondary" && !empty($subjectPointEntries)) {
+                    $allSubjectGrades = $this->extractSubjectGradesFromPointEntries(
+                        $subjectPointEntries,
+                    );
                     $divisionPick = $this->resolveSecondaryBestSubjectsForDivision(
                         $subjectPointEntries,
                         $className,
@@ -4230,6 +4271,7 @@ class ResultManagementController extends Controller
                     $totalPoints,
                     $classID,
                     $bestSevenGrades,
+                    $allSubjectGrades,
                 );
 
                 // OPTIMIZATION: Skip position calculation here - it's very expensive and will be calculated in the view per class
@@ -4250,6 +4292,7 @@ class ResultManagementController extends Controller
                     "division" => $gradeDivision["division"] ?? null,
                     "position" => null, // Will be calculated in view per class
                     "total_points" => $totalPoints,
+                    "subjects" => $subjectSummaries,
                 ];
             }
         }
@@ -4355,28 +4398,35 @@ class ResultManagementController extends Controller
             return [];
         }
 
-        $entries = [];
-        foreach ($results->groupBy("class_subjectID") as $subjectResults) {
-            $first = $subjectResults->first();
+        // Group by subject name (matches individual student report / getSubjectDetails)
+        $subjectData = [];
+        foreach ($results as $result) {
             if (
-                !$this->shouldIncludeClassSubjectForStudent(
+                !$this->shouldIncludeResultForStudent(
                     $studentID,
-                    $first->classSubject ?? null,
+                    $result,
                     $electedClassSubjectIds,
                 )
             ) {
                 continue;
             }
 
-            $data = ["exams" => []];
-            foreach ($subjectResults as $result) {
-                if ($result->marks !== null && $result->marks !== "") {
-                    $data["exams"][$result->examID] = [
-                        "marks" => (float) $result->marks,
-                    ];
-                }
+            $subjectName =
+                $result->classSubject->subject->subject_name ?? "N/A";
+
+            if (!isset($subjectData[$subjectName])) {
+                $subjectData[$subjectName] = ["exams" => []];
             }
 
+            if ($result->marks !== null && $result->marks !== "") {
+                $subjectData[$subjectName]["exams"][$result->examID] = [
+                    "marks" => (float) $result->marks,
+                ];
+            }
+        }
+
+        $entries = [];
+        foreach ($subjectData as $data) {
             $slotMarksList = [];
             $incomplete = false;
             foreach ($effectiveExaminations as $exam) {
@@ -4410,6 +4460,142 @@ class ResultManagementController extends Controller
         }
 
         return $entries;
+    }
+
+    /**
+     * Term report subject rows for PDF / detailed lists (subject_name, marks, grade).
+     *
+     * @return list<array{subject_name: string, marks: float|null, grade: string}>
+     */
+    private function buildTermReportSubjectSummaries(
+        $results,
+        $effectiveExaminations,
+        $caDefinitionsByExam,
+        string $schoolType,
+        string $className,
+        int $studentID,
+        array $electedClassSubjectIds = [],
+        $classID = null,
+    ): array {
+        if ($results->isEmpty()) {
+            return [];
+        }
+
+        $subjectData = [];
+        foreach ($results as $result) {
+            if (
+                !$this->shouldIncludeResultForStudent(
+                    $studentID,
+                    $result,
+                    $electedClassSubjectIds,
+                )
+            ) {
+                continue;
+            }
+
+            $subjectName =
+                $result->classSubject->subject->subject_name ?? "N/A";
+
+            if (!isset($subjectData[$subjectName])) {
+                $subjectData[$subjectName] = ["exams" => []];
+            }
+
+            if ($result->marks !== null && $result->marks !== "") {
+                $subjectData[$subjectName]["exams"][$result->examID] = [
+                    "marks" => (float) $result->marks,
+                ];
+            }
+        }
+
+        $summaries = [];
+        foreach ($subjectData as $subjectName => $data) {
+            $slotMarksList = [];
+            $incomplete = false;
+            foreach ($effectiveExaminations as $exam) {
+                $slotMarks = $this->resolveTermReportExamSlotMarks(
+                    $data,
+                    $exam,
+                    $caDefinitionsByExam,
+                );
+                if ($slotMarks === null) {
+                    $incomplete = true;
+                    break;
+                }
+                $slotMarksList[] = $slotMarks;
+            }
+
+            if ($incomplete || count($slotMarksList) === 0) {
+                $summaries[] = [
+                    "subject_name" => $subjectName,
+                    "marks" => null,
+                    "grade" => "Incomplete",
+                ];
+                continue;
+            }
+
+            $average = array_sum($slotMarksList) / count($slotMarksList);
+
+            if ($schoolType === "Secondary") {
+                $grade = $this->getSecondaryHardcodedGrade(
+                    $average,
+                    $className,
+                )["grade"];
+            } elseif ($classID) {
+                $grade = $this->getGradeFromDefinition(
+                    $average,
+                    $classID,
+                    $schoolType,
+                    $className,
+                )["grade"];
+            } else {
+                $grade = null;
+            }
+
+            if (!$grade) {
+                if ($average >= 75) {
+                    $grade = "A";
+                } elseif ($average >= 65) {
+                    $grade = "B";
+                } elseif ($average >= 45) {
+                    $grade = "C";
+                } elseif ($average >= 30) {
+                    $grade = "D";
+                } elseif ($schoolType === "Primary" && $average >= 20) {
+                    $grade = "E";
+                } else {
+                    $grade = "F";
+                }
+            }
+
+            $summaries[] = [
+                "subject_name" => $subjectName,
+                "marks" => round($average, 1),
+                "grade" => $grade,
+            ];
+        }
+
+        usort($summaries, function ($a, $b) {
+            return strcasecmp($a["subject_name"], $b["subject_name"]);
+        });
+
+        return $summaries;
+    }
+
+    /**
+     * @param  list<array{points: int, marks: float, grade?: string|null}>  $subjectPoints
+     * @return list<string>
+     */
+    private function extractSubjectGradesFromPointEntries(array $subjectPoints): array
+    {
+        $grades = [];
+        foreach ($subjectPoints as $entry) {
+            $grade = strtoupper(trim((string) ($entry["grade"] ?? "")));
+            if ($grade !== "") {
+                $grades[] = $grade;
+            }
+        }
+
+        return $grades;
     }
 
     /**
@@ -4796,6 +4982,7 @@ class ResultManagementController extends Controller
         $totalPoints = 0,
         $classID = null,
         array $bestSevenGrades = [],
+        array $allSubjectGrades = [],
     ) {
         $classNameLower = strtolower(
             preg_replace("/[\s\-]+/", "_", $className),
@@ -4819,13 +5006,6 @@ class ResultManagementController extends Controller
                 ))
         ) {
             // NECTA O-Level: sum of points from best 7 subjects (A=1 … F=5)
-            if (
-                !empty($bestSevenGrades) &&
-                $this->countOLevelPassingSubjects($bestSevenGrades) < 5
-            ) {
-                return ["grade" => null, "division" => "0." . $totalPoints];
-            }
-
             if ($totalPoints >= 7 && $totalPoints <= 17) {
                 return ["grade" => null, "division" => "I." . $totalPoints];
             }
@@ -4836,11 +5016,7 @@ class ResultManagementController extends Controller
                 return ["grade" => null, "division" => "III." . $totalPoints];
             }
             if ($totalPoints >= 26 && $totalPoints <= 33) {
-                if ($this->meetsOLevelDivisionIVGradeCriteria($bestSevenGrades)) {
-                    return ["grade" => null, "division" => "IV." . $totalPoints];
-                }
-
-                return ["grade" => null, "division" => "0." . $totalPoints];
+                return ["grade" => null, "division" => "IV." . $totalPoints];
             }
 
             return ["grade" => null, "division" => "0." . $totalPoints];
