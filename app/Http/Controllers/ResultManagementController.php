@@ -938,23 +938,15 @@ class ResultManagementController extends Controller
                 $effectiveExamCount = max(1, $effectiveExaminations->count());
 
                 foreach ($subjectData as $subjectName => $data) {
-                    $slotMarksList = [];
-                    $subjectIncomplete = false;
+                    $slotCollect = $this->collectTermReportSlotMarksForSubject(
+                        $data,
+                        $effectiveExaminations,
+                        $caDefinitionsByExam,
+                    );
+                    $slotMarksList = $slotCollect["slot_marks"];
+                    $subjectIncomplete = $slotCollect["is_incomplete"];
 
-                    foreach ($effectiveExaminations as $exam) {
-                        $slotMarks = $this->resolveTermReportExamSlotMarks(
-                            $data,
-                            $exam,
-                            $caDefinitionsByExam,
-                        );
-                        if ($slotMarks === null) {
-                            $subjectIncomplete = true;
-                            break;
-                        }
-                        $slotMarksList[] = $slotMarks;
-                    }
-
-                    if ($subjectIncomplete || count($slotMarksList) === 0) {
+                    if ($subjectIncomplete) {
                         $subjects[] = [
                             "subject_name" => $subjectName,
                             "exams" => $data["exams"],
@@ -966,8 +958,7 @@ class ResultManagementController extends Controller
                         continue;
                     }
 
-                    $average =
-                        array_sum($slotMarksList) / count($slotMarksList);
+                    $average = $slotCollect["average"];
 
                     if ($schoolType === "Secondary") {
                         $overallGrade = $this->getSecondaryHardcodedGrade(
@@ -4378,6 +4369,61 @@ class ResultManagementController extends Controller
     }
 
     /**
+     * Term report subject average (kawaida):
+     * - Jumla = alama zilizopo + 0 kwa kila mtihani incomplete (null)
+     * - Wastani = jumla ÷ idadi ya mitihani kwenye term report (daima)
+     *   (mf. TERMINAL 71, MIDTERM incomplete → (71+0)/2 = 35.5)
+     * - Incomplete tu wakati mitihani YOTE hazina marks
+     *
+     * @return array{
+     *   slot_marks: list<float>,
+     *   is_incomplete: bool,
+     *   average: float|null,
+     *   exam_slot_count: int,
+     *   marked_slot_count: int
+     * }
+     */
+    private function collectTermReportSlotMarksForSubject(
+        array $data,
+        $effectiveExaminations,
+        $caDefinitionsByExam,
+    ): array {
+        $examSlotCount = $effectiveExaminations->count();
+        $slotMarksList = [];
+        $sum = 0.0;
+        $markedSlotCount = 0;
+
+        foreach ($effectiveExaminations as $exam) {
+            $slotMarks = $this->resolveTermReportExamSlotMarks(
+                $data,
+                $exam,
+                $caDefinitionsByExam,
+            );
+            if ($slotMarks !== null) {
+                $slotMarksList[] = $slotMarks;
+                $sum += $slotMarks;
+                $markedSlotCount++;
+            }
+            // Incomplete slot counts as 0 in the sum (still divides by total exam count)
+        }
+
+        $isIncomplete = $markedSlotCount === 0 || $examSlotCount === 0;
+
+        $average = null;
+        if (!$isIncomplete) {
+            $average = $sum / $examSlotCount;
+        }
+
+        return [
+            "slot_marks" => $slotMarksList,
+            "is_incomplete" => $isIncomplete,
+            "average" => $average,
+            "exam_slot_count" => $examSlotCount,
+            "marked_slot_count" => $markedSlotCount,
+        ];
+    }
+
+    /**
      * One grade-point entry per subject from term averages (NECTA: division = sum of best 7 subjects).
      *
      * @return list<array{points: int, marks: float, grade: string}>
@@ -4427,26 +4473,18 @@ class ResultManagementController extends Controller
 
         $entries = [];
         foreach ($subjectData as $data) {
-            $slotMarksList = [];
-            $incomplete = false;
-            foreach ($effectiveExaminations as $exam) {
-                $slotMarks = $this->resolveTermReportExamSlotMarks(
-                    $data,
-                    $exam,
-                    $caDefinitionsByExam,
-                );
-                if ($slotMarks === null) {
-                    $incomplete = true;
-                    break;
-                }
-                $slotMarksList[] = $slotMarks;
-            }
+            $slotCollect = $this->collectTermReportSlotMarksForSubject(
+                $data,
+                $effectiveExaminations,
+                $caDefinitionsByExam,
+            );
+            $slotMarksList = $slotCollect["slot_marks"];
 
-            if ($incomplete || count($slotMarksList) === 0) {
+            if ($slotCollect["is_incomplete"]) {
                 continue;
             }
 
-            $average = array_sum($slotMarksList) / count($slotMarksList);
+            $average = $slotCollect["average"];
             $gradeInfo = $this->getSecondaryHardcodedGrade($average, $className);
             if ($gradeInfo["grade"] === null) {
                 continue;
@@ -4509,22 +4547,14 @@ class ResultManagementController extends Controller
 
         $summaries = [];
         foreach ($subjectData as $subjectName => $data) {
-            $slotMarksList = [];
-            $incomplete = false;
-            foreach ($effectiveExaminations as $exam) {
-                $slotMarks = $this->resolveTermReportExamSlotMarks(
-                    $data,
-                    $exam,
-                    $caDefinitionsByExam,
-                );
-                if ($slotMarks === null) {
-                    $incomplete = true;
-                    break;
-                }
-                $slotMarksList[] = $slotMarks;
-            }
+            $slotCollect = $this->collectTermReportSlotMarksForSubject(
+                $data,
+                $effectiveExaminations,
+                $caDefinitionsByExam,
+            );
+            $slotMarksList = $slotCollect["slot_marks"];
 
-            if ($incomplete || count($slotMarksList) === 0) {
+            if ($slotCollect["is_incomplete"]) {
                 $summaries[] = [
                     "subject_name" => $subjectName,
                     "marks" => null,
@@ -4533,7 +4563,7 @@ class ResultManagementController extends Controller
                 continue;
             }
 
-            $average = array_sum($slotMarksList) / count($slotMarksList);
+            $average = $slotCollect["average"];
 
             if ($schoolType === "Secondary") {
                 $grade = $this->getSecondaryHardcodedGrade(
