@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Crypt;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class ManageStudentController extends Controller
@@ -4102,20 +4103,21 @@ class ManageStudentController extends Controller
         $schoolID = Session::get('schoolID');
         if (!$schoolID) return redirect()->route('login');
 
-        // Fetch all main classes for navigation/selection
         $classes = ClassModel::where('schoolID', $schoolID)
             ->where('status', 'Active')
             ->orderBy('class_name', 'asc')
             ->get();
 
-        $selectedClassID = $classID ?? $request->input('classID');
+        $rawClassID = $classID ?? $request->input('classID');
+        $selectedClassID = $rawClassID ? $this->decryptRouteParam($rawClassID) : null;
         $selectedSubclassID = $request->input('subclassID');
+        $encryptedClassID = $selectedClassID ? $this->encryptRouteParam($selectedClassID) : null;
 
         $students = collect();
         $subclasses = collect();
+        $school = School::find($schoolID);
 
         if ($selectedClassID) {
-            // Get subclasses for filtering
             $subclasses = Subclass::where('classID', $selectedClassID)
                 ->where('status', 'Active')
                 ->get();
@@ -4130,7 +4132,8 @@ class ManageStudentController extends Controller
                 $query->where('subclassID', $selectedSubclassID);
             }
 
-            $students = $query->with(['subclass.class', 'parent', 'school'])->get();
+            $students = $query->with(['subclass.class', 'school'])->get()
+                ->map(fn ($student) => $this->enrichStudentIdCardData($student));
         }
 
         return view('Admin.student_identity_card', compact(
@@ -4138,7 +4141,9 @@ class ManageStudentController extends Controller
             'classes',
             'subclasses',
             'selectedClassID',
-            'selectedSubclassID'
+            'selectedSubclassID',
+            'encryptedClassID',
+            'school'
         ));
     }
 
@@ -4151,9 +4156,12 @@ class ManageStudentController extends Controller
         if (!$schoolID) return redirect()->route('login');
 
         $students = collect();
+        $school = School::find($schoolID);
 
-        if ($id == 'all') {
-            $classID = $request->input('classID');
+        if ($id === 'all') {
+            $classID = $request->input('classID')
+                ? $this->decryptRouteParam($request->input('classID'))
+                : null;
             $subclassID = $request->input('subclassID');
 
             $query = Student::where('schoolID', $schoolID)->where('status', 'Active');
@@ -4168,27 +4176,30 @@ class ManageStudentController extends Controller
                 $query->where('subclassID', $subclassID);
             }
 
-            $students = $query->with(['subclass.class', 'parent', 'school'])->get();
+            $students = $query->with(['subclass.class', 'school'])->get()
+                ->map(fn ($student) => $this->enrichStudentIdCardData($student));
             $filename = 'All_Student_ID_Cards_' . date('Y-m-d') . '.pdf';
-
         } else {
-            $student = Student::where('studentID', $id)
+            $studentID = $this->decryptRouteParam($id);
+            $student = Student::where('studentID', $studentID)
                 ->where('schoolID', $schoolID)
-                ->with(['subclass.class', 'parent', 'school'])
+                ->with(['subclass.class', 'school'])
                 ->firstOrFail();
-            $students->push($student);
+            $students->push($this->enrichStudentIdCardData($student));
             $filename = 'ID_Card_' . str_replace(' ', '_', $student->first_name . '_' . $student->last_name) . '.pdf';
         }
-
-        /* CR80 Dimensions in Points:
-         * Width: 85.6mm = 242.65pt
-         * Height: 54mm = 153.07pt
-         */
 
         $primaryColor = $request->input('primaryColor', '#940000');
         $secondaryColor = $request->input('secondaryColor', '#ffffff');
 
-        $pdf = Pdf::loadView('Admin.student_id_card_pdf', compact('students', 'primaryColor', 'secondaryColor'))
+        $pdf = Pdf::loadView('Admin.student_id_card_pdf', compact('students', 'primaryColor', 'secondaryColor', 'school'))
+            ->setOptions([
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
+                'chroot' => base_path(),
+                'defaultFont' => 'Helvetica',
+                'dpi' => 150,
+            ])
             ->setPaper([0, 0, 242.65, 153.07], 'landscape');
 
         return $pdf->download($filename);
@@ -4517,5 +4528,130 @@ class ManageStudentController extends Controller
             Log::error('Import error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json(['success' => false, 'message' => 'Error importing file at row ' . $currentRowNumber . ': ' . $e->getMessage()]);
         }
+    }
+
+    public function exportStudentIDCardPdf(Request $request, $studentID)
+    {
+        $userType = Session::get('user_type');
+        $canView = false;
+
+        if ($userType === 'Admin') {
+            $canView = true;
+        } else {
+            $canView = $this->hasPermission('student_read_only') ||
+                       $this->hasPermission('student_create') ||
+                       $this->hasPermission('student_update') ||
+                       $this->hasPermission('student_delete') ||
+                       $this->hasPermission('view_students');
+        }
+
+        if (!$canView) {
+            return redirect()->back()->with('error', 'Unauthorized access.');
+        }
+
+        $request->merge([
+            'primaryColor' => $request->get('card_color', '#940000'),
+            'secondaryColor' => '#ffffff',
+        ]);
+
+        return $this->downloadStudentIdCard($request, $this->encryptRouteParam($studentID));
+    }
+
+    private function encryptRouteParam($value): string
+    {
+        return strtr(
+            Crypt::encryptString((string) $value),
+            ['+' => '-', '/' => '_']
+        );
+    }
+
+    private function decryptRouteParam($value)
+    {
+        if ($value === null || $value === '' || $value === 'all') {
+            return $value;
+        }
+
+        try {
+            $normalized = strtr($value, ['-' => '+', '_' => '/']);
+            return Crypt::decryptString($normalized);
+        } catch (\Exception $e) {
+            return $value;
+        }
+    }
+
+    private function enrichStudentIdCardData(Student $student): Student
+    {
+        $mainClass = $student->subclass->class->class_name ?? 'N/A';
+        $student->id_card_full_name = trim(
+            $student->first_name . ' ' .
+            ($student->middle_name ? $student->middle_name . ' ' : '') .
+            $student->last_name
+        );
+        $student->id_card_main_class = $mainClass;
+        $student->id_card_admission = $student->admission_number ?: $student->studentID;
+        $student->id_card_sex = ucfirst($student->gender ?? 'N/A');
+        $student->id_card_expire_date = $this->calculateStudentIdExpireDate($mainClass);
+        $student->id_card_encrypted_id = $this->encryptRouteParam($student->studentID);
+        $student->id_card_logo_path = $this->resolveSchoolLogoPath($student->school);
+
+        return $student;
+    }
+
+    private function calculateStudentIdExpireDate(?string $className): string
+    {
+        $currentYear = (int) date('Y');
+        $formLevel = $this->detectFormLevel($className);
+
+        $yearsRemaining = match ($formLevel) {
+            1 => 3,
+            2 => 2,
+            3 => 1,
+            4 => 0,
+            default => 3,
+        };
+
+        return 'December ' . ($currentYear + $yearsRemaining);
+    }
+
+    private function detectFormLevel(?string $className): ?int
+    {
+        if (!$className) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($className));
+        $patterns = [
+            1 => ['form one', 'form 1', 'form i', 'form_one'],
+            2 => ['form two', 'form 2', 'form ii', 'form_two'],
+            3 => ['form three', 'form 3', 'form iii', 'form_three'],
+            4 => ['form four', 'form 4', 'form iv', 'form_four'],
+        ];
+
+        foreach ($patterns as $level => $keys) {
+            foreach ($keys as $key) {
+                if (str_contains($normalized, $key)) {
+                    return $level;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveSchoolLogoPath(?School $school): ?string
+    {
+        if (!$school) {
+            return null;
+        }
+
+        if (!empty($school->logo)) {
+            return 'schoolLogos/' . $school->logo;
+        }
+
+        if (!empty($school->school_logo)) {
+            return ltrim($school->school_logo, '/');
+        }
+
+        return null;
     }
 }

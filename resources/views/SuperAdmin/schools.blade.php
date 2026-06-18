@@ -121,12 +121,13 @@
                                 $pCount = $parentsBySchool[$sid] ?? 0;
                                 $classes = $classesBySchool[$sid] ?? collect();
                                 $subclasses = $subclassesBySchool[$sid] ?? collect();
-                                $logo = $school->school_logo ? asset($school->school_logo) : asset('assets/images/school_default.png');
+                                $placeholderLogo = asset('images/school-placeholder.svg');
                             @endphp
                             <tr>
                                 <td>{{ $i + 1 }}</td>
                                 <td class="text-center">
-                                    <img src="{{ $logo }}" class="school-logo-circle" onerror="this.src='{{ asset('assets/images/school_default.png') }}'">
+                                    <img src="{{ $school->logo_url }}" class="school-logo-circle" alt="School logo"
+                                         onerror="this.onerror=null;this.src='{{ $placeholderLogo }}'">
                                 </td>
                                 <td>
                                     <div class="fw-bold">{{ $school->school_name }}</div>
@@ -145,7 +146,7 @@
                                         <div class="dropdown-menu dropdown-menu-end shadow border">
                                             <a class="dropdown-item view-more-btn" href="#" 
                                                data-bs-toggle="modal" data-bs-target="#viewMoreModal"
-                                               data-school-json="{{ json_encode($school) }}"
+                                               data-school='@json($school)'
                                                data-students="{{ number_format($sCount) }}"
                                                data-teachers="{{ number_format($tCount) }}"
                                                data-staff="{{ number_format($stCount) }}"
@@ -160,10 +161,10 @@
                                             <div class="dropdown-divider"></div>
                                             <a class="dropdown-item edit-btn" href="#"
                                                data-bs-toggle="modal" data-bs-target="#editModal"
-                                               data-school-json="{{ json_encode($school) }}"
-                                               data-logo-url="{{ $school->school_logo ? asset($school->school_logo) : '' }}"
-                                               data-stamp-url="{{ $school->school_stamp ? asset($school->school_stamp) : '' }}"
-                                               data-sign-url="{{ $school->school_signature ? asset($school->school_signature) : '' }}"
+                                               data-school='@json($school)'
+                                               data-logo-url="{{ $school->logo_url }}"
+                                               data-stamp-url="{{ $school->stamp_url ?? '' }}"
+                                               data-sign-url="{{ $school->sign_url ?? '' }}"
                                             >
                                                 <i class="bx bx-edit me-2 text-warning"></i> Full Edit
                                             </a>
@@ -372,6 +373,8 @@
         }
     }
 
+    const PLACEHOLDER_LOGO = @json(asset('images/school-placeholder.svg'));
+
     $(document).ready(function() {
         if ($.fn.DataTable) {
             $('#schoolsTable').DataTable({
@@ -383,11 +386,11 @@
         $(document).on('click', '.view-more-btn', function(e) {
             e.preventDefault();
             const b = $(this);
-            const s = b.data('school-json');
+            const s = b.data('school');
             
-            $('#v_logo').attr('src', s.school_logo ? '{{ asset("") }}' + s.school_logo : '{{ asset("assets/images/school_default.png") }}');
-            $('#v_stamp').attr('src', s.school_stamp ? '{{ asset("") }}' + s.school_stamp : '');
-            $('#v_sign').attr('src', s.school_signature ? '{{ asset("") }}' + s.school_signature : '');
+            $('#v_logo').attr('src', s.logo_url || PLACEHOLDER_LOGO);
+            $('#v_stamp').attr('src', s.stamp_url || '');
+            $('#v_sign').attr('src', s.sign_url || '');
             
             $('#v_name_header').text(s.school_name);
             $('#v_reg_badge').text(s.registration_number || 'REG-N/A');
@@ -439,7 +442,7 @@
         $(document).on('click', '.edit-btn', function(e) {
             e.preventDefault();
             const b = $(this);
-            const s = b.data('school-json');
+            const s = b.data('school');
             $('#e_id').val(s.schoolID);
             $('#e_name').val(s.school_name);
             $('#e_env').val(s.environment);
@@ -458,7 +461,7 @@
                 $('#e_suspension_reason').removeAttr('required');
             }
 
-            $('#p_logo').attr('src', b.data('logo-url') || '{{ asset("assets/images/school_default.png") }}');
+            $('#p_logo').attr('src', b.data('logo-url') || PLACEHOLDER_LOGO);
             $('#p_stamp').attr('src', b.data('stamp-url') || '');
             $('#p_sign').attr('src', b.data('sign-url') || '');
         });
@@ -492,9 +495,22 @@
                         $btn.prop('disabled', false).text('Save Changes');
                     }
                 },
-                error: function(err) {
+                error: function(xhr) {
                     $btn.prop('disabled', false).text('Save Changes');
-                    Swal.fire('Error', 'Update failed', 'error');
+                    let msg = 'Update failed';
+                    if (xhr.responseJSON) {
+                        if (xhr.responseJSON.message) {
+                            msg = xhr.responseJSON.message;
+                        } else if (xhr.responseJSON.errors) {
+                            const errs = xhr.responseJSON.errors;
+                            msg = typeof errs === 'object'
+                                ? Object.values(errs).flat().join('\n')
+                                : String(errs);
+                        } else if (xhr.responseJSON.error) {
+                            msg = xhr.responseJSON.error;
+                        }
+                    }
+                    Swal.fire('Error', msg, 'error');
                 }
             });
         });

@@ -27,6 +27,8 @@ class School extends Model
         'phone',
         'established_year',
         'school_logo',
+        'school_stamp',
+        'school_signature',
         'status',
         'environment',
         'two_factor_enabled',

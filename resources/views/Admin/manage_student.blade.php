@@ -1320,15 +1320,22 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 bg-light p-2 rounded" style="border: 1px solid #dee2e6;">
+                    <div class="d-flex align-items-center">
+                        <label for="idCardColorPicker" class="form-label mb-0 me-2 font-weight-bold" style="font-size: 0.9rem;"><i class="bi bi-palette"></i> Card Theme Color:</label>
+                        <input type="color" class="form-control form-control-color" id="idCardColorPicker" value="#940000" title="Choose card theme color" style="width: 45px; height: 32px; padding: 2px; cursor: pointer;">
+                    </div>
+                    <span class="text-muted small"><i class="bi bi-info-circle"></i> Theme applies to borders and header bars</span>
+                </div>
                 <div id="studentIdCardContent" class="id-card-container">
                     <!-- ID Card will be loaded here via AJAX -->
                 </div>
                 <div class="text-center mt-3">
-                    <button type="button" class="btn btn-success" id="printIdCardBtn">
+                    <button type="button" class="btn btn-success px-3" id="printIdCardBtn">
                         <i class="bi bi-printer"></i> Print ID Card
                     </button>
-                    <button type="button" class="btn btn-primary" id="downloadIdCardBtn">
-                        <i class="bi bi-download"></i> Download ID Card
+                    <button type="button" class="btn btn-primary px-3" id="downloadIdCardBtn">
+                        <i class="bi bi-file-pdf"></i> Download ID Card
                     </button>
                 </div>
             </div>
@@ -2659,6 +2666,7 @@
         // Generate ID Card Button Click
         $(document).on('click', '.generate-id-btn', function() {
             let studentID = $(this).data('student-id');
+            $('#downloadIdCardBtn').data('student-id', studentID);
 
             if (!studentID) {
                 Swal.fire({
@@ -2830,55 +2838,37 @@
             window.print();
         });
 
-        // Download ID Card (as image)
+        // Download ID Card (as PDF via Backend)
         $('#downloadIdCardBtn').on('click', function() {
-            // Use html2canvas to convert ID card to image
-            if (typeof html2canvas === 'undefined') {
-                // Load html2canvas library
-                let script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-                script.onload = function() {
-                    downloadIdCard();
-                };
-                document.head.appendChild(script);
-            } else {
-                downloadIdCard();
-            }
-        });
-
-        function downloadIdCard() {
-            let idCard = document.querySelector('.student-id-card');
-            if (!idCard) {
+            let studentID = $(this).data('student-id');
+            if (!studentID) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'ID card not found'
+                    text: 'Student ID not found'
                 });
                 return;
             }
 
-            html2canvas(idCard, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                logging: false,
-                useCORS: true,
-                allowTaint: false,
-                width: idCard.offsetWidth,
-                height: idCard.offsetHeight
-            }).then(function(canvas) {
-                let link = document.createElement('a');
-                link.download = 'student-id-card.png';
-                link.href = canvas.toDataURL('image/png', 1.0);
-                link.click();
-            }).catch(function(error) {
-                console.error('Error generating image:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Failed to download ID card. Please try printing instead.'
-                });
+            let cardColor = $('#idCardColorPicker').val() || '#940000';
+            
+            Swal.fire({
+                title: 'Generating PDF...',
+                html: 'Please wait while your ID card is being prepared.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
             });
-        }
+
+            // Redirect to PDF download route
+            window.location.href = `/admin/export-student-id-card-pdf/${studentID}?card_color=${encodeURIComponent(cardColor)}`;
+
+            // Close loading alert after redirection starts
+            setTimeout(function() {
+                Swal.close();
+            }, 2000);
+        });
 
         // Register Student to Device Button Click (similar to sample project)
         $(document).on('click', '.register-student-to-device-btn', function() {

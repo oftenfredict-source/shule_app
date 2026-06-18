@@ -42,6 +42,79 @@ class SuperAdminController extends Controller
         return null;
     }
 
+    private function schoolPlaceholderUrl(): string
+    {
+        return asset('images/school-placeholder.svg');
+    }
+
+    private function resolveSchoolAssetUrl(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $relative = ltrim($path, '/');
+        $candidates = [
+            public_path($relative),
+        ];
+
+        if (isset($_SERVER['DOCUMENT_ROOT'])) {
+            $candidates[] = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . $relative;
+        }
+
+        foreach ($candidates as $fullPath) {
+            if (file_exists($fullPath) && is_file($fullPath)) {
+                return asset($relative);
+            }
+        }
+
+        return null;
+    }
+
+    private function schoolUploadPath(string $folder): string
+    {
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+        $uploadPath = $scriptDir . '/' . $folder;
+
+        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/' . $folder : null;
+            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            } else {
+                $uploadPath = public_path($folder);
+            }
+        }
+
+        if ($uploadPath && !file_exists($uploadPath)) {
+            @mkdir($uploadPath, 0755, true);
+        }
+
+        return $uploadPath;
+    }
+
+    private function deleteSchoolAsset(?string $storedPath, string $folder): void
+    {
+        if (!$storedPath) {
+            return;
+        }
+
+        $basename = basename($storedPath);
+        $possiblePaths = [
+            $this->schoolUploadPath($folder) . '/' . $basename,
+            public_path(ltrim($storedPath, '/')),
+        ];
+
+        if (isset($_SERVER['DOCUMENT_ROOT'])) {
+            $possiblePaths[] = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . ltrim($storedPath, '/');
+        }
+
+        foreach ($possiblePaths as $oldPath) {
+            if ($oldPath && file_exists($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
+    }
+
     public function dashboard()
     {
         if ($resp = $this->ensureSuperAdmin()) {
@@ -62,7 +135,13 @@ class SuperAdminController extends Controller
             return $resp;
         }
 
-        $schools = School::orderBy('schoolID', 'desc')->get();
+        $schools = School::orderBy('schoolID', 'desc')->get()->map(function ($school) {
+            $school->logo_url = $this->resolveSchoolAssetUrl($school->school_logo) ?? $this->schoolPlaceholderUrl();
+            $school->stamp_url = $this->resolveSchoolAssetUrl($school->school_stamp);
+            $school->sign_url = $this->resolveSchoolAssetUrl($school->school_signature);
+
+            return $school;
+        });
 
         $studentsBySchool = DB::table('students')
             ->select('schoolID', DB::raw('COUNT(*) as total'))
@@ -1107,10 +1186,8 @@ class SuperAdminController extends Controller
             'school_name' => 'required|string|max:255',
             'environment' => 'nullable|in:Demo,Live',
             'status' => 'required|in:Active,Inactive',
-            'two_factor_enabled' => 'nullable|boolean',
-            'must_change_default_password' => 'nullable|boolean',
             'senderID' => 'nullable|string|max:20',
-            'login_status' => 'nullable|boolean',
+            'login_status' => 'nullable|in:0,1',
             'suspension_reason' => 'nullable|string|max:1000',
             'school_logo' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
             'school_stamp' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
@@ -1118,7 +1195,11 @@ class SuperAdminController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         $school = School::find($request->schoolID);
@@ -1126,65 +1207,66 @@ class SuperAdminController extends Controller
             return response()->json(['success' => false, 'message' => 'School not found'], 404);
         }
 
-        $school->school_name = $request->school_name;
-        $school->environment = $request->input('environment', 'Demo');
-        $school->status = $request->status;
-        $school->two_factor_enabled = (bool)($request->input('two_factor_enabled', false));
-        $school->must_change_default_password = (bool)($request->input('must_change_default_password', false));
-        $school->senderID = $request->senderID;
-        $school->login_status = $request->input('login_status', 1);
-        $school->suspension_reason = ($school->login_status == 0) ? $request->suspension_reason : null;
+        $loginStatus = (int) $request->input('login_status', 1);
 
-        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
-
-        // Logo
-        if ($request->hasFile('school_logo')) {
-            $uploadPath = $scriptDir . '/logos';
-            if (!is_dir($uploadPath)) @mkdir($uploadPath, 0755, true);
-            if ($school->school_logo) {
-                $old = $scriptDir . '/' . basename($school->school_logo);
-                if (file_exists($old)) @unlink($old);
-                if (file_exists(public_path($school->school_logo))) @unlink(public_path($school->school_logo));
-            }
-            $file = $request->file('school_logo');
-            $filename = time() . '_logo_' . preg_replace('/[^a-zA-Z0-9.]/', '_', $file->getClientOriginalName());
-            $file->move($uploadPath, $filename);
-            $school->school_logo = 'logos/' . $filename;
+        if ($loginStatus === 0 && !$request->filled('suspension_reason')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Suspension reason is required when login access is denied.',
+            ], 422);
         }
 
-        // Stamp
-        if ($request->hasFile('school_stamp')) {
-            $uploadPath = $scriptDir . '/stamps';
-            if (!is_dir($uploadPath)) @mkdir($uploadPath, 0755, true);
-            if ($school->school_stamp) {
-                $old = $scriptDir . '/' . basename($school->school_stamp);
-                if (file_exists($old)) @unlink($old);
-                if (file_exists(public_path($school->school_stamp))) @unlink(public_path($school->school_stamp));
+        try {
+            $school->school_name = $request->school_name;
+            $school->environment = $request->input('environment', 'Demo');
+            $school->status = $request->status;
+            $school->two_factor_enabled = $request->boolean('two_factor_enabled');
+            $school->must_change_default_password = $request->boolean('must_change_default_password');
+            $school->senderID = $request->senderID;
+            $school->login_status = $loginStatus;
+            $school->suspension_reason = $loginStatus === 0 ? $request->suspension_reason : null;
+
+            if ($request->hasFile('school_logo')) {
+                $uploadPath = $this->schoolUploadPath('logos');
+                $this->deleteSchoolAsset($school->school_logo, 'logos');
+                $file = $request->file('school_logo');
+                $filename = time() . '_logo_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                $file->move($uploadPath, $filename);
+                $school->school_logo = 'logos/' . $filename;
             }
-            $file = $request->file('school_stamp');
-            $filename = time() . '_stamp_' . preg_replace('/[^a-zA-Z0-9.]/', '_', $file->getClientOriginalName());
-            $file->move($uploadPath, $filename);
-            $school->school_stamp = 'stamps/' . $filename;
-        }
 
-        // Signature
-        if ($request->hasFile('school_signature')) {
-            $uploadPath = $scriptDir . '/signatures';
-            if (!is_dir($uploadPath)) @mkdir($uploadPath, 0755, true);
-            if ($school->school_signature) {
-                $old = $scriptDir . '/' . basename($school->school_signature);
-                if (file_exists($old)) @unlink($old);
-                if (file_exists(public_path($school->school_signature))) @unlink(public_path($school->school_signature));
+            if ($request->hasFile('school_stamp')) {
+                $uploadPath = $this->schoolUploadPath('stamps');
+                $this->deleteSchoolAsset($school->school_stamp, 'stamps');
+                $file = $request->file('school_stamp');
+                $filename = time() . '_stamp_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                $file->move($uploadPath, $filename);
+                $school->school_stamp = 'stamps/' . $filename;
             }
-            $file = $request->file('school_signature');
-            $filename = time() . '_sign_' . preg_replace('/[^a-zA-Z0-9.]/', '_', $file->getClientOriginalName());
-            $file->move($uploadPath, $filename);
-            $school->school_signature = 'signatures/' . $filename;
+
+            if ($request->hasFile('school_signature')) {
+                $uploadPath = $this->schoolUploadPath('signatures');
+                $this->deleteSchoolAsset($school->school_signature, 'signatures');
+                $file = $request->file('school_signature');
+                $filename = time() . '_sign_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                $file->move($uploadPath, $filename);
+                $school->school_signature = 'signatures/' . $filename;
+            }
+
+            $school->save();
+
+            return response()->json(['success' => true, 'message' => 'School information updated successfully']);
+        } catch (\Exception $e) {
+            Log::error('School comprehensive update failed', [
+                'schoolID' => $request->schoolID,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Update failed: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $school->save();
-
-        return response()->json(['success' => true, 'message' => 'School information updated successfully']);
     }
     public function users()
     {

@@ -610,7 +610,13 @@
                                     <li><a href="#" class="nav-link text-muted small">No Classes Available</a></li>
                                 @else
                                     @foreach($navClasses as $nc)
-                                        <li><a href="{{ route('admin.student_id_cards', $nc->classID) }}" class="nav-link"><i class="fa fa-chevron-right small"></i> {{ $nc->class_name }}</a></li>
+                                        @php
+                                            $encryptedNavClassId = strtr(
+                                                \Illuminate\Support\Facades\Crypt::encryptString((string) $nc->classID),
+                                                ['+' => '-', '/' => '_']
+                                            );
+                                        @endphp
+                                        <li><a href="{{ route('admin.student_id_cards', $encryptedNavClassId) }}" class="nav-link"><i class="fa fa-chevron-right small"></i> {{ $nc->class_name }}</a></li>
                                     @endforeach
                                 @endif
                             </ul>

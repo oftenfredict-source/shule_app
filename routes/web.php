@@ -1406,6 +1406,10 @@ Route::get("export_students_pdf", [
     ManageStudentController::class,
     "export_students_pdf",
 ])->name("export_students_pdf");
+Route::get("admin/export-student-id-card-pdf/{studentID}", [
+    ManageStudentController::class,
+    "exportStudentIDCardPdf",
+])->name("admin.export_student_id_card_pdf");
 Route::get("export_students_excel", [
     ManageStudentController::class,
     "export_students_excel",
