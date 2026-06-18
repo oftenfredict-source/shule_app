@@ -25,6 +25,34 @@
         }
     }
 
+    if (!function_exists('idCardPdfImagePath')) {
+        function idCardPdfImagePath($path) {
+            if (!$path) return null;
+            $path = ltrim($path, '/');
+            $possibilities = [
+                public_path($path),
+                public_path('uploads/' . $path),
+                base_path('public/' . $path),
+                base_path($path),
+            ];
+            if (isset($_SERVER['DOCUMENT_ROOT'])) {
+                $possibilities[] = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . $path;
+            }
+            foreach ($possibilities as $fullPath) {
+                if (@file_exists($fullPath) && is_file($fullPath)) {
+                    $resolved = realpath($fullPath) ?: $fullPath;
+                    return str_replace('\\', '/', $resolved);
+                }
+            }
+            return null;
+        }
+    }
+
+    if (!function_exists('idCardIconPixelSizeForPdf')) {
+        function idCardIconPixelSizeForPdf() {
+            return 72;
+        }
+    }
     if (!function_exists('idCardSchoolHeaderName')) {
         function idCardSchoolHeaderName($name) {
             return strtoupper(trim($name));
@@ -151,9 +179,10 @@
     }
 
     if (!function_exists('idCardIconDataUri')) {
-        function idCardIconDataUri($type, $color = '#940000') {
+        function idCardIconDataUri($type, $color = '#940000', $size = null) {
             static $cache = [];
-            $key = $type . '|' . $color;
+            $size = $size ?? idCardIconPixelSize();
+            $key = $type . '|' . $color . '|' . $size;
             if (isset($cache[$key])) {
                 return $cache[$key];
             }
@@ -164,7 +193,6 @@
             }
 
             [$r, $g, $b] = idCardHexToRgb($color);
-            $size = idCardIconPixelSize();
             $s = $size / 80;
             $im = imagecreatetruecolor($size, $size);
             if (function_exists('imageantialias')) {

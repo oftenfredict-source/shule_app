@@ -4155,6 +4155,15 @@ class ManageStudentController extends Controller
         $schoolID = Session::get('schoolID');
         if (!$schoolID) return redirect()->route('login');
 
+        try {
+            @set_time_limit(0);
+            @ini_set('max_execution_time', '0');
+            @ini_set('memory_limit', '1024M');
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        try {
         $students = collect();
         $school = School::find($schoolID);
 
@@ -4203,6 +4212,13 @@ class ManageStudentController extends Controller
             ->setPaper([0, 0, 242.65, 153.07], 'landscape');
 
         return $pdf->download($filename);
+        } catch (\Throwable $e) {
+            \Log::error('Student ID card PDF failed: ' . $e->getMessage(), [
+                'id' => $id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response('Failed to generate PDF: ' . $e->getMessage(), 500);
+        }
     }
 
     public function downloadTemplate()

@@ -656,8 +656,11 @@
             }, 400);
 
             fetch(url)
-                .then(response => {
-                    if (!response.ok) throw new Error('Server error: ' + response.statusText);
+                .then(async response => {
+                    if (!response.ok) {
+                        const text = await response.text();
+                        throw new Error(text || ('Server error: ' + response.statusText));
+                    }
                     return response.blob();
                 })
                 .then(blob => {

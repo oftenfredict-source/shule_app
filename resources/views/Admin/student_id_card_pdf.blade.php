@@ -193,26 +193,35 @@
 <body>
 @include('Admin.partials.student_id_card_helpers')
 
-@php $pc = $primaryColor ?? '#940000'; $iconPx = idCardIconPixelSize(); @endphp
+@php
+    $pc = $primaryColor ?? '#940000';
+    $iconSize = idCardIconPixelSizeForPdf();
+    $iconId = idCardIconDataUri('id', $pc, $iconSize);
+    $iconClass = idCardIconDataUri('class', $pc, $iconSize);
+    $iconSex = idCardIconDataUri('sex', $pc, $iconSize);
+    $iconExpire = idCardIconDataUri('expire', $pc, $iconSize);
+    $iconPin = idCardIconDataUri('pin', $pc, $iconSize);
+    $iconPhone = idCardIconDataUri('phone', $pc, $iconSize);
+@endphp
 
 @foreach($students as $student)
     @php
         $schoolData = $student->school ?? $school;
         $logoPath = $student->id_card_logo_path ?? null;
-        $logoBase64 = $logoPath ? idCardGetSmartBase64($logoPath) : null;
+        $logoSrc = idCardPdfImagePath($logoPath);
         $placeholder = strtolower($student->gender ?? 'male') === 'female' ? 'images/female.png' : 'images/male.png';
-        $photoPath = ($student->photo && file_exists(public_path('userImages/' . $student->photo)))
+        $photoRel = ($student->photo && file_exists(public_path('userImages/' . $student->photo)))
             ? 'userImages/' . $student->photo
             : $placeholder;
-        $photoBase64 = idCardGetSmartBase64($photoPath);
+        $photoSrc = idCardPdfImagePath($photoRel);
         $schoolName = $schoolData->school_name ?? 'School';
         $schoolHeaderName = idCardSchoolHeaderName($schoolName);
         $backPageClass = 'id-page' . (!$loop->last ? ' id-page-back-after' : '');
     @endphp
 
     <div class="id-page id-page-front">
-        @if($logoBase64)
-        <div class="logo-watermark"><img src="{{ $logoBase64 }}"></div>
+        @if($logoSrc)
+        <div class="logo-watermark"><img src="{{ $logoSrc }}"></div>
         @endif
         <div class="corner-accent"></div>
         <table cellpadding="0" cellspacing="0.5mm" class="dot-grid" align="right">
@@ -230,7 +239,7 @@
                     <table class="hdr-inner" cellpadding="0" cellspacing="0" align="left">
                         <tr>
                             <td class="hdr-logo-cell" align="left" valign="middle">
-                                @if($logoBase64)<img src="{{ $logoBase64 }}" class="logo-img">@endif
+                                @if($logoSrc)<img src="{{ $logoSrc }}" class="logo-img">@endif
                             </td>
                             <td class="hdr-text-cell" align="left" valign="middle">
                                 <div class="school-name">{{ $schoolHeaderName }}</div>
@@ -246,7 +255,7 @@
                         <tr>
                             <td style="width:26mm; vertical-align:middle;">
                                 <div class="photo-wrap">
-                                    @if($photoBase64)<img src="{{ $photoBase64 }}">@endif
+                                    @if($photoSrc)<img src="{{ $photoSrc }}">@endif
                                 </div>
                             </td>
                             <td style="padding-left:2.5mm; vertical-align:middle;">
@@ -254,19 +263,19 @@
                                 <div class="name-line"></div>
                                 <table class="info-table">
                                     <tr>
-                                        <td style="width:6mm;"><img src="{{ idCardIconDataUri('id', $pc) }}" class="info-icon-img" width="{{ $iconPx }}" height="{{ $iconPx }}"></td>
+                                        <td style="width:6mm;"><img src="{{ $iconId }}" class="info-icon-img"></td>
                                         <td><span class="info-label">Adm No:</span> <span class="info-value">{{ $student->id_card_admission }}</span></td>
                                     </tr>
                                     <tr>
-                                        <td><img src="{{ idCardIconDataUri('class', $pc) }}" class="info-icon-img" width="{{ $iconPx }}" height="{{ $iconPx }}"></td>
+                                        <td><img src="{{ $iconClass }}" class="info-icon-img"></td>
                                         <td><span class="info-label">Class:</span> <span class="info-value">{{ $student->id_card_main_class }}</span></td>
                                     </tr>
                                     <tr>
-                                        <td><img src="{{ idCardIconDataUri('sex', $pc) }}" class="info-icon-img" width="{{ $iconPx }}" height="{{ $iconPx }}"></td>
+                                        <td><img src="{{ $iconSex }}" class="info-icon-img"></td>
                                         <td><span class="info-label">Sex:</span> <span class="info-value">{{ $student->id_card_sex }}</span></td>
                                     </tr>
                                     <tr>
-                                        <td><img src="{{ idCardIconDataUri('expire', $pc) }}" class="info-icon-img" width="{{ $iconPx }}" height="{{ $iconPx }}"></td>
+                                        <td><img src="{{ $iconExpire }}" class="info-icon-img"></td>
                                         <td><span class="info-label">Expire:</span> <span class="info-value">{{ $student->id_card_expire_date }}</span></td>
                                     </tr>
                                 </table>
@@ -287,12 +296,12 @@
     </div>
 
     <div class="id-page {{ $backPageClass }}">
-        @if($logoBase64)
-        <div class="logo-watermark"><img src="{{ $logoBase64 }}"></div>
+        @if($logoSrc)
+        <div class="logo-watermark"><img src="{{ $logoSrc }}"></div>
         @endif
         <table class="card-table" cellpadding="0" cellspacing="0">
             <tr class="back-logo-row">
-                <td>@if($logoBase64)<img src="{{ $logoBase64 }}">@endif</td>
+                <td>@if($logoSrc)<img src="{{ $logoSrc }}">@endif</td>
             </tr>
             <tr class="back-banner-row">
                 <td class="back-banner">
@@ -307,7 +316,7 @@
                     <div class="back-contact">
                         <table class="contact-name-table" align="center" cellpadding="0" cellspacing="0">
                             <tr>
-                                <td><img src="{{ idCardIconDataUri('pin', $pc) }}" class="contact-pin-img" width="{{ $iconPx }}" height="{{ $iconPx }}"></td>
+                                <td><img src="{{ $iconPin }}" class="contact-pin-img"></td>
                                 <td class="back-school-name">{{ strtoupper($schoolName) }}</td>
                             </tr>
                         </table>
@@ -318,7 +327,7 @@
                         @if(!empty($schoolData->phone))
                         <table class="contact-phone-table" align="center" cellpadding="0" cellspacing="0">
                             <tr>
-                                <td><img src="{{ idCardIconDataUri('phone', $pc) }}" class="phone-icon-img" width="{{ $iconPx }}" height="{{ $iconPx }}"></td>
+                                <td><img src="{{ $iconPhone }}" class="phone-icon-img"></td>
                                 <td>Tel: {{ $schoolData->phone }}</td>
                             </tr>
                         </table>
