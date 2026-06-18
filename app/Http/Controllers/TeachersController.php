@@ -6475,7 +6475,7 @@ class TeachersController extends Controller
                 $examination = Examination::find($examID);
                 $examName = $examination ? $examination->exam_name : "Unknown";
 
-                $caDefinition = CaDefinition::where("schoolID", $schoolID)
+                $caDefinition = \App\Models\CaDefinition::where("schoolID", $schoolID)
                     ->where("examID", $examID)
                     ->first();
 
