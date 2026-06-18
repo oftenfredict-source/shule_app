@@ -24,7 +24,6 @@
             width: 13mm;
             height: 6mm;
             background: {{ $primaryColor ?? '#940000' }};
-            border-top-right-radius: 1.5mm;
             border-bottom-left-radius: 5.5mm;
             z-index: 2;
         }
@@ -70,7 +69,7 @@
         .hdr-text-cell { padding: 0; text-align: left; }
         .logo-img { width: 9.5mm; height: 9.5mm; object-fit: contain; display: block; }
         .school-name {
-            font-size: 7.5pt;
+            font-size: 9pt;
             font-weight: bold;
             color: {{ $primaryColor ?? '#940000' }};
             text-transform: uppercase;
