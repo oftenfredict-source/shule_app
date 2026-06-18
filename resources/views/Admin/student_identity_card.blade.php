@@ -496,7 +496,7 @@
                     <div class="id-cards-grid">
                         @foreach($students as $student)
                             @php
-                                $schoolLogo = $student->id_card_logo_path ? asset($student->id_card_logo_path) : null;
+                                $schoolLogo = idCardAssetUrl($student->id_card_logo_path);
                                 $defaultPhoto = strtolower($student->gender ?? 'male') === 'female'
                                     ? asset('images/female.png')
                                     : asset('images/male.png');

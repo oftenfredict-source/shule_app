@@ -202,18 +202,26 @@
     $iconExpire = idCardIconDataUri('expire', $pc, $iconSize);
     $iconPin = idCardIconDataUri('pin', $pc, $iconSize);
     $iconPhone = idCardIconDataUri('phone', $pc, $iconSize);
+
+    $sharedLogoRel = null;
+    if (!empty($school->school_logo)) {
+        $sharedLogoRel = idCardNormalizeAssetPath($school->school_logo);
+    } elseif ($students->isNotEmpty() && !empty($students->first()->id_card_logo_path)) {
+        $sharedLogoRel = idCardNormalizeAssetPath($students->first()->id_card_logo_path);
+    }
+    $sharedLogoSrc = $sharedLogoRel ? idCardPdfImageSrc($sharedLogoRel) : null;
 @endphp
 
 @foreach($students as $student)
     @php
         $schoolData = $student->school ?? $school;
-        $logoPath = $student->id_card_logo_path ?? null;
-        $logoSrc = idCardPdfImagePath($logoPath);
+        $logoSrc = $sharedLogoSrc;
         $placeholder = strtolower($student->gender ?? 'male') === 'female' ? 'images/female.png' : 'images/male.png';
-        $photoRel = ($student->photo && file_exists(public_path('userImages/' . $student->photo)))
-            ? 'userImages/' . $student->photo
-            : $placeholder;
-        $photoSrc = idCardPdfImagePath($photoRel);
+        $photoRel = $student->photo ? 'userImages/' . $student->photo : $placeholder;
+        if (!idCardResolveAssetFile($photoRel)) {
+            $photoRel = $placeholder;
+        }
+        $photoSrc = idCardPdfImageSrc($photoRel);
         $schoolName = $schoolData->school_name ?? 'School';
         $schoolHeaderName = idCardSchoolHeaderName($schoolName);
         $backPageClass = 'id-page' . (!$loop->last ? ' id-page-back-after' : '');

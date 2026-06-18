@@ -4205,7 +4205,7 @@ class ManageStudentController extends Controller
             ->setOptions([
                 'isRemoteEnabled' => true,
                 'isHtml5ParserEnabled' => true,
-                'chroot' => base_path(),
+                'chroot' => $this->idCardPdfChroot(),
                 'defaultFont' => 'Helvetica',
                 'dpi' => 150,
             ])
@@ -4660,14 +4660,27 @@ class ManageStudentController extends Controller
             return null;
         }
 
-        if (!empty($school->logo)) {
-            return 'schoolLogos/' . $school->logo;
+        $candidates = array_values(array_filter([
+            !empty($school->school_logo) ? ltrim($school->school_logo, '/') : null,
+            !empty($school->logo) ? 'schoolLogos/' . ltrim($school->logo, '/') : null,
+        ]));
+
+        return $candidates[0] ?? null;
+    }
+
+    private function idCardPdfChroot(): string
+    {
+        $candidates = [
+            realpath(dirname(base_path())),
+            realpath(base_path()),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate && is_dir($candidate)) {
+                return str_replace('\\', '/', $candidate);
+            }
         }
 
-        if (!empty($school->school_logo)) {
-            return ltrim($school->school_logo, '/');
-        }
-
-        return null;
+        return str_replace('\\', '/', base_path());
     }
 }

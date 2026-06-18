@@ -1,48 +1,156 @@
 @php
-    if (!function_exists('idCardGetSmartBase64')) {
-        function idCardGetSmartBase64($path) {
+    if (!function_exists('idCardNormalizeAssetPath')) {
+        function idCardNormalizeAssetPath($path) {
             if (!$path) return null;
-            $path = ltrim($path, '/');
+            $original = trim((string) $path);
+            $urlPath = parse_url($original, PHP_URL_PATH);
+            return ltrim($urlPath ?: $original, '/');
+        }
+    }
+
+    if (!function_exists('idCardAssetPossibilities')) {
+        function idCardAssetPossibilities($path) {
+            $path = idCardNormalizeAssetPath($path);
+            if (!$path) return [];
+
+            $base = base_path();
+            $parent = dirname($base);
+            $filename = basename($path);
             $possibilities = [
                 public_path($path),
                 public_path('uploads/' . $path),
+                public_path('logos/' . $filename),
+                public_path('schoolLogos/' . $filename),
+                public_path('userImages/' . $filename),
                 base_path('public/' . $path),
+                base_path('public/logos/' . $filename),
+                base_path('public/schoolLogos/' . $filename),
+                base_path('public/userImages/' . $filename),
                 base_path($path),
+                $parent . '/public_html/' . $path,
+                $parent . '/public_html/logos/' . $filename,
+                $parent . '/public_html/schoolLogos/' . $filename,
+                $parent . '/public_html/userImages/' . $filename,
+                $parent . '/public_html/uploads/' . $path,
+                base_path('../public_html/' . $path),
+                base_path('../public_html/logos/' . $filename),
+                base_path('../public_html/schoolLogos/' . $filename),
+                base_path('../public_html/userImages/' . $filename),
             ];
+
             if (isset($_SERVER['DOCUMENT_ROOT'])) {
-                $possibilities[] = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . $path;
+                $docRoot = rtrim($_SERVER['DOCUMENT_ROOT'], '/\\');
+                $possibilities[] = $docRoot . '/' . $path;
+                $possibilities[] = $docRoot . '/logos/' . $filename;
+                $possibilities[] = $docRoot . '/schoolLogos/' . $filename;
+                $possibilities[] = $docRoot . '/userImages/' . $filename;
+                $possibilities[] = $docRoot . '/uploads/' . $path;
             }
-            foreach ($possibilities as $fullPath) {
+
+            if (isset($_SERVER['SCRIPT_FILENAME'])) {
+                $scriptDir = dirname($_SERVER['SCRIPT_FILENAME']);
+                $possibilities[] = $scriptDir . '/' . $path;
+                $possibilities[] = $scriptDir . '/logos/' . $filename;
+                $possibilities[] = $scriptDir . '/schoolLogos/' . $filename;
+                $possibilities[] = $scriptDir . '/userImages/' . $filename;
+            }
+
+            return array_values(array_unique(array_filter($possibilities)));
+        }
+    }
+
+    if (!function_exists('idCardResolveAssetFile')) {
+        function idCardResolveAssetFile($path) {
+            foreach (idCardAssetPossibilities($path) as $fullPath) {
                 if (@file_exists($fullPath) && is_file($fullPath)) {
-                    try {
-                        $data = base64_encode(file_get_contents($fullPath));
-                        $ext = pathinfo($fullPath, PATHINFO_EXTENSION) ?: 'png';
-                        return 'data:image/' . $ext . ';base64,' . $data;
-                    } catch (\Exception $e) {}
+                    $resolved = realpath($fullPath) ?: $fullPath;
+                    return str_replace('\\', '/', $resolved);
                 }
             }
             return null;
         }
     }
 
-    if (!function_exists('idCardPdfImagePath')) {
-        function idCardPdfImagePath($path) {
-            if (!$path) return null;
-            $path = ltrim($path, '/');
-            $possibilities = [
-                public_path($path),
-                public_path('uploads/' . $path),
-                base_path('public/' . $path),
-                base_path($path),
-            ];
-            if (isset($_SERVER['DOCUMENT_ROOT'])) {
-                $possibilities[] = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . $path;
+    if (!function_exists('idCardFileToDataUri')) {
+        function idCardFileToDataUri($fullPath) {
+            if (!$fullPath || !@file_exists($fullPath)) return null;
+            try {
+                $data = base64_encode(file_get_contents($fullPath));
+                $ext = pathinfo($fullPath, PATHINFO_EXTENSION) ?: 'png';
+                return 'data:image/' . $ext . ';base64,' . $data;
+            } catch (\Exception $e) {
+                return null;
             }
-            foreach ($possibilities as $fullPath) {
-                if (@file_exists($fullPath) && is_file($fullPath)) {
-                    $resolved = realpath($fullPath) ?: $fullPath;
-                    return str_replace('\\', '/', $resolved);
+        }
+    }
+
+    if (!function_exists('idCardPdfChrootPath')) {
+        function idCardPdfChrootPath() {
+            static $chroot = null;
+            if ($chroot !== null) return $chroot;
+
+            $candidates = [
+                realpath(dirname(base_path())),
+                realpath(base_path()),
+            ];
+
+            foreach ($candidates as $candidate) {
+                if ($candidate && is_dir($candidate)) {
+                    $chroot = str_replace('\\', '/', $candidate);
+                    return $chroot;
                 }
+            }
+
+            $chroot = str_replace('\\', '/', base_path());
+            return $chroot;
+        }
+    }
+
+    if (!function_exists('idCardPathWithinChroot')) {
+        function idCardPathWithinChroot($fullPath) {
+            $chroot = idCardPdfChrootPath();
+            $normalized = str_replace('\\', '/', realpath($fullPath) ?: $fullPath);
+            return str_starts_with($normalized, rtrim($chroot, '/') . '/')
+                || $normalized === rtrim($chroot, '/');
+        }
+    }
+
+    if (!function_exists('idCardGetSmartBase64')) {
+        function idCardGetSmartBase64($path) {
+            $fullPath = idCardResolveAssetFile($path);
+            return $fullPath ? idCardFileToDataUri($fullPath) : null;
+        }
+    }
+
+    if (!function_exists('idCardPdfImageSrc')) {
+        function idCardPdfImageSrc($path) {
+            static $cache = [];
+            $key = idCardNormalizeAssetPath($path);
+            if (!$key) return null;
+            if (isset($cache[$key])) return $cache[$key];
+
+            $fullPath = idCardResolveAssetFile($path);
+            if (!$fullPath) {
+                $cache[$key] = null;
+                return null;
+            }
+
+            if (idCardPathWithinChroot($fullPath)) {
+                $cache[$key] = $fullPath;
+                return $cache[$key];
+            }
+
+            $cache[$key] = idCardFileToDataUri($fullPath);
+            return $cache[$key];
+        }
+    }
+
+    if (!function_exists('idCardAssetUrl')) {
+        function idCardAssetUrl($path) {
+            $relative = idCardNormalizeAssetPath($path);
+            if (!$relative) return null;
+            if (idCardResolveAssetFile($relative)) {
+                return asset($relative);
             }
             return null;
         }
