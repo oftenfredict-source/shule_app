@@ -7,6 +7,7 @@ use App\Models\ClassSubject;
 use App\Models\Examination;
 use App\Models\ExamAttendanceAssignment;
 use App\Models\ExamAttendanceRecord;
+use App\Models\Result;
 use App\Models\School;
 use App\Models\SchoolSubject;
 use App\Models\Student;
@@ -27,16 +28,11 @@ class ExamAttendanceController extends Controller
         $exam = Examination::find($examID);
         if (!$exam) return response()->json(['error' => 'Exam not found'], 404);
 
-        $classes = [];
-        if ($exam->exam_category === 'special_exams') {
-            $includeIds = $exam->include_class_ids ?? [];
-            $classes = ClassModel::whereIn('classID', $includeIds)->get();
-        } else {
-            $exceptIds = $exam->except_class_ids ?? [];
-            $classes = ClassModel::where('schoolID', $schoolID)
-                ->whereNotIn('classID', $exceptIds)
-                ->get();
-        }
+        $classIds = $this->getParticipatingClassIds($exam, $schoolID);
+        $classes = ClassModel::where('schoolID', $schoolID)
+            ->whereIn('classID', $classIds)
+            ->orderBy('class_name')
+            ->get();
 
         return response()->json(['success' => true, 'classes' => $classes]);
     }
@@ -398,15 +394,7 @@ class ExamAttendanceController extends Controller
         if ($classFilter && $classFilter !== 'all') {
             $classIds = [$classFilter];
         } else {
-            if ($exam->exam_category === 'special_exams') {
-                $classIds = $exam->include_class_ids ?? [];
-            } else {
-                $exceptIds = $exam->except_class_ids ?? [];
-                $classIds = ClassModel::where('schoolID', $schoolID)
-                    ->whereNotIn('classID', $exceptIds)
-                    ->pluck('classID')
-                    ->toArray();
-            }
+            $classIds = $this->getParticipatingClassIds($exam, $schoolID);
         }
 
         // Fetch all attendance counts for this exam grouped by subject and subclass
@@ -523,6 +511,41 @@ class ExamAttendanceController extends Controller
             'stats' => $stats,
             'totals' => $totals
         ]);
+    }
+
+    /**
+     * Resolve which main classes participate in an exam.
+     * Special exams store included classes via results/halls, not on the examination row.
+     */
+    private function getParticipatingClassIds(Examination $exam, $schoolID): array
+    {
+        if ($exam->exam_category === 'special_exams') {
+            $classIds = Result::where('results.examID', $exam->examID)
+                ->join('subclasses', 'results.subclassID', '=', 'subclasses.subclassID')
+                ->join('classes', 'subclasses.classID', '=', 'classes.classID')
+                ->where('classes.schoolID', $schoolID)
+                ->distinct()
+                ->pluck('classes.classID')
+                ->toArray();
+
+            if (empty($classIds)) {
+                $classIds = DB::table('exam_halls')
+                    ->where('examID', $exam->examID)
+                    ->where('schoolID', $schoolID)
+                    ->distinct()
+                    ->pluck('classID')
+                    ->toArray();
+            }
+
+            return $classIds;
+        }
+
+        $exceptIds = $exam->except_class_ids ?? [];
+
+        return ClassModel::where('schoolID', $schoolID)
+            ->whereNotIn('classID', $exceptIds)
+            ->pluck('classID')
+            ->toArray();
     }
 
     private function getStudentsWithExamNumbers($examID, $classID, $subclassID = null)
