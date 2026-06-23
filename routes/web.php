@@ -3567,11 +3567,21 @@ Route::get("populate-results", function () {
 Route::prefix("sgpm")
     ->name("sgpm.")
     ->group(function () {
-        // Departments
+        // Departments — static paths must be registered before {id} routes
+        Route::post("departments/hods/send-sms", [
+            \App\Http\Controllers\DepartmentController::class,
+            "sendSmsToHODs",
+        ])->name("departments.hods.sms");
+        Route::delete("departments/members/{memberId}", [
+            \App\Http\Controllers\DepartmentController::class,
+            "removeMember",
+        ])->name("departments.members.remove");
+
         Route::resource(
             "departments",
             \App\Http\Controllers\DepartmentController::class,
-        );
+        )->except(["show"]);
+
         Route::get("departments/{id}/members", [
             \App\Http\Controllers\DepartmentController::class,
             "manageMembers",
@@ -3580,10 +3590,6 @@ Route::prefix("sgpm")
             \App\Http\Controllers\DepartmentController::class,
             "addMember",
         ])->name("departments.members.add");
-        Route::delete("departments/members/{memberId}", [
-            \App\Http\Controllers\DepartmentController::class,
-            "removeMember",
-        ])->name("departments.members.remove");
         Route::delete("departments/{id}/subjects/{subjectId}", [
             \App\Http\Controllers\DepartmentController::class,
             "removeSubject",
@@ -3592,10 +3598,6 @@ Route::prefix("sgpm")
             \App\Http\Controllers\DepartmentController::class,
             "sendSmsToMembers",
         ])->name("departments.members.sms");
-        Route::post("departments/hods/send-sms", [
-            \App\Http\Controllers\DepartmentController::class,
-            "sendSmsToHODs",
-        ])->name("departments.hods.sms");
 
         // Strategic Goals
         Route::resource(
