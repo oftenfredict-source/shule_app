@@ -5796,6 +5796,37 @@ $(document).ready(function() {
         }, 1500);
     }
 
+    function serverDownloadExcel(params, filename) {
+        const btn = params._btn;
+        const originalHtml = btn ? btn.html() : null;
+        if (btn) btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Generating Excel...');
+
+        const cleanParams = {};
+        Object.keys(params).forEach(function(k) {
+            if (k !== '_btn' && params[k] !== null && params[k] !== undefined && params[k] !== '') {
+                cleanParams[k] = params[k];
+            }
+        });
+
+        const queryString = new URLSearchParams(cleanParams).toString();
+        const url = '{{ route("admin.download_results_excel") }}?' + queryString;
+
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename || 'Results.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        setTimeout(function() {
+            if (btn && originalHtml) btn.prop('disabled', false).html(originalHtml);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ title: 'Downloading!', text: 'Excel is being generated...', icon: 'success', timer: 2000, showConfirmButton: false });
+            }
+        }, 1500);
+    }
+
     // Handle export from exam-result modal (single student)
     $(document).on('click', '.export-student-pdf-btn', function(e) {
         e.preventDefault();
@@ -7069,28 +7100,39 @@ $(document).ready(function() {
         }
     }
 
-    // Export All Excel - Use event delegation to handle dynamically loaded buttons
+    // Export All Excel — server-side (same filters/option logic as Export All PDF)
     $(document).on('click', '#exportAllExcel', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        console.log('Export All Excel button clicked');
-        console.log('Button element:', this);
-        console.log('jQuery object:', $(this));
-        
-        // Verify button exists
-        if ($(this).length === 0) {
-            console.error('Export Excel button not found in DOM');
-            alert('Export button not found. Please refresh the page.');
-            return;
-        }
-        
-        try {
-            exportAllStudentsExcel();
-        } catch (error) {
-            console.error('Error exporting Excel:', error);
-            console.error('Error stack:', error.stack);
-            alert('Error exporting Excel: ' + error.message);
-        }
+
+        const $btn = $(this);
+        const classVal    = $('#class').val() || '';
+        const subclassVal = $('#subclass').val() || '';
+
+        let option = 'all';
+        if (subclassVal) option = 'subclass';
+        else if (classVal) option = 'class';
+
+        const params = {
+            option: option,
+            term: $('#term').val(),
+            year: $('#year').val(),
+            type: $('#type').val() || 'exam',
+            status: $('#status').val() || 'active',
+            examID: $('#examID').val() || '',
+            classID:    classVal,
+            subclassID: subclassVal,
+            grade:  $('#grade').val() || '',
+            gender: $('#gender').val() || '',
+            _btn: $btn
+        };
+
+        const term = params.term ? params.term.replace('_', '') : '';
+        const year = params.year;
+        const typeName = params.type === 'report' ? 'Term_Report' : 'Exam_Results';
+        const filename = 'Students_' + typeName + '_' + (term ? term + '_' : '') + year + '.xlsx';
+
+        serverDownloadExcel(params, filename);
     });
 
     function exportAllStudentsPDF() {

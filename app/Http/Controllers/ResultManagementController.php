@@ -38,9 +38,11 @@ use App\Support\CenturyGothicPdfFont;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ResultManagementController extends Controller
 {
@@ -5498,6 +5500,529 @@ class ResultManagementController extends Controller
     }
 
     /**
+     * Exam numbers per class — same sequence as attendance template / add-results.
+     */
+    private function buildExamNumberMapForClass(int $classID, ?School $school): array
+    {
+        $examCenterNo = !empty($school?->exam_center_number)
+            ? $school->exam_center_number
+            : "SET-CENTER-NO";
+
+        $allStudentsInClass = Student::join(
+            "subclasses",
+            "students.subclassID",
+            "=",
+            "subclasses.subclassID",
+        )
+            ->where("subclasses.classID", $classID)
+            ->where("students.status", "Active")
+            ->select("students.studentID")
+            ->orderByRaw("CASE 
+                WHEN students.gender LIKE 'F%' OR students.gender LIKE 'K%' THEN 1 
+                ELSE 2 
+            END ASC")
+            ->orderBy("students.first_name", "asc")
+            ->get();
+
+        $map = [];
+        foreach ($allStudentsInClass as $index => $student) {
+            $sequence = str_pad($index + 1, 4, "0", STR_PAD_LEFT);
+            $map[$student->studentID] = "{$examCenterNo}/{$sequence}";
+        }
+
+        return $map;
+    }
+
+    private function genderShort(?string $gender): string
+    {
+        $g = strtolower(trim((string) $gender));
+        if (
+            str_starts_with($g, "f") ||
+            str_starts_with($g, "k") ||
+            $g === "female"
+        ) {
+            return "F";
+        }
+
+        return "M";
+    }
+
+    private function parseDivisionParts(?string $division, ?int $fallbackPoints = null): array
+    {
+        if (!$division) {
+            return ["roman" => "", "points" => $fallbackPoints ?? ""];
+        }
+
+        if (preg_match("/^([0IVX]+)\.(\d+)/", $division, $m)) {
+            return ["roman" => $m[1], "points" => (int) $m[2]];
+        }
+
+        if (preg_match("/^([0IVX]+)$/", $division, $m)) {
+            return ["roman" => $m[1], "points" => $fallbackPoints ?? ""];
+        }
+
+        return ["roman" => $division, "points" => $fallbackPoints ?? ""];
+    }
+
+    /**
+     * Normalize exam vs term-report payload into one row structure.
+     */
+    private function resolveStudentResultRow(
+        $student,
+        array $resultsData,
+        string $typeFilter,
+        $examFilter,
+    ): ?array {
+        if (!isset($resultsData[$student->studentID])) {
+            return null;
+        }
+
+        $payload = $resultsData[$student->studentID];
+
+        if ($typeFilter === "report") {
+            return [
+                "subjects" => $payload["subjects"] ?? [],
+                "average_marks" => $payload["average_marks"] ?? 0,
+                "total_marks" => $payload["total_marks"] ?? 0,
+                "grade" => $payload["grade"] ?? null,
+                "division" => $payload["division"] ?? null,
+                "total_points" => $payload["total_points"] ?? null,
+                "best_seven_total_marks" => 0,
+            ];
+        }
+
+        $entries = is_array($payload) ? $payload : [];
+        $chosen = null;
+        foreach ($entries as $examResult) {
+            if (
+                $examFilter &&
+                isset($examResult["exam"]->examID) &&
+                (string) $examResult["exam"]->examID === (string) $examFilter
+            ) {
+                $chosen = $examResult;
+                break;
+            }
+        }
+        if (!$chosen && !empty($entries)) {
+            $chosen = $entries[0];
+        }
+
+        if (!$chosen) {
+            return null;
+        }
+
+        return [
+            "subjects" => $chosen["subjects"] ?? [],
+            "average_marks" => $chosen["average_marks"] ?? 0,
+            "total_marks" => $chosen["total_marks"] ?? 0,
+            "grade" => $chosen["grade"] ?? null,
+            "division" => $chosen["division"] ?? null,
+            "total_points" => $chosen["total_points"] ?? null,
+            "best_seven_total_marks" => $chosen["best_seven_total_marks"] ?? 0,
+        ];
+    }
+
+    private function buildBoardTitleLine(
+        string $typeFilter,
+        $examFilter,
+        string $termFilter,
+        $yearFilter,
+    ): string {
+        if ($typeFilter === "exam" && $examFilter) {
+            $exam = Examination::find($examFilter);
+            if ($exam) {
+                $monthYear = $exam->start_date
+                    ? strtoupper($exam->start_date->format("F, Y"))
+                    : strtoupper(str_replace("_", " ", $termFilter)) .
+                        ", " .
+                        $yearFilter;
+
+                return strtoupper($exam->exam_name) .
+                    " RESULTS " .
+                    $monthYear .
+                    ".";
+            }
+        }
+
+        $termLabel = $termFilter
+            ? strtoupper(str_replace("_", " ", $termFilter))
+            : "TERM";
+
+        return $termLabel . " REPORT RESULTS " . $yearFilter . ".";
+    }
+
+    private function populateBoardResultsSheet(
+        Worksheet $sheet,
+        string $className,
+        string $titleLine,
+        $classStudents,
+        array $resultsData,
+        array $examNumbers,
+        string $schoolType,
+        string $typeFilter,
+        $examFilter,
+    ): void {
+        $prepared = [];
+        $subjectNames = [];
+
+        foreach ($classStudents as $student) {
+            $row = $this->resolveStudentResultRow(
+                $student,
+                $resultsData,
+                $typeFilter,
+                $examFilter,
+            );
+            if (!$row) {
+                continue;
+            }
+
+            foreach ($row["subjects"] as $subj) {
+                $name = $subj["subject_name"] ?? "";
+                if ($name && !in_array($name, $subjectNames, true)) {
+                    $subjectNames[] = $name;
+                }
+            }
+
+            $divisionParts = $this->parseDivisionParts(
+                $row["division"],
+                $row["total_points"],
+            );
+
+            $prepared[] = [
+                "student" => $student,
+                "row" => $row,
+                "division_roman" => $divisionParts["roman"],
+                "division_points" => $divisionParts["points"],
+            ];
+        }
+
+        sort($subjectNames);
+
+        if ($schoolType === "Secondary") {
+            usort($prepared, function ($a, $b) {
+                $ap = $a["row"]["total_points"] ?? 9999;
+                $bp = $b["row"]["total_points"] ?? 9999;
+                if ($ap != $bp) {
+                    return $ap <=> $bp;
+                }
+                $ab = $a["row"]["best_seven_total_marks"] ?? 0;
+                $bb = $b["row"]["best_seven_total_marks"] ?? 0;
+                if ($ab != $bb) {
+                    return $bb <=> $ab;
+                }
+
+                return ($b["row"]["total_marks"] ?? 0) <=>
+                    ($a["row"]["total_marks"] ?? 0);
+            });
+        } else {
+            usort($prepared, function ($a, $b) {
+                return ($b["row"]["total_marks"] ?? 0) <=>
+                    ($a["row"]["total_marks"] ?? 0);
+            });
+        }
+
+        foreach ($prepared as $i => &$item) {
+            $item["position"] = $i + 1;
+        }
+        unset($item);
+
+        $fixedCols = 3; // Exam No, Sex, Strm
+        $summaryCols = $schoolType === "Secondary" ? 4 : 2; // AVG,DIV,POINT,POST or AVG,Grade
+        $totalCols = $fixedCols + count($subjectNames) + $summaryCols;
+        $lastCol = Coordinate::stringFromColumnIndex(max(1, $totalCols));
+
+        $sheet->setCellValue("A1", $titleLine);
+        $sheet->setCellValue("A2", strtoupper($className));
+        $sheet->setCellValue("A3", "CLASS PERFORMANCE");
+        $sheet->mergeCells("A1:{$lastCol}1");
+        $sheet->mergeCells("A2:{$lastCol}2");
+        $sheet->mergeCells("A3:{$lastCol}3");
+        $sheet
+            ->getStyle("A1:A3")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("A1:A3")->getFont()->setBold(true);
+
+        $perfHeader = [
+            "",
+            "REG.",
+            "ABS",
+            "INC.",
+            "I",
+            "II",
+            "III",
+            "IV",
+            "0",
+            "I-III",
+            "GPA",
+        ];
+        $perfRowStart = 5;
+        $sheet->fromArray([$perfHeader], null, "A{$perfRowStart}");
+
+        $stats = [
+            "F" => [
+                "reg" => 0,
+                "abs" => 0,
+                "inc" => 0,
+                "I" => 0,
+                "II" => 0,
+                "III" => 0,
+                "IV" => 0,
+                "0" => 0,
+                "gpa_sum" => 0,
+                "gpa_count" => 0,
+            ],
+            "M" => [
+                "reg" => 0,
+                "abs" => 0,
+                "inc" => 0,
+                "I" => 0,
+                "II" => 0,
+                "III" => 0,
+                "IV" => 0,
+                "0" => 0,
+                "gpa_sum" => 0,
+                "gpa_count" => 0,
+            ],
+        ];
+
+        foreach ($prepared as $item) {
+            $student = $item["student"];
+            $row = $item["row"];
+            $sex = $this->genderShort($student->gender);
+            if (!isset($stats[$sex])) {
+                $sex = "M";
+            }
+            $stats[$sex]["reg"]++;
+
+            $hasIncomplete = false;
+            foreach ($row["subjects"] as $subj) {
+                $marks = $subj["marks"] ?? null;
+                if (
+                    $marks === null ||
+                    $marks === "" ||
+                    $marks === "incomplete"
+                ) {
+                    $hasIncomplete = true;
+                    break;
+                }
+            }
+            if ($hasIncomplete) {
+                $stats[$sex]["inc"]++;
+            }
+
+            if ($schoolType === "Secondary") {
+                $roman = $item["division_roman"];
+                if ($roman && isset($stats[$sex][$roman])) {
+                    $stats[$sex][$roman]++;
+                }
+            }
+
+            $subCount = count($row["subjects"]);
+            if ($subCount > 0 && ($row["total_points"] ?? null) !== null) {
+                $stats[$sex]["gpa_sum"] += $row["total_points"] / $subCount;
+                $stats[$sex]["gpa_count"]++;
+            }
+        }
+
+        $writePerfRow = function ($label, $key) use ($sheet, $stats, $perfRowStart) {
+            $s = $stats[$key];
+            $iIII = ($s["I"] ?? 0) + ($s["II"] ?? 0) + ($s["III"] ?? 0);
+            $gpa =
+                $s["gpa_count"] > 0
+                    ? number_format($s["gpa_sum"] / $s["gpa_count"], 2)
+                    : "0.00";
+            $sheet->fromArray(
+                [
+                    [
+                        $label,
+                        $s["reg"],
+                        $s["abs"],
+                        $s["inc"],
+                        $s["I"],
+                        $s["II"],
+                        $s["III"],
+                        $s["IV"],
+                        $s["0"],
+                        $iIII,
+                        $gpa,
+                    ],
+                ],
+                null,
+                "A" . ($perfRowStart + ($label === "F" ? 1 : 2)),
+            );
+        };
+        $writePerfRow("F", "F");
+        $writePerfRow("M", "M");
+
+        $total = [
+            "reg" => $stats["F"]["reg"] + $stats["M"]["reg"],
+            "abs" => 0,
+            "inc" => $stats["F"]["inc"] + $stats["M"]["inc"],
+            "I" => $stats["F"]["I"] + $stats["M"]["I"],
+            "II" => $stats["F"]["II"] + $stats["M"]["II"],
+            "III" => $stats["F"]["III"] + $stats["M"]["III"],
+            "IV" => $stats["F"]["IV"] + $stats["M"]["IV"],
+            "0" => $stats["F"]["0"] + $stats["M"]["0"],
+        ];
+        $totalGpaCount = $stats["F"]["gpa_count"] + $stats["M"]["gpa_count"];
+        $totalGpaSum = $stats["F"]["gpa_sum"] + $stats["M"]["gpa_sum"];
+        $sheet->fromArray(
+            [
+                [
+                    "T",
+                    $total["reg"],
+                    $total["abs"],
+                    $total["inc"],
+                    $total["I"],
+                    $total["II"],
+                    $total["III"],
+                    $total["IV"],
+                    $total["0"],
+                    $total["I"] + $total["II"] + $total["III"],
+                    $totalGpaCount > 0
+                        ? number_format($totalGpaSum / $totalGpaCount, 2)
+                        : "0.00",
+                ],
+            ],
+            null,
+            "A" . ($perfRowStart + 3),
+        );
+
+        $tableHeaderRow = $perfRowStart + 5;
+        $headers = ["EXAM NO.", "SEX", "STRM"];
+        foreach ($subjectNames as $name) {
+            $headers[] = $name;
+        }
+        $headers[] = "AVG";
+        if ($schoolType === "Secondary") {
+            $headers[] = "DIV";
+            $headers[] = "POINT";
+            $headers[] = "POST";
+        } else {
+            $headers[] = "GRADE";
+            $headers[] = "POST";
+        }
+
+        $sheet->fromArray([$headers], null, "A{$tableHeaderRow}");
+
+        $dataRow = $tableHeaderRow + 1;
+        foreach ($prepared as $item) {
+            $student = $item["student"];
+            $row = $item["row"];
+            $stream =
+                $student->subclass->stream_code ??
+                ($student->oldSubclass->stream_code ?? "");
+
+            $line = [
+                $examNumbers[$student->studentID] ?? "N/A",
+                $this->genderShort($student->gender),
+                $stream,
+            ];
+
+            $subjectMap = [];
+            foreach ($row["subjects"] as $subj) {
+                $subjectMap[$subj["subject_name"] ?? ""] = $subj;
+            }
+
+            foreach ($subjectNames as $name) {
+                $subj = $subjectMap[$name] ?? null;
+                if (!$subj) {
+                    $line[] = "-";
+                    continue;
+                }
+                $marks = $subj["marks"] ?? null;
+                if (
+                    $marks === null ||
+                    $marks === "" ||
+                    $marks === "incomplete"
+                ) {
+                    $line[] = "-";
+                } else {
+                    $grade = $subj["grade"] ?? "";
+                    $line[] =
+                        round((float) $marks) . ($grade ? "-" . $grade : "");
+                }
+            }
+
+            $line[] = number_format((float) ($row["average_marks"] ?? 0), 0);
+            if ($schoolType === "Secondary") {
+                $line[] = $item["division_roman"] ?: "-";
+                $line[] = $item["division_points"] !== ""
+                    ? $item["division_points"]
+                    : "-";
+                $line[] = $item["position"];
+            } else {
+                $line[] = $row["grade"] ?? "-";
+                $line[] = $item["position"];
+            }
+
+            $sheet->fromArray([$line], null, "A{$dataRow}");
+            $dataRow++;
+        }
+
+        $headerStyle = "A{$tableHeaderRow}:{$lastCol}{$tableHeaderRow}";
+        $sheet
+            ->getStyle($headerStyle)
+            ->getFont()
+            ->setBold(true);
+        $sheet
+            ->getStyle($headerStyle)
+            ->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setARGB("FFF5F5F5");
+        $sheet
+            ->getStyle($headerStyle)
+            ->getFont()
+            ->getColor()
+            ->setARGB("FF000000");
+        $sheet
+            ->getStyle($headerStyle)
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        // EXAM NO. — horizontal; all other headers — vertical (board style)
+        $sheet
+            ->getStyle("A{$tableHeaderRow}")
+            ->getAlignment()
+            ->setWrapText(true);
+
+        $maxVerticalLen = 0;
+        for ($c = 2; $c <= $totalCols; $c++) {
+            $colLetter = Coordinate::stringFromColumnIndex($c);
+            $headerText = $headers[$c - 1] ?? "";
+            $maxVerticalLen = max($maxVerticalLen, strlen($headerText));
+            $sheet
+                ->getStyle("{$colLetter}{$tableHeaderRow}")
+                ->getAlignment()
+                ->setTextRotation(90)
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+        }
+
+        $sheet
+            ->getRowDimension($tableHeaderRow)
+            ->setRowHeight(min(200, max(70, (int) round($maxVerticalLen * 5.5))));
+
+        $sheet
+            ->getStyle("A{$perfRowStart}:{$lastCol}" . ($dataRow - 1))
+            ->getBorders()
+            ->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN);
+
+        for ($c = 1; $c <= $totalCols; $c++) {
+            $colLetter = Coordinate::stringFromColumnIndex($c);
+            if ($c === 1) {
+                $sheet->getColumnDimension($colLetter)->setWidth(18);
+            } else {
+                $sheet->getColumnDimension($colLetter)->setWidth(5);
+            }
+        }
+    }
+
+    /**
      * Download results as Excel
      */
     public function downloadExcel(Request $request)
@@ -5505,10 +6030,8 @@ class ResultManagementController extends Controller
         $userType = Session::get("user_type");
         $schoolID = Session::get("schoolID");
 
-        if (
-            ($userType !== "Admin" && !$this->hasPermission("view_results")) ||
-            !$schoolID
-        ) {
+        // Match PDF export: any logged-in user with a valid school session
+        if (!$schoolID) {
             return redirect()->route("login")->with("error", "Access denied");
         }
 
@@ -5573,12 +6096,39 @@ class ResultManagementController extends Controller
                 ->orderBy("first_name")
                 ->get();
         } else {
+            // All students — respect optional class/subclass/gender filters (same as PDF)
+            $classFilterID = $request->get("classID", "");
+            $subclassFilterID = $request->get("subclassID", "");
+            $genderFilter = $request->get("gender", "");
+
             $studentQuery = Student::where("schoolID", $schoolID);
+
             if ($statusFilter === "active") {
                 $studentQuery->where("status", "Active");
             } elseif ($statusFilter === "history") {
                 $studentQuery->whereNotNull("old_subclassID");
             }
+
+            if ($subclassFilterID) {
+                $studentQuery->where("subclassID", $subclassFilterID);
+            } elseif ($classFilterID) {
+                $studentQuery->where(function ($q) use ($classFilterID) {
+                    $q->whereHas("subclass", function ($sq) use (
+                        $classFilterID,
+                    ) {
+                        $sq->where("classID", $classFilterID);
+                    })->orWhereHas("oldSubclass", function ($sq) use (
+                        $classFilterID,
+                    ) {
+                        $sq->where("classID", $classFilterID);
+                    });
+                });
+            }
+
+            if ($genderFilter) {
+                $studentQuery->where("gender", $genderFilter);
+            }
+
             $students = $studentQuery
                 ->with([
                     "subclass.class",
@@ -5629,207 +6179,76 @@ class ResultManagementController extends Controller
             return isset($resultsData[$student->studentID]);
         });
 
-        // Create spreadsheet
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-
-        // Build title based on filters
-        $title = "";
-        if ($typeFilter === "exam") {
-            $title = "Exam Results";
-            if ($examFilter) {
-                $exam = Examination::find($examFilter);
-                if ($exam) {
-                    $title = $exam->exam_name;
-                }
-            }
-        } else {
-            $title = "Term Report";
+        if ($students->isEmpty()) {
+            return redirect()
+                ->back()
+                ->with("error", "No results found for the selected filters.");
         }
 
-        if ($termFilter) {
-            $title .= " - " . ucfirst(str_replace("_", " ", $termFilter));
-        }
-        $title .= " - " . $yearFilter;
+        $titleLine = $this->buildBoardTitleLine(
+            $typeFilter,
+            $examFilter,
+            $termFilter,
+            $yearFilter,
+        );
 
-        // Add school name and title
-        $sheet->setCellValue("A1", $school->school_name ?? "School");
-        $sheet->setCellValue("A2", $title);
-
-        // Merge cells for better appearance
-        $lastCol = "K"; // Adjust based on number of columns
-        $sheet->mergeCells("A1:" . $lastCol . "1");
-        $sheet->mergeCells("A2:" . $lastCol . "2");
-
-        // Style header
-        $sheet->getStyle("A1")->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle("A2")->getFont()->setBold(true)->setSize(12);
-        $sheet
-            ->getStyle("A1:" . $lastCol . "1")
-            ->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()
-            ->setARGB("FF940000");
-        $sheet
-            ->getStyle("A1:" . $lastCol . "1")
-            ->getFont()
-            ->getColor()
-            ->setARGB("FFFFFFFF");
-
-        // Set headers
-        $headers = [
-            "#",
-            "Student Name",
-            "Admission No.",
-            "Class",
-            "Subclass",
-            "Total Marks",
-            "Average",
-            "Grade",
-            "Division",
-        ];
-        if ($typeFilter === "report") {
-            $headers[] = "Position";
-            $headers[] = "Exams Count";
-        } else {
-            $headers[] = "Exam Name";
-        }
-
-        $row = 4;
-        $col = "A";
-        $lastHeaderCol = "";
-        foreach ($headers as $header) {
-            $sheet->setCellValue($col . $row, $header);
-            $lastHeaderCol = $col;
-            $col++;
-        }
-
-        // Style header row
-        $sheet
-            ->getStyle("A4:" . $lastHeaderCol . "4")
-            ->getFont()
-            ->setBold(true);
-        $sheet
-            ->getStyle("A4:" . $lastHeaderCol . "4")
-            ->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()
-            ->setARGB("FF940000");
-        $sheet
-            ->getStyle("A4:" . $lastHeaderCol . "4")
-            ->getFont()
-            ->getColor()
-            ->setARGB("FFFFFFFF");
-
-        // Add data
-        $row = 5;
-        $index = 1;
+        $studentsByClass = [];
         foreach ($students as $student) {
-            if (isset($resultsData[$student->studentID])) {
-                $result = $resultsData[$student->studentID];
-
-                $className = "";
-                $subclassName = "";
-                if ($student->subclass && $student->subclass->class) {
-                    $className = $student->subclass->class->class_name ?? "";
-                    $subclassName = $student->subclass->subclass_name ?? "";
-                } elseif (
-                    $student->oldSubclass &&
-                    $student->oldSubclass->class
-                ) {
-                    $className = $student->oldSubclass->class->class_name ?? "";
-                    $subclassName = $student->oldSubclass->subclass_name ?? "";
-                }
-
-                if ($typeFilter === "report") {
-                    $sheet->setCellValue("A" . $row, $index);
-                    $sheet->setCellValue(
-                        "B" . $row,
-                        $student->first_name .
-                            " " .
-                            ($student->middle_name ?? "") .
-                            " " .
-                            $student->last_name,
-                    );
-                    $sheet->setCellValue(
-                        "C" . $row,
-                        $student->admission_number ?? "N/A",
-                    );
-                    $sheet->setCellValue("D" . $row, $className);
-                    $sheet->setCellValue("E" . $row, $subclassName);
-                    $sheet->setCellValue(
-                        "F" . $row,
-                        number_format($result["total_marks"], 0),
-                    );
-                    $sheet->setCellValue(
-                        "G" . $row,
-                        number_format($result["average_marks"], 0),
-                    );
-                    $sheet->setCellValue("H" . $row, $result["grade"] ?? "N/A");
-                    $sheet->setCellValue(
-                        "I" . $row,
-                        $result["division"] ?? "N/A",
-                    );
-                    $sheet->setCellValue(
-                        "J" . $row,
-                        $result["position"] ?? "N/A",
-                    );
-                    $sheet->setCellValue(
-                        "K" . $row,
-                        $result["exam_count"] ?? 0,
-                    );
-                } else {
-                    // For exam results, show first exam or aggregate
-                    $firstExam =
-                        is_array($result) && !empty($result)
-                            ? $result[0]
-                            : $result;
-                    $sheet->setCellValue("A" . $row, $index);
-                    $sheet->setCellValue(
-                        "B" . $row,
-                        $student->first_name .
-                            " " .
-                            ($student->middle_name ?? "") .
-                            " " .
-                            $student->last_name,
-                    );
-                    $sheet->setCellValue(
-                        "C" . $row,
-                        $student->admission_number ?? "N/A",
-                    );
-                    $sheet->setCellValue("D" . $row, $className);
-                    $sheet->setCellValue("E" . $row, $subclassName);
-                    $sheet->setCellValue(
-                        "F" . $row,
-                        number_format($firstExam["total_marks"] ?? 0, 0),
-                    );
-                    $sheet->setCellValue(
-                        "G" . $row,
-                        number_format($firstExam["average_marks"] ?? 0, 0),
-                    );
-                    $sheet->setCellValue(
-                        "H" . $row,
-                        $firstExam["grade"] ?? "N/A",
-                    );
-                    $sheet->setCellValue(
-                        "I" . $row,
-                        $firstExam["division"] ?? "N/A",
-                    );
-                    $sheet->setCellValue(
-                        "J" . $row,
-                        $firstExam["exam"]->exam_name ?? "N/A",
-                    );
-                }
-
-                $row++;
-                $index++;
+            $cid = null;
+            if ($student->subclass && $student->subclass->class) {
+                $cid = $student->subclass->class->classID;
+            } elseif ($student->oldSubclass && $student->oldSubclass->class) {
+                $cid = $student->oldSubclass->class->classID;
             }
+            if (!$cid) {
+                $cid = 0;
+            }
+            $studentsByClass[$cid][] = $student;
         }
 
-        // Auto-size columns
-        foreach (range("A", $lastHeaderCol) as $column) {
-            $sheet->getColumnDimension($column)->setAutoSize(true);
+        $spreadsheet = new Spreadsheet();
+        $sheetIndex = 0;
+
+        foreach ($studentsByClass as $cid => $classStudents) {
+            $className =
+                $cid > 0
+                    ? ClassModel::find($cid)?->class_name ?? "Class {$cid}"
+                    : "Unknown Class";
+            $sheetTitle = preg_replace('/[\\\\\\/\\?\\*\\[\\]:]/', "", $className);
+            $sheetTitle = substr($sheetTitle, 0, 31) ?: "Results";
+
+            $sheet =
+                $sheetIndex === 0
+                    ? $spreadsheet->getActiveSheet()
+                    : new Worksheet($spreadsheet, $sheetTitle);
+
+            if ($sheetIndex > 0) {
+                $spreadsheet->addSheet($sheet);
+            } else {
+                $sheet->setTitle($sheetTitle);
+            }
+
+            $examNumbers =
+                $cid > 0
+                    ? $this->buildExamNumberMapForClass($cid, $school)
+                    : [];
+
+            $this->populateBoardResultsSheet(
+                $sheet,
+                $className,
+                $titleLine,
+                collect($classStudents),
+                $resultsData,
+                $examNumbers,
+                $schoolType,
+                $typeFilter,
+                $examFilter,
+            );
+
+            $sheetIndex++;
         }
+
+        $spreadsheet->setActiveSheetIndex(0);
 
         // Generate filename
         $filename = "Results_";
