@@ -42,6 +42,7 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ResultManagementController extends Controller
@@ -5651,6 +5652,105 @@ class ResultManagementController extends Controller
         return $termLabel . " REPORT RESULTS " . $yearFilter . ".";
     }
 
+    private function resolveSubjectGradeLetter(
+        array $subj,
+        string $schoolType,
+        string $className,
+        $classID = null,
+    ): ?string {
+        $marks = $subj["marks"] ?? null;
+        if ($marks === null || $marks === "" || $marks === "incomplete") {
+            return null;
+        }
+
+        $grade = strtoupper(trim((string) ($subj["grade"] ?? "")));
+        if ($grade === "" || $grade === "INCOMPLETE") {
+            $avg = (float) $marks;
+            if ($schoolType === "Secondary") {
+                $grade =
+                    $this->getSecondaryHardcodedGrade($avg, $className)[
+                        "grade"
+                    ] ?? "";
+            } elseif ($classID) {
+                $grade =
+                    $this->getGradeFromDefinition(
+                        $avg,
+                        $classID,
+                        $schoolType,
+                        $className,
+                    )["grade"] ?? "";
+            } else {
+                if ($avg >= 75) {
+                    $grade = "A";
+                } elseif ($avg >= 65) {
+                    $grade = "B";
+                } elseif ($avg >= 45) {
+                    $grade = "C";
+                } elseif ($avg >= 30) {
+                    $grade = "D";
+                } else {
+                    $grade =
+                        $schoolType === "Primary" && $avg >= 20 ? "E" : "F";
+                }
+            }
+        }
+
+        $grade = strtoupper(trim($grade));
+
+        return $grade !== "" ? $grade : null;
+    }
+
+    private function calculateClassGpaForExport(
+        array $prepared,
+        string $schoolType,
+    ): float {
+        $ptMapGPA =
+            $schoolType === "Primary"
+                ? ["A" => 5, "B" => 4, "C" => 3, "D" => 2, "E" => 1, "F" => 0]
+                : ["A" => 1, "B" => 2, "C" => 3, "D" => 4, "F" => 5];
+
+        $classGpaSum = 0.0;
+        $classGpaCount = 0;
+
+        foreach ($prepared as $item) {
+            $student = $item["student"];
+            $row = $item["row"];
+            $className = "";
+            $classID = null;
+            if ($student->subclass && $student->subclass->class) {
+                $className = $student->subclass->class->class_name ?? "";
+                $classID = $student->subclass->class->classID ?? null;
+            } elseif ($student->oldSubclass && $student->oldSubclass->class) {
+                $className = $student->oldSubclass->class->class_name ?? "";
+                $classID = $student->oldSubclass->class->classID ?? null;
+            }
+
+            $stuPoints = 0;
+            $stuSubCount = 0;
+            foreach ($row["subjects"] as $subj) {
+                $grade = $this->resolveSubjectGradeLetter(
+                    $subj,
+                    $schoolType,
+                    $className,
+                    $classID,
+                );
+                if ($grade && isset($ptMapGPA[$grade])) {
+                    $stuPoints += $ptMapGPA[$grade];
+                    $stuSubCount++;
+                }
+            }
+
+            if ($stuSubCount > 0) {
+                $classGpaSum += $stuPoints / $stuSubCount;
+                $classGpaCount++;
+            }
+        }
+
+        return $classGpaCount > 0
+            ? round($classGpaSum / $classGpaCount, 1)
+            : 0.0;
+    }
+
     private function populateBoardResultsSheet(
         Worksheet $sheet,
         string $className,
@@ -5727,24 +5827,12 @@ class ResultManagementController extends Controller
         unset($item);
 
         $fixedCols = 3; // Exam No, Sex, Strm
-        $summaryCols = $schoolType === "Secondary" ? 4 : 2; // AVG,DIV,POINT,POST or AVG,Grade
+        $summaryCols = $schoolType === "Secondary" ? 4 : 2;
         $totalCols = $fixedCols + count($subjectNames) + $summaryCols;
         $lastCol = Coordinate::stringFromColumnIndex(max(1, $totalCols));
 
-        $sheet->setCellValue("A1", $titleLine);
-        $sheet->setCellValue("A2", strtoupper($className));
-        $sheet->setCellValue("A3", "CLASS PERFORMANCE");
-        $sheet->mergeCells("A1:{$lastCol}1");
-        $sheet->mergeCells("A2:{$lastCol}2");
-        $sheet->mergeCells("A3:{$lastCol}3");
-        $sheet
-            ->getStyle("A1:A3")
-            ->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("A1:A3")->getFont()->setBold(true);
-
         $perfHeader = [
-            "",
+            "SEX",
             "REG.",
             "ABS",
             "INC.",
@@ -5756,8 +5844,72 @@ class ResultManagementController extends Controller
             "I-III",
             "GPA",
         ];
+        $perfColCount = count($perfHeader);
+        // Summary table starts at SEX column (col 2) — not under EXAM NO (board layout)
+        $perfStartCol = 2;
+        $perfEndCol = $perfStartCol + $perfColCount - 1;
+        $perfStartLetter = Coordinate::stringFromColumnIndex($perfStartCol);
+        $perfEndLetter = Coordinate::stringFromColumnIndex($perfEndCol);
+        $perfDataStartCol = $perfStartCol + 1; // REG. column (skip F/M/T label col)
+        $perfDataStartLetter = Coordinate::stringFromColumnIndex($perfDataStartCol);
+        $gpaCol = Coordinate::stringFromColumnIndex($perfEndCol);
+
+        // Title rows — centered over CLASS PERFORMANCE summary table (SEX through GPA)
+        $sheet->setCellValue("{$perfStartLetter}1", $titleLine);
+        $sheet->mergeCells("{$perfStartLetter}1:{$perfEndLetter}1");
+        $sheet
+            ->getStyle("{$perfStartLetter}1:{$perfEndLetter}1")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet
+            ->getStyle("{$perfStartLetter}1:{$perfEndLetter}1")
+            ->getFont()
+            ->setBold(true)
+            ->setSize(12);
+
+        $sheet->setCellValue("{$perfStartLetter}2", strtoupper($className));
+        $sheet->mergeCells("{$perfStartLetter}2:{$perfEndLetter}2");
+        $sheet
+            ->getStyle("{$perfStartLetter}2:{$perfEndLetter}2")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet
+            ->getStyle("{$perfStartLetter}2:{$perfEndLetter}2")
+            ->getFont()
+            ->setBold(true)
+            ->setSize(11);
+
+        $sheet->setCellValue("{$perfStartLetter}3", "CLASS PERFORMANCE");
+        $sheet->mergeCells("{$perfStartLetter}3:{$perfEndLetter}3");
+        $sheet
+            ->getStyle("{$perfStartLetter}3:{$perfEndLetter}3")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet
+            ->getStyle("{$perfStartLetter}3:{$perfEndLetter}3")
+            ->getFont()
+            ->setBold(true);
+
         $perfRowStart = 5;
-        $sheet->fromArray([$perfHeader], null, "A{$perfRowStart}");
+        $sheet->fromArray([$perfHeader], null, "{$perfStartLetter}{$perfRowStart}");
+        $perfDataEndLetter = Coordinate::stringFromColumnIndex($perfEndCol - 1);
+        $sheet
+            ->getStyle("{$perfStartLetter}{$perfRowStart}:{$perfEndLetter}{$perfRowStart}")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet
+            ->getStyle("{$perfDataStartLetter}{$perfRowStart}:{$perfDataEndLetter}{$perfRowStart}")
+            ->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setARGB("FFE8F4FC");
+        $sheet
+            ->getStyle("{$perfStartLetter}{$perfRowStart}:{$perfEndLetter}{$perfRowStart}")
+            ->getFont()
+            ->setBold(true);
 
         $stats = [
             "F" => [
@@ -5769,8 +5921,6 @@ class ResultManagementController extends Controller
                 "III" => 0,
                 "IV" => 0,
                 "0" => 0,
-                "gpa_sum" => 0,
-                "gpa_count" => 0,
             ],
             "M" => [
                 "reg" => 0,
@@ -5781,10 +5931,10 @@ class ResultManagementController extends Controller
                 "III" => 0,
                 "IV" => 0,
                 "0" => 0,
-                "gpa_sum" => 0,
-                "gpa_count" => 0,
             ],
         ];
+
+        $classGpa = $this->calculateClassGpaForExport($prepared, $schoolType);
 
         foreach ($prepared as $item) {
             $student = $item["student"];
@@ -5817,21 +5967,16 @@ class ResultManagementController extends Controller
                     $stats[$sex][$roman]++;
                 }
             }
-
-            $subCount = count($row["subjects"]);
-            if ($subCount > 0 && ($row["total_points"] ?? null) !== null) {
-                $stats[$sex]["gpa_sum"] += $row["total_points"] / $subCount;
-                $stats[$sex]["gpa_count"]++;
-            }
         }
 
-        $writePerfRow = function ($label, $key) use ($sheet, $stats, $perfRowStart) {
+        $writePerfRow = function ($label, $key) use (
+            $sheet,
+            $stats,
+            $perfRowStart,
+            $perfStartLetter,
+        ) {
             $s = $stats[$key];
             $iIII = ($s["I"] ?? 0) + ($s["II"] ?? 0) + ($s["III"] ?? 0);
-            $gpa =
-                $s["gpa_count"] > 0
-                    ? number_format($s["gpa_sum"] / $s["gpa_count"], 2)
-                    : "0.00";
             $sheet->fromArray(
                 [
                     [
@@ -5845,11 +5990,11 @@ class ResultManagementController extends Controller
                         $s["IV"],
                         $s["0"],
                         $iIII,
-                        $gpa,
                     ],
                 ],
                 null,
-                "A" . ($perfRowStart + ($label === "F" ? 1 : 2)),
+                $perfStartLetter .
+                    ($perfRowStart + ($label === "F" ? 1 : 2)),
             );
         };
         $writePerfRow("F", "F");
@@ -5865,8 +6010,6 @@ class ResultManagementController extends Controller
             "IV" => $stats["F"]["IV"] + $stats["M"]["IV"],
             "0" => $stats["F"]["0"] + $stats["M"]["0"],
         ];
-        $totalGpaCount = $stats["F"]["gpa_count"] + $stats["M"]["gpa_count"];
-        $totalGpaSum = $stats["F"]["gpa_sum"] + $stats["M"]["gpa_sum"];
         $sheet->fromArray(
             [
                 [
@@ -5880,16 +6023,80 @@ class ResultManagementController extends Controller
                     $total["IV"],
                     $total["0"],
                     $total["I"] + $total["II"] + $total["III"],
-                    $totalGpaCount > 0
-                        ? number_format($totalGpaSum / $totalGpaCount, 2)
-                        : "0.00",
                 ],
             ],
             null,
-            "A" . ($perfRowStart + 3),
+            $perfStartLetter . ($perfRowStart + 3),
         );
 
-        $tableHeaderRow = $perfRowStart + 5;
+        // GPA — merged vertically across F/M/T, centered in performance block
+        $gpaFirstRow = $perfRowStart + 1;
+        $gpaLastRow = $perfRowStart + 3;
+        $sheet->mergeCells("{$gpaCol}{$gpaFirstRow}:{$gpaCol}{$gpaLastRow}");
+        $sheet->setCellValue("{$gpaCol}{$gpaFirstRow}", $classGpa);
+        $sheet
+            ->getStyle("{$gpaCol}{$gpaFirstRow}")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet
+            ->getStyle("{$gpaCol}{$gpaFirstRow}")
+            ->getNumberFormat()
+            ->setFormatCode("0.0");
+        $sheet->getStyle("{$gpaCol}{$gpaFirstRow}")->getFont()->setBold(true);
+
+        // Center-align F / M / T data
+        $sheet
+            ->getStyle(
+                "{$perfStartLetter}" .
+                    ($perfRowStart + 1) .
+                    ":{$perfEndLetter}" .
+                    ($perfRowStart + 3),
+            )
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Summary table borders: full outline + vertical dividers; F/M grouped (no line between them)
+        $perfLastRow = $perfRowStart + 3;
+        $perfRange = "{$perfStartLetter}{$perfRowStart}:{$perfEndLetter}{$perfLastRow}";
+        $fRow = $perfRowStart + 1;
+        $mRow = $perfRowStart + 2;
+
+        $sheet
+            ->getStyle($perfRange)
+            ->getBorders()
+            ->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN);
+
+        $sheet
+            ->getStyle("{$perfStartLetter}{$fRow}:{$perfDataEndLetter}{$fRow}")
+            ->getBorders()
+            ->getBottom()
+            ->setBorderStyle(Border::BORDER_NONE);
+        $sheet
+            ->getStyle("{$perfStartLetter}{$mRow}:{$perfDataEndLetter}{$mRow}")
+            ->getBorders()
+            ->getTop()
+            ->setBorderStyle(Border::BORDER_NONE);
+
+        // GPA merged cell — no internal horizontal lines between F / M / T
+        $sheet
+            ->getStyle("{$gpaCol}{$fRow}")
+            ->getBorders()
+            ->getBottom()
+            ->setBorderStyle(Border::BORDER_NONE);
+        $sheet
+            ->getStyle("{$gpaCol}{$mRow}")
+            ->getBorders()
+            ->getTop()
+            ->setBorderStyle(Border::BORDER_NONE);
+        $sheet
+            ->getStyle("{$gpaCol}{$mRow}")
+            ->getBorders()
+            ->getBottom()
+            ->setBorderStyle(Border::BORDER_NONE);
+
+        $tableHeaderRow = $perfLastRow + 1;
         $headers = ["EXAM NO.", "SEX", "STRM"];
         foreach ($subjectNames as $name) {
             $headers[] = $name;
@@ -6006,11 +6213,18 @@ class ResultManagementController extends Controller
             ->getRowDimension($tableHeaderRow)
             ->setRowHeight(min(200, max(70, (int) round($maxVerticalLen * 5.5))));
 
-        $sheet
-            ->getStyle("A{$perfRowStart}:{$lastCol}" . ($dataRow - 1))
-            ->getBorders()
-            ->getAllBorders()
-            ->setBorderStyle(Border::BORDER_THIN);
+        $lastDataRow = $dataRow - 1;
+        if ($lastDataRow >= $tableHeaderRow) {
+            $sheet
+                ->getStyle("A{$tableHeaderRow}:{$lastCol}{$lastDataRow}")
+                ->getBorders()
+                ->getAllBorders()
+                ->setBorderStyle(Border::BORDER_THIN);
+            $sheet
+                ->getStyle("A" . ($tableHeaderRow + 1) . ":{$lastCol}{$lastDataRow}")
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
 
         for ($c = 1; $c <= $totalCols; $c++) {
             $colLetter = Coordinate::stringFromColumnIndex($c);
