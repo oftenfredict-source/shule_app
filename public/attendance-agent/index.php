@@ -8,15 +8,12 @@ if (sx_is_logged_in()) {
     sx_redirect('dashboard.php');
 }
 
-require_once __DIR__ . '/includes/api_client.php';
-
 $appName = (string) sx_config('app_name', 'ShuleXpert Fingerprint Attendance System');
 $poweredBy = (string) sx_config('powered_by', 'EmCa Techonologies');
 $error = sx_flash('error');
 $success = sx_flash('success');
 $servers = sx_servers();
 $defaultServer = sx_active_server_key();
-$serverStatus = sx_ping_all_servers();
 $selectedServer = (string) ($_GET['server'] ?? $defaultServer);
 if (!sx_is_valid_server_key($selectedServer)) {
     $selectedServer = $defaultServer;
@@ -77,30 +74,21 @@ $biometricImagesByServer = sx_biometric_images_by_server();
             <?php endif; ?>
 
             <form method="POST" action="login.php" id="loginForm" autocomplete="off">
-                <label class="form-label" for="server">ShuleXpert Server</label>
+                <label class="form-label" for="server">Environment</label>
                 <div class="input-wrap">
-                    <i class="fa fa-server"></i>
+                    <i class="fa fa-globe"></i>
                     <select class="form-control" id="server" name="server" required style="padding-left:42px;">
                         <?php foreach ($servers as $key => $server): ?>
                             <?php
-                                $status = $serverStatus[$key] ?? null;
-                                $statusText = $status && $status['ok'] ? ' ● Online' : ' ● Offline';
-                                $statusClass = $status && $status['ok'] ? 'online' : 'offline';
+                                $envLabel = (string) ($server['label'] ?? ucfirst($key));
+                                $envUrl = rtrim((string) ($server['web_url'] ?? ''), '/');
+                                $optionText = $envUrl !== '' ? $envLabel . ' (' . $envUrl . ')' : $envLabel;
                             ?>
                             <option value="<?= htmlspecialchars($key) ?>" <?= $key === $selectedServer ? 'selected' : '' ?>>
-                                <?= htmlspecialchars((string) $server['label']) ?><?= $statusText ?>
+                                <?= htmlspecialchars($optionText) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-                <div class="server-status-hint" id="serverStatusHint">
-                    <?php foreach ($servers as $key => $server): ?>
-                        <?php $st = $serverStatus[$key] ?? null; ?>
-                        <span data-server="<?= htmlspecialchars($key) ?>" class="server-hint <?= $key === $selectedServer ? 'active' : '' ?>">
-                            <?= htmlspecialchars((string) ($server['label'] ?? $key)) ?>
-                            — <?= $st && $st['ok'] ? 'Connected' : htmlspecialchars((string) ($st['message'] ?? 'Unreachable')) ?>
-                        </span>
-                    <?php endforeach; ?>
                 </div>
 
                 <label class="form-label" for="username">Username (Admin)</label>
@@ -151,14 +139,10 @@ $biometricImagesByServer = sx_biometric_images_by_server();
     }
 
     var serverSelect = document.getElementById('server');
-    var hints = document.querySelectorAll('.server-hint');
     var loginImg = document.getElementById('loginBiometricImage');
-    if (serverSelect) {
+    if (serverSelect && loginImg) {
         serverSelect.addEventListener('change', function () {
-            hints.forEach(function (el) {
-                el.classList.toggle('active', el.getAttribute('data-server') === serverSelect.value);
-            });
-            if (loginImg && biometricImages[serverSelect.value]) {
+            if (biometricImages[serverSelect.value]) {
                 loginImg.src = biometricImages[serverSelect.value];
             }
         });

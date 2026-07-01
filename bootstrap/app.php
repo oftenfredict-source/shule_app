@@ -27,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(append: [
             \App\Http\Middleware\SchoolAgentCors::class,
         ]);
+
+        $middleware->alias([
+            'school.agent' => \App\Http\Middleware\AuthenticateSchoolAgent::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+set_time_limit(60);
+
 require_once __DIR__ . '/includes/bootstrap.php';
 require_once __DIR__ . '/includes/api_client.php';
 
@@ -19,7 +21,7 @@ if ($username === '' || $password === '') {
 }
 
 if ($serverKey === '' || !sx_is_valid_server_key($serverKey)) {
-    sx_flash('error', 'Please select a valid server (Test or Live).');
+    sx_flash('error', 'Please select a valid environment.');
     sx_redirect('index.php');
 }
 

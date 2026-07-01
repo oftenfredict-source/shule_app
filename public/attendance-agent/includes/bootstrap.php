@@ -13,9 +13,13 @@ $config = require $configPath;
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_name($config['session_name'] ?? 'sx_fingerprint_agent');
+    $cookiePath = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/attendance-agent'));
+    if ($cookiePath === '/' || $cookiePath === '.' || $cookiePath === '') {
+        $cookiePath = '/';
+    }
     session_set_cookie_params([
         'lifetime' => (int) ($config['session_lifetime'] ?? 43200),
-        'path' => '/',
+        'path' => $cookiePath,
         'httponly' => true,
         'samesite' => 'Lax',
     ]);

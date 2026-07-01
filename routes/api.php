@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\AttendanceApiController;
 use App\Http\Controllers\AccomodationController;
+use App\Http\Controllers\SchoolAgentDeviceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,6 +29,14 @@ Route::post('/logout', [ApiController::class, 'logout'])->name('api.logout');
 // School fingerprint sync agent (Admin only, token-based)
 Route::post('/school-agent/login', [\App\Http\Controllers\Auth::class, 'schoolAgentLoginApi'])->name('api.school_agent.login');
 Route::get('/school-agent/verify', [\App\Http\Controllers\Auth::class, 'schoolAgentVerifyToken'])->name('api.school_agent.verify');
+
+Route::middleware('school.agent')->prefix('school-agent')->group(function () {
+    Route::get('/devices', [SchoolAgentDeviceController::class, 'index'])->name('api.school_agent.devices.index');
+    Route::post('/devices', [SchoolAgentDeviceController::class, 'store'])->name('api.school_agent.devices.store');
+    Route::get('/devices/{id}', [SchoolAgentDeviceController::class, 'show'])->name('api.school_agent.devices.show');
+    Route::put('/devices/{id}', [SchoolAgentDeviceController::class, 'update'])->name('api.school_agent.devices.update');
+    Route::delete('/devices/{id}', [SchoolAgentDeviceController::class, 'destroy'])->name('api.school_agent.devices.destroy');
+});
 
 // User profile endpoint
 Route::get('/user/profile', [ApiController::class, 'getUserProfile'])->name('api.user.profile');
