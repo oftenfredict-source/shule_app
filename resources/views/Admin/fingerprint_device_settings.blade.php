@@ -451,6 +451,13 @@
                                     <strong>ShuleXpert server</strong> (this website): <code>{{ request()->getSchemeAndHttpHost() }}</code>
                                     <br>
                                     <strong>Fingerprint device</strong> (ZKTeco machine): IP/port shown after you select a device — usually port <code>4370</code>, not <code>8002</code>.
+                                    <br><br>
+                                    <strong class="text-warning">Live hosting (cPanel / test.shulexpert.com):</strong>
+                                    <strong>Test Connection</strong> haifanyi kazi kwa device yenye IP ya ndani (mf. <code>192.168.x.x</code>)
+                                    kwa sababu server ya mtandao wa internet haiwezi kufikia LAN ya shule.
+                                    Tumia <strong>ADMS / Push</strong> kwenye device ili machine iwasiliane na
+                                    <code>{{ request()->getSchemeAndHttpHost() }}/iclock/getrequest</code>.
+                                    Device Tester inafanya kazi pale PHP iko kwenye network ile ile na device (mf. Laragon shuleni).
                                 </div>
 
                                 <form id="deviceForm">

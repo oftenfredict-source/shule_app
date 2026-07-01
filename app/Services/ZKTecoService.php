@@ -31,9 +31,54 @@ class ZKTecoService
             $message .= 'C:\\laragon\\bin\\php\\php-8.3.30-Win32-vs16-x64\\php.exe artisan serve --host=192.168.100.112 --port=8003';
         } elseif (file_exists($laragonIni)) {
             $message .= 'In Laragon: Menu → PHP → php.ini → enable extension=sockets, then Stop All → Start All.';
+        } else {
+            $message .= 'On cPanel/live hosting: MultiPHP INI Editor → enable extension=sockets, then restart PHP.';
         }
 
         return $message;
+    }
+
+    /**
+     * True for RFC1918 / local-only IPs (typical school LAN device address).
+     */
+    public static function isPrivateLanIp(string $ip): bool
+    {
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+            return false;
+        }
+
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
+    }
+
+    /**
+     * Live/cloud site cannot open TCP to a device on the school's private LAN.
+     */
+    public static function isLiveHostingLanDeviceMismatch(string $deviceIp, string $appHost): bool
+    {
+        if (!self::isPrivateLanIp($deviceIp)) {
+            return false;
+        }
+
+        if (filter_var($appHost, FILTER_VALIDATE_IP)) {
+            return !self::isPrivateLanIp($appHost);
+        }
+
+        return true;
+    }
+
+    public static function liveHostingDeviceMessage(string $deviceIp, int $port, array $serverConfig): string
+    {
+        $serverUrl = $serverConfig['server_url'] ?? '';
+        $pushUrl = $serverConfig['push_sdk_url'] ?? ($serverUrl . '/iclock/getrequest');
+
+        return 'Cannot test this device from live hosting. Device IP <strong>' . $deviceIp . ':' . $port
+            . '</strong> is on the school local network, but ShuleXpert runs on <strong>' . $serverUrl
+            . '</strong> (internet server). The cPanel server cannot reach private LAN IPs.'
+            . '<br><br><strong>What works on live hosting:</strong> configure the ZKTeco device <strong>ADMS / Push</strong> '
+            . 'so the device connects <em>to</em> ShuleXpert (not the other way around).'
+            . '<br><br><strong>Push URL:</strong> <code>' . $pushUrl . '</code>'
+            . '<br><br><strong>Device Tester</strong> (Test Connection, pull attendance) only works when PHP runs on the '
+            . 'same network as the machine — e.g. Laragon at school, or a PC on the LAN.';
     }
 
     protected ?ZKTeco $client = null;

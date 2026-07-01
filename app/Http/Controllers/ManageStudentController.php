@@ -2068,6 +2068,16 @@ class ManageStudentController extends Controller
                 ], 422);
             }
 
+            if (ZKTecoService::isLiveHostingLanDeviceMismatch($ip, $request->getHost())) {
+                return response()->json([
+                    'success' => false,
+                    'message' => ZKTecoService::liveHostingDeviceMessage($ip, $port, $serverConfig),
+                    'device_target' => ['ip' => $ip, 'port' => $port],
+                    'server_config' => $serverConfig,
+                    'hosting_mismatch' => true,
+                ], 422);
+            }
+
             Log::info("ZKTeco: Testing connection to device - IP: {$ip}, Port: {$port}, Comm Key: {$password}");
 
             $tcp = ZKTecoService::quickTcpCheck($ip, $port, 3);
@@ -2075,16 +2085,24 @@ class ManageStudentController extends Controller
                 $tcpError = $tcp['error'] ?? 'No response';
                 Log::warning("ZKTeco: TCP check failed for {$ip}:{$port} — {$tcpError}");
 
+                $message = "Cannot reach fingerprint device at {$ip}:{$port}. {$tcpError}"
+                    . '<br><br><strong>Fingerprint device (target):</strong> ' . $ip . ':' . $port
+                    . '<br><strong>ShuleXpert server (this app):</strong> ' . $serverConfig['server_url'];
+
+                if (ZKTecoService::isLiveHostingLanDeviceMismatch($ip, $request->getHost())) {
+                    $message = ZKTecoService::liveHostingDeviceMessage($ip, $port, $serverConfig);
+                } else {
+                    $message .= '<br><br><em>Connection refused</em> means nothing answered on the device IP. '
+                        . 'Check the device is ON, IP/port in <strong>Fingerprint Device Settings → Devices</strong> match the machine, '
+                        . 'and the device is on the same network as ' . $serverConfig['server_ip'] . '.';
+                }
+
                 return response()->json([
                     'success' => false,
-                    'message' => "Cannot reach fingerprint device at {$ip}:{$port}. {$tcpError}"
-                        . '<br><br><strong>Fingerprint device (target):</strong> ' . $ip . ':' . $port
-                        . '<br><strong>ShuleXpert server (this app):</strong> ' . $serverConfig['server_url']
-                        . '<br><br><em>Connection refused</em> means nothing answered on the device IP. '
-                        . 'Check the device is ON, IP/port in <strong>Fingerprint Device Settings → Devices</strong> match the machine, '
-                        . 'and the device is on the same network as ' . $serverConfig['server_ip'] . '.',
+                    'message' => $message,
                     'device_target' => ['ip' => $ip, 'port' => $port],
                     'server_config' => $serverConfig,
+                    'hosting_mismatch' => ZKTecoService::isLiveHostingLanDeviceMismatch($ip, $request->getHost()),
                 ], 500);
             }
 
