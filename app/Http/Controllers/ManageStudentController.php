@@ -2221,12 +2221,14 @@ class ManageStudentController extends Controller
             'push_sdk_url' => $serverUrl . '/iclock/getrequest',
             'push_sdk_data_url' => $serverUrl . '/iclock/cdata',
             'instructions' => [
-                '1. On device: Menu → System → Communication → ADMS',
-                '2. Enable ADMS: ON',
-                "3. Server IP: {$serverIP}",
-                "4. Server Port: {$serverPort}",
-                '5. Server Path: /iclock/getrequest',
-                '6. Save settings',
+                '1. On device: Main Menu → Comm (Communication) — NOT under System',
+                '2. Open Cloud Server Setting (or Cloud Service Setup / Push Server)',
+                '3. Enable Cloud Server / ADMS: ON',
+                '4. Enable Domain Name: ON if using ' . ($scheme === 'https' ? 'HTTPS URL' : 'domain'),
+                '5. Server Address: ' . $serverIP,
+                '6. Server Port: ' . (in_array((int) $serverPort, [80, 443], true) ? $serverPort : $serverPort),
+                '7. Path (if asked): /iclock/getrequest',
+                '8. If Comm menu has no Cloud Server option, this device may need firmware with PUSH/ADMS — use LAN sync instead.',
             ],
         ];
     }

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use App\Models\UserLog;
 use App\Models\BlockedIp;
@@ -1083,5 +1084,200 @@ class Auth extends Controller
             'success' => true,
             'message' => "Password mpya imetumwa kwenye namba yako ya simu ********{$maskedPhone}"
         ]);
+    }
+
+    /**
+     * School fingerprint sync agent — Admin login API (token-based, no session).
+     */
+    public function schoolAgentLoginApi(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'username' => 'required|string|max:255',
+            'password' => 'required|string|min:1',
+        ], [
+            'username.required' => 'Username is required.',
+            'password.required' => 'Password is required.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        if ($resp = $this->checkIpBlocked($request)) {
+            return $resp;
+        }
+
+        $username = (string) $request->input('username');
+        $password = (string) $request->input('password');
+        $rateKey = 'school_agent_login.' . $request->ip();
+
+        if (RateLimiter::tooManyAttempts($rateKey, 5)) {
+            $seconds = RateLimiter::availableIn($rateKey);
+            return response()->json([
+                'success' => false,
+                'message' => "Too many login attempts. Please try again in {$seconds} seconds.",
+            ], 429);
+        }
+
+        $resolvedUser = $this->resolveUserByCredentials($username, $password);
+        $userLogin = $resolvedUser['user'];
+        $resolveError = $resolvedUser['error'];
+
+        if ($resolveError) {
+            RateLimiter::hit($rateKey, 120);
+            return response()->json(['success' => false, 'message' => $resolveError], 401);
+        }
+
+        if (!$userLogin) {
+            RateLimiter::hit($rateKey, 120);
+            return response()->json([
+                'success' => false,
+                'message' => 'Incorrect username or password!',
+            ], 401);
+        }
+
+        if ($userLogin->user_type !== 'Admin') {
+            RateLimiter::hit($rateKey, 120);
+            return response()->json([
+                'success' => false,
+                'message' => 'Only school Admin accounts can access the fingerprint attendance sync system.',
+            ], 403);
+        }
+
+        $username = (string) $userLogin->name;
+        $school = School::where('registration_number', $username)->first();
+
+        if (!$school) {
+            RateLimiter::hit($rateKey, 120);
+            return response()->json([
+                'success' => false,
+                'message' => 'School not found for this admin account.',
+            ], 404);
+        }
+
+        if ($resp = $this->checkSchoolLoginStatus($school->schoolID, $request)) {
+            return $resp;
+        }
+
+        RateLimiter::clear($rateKey);
+
+        $token = bin2hex(random_bytes(32));
+        $ttlMinutes = 720; // 12 hours
+
+        Cache::put('school_agent_token:' . $token, [
+            'user_id' => (int) $userLogin->id,
+            'schoolID' => (int) $school->schoolID,
+            'user_name' => (string) $userLogin->name,
+            'user_email' => (string) ($userLogin->email ?? ''),
+            'school_name' => (string) ($school->school_name ?? ''),
+            'registration_number' => (string) ($school->registration_number ?? ''),
+            'issued_at' => now()->toIso8601String(),
+            'expires_at' => now()->addMinutes($ttlMinutes)->toIso8601String(),
+        ], now()->addMinutes($ttlMinutes));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Login successful',
+            'token' => $token,
+            'token_type' => 'Bearer',
+            'expires_in' => $ttlMinutes * 60,
+            'server' => $this->resolveSchoolAgentEnvironment($request),
+            'user' => [
+                'id' => (int) $userLogin->id,
+                'name' => (string) $userLogin->name,
+                'email' => (string) ($userLogin->email ?? ''),
+                'user_type' => 'Admin',
+            ],
+            'school' => [
+                'schoolID' => (int) $school->schoolID,
+                'school_name' => (string) ($school->school_name ?? ''),
+                'registration_number' => (string) ($school->registration_number ?? ''),
+            ],
+        ]);
+    }
+
+    /**
+     * Verify school agent bearer token (for sync agent & future API calls).
+     */
+    public function schoolAgentVerifyToken(Request $request)
+    {
+        $token = $this->extractSchoolAgentBearerToken($request);
+
+        if (!$token) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authorization token is required.',
+            ], 401);
+        }
+
+        $payload = Cache::get('school_agent_token:' . $token);
+
+        if (!$payload || empty($payload['schoolID'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired token.',
+            ], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Token is valid',
+            'server' => $this->resolveSchoolAgentEnvironment($request),
+            'user' => [
+                'id' => (int) ($payload['user_id'] ?? 0),
+                'name' => (string) ($payload['user_name'] ?? ''),
+                'email' => (string) ($payload['user_email'] ?? ''),
+                'user_type' => 'Admin',
+            ],
+            'school' => [
+                'schoolID' => (int) $payload['schoolID'],
+                'school_name' => (string) ($payload['school_name'] ?? ''),
+                'registration_number' => (string) ($payload['registration_number'] ?? ''),
+            ],
+            'expires_at' => (string) ($payload['expires_at'] ?? ''),
+        ]);
+    }
+
+    private function extractSchoolAgentBearerToken(Request $request): ?string
+    {
+        $header = (string) $request->header('Authorization', '');
+        if (preg_match('/^Bearer\s+(.+)$/i', $header, $matches)) {
+            return trim($matches[1]);
+        }
+
+        $token = $request->input('token');
+        return is_string($token) && $token !== '' ? trim($token) : null;
+    }
+
+    /**
+     * @return array{name:string,host:string,app_url:string,label:string}
+     */
+    private function resolveSchoolAgentEnvironment(Request $request): array
+    {
+        $host = strtolower((string) $request->getHost());
+        $name = 'live';
+
+        if (str_contains($host, 'test.')) {
+            $name = 'test';
+        } elseif (in_array($host, ['127.0.0.1', 'localhost'], true) || str_contains($host, '192.168.')) {
+            $name = 'local';
+        }
+
+        $labels = [
+            'test' => 'ShuleXpert Test',
+            'live' => 'ShuleXpert Live',
+            'local' => 'ShuleXpert Local',
+        ];
+
+        return [
+            'name' => $name,
+            'label' => $labels[$name] ?? 'ShuleXpert',
+            'host' => (string) $request->getHost(),
+            'app_url' => rtrim((string) config('app.url'), '/'),
+        ];
     }
 }

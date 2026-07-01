@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use App\Models\FingerprintDevice;
+use App\Models\School;
 use App\Models\Student;
 use App\Models\StudentFingerprintAttendance;
 use App\Models\Teacher;
@@ -3037,6 +3039,29 @@ class ZKTecoController extends Controller
         $data['comm_key'] = $data['comm_key'] ?? '0';
 
         return $data;
+    }
+
+    public function downloadUf200SchoolSyncGuide()
+    {
+        $schoolID = Session::get('schoolID');
+        $school = $schoolID ? School::find($schoolID) : null;
+
+        $data = [
+            'school' => $school,
+            'title' => 'Mwongozo: UF200-S na ShuleXpert (Sync kutoka Shule)',
+            'generated_at' => now()->format('d M Y'),
+            'live_url' => config('app.url'),
+        ];
+
+        $pdf = PDF::loadView('Admin.pdf.uf200_school_sync_guide_pdf', $data);
+        $pdf->setOptions([
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'chroot' => base_path(),
+        ]);
+        $pdf->setPaper('A4', 'portrait');
+
+        return $pdf->download('ShuleXpert_UF200-S_School_Sync_Guide.pdf');
     }
 }
 

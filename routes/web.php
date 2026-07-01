@@ -3356,6 +3356,10 @@ Route::post("zkteco/devices", [
     ZKTecoController::class,
     "storeDevice",
 ])->name("zkteco.devices.store");
+Route::get("zkteco/devices/school-sync-guide-pdf", [
+    ZKTecoController::class,
+    "downloadUf200SchoolSyncGuide",
+])->name("zkteco.devices.school_sync_guide_pdf");
 Route::get("zkteco/devices/{id}", [
     ZKTecoController::class,
     "showDevice",

@@ -23,6 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ForcePasswordChange::class,
             \App\Http\Middleware\LogUserActivity::class,
         ]);
+
+        $middleware->api(append: [
+            \App\Http\Middleware\SchoolAgentCors::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

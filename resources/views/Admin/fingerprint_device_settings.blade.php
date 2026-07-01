@@ -378,8 +378,11 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Fingerprint Device Settings</h3>
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap" style="gap:10px;">
+                    <h3 class="card-title mb-0">Fingerprint Device Settings</h3>
+                    <a href="{{ route('zkteco.devices.school_sync_guide_pdf') }}" class="btn btn-outline-danger btn-sm" target="_blank">
+                        <i class="fa fa-file-pdf text-danger"></i> Pakua Mwongozo UF200-S (PDF)
+                    </a>
                 </div>
                 <div class="card-body">
                     <!-- Nav tabs -->
@@ -455,8 +458,8 @@
                                     <strong class="text-warning">Live hosting (cPanel / test.shulexpert.com):</strong>
                                     <strong>Test Connection</strong> haifanyi kazi kwa device yenye IP ya ndani (mf. <code>192.168.x.x</code>)
                                     kwa sababu server ya mtandao wa internet haiwezi kufikia LAN ya shule.
-                                    Tumia <strong>ADMS / Push</strong> kwenye device ili machine iwasiliane na
-                                    <code>{{ request()->getSchemeAndHttpHost() }}/iclock/getrequest</code>.
+                                    <strong>UF200-S</strong> haina ADMS/Push — tumia <strong>PC ya shule (Laragon)</strong> kusoma device na kusync data.
+                                    <a href="{{ route('zkteco.devices.school_sync_guide_pdf') }}" target="_blank" class="alert-link"><strong>Pakua mwongozo kamili (PDF)</strong></a>.
                                     Device Tester inafanya kazi pale PHP iko kwenye network ile ile na device (mf. Laragon shuleni).
                                 </div>
 
