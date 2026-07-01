@@ -7,8 +7,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
+use App\Models\FingerprintDevice;
 use App\Models\Student;
 use App\Models\StudentFingerprintAttendance;
+use App\Models\Teacher;
+use App\Models\OtherStaff;
+use App\Models\TeacherFingerprintAttendance;
+use App\Models\StaffFingerprintAttendance;
 use App\Models\Subclass;
 use Carbon\Carbon;
 
@@ -24,14 +29,16 @@ class ZKTecoController extends Controller
     {
         $request->validate([
             'ip' => 'required|ip',
-            'port' => 'required|integer|min:1|max:65535'
+            'port' => 'required|integer|min:1|max:65535',
+            'password' => 'nullable|string|max:8',
         ]);
 
-        $ip = $request->input('ip', '192.168.1.108');
-        $port = $request->input('port', 4370);
+        $ip = $request->input('ip', config('zkteco.ip', '192.168.1.108'));
+        $port = (int) $request->input('port', config('zkteco.port', 4370));
+        $password = $request->input('password', config('zkteco.password', 0));
 
         try {
-            $zkteco = new ZKTecoService($ip, $port);
+            $zkteco = new ZKTecoService($ip, $port, $password);
             $result = $zkteco->testConnection();
             return response()->json($result);
         } catch (\Exception $e) {
@@ -46,14 +53,16 @@ class ZKTecoController extends Controller
     {
         $request->validate([
             'ip' => 'required|ip',
-            'port' => 'required|integer|min:1|max:65535'
+            'port' => 'required|integer|min:1|max:65535',
+            'password' => 'nullable|string|max:8',
         ]);
 
-        $ip = $request->input('ip', '192.168.1.108');
-        $port = $request->input('port', 4370);
+        $ip = $request->input('ip', config('zkteco.ip', '192.168.1.108'));
+        $port = (int) $request->input('port', config('zkteco.port', 4370));
+        $password = $request->input('password', config('zkteco.password', 0));
 
         try {
-            $zkteco = new ZKTecoService($ip, $port);
+            $zkteco = new ZKTecoService($ip, $port, $password);
             $zkteco->connect();
             $deviceInfo = $zkteco->getDeviceInfo();
             $time = $zkteco->getTime();
@@ -78,14 +87,16 @@ class ZKTecoController extends Controller
     {
         $request->validate([
             'ip' => 'required|ip',
-            'port' => 'required|integer|min:1|max:65535'
+            'port' => 'required|integer|min:1|max:65535',
+            'password' => 'nullable|string|max:8',
         ]);
 
-        $ip = $request->input('ip', '192.168.1.108');
-        $port = $request->input('port', 4370);
+        $ip = $request->input('ip', config('zkteco.ip', '192.168.1.108'));
+        $port = (int) $request->input('port', config('zkteco.port', 4370));
+        $password = $request->input('password', config('zkteco.password', 0));
 
         try {
-            $zkteco = new ZKTecoService($ip, $port);
+            $zkteco = new ZKTecoService($ip, $port, $password);
             
             // Connect to device
             if (!$zkteco->connect()) {
@@ -1217,6 +1228,21 @@ class ZKTecoController extends Controller
                 ->get()
                 ->keyBy('studentID');
 
+            if ($students->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'source' => 'database',
+                    'data' => [],
+                    'pagination' => [
+                        'current_page' => 1,
+                        'per_page' => $perPage,
+                        'total' => 0,
+                        'last_page' => 1,
+                    ],
+                    'message' => 'No students found in this class.',
+                ]);
+            }
+
             // Build query for student_fingerprint_attendance
             $query = StudentFingerprintAttendance::whereIn('studentID', $students->pluck('studentID'));
 
@@ -1270,6 +1296,7 @@ class ZKTecoController extends Controller
 
             return response()->json([
                 'success' => true,
+                'source' => 'database',
                 'data' => $data,
                 'pagination' => [
                     'current_page' => $attendanceRecords->currentPage(),
@@ -1291,59 +1318,6 @@ class ZKTecoController extends Controller
     }
 
     /**
-     * Calculate working days (excluding weekends) for a given month or year
-     * 
-     * @param string|null $month Format: YYYY-MM
-     * @param int|null $year
-     * @return int Number of working days
-     */
-    private function calculateWorkingDays($month = null, $year = null)
-    {
-        $today = Carbon::today();
-        $startDate = null;
-        $endDate = null;
-
-        if ($month) {
-            // Calculate for specific month
-            $carbonMonth = Carbon::parse($month . '-01');
-            $startDate = $carbonMonth->copy()->startOfMonth();
-            
-            // If current month, end at today; otherwise end of month
-            if ($carbonMonth->year == $today->year && $carbonMonth->month == $today->month) {
-                $endDate = $today->copy();
-            } else {
-                $endDate = $carbonMonth->copy()->endOfMonth();
-            }
-        } elseif ($year) {
-            // Calculate for specific year
-            $startDate = Carbon::create($year, 1, 1);
-            
-            // If current year, end at today; otherwise end of year
-            if ($year == $today->year) {
-                $endDate = $today->copy();
-            } else {
-                $endDate = Carbon::create($year, 12, 31);
-            }
-        } else {
-            return 0;
-        }
-
-        $workingDays = 0;
-        $current = $startDate->copy();
-
-        while ($current->lte($endDate)) {
-            // Skip weekends (Saturday = 6, Sunday = 0)
-            $dayOfWeek = $current->dayOfWeek;
-            if ($dayOfWeek != Carbon::SATURDAY && $dayOfWeek != Carbon::SUNDAY) {
-                $workingDays++;
-            }
-            $current->addDay();
-        }
-
-        return $workingDays;
-    }
-
-    /**
      * Get fingerprint attendance from device for class management
      * Returns data in format expected by frontend (similar to API format)
      */
@@ -1361,8 +1335,11 @@ class ZKTecoController extends Controller
         $perPage = 50;
 
         try {
-            $ip = config('zkteco.ip', '192.168.1.108');
-            $port = (int) config('zkteco.port', 4370);
+            $devices = $this->getAttendanceDevicesForSync($request);
+            $device = $devices->first();
+            $ip = $device->ip;
+            $port = (int) $device->port;
+            $password = $device->comm_key ?? '0';
 
             // Get students in this subclass with subclass info
             $students = Student::with('subclass')
@@ -1372,15 +1349,15 @@ class ZKTecoController extends Controller
                 ->keyBy('studentID'); // user_id from device = studentID (primary key)
 
             // Connect to device and get all attendance
-            $zkteco = new ZKTecoService($ip, $port);
-            
+            $zkteco = new ZKTecoService($ip, $port, $password);
+
             if (!$zkteco->connect()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to connect to device. Check IP, port, and network connectivity.'
+                    'message' => 'Failed to connect to device (' . $ip . '). Check IP, port, comm key, and network connectivity.'
                 ], 500);
             }
-            
+
             $allAttendance = $zkteco->getAttendance();
             $zkteco->disconnect();
 
@@ -1497,6 +1474,11 @@ class ZKTecoController extends Controller
                 ],
                 'message' => 'Retrieved ' . $total . ' attendance record(s) from device'
             ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Get fingerprint attendance for class error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -1518,142 +1500,59 @@ class ZKTecoController extends Controller
     {
         $request->validate([
             'subclassID' => 'required|integer',
+            'device_id' => 'required|string',
+            'db_only' => 'nullable|boolean',
         ]);
 
         $subclassID = (int) $request->input('subclassID');
         $today = Carbon::today()->toDateString();
+        $dbOnly = filter_var($request->input('db_only'), FILTER_VALIDATE_BOOLEAN);
 
         try {
-            $ip = config('zkteco.ip', '192.168.1.108');
-            $port = (int) config('zkteco.port', 4370);
+            if ($dbOnly) {
+                return $this->getLiveAttendanceTodayFromDB($subclassID, $today, false, null, []);
+            }
 
-            // Log connection attempt
-            Log::info("Live Attendance Sync: Attempting to connect to device at {$ip}:{$port}");
+            set_time_limit(60);
 
-            // Get students in this subclass with subclass info
             $students = Student::with('subclass')
                 ->where('subclassID', $subclassID)
                 ->where('status', '!=', 'Transferred')
                 ->get()
-                ->keyBy('studentID'); // user_id from device = studentID (primary key)
+                ->keyBy('studentID');
 
-            // Connect to device and get all attendance
-            $zkteco = new ZKTecoService($ip, $port);
+            $syncResult = $this->syncAttendanceFromDevices($request, $students, $today);
 
-            if (!$zkteco->connect()) {
-                // If device is unavailable, just read from DB for today (no new sync)
-                Log::warning("Live Attendance Sync: Failed to connect to device at {$ip}:{$port}. Falling back to database.");
-                return $this->getLiveAttendanceTodayFromDB($subclassID, $today, true);
+            if ($syncResult['anySuccess'] && !empty($syncResult['userDateRecords'])) {
+                $this->persistGroupedAttendanceRecords($syncResult['userDateRecords']);
             }
 
-            Log::info("Live Attendance Sync: Successfully connected to device at {$ip}:{$port}");
-
-            $allAttendance = $zkteco->getAttendance();
-            $zkteco->disconnect();
-
-            Log::info("Live Attendance Sync: Retrieved " . (is_array($allAttendance) ? count($allAttendance) : 0) . " attendance record(s) from device");
-
-            if (!is_array($allAttendance)) {
-                // Invalid data from device, fallback to DB
-                Log::warning("Live Attendance Sync: Invalid data received from device. Falling back to database.");
-                return $this->getLiveAttendanceTodayFromDB($subclassID, $today, true);
-            }
-
-            // Collect records per user for TODAY only
-            $userDateRecords = [];
-
-            foreach ($allAttendance as $record) {
-                $userId = isset($record['user_id']) ? (int)$record['user_id'] : null;
-                if (!$userId) {
-                    continue;
-                }
-
-                // Date check: only today's records
-                if (!isset($record['record_time'])) {
-                    continue;
-                }
-
-                $recordTime = Carbon::parse($record['record_time']);
-                $recordDate = $recordTime->toDateString();
-                if ($recordDate !== $today) {
-                    continue;
-                }
-
-                // user_id from device = studentID (primary key)
-                /** @var Student|null $student */
-                $student = $students->get($userId);
-                if (!$student) {
-                    // Not in this subclass or not an active student
-                    continue;
-                }
-
-                $key = $userId . '_' . $recordDate;
-
-                if (!isset($userDateRecords[$key])) {
-                    $userDateRecords[$key] = [];
-                }
-
-                $userDateRecords[$key][] = [
-                    'time' => $recordTime,
-                    'type' => $record['type'] ?? 'Fingerprint',
-                    'device_ip' => $record['device_ip'] ?? $ip,
-                    'student' => $student,
-                ];
-            }
-
-            // Apply rule: only first 2 punches per day per student
-            foreach ($userDateRecords as $key => $records) {
-                // Sort by time ascending
-                usort($records, function ($a, $b) {
-                    if ($a['time']->eq($b['time'])) {
-                        return 0;
-                    }
-                    return $a['time']->lt($b['time']) ? -1 : 1;
-                });
-
-                if (count($records) < 1) {
-                    continue;
-                }
-
-                $firstRecord = $records[0];
-                $secondRecord = count($records) >= 2 ? $records[1] : null;
-
-                /** @var Student $student */
-                $student = $firstRecord['student'];
-                $recordDate = $firstRecord['time']->toDateString();
-                $studentName = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
-                $fingerprintId = $student->fingerprint_id ?? $student->studentID;
-
-                $checkInTime = $firstRecord['time']->format('Y-m-d H:i:s');
-                $checkOutTime = $secondRecord ? $secondRecord['time']->format('Y-m-d H:i:s') : null;
-                $status = $checkOutTime ? 1 : 0; // 1 = complete, 0 = check in only
-
-                // Upsert into student_fingerprint_attendance (one row per student per day)
-                StudentFingerprintAttendance::updateOrCreate(
-                    [
-                        'studentID' => $student->studentID,
-                        'attendance_date' => $recordDate,
-                    ],
-                    [
-                        'user_id' => $student->studentID,
-                        'user_name' => $studentName ?: 'N/A',
-                        'enroll_id' => $student->studentID,
-                        'check_in_time' => $checkInTime,
-                        'check_out_time' => $checkOutTime,
-                        'status' => $status,
-                        'verify_mode' => $firstRecord['type'] ?? 'Fingerprint',
-                        'device_ip' => $firstRecord['device_ip'] ?? $ip,
-                    ]
+            if (!$syncResult['anySuccess']) {
+                return $this->getLiveAttendanceTodayFromDB(
+                    $subclassID,
+                    $today,
+                    true,
+                    null,
+                    $syncResult['summary']
                 );
             }
 
-            // After sync, return today's attendance for this subclass from DB
-            return $this->getLiveAttendanceTodayFromDB($subclassID, $today, false);
+            return $this->getLiveAttendanceTodayFromDB(
+                $subclassID,
+                $today,
+                false,
+                null,
+                $syncResult['summary']
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Live attendance sync error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
 
-            // On error, still try to return what we have in DB for today
             return $this->getLiveAttendanceTodayFromDB($subclassID, $today, true);
         }
     }
@@ -1663,7 +1562,13 @@ class ZKTecoController extends Controller
      * - Always one row per student per day (enforced by updateOrCreate above)
      * - Used both after successful sync and as fallback when device is unavailable
      */
-    private function getLiveAttendanceTodayFromDB(int $subclassID, string $today, bool $deviceFailed = false)
+    private function getLiveAttendanceTodayFromDB(
+        int $subclassID,
+        string $today,
+        bool $deviceFailed = false,
+        ?string $deviceIp = null,
+        array $devicesSummary = []
+    )
     {
         try {
             $students = Student::with('subclass')
@@ -1671,6 +1576,19 @@ class ZKTecoController extends Controller
                 ->where('status', '!=', 'Transferred')
                 ->get()
                 ->keyBy('studentID');
+
+            if ($students->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'date' => $today,
+                    'device_failed' => $deviceFailed,
+                    'device_ip' => $deviceIp,
+                    'devices_synced' => $devicesSummary,
+                    'data' => [],
+                    'count' => 0,
+                    'message' => 'No students found in this class.',
+                ]);
+            }
 
             $attendanceRecords = StudentFingerprintAttendance::whereIn('studentID', $students->pluck('studentID'))
                 ->whereDate('attendance_date', $today)
@@ -1758,9 +1676,11 @@ class ZKTecoController extends Controller
                 'success' => true,
                 'date' => $today,
                 'device_failed' => $deviceFailed,
+                'device_ip' => $deviceIp,
+                'devices_synced' => $devicesSummary,
                 'data' => $data,
                 'count' => count($data),
-                'message' => ($deviceFailed ? 'Device unavailable, showing attendance from database for today.' : 'Live attendance synced from device and stored to database for today.')
+                'message' => ($deviceFailed ? 'Device unavailable, showing attendance from database for today.' : 'Live attendance synced from registered device(s) and stored to database for today.')
             ]);
         } catch (\Exception $e) {
             Log::error('Get live attendance today from DB error: ' . $e->getMessage());
@@ -1879,20 +1799,19 @@ class ZKTecoController extends Controller
     {
         $request->validate([
             'subclassID' => 'required|integer',
+            'device_id' => 'required|string',
         ]);
 
         $subclassID = $request->input('subclassID');
 
         try {
-            $ip = config('zkteco.ip', '192.168.1.108');
-            $port = (int) config('zkteco.port', 4370);
+            set_time_limit(90);
 
-            // Get all students in this subclass
             $students = Student::with('subclass')
                 ->where('subclassID', $subclassID)
                 ->where('status', '!=', 'Transferred')
                 ->get()
-                ->keyBy('studentID'); // user_id from device = studentID (primary key)
+                ->keyBy('studentID');
 
             if ($students->isEmpty()) {
                 return response()->json([
@@ -1901,132 +1820,39 @@ class ZKTecoController extends Controller
                 ], 400);
             }
 
-            // Connect to device
-            $zkteco = new ZKTecoService($ip, $port);
+            $syncResult = $this->syncAttendanceFromDevices($request, $students, null);
 
-            if (!$zkteco->connect()) {
+            if (!$syncResult['anySuccess']) {
+                $failedLabels = collect($syncResult['summary'])
+                    ->where('success', false)
+                    ->pluck('label')
+                    ->implode(', ');
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to connect to device. Check IP, port, and network connectivity.'
+                    'message' => 'Failed to connect to any registered device.' . ($failedLabels ? " ({$failedLabels})" : ''),
+                    'devices_synced' => $syncResult['summary'],
                 ], 500);
             }
 
-            // Get all attendance records from device (all dates)
-            $allAttendance = $zkteco->getAttendance();
-            $zkteco->disconnect();
-
-            if (!is_array($allAttendance)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to retrieve attendance data from device.'
-                ], 500);
-            }
-
-            // Collect records per user per date
-            $userDateRecords = [];
-
-            foreach ($allAttendance as $record) {
-                $userId = isset($record['user_id']) ? (int)$record['user_id'] : null;
-                if (!$userId) {
-                    continue;
-                }
-
-                // user_id from device = studentID (primary key)
-                /** @var Student|null $student */
-                $student = $students->get($userId);
-                if (!$student) {
-                    // Not in this subclass or not an active student
-                    continue;
-                }
-
-                if (!isset($record['record_time'])) {
-                    continue;
-                }
-
-                $recordTime = Carbon::parse($record['record_time']);
-                $recordDate = $recordTime->toDateString();
-
-                $key = $userId . '_' . $recordDate;
-
-                if (!isset($userDateRecords[$key])) {
-                    $userDateRecords[$key] = [];
-                }
-
-                $userDateRecords[$key][] = [
-                    'time' => $recordTime,
-                    'type' => $record['type'] ?? 'Fingerprint',
-                    'device_ip' => $record['device_ip'] ?? $ip,
-                    'student' => $student,
-                ];
-            }
-
-            // Apply rule: only first 2 punches per day per student
-            $syncedCount = 0;
-            $updatedCount = 0;
-
-            foreach ($userDateRecords as $key => $records) {
-                // Sort by time ascending
-                usort($records, function ($a, $b) {
-                    if ($a['time']->eq($b['time'])) {
-                        return 0;
-                    }
-                    return $a['time']->lt($b['time']) ? -1 : 1;
-                });
-
-                if (count($records) < 1) {
-                    continue;
-                }
-
-                $firstRecord = $records[0];
-                $secondRecord = count($records) >= 2 ? $records[1] : null;
-
-                /** @var Student $student */
-                $student = $firstRecord['student'];
-                $recordDate = $firstRecord['time']->toDateString();
-                $studentName = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
-                $fingerprintId = $student->fingerprint_id ?? $student->studentID;
-
-                $checkInTime = $firstRecord['time']->format('Y-m-d H:i:s');
-                $checkOutTime = $secondRecord ? $secondRecord['time']->format('Y-m-d H:i:s') : null;
-                $status = $checkOutTime ? 1 : 0; // 1 = complete, 0 = check in only
-
-                // Check if record already exists
-                $existing = StudentFingerprintAttendance::where('studentID', $student->studentID)
-                    ->whereDate('attendance_date', $recordDate)
-                    ->first();
-
-                // Upsert into student_fingerprint_attendance (one row per student per day)
-                StudentFingerprintAttendance::updateOrCreate(
-                    [
-                        'studentID' => $student->studentID,
-                        'attendance_date' => $recordDate,
-                    ],
-                    [
-                        'user_id' => $student->studentID,
-                        'user_name' => $studentName ?: 'N/A',
-                        'enroll_id' => $student->studentID,
-                        'check_in_time' => $checkInTime,
-                        'check_out_time' => $checkOutTime,
-                        'status' => $status,
-                        'verify_mode' => $firstRecord['type'] ?? 'Fingerprint',
-                        'device_ip' => $firstRecord['device_ip'] ?? $ip,
-                    ]
-                );
-
-                if ($existing) {
-                    $updatedCount++;
-                } else {
-                    $syncedCount++;
-                }
-            }
+            $persistStats = $this->persistGroupedAttendanceRecords($syncResult['userDateRecords']);
+            $syncedCount = $persistStats['synced'];
+            $updatedCount = $persistStats['updated'];
+            $deviceLabel = collect($syncResult['summary'])->where('success', true)->pluck('label')->first() ?? 'device';
 
             return response()->json([
                 'success' => true,
-                'message' => "Successfully synced attendance from device. {$syncedCount} new record(s) created, {$updatedCount} record(s) updated.",
+                'message' => "Successfully synced attendance from {$deviceLabel}. {$syncedCount} new record(s) created, {$updatedCount} record(s) updated.",
                 'synced' => $syncedCount,
                 'updated' => $updatedCount,
                 'total' => $syncedCount + $updatedCount,
+                'devices_synced' => $syncResult['summary'],
             ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Sync all attendance from device error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -2036,6 +1862,1181 @@ class ZKTecoController extends Controller
                 'message' => 'Error syncing attendance from device: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Registered fingerprint devices (per school — SaaS).
+     */
+    public function listDevices()
+    {
+        $schoolID = $this->resolveFingerprintSchoolId();
+
+        $devices = FingerprintDevice::where('schoolID', $schoolID)
+            ->orderBy('label')
+            ->get()
+            ->map(fn ($d) => $d->toApiArray());
+
+        return response()->json([
+            'success' => true,
+            'devices' => $devices,
+        ]);
+    }
+
+    public function storeDevice(Request $request)
+    {
+        $schoolID = $this->resolveFingerprintSchoolId();
+        $data = $this->validateFingerprintDevice($request);
+
+        if (
+            FingerprintDevice::where('schoolID', $schoolID)
+                ->where('label', $data['label'])
+                ->exists()
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A device with this label already exists for your school.',
+            ], 422);
+        }
+
+        $device = FingerprintDevice::create([
+            ...$data,
+            'schoolID' => $schoolID,
+            'created_by' => Session::get('userID'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Device registered successfully.',
+            'device' => $device->toApiArray(),
+        ], 201);
+    }
+
+    public function showDevice(int $id)
+    {
+        $device = $this->findSchoolFingerprintDevice($id);
+
+        return response()->json([
+            'success' => true,
+            'device' => $device->toApiArray(),
+        ]);
+    }
+
+    public function updateDevice(Request $request, int $id)
+    {
+        $schoolID = $this->resolveFingerprintSchoolId();
+        $device = $this->findSchoolFingerprintDevice($id);
+        $data = $this->validateFingerprintDevice($request);
+
+        if (
+            FingerprintDevice::where('schoolID', $schoolID)
+                ->where('label', $data['label'])
+                ->where('id', '!=', $device->id)
+                ->exists()
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Another device with this label already exists.',
+            ], 422);
+        }
+
+        $device->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Device updated successfully.',
+            'device' => $device->fresh()->toApiArray(),
+        ]);
+    }
+
+    public function deleteDevice(int $id)
+    {
+        $device = $this->findSchoolFingerprintDevice($id);
+        $device->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Device deleted successfully.',
+        ]);
+    }
+
+    private function resolveFingerprintSchoolId(): int
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            abort(403, 'School session not found');
+        }
+
+        return (int) $schoolID;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, FingerprintDevice>
+     */
+    private function getAttendanceDevicesForSync(Request $request): \Illuminate\Support\Collection
+    {
+        $schoolID = $this->resolveFingerprintSchoolId();
+        $deviceId = $request->input('device_id');
+
+        if ($deviceId === null || $deviceId === '' || $deviceId === 'all') {
+            throw new \InvalidArgumentException(
+                'Please select one fingerprint device. Syncing multiple devices at once is not allowed.'
+            );
+        }
+
+        if (!is_numeric($deviceId)) {
+            throw new \InvalidArgumentException('Invalid fingerprint device selected.');
+        }
+
+        $device = FingerprintDevice::where('schoolID', $schoolID)
+            ->where('status', 'active')
+            ->where('id', (int) $deviceId)
+            ->first();
+
+        if (!$device) {
+            throw new \InvalidArgumentException('Selected fingerprint device not found or is inactive.');
+        }
+
+        return collect([$device]);
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, Student> $students
+     */
+    private function fetchAttendanceLogsFromDevice(FingerprintDevice $device, int $timeoutSeconds = 15, ?string $onlyDate = null): array
+    {
+        $ip = $device->ip;
+        $port = (int) $device->port;
+        $password = $device->comm_key ?? '0';
+
+        Log::info("Attendance Sync: connecting to [{$device->label}] at {$ip}:{$port}");
+
+        $zkteco = new ZKTecoService($ip, $port, $password, $timeoutSeconds, true);
+        try {
+            if (!$zkteco->connect()) {
+                throw new \RuntimeException(
+                    "Failed to connect to {$device->label} ({$ip}:{$port}). Check IP, port, and comm key."
+                );
+            }
+
+            $allAttendance = $zkteco->getAttendance();
+
+            if (!is_array($allAttendance)) {
+                throw new \RuntimeException("Invalid attendance data from {$device->label}.");
+            }
+
+            if ($onlyDate !== null && !empty($allAttendance)) {
+                $allAttendance = array_values(array_filter($allAttendance, function ($record) use ($onlyDate) {
+                    if (empty($record['record_time'])) {
+                        return false;
+                    }
+                    try {
+                        return Carbon::parse($record['record_time'])->toDateString() === $onlyDate;
+                    } catch (\Exception $e) {
+                        return false;
+                    }
+                }));
+            }
+
+            return $allAttendance;
+        } finally {
+            $zkteco->disconnect();
+        }
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, Student> $students
+     */
+    private function extractUserDateRecords(array $allAttendance, $students, ?string $onlyDate, string $deviceIp): array
+    {
+        $userDateRecords = [];
+
+        foreach ($allAttendance as $record) {
+            $userId = isset($record['user_id']) ? (int) $record['user_id'] : null;
+            if (!$userId || !isset($record['record_time'])) {
+                continue;
+            }
+
+            $recordTime = Carbon::parse($record['record_time']);
+            $recordDate = $recordTime->toDateString();
+
+            if ($onlyDate !== null && $recordDate !== $onlyDate) {
+                continue;
+            }
+
+            $student = $students->get($userId);
+            if (!$student) {
+                continue;
+            }
+
+            $key = $userId . '_' . $recordDate;
+            if (!isset($userDateRecords[$key])) {
+                $userDateRecords[$key] = [];
+            }
+
+            $userDateRecords[$key][] = [
+                'time' => $recordTime,
+                'type' => $record['type'] ?? 'Fingerprint',
+                'device_ip' => $record['device_ip'] ?? $deviceIp,
+                'student' => $student,
+            ];
+        }
+
+        return $userDateRecords;
+    }
+
+    private function mergeUserDateRecords(array &$target, array $source): void
+    {
+        foreach ($source as $key => $records) {
+            if (!isset($target[$key])) {
+                $target[$key] = [];
+            }
+            $target[$key] = array_merge($target[$key], $records);
+        }
+    }
+
+    private function persistGroupedAttendanceRecords(array $userDateRecords): array
+    {
+        $syncedCount = 0;
+        $updatedCount = 0;
+
+        foreach ($userDateRecords as $records) {
+            usort($records, function ($a, $b) {
+                if ($a['time']->eq($b['time'])) {
+                    return 0;
+                }
+                return $a['time']->lt($b['time']) ? -1 : 1;
+            });
+
+            if (count($records) < 1) {
+                continue;
+            }
+
+            $firstRecord = $records[0];
+            $secondRecord = count($records) >= 2 ? $records[1] : null;
+
+            /** @var Student $student */
+            $student = $firstRecord['student'];
+            $recordDate = $firstRecord['time']->toDateString();
+            $studentName = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
+
+            $checkInTime = $firstRecord['time']->format('Y-m-d H:i:s');
+            $checkOutTime = $secondRecord ? $secondRecord['time']->format('Y-m-d H:i:s') : null;
+            $status = $checkOutTime ? 1 : 0;
+
+            $existing = StudentFingerprintAttendance::where('studentID', $student->studentID)
+                ->whereDate('attendance_date', $recordDate)
+                ->first();
+
+            StudentFingerprintAttendance::updateOrCreate(
+                [
+                    'studentID' => $student->studentID,
+                    'attendance_date' => $recordDate,
+                ],
+                [
+                    'user_id' => $student->studentID,
+                    'user_name' => $studentName ?: 'N/A',
+                    'enroll_id' => $student->studentID,
+                    'check_in_time' => $checkInTime,
+                    'check_out_time' => $checkOutTime,
+                    'status' => $status,
+                    'verify_mode' => $firstRecord['type'] ?? 'Fingerprint',
+                    'device_ip' => $firstRecord['device_ip'],
+                ]
+            );
+
+            if ($existing) {
+                $updatedCount++;
+            } else {
+                $syncedCount++;
+            }
+        }
+
+        return ['synced' => $syncedCount, 'updated' => $updatedCount];
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, Student> $students
+     * @return array{userDateRecords: array, summary: array, anySuccess: bool}
+     */
+    private function syncAttendanceFromDevices(Request $request, $students, ?string $onlyDate): array
+    {
+        $devices = $this->getAttendanceDevicesForSync($request);
+        $userDateRecords = [];
+        $summary = [];
+        $anySuccess = false;
+
+        foreach ($devices as $device) {
+            try {
+                $logs = $this->fetchAttendanceLogsFromDevice($device);
+                $records = $this->extractUserDateRecords($logs, $students, $onlyDate, $device->ip);
+                $this->mergeUserDateRecords($userDateRecords, $records);
+                $summary[] = [
+                    'id' => $device->id,
+                    'label' => $device->label,
+                    'ip' => $device->ip,
+                    'port' => $device->port,
+                    'success' => true,
+                ];
+                $anySuccess = true;
+            } catch (\Exception $e) {
+                Log::warning('Attendance device sync failed [' . $device->label . ']: ' . $e->getMessage());
+                $summary[] = [
+                    'id' => $device->id,
+                    'label' => $device->label,
+                    'ip' => $device->ip,
+                    'port' => $device->port,
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return [
+            'userDateRecords' => $userDateRecords,
+            'summary' => $summary,
+            'anySuccess' => $anySuccess,
+        ];
+    }
+
+    /**
+     * Live sync + fetch today's teacher/staff fingerprint attendance from ZKTeco device.
+     */
+    public function syncLiveTeacherStaffAttendanceToday(Request $request)
+    {
+        $request->validate([
+            'device_id' => 'required|string',
+            'db_only' => 'nullable|boolean',
+            'person_type' => 'nullable|in:all,teacher,staff',
+        ]);
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'School session not found. Please refresh the page or log in again.',
+            ], 403);
+        }
+        $schoolID = (int) $schoolID;
+        $today = Carbon::today()->toDateString();
+        $dbOnly = filter_var($request->input('db_only'), FILTER_VALIDATE_BOOLEAN);
+        $personTypeFilter = $request->input('person_type', 'all');
+
+        try {
+            if ($dbOnly) {
+                return $this->getLiveTeacherStaffAttendanceTodayFromDB(
+                    $schoolID,
+                    $today,
+                    false,
+                    [],
+                    $personTypeFilter
+                );
+            }
+
+            set_time_limit(60);
+
+            $peopleMap = $this->getTeacherStaffPeopleMap($schoolID);
+            $syncResult = $this->syncTeacherStaffFromDevices($request, $peopleMap, $today, 12);
+
+            if ($syncResult['anySuccess'] && !empty($syncResult['userDateRecords'])) {
+                $this->persistTeacherStaffGroupedRecords($syncResult['userDateRecords']);
+            }
+
+            return $this->getLiveTeacherStaffAttendanceTodayFromDB(
+                $schoolID,
+                $today,
+                !$syncResult['anySuccess'],
+                $syncResult['summary'],
+                $personTypeFilter
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Teacher/staff live attendance sync error: ' . $e->getMessage());
+
+            return $this->getLiveTeacherStaffAttendanceTodayFromDB(
+                $schoolID,
+                $today,
+                true,
+                [],
+                $personTypeFilter
+            );
+        }
+    }
+
+    /**
+     * Sync ALL teacher/staff attendance logs from device into database.
+     * Skips records already saved (teacher + date) — safe for offline devices with months of logs.
+     */
+    public function syncTeacherStaffAttendanceFromDevice(Request $request)
+    {
+        $request->validate([
+            'device_id' => 'required|string',
+        ]);
+
+        $schoolID = $this->resolveFingerprintSchoolId();
+
+        try {
+            set_time_limit(300);
+
+            $peopleMap = $this->getTeacherStaffPeopleMap($schoolID);
+            if (empty($peopleMap)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No active teachers or staff found for this school.',
+                ], 400);
+            }
+
+            // Pull every attendance log on the device (no date filter)
+            $syncResult = $this->syncTeacherStaffFromDevices($request, $peopleMap, null, 90);
+
+            if (!$syncResult['anySuccess']) {
+                $failedLabels = collect($syncResult['summary'])
+                    ->where('success', false)
+                    ->pluck('label')
+                    ->implode(', ');
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to connect to the selected device.' . ($failedLabels ? " ({$failedLabels})" : ''),
+                    'devices_synced' => $syncResult['summary'],
+                ], 500);
+            }
+
+            $persistStats = $this->persistTeacherStaffBulkSyncSkipExisting($schoolID, $syncResult['userDateRecords']);
+            $deviceLabel = collect($syncResult['summary'])->where('success', true)->pluck('label')->first() ?? 'device';
+
+            $synced = $persistStats['synced'];
+            $skipped = $persistStats['skipped_existing'];
+            $updatedCheckout = $persistStats['updated_checkout'] ?? 0;
+            $message = "Synced from {$deviceLabel}. {$synced} new day(s) saved to database.";
+            if ($updatedCheckout > 0) {
+                $message .= " {$updatedCheckout} check-out time(s) updated.";
+            }
+            if ($skipped > 0) {
+                $message .= " {$skipped} already complete in database (skipped).";
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'synced' => $synced,
+                'skipped_existing' => $skipped,
+                'updated_checkout' => $updatedCheckout,
+                'device_days_matched' => $persistStats['device_days_matched'],
+                'devices_synced' => $syncResult['summary'],
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Teacher/staff device sync error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to sync teacher/staff attendance: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function getLiveTeacherStaffAttendanceTodayFromDB(
+        int $schoolID,
+        string $today,
+        bool $deviceFailed = false,
+        array $devicesSummary = [],
+        string $personTypeFilter = 'all'
+    ) {
+        $teachers = Teacher::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->get()
+            ->keyBy('id');
+
+        $staffMembers = OtherStaff::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->get()
+            ->keyBy('id');
+
+        $newRecords = [];
+        $oldRecords = [];
+
+        if ($personTypeFilter !== 'staff' && $teachers->isNotEmpty()) {
+            $attendanceRecords = TeacherFingerprintAttendance::whereIn('teacherID', $teachers->pluck('id'))
+                ->whereDate('attendance_date', $today)
+                ->orderBy('check_in_time', 'desc')
+                ->get();
+
+            foreach ($attendanceRecords as $record) {
+                $teacher = $teachers->get($record->teacherID);
+                if (!$teacher) {
+                    continue;
+                }
+
+                $recordData = $this->formatTeacherLiveAttendanceRow($record, $teacher, $today);
+                if ($recordData['is_new']) {
+                    $newRecords[] = $recordData;
+                } else {
+                    $oldRecords[] = $recordData;
+                }
+            }
+        }
+
+        if ($personTypeFilter !== 'teacher' && $staffMembers->isNotEmpty()) {
+            $staffAttendanceRecords = StaffFingerprintAttendance::whereIn('staffID', $staffMembers->pluck('id'))
+                ->whereDate('attendance_date', $today)
+                ->orderBy('check_in_time', 'desc')
+                ->get();
+
+            foreach ($staffAttendanceRecords as $record) {
+                $staff = $staffMembers->get($record->staffID);
+                if (!$staff) {
+                    continue;
+                }
+
+                $recordData = $this->formatStaffLiveAttendanceRow($record, $staff, $today);
+                if ($recordData['is_new']) {
+                    $newRecords[] = $recordData;
+                } else {
+                    $oldRecords[] = $recordData;
+                }
+            }
+        }
+
+        usort($newRecords, function ($a, $b) {
+            $timeA = $a['check_in_time'] ? strtotime($a['check_in_time']) : 0;
+            $timeB = $b['check_in_time'] ? strtotime($b['check_in_time']) : 0;
+            return $timeB - $timeA;
+        });
+
+        if (!empty($newRecords)) {
+            $newRecords[0]['is_new'] = true;
+            for ($i = 1; $i < count($newRecords); $i++) {
+                $newRecords[$i]['is_new'] = false;
+            }
+        }
+
+        $data = array_merge($newRecords, $oldRecords);
+
+        return response()->json([
+            'success' => true,
+            'date' => $today,
+            'device_failed' => $deviceFailed,
+            'devices_synced' => $devicesSummary,
+            'data' => $data,
+            'count' => count($data),
+            'teacher_count' => $teachers->count(),
+            'message' => $data ? null : 'No teacher/staff attendance records found for today.',
+        ]);
+    }
+
+    private function formatTeacherLiveAttendanceRow(TeacherFingerprintAttendance $record, Teacher $teacher, string $today): array
+    {
+        $teacherName = trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? ''));
+        $fingerprintId = $teacher->fingerprint_id ?? $teacher->id;
+
+        $isNew = false;
+        if ($record->check_in_time) {
+            $checkInTime = Carbon::parse($record->check_in_time);
+            $isNew = $checkInTime->diffInMinutes(Carbon::now()) <= 10;
+        }
+
+        return [
+            'person_type' => 'teacher',
+            'person_id' => $teacher->id,
+            'user_id' => $teacher->id,
+            'user_name' => $teacherName ?: 'N/A',
+            'enroll_id' => $teacher->id,
+            'fingerprint_id' => $fingerprintId,
+            'role_label' => $teacher->position ?? 'Teacher',
+            'employee_number' => $teacher->employee_number ?? null,
+            'attendance_date' => $record->attendance_date ? $record->attendance_date->toDateString() : $today,
+            'check_in_time' => $record->check_in_time ? $record->check_in_time->format('Y-m-d H:i:s') : null,
+            'check_out_time' => $record->check_out_time ? $record->check_out_time->format('Y-m-d H:i:s') : null,
+            'status' => ($record->check_in_time && $record->check_out_time) ? 'Complete' : 'Check In Only',
+            'verify_mode' => $record->verify_mode ?? null,
+            'device_ip' => $record->device_ip ?? null,
+            'is_new' => $isNew,
+            'persisted' => true,
+        ];
+    }
+
+    private function formatStaffLiveAttendanceRow(StaffFingerprintAttendance $record, OtherStaff $staff, string $today): array
+    {
+        $staffName = trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? ''));
+        $fingerprintId = $staff->fingerprint_id ?? $staff->id;
+
+        $isNew = false;
+        if ($record->check_in_time) {
+            $checkInTime = Carbon::parse($record->check_in_time);
+            $isNew = $checkInTime->diffInMinutes(Carbon::now()) <= 10;
+        }
+
+        return [
+            'person_type' => 'staff',
+            'person_id' => $staff->id,
+            'user_id' => $staff->id,
+            'user_name' => $staffName ?: 'N/A',
+            'enroll_id' => $staff->fingerprint_id ?? $staff->id,
+            'fingerprint_id' => $fingerprintId,
+            'role_label' => $staff->position ?? 'Staff',
+            'employee_number' => $staff->employee_number ?? null,
+            'attendance_date' => $record->attendance_date ? $record->attendance_date->toDateString() : $today,
+            'check_in_time' => $record->check_in_time ? $record->check_in_time->format('Y-m-d H:i:s') : null,
+            'check_out_time' => $record->check_out_time ? $record->check_out_time->format('Y-m-d H:i:s') : null,
+            'status' => ($record->check_in_time && $record->check_out_time) ? 'Complete' : 'Check In Only',
+            'verify_mode' => $record->verify_mode ?? null,
+            'device_ip' => $record->device_ip ?? null,
+            'is_new' => $isNew,
+            'persisted' => true,
+        ];
+    }
+
+    /**
+     * @return array<int, array{type: string, model: Teacher|OtherStaff}>
+     */
+    private function getTeacherStaffPeopleMap(int $schoolID): array
+    {
+        $map = [];
+
+        $teachers = Teacher::where('schoolID', $schoolID)->where('status', 'Active')->get();
+        foreach ($teachers as $teacher) {
+            $map[(int) $teacher->id] = ['type' => 'teacher', 'model' => $teacher];
+            if ($teacher->fingerprint_id) {
+                $map[(int) $teacher->fingerprint_id] = ['type' => 'teacher', 'model' => $teacher];
+            }
+        }
+
+        $staffMembers = OtherStaff::where('schoolID', $schoolID)->where('status', 'Active')->get();
+        foreach ($staffMembers as $staff) {
+            $map[(int) $staff->id] = ['type' => 'staff', 'model' => $staff];
+            if ($staff->fingerprint_id) {
+                $map[(int) $staff->fingerprint_id] = ['type' => 'staff', 'model' => $staff];
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param array<int, array{type: string, model: Teacher|OtherStaff}> $peopleMap
+     */
+    private function extractTeacherStaffUserDateRecords(array $allAttendance, array $peopleMap, ?string $onlyDate, string $deviceIp): array
+    {
+        $userDateRecords = [];
+
+        foreach ($allAttendance as $record) {
+            $userId = isset($record['user_id']) ? (int) $record['user_id'] : null;
+            if (!$userId || !isset($record['record_time'])) {
+                continue;
+            }
+
+            $recordTime = Carbon::parse($record['record_time']);
+            $recordDate = $recordTime->toDateString();
+
+            if ($onlyDate !== null && $recordDate !== $onlyDate) {
+                continue;
+            }
+
+            $personEntry = $peopleMap[$userId] ?? null;
+            if (!$personEntry) {
+                continue;
+            }
+
+            $person = $personEntry['model'];
+            $personType = $personEntry['type'];
+            $key = $personType . '_' . (int) $person->id . '_' . $recordDate;
+
+            if (!isset($userDateRecords[$key])) {
+                $userDateRecords[$key] = [];
+            }
+
+            $userDateRecords[$key][] = [
+                'time' => $recordTime,
+                'type' => $record['type'] ?? 'Fingerprint',
+                'device_ip' => $record['device_ip'] ?? $deviceIp,
+                'person' => $person,
+                'person_type' => $personType,
+            ];
+        }
+
+        return $userDateRecords;
+    }
+
+    /**
+     * First punch = check-in, second punch = check-out. Merges with existing DB row so check-out is never cleared.
+     *
+     * @return array{check_in: string, check_out: string|null, verify_mode: string|null, device_ip: string|null}
+     */
+    private function resolveTeacherDayCheckInOut(array $records, $existing = null): array
+    {
+        usort($records, function ($a, $b) {
+            if ($a['time']->eq($b['time'])) {
+                return 0;
+            }
+            return $a['time']->lt($b['time']) ? -1 : 1;
+        });
+
+        $firstRecord = $records[0];
+        $secondRecord = count($records) >= 2 ? $records[1] : null;
+
+        $checkIn = $firstRecord['time']->format('Y-m-d H:i:s');
+        $checkOut = $secondRecord ? $secondRecord['time']->format('Y-m-d H:i:s') : null;
+
+        if ($existing) {
+            if ($existing->check_in_time) {
+                $existingIn = Carbon::parse($existing->check_in_time);
+                if ($existingIn->lt($firstRecord['time'])) {
+                    $checkIn = $existingIn->format('Y-m-d H:i:s');
+                }
+            }
+            if (!$checkOut && $existing->check_out_time) {
+                $checkOut = $existing->check_out_time->format('Y-m-d H:i:s');
+            }
+        }
+
+        return [
+            'check_in' => $checkIn,
+            'check_out' => $checkOut,
+            'verify_mode' => $firstRecord['type'] ?? 'Fingerprint',
+            'device_ip' => $firstRecord['device_ip'] ?? null,
+        ];
+    }
+
+    private function persistTeacherStaffGroupedRecords(array $userDateRecords): array
+    {
+        $syncedCount = 0;
+        $updatedCount = 0;
+
+        foreach ($userDateRecords as $records) {
+            if (count($records) < 1) {
+                continue;
+            }
+
+            $personType = $records[0]['person_type'] ?? '';
+            $person = $records[0]['person'];
+            $recordDate = $records[0]['time']->toDateString();
+
+            if ($personType === 'teacher') {
+                /** @var Teacher $person */
+                $teacherName = trim(($person->first_name ?? '') . ' ' . ($person->middle_name ?? '') . ' ' . ($person->last_name ?? ''));
+
+                $existing = TeacherFingerprintAttendance::where('teacherID', $person->id)
+                    ->whereDate('attendance_date', $recordDate)
+                    ->first();
+
+                $times = $this->resolveTeacherDayCheckInOut($records, $existing);
+                $status = $times['check_out'] ? 1 : 0;
+
+                TeacherFingerprintAttendance::updateOrCreate(
+                    [
+                        'teacherID' => $person->id,
+                        'attendance_date' => $recordDate,
+                    ],
+                    [
+                        'user_id' => $person->id,
+                        'user_name' => $teacherName ?: 'N/A',
+                        'enroll_id' => $person->fingerprint_id ?? $person->id,
+                        'check_in_time' => $times['check_in'],
+                        'check_out_time' => $times['check_out'],
+                        'status' => $status,
+                        'verify_mode' => $times['verify_mode'],
+                        'device_ip' => $times['device_ip'],
+                    ]
+                );
+
+                if ($existing) {
+                    $updatedCount++;
+                } else {
+                    $syncedCount++;
+                }
+                continue;
+            }
+
+            if ($personType === 'staff') {
+                /** @var OtherStaff $person */
+                $staffName = trim(($person->first_name ?? '') . ' ' . ($person->middle_name ?? '') . ' ' . ($person->last_name ?? ''));
+
+                $existing = StaffFingerprintAttendance::where('staffID', $person->id)
+                    ->whereDate('attendance_date', $recordDate)
+                    ->first();
+
+                $times = $this->resolveTeacherDayCheckInOut($records, $existing);
+                $status = $times['check_out'] ? 1 : 0;
+
+                StaffFingerprintAttendance::updateOrCreate(
+                    [
+                        'staffID' => $person->id,
+                        'attendance_date' => $recordDate,
+                    ],
+                    [
+                        'user_id' => $person->id,
+                        'user_name' => $staffName ?: 'N/A',
+                        'enroll_id' => $person->fingerprint_id ?? $person->id,
+                        'check_in_time' => $times['check_in'],
+                        'check_out_time' => $times['check_out'],
+                        'status' => $status,
+                        'verify_mode' => $times['verify_mode'],
+                        'device_ip' => $times['device_ip'],
+                    ]
+                );
+
+                if ($existing) {
+                    $updatedCount++;
+                } else {
+                    $syncedCount++;
+                }
+            }
+        }
+
+        return ['synced' => $syncedCount, 'updated' => $updatedCount];
+    }
+
+    /**
+     * Bulk device sync: insert only teacher/day rows not already in DB (skip duplicates).
+     */
+    private function persistTeacherStaffBulkSyncSkipExisting(int $schoolID, array $userDateRecords): array
+    {
+        $teacherIds = Teacher::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->pluck('id');
+
+        $staffIds = OtherStaff::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->pluck('id');
+
+        $existingTeacherPairs = [];
+        $existingTeacherIncomplete = [];
+        if ($teacherIds->isNotEmpty()) {
+            TeacherFingerprintAttendance::whereIn('teacherID', $teacherIds)
+                ->select(['teacherID', 'attendance_date', 'check_out_time'])
+                ->cursor()
+                ->each(function ($row) use (&$existingTeacherPairs, &$existingTeacherIncomplete) {
+                    $date = $row->attendance_date instanceof Carbon
+                        ? $row->attendance_date->toDateString()
+                        : (string) $row->attendance_date;
+                    $key = 'teacher_' . $row->teacherID . '_' . $date;
+                    $existingTeacherPairs[$key] = true;
+                    if (!$row->check_out_time) {
+                        $existingTeacherIncomplete[$key] = true;
+                    }
+                });
+        }
+
+        $existingStaffPairs = [];
+        $existingStaffIncomplete = [];
+        if ($staffIds->isNotEmpty()) {
+            StaffFingerprintAttendance::whereIn('staffID', $staffIds)
+                ->select(['staffID', 'attendance_date', 'check_out_time'])
+                ->cursor()
+                ->each(function ($row) use (&$existingStaffPairs, &$existingStaffIncomplete) {
+                    $date = $row->attendance_date instanceof Carbon
+                        ? $row->attendance_date->toDateString()
+                        : (string) $row->attendance_date;
+                    $key = 'staff_' . $row->staffID . '_' . $date;
+                    $existingStaffPairs[$key] = true;
+                    if (!$row->check_out_time) {
+                        $existingStaffIncomplete[$key] = true;
+                    }
+                });
+        }
+
+        $synced = 0;
+        $skippedExisting = 0;
+        $updatedCheckout = 0;
+        $deviceDaysMatched = 0;
+
+        foreach ($userDateRecords as $records) {
+            if (count($records) < 1) {
+                continue;
+            }
+
+            $deviceDaysMatched++;
+            $personType = $records[0]['person_type'] ?? '';
+            $person = $records[0]['person'];
+            $recordDate = $records[0]['time']->toDateString();
+
+            if ($personType === 'teacher') {
+                /** @var Teacher $person */
+                $pairKey = 'teacher_' . $person->id . '_' . $recordDate;
+                $personName = trim(($person->first_name ?? '') . ' ' . ($person->middle_name ?? '') . ' ' . ($person->last_name ?? ''));
+
+                $existing = isset($existingTeacherPairs[$pairKey])
+                    ? TeacherFingerprintAttendance::where('teacherID', $person->id)
+                        ->whereDate('attendance_date', $recordDate)
+                        ->first()
+                    : null;
+
+                $times = $this->resolveTeacherDayCheckInOut($records, $existing);
+
+                if ($existing) {
+                    $needsCheckout = !$existing->check_out_time && $times['check_out'];
+                    if ($needsCheckout) {
+                        $existing->update([
+                            'check_in_time' => $times['check_in'],
+                            'check_out_time' => $times['check_out'],
+                            'status' => 1,
+                            'verify_mode' => $times['verify_mode'],
+                            'device_ip' => $times['device_ip'] ?? $existing->device_ip,
+                        ]);
+                        $updatedCheckout++;
+                        unset($existingTeacherIncomplete[$pairKey]);
+                    } else {
+                        $skippedExisting++;
+                    }
+                    continue;
+                }
+
+                TeacherFingerprintAttendance::create([
+                    'teacherID' => $person->id,
+                    'user_id' => $person->id,
+                    'user_name' => $personName ?: 'N/A',
+                    'enroll_id' => $person->fingerprint_id ?? $person->id,
+                    'attendance_date' => $recordDate,
+                    'check_in_time' => $times['check_in'],
+                    'check_out_time' => $times['check_out'],
+                    'status' => $times['check_out'] ? 1 : 0,
+                    'verify_mode' => $times['verify_mode'],
+                    'device_ip' => $times['device_ip'],
+                ]);
+
+                $existingTeacherPairs[$pairKey] = true;
+                $synced++;
+                continue;
+            }
+
+            if ($personType === 'staff') {
+                /** @var OtherStaff $person */
+                $pairKey = 'staff_' . $person->id . '_' . $recordDate;
+                $personName = trim(($person->first_name ?? '') . ' ' . ($person->middle_name ?? '') . ' ' . ($person->last_name ?? ''));
+
+                $existing = isset($existingStaffPairs[$pairKey])
+                    ? StaffFingerprintAttendance::where('staffID', $person->id)
+                        ->whereDate('attendance_date', $recordDate)
+                        ->first()
+                    : null;
+
+                $times = $this->resolveTeacherDayCheckInOut($records, $existing);
+
+                if ($existing) {
+                    $needsCheckout = !$existing->check_out_time && $times['check_out'];
+                    if ($needsCheckout) {
+                        $existing->update([
+                            'check_in_time' => $times['check_in'],
+                            'check_out_time' => $times['check_out'],
+                            'status' => 1,
+                            'verify_mode' => $times['verify_mode'],
+                            'device_ip' => $times['device_ip'] ?? $existing->device_ip,
+                        ]);
+                        $updatedCheckout++;
+                        unset($existingStaffIncomplete[$pairKey]);
+                    } else {
+                        $skippedExisting++;
+                    }
+                    continue;
+                }
+
+                StaffFingerprintAttendance::create([
+                    'staffID' => $person->id,
+                    'user_id' => $person->id,
+                    'user_name' => $personName ?: 'N/A',
+                    'enroll_id' => $person->fingerprint_id ?? $person->id,
+                    'attendance_date' => $recordDate,
+                    'check_in_time' => $times['check_in'],
+                    'check_out_time' => $times['check_out'],
+                    'status' => $times['check_out'] ? 1 : 0,
+                    'verify_mode' => $times['verify_mode'],
+                    'device_ip' => $times['device_ip'],
+                ]);
+
+                $existingStaffPairs[$pairKey] = true;
+                $synced++;
+            }
+        }
+
+        return [
+            'synced' => $synced,
+            'skipped_existing' => $skippedExisting,
+            'updated_checkout' => $updatedCheckout,
+            'device_days_matched' => $deviceDaysMatched,
+        ];
+    }
+
+    /**
+     * @param array<int, array{type: string, model: Teacher|OtherStaff}> $peopleMap
+     * @return array{userDateRecords: array, summary: array, anySuccess: bool}
+     */
+    private function syncTeacherStaffFromDevices(Request $request, array $peopleMap, ?string $onlyDate, int $deviceTimeoutSeconds = 15): array
+    {
+        $devices = $this->getAttendanceDevicesForSync($request);
+        $userDateRecords = [];
+        $summary = [];
+        $anySuccess = false;
+
+        foreach ($devices as $device) {
+            try {
+                $logs = $this->fetchAttendanceLogsFromDevice($device, $deviceTimeoutSeconds, $onlyDate);
+                $records = $this->extractTeacherStaffUserDateRecords($logs, $peopleMap, $onlyDate, $device->ip);
+                $this->mergeUserDateRecords($userDateRecords, $records);
+                $summary[] = [
+                    'id' => $device->id,
+                    'label' => $device->label,
+                    'ip' => $device->ip,
+                    'port' => $device->port,
+                    'success' => true,
+                ];
+                $anySuccess = true;
+            } catch (\Exception $e) {
+                Log::warning('Teacher/staff device sync failed [' . $device->label . ']: ' . $e->getMessage());
+                $summary[] = [
+                    'id' => $device->id,
+                    'label' => $device->label,
+                    'ip' => $device->ip,
+                    'port' => $device->port,
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return [
+            'userDateRecords' => $userDateRecords,
+            'summary' => $summary,
+            'anySuccess' => $anySuccess,
+        ];
+    }
+
+    private function buildTeacherLiveRecordsFromSync(array $userDateRecords, string $today): array
+    {
+        $records = [];
+
+        foreach ($userDateRecords as $group) {
+            if (count($group) < 1 || ($group[0]['person_type'] ?? '') !== 'teacher') {
+                continue;
+            }
+
+            $recordDate = $group[0]['time']->toDateString();
+            if ($recordDate !== $today) {
+                continue;
+            }
+
+            /** @var Teacher $teacher */
+            $teacher = $group[0]['person'];
+            $times = $this->resolveTeacherDayCheckInOut($group, null);
+            $teacherName = trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? ''));
+            $checkInCarbon = Carbon::parse($times['check_in']);
+            $isNew = $checkInCarbon->diffInMinutes(Carbon::now()) <= 10;
+
+            $records[] = [
+                'person_type' => 'teacher',
+                'person_id' => $teacher->id,
+                'user_id' => $teacher->id,
+                'user_name' => $teacherName ?: 'N/A',
+                'enroll_id' => $teacher->id,
+                'fingerprint_id' => $teacher->fingerprint_id ?? $teacher->id,
+                'role_label' => $teacher->position ?? 'Teacher',
+                'employee_number' => $teacher->employee_number ?? null,
+                'attendance_date' => $today,
+                'check_in_time' => $times['check_in'],
+                'check_out_time' => $times['check_out'],
+                'status' => $times['check_out'] ? 'Complete' : 'Check In Only',
+                'verify_mode' => $times['verify_mode'],
+                'device_ip' => $times['device_ip'],
+                'is_new' => $isNew,
+                'persisted' => true,
+            ];
+        }
+
+        return $records;
+    }
+
+    private function buildEphemeralStaffLiveRecords(array $userDateRecords, string $today): array
+    {
+        $records = [];
+
+        foreach ($userDateRecords as $group) {
+            usort($group, function ($a, $b) {
+                if ($a['time']->eq($b['time'])) {
+                    return 0;
+                }
+                return $a['time']->lt($b['time']) ? -1 : 1;
+            });
+
+            if (count($group) < 1 || ($group[0]['person_type'] ?? '') !== 'staff') {
+                continue;
+            }
+
+            /** @var OtherStaff $staff */
+            $staff = $group[0]['person'];
+            $second = count($group) >= 2 ? $group[1] : null;
+            $staffName = trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? ''));
+            $checkInTime = $group[0]['time']->format('Y-m-d H:i:s');
+            $checkOutTime = $second ? $second['time']->format('Y-m-d H:i:s') : null;
+            $isNew = $group[0]['time']->diffInMinutes(Carbon::now()) <= 10;
+
+            $records[] = [
+                'person_type' => 'staff',
+                'person_id' => $staff->id,
+                'user_id' => $staff->id,
+                'user_name' => $staffName ?: 'N/A',
+                'enroll_id' => $staff->fingerprint_id ?? $staff->id,
+                'fingerprint_id' => $staff->fingerprint_id ?? $staff->id,
+                'role_label' => $staff->position ?? 'Staff',
+                'employee_number' => $staff->employee_number ?? null,
+                'attendance_date' => $today,
+                'check_in_time' => $checkInTime,
+                'check_out_time' => $checkOutTime,
+                'status' => $checkOutTime ? 'Complete' : 'Check In Only',
+                'verify_mode' => $group[0]['type'] ?? 'Fingerprint',
+                'device_ip' => $group[0]['device_ip'] ?? null,
+                'is_new' => $isNew,
+                'persisted' => false,
+            ];
+        }
+
+        return $records;
+    }
+
+    private function countStaffMatchedRecords(array $userDateRecords): int
+    {
+        $count = 0;
+        foreach ($userDateRecords as $group) {
+            if (!empty($group) && ($group[0]['person_type'] ?? '') === 'staff') {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    private function findSchoolFingerprintDevice(int $id): FingerprintDevice
+    {
+        return FingerprintDevice::where('schoolID', $this->resolveFingerprintSchoolId())
+            ->where('id', $id)
+            ->firstOrFail();
+    }
+
+    private function validateFingerprintDevice(Request $request): array
+    {
+        $data = $request->validate([
+            'label' => 'required|string|max:120',
+            'brand' => 'required|string|max:60',
+            'ip' => 'required|ip',
+            'port' => 'required|integer|min:1|max:65535',
+            'comm_key' => 'nullable|string|max:16',
+            'usage_type' => 'nullable|string|max:40',
+            'location' => 'nullable|string|max:150',
+            'serial_number' => 'nullable|string|max:80',
+            'status' => 'required|in:active,inactive',
+            'notes' => 'nullable|string|max:2000',
+        ], [], [
+            'comm_key' => 'comm key',
+        ]);
+
+        $data['comm_key'] = $data['comm_key'] ?? '0';
+
+        return $data;
     }
 }
 

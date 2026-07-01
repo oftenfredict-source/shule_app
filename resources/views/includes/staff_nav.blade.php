@@ -649,7 +649,9 @@
                                         @endif
                                         @if($hasAttendancePermission)
                                             <li><a href="{{ route('manageAttendance') }}" class="nav-link"><i
-                                                        class="fa fa-check-square-o"></i> Attendance</a></li>
+                                                        class="fa fa-user"></i> Student Attendance</a></li>
+                                            <li><a href="{{ route('manageTeacherStaffAttendance') }}" class="nav-link"><i
+                                                        class="fa fa-users"></i> Teacher and Staff Attendance</a></li>
                                         @endif
                                         @if($hasStudentPermission)
                                             <li><a href="{{ route('manage_student') }}" class="nav-link"><i

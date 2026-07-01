@@ -2911,6 +2911,7 @@
                         html: '<div class="text-center">' +
                               '<p class="mb-3">Staff registered successfully</p>' +
                               '<p class="mb-0">Fingerprint ID: <strong style="font-size: 1.1rem; color: #940000;">' + (response.fingerprint_id || 'N/A') + '</strong></p>' +
+                              '<p class="mb-0 mt-2 text-muted"><small>Tumia <strong>Send to Fingerprint</strong> ukiwa tayari kusajili kwenye device.</small></p>' +
                               '</div>',
                         icon: 'success',
                         confirmButtonText: 'OK',
@@ -3255,6 +3256,64 @@
             });
         });
 
+        // Shared: load registered fingerprint devices for send-to-device
+        function fetchActiveFingerprintDevices() {
+            return $.ajax({
+                url: '{{ route("zkteco.devices.index") }}',
+                type: 'GET',
+                dataType: 'json'
+            }).then(function (response) {
+                if (!response || !response.success) {
+                    return [];
+                }
+                return (response.devices || []).filter(function (d) {
+                    return d.status !== 'inactive';
+                });
+            });
+        }
+
+        function promptSendToFingerprintDevice(personLabel, personName, ajaxFactory) {
+            return fetchActiveFingerprintDevices().then(function (devices) {
+                if (!devices.length) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'No Devices Found',
+                        html: 'Hakuna fingerprint device iliyosajiliwa. Ongeza device kwenye <strong>Fingerprint Device Settings</strong> kwanza.'
+                    });
+                    return null;
+                }
+
+                var optionsHtml = '<option value="">-- Chagua device --</option>';
+                devices.forEach(function (d) {
+                    var location = d.location ? ' — ' + d.location : '';
+                    optionsHtml += '<option value="' + d.id + '">' + d.label + ' (' + d.ip + ':' + d.port + ')' + location + '</option>';
+                });
+
+                return Swal.fire({
+                    title: 'Send to Fingerprint Device?',
+                    html: 'Tuma <strong>' + personName + '</strong> (' + personLabel + ') kwenye device:<br>' +
+                        '<select id="swalFingerprintDeviceSelect" class="form-control mt-3">' + optionsHtml + '</select>' +
+                        '<small class="text-muted d-block mt-2">Chagua device uliyosajili kwenye Fingerprint Device Settings.</small>',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="bi bi-fingerprint"></i> Yes, Send',
+                    cancelButtonText: '<i class="bi bi-x-circle"></i> Cancel',
+                    showLoaderOnConfirm: true,
+                    preConfirm: function () {
+                        var deviceId = $('#swalFingerprintDeviceSelect').val();
+                        if (!deviceId) {
+                            Swal.showValidationMessage('Tafadhali chagua fingerprint device.');
+                            return false;
+                        }
+                        return ajaxFactory(deviceId);
+                    },
+                    allowOutsideClick: function () { return !Swal.isLoading(); }
+                });
+            });
+        }
+
         // Send Staff to Fingerprint
         $(document).on('click', '.send-staff-to-fingerprint-btn', function(e) {
             e.preventDefault();
@@ -3263,41 +3322,36 @@
             var $btn = $(this);
             var originalText = $btn.html();
 
-            Swal.fire({
-                title: 'Send to Fingerprint Device?',
-                html: 'Are you sure you want to send <strong>' + staffName + '</strong> to the fingerprint device?<br><br><small class="text-muted">This will register the staff on the biometric device.</small>',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#28a745',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: '<i class="bi bi-fingerprint"></i> Yes, Send',
-                cancelButtonText: '<i class="bi bi-x-circle"></i> Cancel',
-                showLoaderOnConfirm: true,
-                preConfirm: () => {
-                    $btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Sending...');
-                    return $.ajax({
-                        url: "{{ route('send_staff_to_fingerprint') }}",
-                        type: "POST",
-                        data: {
-                            _token: $('input[name="_token"]').first().val(),
-                            staff_id: staffId
-                        }
-                    }).catch(xhr => {
-                        var errorMsg = 'Failed to send staff to fingerprint device.';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMsg = xhr.responseJSON.message;
-                        }
-                        Swal.showValidationMessage(errorMsg);
-                        $btn.prop('disabled', false).html(originalText);
-                    });
-                },
-                allowOutsideClick: () => !Swal.isLoading()
-            }).then((result) => {
+            promptSendToFingerprintDevice('Staff', staffName, function (deviceId) {
+                $btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Sending...');
+                return $.ajax({
+                    url: "{{ route('send_staff_to_fingerprint') }}",
+                    type: "POST",
+                    data: {
+                        _token: $('input[name="_token"]').first().val(),
+                        staff_id: staffId,
+                        device_id: deviceId
+                    }
+                }).catch(function (xhr) {
+                    var errorMsg = 'Failed to send staff to fingerprint device.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+                    Swal.showValidationMessage(errorMsg);
+                    $btn.prop('disabled', false).html(originalText);
+                });
+            }).then(function (result) {
+                if (!result) {
+                    return;
+                }
                 if (result.isConfirmed && result.value) {
+                    var deviceLabel = (result.value.device_label) ? result.value.device_label : '';
                     Swal.fire({
                         icon: 'success',
                         title: 'Success!',
-                        text: result.value.message || 'Staff sent to fingerprint device successfully!'
+                        html: (result.value.message || 'Staff sent to fingerprint device successfully!') +
+                            (result.value.fingerprint_id ? '<br><small>Fingerprint ID: <strong>' + result.value.fingerprint_id + '</strong></small>' : '') +
+                            (deviceLabel ? '<br><small>Device: <strong>' + deviceLabel + '</strong></small>' : '')
                     }).then(function() {
                         location.reload();
                     });
@@ -3624,51 +3678,38 @@
             var $btn = $(this);
             var originalHtml = $btn.html();
 
-            Swal.fire({
-                title: 'Send to Fingerprint Device?',
-                html: 'Are you sure you want to send <strong>' + teacherName + '</strong> to the fingerprint device?<br><br><small class="text-muted">This will generate a unique fingerprint ID and register the teacher to the biometric device.</small>',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#28a745',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: '<i class="bi bi-fingerprint"></i> Yes, Send',
-                cancelButtonText: '<i class="bi bi-x-circle"></i> Cancel',
-                showLoaderOnConfirm: true,
-                preConfirm: () => {
-                    $btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Sending...');
-
-                    return $.ajax({
-                        url: "{{ route('send_teacher_to_fingerprint') }}",
-                        type: "POST",
-                        data: {
-                            _token: "{{ csrf_token() }}",
-                            teacher_id: teacherId
-                        },
-                        success: function(response) {
-                            return response;
-                        },
-                        error: function(xhr) {
-                            var errorMsg = 'Failed to send teacher to fingerprint device.';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMsg = xhr.responseJSON.message;
-                            }
-                            Swal.showValidationMessage(errorMsg);
-                            $btn.prop('disabled', false).html(originalHtml);
-                        }
-                    });
-                },
-                allowOutsideClick: () => !Swal.isLoading()
-            }).then((result) => {
+            promptSendToFingerprintDevice('Teacher', teacherName, function (deviceId) {
+                $btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Sending...');
+                return $.ajax({
+                    url: "{{ route('send_teacher_to_fingerprint') }}",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        teacher_id: teacherId,
+                        device_id: deviceId
+                    }
+                }).catch(function (xhr) {
+                    var errorMsg = 'Failed to send teacher to fingerprint device.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+                    Swal.showValidationMessage(errorMsg);
+                    $btn.prop('disabled', false).html(originalHtml);
+                });
+            }).then(function (result) {
+                if (!result) {
+                    return;
+                }
                 if (result.isConfirmed && result.value) {
                     var response = result.value;
                     if (response.success) {
+                        var deviceInfo = response.device_label ? '<br><small class="text-muted">Device: <strong>' + response.device_label + '</strong></small>' : '';
                         Swal.fire({
                             icon: 'success',
                             title: 'Success!',
-                            html: 'Teacher <strong>' + teacherName + '</strong> has been successfully sent to the fingerprint device.<br><br><small class="text-muted">Fingerprint ID: <strong>' + (response.fingerprint_id || 'N/A') + '</strong></small>',
+                            html: 'Teacher <strong>' + teacherName + '</strong> has been successfully sent to the fingerprint device.<br><br><small class="text-muted">Fingerprint ID: <strong>' + (response.fingerprint_id || 'N/A') + '</strong></small>' + deviceInfo,
                             confirmButtonText: 'OK'
-                        }).then(() => {
-                            // Reload the page to show updated data
+                        }).then(function () {
                             location.reload();
                         });
                     } else {
@@ -4099,7 +4140,8 @@
                         title: 'Teacher Registered Successfully!',
                         html: '<div class="text-center">' +
                               '<p class="mb-3">Teacher registered successfully</p>' +
-                              '<p class="mb-0">Please continue register user in fingerprint device ID <strong style="font-size: 1.2rem; color: #940000;">' + (response.fingerprint_id || 'N/A') + '</strong></p>' +
+                              '<p class="mb-0">Fingerprint ID: <strong style="font-size: 1.2rem; color: #940000;">' + (response.fingerprint_id || 'N/A') + '</strong></p>' +
+                              '<p class="mb-0 mt-2 text-muted"><small>Tumia <strong>Send to Fingerprint</strong> ukiwa tayari kusajili kwenye device.</small></p>' +
                               smsInfoHtml +
                               '</div>',
                         icon: 'success',

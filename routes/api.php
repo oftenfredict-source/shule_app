@@ -70,6 +70,9 @@ Route::get('/attendance/teachers-fingerprint-local', [AttendanceApiController::c
 // Get teacher fingerprint attendance from local database
 Route::get('/attendance/teachers-fingerprint', [AttendanceApiController::class, 'getTeacherFingerprintAttendance'])->name('api.attendance.teachers_fingerprint');
 
+// Teacher + staff fingerprint attendance from local database (school-scoped)
+Route::get('/attendance/teacher-staff-fingerprint', [AttendanceApiController::class, 'getTeacherStaffFingerprintAttendance'])->name('api.attendance.teacher_staff_fingerprint');
+
 // Teacher Dashboard endpoint
 Route::get('/teacher/dashboard', [\App\Http\Controllers\TeachersController::class, 'getTeacherDashboardAPI'])->name('api.teacher.dashboard');
 

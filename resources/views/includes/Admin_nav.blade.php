@@ -590,9 +590,17 @@
                                 <li><a href="{{ route('admin.subject_analysis') }}" class="nav-link"><i class="fa fa-line-chart"></i> Subject Analysis</a></li>
                                 <li><a href="{{ route('manageExamination') }}" class="nav-link"><i class="fa fa-pencil-square-o"></i> Examinations</a></li>
                                 <li><a href="{{ route('character_assessment') }}" class="nav-link"><i class="fa fa-heartbeat"></i> Character Assessment</a></li>
+                            </ul>
+                        </li>
 
-
-                                <li><a href="{{ route('manageAttendance') }}" class="nav-link"><i class="fa fa-check-square-o"></i> Attendance</a></li>
+                        <!-- Attendance -->
+                        <li class="dropdown-nav-item">
+                            <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#attendanceMenu" aria-expanded="false">
+                                <i class="fa fa-check-square-o"></i> Attendance <i class="fa fa-chevron-down float-right"></i>
+                            </a>
+                            <ul id="attendanceMenu" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
+                                <li><a href="{{ route('manageAttendance') }}" class="nav-link"><i class="fa fa-user"></i> Student Attendance</a></li>
+                                <li><a href="{{ route('manageTeacherStaffAttendance') }}" class="nav-link"><i class="fa fa-users"></i> Teacher and Staff Attendance</a></li>
                             </ul>
                         </li>
 

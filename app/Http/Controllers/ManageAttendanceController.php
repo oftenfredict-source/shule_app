@@ -8,16 +8,22 @@ use App\Models\Subclass;
 use App\Models\Student;
 use App\Models\ClassSubject;
 use App\Models\Teacher;
+use App\Models\OtherStaff;
 use App\Models\Combie;
 use App\Models\Attendance;
 use App\Models\School;
 use App\Models\StudentFingerprintAttendance;
+use App\Models\TeacherFingerprintAttendance;
+use App\Models\StaffFingerprintAttendance;
+use App\Models\TeacherStaffWorkTimeSetting;
+use App\Services\SchoolWorkingDaysService;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
 use Carbon\Carbon;
-use Barryvdh\DomPDF\PDF;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
+use App\Services\SmsService;
 
 class ManageAttendanceController extends Controller
 {
@@ -139,6 +145,32 @@ class ManageAttendanceController extends Controller
         ];
 
         return view('Admin.manage_attendance', compact('subclasses', 'school_details', 'isCoordinatorView', 'selectedClass', 'coordinatorSubclasses', 'classIDParam'));
+    }
+
+    public function manageTeacherStaffAttendance(Request $request)
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+
+        if (!$userType || !$schoolID) {
+            return redirect()->route('login')->with('error', 'Access denied');
+        }
+
+        if (!in_array($userType, ['Admin', 'Staff'], true)) {
+            return redirect()->route('login')->with('error', 'Access denied');
+        }
+
+        $school = School::where('schoolID', $schoolID)->first();
+        $school_details = (object) [
+            'school_name' => $school->school_name ?? 'School',
+            'school_logo' => $school->school_logo ?? null,
+        ];
+
+        $teacherCount = Teacher::where('schoolID', $schoolID)->where('status', 'Active')->count();
+        $staffCount = OtherStaff::where('schoolID', $schoolID)->where('status', 'Active')->count();
+        $workTime = TeacherStaffWorkTimeSetting::forSchool((int) $schoolID);
+
+        return view('Admin.manage_teacher_staff_attendance', compact('school_details', 'teacherCount', 'staffCount', 'workTime'));
     }
 
     public function searchAttendance(Request $request)
@@ -1581,5 +1613,906 @@ class ManageAttendanceController extends Controller
             \Log::error('Error getting student missed subjects: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()]);
         }
+    }
+
+    public function getTeacherStaffWorkTime()
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $settings = TeacherStaffWorkTimeSetting::forSchool((int) $schoolID);
+
+        return response()->json([
+            'success' => true,
+            'work_start_time' => substr((string) $settings->work_start_time, 0, 5),
+            'work_end_time' => substr((string) $settings->work_end_time, 0, 5),
+        ]);
+    }
+
+    public function saveTeacherStaffWorkTime(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $request->validate([
+            'work_start_time' => 'required|date_format:H:i',
+            'work_end_time' => 'required|date_format:H:i|after:work_start_time',
+        ]);
+
+        $settings = TeacherStaffWorkTimeSetting::forSchool((int) $schoolID);
+        $settings->update([
+            'work_start_time' => $request->input('work_start_time') . ':00',
+            'work_end_time' => $request->input('work_end_time') . ':00',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Working time saved successfully.',
+            'work_start_time' => substr((string) $settings->work_start_time, 0, 5),
+            'work_end_time' => substr((string) $settings->work_end_time, 0, 5),
+        ]);
+    }
+
+    public function teacherStaffAttendanceReport(Request $request, SchoolWorkingDaysService $workingDaysService)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $request->validate([
+            'filter_type' => 'required|in:day,date_range,month,year',
+            'person_type' => 'required|in:all,teacher,staff',
+            'date' => 'nullable|date',
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date|after_or_equal:from_date',
+            'month' => 'nullable|integer|min:1|max:12',
+            'year' => 'nullable|integer|min:2000|max:2100',
+        ]);
+
+        try {
+            $range = $this->resolveTeacherStaffReportDateRange($request);
+            $schoolID = (int) $schoolID;
+            $filterType = $request->input('filter_type');
+            $workingDayCounts = $this->resolveReportWorkingDayCounts(
+                $workingDaysService,
+                $schoolID,
+                $filterType,
+                $range
+            );
+            $workingDates = $workingDayCounts['working_dates'];
+            $workTime = TeacherStaffWorkTimeSetting::forSchool($schoolID);
+            $people = $this->getTeacherStaffReportPeople($schoolID, $request->input('person_type'));
+            $attendanceMap = $this->loadTeacherStaffAttendanceMap(
+                $schoolID,
+                $request->input('person_type'),
+                $range['start']->toDateString(),
+                $range['end']->toDateString()
+            );
+
+            $rows = [];
+            foreach ($people as $person) {
+                $personKey = $person['person_type'] . '_' . $person['person_id'];
+                $personAttendance = $attendanceMap[$personKey] ?? [];
+                $stats = $this->calculatePersonAttendanceStats(
+                    $personAttendance,
+                    $workingDates,
+                    $workTime->work_start_time
+                );
+
+                $rows[] = [
+                    'person_type' => $person['person_type'],
+                    'person_id' => $person['person_id'],
+                    'name' => $person['name'],
+                    'role_label' => $person['role_label'],
+                    'employee_number' => $person['employee_number'],
+                    'phone_number' => $person['phone_number'],
+                    'image_url' => $person['image_url'],
+                    'present_days' => $stats['present_days'],
+                    'absent_days' => $stats['absent_days'],
+                    'total_working_days' => $workingDayCounts['display_working_days'],
+                    'complete_working_days' => $workingDayCounts['elapsed_working_days'],
+                    'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
+                    'late_days' => $stats['late_days'],
+                    'early_days' => $stats['early_days'],
+                ];
+            }
+
+            usort($rows, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+            return response()->json([
+                'success' => true,
+                'title' => $this->buildTeacherStaffReportTitle(
+                    $request->input('person_type'),
+                    $request->input('filter_type'),
+                    $range
+                ),
+                'filter_type' => $request->input('filter_type'),
+                'person_type' => $request->input('person_type'),
+                'period_label' => $range['label'],
+                'period_incomplete' => $range['incomplete'],
+                'period_incomplete' => $range['incomplete'],
+                'total_working_days' => $workingDayCounts['display_working_days'],
+                'complete_working_days' => $workingDayCounts['elapsed_working_days'],
+                'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
+                'work_start_time' => substr((string) $workTime->work_start_time, 0, 5),
+                'work_end_time' => substr((string) $workTime->work_end_time, 0, 5),
+                'data' => $rows,
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function teacherStaffAttendanceReportDetail(Request $request, SchoolWorkingDaysService $workingDaysService)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $request->validate([
+            'filter_type' => 'required|in:day,date_range,month,year',
+            'person_type' => 'required|in:teacher,staff',
+            'person_id' => 'required|integer',
+            'date' => 'nullable|date',
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date',
+            'month' => 'nullable|integer|min:1|max:12',
+            'year' => 'nullable|integer|min:2000|max:2100',
+        ]);
+
+        try {
+            $schoolID = (int) $schoolID;
+            $range = $this->resolveTeacherStaffReportDateRange($request);
+            $filterType = $request->input('filter_type');
+            $workingDayCounts = $this->resolveReportWorkingDayCounts(
+                $workingDaysService,
+                $schoolID,
+                $filterType,
+                $range
+            );
+            $workingDates = $workingDayCounts['working_dates'];
+            $workTime = TeacherStaffWorkTimeSetting::forSchool($schoolID);
+            $person = $this->getSingleTeacherStaffPerson(
+                $schoolID,
+                $request->input('person_type'),
+                (int) $request->input('person_id')
+            );
+
+            if (!$person) {
+                return response()->json(['success' => false, 'message' => 'Person not found.'], 404);
+            }
+
+            $personKey = $person['person_type'] . '_' . $person['person_id'];
+            $attendanceMap = $this->loadTeacherStaffAttendanceMap(
+                $schoolID,
+                $person['person_type'],
+                $range['start']->toDateString(),
+                $range['end']->toDateString()
+            );
+            $personAttendance = $attendanceMap[$personKey] ?? [];
+            $stats = $this->calculatePersonAttendanceStats(
+                $personAttendance,
+                $workingDates,
+                $workTime->work_start_time
+            );
+            $daily = $this->buildPersonDailyAttendanceRecords(
+                $personAttendance,
+                $workingDates,
+                $range['start'],
+                $range['end'],
+                $workTime->work_start_time
+            );
+
+            return response()->json([
+                'success' => true,
+                'person' => $person,
+                'title' => $this->buildTeacherStaffReportTitle(
+                    $person['person_type'],
+                    $request->input('filter_type'),
+                    $range
+                ),
+                'statistics' => [
+                    'present_days' => $stats['present_days'],
+                    'absent_days' => $stats['absent_days'],
+                    'total_working_days' => $workingDayCounts['display_working_days'],
+                    'complete_working_days' => $workingDayCounts['elapsed_working_days'],
+                    'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
+                    'late_days' => $stats['late_days'],
+                    'early_days' => $stats['early_days'],
+                ],
+                'work_start_time' => substr((string) $workTime->work_start_time, 0, 5),
+                'work_end_time' => substr((string) $workTime->work_end_time, 0, 5),
+                'period_incomplete' => $range['incomplete'],
+                'period_label' => $range['label'],
+                'daily_records' => $daily,
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    private function resolveTeacherStaffReportDateRange(Request $request): array
+    {
+        $filterType = $request->input('filter_type');
+        $today = Carbon::today();
+
+        if ($filterType === 'day') {
+            $date = $request->input('date');
+            if (!$date) {
+                throw new \InvalidArgumentException('Please select a date.');
+            }
+            $start = Carbon::parse($date)->startOfDay();
+            $end = $start->copy();
+            return [
+                'start' => $start,
+                'end' => $end,
+                'incomplete' => false,
+                'label' => $start->format('j F Y'),
+                'date' => $date,
+            ];
+        }
+
+        if ($filterType === 'date_range') {
+            $from = $request->input('from_date');
+            $to = $request->input('to_date');
+            if (!$from || !$to) {
+                throw new \InvalidArgumentException('Please select from date and to date.');
+            }
+            $start = Carbon::parse($from)->startOfDay();
+            $end = Carbon::parse($to)->startOfDay();
+            if ($end->lt($start)) {
+                throw new \InvalidArgumentException('To date must be on or after from date.');
+            }
+            return [
+                'start' => $start,
+                'end' => $end,
+                'incomplete' => $end->gt($today),
+                'label' => $start->format('j F Y') . ' — ' . $end->format('j F Y'),
+                'from_date' => $from,
+                'to_date' => $to,
+            ];
+        }
+
+        if ($filterType === 'month') {
+            $year = (int) ($request->input('year') ?: $today->year);
+            $month = (int) $request->input('month');
+            if (!$month) {
+                throw new \InvalidArgumentException('Please select a month.');
+            }
+            $start = Carbon::create($year, $month, 1)->startOfDay();
+            $end = $start->copy()->endOfMonth();
+            $incomplete = $start->isSameMonth($today) && $start->isSameYear($today);
+            if ($incomplete) {
+                $end = $today->copy();
+            }
+            return [
+                'start' => $start,
+                'end' => $end,
+                'incomplete' => $incomplete,
+                'label' => $start->format('F Y'),
+                'month' => $month,
+                'year' => $year,
+            ];
+        }
+
+        $year = (int) ($request->input('year') ?: $today->year);
+        $start = Carbon::create($year, 1, 1)->startOfDay();
+        $end = Carbon::create($year, 12, 31)->startOfDay();
+        $incomplete = $year === (int) $today->year;
+        if ($incomplete) {
+            $end = $today->copy();
+        }
+
+        return [
+            'start' => $start,
+            'end' => $end,
+            'incomplete' => $incomplete,
+            'label' => (string) $year,
+            'year' => $year,
+        ];
+    }
+
+    private function buildTeacherStaffReportTitle(string $personType, string $filterType, array $range): string
+    {
+        $scope = match ($personType) {
+            'teacher' => 'TEACHERS',
+            'staff' => 'STAFF',
+            default => 'TEACHERS AND STAFF',
+        };
+
+        if ($filterType === 'day') {
+            return $scope . ' ATTENDANCE REPORT ON ' . strtoupper($range['start']->format('j F Y'));
+        }
+
+        if ($filterType === 'date_range') {
+            return $scope . ' ATTENDANCE ON ' . strtoupper($range['start']->format('j F Y'))
+                . ' UP TO ' . strtoupper($range['end']->format('j F Y'));
+        }
+
+        if ($filterType === 'month') {
+            return $scope . ' ATTENDANCE REPORT ON ' . strtoupper($range['start']->format('F Y'));
+        }
+
+        return $scope . ' ATTENDANCE REPORT FOR YEAR ' . $range['start']->year;
+    }
+
+    /**
+     * display_working_days = calendar month/year total (matches /admin/calendar).
+     * elapsed_working_days / complete_working_days = working days elapsed in period so far (for absent & in-progress column).
+     *
+     * @return array{working_dates: array<int, string>, display_working_days: int, elapsed_working_days: int}
+     */
+    private function resolveReportWorkingDayCounts(
+        SchoolWorkingDaysService $workingDaysService,
+        int $schoolID,
+        string $filterType,
+        array $range
+    ): array {
+        $workingDates = $workingDaysService->getWorkingDates($schoolID, $range['start'], $range['end']);
+        $elapsedWorkingDays = count($workingDates);
+        $displayWorkingDays = $elapsedWorkingDays;
+
+        if ($filterType === 'month') {
+            $displayWorkingDays = $workingDaysService->getMonthWorkingDaysCount(
+                $schoolID,
+                (int) $range['start']->year,
+                (int) $range['start']->month
+            );
+        } elseif ($filterType === 'year') {
+            $displayWorkingDays = $workingDaysService->getYearWorkingDaysCount(
+                $schoolID,
+                (int) $range['start']->year
+            );
+        } elseif ($filterType === 'day') {
+            $displayWorkingDays = $elapsedWorkingDays > 0 ? 1 : 0;
+        }
+
+        return [
+            'working_dates' => $workingDates,
+            'display_working_days' => $displayWorkingDays,
+            'elapsed_working_days' => $elapsedWorkingDays,
+        ];
+    }
+
+    private function getTeacherStaffReportPeople(int $schoolID, string $personType): array
+    {
+        $people = [];
+
+        if ($personType !== 'staff') {
+            $teachers = Teacher::where('schoolID', $schoolID)->where('status', 'Active')->get();
+            foreach ($teachers as $teacher) {
+                $people[] = $this->formatTeacherStaffPersonRow($teacher, 'teacher');
+            }
+        }
+
+        if ($personType !== 'teacher') {
+            $staffMembers = OtherStaff::where('schoolID', $schoolID)->where('status', 'Active')->get();
+            foreach ($staffMembers as $staff) {
+                $people[] = $this->formatTeacherStaffPersonRow($staff, 'staff');
+            }
+        }
+
+        return $people;
+    }
+
+    private function getSingleTeacherStaffPerson(int $schoolID, string $personType, int $personId): ?array
+    {
+        if ($personType === 'teacher') {
+            $teacher = Teacher::where('schoolID', $schoolID)->where('id', $personId)->where('status', 'Active')->first();
+            return $teacher ? $this->formatTeacherStaffPersonRow($teacher, 'teacher') : null;
+        }
+
+        $staff = OtherStaff::where('schoolID', $schoolID)->where('id', $personId)->where('status', 'Active')->first();
+        return $staff ? $this->formatTeacherStaffPersonRow($staff, 'staff') : null;
+    }
+
+    private function formatTeacherStaffPersonRow($person, string $personType): array
+    {
+        $name = trim(($person->first_name ?? '') . ' ' . ($person->middle_name ?? '') . ' ' . ($person->last_name ?? ''));
+        if ($person->image) {
+            $imageUrl = asset('userImages/' . $person->image);
+        } else {
+            $imageUrl = ($person->gender ?? '') === 'Female'
+                ? asset('images/female.png')
+                : asset('images/male.png');
+        }
+
+        return [
+            'person_type' => $personType,
+            'person_id' => (int) $person->id,
+            'name' => $name ?: 'N/A',
+            'role_label' => $person->position ?? ($personType === 'teacher' ? 'Teacher' : 'Staff'),
+            'employee_number' => $person->employee_number ?? null,
+            'phone_number' => $person->phone_number ?? null,
+            'image_file' => $person->image ?? null,
+            'image_url' => $imageUrl,
+        ];
+    }
+
+    /**
+     * @return array<string, array<string, array{check_in_time: ?string, check_out_time: ?string}>>
+     */
+    private function loadTeacherStaffAttendanceMap(int $schoolID, string $personType, string $fromDate, string $toDate): array
+    {
+        $map = [];
+
+        if ($personType !== 'staff') {
+            $teacherIds = Teacher::where('schoolID', $schoolID)->where('status', 'Active')->pluck('id');
+            if ($teacherIds->isNotEmpty()) {
+                TeacherFingerprintAttendance::whereIn('teacherID', $teacherIds)
+                    ->where('attendance_date', '>=', $fromDate)
+                    ->where('attendance_date', '<=', $toDate)
+                    ->get()
+                    ->each(function ($row) use (&$map) {
+                        $key = 'teacher_' . $row->teacherID;
+                        $date = $row->attendance_date instanceof Carbon
+                            ? $row->attendance_date->toDateString()
+                            : (string) $row->attendance_date;
+                        $map[$key][$date] = [
+                            'check_in_time' => $row->check_in_time ? $row->check_in_time->format('Y-m-d H:i:s') : null,
+                            'check_out_time' => $row->check_out_time ? $row->check_out_time->format('Y-m-d H:i:s') : null,
+                        ];
+                    });
+            }
+        }
+
+        if ($personType !== 'teacher') {
+            $staffIds = OtherStaff::where('schoolID', $schoolID)->where('status', 'Active')->pluck('id');
+            if ($staffIds->isNotEmpty()) {
+                StaffFingerprintAttendance::whereIn('staffID', $staffIds)
+                    ->where('attendance_date', '>=', $fromDate)
+                    ->where('attendance_date', '<=', $toDate)
+                    ->get()
+                    ->each(function ($row) use (&$map) {
+                        $key = 'staff_' . $row->staffID;
+                        $date = $row->attendance_date instanceof Carbon
+                            ? $row->attendance_date->toDateString()
+                            : (string) $row->attendance_date;
+                        $map[$key][$date] = [
+                            'check_in_time' => $row->check_in_time ? $row->check_in_time->format('Y-m-d H:i:s') : null,
+                            'check_out_time' => $row->check_out_time ? $row->check_out_time->format('Y-m-d H:i:s') : null,
+                        ];
+                    });
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Present = any fingerprint day in period with check-in in DB (matches Saved Records).
+     * Absent = elapsed working days with no fingerprint record in DB (no scan = absent).
+     * Late/early = only on working days with official hours.
+     *
+     * @param array<string, array{check_in_time: ?string, check_out_time: ?string}> $personAttendance
+     * @param array<int, string> $workingDates elapsed working days in the report period
+     */
+    private function calculatePersonAttendanceStats(array $personAttendance, array $workingDates, string $workStartTime): array
+    {
+        $workingDateSet = array_flip($workingDates);
+        $presentDays = 0;
+        $lateDays = 0;
+        $earlyDays = 0;
+
+        foreach ($personAttendance as $date => $record) {
+            if (empty($record['check_in_time'])) {
+                continue;
+            }
+
+            $presentDays++;
+
+            if (!isset($workingDateSet[$date])) {
+                continue;
+            }
+
+            $punctuality = $this->classifyCheckInPunctuality($record['check_in_time'], $date, $workStartTime);
+            if ($punctuality === 'late') {
+                $lateDays++;
+            } elseif ($punctuality === 'early') {
+                $earlyDays++;
+            }
+        }
+
+        $absentDays = 0;
+        foreach ($workingDates as $workDate) {
+            $record = $personAttendance[$workDate] ?? null;
+            if (!$record || empty($record['check_in_time'])) {
+                $absentDays++;
+            }
+        }
+
+        return [
+            'present_days' => $presentDays,
+            'absent_days' => $absentDays,
+            'late_days' => $lateDays,
+            'early_days' => $earlyDays,
+        ];
+    }
+
+    /**
+     * @param array<string, array{check_in_time: ?string, check_out_time: ?string}> $personAttendance
+     * @param array<int, string> $workingDates
+     */
+    private function buildPersonDailyAttendanceRecords(
+        array $personAttendance,
+        array $workingDates,
+        Carbon $start,
+        Carbon $end,
+        string $workStartTime
+    ): array {
+        $workingDateSet = array_flip($workingDates);
+        $daily = [];
+        $current = $start->copy()->startOfDay();
+
+        while ($current->lte($end)) {
+            $date = $current->format('Y-m-d');
+            $isWorkingDay = isset($workingDateSet[$date]);
+            $record = $personAttendance[$date] ?? null;
+            $checkIn = $record['check_in_time'] ?? null;
+            $checkOut = $record['check_out_time'] ?? null;
+
+            if (!$isWorkingDay && !$checkIn) {
+                $current->addDay();
+                continue;
+            }
+
+            $status = 'Absent';
+            $punctuality = null;
+
+            if ($checkIn) {
+                $punctuality = $this->classifyCheckInPunctuality($checkIn, $date, $workStartTime);
+                if (!$isWorkingDay) {
+                    $status = 'Present (Off Day)';
+                } elseif ($punctuality === 'late') {
+                    $status = 'Late';
+                } elseif ($punctuality === 'early') {
+                    $status = 'Early';
+                } else {
+                    $status = 'Present';
+                }
+            }
+
+            $daily[] = [
+                'date' => $date,
+                'date_label' => $current->format('l, j M Y'),
+                'check_in_time' => $checkIn ? Carbon::parse($checkIn)->format('H:i:s') : null,
+                'check_out_time' => $checkOut ? Carbon::parse($checkOut)->format('H:i:s') : null,
+                'status' => $status,
+                'punctuality' => $punctuality,
+                'is_late' => $punctuality === 'late',
+                'is_working_day' => $isWorkingDay,
+            ];
+
+            $current->addDay();
+        }
+
+        return $daily;
+    }
+
+    private function classifyCheckInPunctuality(string $checkInDateTime, string $workDate, string $workStartTime): ?string
+    {
+        $checkIn = Carbon::parse($checkInDateTime);
+        $officialStart = Carbon::parse($workDate . ' ' . substr((string) $workStartTime, 0, 8));
+
+        if ($checkIn->gt($officialStart)) {
+            return 'late';
+        }
+        if ($checkIn->lt($officialStart)) {
+            return 'early';
+        }
+
+        return 'on_time';
+    }
+
+    public function exportTeacherStaffAttendanceReportPdf(Request $request, SchoolWorkingDaysService $workingDaysService)
+    {
+        set_time_limit(0);
+        ini_set('memory_limit', '2048M');
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $request->validate([
+            'filter_type' => 'required|in:day,date_range,month,year',
+            'person_type' => 'required|in:all,teacher,staff',
+            'date' => 'nullable|date',
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date|after_or_equal:from_date',
+            'month' => 'nullable|integer|min:1|max:12',
+            'year' => 'nullable|integer|min:2000|max:2100',
+        ]);
+
+        try {
+            $payload = $this->collectTeacherStaffReportPayload($request, $workingDaysService);
+            $school = School::find((int) $schoolID);
+
+            $data = [
+                'school' => $school,
+                'title' => $payload['title'],
+                'period_label' => $payload['range']['label'],
+                'period_incomplete' => $payload['range']['incomplete'],
+                'total_working_days' => $payload['workingDayCounts']['display_working_days'],
+                'complete_working_days' => $payload['workingDayCounts']['elapsed_working_days'],
+                'elapsed_working_days' => $payload['workingDayCounts']['elapsed_working_days'],
+                'work_start_time' => substr((string) $payload['workTime']->work_start_time, 0, 5),
+                'work_end_time' => substr((string) $payload['workTime']->work_end_time, 0, 5),
+                'rows' => $payload['rows'],
+                'generated_at' => now()->format('d M Y H:i'),
+            ];
+
+            $pdf = PDF::loadView('Admin.pdf.teacher_staff_attendance_report_pdf', $data);
+            $pdf->setOptions([
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
+                'chroot' => base_path(),
+            ]);
+            $pdf->setPaper('A4', 'portrait');
+
+            $filename = 'Teacher_Staff_Attendance_Report_' . date('YmdHis') . '.pdf';
+
+            return $pdf->download($filename);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function exportTeacherStaffAttendancePersonPdf(Request $request, SchoolWorkingDaysService $workingDaysService)
+    {
+        set_time_limit(0);
+        ini_set('memory_limit', '2048M');
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $request->validate([
+            'filter_type' => 'required|in:day,date_range,month,year',
+            'person_type' => 'required|in:teacher,staff',
+            'person_id' => 'required|integer',
+            'date' => 'nullable|date',
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date|after_or_equal:from_date',
+            'month' => 'nullable|integer|min:1|max:12',
+            'year' => 'nullable|integer|min:2000|max:2100',
+        ]);
+
+        try {
+            $payload = $this->collectTeacherStaffReportPayload(
+                $request,
+                $workingDaysService,
+                (int) $request->input('person_id'),
+                $request->input('person_type')
+            );
+
+            if (empty($payload['detailed'])) {
+                return response()->json(['success' => false, 'message' => 'Person not found.'], 404);
+            }
+
+            $detail = $payload['detailed'][0];
+            $school = School::find((int) $schoolID);
+
+            $data = [
+                'school' => $school,
+                'title' => $payload['title'],
+                'person' => $detail['person'],
+                'statistics' => $detail['statistics'],
+                'daily_records' => $detail['daily_records'],
+                'period_label' => $payload['range']['label'],
+                'period_incomplete' => $payload['range']['incomplete'],
+                'work_start_time' => substr((string) $payload['workTime']->work_start_time, 0, 5),
+                'work_end_time' => substr((string) $payload['workTime']->work_end_time, 0, 5),
+                'generated_at' => now()->format('d M Y H:i'),
+            ];
+
+            $pdf = PDF::loadView('Admin.pdf.teacher_staff_attendance_person_pdf', $data);
+            $pdf->setOptions([
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
+                'chroot' => base_path(),
+            ]);
+            $pdf->setPaper('A4', 'portrait');
+
+            $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $detail['person']['name'] ?? 'Person');
+            $filename = 'Attendance_' . $safeName . '_' . date('YmdHis') . '.pdf';
+
+            return $pdf->download($filename);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function sendTeacherStaffAttendanceSms(Request $request, SchoolWorkingDaysService $workingDaysService)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $request->validate([
+            'filter_type' => 'required|in:day,date_range,month,year',
+            'person_type' => 'required|in:teacher,staff',
+            'person_id' => 'required|integer',
+            'message' => 'nullable|string|max:1000',
+            'date' => 'nullable|date',
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date',
+            'month' => 'nullable|integer|min:1|max:12',
+            'year' => 'nullable|integer|min:2000|max:2100',
+        ]);
+
+        try {
+            $payload = $this->collectTeacherStaffReportPayload(
+                $request,
+                $workingDaysService,
+                (int) $request->input('person_id'),
+                $request->input('person_type')
+            );
+
+            if (empty($payload['detailed'])) {
+                return response()->json(['success' => false, 'message' => 'Person not found.'], 404);
+            }
+
+            $detail = $payload['detailed'][0];
+            $person = $detail['person'];
+            $stats = $detail['statistics'];
+            $phone = $person['phone_number'] ?? null;
+
+            if (!$phone) {
+                return response()->json(['success' => false, 'message' => 'No phone number on file for this person.'], 422);
+            }
+
+            $school = School::find((int) $schoolID);
+            $schoolName = $school->school_name ?? 'School';
+
+            $message = trim((string) $request->input('message', ''));
+            if ($message === '') {
+                $message = sprintf(
+                    'Habari %s, ripoti ya mahudhurio (%s): Present %d, Absent %d, Late %d, Early %d. Siku za kazi: %d. Muda rasmi: %s - %s. - %s',
+                    $person['name'],
+                    $payload['range']['label'],
+                    $stats['present_days'],
+                    $stats['absent_days'],
+                    $stats['late_days'],
+                    $stats['early_days'],
+                    $stats['total_working_days'],
+                    substr((string) $payload['workTime']->work_start_time, 0, 5),
+                    substr((string) $payload['workTime']->work_end_time, 0, 5),
+                    $schoolName
+                );
+            }
+
+            $smsService = new SmsService();
+            $result = $smsService->sendSms($phone, $message);
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'SMS sent to ' . $person['name'],
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gateway error: ' . ($result['message'] ?? 'Failed to send SMS'),
+            ], 500);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @return array{
+     *     title: string,
+     *     range: array,
+     *     workingDayCounts: array,
+     *     workTime: TeacherStaffWorkTimeSetting,
+     *     rows: array<int, array>,
+     *     detailed: array<int, array{person: array, statistics: array, daily_records: array}>
+     * }
+     */
+    private function collectTeacherStaffReportPayload(
+        Request $request,
+        SchoolWorkingDaysService $workingDaysService,
+        ?int $onlyPersonId = null,
+        ?string $onlyPersonType = null
+    ): array {
+        $schoolID = (int) Session::get('schoolID');
+        $range = $this->resolveTeacherStaffReportDateRange($request);
+        $filterType = $request->input('filter_type');
+        $listPersonType = $onlyPersonType ? ($onlyPersonType === 'teacher' ? 'teacher' : 'staff') : $request->input('person_type');
+
+        $workingDayCounts = $this->resolveReportWorkingDayCounts(
+            $workingDaysService,
+            $schoolID,
+            $filterType,
+            $range
+        );
+        $workingDates = $workingDayCounts['working_dates'];
+        $workTime = TeacherStaffWorkTimeSetting::forSchool($schoolID);
+        $people = $this->getTeacherStaffReportPeople($schoolID, $listPersonType);
+
+        if ($onlyPersonId && $onlyPersonType) {
+            $people = array_values(array_filter(
+                $people,
+                fn ($p) => $p['person_id'] === $onlyPersonId && $p['person_type'] === $onlyPersonType
+            ));
+        }
+
+        $attendanceMap = $this->loadTeacherStaffAttendanceMap(
+            $schoolID,
+            $listPersonType,
+            $range['start']->toDateString(),
+            $range['end']->toDateString()
+        );
+
+        $rows = [];
+        $detailed = [];
+
+        foreach ($people as $person) {
+            $personKey = $person['person_type'] . '_' . $person['person_id'];
+            $personAttendance = $attendanceMap[$personKey] ?? [];
+            $stats = $this->calculatePersonAttendanceStats(
+                $personAttendance,
+                $workingDates,
+                $workTime->work_start_time
+            );
+            $daily = $this->buildPersonDailyAttendanceRecords(
+                $personAttendance,
+                $workingDates,
+                $range['start'],
+                $range['end'],
+                $workTime->work_start_time
+            );
+
+            $rowStats = [
+                'present_days' => $stats['present_days'],
+                'absent_days' => $stats['absent_days'],
+                'total_working_days' => $workingDayCounts['display_working_days'],
+                'complete_working_days' => $workingDayCounts['elapsed_working_days'],
+                'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
+                'late_days' => $stats['late_days'],
+                'early_days' => $stats['early_days'],
+            ];
+
+            $rows[] = array_merge($person, $rowStats);
+            $detailed[] = [
+                'person' => $person,
+                'statistics' => $rowStats,
+                'daily_records' => $daily,
+            ];
+        }
+
+        usort($rows, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+        usort($detailed, fn ($a, $b) => strcasecmp($a['person']['name'], $b['person']['name']));
+
+        $titlePersonType = $onlyPersonType ?? $request->input('person_type');
+
+        return [
+            'title' => $this->buildTeacherStaffReportTitle($titlePersonType, $filterType, $range),
+            'range' => $range,
+            'workingDayCounts' => $workingDayCounts,
+            'workTime' => $workTime,
+            'rows' => $rows,
+            'detailed' => $detailed,
+        ];
     }
 }

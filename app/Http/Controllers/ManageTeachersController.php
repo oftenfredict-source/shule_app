@@ -10,6 +10,7 @@ use App\Models\School;
 use App\Models\User;
 use App\Models\OtherStaff;
 use App\Models\StaffProfession;
+use App\Models\FingerprintDevice;
 use App\Services\SmsService;
 use App\Services\ZKTecoService;
 use Illuminate\Support\Facades\Validator;
@@ -714,31 +715,6 @@ class ManageTeachersController extends Controller
             'status'        => $request->status ?? 'Active',
             'fingerprint_id' => $fingerprintId, // Also store in fingerprint_id column (as string)
         ]);
-
-        // Send teacher to biometric device directly (not via API)
-        try {
-            Log::info("ZKTeco Direct: Attempting to register teacher - Fingerprint ID: {$fingerprintId}, Name: {$request->first_name}");
-
-            // Use first_name only for device (as per user requirement)
-            $teacherName = strtoupper($request->first_name); // Convert to uppercase
-
-            $apiResult = $this->registerTeacherToBiometricDeviceDirect($fingerprintId, $teacherName);
-
-            if ($apiResult['success']) {
-                $enrollId = $apiResult['data']['enroll_id'] ?? $fingerprintId;
-                $deviceRegisteredAt = $apiResult['data']['device_registered_at'] ?? null;
-
-                Log::info("ZKTeco Direct: Teacher registered successfully - Fingerprint ID: {$fingerprintId}, Enroll ID: {$enrollId}");
-            } else {
-                Log::error("ZKTeco Direct: Teacher registration failed - Fingerprint ID: {$fingerprintId}, Error: " . ($apiResult['message'] ?? 'Unknown error'));
-            }
-        } catch (\Exception $e) {
-            $errorMessage = $e->getMessage();
-            Log::error('ZKTeco Direct Registration Error: ' . $errorMessage);
-            Log::error('ZKTeco Direct Registration Stack Trace: ' . $e->getTraceAsString());
-
-            // Continue even if device registration fails - teacher is still registered
-        }
 
         // Create user for login with same fingerprint_id
         $user = User::create([
@@ -1620,17 +1596,38 @@ class ManageTeachersController extends Controller
     {
         try {
             $request->validate([
-                'teacher_id' => 'required|exists:teachers,id'
+                'teacher_id' => 'required|exists:teachers,id',
+                'device_id' => 'required|integer',
             ]);
+
+            $device = $this->resolveSchoolFingerprintDevice($request);
 
             $teacher = Teacher::findOrFail($request->teacher_id);
 
-            // Check if teacher already has fingerprint_id
             if ($teacher->fingerprint_id) {
+                $fingerprintId = (string) $teacher->fingerprint_id;
+                $teacherName = strtoupper($teacher->first_name);
+                $apiResult = $this->registerTeacherToBiometricDeviceDirect($fingerprintId, $teacherName, $device);
+
+                if ($apiResult['success']) {
+                    $enrollId = $apiResult['data']['enroll_id'] ?? $fingerprintId;
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Teacher successfully sent to fingerprint device',
+                        'fingerprint_id' => $fingerprintId,
+                        'enroll_id' => $enrollId,
+                        'device_registered_at' => $apiResult['data']['device_registered_at'] ?? null,
+                        'device_label' => $device->label,
+                        'device_ip' => $device->ip,
+                    ]);
+                }
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Teacher already has a fingerprint ID: ' . $teacher->fingerprint_id
-                ], 400);
+                    'message' => 'Failed to register on device: ' . ($apiResult['message'] ?? 'Unknown error'),
+                    'fingerprint_id' => $fingerprintId,
+                    'device_label' => $device->label,
+                ], 200);
             }
 
             DB::beginTransaction();
@@ -1671,7 +1668,7 @@ class ManageTeachersController extends Controller
 
             // Send teacher to biometric device directly (not via API)
             $teacherName = strtoupper($teacher->first_name); // Use first_name only as per requirement
-            $apiResult = $this->registerTeacherToBiometricDeviceDirect($fingerprintId, $teacherName);
+            $apiResult = $this->registerTeacherToBiometricDeviceDirect($fingerprintId, $teacherName, $device);
 
             if ($apiResult['success']) {
                 $enrollId = $apiResult['data']['enroll_id'] ?? $fingerprintId;
@@ -1686,7 +1683,9 @@ class ManageTeachersController extends Controller
                     'message' => 'Teacher successfully sent to fingerprint device',
                     'fingerprint_id' => $fingerprintId,
                     'enroll_id' => $enrollId,
-                    'device_registered_at' => $deviceRegisteredAt
+                    'device_registered_at' => $deviceRegisteredAt,
+                    'device_label' => $device->label,
+                    'device_ip' => $device->ip,
                 ]);
             } else {
                 // Even if API fails, fingerprint_id is saved
@@ -1701,6 +1700,11 @@ class ManageTeachersController extends Controller
                 ], 200); // Return 200 because fingerprint_id was saved
             }
 
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Send Teacher to Fingerprint Error: ' . $e->getMessage(), [
@@ -1714,24 +1718,58 @@ class ManageTeachersController extends Controller
         }
     }
 
+    private function resolveSchoolFingerprintDevice(Request $request): FingerprintDevice
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            throw new \InvalidArgumentException('School session not found.');
+        }
+
+        $device = FingerprintDevice::where('schoolID', $schoolID)
+            ->where('status', 'active')
+            ->where('id', (int) $request->input('device_id'))
+            ->first();
+
+        if (!$device) {
+            throw new \InvalidArgumentException('Selected fingerprint device not found or is inactive.');
+        }
+
+        return $device;
+    }
+
     /**
      * Register teacher to biometric device directly (not via API)
      */
-    private function registerTeacherToBiometricDeviceDirect($fingerprintId, $teacherName)
+    private function registerTeacherToBiometricDeviceDirect($fingerprintId, $teacherName, ?FingerprintDevice $device = null)
     {
         try {
-            // Direct registration to ZKTeco device using internal service
-            $ip = config('zkteco.ip', '192.168.1.108');
-            $port = (int) config('zkteco.port', 4370);
+            if (!$device) {
+                $device = FingerprintDevice::where('schoolID', Session::get('schoolID'))
+                    ->where('status', 'active')
+                    ->orderBy('id')
+                    ->first();
+                if (!$device) {
+                    return [
+                        'success' => false,
+                        'message' => 'No active fingerprint device found. Add a device in Fingerprint Device Settings.',
+                    ];
+                }
+            }
+
+            $ip = $device->ip;
+            $port = (int) $device->port;
+            $password = $device->comm_key ?? '0';
 
             Log::info("ZKTeco Direct: Attempting to register teacher to device", [
                 'fingerprint_id' => $fingerprintId,
                 'teacher_name'   => $teacherName,
+                'device_id'      => $device->id,
+                'device_label'   => $device->label,
                 'device_ip'      => $ip,
                 'device_port'    => $port,
             ]);
 
-            $zkteco = new ZKTecoService($ip, $port);
+            $zkteco = new ZKTecoService($ip, $port, $password, 15, true);
 
             // UID and UserID will both use fingerprintId (must be 1–65535)
             $uid = (int) $fingerprintId;
@@ -1753,6 +1791,8 @@ class ManageTeachersController extends Controller
                     'device_registered_at'=> now()->format('Y-m-d H:i:s'),
                     'device_ip'           => $ip,
                     'device_port'         => $port,
+                    'device_id'           => $device->id,
+                    'device_label'        => $device->label,
                 ],
             ];
         } catch (\Throwable $e) {

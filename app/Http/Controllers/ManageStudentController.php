@@ -2034,187 +2034,183 @@ class ManageStudentController extends Controller
     }
 
     /**
-     * Test device connection
+     * Test device connection (fast — single attempt, short timeout)
      */
     public function test_device_connection(Request $request)
     {
-        try {
-            $ip = $request->input('ip', env('ZKTECO_IP', '192.168.1.108'));
-            $port = $request->input('port', env('ZKTECO_PORT', 4370));
-            $password = $request->input('password', env('ZKTECO_PASSWORD', 0));
+        $ip = $request->input('ip');
+        $port = (int) $request->input('port', 4370);
+        $password = $request->input('password', '0');
+        $serverConfig = $this->resolveAppServerConfig($request);
 
-            // Validate inputs
+        try {
+            if ($socketsError = ZKTecoService::socketsExtensionMessage()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $socketsError,
+                    'server_config' => $serverConfig,
+                ], 500);
+            }
+
+            set_time_limit(20);
+
             $validator = Validator::make($request->all(), [
                 'ip' => 'required|ip',
                 'port' => 'required|integer|min:1|max:65535',
-                'password' => 'nullable|string|max:8'
+                'password' => 'nullable|string|max:16',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid input: ' . $validator->errors()->first()
+                    'message' => 'Invalid input: ' . $validator->errors()->first(),
+                    'server_config' => $serverConfig,
                 ], 422);
             }
 
             Log::info("ZKTeco: Testing connection to device - IP: {$ip}, Port: {$port}, Comm Key: {$password}");
 
-            // Try multiple connection methods
-            $connected = false;
-            $connectionMethod = '';
-            $triedCommKeys = [$password];
-            $zkteco = null;
-
-            // Method 1: Try simple TCP connection test (without sending packets)
-            Log::info("ZKTeco: Trying Method 1 - Simple TCP connection test");
-            $zkteco = new ZKTecoService($ip, $port, $password);
-            if ($zkteco->testConnectionOnly()) {
-                $connected = true;
-                $connectionMethod = 'Simple TCP Test';
-                Log::info("ZKTeco: Simple TCP connection test successful");
-            }
-
-            // Method 2: Try full connection with provided Comm Key
-            if (!$connected) {
-                Log::info("ZKTeco: Trying Method 2 - Full connection with Comm Key: {$password}");
-                $zkteco = new ZKTecoService($ip, $port, $password);
-                if ($zkteco->connect()) {
-                    $connected = true;
-                    $connectionMethod = 'Full Connection';
-                } else {
-                    // If connection failed, try common Comm Keys
-                    $commonCommKeys = ['0', '12345', '8888', '0000', ''];
-                    $commonCommKeys = array_diff($commonCommKeys, [$password]); // Remove already tried
-
-                    Log::info("ZKTeco: Initial connection failed, trying common Comm Keys...");
-
-                    foreach ($commonCommKeys as $commKey) {
-                        if ($connected) break;
-
-                        Log::info("ZKTeco: Trying Comm Key: " . ($commKey === '' ? '(empty)' : $commKey));
-                        $zkteco = new ZKTecoService($ip, $port, $commKey);
-                        $triedCommKeys[] = $commKey;
-
-                        if ($zkteco->connect()) {
-                            $connected = true;
-                            $password = $commKey; // Update to working Comm Key
-                            $connectionMethod = 'Full Connection (Auto-detected Comm Key)';
-                            Log::info("ZKTeco: Connection successful with Comm Key: " . ($commKey === '' ? '(empty)' : $commKey));
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Method 3: Try HTTP connection test (if device has web interface)
-            if (!$connected) {
-                Log::info("ZKTeco: Trying Method 3 - HTTP connection test");
-                $zkteco = new ZKTecoService($ip, $port, $password);
-                if ($zkteco->testHttpConnection()) {
-                    $connected = true;
-                    $connectionMethod = 'HTTP Connection';
-                    Log::info("ZKTeco: HTTP connection test successful");
-                }
-            }
-
-            if ($connected) {
-                // Try to get device info (only if full connection was successful)
-                $deviceInfo = [
-                    'ip' => $ip,
-                    'port' => $port,
-                    'serial_number' => null,
-                    'firmware_version' => null,
-                    'device_name' => null
-                ];
-
-                if ($connectionMethod === 'Full Connection' || strpos($connectionMethod, 'Full Connection') !== false) {
-                    try {
-                        $deviceInfo = $zkteco->getDeviceInfo();
-                        $zkteco->disconnect();
-                    } catch (\Exception $e) {
-                        Log::warning("ZKTeco: Could not get device info: " . $e->getMessage());
-                        if ($zkteco) {
-                            $zkteco->disconnect();
-                        }
-                    }
-                } else {
-                    // For simple TCP or HTTP tests, we can't get device info
-                    Log::info("ZKTeco: Connection test successful but device info not available (connection method: {$connectionMethod})");
-                }
-
-                // Get server configuration for Push SDK
-                // Priority: 1. Environment variable, 2. Request server info, 3. Default
-                $serverIP = env('APP_SERVER_IP', null);
-                if (!$serverIP) {
-                    // Try to get from request
-                    $serverIP = request()->server('SERVER_ADDR');
-                    // If still null or localhost, use configured default
-                    if (!$serverIP || $serverIP === '127.0.0.1' || $serverIP === '::1') {
-                        $serverIP = '192.168.100.105'; // Default server IP
-                    }
-                }
-
-                $serverPort = env('APP_SERVER_PORT', null);
-                if (!$serverPort) {
-                    $serverPort = request()->server('SERVER_PORT') ?: '8000';
-                }
-
-                $response = [
-                    'success' => true,
-                    'message' => 'Successfully connected to device' .
-                        ($connectionMethod ? " (Method: {$connectionMethod})" : '') .
-                        (count($triedCommKeys) > 1 ? ' (tried multiple Comm Keys)' : ''),
-                    'connection_method' => $connectionMethod,
-                    'device_info' => [
-                        'ip' => $ip,
-                        'port' => $port,
-                        'serial_number' => $deviceInfo['serial_number'] ?? null,
-                        'firmware_version' => $deviceInfo['firmware_version'] ?? null,
-                        'device_name' => $deviceInfo['device_name'] ?? null,
-                    ],
-                    'comm_key_info' => [
-                        'working_comm_key' => $password === '' ? '(empty)' : $password,
-                        'tried_comm_keys' => array_map(function($key) { return $key === '' ? '(empty)' : $key; }, $triedCommKeys),
-                        'note' => count($triedCommKeys) > 1 ? 'Multiple Comm Keys were tried. Update your .env file with the working Comm Key.' : 'Comm Key matched on first try.'
-                    ],
-                    'server_config' => [
-                        'server_ip' => $serverIP,
-                        'server_port' => $serverPort,
-                        'push_sdk_url' => "http://{$serverIP}:{$serverPort}/iclock/getrequest",
-                        'push_sdk_data_url' => "http://{$serverIP}:{$serverPort}/iclock/cdata",
-                        'instructions' => [
-                            '1. On device: Menu → System → Communication → ADMS',
-                            '2. Enable ADMS: ON',
-                            "3. Server IP: {$serverIP}",
-                            "4. Server Port: {$serverPort}",
-                            '5. Server Path: /iclock/getrequest',
-                            '6. Save settings'
-                        ]
-                    ]
-                ];
-
-                Log::info("ZKTeco: Connection test successful - IP: {$ip}, Port: {$port}");
-
-                return response()->json($response);
-            } else {
-                // Get detailed error from logs
-                $lastError = socket_last_error();
-                $errorString = socket_strerror($lastError);
-
-                Log::error("ZKTeco: Connection test failed - IP: {$ip}, Port: {$port}, Error Code: {$lastError}, Error: {$errorString}");
+            $tcp = ZKTecoService::quickTcpCheck($ip, $port, 3);
+            if (!$tcp['reachable']) {
+                $tcpError = $tcp['error'] ?? 'No response';
+                Log::warning("ZKTeco: TCP check failed for {$ip}:{$port} — {$tcpError}");
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Connection test failed. ' . $errorString . ' (Code: ' . $lastError . ')'
+                    'message' => "Cannot reach fingerprint device at {$ip}:{$port}. {$tcpError}"
+                        . '<br><br><strong>Fingerprint device (target):</strong> ' . $ip . ':' . $port
+                        . '<br><strong>ShuleXpert server (this app):</strong> ' . $serverConfig['server_url']
+                        . '<br><br><em>Connection refused</em> means nothing answered on the device IP. '
+                        . 'Check the device is ON, IP/port in <strong>Fingerprint Device Settings → Devices</strong> match the machine, '
+                        . 'and the device is on the same network as ' . $serverConfig['server_ip'] . '.',
+                    'device_target' => ['ip' => $ip, 'port' => $port],
+                    'server_config' => $serverConfig,
                 ], 500);
             }
-        } catch (\Exception $e) {
-            Log::error('ZKTeco Connection Test Error: ' . $e->getMessage());
+
+            $zkteco = new ZKTecoService($ip, $port, $password, 8, false);
+
+            try {
+                $connected = $zkteco->connect(true);
+            } catch (\Throwable $e) {
+                Log::warning("ZKTeco: Handshake failed for {$ip}:{$port} — " . $e->getMessage());
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                    'device_target' => ['ip' => $ip, 'port' => $port],
+                    'server_config' => $serverConfig,
+                ], 500);
+            }
+
+            if (!$connected) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Device at {$ip}:{$port} is reachable but ZKTeco handshake failed. "
+                        . 'Check Comm Key on the device (System → Communication → Comm Key) matches the value saved here.',
+                    'device_target' => ['ip' => $ip, 'port' => $port],
+                    'server_config' => $serverConfig,
+                ], 500);
+            }
+
+            $deviceInfo = [
+                'ip' => $ip,
+                'port' => $port,
+                'serial_number' => null,
+                'firmware_version' => null,
+                'device_name' => null,
+            ];
+
+            try {
+                $info = $zkteco->getDeviceInfo();
+                if (is_array($info)) {
+                    $deviceInfo['serial_number'] = $info['serial_number'] ?? null;
+                    $deviceInfo['firmware_version'] = $info['version'] ?? null;
+                    $deviceInfo['device_name'] = $info['device_name'] ?? null;
+                }
+            } catch (\Exception $e) {
+                Log::warning('ZKTeco: Could not get device info: ' . $e->getMessage());
+            } finally {
+                $zkteco->disconnect();
+            }
+
+            Log::info("ZKTeco: Connection test successful - IP: {$ip}, Port: {$port}");
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully connected to device',
+                'connection_method' => 'ZKTeco TCP (registered device credentials)',
+                'device_info' => $deviceInfo,
+                'device_target' => ['ip' => $ip, 'port' => $port],
+                'comm_key_info' => [
+                    'working_comm_key' => $password === '' ? '0' : $password,
+                    'note' => 'Connection used the Comm Key saved for this registered device.',
+                ],
+                'server_config' => $serverConfig,
+            ]);
+        } catch (\Throwable $e) {
+            $message = $e->getMessage();
+            if (stripos($message, 'Maximum execution time') !== false) {
+                $message = "Connection test timed out for {$ip}:{$port}. "
+                    . 'The device did not respond in time — check network, IP, port, and Comm Key.';
+            }
+
+            Log::error('ZKTeco Connection Test Error: ' . $message);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Connection test failed: ' . $e->getMessage()
+                'message' => 'Connection test failed: ' . $message,
+                'device_target' => ['ip' => $ip, 'port' => $port],
+                'server_config' => $serverConfig,
             ], 500);
         }
+    }
+
+    /**
+     * Server URL/IP for Push SDK hints (from current request, e.g. http://192.168.100.70:8002).
+     *
+     * @return array{server_ip: string, server_port: string, server_url: string, push_sdk_url: string, push_sdk_data_url: string, instructions: array<int, string>}
+     */
+    private function resolveAppServerConfig(Request $request): array
+    {
+        $serverIP = env('APP_SERVER_IP');
+        $serverPort = env('APP_SERVER_PORT');
+
+        if (!$serverIP || !$serverPort) {
+            $httpHost = $request->header('Host') ?: $request->server('HTTP_HOST');
+            if (is_string($httpHost) && preg_match('/^(\[[^\]]+\]|[^:]+):(\d+)$/', $httpHost, $matches)) {
+                $serverIP = $serverIP ?: $matches[1];
+                $serverPort = $serverPort ?: $matches[2];
+            } else {
+                $parsed = parse_url($request->getSchemeAndHttpHost());
+                $serverIP = $serverIP ?: ($parsed['host'] ?? $request->getHost());
+                $serverPort = $serverPort ?: (string) ($parsed['port'] ?? $request->getPort() ?: 80);
+            }
+        } else {
+            $serverPort = (string) $serverPort;
+        }
+
+        $scheme = $request->getScheme() ?: 'http';
+        $serverUrl = $scheme . '://' . $serverIP;
+        if (!in_array((int) $serverPort, [80, 443], true)) {
+            $serverUrl .= ':' . $serverPort;
+        }
+
+        return [
+            'server_ip' => $serverIP,
+            'server_port' => $serverPort,
+            'server_url' => $serverUrl,
+            'push_sdk_url' => $serverUrl . '/iclock/getrequest',
+            'push_sdk_data_url' => $serverUrl . '/iclock/cdata',
+            'instructions' => [
+                '1. On device: Menu → System → Communication → ADMS',
+                '2. Enable ADMS: ON',
+                "3. Server IP: {$serverIP}",
+                "4. Server Port: {$serverPort}",
+                '5. Server Path: /iclock/getrequest',
+                '6. Save settings',
+            ],
+        ];
     }
 
     /**

@@ -2984,6 +2984,10 @@ Route::get("manageAttendance", [
     ManageAttendanceController::class,
     "manageAttendance",
 ])->name("manageAttendance");
+Route::get("manageTeacherStaffAttendance", [
+    ManageAttendanceController::class,
+    "manageTeacherStaffAttendance",
+])->name("manageTeacherStaffAttendance");
 Route::post("search_attendance", [
     ManageAttendanceController::class,
     "searchAttendance",
@@ -3344,6 +3348,26 @@ Route::get("fingerprint_device_settings", [
     ZKTecoController::class,
     "index",
 ])->name("fingerprint_device_settings");
+Route::get("zkteco/devices", [
+    ZKTecoController::class,
+    "listDevices",
+])->name("zkteco.devices.index");
+Route::post("zkteco/devices", [
+    ZKTecoController::class,
+    "storeDevice",
+])->name("zkteco.devices.store");
+Route::get("zkteco/devices/{id}", [
+    ZKTecoController::class,
+    "showDevice",
+])->name("zkteco.devices.show");
+Route::put("zkteco/devices/{id}", [
+    ZKTecoController::class,
+    "updateDevice",
+])->name("zkteco.devices.update");
+Route::delete("zkteco/devices/{id}", [
+    ZKTecoController::class,
+    "deleteDevice",
+])->name("zkteco.devices.destroy");
 Route::post("zkteco/test-connection", [
     ZKTecoController::class,
     "testConnection",
@@ -3402,6 +3426,46 @@ Route::get("zkteco/attendance/live-today", [
     ZKTecoController::class,
     "syncLiveAttendanceToday",
 ])->name("zkteco.attendance.live-today");
+Route::get("zkteco/attendance/teacher-staff-live-today", [
+    ZKTecoController::class,
+    "syncLiveTeacherStaffAttendanceToday",
+])->name("zkteco.attendance.teacher-staff-live-today");
+Route::post("zkteco/attendance/teacher-staff-sync", [
+    ZKTecoController::class,
+    "syncTeacherStaffAttendanceFromDevice",
+])->name("zkteco.attendance.teacher-staff-sync");
+Route::get("attendance/teacher-staff-fingerprint", [
+    AttendanceApiController::class,
+    "getTeacherStaffFingerprintAttendance",
+])->name("attendance.teacher_staff_fingerprint");
+Route::get("attendance/teacher-staff-report", [
+    ManageAttendanceController::class,
+    "teacherStaffAttendanceReport",
+])->name("attendance.teacher_staff_report");
+Route::get("attendance/teacher-staff-report-detail", [
+    ManageAttendanceController::class,
+    "teacherStaffAttendanceReportDetail",
+])->name("attendance.teacher_staff_report_detail");
+Route::get("attendance/teacher-staff-report-pdf", [
+    ManageAttendanceController::class,
+    "exportTeacherStaffAttendanceReportPdf",
+])->name("attendance.teacher_staff_report_pdf");
+Route::get("attendance/teacher-staff-report-person-pdf", [
+    ManageAttendanceController::class,
+    "exportTeacherStaffAttendancePersonPdf",
+])->name("attendance.teacher_staff_report_person_pdf");
+Route::post("attendance/teacher-staff-report-sms", [
+    ManageAttendanceController::class,
+    "sendTeacherStaffAttendanceSms",
+])->name("attendance.teacher_staff_report_sms");
+Route::get("attendance/teacher-staff-work-time", [
+    ManageAttendanceController::class,
+    "getTeacherStaffWorkTime",
+])->name("attendance.teacher_staff_work_time");
+Route::post("attendance/teacher-staff-work-time", [
+    ManageAttendanceController::class,
+    "saveTeacherStaffWorkTime",
+])->name("attendance.teacher_staff_work_time.save");
 
 // User Management Routes
 Route::post("zkteco/user/check-device-status", [

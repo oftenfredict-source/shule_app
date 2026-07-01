@@ -9,13 +9,44 @@ use Exception;
 
 class ZKTecoService
 {
+    /**
+     * ZKTeco SDK requires PHP sockets extension (socket_create).
+     */
+    public static function socketsExtensionMessage(): ?string
+    {
+        if (extension_loaded('sockets') && function_exists('socket_create')) {
+            return null;
+        }
+
+        $ini = php_ini_loaded_file() ?: 'php.ini';
+        $phpBinary = PHP_BINARY;
+        $laragonIni = 'C:\\laragon\\bin\\php\\php-8.3.30-Win32-vs16-x64\\php.ini';
+
+        $message = 'PHP Sockets extension is disabled. ';
+        $message .= 'Open ' . $ini . ', set extension=sockets (remove leading ;), then fully restart the web server. ';
+
+        if (stripos($phpBinary, 'xampp') !== false) {
+            $message .= 'You are using Laragon but this site is running on XAMPP PHP (' . $phpBinary . '). ';
+            $message .= 'Stop that process and start the app with Laragon PHP instead, e.g. ';
+            $message .= 'C:\\laragon\\bin\\php\\php-8.3.30-Win32-vs16-x64\\php.exe artisan serve --host=192.168.100.112 --port=8003';
+        } elseif (file_exists($laragonIni)) {
+            $message .= 'In Laragon: Menu → PHP → php.ini → enable extension=sockets, then Stop All → Start All.';
+        }
+
+        return $message;
+    }
+
     protected ?ZKTeco $client = null;
     private string $ip;
     private int $port;
     private $password; // Can be int or string, will be converted to int
+    private int $timeout;
+    private bool $shouldPing;
 
-    public function __construct($ip = null, $port = null, $password = null)
+    public function __construct($ip = null, $port = null, $password = null, int $timeout = 30, bool $shouldPing = true)
     {
+        $this->timeout = $timeout;
+        $this->shouldPing = $shouldPing;
         $this->ip = $ip ?? config('zkteco.ip', env('ZKTECO_IP', '192.168.100.108'));
         $this->port = (int) ($port ?? config('zkteco.port', env('ZKTECO_PORT', 4370)));
         // Default password is 0 (no password/Comm Key) if not specified
@@ -60,8 +91,8 @@ class ZKTecoService
             $this->client = new ZKTeco(
                 ip: $this->ip,
                 port: $this->port,
-                shouldPing: true,
-                timeout: 30, // 30 seconds timeout for better reliability
+                shouldPing: $this->shouldPing,
+                timeout: $this->timeout,
                 password: $password
             );
         }
@@ -71,7 +102,7 @@ class ZKTecoService
     /**
      * Connect to the device
      */
-    public function connect(): bool
+    public function connect(bool $verifyAuth = true): bool
     {
         try {
             Log::info("Attempting to connect to ZKTeco device at {$this->ip}:{$this->port}");
@@ -86,17 +117,14 @@ class ZKTecoService
             if ($result) {
                 Log::info("Successfully connected to ZKTeco device at {$this->ip}:{$this->port} (took " . round($connectionTime, 2) . " seconds)");
                 
-                // CRITICAL: Verify authentication by testing a command that requires auth
-                // If Comm Key is wrong, connection might succeed but commands will fail
-                try {
-                    // Try to get device name - this requires authentication
-                    $deviceName = $client->deviceName();
-                    Log::info("Authentication verified - Device name: {$deviceName}");
-                } catch (\Throwable $e) {
-                    Log::error("Authentication check failed: " . $e->getMessage());
-                    Log::error("This usually means Comm Key is wrong. Current Comm Key: {$this->password}");
-                    Log::error("Please check device settings (System → Communication → Comm Key) and update ZKTECO_PASSWORD in .env");
-                    // Don't throw here - let the actual command fail with better error
+                if ($verifyAuth) {
+                    try {
+                        $deviceName = $client->deviceName();
+                        Log::info("Authentication verified - Device name: {$deviceName}");
+                    } catch (\Throwable $e) {
+                        Log::error("Authentication check failed: " . $e->getMessage());
+                        Log::error("This usually means Comm Key is wrong. Current Comm Key: {$this->password}");
+                    }
                 }
             } else {
                 Log::error("Failed to connect to ZKTeco device at {$this->ip}:{$this->port}");
@@ -682,15 +710,41 @@ class ZKTecoService
     }
 
     /**
-     * Test connection only (without authentication)
+     * Fast TCP reachability check before a full ZKTeco handshake.
+     *
+     * @return array{reachable: bool, error?: string, code?: int}
      */
-    public function testConnectionOnly()
+    public static function quickTcpCheck(string $ip, int $port, int $timeoutSeconds = 3): array
+    {
+        $errno = 0;
+        $errstr = '';
+        $socket = @fsockopen($ip, $port, $errno, $errstr, $timeoutSeconds);
+
+        if ($socket) {
+            fclose($socket);
+
+            return ['reachable' => true];
+        }
+
+        return [
+            'reachable' => false,
+            'error' => $errstr ?: 'Device did not respond',
+            'code' => $errno,
+        ];
+    }
+
+    /**
+     * Test connection only (short timeout, no auth verification)
+     */
+    public function testConnectionOnly(): bool
     {
         try {
             $client = $this->getClient();
-            return $client->connect();
+
+            return (bool) $client->connect();
         } catch (\Throwable $e) {
             Log::error('ZKTeco Test Connection Error: ' . $e->getMessage());
+
             return false;
         }
     }

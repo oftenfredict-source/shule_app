@@ -3,9 +3,24 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <style>
-    /* Color scheme for #940000 */
-    .bg-primary-custom {
-        background-color: #940000 !important;
+    /* Class Management — brand color scheme */
+    .class-mgmt-page {
+        --cm-white: #FFFFFF;
+        --cm-red: #940000;
+        --cm-soft: #FFF5F5;
+        --cm-header-gradient: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;
+        background: var(--cm-white);
+    }
+    .class-mgmt-page *:not(.fa):not(.bi) {
+        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;
+    }
+
+    .bg-primary-custom,
+    .class-mgmt-page .card-header.bg-primary-custom {
+        background: var(--cm-header-gradient) !important;
+        color: var(--cm-red) !important;
+        border-bottom: 1px solid #f0e0e0 !important;
     }
 
     .text-primary-custom {
@@ -23,9 +38,204 @@
     }
 
     .btn-primary-custom:hover {
-        background-color: #b30000;
-        border-color: #b30000;
+        background-color: #7a0000;
+        border-color: #7a0000;
         color: #ffffff;
+    }
+
+    .class-mgmt-page .card {
+        background: #FFFFFF;
+        border-color: #f0e0e0;
+    }
+
+    .class-mgmt-page .widget-card:hover {
+        background: #FFF5F5;
+        box-shadow: 0 8px 25px rgba(148, 0, 0, 0.12) !important;
+    }
+
+    .modal-header.bg-primary-custom,
+    .class-mgmt-page .modal-header.bg-primary-custom {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+        color: #940000 !important;
+        border-bottom: 1px solid #f0e0e0;
+    }
+
+    .class-mgmt-page .nav-tabs .nav-link {
+        color: #940000;
+    }
+    .class-mgmt-page .nav-tabs .nav-link.active {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+        color: #940000;
+        font-weight: 600;
+        border-color: #f0e0e0 #f0e0e0 #FFFFFF;
+    }
+    .class-mgmt-page .nav-tabs .nav-link:hover {
+        background: #FFF5F5;
+        color: #940000;
+    }
+    .class-mgmt-page .table thead th {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+        color: #940000;
+        border-color: #f0e0e0;
+    }
+    .class-mgmt-page .table tbody tr:hover {
+        background: #FFF5F5;
+    }
+
+    .class-mgmt-page .modal-header.bg-primary-custom,
+    .class-mgmt-page .modal-header.bg-primary-custom .modal-title,
+    .class-mgmt-page .modal-header.bg-primary-custom .close {
+        color: #940000 !important;
+    }
+    .class-mgmt-page .card-header.bg-primary-custom,
+    .class-mgmt-page thead.bg-primary-custom th {
+        color: #940000 !important;
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
+    }
+    .class-mgmt-page .attendance-device-bar {
+        background: #FFF5F5;
+        border: 1px solid #f0e0e0;
+        border-radius: 4px;
+        padding: 12px 16px;
+    }
+
+    /* View Student Modal */
+    .view-student-modal-content {
+        background: #FFFFFF;
+        border: 1px solid #f0e0e0;
+        border-radius: 0;
+    }
+    .view-student-modal-header {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+        color: #940000;
+        border-bottom: 1px solid #f0e0e0;
+        border-radius: 0;
+    }
+    .view-student-modal-header .modal-title {
+        color: #940000;
+        font-weight: 600;
+    }
+    .view-student-modal-header .close {
+        color: #940000;
+        opacity: 1;
+    }
+    .view-student-modal-body {
+        overflow-y: scroll !important;
+        max-height: 75vh;
+        min-height: 70vh;
+        background: #FFFFFF;
+        scrollbar-width: thin;
+        scrollbar-color: #940000 #FFF5F5;
+    }
+    .view-student-modal-body::-webkit-scrollbar {
+        width: 10px;
+    }
+    .view-student-modal-body::-webkit-scrollbar-track {
+        background: #FFF5F5;
+    }
+    .view-student-modal-body::-webkit-scrollbar-thumb {
+        background: #940000;
+        border-radius: 5px;
+        border: 2px solid #FFF5F5;
+    }
+    .view-student-modal-footer {
+        background: #FFFFFF;
+        border-top: 1px solid #f0e0e0;
+        border-radius: 0;
+    }
+
+    #viewStudentModal .school-details-card {
+        background: #FFFFFF;
+        padding: 25px;
+    }
+    #viewStudentModal .school-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding: 15px;
+        border-bottom: 2px solid #940000;
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+    }
+    #viewStudentModal .school-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #940000;
+        margin: 0;
+    }
+    #viewStudentModal .school-logo-preview {
+        width: 80px;
+        height: 80px;
+        border-radius: 10px;
+        background: #FFF5F5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border: 2px solid #940000;
+    }
+    #viewStudentModal .school-logo-preview img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: cover;
+    }
+    #viewStudentModal .school-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        padding: 0 15px 15px;
+    }
+    #viewStudentModal .info-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 12px;
+        background: #FFFFFF;
+        border: 1px solid #f0e0e0;
+        border-radius: 0;
+    }
+    #viewStudentModal .info-item:hover {
+        background: #FFF5F5;
+    }
+    #viewStudentModal .info-item i {
+        color: #940000;
+        margin-right: 10px;
+        margin-top: 3px;
+        font-size: 18px;
+        width: 20px;
+    }
+    #viewStudentModal .info-item-label {
+        font-size: 0.75rem;
+        color: #940000;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 3px;
+        font-weight: 600;
+    }
+    #viewStudentModal .info-item-value {
+        font-size: 0.95rem;
+        color: #212529;
+        font-weight: 500;
+    }
+    #viewStudentModal #studentDetailsTabs {
+        border-bottom: 2px solid #940000;
+        padding: 0 15px;
+        background: #FFFFFF;
+    }
+    #viewStudentModal #studentDetailsTabs .nav-link {
+        color: #940000;
+        border: none;
+        border-bottom: 3px solid transparent;
+        border-radius: 0;
+    }
+    #viewStudentModal #studentDetailsTabs .nav-link.active {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+        color: #940000;
+        font-weight: 600;
+        border-bottom: 3px solid #940000;
+    }
+    #viewStudentModal #studentDetailsTabs .nav-link:hover {
+        background: #FFF5F5;
+        color: #940000;
     }
 
     .widget-card {
@@ -35,21 +245,17 @@
 
     .widget-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(148, 0, 0, 0.2) !important;
-    }
-
-    .modal-header.bg-primary-custom {
-        background-color: #940000 !important;
-        color: #ffffff;
+        box-shadow: 0 8px 25px rgba(148, 0, 0, 0.12) !important;
     }
 
     .exam-item:hover {
-        background-color: #f8f9fa !important;
+        background-color: #FFF5F5 !important;
     }
 
     .exam-item.active {
-        background-color: #fff3f3 !important;
+        background-color: #FFF5F5 !important;
         font-weight: 600;
+        color: #940000;
     }
 
     /* Pulse animation for live sync indicator */
@@ -206,13 +412,13 @@
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-<div class="container-fluid mt-3">
+<div class="container-fluid mt-3 class-mgmt-page">
     <!-- Page Header -->
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-primary-custom text-white">
+        <div class="card-header bg-primary-custom">
             <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="bi bi-gear-fill"></i> Class Management
+                <h5 class="mb-0 text-primary-custom">
+                    Class Management
                     @if(isset($subclassDisplayName) && $subclassDisplayName)
                         <span class="badge bg-light text-primary-custom ms-2">({{ $subclassDisplayName }})</span>
                     @endif
@@ -511,34 +717,21 @@
                         <div class="tab-pane fade" id="device-test" role="tabpanel" aria-labelledby="device-test-tab">
                             <div class="card border-0 shadow-sm">
                                 <div class="card-body">
-                                    <h6 class="card-title mb-3">
-                                        <i class="bi bi-router-fill text-primary-custom"></i> Test Fingerprint Device
-                                        Connection
+                                    <h6 class="card-title mb-3 text-primary-custom">
+                                        <i class="bi bi-router-fill"></i> Test Fingerprint Device Connection
                                     </h6>
 
                                     <div class="form-group">
-                                        <label for="device_ip">Device IP Address</label>
-                                        <input type="text" class="form-control" id="device_ip" name="device_ip"
-                                            value="{{ env('ZKTECO_IP', '192.168.1.108') }}" placeholder="192.168.1.108">
-                                        <small class="form-text text-muted">Enter the IP address of your ZKTeco
-                                            fingerprint device</small>
+                                        <label for="deviceTestSelect">Select Device</label>
+                                        <select class="form-control" id="deviceTestSelect">
+                                            <option value="">-- Select a registered device --</option>
+                                        </select>
+                                        <small class="form-text text-muted">Devices registered for your school</small>
                                     </div>
 
-                                    <div class="form-group">
-                                        <label for="device_port">Device Port</label>
-                                        <input type="number" class="form-control" id="device_port" name="device_port"
-                                            value="{{ env('ZKTECO_PORT', 4370) }}" placeholder="4370">
-                                        <small class="form-text text-muted">Default ZKTeco port is 4370</small>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="device_password">Comm Key (Password)</label>
-                                        <input type="text" class="form-control" id="device_password"
-                                            name="device_password" value="{{ env('ZKTECO_PASSWORD', '0') }}"
-                                            placeholder="0">
-                                        <small class="form-text text-muted">Usually 0 for no password, or your device
-                                            Comm Key</small>
-                                    </div>
+                                    <input type="hidden" id="device_ip" name="device_ip">
+                                    <input type="hidden" id="device_port" name="device_port" value="4370">
+                                    <input type="hidden" id="device_password" name="device_password" value="0">
 
                                     <button type="button" class="btn btn-primary-custom btn-block"
                                         id="testDeviceConnectionBtn">
@@ -553,7 +746,7 @@
                                     </div>
 
                                     <small class="form-text text-muted mt-2">
-                                        <i class="bi bi-info-circle"></i> Test connection to ZKTeco fingerprint device
+                                        <i class="bi bi-info-circle"></i> Test connection to your registered ZKTeco device
                                     </small>
                                 </div>
                             </div>
@@ -564,31 +757,20 @@
                             aria-labelledby="retrieve-users-tab">
                             <div class="card border-0 shadow-sm">
                                 <div class="card-body">
-                                    <h6 class="card-title mb-3">
-                                        <i class="bi bi-download text-primary-custom"></i> Retrieve Users from
-                                        Fingerprint Device
+                                    <h6 class="card-title mb-3 text-primary-custom">
+                                        <i class="bi bi-download"></i> Retrieve Users from Fingerprint Device
                                     </h6>
 
                                     <div class="form-group">
-                                        <label for="retrieve_device_ip">Device IP Address</label>
-                                        <input type="text" class="form-control" id="retrieve_device_ip"
-                                            name="retrieve_device_ip" value="{{ env('ZKTECO_IP', '192.168.1.108') }}"
-                                            placeholder="192.168.1.108">
+                                        <label for="retrieveDeviceSelect">Select Device</label>
+                                        <select class="form-control" id="retrieveDeviceSelect">
+                                            <option value="">-- Select a registered device --</option>
+                                        </select>
                                     </div>
 
-                                    <div class="form-group">
-                                        <label for="retrieve_device_port">Device Port</label>
-                                        <input type="number" class="form-control" id="retrieve_device_port"
-                                            name="retrieve_device_port" value="{{ env('ZKTECO_PORT', 4370) }}"
-                                            placeholder="4370">
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label for="retrieve_device_password">Comm Key (Password)</label>
-                                        <input type="text" class="form-control" id="retrieve_device_password"
-                                            name="retrieve_device_password" value="{{ env('ZKTECO_PASSWORD', '0') }}"
-                                            placeholder="0">
-                                    </div>
+                                    <input type="hidden" id="retrieve_device_ip" name="retrieve_device_ip">
+                                    <input type="hidden" id="retrieve_device_port" name="retrieve_device_port" value="4370">
+                                    <input type="hidden" id="retrieve_device_password" name="retrieve_device_password" value="0">
 
                                     <button type="button" class="btn btn-primary-custom btn-block"
                                         id="retrieveUsersBtn">
@@ -1192,38 +1374,6 @@
     </div>
 </div>
 
-<!-- Shift Student Modal -->
-<div class="modal fade" id="shiftStudentModal" tabindex="-1" role="dialog" aria-labelledby="shiftStudentModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title" id="shiftStudentModalLabel">
-                    <i class="bi bi-arrow-right-circle"></i> Shift Student
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form id="shiftStudentForm">
-                <div class="modal-body">
-                    <input type="hidden" name="studentID" id="shift_studentID">
-                    <div class="form-group">
-                        <label for="new_subclassID">Select New Class <span class="text-danger">*</span></label>
-                        <select class="form-control" id="new_subclassID" name="new_subclassID" required>
-                            <option value="">Select Class</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary-custom">Shift Student</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- View Results Modal -->
 <div class="modal fade" id="viewResultsModal" tabindex="-1" role="dialog" aria-labelledby="viewResultsModalLabel"
     aria-hidden="true">
@@ -1557,31 +1707,39 @@
                     <!-- Fingerprint Attendance Tab (Device) -->
                     <div class="tab-pane fade" id="fingerprint-attendance" role="tabpanel"
                         aria-labelledby="fingerprint-attendance-tab">
-                        <div class="mb-3 d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0">
-                                <i class="bi bi-fingerprint"></i> Fingerprint Attendance from Biometric System
-                            </h6>
-                            <div class="d-flex align-items-center gap-2">
-                                <div>
+                        <div class="attendance-device-bar mb-3">
+                            <div class="row align-items-end">
+                                <div class="col-md-5">
+                                    <label for="fingerprintSyncDeviceSelect" class="mb-1 text-primary-custom fw-bold">
+                                        <i class="bi bi-router"></i> Sync from Device
+                                    </label>
+                                    <select id="fingerprintSyncDeviceSelect" class="form-control">
+                                        <option value="">Loading devices...</option>
+                                    </select>
+                                    <small class="form-text text-muted">IP, port &amp; comm key from Fingerprint Device Settings</small>
+                                </div>
+                                <div class="col-md-3">
                                     <label class="form-label mb-1" style="font-size: 0.85rem;">Filter by Date</label>
                                     <input type="date" class="form-control form-control-sm"
-                                        id="fingerprintAttendanceDateFilter" style="width: 180px;">
+                                        id="fingerprintAttendanceDateFilter">
                                 </div>
-                                <button type="button" class="btn btn-sm btn-success mt-3"
-                                    id="syncAllFingerprintAttendance">
-                                    <i class="bi bi-cloud-download"></i> Sync All from Device
-                                </button>
-                                <button type="button" class="btn btn-sm btn-primary-custom mt-3"
-                                    id="refreshFingerprintAttendance">
-                                    <i class="bi bi-arrow-repeat"></i> Refresh
-                                </button>
+                                <div class="col-md-4 d-flex gap-2 align-items-end">
+                                    <button type="button" class="btn btn-sm btn-success flex-grow-1"
+                                        id="syncAllFingerprintAttendance">
+                                        <i class="bi bi-cloud-download"></i> Sync from Device
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-primary-custom flex-grow-1"
+                                        id="refreshFingerprintAttendance">
+                                        <i class="bi bi-arrow-repeat"></i> Refresh
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div id="fingerprintAttendanceContentTeacher">
                             <div class="alert alert-info mb-0">
-                                <i class="bi bi-info-circle"></i> Click <strong>Refresh</strong> to load attendance
-                                records from the database. Use <strong>Sync All from Device</strong> to sync latest data
-                                from the biometric device.
+                                <i class="bi bi-info-circle"></i> <strong>Select one device</strong>, then
+                                <strong>Sync from Device</strong> to pull attendance. Use
+                                <strong>Refresh</strong> to view saved records only (fast).
                             </div>
                         </div>
                     </div>
@@ -1589,29 +1747,43 @@
                     <!-- Live Fingerprint Attendance (Today) Tab -->
                     <div class="tab-pane fade" id="live-fingerprint-attendance" role="tabpanel"
                         aria-labelledby="live-fingerprint-attendance-tab">
-                        <div class="mb-3 d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0">
-                                <i class="bi bi-broadcast-pin"></i> Live Fingerprint Attendance (Today)
-                            </h6>
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-success" id="liveStatusBadge">
-                                    <i class="bi bi-circle-fill"></i> Live
-                                </span>
-                                <button type="button" class="btn btn-sm btn-secondary"
-                                    id="stopLiveFingerprintAttendance">
-                                    <i class="bi bi-stop-circle"></i> Stop
-                                </button>
-                                <button type="button" class="btn btn-sm btn-primary-custom"
-                                    id="refreshLiveFingerprintAttendance">
-                                    <i class="bi bi-arrow-repeat"></i> Refresh Now
-                                </button>
+                        <div class="attendance-device-bar mb-3">
+                            <div class="row align-items-end">
+                                <div class="col-md-5">
+                                    <label for="liveAttendanceDeviceSelect" class="mb-1 text-primary-custom fw-bold">
+                                        <i class="bi bi-router"></i> Fingerprint Device
+                                    </label>
+                                    <select id="liveAttendanceDeviceSelect" class="form-control">
+                                        <option value="">Loading devices...</option>
+                                    </select>
+                                    <small class="form-text text-muted">Select exactly one registered device (required)</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="button" class="btn btn-primary-custom btn-block" id="syncLiveFingerprintNow">
+                                        <i class="bi bi-cloud-download"></i> Sync Now
+                                    </button>
+                                </div>
+                                <div class="col-md-4 d-flex align-items-center gap-2 justify-content-end">
+                                    <span class="badge bg-success" id="liveStatusBadge">
+                                        <i class="bi bi-circle-fill"></i> Live
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-success" id="startLiveFingerprintAttendance">
+                                        <i class="bi bi-play-circle"></i> Start Live
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-secondary" id="stopLiveFingerprintAttendance">
+                                        <i class="bi bi-stop-circle"></i> Stop
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-primary-custom" id="refreshLiveFingerprintAttendance">
+                                        <i class="bi bi-arrow-repeat"></i> Refresh
+                                    </button>
+                                </div>
                             </div>
+                            <div id="liveDeviceSyncSummary" class="small text-muted mt-2" style="display:none;"></div>
                         </div>
                         <div id="liveFingerprintAttendanceContentTeacher">
                             <div class="alert alert-info mb-0">
-                                <i class="bi bi-info-circle"></i> <strong>Live syncing is active.</strong> Today's
-                                attendance is automatically synced from the biometric device every 2 seconds and saved
-                                to the database. When a student scans their fingerprint, it appears here immediately.
+                                <i class="bi bi-info-circle"></i> <strong>Chagua device moja</strong> — Live inaanza moja kwa moja.
+                                Mwanafunzi akigusa kidole, attendance inaonekana ndani ya sekunde chache.
                             </div>
                         </div>
                     </div>
@@ -1783,8 +1955,198 @@
         var subclassID = {!! json_encode($decryptedSubclassID ?? null) !!};
         var classID = {!! json_encode($decryptedClassID ?? null) !!};
         var isCoordinatorView = {!! json_encode($isCoordinatorView ?? false) !!};
+        var schoolFingerprintDevices = [];
+        var pendingLiveStartAfterDevices = false;
+        var fingerprintDeviceRoutes = {
+            index: '{{ route("zkteco.devices.index") }}'
+        };
+
+        function getEffectiveSubclassIdForFingerprint() {
+            if (isCoordinatorView) {
+                var selected = $('#attendanceSubclassSelect').val();
+                if (selected) {
+                    return selected;
+                }
+            }
+            return subclassID;
+        }
+
+        function getSelectedLiveDeviceId() {
+            var id = $('#liveAttendanceDeviceSelect').val() || '';
+            return (id && id !== 'all') ? id : '';
+        }
+
+        function getSelectedFingerprintSyncDeviceId() {
+            var id = $('#fingerprintSyncDeviceSelect').val() || '';
+            return (id && id !== 'all') ? id : '';
+        }
+
+        function getLiveDeviceLabel() {
+            var device = findSchoolDeviceById(getSelectedLiveDeviceId());
+            return device ? (device.label + ' — ' + device.ip + ':' + (device.port || 4370)) : 'selected device';
+        }
+
+        function buildDeviceOptionsHtml(activeDevices, placeholder) {
+            var html = '<option value="">' + placeholder + '</option>';
+            activeDevices.forEach(function (d) {
+                html += '<option value="' + d.id + '">' + d.label + ' (' + d.ip + ':' + (d.port || 4370) + ')</option>';
+            });
+            return html;
+        }
+
+        function applyDeviceToHiddenFields(device, prefix) {
+            if (!device) {
+                $('#' + prefix + 'device_ip').val('');
+                $('#' + prefix + 'device_port').val('4370');
+                $('#' + prefix + 'device_password').val('0');
+                return;
+            }
+            $('#' + prefix + 'device_ip').val(device.ip);
+            $('#' + prefix + 'device_port').val(device.port || 4370);
+            $('#' + prefix + 'device_password').val(device.comm_key || '0');
+        }
+
+        function populateFingerprintDeviceSelects() {
+            var activeDevices = schoolFingerprintDevices.filter(function (d) {
+                return d.status === 'active';
+            });
+
+            var liveCurrent = $('#liveAttendanceDeviceSelect').val();
+            var fpSyncCurrent = $('#fingerprintSyncDeviceSelect').val();
+            var testCurrent = $('#deviceTestSelect').val();
+            var retrieveCurrent = $('#retrieveDeviceSelect').val();
+
+            $('#liveAttendanceDeviceSelect').html(
+                buildDeviceOptionsHtml(activeDevices, '-- Select device to sync --')
+            );
+            $('#fingerprintSyncDeviceSelect').html(
+                buildDeviceOptionsHtml(activeDevices, '-- Select device to sync --')
+            );
+
+            $('#deviceTestSelect').empty().append('<option value="">-- Select a registered device --</option>');
+            $('#retrieveDeviceSelect').empty().append('<option value="">-- Select a registered device --</option>');
+            activeDevices.forEach(function (d) {
+                var text = d.label + ' (' + d.ip + ')';
+                $('#deviceTestSelect').append('<option value="' + d.id + '">' + text + '</option>');
+                $('#retrieveDeviceSelect').append('<option value="' + d.id + '">' + text + '</option>');
+            });
+
+            function restoreOrDefault($el, previous) {
+                if (previous && previous !== 'all' && $el.find('option[value="' + previous + '"]').length) {
+                    $el.val(previous);
+                } else if (activeDevices.length === 1) {
+                    $el.val(String(activeDevices[0].id));
+                } else {
+                    $el.val('');
+                }
+            }
+
+            restoreOrDefault($('#liveAttendanceDeviceSelect'), liveCurrent);
+            restoreOrDefault($('#fingerprintSyncDeviceSelect'), fpSyncCurrent);
+
+            if ($('#live-fingerprint-attendance-tab').hasClass('active')) {
+                if (getSelectedLiveDeviceId()) {
+                    pendingLiveStartAfterDevices = true;
+                    $(document).trigger('shulexpert:live-devices-ready');
+                }
+            }
+
+            if (testCurrent && $('#deviceTestSelect').find('option[value="' + testCurrent + '"]').length) {
+                $('#deviceTestSelect').val(testCurrent);
+            } else if (activeDevices.length === 1) {
+                $('#deviceTestSelect').val(String(activeDevices[0].id));
+            }
+
+            if (retrieveCurrent && $('#retrieveDeviceSelect').find('option[value="' + retrieveCurrent + '"]').length) {
+                $('#retrieveDeviceSelect').val(retrieveCurrent);
+            } else if (activeDevices.length === 1) {
+                $('#retrieveDeviceSelect').val(String(activeDevices[0].id));
+            }
+
+            syncDeviceTestHiddenFields();
+            syncRetrieveDeviceHiddenFields();
+        }
+
+        function findSchoolDeviceById(id) {
+            return schoolFingerprintDevices.find(function (d) {
+                return String(d.id) === String(id);
+            }) || null;
+        }
+
+        function syncDeviceTestHiddenFields() {
+            var device = findSchoolDeviceById($('#deviceTestSelect').val());
+            applyDeviceToHiddenFields(device, '');
+        }
+
+        function syncRetrieveDeviceHiddenFields() {
+            var device = findSchoolDeviceById($('#retrieveDeviceSelect').val());
+            applyDeviceToHiddenFields(device, 'retrieve_');
+        }
+
+        function loadSchoolFingerprintDevices() {
+            return $.ajax({
+                url: fingerprintDeviceRoutes.index,
+                type: 'GET',
+                dataType: 'json'
+            }).done(function (response) {
+                if (response.success) {
+                    schoolFingerprintDevices = response.devices || [];
+                    populateFingerprintDeviceSelects();
+                } else {
+                    $('#liveAttendanceDeviceSelect, #fingerprintSyncDeviceSelect').html('<option value="">No devices found</option>');
+                    if ($('#live-fingerprint-attendance-tab').hasClass('active')) {
+                        $('#liveFingerprintAttendanceContentTeacher').html(
+                            '<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle"></i> No fingerprint devices registered. Ask admin to add devices in Fingerprint Settings.</div>'
+                        );
+                    }
+                }
+            }).fail(function () {
+                $('#liveAttendanceDeviceSelect, #fingerprintSyncDeviceSelect').html('<option value="">Failed to load devices</option>');
+                if ($('#live-fingerprint-attendance-tab').hasClass('active')) {
+                    $('#liveFingerprintAttendanceContentTeacher').html(
+                        '<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> Failed to load fingerprint devices. Refresh the page and try again.</div>'
+                    );
+                }
+            });
+        }
+
+        function renderDeviceSyncSummary(devicesSynced) {
+            var $box = $('#liveDeviceSyncSummary');
+            if (!devicesSynced || !devicesSynced.length) {
+                $box.hide().empty();
+                return;
+            }
+
+            var parts = devicesSynced.map(function (d) {
+                var status = d.success
+                    ? '<span class="text-success">OK</span>'
+                    : '<span class="text-danger">Failed</span>';
+                return d.label + ' (' + d.ip + ':' + d.port + ') — ' + status;
+            });
+
+            $box.html('<strong>Devices:</strong> ' + parts.join(' &bull; ')).show();
+        }
 
         $(document).ready(function () {
+            loadSchoolFingerprintDevices();
+
+            $('#deviceTestSelect').on('change', syncDeviceTestHiddenFields);
+            $('#retrieveDeviceSelect').on('change', syncRetrieveDeviceHiddenFields);
+            $('#liveAttendanceDeviceSelect').on('change', function () {
+                var deviceId = getSelectedLiveDeviceId();
+                if (deviceId) {
+                    $('#deviceTestSelect, #retrieveDeviceSelect').val(deviceId);
+                    syncDeviceTestHiddenFields();
+                    syncRetrieveDeviceHiddenFields();
+                }
+                if ($('#live-fingerprint-attendance-tab').hasClass('active')) {
+                    if (deviceId) {
+                        $(document).trigger('shulexpert:live-device-changed');
+                    } else {
+                        $(document).trigger('shulexpert:live-device-cleared');
+                    }
+                }
+            });
 
             // Store all students data globally for statistics and filtering
             var allStudentsData = [];
@@ -1957,7 +2319,6 @@
             function closeAllStudentModals() {
                 hideModal('viewStudentModal');
                 hideModal('editStudentModal');
-                hideModal('shiftStudentModal');
                 hideModal('fingerprintCaptureModal');
                 hideModal('viewParentDetailsModal');
                 hideModal('editParentModal');
@@ -1967,13 +2328,25 @@
                 closeAllStudentModals();
                 const el = document.getElementById(modalId);
                 if (!el) return;
-                if (window.bootstrap && typeof bootstrap.Modal === 'function') {
-                    const bsModal = new bootstrap.Modal(el, { backdrop: true, keyboard: true });
-                    bsModal.show();
-                    return;
-                }
                 if (window.jQuery && typeof jQuery.fn.modal === 'function') {
                     jQuery(el).modal('show');
+                    return;
+                }
+                if (window.bootstrap && typeof bootstrap.Modal === 'function') {
+                    const bsModal = bootstrap.Modal.getOrCreateInstance
+                        ? bootstrap.Modal.getOrCreateInstance(el)
+                        : new bootstrap.Modal(el, { backdrop: true, keyboard: true });
+                    bsModal.show();
+                }
+            }
+
+            function initViewStudentModalTabs() {
+                var $tabs = $('#studentDetailsTabs a[data-toggle="tab"]');
+                if ($tabs.length && typeof $tabs.tab === 'function') {
+                    $tabs.off('click.viewStudentTab').on('click.viewStudentTab', function (e) {
+                        e.preventDefault();
+                        $(this).tab('show');
+                    });
                 }
             }
 
@@ -2421,13 +2794,13 @@
             // Test Device Connection (AJAX)
             $('#testDeviceConnectionBtn').on('click', function (e) {
                 e.preventDefault();
+                var deviceId = $('#deviceTestSelect').val();
                 var deviceIp = $('#device_ip').val().trim();
                 var devicePort = $('#device_port').val().trim() || '4370';
                 var devicePassword = $('#device_password').val().trim() || '0';
 
-                // Validate inputs
-                if (!deviceIp) {
-                    Swal.fire('Error', 'Please enter device IP address', 'error');
+                if (!deviceId || !deviceIp) {
+                    Swal.fire('Error', 'Please select a registered fingerprint device', 'error');
                     return false;
                 }
 
@@ -2506,13 +2879,13 @@
             // Retrieve Users from Device
             $('#retrieveUsersBtn').on('click', function (e) {
                 e.preventDefault();
+                var deviceId = $('#retrieveDeviceSelect').val();
                 var deviceIp = $('#retrieve_device_ip').val().trim();
                 var devicePort = $('#retrieve_device_port').val().trim() || '4370';
                 var devicePassword = $('#retrieve_device_password').val().trim() || '0';
 
-                // Validate inputs
-                if (!deviceIp) {
-                    Swal.fire('Error', 'Please enter device IP address', 'error');
+                if (!deviceId || !deviceIp) {
+                    Swal.fire('Error', 'Please select a registered fingerprint device', 'error');
                     return false;
                 }
 
@@ -3376,7 +3749,6 @@
                             transferredIndex++;
                         } else {
                             // Active Students
-                            actionButtons += '<button class="btn btn-sm btn-primary shift-student-btn" data-student-id="' + student.studentID + '" title="Shift Class"><i class="bi bi-arrow-right-circle"></i></button> ';
                             actionButtons += '<a href="#" class="btn btn-sm btn-success text-white send-student-to-fingerprint-btn" data-student-id="' + student.studentID + '" data-student-name="' + (student.first_name || '') + '" data-fingerprint-id="' + (student.fingerprint_id || '') + '" title="Send to Fingerprint Device"><i class="bi bi-fingerprint"></i></a> ';
 
                             if (student.status !== 'Active') {
@@ -3597,7 +3969,6 @@
                                     transferredIndex++;
                                 } else {
                                     // Active Students
-                                    actionButtons += '<button class="btn btn-sm btn-primary shift-student-btn" data-student-id="' + student.studentID + '" title="Shift Class"><i class="bi bi-arrow-right-circle"></i></button> ';
                                     actionButtons += '<a href="#" class="btn btn-sm btn-success text-white send-student-to-fingerprint-btn" data-student-id="' + student.studentID + '" data-student-name="' + (student.first_name || '') + '" data-fingerprint-id="' + (student.fingerprint_id || '') + '" title="Send to Fingerprint Device"><i class="bi bi-fingerprint"></i></a> ';
 
                                     if (student.status !== 'Active') {
@@ -3883,8 +4254,6 @@
                                 } else {
                                     // Active Students (all students that are not "Transferred" status)
                                     // This includes: Active, Graduated, Inactive, etc.
-                                    actionButtons += '<button class="btn btn-sm btn-primary shift-student-btn" data-student-id="' + student.studentID + '" title="Shift Class"><i class="bi bi-arrow-right-circle"></i></button> ';
-
                                     // Add Send to Fingerprint Device button (always show, backend will check if already has fingerprint_id)
                                     actionButtons += '<a href="#" class="btn btn-sm btn-success text-white send-student-to-fingerprint-btn" data-student-id="' + student.studentID + '" data-student-name="' + (student.first_name || '') + '" data-fingerprint-id="' + (student.fingerprint_id || '') + '" title="Send to Fingerprint Device"><i class="bi bi-fingerprint"></i></a> ';
 
@@ -4414,14 +4783,14 @@
                             // Create tab structure
                             let html = '<ul class="nav nav-tabs mb-3" id="studentDetailsTabs" role="tablist" style="border-radius: 0;">';
                             html += '<li class="nav-item" role="presentation">';
-                            html += '<button class="nav-link active" id="particulars-tab" data-bs-toggle="tab" data-bs-target="#particulars-pane" type="button" role="tab" aria-controls="particulars-pane" aria-selected="true">';
+                            html += '<a class="nav-link active" id="particulars-tab" data-toggle="tab" href="#particulars-pane" role="tab" aria-controls="particulars-pane" aria-selected="true">';
                             html += '<i class="bi bi-person-vcard"></i> Student Particulars';
-                            html += '</button>';
+                            html += '</a>';
                             html += '</li>';
                             html += '<li class="nav-item" role="presentation">';
-                            html += '<button class="nav-link" id="academic-tab" data-bs-toggle="tab" data-bs-target="#academic-pane" type="button" role="tab" aria-controls="academic-pane" aria-selected="false">';
+                            html += '<a class="nav-link" id="academic-tab" data-toggle="tab" href="#academic-pane" role="tab" aria-controls="academic-pane" aria-selected="false">';
                             html += '<i class="bi bi-book"></i> Academic Details';
-                            html += '</button>';
+                            html += '</a>';
                             html += '</li>';
                             html += '</ul>';
 
@@ -4638,7 +5007,7 @@
                             html += '<div class="p-4" style="border-radius: 0;">';
                             html += '<div class="mb-4">';
                             html += '<label class="form-label fw-bold mb-2"><i class="bi bi-calendar"></i> Academic Year</label>';
-                            html += '<select class="form-select" id="academicYearSelector" data-student-id="' + studentID + '" style="border-radius: 0;">';
+                            html += '<select class="form-control" id="academicYearSelector" data-student-id="' + studentID + '" style="border-radius: 0;">';
                             html += '<option value="">Loading...</option>';
                             html += '</select>';
                             html += '</div>';
@@ -4714,16 +5083,14 @@
                             html += '</div>'; // Close tab-content
 
                             $('#studentDetailsContent').html(html);
+                            initViewStudentModalTabs();
                             showModal('viewStudentModal');
 
-                            // Load academic years for this student (non-blocking)
-                            try {
-                                setTimeout(function () {
+                            setTimeout(function () {
+                                if (typeof loadAcademicYearsForStudent === 'function') {
                                     loadAcademicYearsForStudent(studentID);
-                                }, 100);
-                            } catch (e) {
-                                console.error('Error loading academic years:', e);
-                            }
+                                }
+                            }, 100);
                         }
                     },
                     error: function (xhr, status, error) {
@@ -5017,50 +5384,6 @@
                 });
             }
 
-            // Shift Student (Manual Transfer - Show All Subclasses)
-            $(document).on('click', '.shift-student-btn', function () {
-                var studentID = $(this).data('student-id');
-                $('#shift_studentID').val(studentID);
-
-                // Load all subclasses for manual transfer (no grade checking)
-                $.ajax({
-                    url: '/get_subclasses_for_school',
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        var select = $('#new_subclassID');
-                        select.empty();
-
-                        if (response.success && response.subclasses && response.subclasses.length > 0) {
-                            select.prop('disabled', false);
-                            select.append('<option value="">Select Class</option>');
-
-                            $.each(response.subclasses, function (index, subclass) {
-                                select.append('<option value="' + subclass.subclassID + '">' + subclass.display_name + '</option>');
-                            });
-                            showModal('shiftStudentModal');
-                        } else {
-                            select.append('<option value="">No classes found</option>');
-                            select.prop('disabled', true);
-                            Swal.fire({
-                                title: 'No Classes Found',
-                                text: 'No classes available for transfer.',
-                                icon: 'info',
-                                confirmButtonColor: '#940000'
-                            });
-                            showModal('shiftStudentModal');
-                        }
-                    },
-                    error: function (xhr) {
-                        var errorMsg = 'Failed to load classes';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMsg = xhr.responseJSON.message;
-                        }
-                        Swal.fire('Error', errorMsg, 'error');
-                    }
-                });
-            });
-
             // Delete Student
             // Handle Send Student to Fingerprint Device Button Click
             $(document).off('click', '.send-student-to-fingerprint-btn').on('click', '.send-student-to-fingerprint-btn', function (e) {
@@ -5191,51 +5514,6 @@
                                 Swal.fire('Error', errorMsg, 'error');
                             }
                         });
-                    }
-                });
-            });
-
-            // Shift Student Form
-            $('#shiftStudentForm').on('submit', function (e) {
-                e.preventDefault();
-
-                var formData = $(this).serialize();
-                var submitBtn = $(this).find('button[type="submit"]');
-                var originalText = submitBtn.html();
-
-                submitBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Transferring...');
-
-                $.ajax({
-                    url: '{{ route("transfer_student") }}',
-                    type: 'POST',
-                    data: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
-                    dataType: 'json',
-                    success: function (response) {
-                        submitBtn.prop('disabled', false).html(originalText);
-                        if (response.success) {
-                            Swal.fire('Success', response.message || 'Student transferred successfully', 'success')
-                                .then(function () {
-                                    $('#shiftStudentModal').modal('hide');
-                                    $('#shiftStudentForm')[0].reset();
-                                    loadStudents();
-                                });
-                        } else {
-                            Swal.fire('Error', response.message || 'Failed to transfer student', 'error');
-                        }
-                    },
-                    error: function (xhr) {
-                        submitBtn.prop('disabled', false).html(originalText);
-                        var errorMsg = 'Network error occurred';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMsg = xhr.responseJSON.message;
-                        } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            var errors = Object.values(xhr.responseJSON.errors).flat();
-                            errorMsg = errors.join('<br>');
-                        }
-                        Swal.fire('Error', errorMsg, 'error');
                     }
                 });
             });
@@ -6667,6 +6945,7 @@
                     // Class teacher view - show modal
                     $('#attendanceModal').modal('show');
                     loadStudentsForAttendance();
+                    loadSchoolFingerprintDevices();
                 } else {
                     Swal.fire('Error', 'Class ID not found', 'error');
                     return;
@@ -7041,9 +7320,30 @@
             });
 
             // Sync All from Device button
+            var fingerprintAttendanceDbRequest = null;
+            var fingerprintDeviceSyncInProgress = false;
+
+            function showFingerprintSyncProgress(message) {
+                $('#fingerprintAttendanceContentTeacher').html(`
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary-custom" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <p class="mt-2 mb-0">${message}</p>
+                    </div>
+                `);
+            }
+
             $('#syncAllFingerprintAttendance').on('click', function () {
-                if (!subclassID) {
-                    Swal.fire('Error', 'Class ID not found', 'error');
+                var effectiveSubclassId = getEffectiveSubclassIdForFingerprint();
+                if (!effectiveSubclassId) {
+                    Swal.fire('Error', 'Class ID not found. Select a subclass if you are a coordinator.', 'error');
+                    return;
+                }
+
+                var deviceId = getSelectedFingerprintSyncDeviceId();
+                if (!deviceId) {
+                    Swal.fire('Error', 'Please select one fingerprint device before syncing.', 'error');
                     return;
                 }
 
@@ -7051,38 +7351,52 @@
                 const originalText = btn.html();
                 btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Syncing...');
 
+                if (fingerprintAttendanceDbRequest && fingerprintAttendanceDbRequest.readyState !== 4) {
+                    fingerprintAttendanceDbRequest.abort();
+                    fingerprintAttendanceDbRequest = null;
+                }
+
+                fingerprintDeviceSyncInProgress = true;
+                showFingerprintSyncProgress('Syncing attendance from device... Please wait.');
+
                 $.ajax({
                     url: '{{ route("zkteco.attendance.sync-all") }}',
                     type: 'POST',
                     data: {
-                        subclassID: subclassID,
+                        subclassID: effectiveSubclassId,
+                        device_id: deviceId,
                         _token: '{{ csrf_token() }}'
                     },
                     dataType: 'json',
+                    timeout: 90000,
                     success: function (response) {
                         btn.prop('disabled', false).html(originalText);
+                        fingerprintDeviceSyncInProgress = false;
 
                         if (response.success) {
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Sync Complete',
-                                html: response.message || `Successfully synced ${response.total || 0} attendance record(s) from device.`,
+                                html: response.message || ('Successfully synced ' + (response.total || 0) + ' attendance record(s).'),
                                 timer: 3000,
                                 showConfirmButton: true
-                            }).then(function () {
-                                // Reload attendance after sync
-                                loadFingerprintAttendanceTeacher();
                             });
+                            loadFingerprintAttendanceTeacher(1);
                         } else {
+                            showFingerprintSyncProgress('Sync failed. Use Refresh to try loading saved records.');
                             Swal.fire('Error', response.message || 'Failed to sync attendance from device', 'error');
                         }
                     },
-                    error: function (xhr) {
+                    error: function (xhr, status) {
                         btn.prop('disabled', false).html(originalText);
-                        let errorMsg = 'Network error occurred';
+                        fingerprintDeviceSyncInProgress = false;
+                        let errorMsg = status === 'timeout'
+                            ? 'Device sync timed out. Check device is on and reachable, then try again.'
+                            : 'Network error occurred';
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             errorMsg = xhr.responseJSON.message;
                         }
+                        showFingerprintSyncProgress('Sync failed. Use Refresh to load records already saved in database.');
                         Swal.fire('Error', errorMsg, 'error');
                     }
                 });
@@ -7101,19 +7415,152 @@
             // ==================== LIVE FINGERPRINT ATTENDANCE (TODAY) ====================
 
             var liveFingerprintInterval = null;
+            var liveDeviceSyncInterval = null;
+            var liveDbRequest = null;
+            var liveDeviceSyncRequest = null;
+            var liveManualSyncActive = false;
+            var liveRequestQueue = [];
+            var liveRequestBusy = false;
+            var LIVE_DB_POLL_MS = 5000;
+            var LIVE_DEVICE_SYNC_MS = 30000;
 
-            function renderLiveFingerprintAttendance(records, date, deviceFailed = false) {
+            function clearLiveAttendanceQueue() {
+                liveRequestQueue.forEach(function (job) {
+                    if (job.onComplete) {
+                        job.onComplete(false);
+                    }
+                });
+                liveRequestQueue = [];
+            }
+
+            function abortLiveAttendanceRequests() {
+                if (liveDbRequest && liveDbRequest.readyState !== 4) {
+                    liveDbRequest.abort();
+                    liveDbRequest = null;
+                }
+                if (liveDeviceSyncRequest && liveDeviceSyncRequest.readyState !== 4) {
+                    liveDeviceSyncRequest.abort();
+                    liveDeviceSyncRequest = null;
+                }
+            }
+
+            function queueLiveAttendance(showLoader, syncFromDevice, onComplete, priority) {
+                var job = {
+                    showLoader: !!showLoader,
+                    syncFromDevice: !!syncFromDevice,
+                    onComplete: onComplete || null
+                };
+
+                if (priority) {
+                    liveRequestQueue = liveRequestQueue.filter(function (queued) {
+                        if (!queued.syncFromDevice && queued.onComplete) {
+                            queued.onComplete(false);
+                        }
+                        return queued.syncFromDevice;
+                    });
+                    liveRequestQueue.unshift(job);
+                } else if (!syncFromDevice && liveRequestQueue.length > 0) {
+                    var lastQueued = liveRequestQueue[liveRequestQueue.length - 1];
+                    if (!lastQueued.syncFromDevice) {
+                        if (onComplete) {
+                            onComplete(true);
+                        }
+                        return;
+                    }
+                    liveRequestQueue.push(job);
+                } else {
+                    liveRequestQueue.push(job);
+                }
+
+                drainLiveAttendanceQueue();
+            }
+
+            function drainLiveAttendanceQueue() {
+                if (liveRequestBusy || liveRequestQueue.length === 0) {
+                    return;
+                }
+
+                var job = liveRequestQueue.shift();
+                if (!job.syncFromDevice) {
+                    while (liveRequestQueue.length > 0 && !liveRequestQueue[0].syncFromDevice) {
+                        var stale = liveRequestQueue.shift();
+                        if (stale.onComplete) {
+                            stale.onComplete(false);
+                        }
+                        job = stale;
+                    }
+                }
+
+                liveRequestBusy = true;
+                loadLiveFingerprintAttendance(job.showLoader, job.syncFromDevice, function (ok) {
+                    liveRequestBusy = false;
+                    if (job.onComplete) {
+                        job.onComplete(ok);
+                    }
+                    drainLiveAttendanceQueue();
+                });
+            }
+
+            function stopLiveFingerprintPolling(showToast) {
+                if (liveFingerprintInterval) {
+                    clearInterval(liveFingerprintInterval);
+                    liveFingerprintInterval = null;
+                }
+                if (liveDeviceSyncInterval) {
+                    clearInterval(liveDeviceSyncInterval);
+                    liveDeviceSyncInterval = null;
+                }
+                clearLiveAttendanceQueue();
+                liveRequestBusy = false;
+                liveManualSyncActive = false;
+                abortLiveAttendanceRequests();
+
+                $('#liveStatusBadge')
+                    .removeClass('bg-success')
+                    .addClass('bg-secondary')
+                    .html('<i class="bi bi-circle-fill"></i> Stopped');
+
+                if (showToast) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Live attendance stopped',
+                        text: 'Live syncing has been paused. Click Start Live to resume.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            }
+
+            function renderLiveEmptyState(date, deviceFailed, dbOnly, devicesSynced) {
+                const container = $('#liveFingerprintAttendanceContentTeacher');
+                var deviceInfo = '';
+                if (devicesSynced && devicesSynced.length) {
+                    deviceInfo = '<div class="small text-muted mt-2">' + devicesSynced.map(function (d) {
+                        return d.label + ' (' + d.ip + ') — ' + (d.success ? '<span class="text-success">Synced</span>' : '<span class="text-danger">Failed</span>');
+                    }).join(' &bull; ') + '</div>';
+                }
+
+                var message = deviceFailed
+                    ? 'Could not reach the biometric device. No attendance saved for today in database yet.'
+                    : (dbOnly
+                        ? 'No attendance records for today in database yet.'
+                        : 'Sync complete — no attendance punches for today on the selected device(s).');
+
+                container.html(`
+                    <div class="alert ${deviceFailed ? 'alert-warning' : 'alert-info'} mb-0">
+                        <i class="bi bi-${deviceFailed ? 'exclamation-triangle' : 'info-circle'}"></i>
+                        ${message}
+                        <div class="small text-muted mt-1">Date: ${date || '{{ date('Y-m-d') }}'}</div>
+                        ${deviceInfo}
+                    </div>
+                `);
+            }
+
+            function renderLiveFingerprintAttendance(records, date, deviceFailed = false, dbOnly = false, devicesSynced = null) {
                 const container = $('#liveFingerprintAttendanceContentTeacher');
 
                 if (!records || records.length === 0) {
-                    container.html(`
-                    <div class="alert ${deviceFailed ? 'alert-warning' : 'alert-info'} mb-0">
-                        <i class="bi bi-${deviceFailed ? 'exclamation-triangle' : 'info-circle'}"></i>
-                        ${deviceFailed
-                            ? 'Device is currently unavailable. Showing no attendance records for today from database.'
-                            : 'No attendance records for today yet. Ask students to punch on the biometric device to see live updates.'}
-                    </div>
-                `);
+                    renderLiveEmptyState(date, deviceFailed, dbOnly, devicesSynced);
                     return;
                 }
 
@@ -7197,141 +7644,280 @@
                     </table>
                 </div>
                 <div class="mt-2 small text-muted">
-                    Date: ${date} &bullet; Source: ${deviceFailed ? 'Database (device unavailable)' : 'Device + Database (synced live)'}
+                    Date: ${date} &bullet; Source: ${dbOnly
+                        ? 'Database (live refresh)'
+                        : (deviceFailed ? 'Database (device unavailable)' : 'Device + Database (synced live)')}
                 </div>
             `;
 
                 container.html(html);
             }
 
-            function loadLiveFingerprintAttendance(showLoader = true) {
-                const container = $('#liveFingerprintAttendanceContentTeacher');
+            function loadLiveFingerprintAttendance(showLoader, syncFromDevice, onComplete) {
+                if (typeof showLoader === 'undefined') showLoader = true;
+                if (typeof syncFromDevice === 'undefined') syncFromDevice = false;
 
-                // Only show loader on initial load, not on auto-refresh
+                const container = $('#liveFingerprintAttendanceContentTeacher');
+                const deviceId = getSelectedLiveDeviceId();
+                const deviceLabel = getLiveDeviceLabel();
+                const effectiveSubclassId = getEffectiveSubclassIdForFingerprint();
+
+                if (!effectiveSubclassId) {
+                    container.html(`
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Class not found.${isCoordinatorView ? ' Select a subclass in Collect Attendance tab first.' : ''}
+                    </div>
+                `);
+                    if (onComplete) onComplete(false);
+                    return;
+                }
+
+                if (!deviceId) {
+                    container.html(`
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Please select one fingerprint device before syncing or viewing live data.
+                    </div>
+                `);
+                    if (onComplete) onComplete(false);
+                    return;
+                }
+
+                const dbOnly = !syncFromDevice;
+
                 if (showLoader) {
                     container.html(`
                     <div class="text-center py-4">
                         <div class="spinner-border text-primary-custom" role="status">
                             <span class="sr-only">Loading...</span>
                         </div>
-                        <p class="mt-2 mb-0">Syncing live attendance from device (192.168.1.108) for today...</p>
+                        <p class="mt-2 mb-0">${dbOnly
+                            ? 'Loading today\'s attendance from database...'
+                            : 'Syncing from ' + deviceLabel + ' for today...'}</p>
                     </div>
                 `);
+                } else if (!dbOnly && container.find('.alert, table').length > 0) {
+                    $('#liveStatusBadge').find('i').addClass('pulse-animation');
                 }
 
-                // Add subtle loading indicator for background updates
-                if (!showLoader && container.find('.alert, table').length > 0) {
-                    // Add subtle indicator that update is in progress
-                    const statusBadge = $('#liveStatusBadge');
-                    if (statusBadge.length) {
-                        statusBadge.find('i').addClass('pulse-animation');
-                    }
-                }
-
-                $.ajax({
+                const ajaxOptions = {
                     url: '{{ route("zkteco.attendance.live-today") }}',
                     type: 'GET',
                     data: {
-                        subclassID: subclassID
+                        subclassID: effectiveSubclassId,
+                        device_id: deviceId,
+                        db_only: dbOnly ? 1 : 0
                     },
                     dataType: 'json',
-                    timeout: 8000, // 8 second timeout for faster failure detection
+                    timeout: dbOnly ? 15000 : 60000,
                     success: function (response) {
-                        // Remove pulse animation
-                        const statusBadge = $('#liveStatusBadge');
-                        if (statusBadge.length) {
-                            statusBadge.find('i').removeClass('pulse-animation');
+                        if (dbOnly) {
+                            liveDbRequest = null;
+                        } else {
+                            liveDeviceSyncRequest = null;
+                            liveManualSyncActive = false;
                         }
+                        $('#liveStatusBadge').find('i').removeClass('pulse-animation');
 
-                        if (!response.success) {
-                            if (showLoader) {
+                        if (!response || !response.success) {
+                            if (showLoader || syncFromDevice) {
                                 container.html(`
                                 <div class="alert alert-danger mb-0">
-                                    <i class="bi bi-exclamation-triangle"></i> ${response.message || 'Failed to load live attendance.'}
+                                    <i class="bi bi-exclamation-triangle"></i> ${(response && response.message) ? response.message : 'Failed to load live attendance.'}
                                 </div>
                             `);
                             }
+                            if (onComplete) onComplete(false);
                             return;
                         }
 
                         const records = response.data || [];
                         const date = response.date || '{{ date('Y-m-d') }}';
                         const deviceFailed = !!response.device_failed;
+                        const devicesSynced = response.devices_synced || null;
 
-                        renderLiveFingerprintAttendance(records, date, deviceFailed);
-                    },
-                    error: function (xhr, status, error) {
-                        // Remove pulse animation
-                        const statusBadge = $('#liveStatusBadge');
-                        if (statusBadge.length) {
-                            statusBadge.find('i').removeClass('pulse-animation');
+                        if (devicesSynced && devicesSynced.length) {
+                            renderDeviceSyncSummary(devicesSynced);
                         }
 
-                        // Only show error on initial load, not on background updates
-                        if (showLoader) {
-                            console.error('Error loading live fingerprint attendance:', xhr.responseText);
+                        renderLiveFingerprintAttendance(records, date, deviceFailed, dbOnly, devicesSynced);
+                        if (onComplete) onComplete(true);
+                    },
+                    error: function (xhr, status) {
+                        if (dbOnly) {
+                            liveDbRequest = null;
+                        } else {
+                            liveDeviceSyncRequest = null;
+                            liveManualSyncActive = false;
+                        }
+                        $('#liveStatusBadge').find('i').removeClass('pulse-animation');
+
+                        if (status === 'abort') {
+                            if (onComplete) onComplete(false);
+                            return;
+                        }
+
+                        if (showLoader || syncFromDevice) {
+                            var errMsg = status === 'timeout'
+                                ? 'Device sync timed out. Check the device is on and try Sync Now again.'
+                                : 'Failed to load live attendance for today.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errMsg = xhr.responseJSON.message;
+                            }
                             container.html(`
                             <div class="alert alert-danger mb-0">
-                                <i class="bi bi-exclamation-triangle"></i> Error loading live attendance for today. ${status === 'timeout' ? 'Request timed out.' : ''}
+                                <i class="bi bi-exclamation-triangle"></i> ${errMsg}
                             </div>
                         `);
-                        } else {
-                            // Silently fail on background updates to avoid disrupting user experience
-                            console.warn('Background sync failed:', error);
                         }
+                        if (onComplete) onComplete(false);
                     }
-                });
+                };
+
+                if (dbOnly) {
+                    if (liveDbRequest && liveDbRequest.readyState !== 4) {
+                        liveDbRequest.abort();
+                    }
+                    liveDbRequest = $.ajax(ajaxOptions);
+                } else {
+                    if (liveDeviceSyncRequest && liveDeviceSyncRequest.readyState !== 4 && !liveManualSyncActive) {
+                        liveDeviceSyncRequest.abort();
+                    }
+                    liveDeviceSyncRequest = $.ajax(ajaxOptions);
+                }
             }
 
-            // Tab show: Auto-start live polling when user opens Live Attendance tab
-            $('a#live-fingerprint-attendance-tab').on('shown.bs.tab', function () {
-                // Load immediately
-                loadLiveFingerprintAttendance(true);
+            function startLiveFingerprintPolling() {
+                if (!$('#live-fingerprint-attendance-tab').hasClass('active')) {
+                    pendingLiveStartAfterDevices = true;
+                    return;
+                }
 
-                // Clear any existing interval
+                if (!getSelectedLiveDeviceId()) {
+                    pendingLiveStartAfterDevices = true;
+                    $('#liveStatusBadge')
+                        .removeClass('bg-success')
+                        .addClass('bg-secondary')
+                        .html('<i class="bi bi-circle-fill"></i> Select device');
+                    $('#liveFingerprintAttendanceContentTeacher').html(
+                        '<div class="alert alert-info mb-0"><i class="bi bi-info-circle"></i> Chagua fingerprint device hapo juu — Live itaanza moja kwa moja.</div>'
+                    );
+                    return;
+                }
+
+                pendingLiveStartAfterDevices = false;
+
                 if (liveFingerprintInterval) {
                     clearInterval(liveFingerprintInterval);
                 }
+                if (liveDeviceSyncInterval) {
+                    clearInterval(liveDeviceSyncInterval);
+                }
 
-                // Auto-start polling every 2 seconds for faster updates
-                liveFingerprintInterval = setInterval(function () {
-                    loadLiveFingerprintAttendance(false);
-                }, 2000);
+                abortLiveAttendanceRequests();
+                clearLiveAttendanceQueue();
+                liveRequestBusy = false;
 
-                // Update status badge
-                $('#liveStatusBadge').removeClass('bg-secondary').addClass('bg-success');
+                // Sync device mara moja, kisha DB kila 5s + device kila 30s (device moja tu)
+                queueLiveAttendance(true, true, function () {
+                    liveFingerprintInterval = setInterval(function () {
+                        if (!$('#live-fingerprint-attendance-tab').hasClass('active')) {
+                            return;
+                        }
+                        queueLiveAttendance(false, false);
+                    }, LIVE_DB_POLL_MS);
+
+                    liveDeviceSyncInterval = setInterval(function () {
+                        if (!$('#live-fingerprint-attendance-tab').hasClass('active')) {
+                            return;
+                        }
+                        if (!liveManualSyncActive) {
+                            queueLiveAttendance(false, true);
+                        }
+                    }, LIVE_DEVICE_SYNC_MS);
+                });
+
+                $('#liveStatusBadge')
+                    .removeClass('bg-secondary')
+                    .addClass('bg-success')
+                    .html('<i class="bi bi-circle-fill"></i> Live');
+            }
+
+            // Tab show/hide: auto-start/stop live attendance (delegated — works inside modal)
+            $(document).off('shown.bs.tab.liveAttendance hidden.bs.tab.liveAttendance')
+                .on('shown.bs.tab.liveAttendance', '#attendanceTabs a[data-toggle="tab"]', function (e) {
+                    if (e.target && e.target.id === 'live-fingerprint-attendance-tab') {
+                        startLiveFingerprintPolling();
+                    }
+                })
+                .on('hidden.bs.tab.liveAttendance', '#attendanceTabs a[data-toggle="tab"]', function (e) {
+                    if (e.target && e.target.id === 'live-fingerprint-attendance-tab') {
+                        stopLiveFingerprintPolling(false);
+                    }
+                });
+
+            $('#attendanceTabs a[href="#live-fingerprint-attendance"]').on('click', function () {
+                setTimeout(function () {
+                    if ($('#live-fingerprint-attendance-tab').hasClass('active')) {
+                        startLiveFingerprintPolling();
+                    }
+                }, 200);
             });
 
-            // Tab hide: Stop polling when user switches to another tab
-            $('a#live-fingerprint-attendance-tab').on('hidden.bs.tab', function () {
-                if (liveFingerprintInterval) {
-                    clearInterval(liveFingerprintInterval);
-                    liveFingerprintInterval = null;
-                }
-                $('#liveStatusBadge').removeClass('bg-success').addClass('bg-secondary');
-            });
-
-            // Stop live polling (manual stop button)
-            $('#stopLiveFingerprintAttendance').on('click', function () {
-                if (liveFingerprintInterval) {
-                    clearInterval(liveFingerprintInterval);
-                    liveFingerprintInterval = null;
-                }
-
-                $('#liveStatusBadge').removeClass('bg-success').addClass('bg-secondary');
-
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Live attendance stopped',
-                    text: 'Live syncing has been paused. Switch to another tab and back to resume.',
-                    timer: 2000,
-                    showConfirmButton: false
+            $('#attendanceModal').on('shown.bs.modal', function () {
+                loadSchoolFingerprintDevices().always(function () {
+                    if ($('#live-fingerprint-attendance-tab').hasClass('active') && getSelectedLiveDeviceId()) {
+                        startLiveFingerprintPolling();
+                    }
                 });
             });
 
-            // Manual refresh
+            $('#attendanceModal').on('hidden.bs.modal', function () {
+                stopLiveFingerprintPolling(false);
+            });
+
+            if (pendingLiveStartAfterDevices && getSelectedLiveDeviceId()) {
+                startLiveFingerprintPolling();
+            }
+
+            $(document).on('shulexpert:live-devices-ready', function () {
+                if (pendingLiveStartAfterDevices && getSelectedLiveDeviceId()) {
+                    startLiveFingerprintPolling();
+                }
+            });
+
+            $('#startLiveFingerprintAttendance').on('click', function () {
+                startLiveFingerprintPolling();
+            });
+
+            $('#syncLiveFingerprintNow').on('click', function () {
+                var $btn = $(this);
+                if (!getSelectedLiveDeviceId()) {
+                    Swal.fire('Error', 'Please select one fingerprint device before syncing.', 'error');
+                    return;
+                }
+                var originalHtml = $btn.html();
+                liveManualSyncActive = true;
+                $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Syncing...');
+                queueLiveAttendance(true, true, function () {
+                    liveManualSyncActive = false;
+                    $btn.prop('disabled', false).html(originalHtml);
+                }, true);
+            });
+
+            $(document).on('shulexpert:live-device-changed', function () {
+                startLiveFingerprintPolling();
+            });
+
+            $(document).on('shulexpert:live-device-cleared', function () {
+                stopLiveFingerprintPolling(false);
+            });
+
+            $('#stopLiveFingerprintAttendance').on('click', function () {
+                stopLiveFingerprintPolling(true);
+            });
+
             $('#refreshLiveFingerprintAttendance').on('click', function () {
-                loadLiveFingerprintAttendance(true);
+                queueLiveAttendance(true, false);
             });
 
 
@@ -8869,6 +9455,21 @@
             function loadFingerprintAttendanceTeacher(page = 1) {
                 const container = $('#fingerprintAttendanceContentTeacher');
                 const dateFilter = $('#fingerprintAttendanceDateFilter').val();
+                const effectiveSubclassId = getEffectiveSubclassIdForFingerprint();
+
+                if (fingerprintDeviceSyncInProgress) {
+                    showFingerprintSyncProgress('Device sync in progress... attendance list will load automatically when complete.');
+                    return;
+                }
+
+                if (!effectiveSubclassId) {
+                    container.html(`
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Class not found. ${isCoordinatorView ? 'Please select a subclass in the Collect Attendance tab first.' : 'Please open this page from your assigned class.'}
+                    </div>
+                `);
+                    return;
+                }
 
                 container.html(`
                 <div class="text-center py-4">
@@ -8879,21 +9480,27 @@
                 </div>
             `);
 
-                // Load from database table (not device)
-                $.ajax({
+                if (fingerprintAttendanceDbRequest && fingerprintAttendanceDbRequest.readyState !== 4) {
+                    fingerprintAttendanceDbRequest.abort();
+                }
+
+                fingerprintAttendanceDbRequest = $.ajax({
                     url: '{{ route("zkteco.attendance.from-db") }}',
                     type: 'GET',
                     data: {
                         page: page,
-                        subclassID: subclassID,
-                        date: dateFilter || null
+                        subclassID: effectiveSubclassId,
+                        date: dateFilter || undefined
                     },
                     dataType: 'json',
+                    timeout: 60000,
                     success: function (data) {
+                        fingerprintAttendanceDbRequest = null;
+
                         if (!data.success) {
                             container.html(`
                             <div class="alert alert-danger mb-0">
-                                <i class="bi bi-exclamation-triangle"></i> ${data.message || 'Failed to load attendance from device.'}
+                                <i class="bi bi-exclamation-triangle"></i> ${data.message || 'Failed to load attendance from database.'}
                             </div>
                         `);
                             return;
@@ -8901,41 +9508,35 @@
 
                         let records = data.data || [];
                         const pagination = data.pagination || null;
-                        const isFromDB = data.source === 'database'; // Check if data came from DB fallback
 
-                        // Filter by date if selected
-                        const dateFilter = $('#fingerprintAttendanceDateFilter').val();
                         if (dateFilter) {
-                            records = records.filter(rec => rec.attendance_date === dateFilter);
+                            records = records.filter(function (rec) {
+                                return rec.attendance_date === dateFilter;
+                            });
                         }
 
                         if (records.length === 0) {
-                            const isFromDB = data.source === 'database';
-                            const message = isFromDB
-                                ? 'No attendance records found in local database' + (dateFilter ? ' for the selected date' : '') + '. The device is currently unavailable.'
-                                : 'No attendance records found' + (dateFilter ? ' for the selected date' : ' from the biometric device') + '.';
-
                             container.html(`
-                            <div class="alert ${isFromDB ? 'alert-warning' : 'alert-info'} mb-0">
-                                <i class="bi bi-${isFromDB ? 'exclamation-triangle' : 'info-circle'}"></i> ${message}
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle"></i> No attendance records found in database${dateFilter ? ' for the selected date' : ''}.
+                                Use <strong>Sync from Device</strong> to pull records from the biometric device.
                             </div>
                         `);
                             return;
                         }
 
-                        // Function to format datetime to time only (HH:mm:ss)
                         function formatTimeOnly(datetime) {
                             if (!datetime) return '';
                             const parts = datetime.split(' ');
                             if (parts.length === 2) {
-                                return parts[1]; // Return time part only
+                                return parts[1];
                             }
                             return datetime;
                         }
 
                         let html = `
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover table-sm" id="fingerprintAttendanceTableTeacher">
+                            <table class="table table-striped table-hover table-sm mb-0" id="fingerprintAttendanceTableTeacher">
                                 <thead class="bg-primary-custom text-white">
                                     <tr>
                                         <th>#</th>
@@ -8951,13 +9552,10 @@
                     `;
 
                         $.each(records, function (index, rec) {
-                            // Use new format from device (direct)
                             const fullName = rec.user_name || 'N/A';
                             const subclassName = rec.class_name || 'N/A';
                             const fingerprintId = rec.fingerprint_id || rec.enroll_id || rec.user_id || 'N/A';
                             const attendanceDate = rec.attendance_date || '';
-
-                            // Format times to HH:mm:ss only
                             const checkInTime = formatTimeOnly(rec.check_in_time || '');
                             const checkOutTime = formatTimeOnly(rec.check_out_time || '');
 
@@ -8980,7 +9578,6 @@
                         </div>
                     `;
 
-                        // Simple pagination footer
                         if (pagination) {
                             html += `
                             <div class="d-flex justify-content-between align-items-center mt-2">
@@ -8992,7 +9589,7 @@
 
                             if (pagination.current_page > 1) {
                                 html += `
-                                <button class="btn btn-sm btn-outline-secondary me-1" onclick="loadFingerprintAttendanceTeacher(${pagination.current_page - 1})">
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-1 fp-attendance-page-btn" data-page="${pagination.current_page - 1}">
                                     <i class="bi bi-chevron-left"></i> Prev
                                 </button>
                             `;
@@ -9000,7 +9597,7 @@
 
                             if (pagination.current_page < pagination.last_page) {
                                 html += `
-                                <button class="btn btn-sm btn-outline-secondary" onclick="loadFingerprintAttendanceTeacher(${pagination.current_page + 1})">
+                                <button type="button" class="btn btn-sm btn-outline-secondary fp-attendance-page-btn" data-page="${pagination.current_page + 1}">
                                     Next <i class="bi bi-chevron-right"></i>
                                 </button>
                             `;
@@ -9013,28 +9610,21 @@
                         }
 
                         container.html(html);
-
-                        // Initialize DataTable
-                        if ($('#fingerprintAttendanceTableTeacher').length) {
-                            $('#fingerprintAttendanceTableTeacher').DataTable({
-                                pageLength: 25,
-                                order: [[4, 'desc'], [5, 'desc']],
-                                language: {
-                                    search: "Search:",
-                                    lengthMenu: "Show _MENU_ entries",
-                                    info: "Showing _START_ to _END_ of _TOTAL_ entries",
-                                    infoEmpty: "No entries found",
-                                    infoFiltered: "(filtered from _MAX_ total entries)",
-                                    zeroRecords: "No matching records found"
-                                },
-                                responsive: true
-                            });
-                        }
                     },
-                    error: function (xhr) {
-                        let msg = 'Failed to load external attendance.';
+                    error: function (xhr, status) {
+                        fingerprintAttendanceDbRequest = null;
+
+                        if (status === 'abort') {
+                            return;
+                        }
+
+                        let msg = status === 'timeout'
+                            ? 'Request timed out while loading attendance from database.'
+                            : 'Failed to load attendance from database.';
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             msg = xhr.responseJSON.message;
+                        } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            msg = Object.values(xhr.responseJSON.errors).flat().join(' ');
                         }
                         container.html(`
                         <div class="alert alert-danger mb-0">
@@ -9044,6 +9634,15 @@
                     }
                 });
             }
+
+            window.loadFingerprintAttendanceTeacher = loadFingerprintAttendanceTeacher;
+
+            $(document).on('click', '.fp-attendance-page-btn', function () {
+                var page = parseInt($(this).data('page'), 10);
+                if (!isNaN(page)) {
+                    loadFingerprintAttendanceTeacher(page);
+                }
+            });
 
             // Search Attendance
             $('#searchAttendanceBtn').on('click', function () {
@@ -10433,6 +11032,8 @@
                 Swal.fire('Error', 'Failed to export Excel: ' + error.message, 'error');
             }
         });
+
+        @include('student_registration.view-student-academic-scripts')
     })(jQuery);
 </script>
 

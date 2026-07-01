@@ -7,6 +7,7 @@ use App\Models\StaffProfession;
 use App\Models\StaffPermission;
 use App\Models\School;
 use App\Models\User;
+use App\Models\FingerprintDevice;
 use App\Services\ZKTecoService;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
@@ -555,21 +556,6 @@ class ManageOtherStaffController extends Controller
                 'fingerprint_id' => $fingerprintId,
             ]);
 
-            // Register to biometric device (direct, not API)
-            try {
-                Log::info("ZKTeco Direct: Attempting to register staff - Fingerprint ID: {$fingerprintId}, Name: {$request->first_name}");
-                $staffName = strtoupper($request->first_name);
-                $apiResult = $this->registerStaffToBiometricDevice($fingerprintId, $staffName);
-                
-                if ($apiResult['success']) {
-                    Log::info("ZKTeco Direct: Staff registered successfully - Fingerprint ID: {$fingerprintId}");
-                } else {
-                    Log::error("ZKTeco Direct: Staff registration failed - Fingerprint ID: {$fingerprintId}, Error: " . ($apiResult['message'] ?? 'Unknown error'));
-                }
-            } catch (\Exception $e) {
-                Log::error('ZKTeco Direct Registration Error: ' . $e->getMessage());
-            }
-
             // Create user account
             $user = User::create([
                 'name'          => $request->employee_number,
@@ -798,16 +784,35 @@ class ManageOtherStaffController extends Controller
         }
         try {
             $request->validate([
-                'staff_id' => 'required|exists:other_staff,id'
+                'staff_id' => 'required|exists:other_staff,id',
+                'device_id' => 'required|integer',
             ]);
+
+            $device = $this->resolveSchoolFingerprintDevice($request);
 
             $staff = OtherStaff::findOrFail($request->staff_id);
 
             if ($staff->fingerprint_id) {
+                $fingerprintId = (string) $staff->fingerprint_id;
+                $staffName = strtoupper($staff->first_name);
+                $apiResult = $this->registerStaffToBiometricDevice($fingerprintId, $staffName, $device);
+
+                if ($apiResult['success']) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Staff successfully sent to fingerprint device',
+                        'fingerprint_id' => $fingerprintId,
+                        'device_label' => $device->label,
+                        'device_ip' => $device->ip,
+                    ]);
+                }
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Staff already has a fingerprint ID: ' . $staff->fingerprint_id
-                ], 400);
+                    'message' => 'Failed to register on device: ' . ($apiResult['message'] ?? 'Unknown error'),
+                    'fingerprint_id' => $fingerprintId,
+                    'device_label' => $device->label,
+                ], 200);
             }
 
             DB::beginTransaction();
@@ -849,14 +854,16 @@ class ManageOtherStaffController extends Controller
 
             // Send to biometric device
             $staffName = strtoupper($staff->first_name);
-            $apiResult = $this->registerStaffToBiometricDevice($fingerprintId, $staffName);
+            $apiResult = $this->registerStaffToBiometricDevice($fingerprintId, $staffName, $device);
 
             if ($apiResult['success']) {
                 DB::commit();
                 return response()->json([
                     'success' => true,
                     'message' => 'Staff successfully sent to fingerprint device',
-                    'fingerprint_id' => $fingerprintId
+                    'fingerprint_id' => $fingerprintId,
+                    'device_label' => $device->label,
+                    'device_ip' => $device->ip,
                 ]);
             } else {
                 // We keep the ID change even if device registration fails? 
@@ -872,6 +879,11 @@ class ManageOtherStaffController extends Controller
                 ], 200);
             }
 
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -884,20 +896,36 @@ class ManageOtherStaffController extends Controller
     /**
      * Register staff to biometric device directly (not via API)
      */
-    private function registerStaffToBiometricDevice($fingerprintId, $staffName)
+    private function registerStaffToBiometricDevice($fingerprintId, $staffName, ?FingerprintDevice $device = null)
     {
         try {
-            $ip = config('zkteco.ip', '192.168.1.108');
-            $port = (int) config('zkteco.port', 4370);
+            if (!$device) {
+                $device = FingerprintDevice::where('schoolID', Session::get('schoolID'))
+                    ->where('status', 'active')
+                    ->orderBy('id')
+                    ->first();
+                if (!$device) {
+                    return [
+                        'success' => false,
+                        'message' => 'No active fingerprint device found. Add a device in Fingerprint Device Settings.',
+                    ];
+                }
+            }
+
+            $ip = $device->ip;
+            $port = (int) $device->port;
+            $password = $device->comm_key ?? '0';
 
             Log::info("ZKTeco Direct: Attempting to register staff to device", [
                 'fingerprint_id' => $fingerprintId,
                 'staff_name'     => $staffName,
+                'device_id'      => $device->id,
+                'device_label'   => $device->label,
                 'device_ip'      => $ip,
                 'device_port'    => $port,
             ]);
 
-            $zkteco = new ZKTecoService($ip, $port);
+            $zkteco = new ZKTecoService($ip, $port, $password, 15, true);
             $uid = (int) $fingerprintId;
             $name = strtoupper($staffName);
 
@@ -916,6 +944,8 @@ class ManageOtherStaffController extends Controller
                     'device_registered_at'=> now()->format('Y-m-d H:i:s'),
                     'device_ip'           => $ip,
                     'device_port'         => $port,
+                    'device_id'           => $device->id,
+                    'device_label'        => $device->label,
                 ],
             ];
         } catch (\Throwable $e) {
@@ -928,5 +958,24 @@ class ManageOtherStaffController extends Controller
                 'message' => 'Exception: ' . $e->getMessage()
             ];
         }
+    }
+
+    private function resolveSchoolFingerprintDevice(Request $request): FingerprintDevice
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            throw new \InvalidArgumentException('School session not found.');
+        }
+
+        $device = FingerprintDevice::where('schoolID', $schoolID)
+            ->where('status', 'active')
+            ->where('id', (int) $request->input('device_id'))
+            ->first();
+
+        if (!$device) {
+            throw new \InvalidArgumentException('Selected fingerprint device not found or is inactive.');
+        }
+
+        return $device;
     }
 }

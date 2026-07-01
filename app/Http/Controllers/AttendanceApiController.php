@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\User;
 use App\Models\StudentFingerprintAttendance;
 use App\Models\TeacherFingerprintAttendance;
+use App\Models\StaffFingerprintAttendance;
 use App\Models\Teacher;
 use App\Models\School;
 use Illuminate\Http\Request;
@@ -1070,6 +1071,128 @@ class AttendanceApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while retrieving teacher fingerprint attendance: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Teacher + staff fingerprint attendance from local DB, filtered by current school.
+     */
+    public function getTeacherStaffFingerprintAttendance(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'School session not found. Please refresh the page or log in again.',
+                ], 403);
+            }
+
+            $schoolID = (int) $schoolID;
+            $dateFilter = $request->input('date');
+            $page = max(1, (int) $request->input('page', 1));
+            $perPage = 50;
+
+            $teacherQuery = TeacherFingerprintAttendance::with('teacher')
+                ->whereHas('teacher', function ($q) use ($schoolID) {
+                    $q->where('schoolID', $schoolID);
+                });
+
+            $staffQuery = StaffFingerprintAttendance::with('staff')
+                ->whereHas('staff', function ($q) use ($schoolID) {
+                    $q->where('schoolID', $schoolID);
+                });
+
+            if ($dateFilter) {
+                $teacherQuery->whereDate('attendance_date', $dateFilter);
+                $staffQuery->whereDate('attendance_date', $dateFilter);
+            }
+
+            $formattedRecords = collect();
+
+            foreach ($teacherQuery->get() as $record) {
+                $teacher = $record->teacher;
+                $formattedRecords->push([
+                    'person_type' => 'teacher',
+                    'attendance_date' => $record->attendance_date->format('Y-m-d'),
+                    'check_in_time' => $record->check_in_time ? $record->check_in_time->format('Y-m-d H:i:s') : null,
+                    'check_out_time' => $record->check_out_time ? $record->check_out_time->format('Y-m-d H:i:s') : null,
+                    'status' => $record->status,
+                    'verify_mode' => $record->verify_mode,
+                    'device_ip' => $record->device_ip,
+                    'user' => [
+                        'id' => $record->user_id,
+                        'name' => $record->user_name,
+                        'enroll_id' => $record->enroll_id,
+                    ],
+                    'teacher_info' => $teacher ? [
+                        'full_name' => trim($teacher->first_name . ' ' . ($teacher->middle_name ? $teacher->middle_name . ' ' : '') . $teacher->last_name),
+                        'employee_number' => $teacher->employee_number,
+                        'position' => $teacher->position,
+                        'fingerprint_id' => $teacher->fingerprint_id,
+                    ] : null,
+                    'staff_info' => null,
+                ]);
+            }
+
+            foreach ($staffQuery->get() as $record) {
+                $staff = $record->staff;
+                $formattedRecords->push([
+                    'person_type' => 'staff',
+                    'attendance_date' => $record->attendance_date->format('Y-m-d'),
+                    'check_in_time' => $record->check_in_time ? $record->check_in_time->format('Y-m-d H:i:s') : null,
+                    'check_out_time' => $record->check_out_time ? $record->check_out_time->format('Y-m-d H:i:s') : null,
+                    'status' => $record->status,
+                    'verify_mode' => $record->verify_mode,
+                    'device_ip' => $record->device_ip,
+                    'user' => [
+                        'id' => $record->user_id,
+                        'name' => $record->user_name,
+                        'enroll_id' => $record->enroll_id,
+                    ],
+                    'teacher_info' => null,
+                    'staff_info' => $staff ? [
+                        'full_name' => trim($staff->first_name . ' ' . ($staff->middle_name ? $staff->middle_name . ' ' : '') . $staff->last_name),
+                        'employee_number' => $staff->employee_number,
+                        'position' => $staff->position,
+                        'fingerprint_id' => $staff->fingerprint_id,
+                    ] : null,
+                ]);
+            }
+
+            $sorted = $formattedRecords->sort(function ($a, $b) {
+                $dateCmp = strcmp($b['attendance_date'], $a['attendance_date']);
+                if ($dateCmp !== 0) {
+                    return $dateCmp;
+                }
+                $timeA = $a['check_in_time'] ? strtotime($a['check_in_time']) : 0;
+                $timeB = $b['check_in_time'] ? strtotime($b['check_in_time']) : 0;
+                return $timeB <=> $timeA;
+            })->values();
+
+            $total = $sorted->count();
+            $paged = $sorted->slice(($page - 1) * $perPage, $perPage)->values();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Teacher and staff fingerprint attendance records from local database',
+                'data' => $paged->toArray(),
+                'pagination' => [
+                    'current_page' => $page,
+                    'per_page' => $perPage,
+                    'total' => $total,
+                    'last_page' => (int) ceil($total / $perPage) ?: 1,
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Get Teacher/Staff Fingerprint Attendance Error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while retrieving attendance: ' . $e->getMessage(),
             ], 500);
         }
     }
