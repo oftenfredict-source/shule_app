@@ -60,9 +60,14 @@ class SchoolWorkingDaysService
             $dateStr = $current->format('Y-m-d');
             $dayOfWeek = $current->dayOfWeek;
 
+            $isWeekend = $dayOfWeek === 0 || $dayOfWeek === 6;
+            $isHoliday = in_array($dateStr, $context['holiday_dates'], true);
+            $isHolidayWorkingOverride = in_array($dateStr, $context['holiday_working_dates'], true);
+            $isNonWorkingEvent = in_array($dateStr, $context['non_working_event_dates'], true);
+
             if ($dayOfWeek !== 0 && $dayOfWeek !== 6
-                && !in_array($dateStr, $context['holiday_dates'], true)
-                && !in_array($dateStr, $context['non_working_event_dates'], true)) {
+                && (!$isHoliday || $isHolidayWorkingOverride)
+                && !$isNonWorkingEvent) {
                 $workingDates[] = $dateStr;
             }
 
@@ -75,11 +80,14 @@ class SchoolWorkingDaysService
     /**
      * Build holiday/event sets using the same approach as CalendarController::calculateMonthlyStatistics.
      *
-     * @return array{holiday_dates: array<int, string>, non_working_event_dates: array<int, string>}
+     * holiday_working_dates: dates within a holiday that should still count as working days
+     *
+     * @return array{holiday_dates: array<int, string>, holiday_working_dates: array<int, string>, non_working_event_dates: array<int, string>}
      */
     private function buildCalendarContext(int $schoolID, int $startYear, int $endYear): array
     {
         $holidayDates = [];
+        $holidayWorkingDates = [];
 
         $holidays = Holiday::where('schoolID', $schoolID)
             ->where(function ($query) use ($startYear, $endYear) {
@@ -91,8 +99,21 @@ class SchoolWorkingDaysService
         foreach ($holidays as $holiday) {
             $current = Carbon::parse($holiday->start_date)->startOfDay();
             $end = Carbon::parse($holiday->end_date)->startOfDay();
+
+            $workingAllowance = 0;
+            if (!empty($holiday->has_working_days) && (int) ($holiday->working_days_count ?? 0) > 0) {
+                $workingAllowance = (int) $holiday->working_days_count;
+            }
+
             while ($current->lte($end)) {
                 $holidayDates[] = $current->format('Y-m-d');
+
+                // If holiday has working days, treat the first N weekdays in the range as working.
+                if ($workingAllowance > 0 && $current->isWeekday()) {
+                    $holidayWorkingDates[] = $current->format('Y-m-d');
+                    $workingAllowance--;
+                }
+
                 $current->addDay();
             }
         }
@@ -115,6 +136,7 @@ class SchoolWorkingDaysService
 
         return [
             'holiday_dates' => array_values(array_unique($holidayDates)),
+            'holiday_working_dates' => array_values(array_unique($holidayWorkingDates)),
             'non_working_event_dates' => $nonWorkingEventDates,
         ];
     }

@@ -110,7 +110,9 @@ class CalendarController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'description' => 'nullable|string',
-            'type' => 'required|in:Public Holiday,School Holiday,Other'
+            'type' => 'required|in:Public Holiday,School Holiday,Other',
+            'has_working_days' => 'nullable|boolean',
+            'working_days_count' => 'nullable|integer|min:0',
         ]);
 
         try {
@@ -120,7 +122,9 @@ class CalendarController extends Controller
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
                 'description' => $request->description,
-                'type' => $request->type
+                'type' => $request->type,
+                'has_working_days' => (bool) $request->input('has_working_days', false),
+                'working_days_count' => $request->input('has_working_days') ? (int) $request->input('working_days_count', 0) : null,
             ]);
 
             return response()->json([
@@ -238,13 +242,21 @@ class CalendarController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'description' => 'nullable|string',
-            'type' => 'required|in:Public Holiday,School Holiday,Other'
+            'type' => 'required|in:Public Holiday,School Holiday,Other',
+            'has_working_days' => 'nullable|boolean',
+            'working_days_count' => 'nullable|integer|min:0',
         ]);
 
         try {
-            $holiday->update($request->only([
-                'holiday_name', 'start_date', 'end_date', 'description', 'type'
-            ]));
+            $holiday->update([
+                'holiday_name' => $request->holiday_name,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                'description' => $request->description,
+                'type' => $request->type,
+                'has_working_days' => (bool) $request->input('has_working_days', false),
+                'working_days_count' => $request->input('has_working_days') ? (int) $request->input('working_days_count', 0) : null,
+            ]);
 
             return response()->json([
                 'success' => true,

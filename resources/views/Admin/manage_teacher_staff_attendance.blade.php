@@ -1048,9 +1048,9 @@
                 metaHtml += '<div class="row text-center small g-2">';
                 metaHtml += '<div class="col-md-3"><strong>Working Days (Month)</strong><br><span class="text-primary-custom fs-5">' + res.total_working_days + '</span></div>';
                 if (res.period_incomplete && res.complete_working_days !== undefined) {
-                    metaHtml += '<div class="col-md-3"><strong>Complete Working Days</strong><br><span class="fs-5 text-warning">' + res.complete_working_days + '</span><br><small class="text-muted">Siku za kazi zilizopita</small></div>';
+                    metaHtml += '<div class="col-md-3"><strong>Complete W/days</strong><br><span class="fs-5 text-warning">' + res.complete_working_days + '</span><br><small class="text-muted">Siku za kazi zilizopita</small></div>';
                 }
-                metaHtml += '<div class="col-md-3"><strong>Official Time</strong><br>' + res.work_start_time + ' – ' + res.work_end_time + '</div>';
+                metaHtml += '<div class="col-md-3"><strong>Official Time</strong><br>' + formatAmPm(res.work_start_time) + ' – ' + formatAmPm(res.work_end_time) + '</div>';
                 metaHtml += '<div class="col-md-3"><strong>Period</strong><br>' + (res.period_incomplete ? '<span class="text-warning">In progress</span>' : 'Complete') + '</div>';
                 metaHtml += '</div>';
                 if (res.period_incomplete) {
@@ -1073,7 +1073,7 @@
                     '<th>#</th><th>Photo</th><th>Name</th><th>Present</th><th>Absent</th>' +
                     '<th>Working Days</th>';
                 if (showCompleteCol) {
-                    html += '<th>Complete Working Days</th>';
+                    html += '<th>Complete W/days</th>';
                 }
                 html += '<th>Late</th><th>Early</th><th>Action</th></tr></thead><tbody>';
 
@@ -1155,7 +1155,7 @@
                 html += statBox('Absent', s.absent_days, '');
                 html += statBox('Working Days', s.total_working_days, '');
                 if (res.period_incomplete) {
-                    html += statBox('Complete Working Days', s.complete_working_days || s.elapsed_working_days, '');
+                    html += statBox('Complete W/days', s.complete_working_days || s.elapsed_working_days, '');
                 }
                 html += statBox('Late Days', s.late_days, 'late');
                 html += statBox('Early Days', s.early_days, '');
@@ -1165,7 +1165,7 @@
                     html += '<p class="small text-muted"><i class="bi bi-info-circle"></i> Absent = siku za kazi zilizopita bila rekodi ya kidole kwenye database.</p>';
                 }
 
-                html += '<p class="small text-muted">Official time: <strong>' + res.work_start_time + ' - ' + res.work_end_time + '</strong></p>';
+                html += '<p class="small text-muted">Official time: <strong>' + formatAmPm(res.work_start_time) + ' - ' + formatAmPm(res.work_end_time) + '</strong></p>';
                 html += '<div class="table-responsive"><table id="tsReportDetailDailyTable" class="table table-sm table-bordered table-striped mb-0 w-100">' +
                     '<thead><tr><th>Date</th><th>Check In</th><th>Check Out</th><th>Status</th></tr></thead><tbody>';
 
@@ -1182,8 +1182,8 @@
                                     : '<span class="badge bg-success">Present</span>')));
                     html += '<tr' + rowClass + '>' +
                         '<td>' + day.date_label + '</td>' +
-                        '<td>' + (day.check_in_time || '-') + '</td>' +
-                        '<td>' + (day.check_out_time || '-') + '</td>' +
+                        '<td>' + (day.check_in_time ? formatAmPm(day.check_in_time) : '-') + '</td>' +
+                        '<td>' + (day.check_out_time ? formatAmPm(day.check_out_time) : '-') + '</td>' +
                         '<td>' + statusBadge + '</td></tr>';
                 });
 
@@ -1215,6 +1215,19 @@
     function buildTsReportQueryString(extra) {
         var params = $.extend({}, tsLastReportParams || {}, extra || {});
         return $.param(params);
+    }
+
+    function formatAmPm(timeStr) {
+        if (!timeStr) return '';
+        var parts = String(timeStr).trim().split(':');
+        if (parts.length < 2) return timeStr;
+        var h = parseInt(parts[0], 10);
+        var m = parts[1];
+        if (isNaN(h)) return timeStr;
+        var ampm = h >= 12 ? 'PM' : 'AM';
+        var hr12 = h % 12;
+        if (hr12 === 0) hr12 = 12;
+        return String(hr12).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ' ' + ampm;
     }
 
     function buildDefaultTsSmsMessage(data) {

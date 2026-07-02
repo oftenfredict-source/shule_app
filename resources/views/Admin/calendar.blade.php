@@ -537,6 +537,20 @@
                         <label class="form-label">Description</label>
                         <textarea class="form-control" id="description" name="description" rows="3"></textarea>
                     </div>
+                    <div class="mb-2 form-check">
+                        <input type="checkbox" class="form-check-input" id="has_working_days" name="has_working_days">
+                        <label class="form-check-label" for="has_working_days">
+                            There is working days during this holiday?
+                        </label>
+                    </div>
+                    <div class="mb-2" id="workingDaysCountWrap" style="display:none;">
+                        <label class="form-label mb-1">How many working days in this holiday?</label>
+                        <input type="number" class="form-control" id="working_days_count" name="working_days_count" min="0" step="1" placeholder="e.g. 5">
+                        <div class="form-text">
+                            Holiday length: <strong id="holidayTotalDaysLabel">0</strong> day(s).
+                            <span class="text-danger d-none" id="holidayWorkingDaysError">Working days count exceeds holiday length.</span>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -749,12 +763,54 @@
         window.location.href = '{{ route("admin.calendar") }}?year=' + year;
     });
 
+    jQuery(document).on('change', '#has_working_days', toggleWorkingDaysInputs);
+    jQuery(document).on('input change', '#working_days_count, #start_date, #end_date', function () {
+        validateHolidayWorkingDays();
+    });
+
     // Holiday Functions
     function showAddHolidayModal() {
         jQuery('#holidayModalTitle').text('Add Holiday');
         jQuery('#holidayForm')[0].reset();
         jQuery('#holidayID').val('');
+        jQuery('#has_working_days').prop('checked', false);
+        jQuery('#working_days_count').val('');
+        toggleWorkingDaysInputs();
         new bootstrap.Modal(document.getElementById('holidayModal')).show();
+    }
+
+    function getHolidayTotalDays() {
+        const start = jQuery('#start_date').val();
+        const end = jQuery('#end_date').val();
+        if (!start || !end) return 0;
+        const s = new Date(start + 'T00:00:00');
+        const e = new Date(end + 'T00:00:00');
+        if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) return 0;
+        const diff = Math.floor((e - s) / (1000 * 60 * 60 * 24));
+        return diff + 1;
+    }
+
+    function validateHolidayWorkingDays() {
+        const total = getHolidayTotalDays();
+        jQuery('#holidayTotalDaysLabel').text(total);
+
+        const enabled = jQuery('#has_working_days').is(':checked');
+        const countRaw = jQuery('#working_days_count').val();
+        const count = countRaw === '' ? 0 : parseInt(countRaw, 10);
+        const invalid = enabled && (isNaN(count) || count < 0 || count > total);
+
+        jQuery('#holidayWorkingDaysError').toggleClass('d-none', !invalid);
+        return !invalid;
+    }
+
+    function toggleWorkingDaysInputs() {
+        const enabled = jQuery('#has_working_days').is(':checked');
+        jQuery('#workingDaysCountWrap').toggle(enabled);
+        if (!enabled) {
+            jQuery('#working_days_count').val('');
+            jQuery('#holidayWorkingDaysError').addClass('d-none');
+        }
+        validateHolidayWorkingDays();
     }
 
     function editHoliday(holidayID) {
@@ -769,6 +825,9 @@
                 jQuery('#end_date').val(response.end_date);
                 jQuery('#type').val(response.type);
                 jQuery('#description').val(response.description);
+                jQuery('#has_working_days').prop('checked', response.has_working_days == 1);
+                jQuery('#working_days_count').val(response.working_days_count ?? '');
+                toggleWorkingDaysInputs();
                 new bootstrap.Modal(document.getElementById('holidayModal')).show();
             },
             error: function() {
@@ -778,12 +837,19 @@
     }
 
     function saveHoliday() {
+        if (!validateHolidayWorkingDays()) {
+            Swal.fire('Error', 'Working days count exceeds holiday length.', 'error');
+            return;
+        }
+
         const formData = {
             holiday_name: jQuery('#holiday_name').val(),
             start_date: jQuery('#start_date').val(),
             end_date: jQuery('#end_date').val(),
             type: jQuery('#type').val(),
             description: jQuery('#description').val(),
+            has_working_days: jQuery('#has_working_days').is(':checked') ? 1 : 0,
+            working_days_count: jQuery('#has_working_days').is(':checked') ? (jQuery('#working_days_count').val() || 0) : null,
             _token: jQuery('meta[name="csrf-token"]').attr('content')
         };
 
