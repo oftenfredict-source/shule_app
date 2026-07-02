@@ -821,8 +821,10 @@
                 jQuery('#holidayModalTitle').text('Edit Holiday');
                 jQuery('#holidayID').val(response.holidayID);
                 jQuery('#holiday_name').val(response.holiday_name);
-                jQuery('#start_date').val(response.start_date);
-                jQuery('#end_date').val(response.end_date);
+                const startDate = response && response.start_date ? String(response.start_date).slice(0, 10) : '';
+                const endDate = response && response.end_date ? String(response.end_date).slice(0, 10) : '';
+                jQuery('#start_date').val(startDate);
+                jQuery('#end_date').val(endDate);
                 jQuery('#type').val(response.type);
                 jQuery('#description').val(response.description);
                 const hasWorking = response && (response.has_working_days === true || response.has_working_days == 1);
