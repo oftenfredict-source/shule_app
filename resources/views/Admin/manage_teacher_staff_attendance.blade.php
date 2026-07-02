@@ -139,7 +139,7 @@
         <div class="tab-pane fade show active" id="ts-live" role="tabpanel">
             <div class="attendance-device-bar mb-3">
                 <div class="row align-items-end">
-                    <div class="col-md-4">
+                    <div class="col-md-4" style="display:none;">
                         <label for="tsLiveDeviceSelect" class="mb-1 text-primary-custom fw-bold">
                             <i class="bi bi-router"></i> Fingerprint Device
                         </label>
@@ -162,7 +162,7 @@
                     </div>
                     <div class="col-md-4 d-flex align-items-center justify-content-end gap-2 flex-wrap">
                         <span class="badge bg-secondary" id="tsLiveStatusBadge">
-                            <i class="bi bi-circle-fill"></i> Select device
+                            <i class="bi bi-circle-fill"></i> Waiting Local Agent
                         </span>
                         <button type="button" class="btn btn-sm btn-secondary d-none" id="tsStopLive" title="Pause live updates">
                             <i class="bi bi-stop-circle"></i> Stop
@@ -173,8 +173,8 @@
             </div>
             <div id="tsLiveContent">
                 <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle"></i> Select a fingerprint device — live updates start automatically (about every 6 seconds).
-                    Sign-in and sign-out appear without clicking Sync Now.
+                    <i class="bi bi-info-circle"></i> Live attendance updates zinapokelewa kutoka Local Agent (school LAN).
+                    Ukipiga kidole kwenye kifaa, jina na status itaonekana hapa moja kwa moja.
                 </div>
             </div>
         </div>
@@ -441,7 +441,7 @@
                 .html('<i class="bi bi-circle-fill"></i> Paused');
         } else {
             $badge.removeClass('bg-success bg-warning').addClass('bg-secondary')
-                .html('<i class="bi bi-circle-fill"></i> Select device');
+                .html('<i class="bi bi-circle-fill"></i> Waiting Local Agent');
         }
     }
 
@@ -528,7 +528,7 @@
             restoreOrDefault($('#tsLiveDeviceSelect'), liveCurrent);
             restoreOrDefault($('#tsSyncDeviceSelect'), syncCurrent);
 
-            if (getSelectedLiveDeviceId() && isTsLiveTabActive() && !tsLiveStopped) {
+            if (isTsLiveTabActive() && !tsLiveStopped) {
                 startTsLivePolling();
             }
         }).fail(function () {
@@ -553,7 +553,7 @@
         meta = meta || {};
         var msg = meta.deviceFailed
             ? 'Device haipatikani. Hakuna rekodi za leo kwenye database bado.'
-            : 'Hakuna attendance ya leo bado. Weka kidole — itaonekana hapa moja kwa moja.';
+            : 'Hakuna attendance ya leo bado. Subiri Local Agent itume data baada ya mtu kuweka kidole.';
         $('#tsLiveContent').html(
             '<div class="alert ' + (meta.deviceFailed ? 'alert-warning' : 'alert-info') + ' mb-0">' +
             '<i class="bi bi-info-circle"></i> ' + msg +
@@ -625,13 +625,6 @@
         var isBackground = !showLoader;
         var hasTable = $container.find('table').length > 0;
 
-        if (!deviceId) {
-            $container.html('<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle"></i> Chagua fingerprint device — Live itaanza moja kwa moja.</div>');
-            updateLiveBadge('select');
-            if (onComplete) onComplete(false);
-            return;
-        }
-
         if (showLoader && !hasTable) {
             $container.html('<div class="text-center py-4"><div class="spinner-border text-primary-custom"></div>' +
                 '<p class="mt-2 mb-0">Loading live attendance...</p></div>');
@@ -648,15 +641,13 @@
         }
 
         var ajaxOptions = {
-            url: '{{ route("zkteco.attendance.teacher-staff-live-today") }}',
+            url: '{{ route("zkteco.attendance.teacher-staff-live-today-from-db") }}',
             type: 'GET',
             data: {
-                device_id: deviceId,
-                db_only: dbOnly ? 1 : 0,
                 person_type: getPersonTypeFilter()
             },
             dataType: 'json',
-            timeout: dbOnly ? 10000 : 45000
+            timeout: 15000
         };
 
         var xhr = $.ajax(ajaxOptions);
@@ -729,16 +720,8 @@
             return;
         }
 
-        if (!getSelectedLiveDeviceId()) {
-            tsPendingLiveStart = true;
-            updateLiveBadge('select');
-            $('#tsLiveContent').html('<div class="alert alert-info mb-0"><i class="bi bi-info-circle"></i> Select a fingerprint device — live updates start automatically.</div>');
-            return;
-        }
-
         tsPendingLiveStart = false;
         tsLiveStopped = false;
-        tsLastDeviceSyncAt = 0;
         tsLiveHasData = false;
 
         if (tsLiveInterval) clearInterval(tsLiveInterval);
@@ -750,11 +733,6 @@
         updateLiveBadge('live');
 
         loadTsLiveAttendance(true, false);
-        setTimeout(function () {
-            if (isTsLiveTabActive() && !tsLiveStopped) {
-                syncTsDeviceInBackground(true);
-            }
-        }, 800);
 
         tsLiveInterval = setInterval(function () {
             if (!isTsLiveTabActive() || tsLiveStopped) {
@@ -762,13 +740,6 @@
             }
             pollTsDbInBackground();
         }, LIVE_DB_POLL_MS);
-
-        tsDeviceSyncInterval = setInterval(function () {
-            if (!isTsLiveTabActive() || tsLiveStopped || tsManualSyncActive) {
-                return;
-            }
-            syncTsDeviceInBackground(false);
-        }, LIVE_DEVICE_SYNC_MS);
     }
 
     function loadTsSavedRecords(page) {
@@ -1368,31 +1339,20 @@
 
         $('#tsLiveDeviceSelect').on('change', function () {
             tsLiveStopped = false;
-            if (getSelectedLiveDeviceId()) {
-                startTsLivePolling();
-            } else {
-                stopTsLivePolling(true);
-                updateLiveBadge('select');
-            }
+            startTsLivePolling();
         });
 
         $('#tsPersonTypeFilter').on('change', function () {
-            if (isTsLiveTabActive() && getSelectedLiveDeviceId() && !tsLiveStopped) {
+            if (isTsLiveTabActive() && !tsLiveStopped) {
                 pollTsDbInBackground();
-                syncTsDeviceInBackground(true);
             }
         });
 
         $('#tsStopLive').on('click', function () { stopTsLivePolling(true); });
 
         $('#tsSyncLiveNow').on('click', function () {
-            if (!getSelectedLiveDeviceId()) {
-                Swal.fire('Error', 'Please select a fingerprint device first.', 'error');
-                return;
-            }
             tsManualSyncActive = true;
-            syncTsDeviceInBackground(true);
-            pollTsDbInBackground();
+            loadTsLiveAttendance(true, false);
             setTimeout(function () { tsManualSyncActive = false; }, 3000);
         });
 

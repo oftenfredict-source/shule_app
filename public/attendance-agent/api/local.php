@@ -35,6 +35,19 @@ switch ($action) {
         echo json_encode($result);
         break;
 
+    case 'environment_check':
+        echo json_encode([
+            'success' => true,
+            'message' => 'Environment check complete.',
+            'diagnostics' => sx_zkteco_environment_diagnostics(),
+        ]);
+        break;
+
+    case 'pull_today_attendance':
+        $result = sx_zkteco_pull_today_attendance($ip, $port, $commKey);
+        echo json_encode($result);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Unknown action.']);

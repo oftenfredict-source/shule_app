@@ -11,6 +11,8 @@ if (!is_file($configPath)) {
 
 $config = require $configPath;
 
+require_once __DIR__ . '/school_settings.php';
+
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_name($config['session_name'] ?? 'sx_fingerprint_agent');
     $cookiePath = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/attendance-agent'));
@@ -25,6 +27,8 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     ]);
     session_start();
 }
+
+sx_apply_school_settings_to_config();
 
 function sx_config(string $key, $default = null)
 {

@@ -620,6 +620,183 @@ select.form-control {
   margin-bottom: 12px;
 }
 
+.ts-live-intro {
+  font-size: 13px;
+  color: #666;
+  margin: 0 0 14px;
+}
+
+.ts-live-toolbar {
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ts-live-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.live-status-badge.waiting {
+  background: #eef1f4;
+  color: #666;
+}
+
+.live-status-badge.listening {
+  background: #e9f7ef;
+  color: #1e7e45;
+}
+
+.live-status-badge.listening i {
+  animation: pulse-dot 1.2s infinite;
+}
+
+.live-status-badge.error {
+  background: #fdecec;
+  color: #a12626;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.ts-live-waiting {
+  text-align: center;
+  padding: 40px 20px;
+  color: #888;
+  border: 1px dashed #d9dee3;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+.ts-live-waiting i {
+  font-size: 36px;
+  color: var(--brand);
+  margin-bottom: 10px;
+}
+
+.ts-live-feed {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ts-live-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid #e3e8ee;
+  background: #fff;
+}
+
+.ts-live-event.latest {
+  border-color: #9fd4b0;
+  background: #f3fbf6;
+}
+
+.ts-live-event.unknown {
+  border-color: #f0d9a8;
+  background: #fffaf0;
+}
+
+.ts-live-event-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ts-live-event-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ts-live-event-name {
+  font-weight: 700;
+  color: var(--brand);
+  font-size: 15px;
+}
+
+.ts-live-event-meta {
+  font-size: 13px;
+  color: #555;
+  margin-top: 4px;
+}
+
+.ts-live-event-sent {
+  font-size: 12px;
+  color: #1e7e45;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.ts-live-event-sent.failed {
+  color: #a12626;
+}
+
+.sx-global-loading {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.82);
+  z-index: 3000;
+  align-items: center;
+  justify-content: center;
+}
+
+.sx-global-loading.show {
+  display: flex;
+}
+
+.sx-global-loading-inner {
+  text-align: center;
+  color: var(--brand);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.sx-global-loading-inner i {
+  display: block;
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.sx-modal-loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.sx-modal-body {
+  position: relative;
+}
+
 @media (max-width: 720px) {
   .sx-form-grid {
     grid-template-columns: 1fr;

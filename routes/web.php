@@ -3434,6 +3434,13 @@ Route::get("zkteco/attendance/teacher-staff-live-today", [
     ZKTecoController::class,
     "syncLiveTeacherStaffAttendanceToday",
 ])->name("zkteco.attendance.teacher-staff-live-today");
+
+// Live teacher/staff attendance for Today when device sync happens on local LAN agent.
+// This endpoint only reads from database.
+Route::get("zkteco/attendance/teacher-staff-live-today-from-db", [
+    ZKTecoController::class,
+    "getTeacherStaffLiveTodayFromDb",
+])->name("zkteco.attendance.teacher-staff-live-today-from-db");
 Route::post("zkteco/attendance/teacher-staff-sync", [
     ZKTecoController::class,
     "syncTeacherStaffAttendanceFromDevice",

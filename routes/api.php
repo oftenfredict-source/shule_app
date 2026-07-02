@@ -4,6 +4,7 @@ use App\Http\Controllers\ApiController;
 use App\Http\Controllers\AttendanceApiController;
 use App\Http\Controllers\AccomodationController;
 use App\Http\Controllers\SchoolAgentDeviceController;
+use App\Http\Controllers\SchoolAgentAttendanceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -36,6 +37,10 @@ Route::middleware('school.agent')->prefix('school-agent')->group(function () {
     Route::get('/devices/{id}', [SchoolAgentDeviceController::class, 'show'])->name('api.school_agent.devices.show');
     Route::put('/devices/{id}', [SchoolAgentDeviceController::class, 'update'])->name('api.school_agent.devices.update');
     Route::delete('/devices/{id}', [SchoolAgentDeviceController::class, 'destroy'])->name('api.school_agent.devices.destroy');
+
+    // Local attendance-agent (school LAN PC) ingests teacher/staff live punches here.
+    Route::post('/attendance/teacher-staff-live', [SchoolAgentAttendanceController::class, 'ingestTeacherStaffLive'])
+        ->name('api.school_agent.attendance.teacher_staff_live.ingest');
 });
 
 // User profile endpoint

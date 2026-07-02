@@ -1,0 +1,15 @@
+{
+    "name": "shulexpert/attendance-agent",
+    "description": "Standalone school LAN agent for ZKTeco fingerprint devices and ShuleXpert API sync",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.2",
+        "coding-libs/zkteco-php": "^0.0.34",
+        "ext-sockets": "*"
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true
+    }
+}

@@ -23,9 +23,9 @@ return [
       'web_url' => 'https://test.shulexpert.com/',
     ],
     'local' => [
-      'label' => 'Local Development',
-      'api_base' => 'http://127.0.0.1:8003/api',
-      'web_url' => 'http://127.0.0.1:8003/',
+      'label' => 'Local',
+      'api_base' => 'http://192.168.100.70/api',
+      'web_url' => 'http://192.168.100.70/',
     ],
   ],
   'session_name' => 'sx_fingerprint_agent',

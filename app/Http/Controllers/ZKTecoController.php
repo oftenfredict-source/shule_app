@@ -2269,6 +2269,38 @@ class ZKTecoController extends Controller
     }
 
     /**
+     * Live teacher/staff attendance for Today (DB only).
+     * Used when device sync is done by a local agent (LAN) and this server only receives updates.
+     */
+    public function getTeacherStaffLiveTodayFromDb(Request $request)
+    {
+        $request->validate([
+            'person_type' => 'nullable|in:all,teacher,staff',
+        ]);
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'School session not found. Please refresh the page or log in again.',
+            ], 403);
+        }
+
+        $schoolID = (int) $schoolID;
+        $today = Carbon::today()->toDateString();
+
+        $personTypeFilter = (string) $request->input('person_type', 'all');
+
+        return $this->getLiveTeacherStaffAttendanceTodayFromDB(
+            $schoolID,
+            $today,
+            false,
+            [],
+            $personTypeFilter
+        );
+    }
+
+    /**
      * Sync ALL teacher/staff attendance logs from device into database.
      * Skips records already saved (teacher + date) — safe for offline devices with months of logs.
      */
