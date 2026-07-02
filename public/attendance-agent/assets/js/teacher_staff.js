@@ -1,13 +1,15 @@
 (function () {
     'use strict';
 
-    var LIVE_POLL_MS = 4000;
+    var LIVE_POLL_GAP_MS = 400;
     var tsDevices = [];
-    var liveInterval = null;
+    var livePollTimer = null;
     var seenPunches = {};
     var liveFeedItems = [];
     var pollInFlight = false;
     var liveStopped = false;
+    var sendQueue = [];
+    var sendInFlight = false;
 
     function $(id) { return document.getElementById(id); }
 
@@ -196,6 +198,37 @@
             });
     }
 
+    function queuePunchesForLive(device, punches) {
+        punches.forEach(function (p) {
+            prependFeedItem({
+                user_id: p.user_id,
+                user_name: 'Enroll ID ' + p.user_id,
+                record_time: p.record_time,
+                action: 'Detected',
+                sent_ok: true,
+                message: 'Sending to live system...'
+            });
+            sendQueue.push({ device: device, punch: p });
+        });
+        drainSendQueue();
+    }
+
+    function drainSendQueue() {
+        if (sendInFlight || !sendQueue.length) {
+            return;
+        }
+
+        sendInFlight = true;
+        var item = sendQueue.shift();
+
+        sendPunchesToLive(item.device, [item.punch])
+            .catch(function () { /* feed already shows attempt */ })
+            .finally(function () {
+                sendInFlight = false;
+                drainSendQueue();
+            });
+    }
+
     function sendPunchesToLive(device, punches) {
         return postJson(window.SX_AGENT.attendanceApi, {
             action: 'ingest_teacher_staff_live',
@@ -220,6 +253,9 @@
             var events = data.events || [];
             if (events.length) {
                 events.forEach(function (ev) {
+                    if (ev.skipped) {
+                        return;
+                    }
                     prependFeedItem({
                         user_id: ev.user_id,
                         user_name: ev.user_name || ('ID ' + ev.user_id),
@@ -229,17 +265,6 @@
                         matched: ev.matched !== false,
                         sent_ok: ev.matched !== false,
                         message: ev.message || 'Sent to live system'
-                    });
-                });
-            } else {
-                punches.forEach(function (p) {
-                    prependFeedItem({
-                        user_id: p.user_id,
-                        user_name: 'Enroll ID ' + p.user_id,
-                        record_time: p.record_time,
-                        action: 'Recorded',
-                        sent_ok: true,
-                        message: data.message || 'Sent to live system'
                     });
                 });
             }
@@ -292,7 +317,7 @@
                 saveSeenPunches();
 
                 if (newPunches.length) {
-                    return sendPunchesToLive(device, newPunches);
+                    queuePunchesForLive(device, newPunches);
                 }
             })
             .catch(function () {
@@ -300,6 +325,7 @@
             })
             .finally(function () {
                 pollInFlight = false;
+                scheduleNextPoll();
             });
     }
 
@@ -321,12 +347,29 @@
         });
     }
 
+    function scheduleNextPoll() {
+        if (livePollTimer) {
+            clearTimeout(livePollTimer);
+            livePollTimer = null;
+        }
+
+        if (liveStopped || !isTsLivePanelActive() || !isTsLiveSubtabActive()) {
+            return;
+        }
+
+        livePollTimer = setTimeout(function () {
+            pollDeviceOnce();
+        }, LIVE_POLL_GAP_MS);
+    }
+
     function stopLiveListening() {
         liveStopped = true;
-        if (liveInterval) {
-            clearInterval(liveInterval);
-            liveInterval = null;
+        if (livePollTimer) {
+            clearTimeout(livePollTimer);
+            livePollTimer = null;
         }
+        sendQueue = [];
+        sendInFlight = false;
         updateLiveBadge('waiting', 'Stopped');
         var stopBtn = $('tsStopLiveBtn');
         if (stopBtn) stopBtn.style.display = 'none';
@@ -352,12 +395,6 @@
 
         seedSeenFromDevice().then(function () {
             pollDeviceOnce();
-            if (liveInterval) clearInterval(liveInterval);
-            liveInterval = setInterval(function () {
-                if (!liveStopped && isTsLivePanelActive() && isTsLiveSubtabActive()) {
-                    pollDeviceOnce();
-                }
-            }, LIVE_POLL_MS);
         });
     }
 

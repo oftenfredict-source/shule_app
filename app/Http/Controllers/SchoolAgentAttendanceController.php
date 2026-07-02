@@ -15,14 +15,7 @@ class SchoolAgentAttendanceController extends Controller
 {
     /**
      * Local attendance-agent sends live punches (teacher + staff) here.
-     *
-     * Payload:
-     * {
-     *   "device_ip": "192.168.100.10",
-     *   "punches": [
-     *     { "user_id": 5, "record_time": "2026-07-02 08:10:00", "type": "Fingerprint" }
-     *   ]
-     * }
+     * Each punch is applied in order: 1st of the day = Sign In, 2nd = Sign Out.
      */
     public function ingestTeacherStaffLive(Request $request)
     {
@@ -45,243 +38,243 @@ class SchoolAgentAttendanceController extends Controller
         ]);
 
         $deviceIpTop = trim((string) ($validated['device_ip'] ?? ''));
-        $punches = $validated['punches'] ?? [];
-
         $peopleMap = $this->getTeacherStaffPeopleMap($schoolID);
 
-        // Group by person + date so we can reuse first/second logic.
-        $groups = [];
-        $unknownPunches = [];
-
-        foreach ($punches as $p) {
-            $userId = (int) ($p['user_id'] ?? 0);
-            $recordTime = Carbon::parse((string) ($p['record_time'] ?? ''));
-            $recordDate = $recordTime->toDateString();
-
-            $entry = $peopleMap[$userId] ?? null;
-            if (!$entry) {
-                $unknownPunches[] = [
-                    'user_id' => $userId,
-                    'record_time' => $recordTime->format('Y-m-d H:i:s'),
-                    'matched' => false,
-                    'message' => 'Enroll ID not found in school teachers/staff.',
-                ];
-                continue;
-            }
-
-            $personType = $entry['type']; // teacher|staff
-            $person = $entry['model'];    // Teacher|OtherStaff
-            $key = $personType . '_' . (int) $person->id . '_' . $recordDate;
-
-            if (!isset($groups[$key])) {
-                $groups[$key] = [
-                    'person_type' => $personType,
-                    'person' => $person,
-                    'date' => $recordDate,
-                    'records' => [],
-                ];
-            }
-
-            $groups[$key]['records'][] = [
-                'time' => $recordTime,
+        $normalized = [];
+        foreach ($validated['punches'] as $p) {
+            $normalized[] = [
+                'user_id' => (int) ($p['user_id'] ?? 0),
+                'record_time' => Carbon::parse((string) ($p['record_time'] ?? '')),
                 'type' => (string) ($p['type'] ?? 'Fingerprint'),
                 'device_ip' => trim((string) ($p['device_ip'] ?? $deviceIpTop)),
             ];
         }
 
-        if (empty($groups)) {
-            return response()->json([
-                'success' => true,
-                'message' => 'No matching teacher/staff found for the sent punches.',
-                'processed_groups' => 0,
-                'saved_groups' => 0,
-                'events' => $unknownPunches,
-            ]);
-        }
+        usort($normalized, function ($a, $b) {
+            if ($a['record_time']->eq($b['record_time'])) {
+                return 0;
+            }
 
+            return $a['record_time']->lt($b['record_time']) ? -1 : 1;
+        });
+
+        $events = [];
         $syncedCount = 0;
         $updatedCount = 0;
-        $events = $unknownPunches;
 
-        foreach ($groups as $group) {
-            $records = $group['records'];
-            if (count($records) < 1) {
+        foreach ($normalized as $punch) {
+            $event = $this->applySingleLivePunch($peopleMap, $punch, $deviceIpTop);
+            if ($event === null) {
                 continue;
             }
 
-            usort($records, function ($a, $b) {
-                if ($a['time']->eq($b['time'])) return 0;
-                return $a['time']->lt($b['time']) ? -1 : 1;
-            });
-
-            $firstRecord = $records[0];
-            $secondRecord = count($records) >= 2 ? $records[1] : null;
-
-            $checkIn = $firstRecord['time']->format('Y-m-d H:i:s');
-            $checkOut = $secondRecord ? $secondRecord['time']->format('Y-m-d H:i:s') : null;
-            $verifyMode = $firstRecord['type'] ?? 'Fingerprint';
-            $resolvedDeviceIp = $firstRecord['device_ip'] ?? ($deviceIpTop !== '' ? $deviceIpTop : null);
-
-            $personType = $group['person_type'];
-            $person = $group['person'];
-            $recordDate = $group['date'];
-
-            if ($personType === 'teacher') {
-                /** @var Teacher $person */
-                $existing = TeacherFingerprintAttendance::where('teacherID', $person->id)
-                    ->whereDate('attendance_date', $recordDate)
-                    ->first();
-
-                if ($existing && $existing->check_in_time) {
-                    $existingIn = Carbon::parse($existing->check_in_time);
-                    if ($existingIn->lt($firstRecord['time'])) {
-                        $checkIn = $existingIn->format('Y-m-d H:i:s');
-                    }
-                }
-
-                if (!$checkOut && $existing && $existing->check_out_time) {
-                    $checkOut = $existing->check_out_time->format('Y-m-d H:i:s');
-                }
-
-                $teacherName = trim(($person->first_name ?? '') . ' ' . ($person->middle_name ?? '') . ' ' . ($person->last_name ?? ''));
-                $status = $checkOut ? 1 : 0;
-
-                $wasExisting = (bool) $existing;
-                TeacherFingerprintAttendance::updateOrCreate(
-                    [
-                        'teacherID' => $person->id,
-                        'attendance_date' => $recordDate,
-                    ],
-                    [
-                        'user_id' => $person->id,
-                        'user_name' => $teacherName !== '' ? $teacherName : 'N/A',
-                        'enroll_id' => $person->fingerprint_id ?? $person->id,
-                        'check_in_time' => $checkIn,
-                        'check_out_time' => $checkOut,
-                        'status' => $status,
-                        'verify_mode' => $verifyMode,
-                        'device_ip' => $resolvedDeviceIp,
-                    ]
-                );
-
-                if ($wasExisting) {
-                    $updatedCount++;
-                } else {
+            $events[] = $event;
+            if (!empty($event['matched'])) {
+                if (!empty($event['created'])) {
                     $syncedCount++;
-                }
-
-                foreach ($records as $rec) {
-                    $events[] = $this->buildLiveEventFromRecord(
-                        'teacher',
-                        $person,
-                        $rec['time'],
-                        $checkIn,
-                        $checkOut
-                    );
-                }
-                continue;
-            }
-
-            if ($personType === 'staff') {
-                /** @var OtherStaff $person */
-                $existing = StaffFingerprintAttendance::where('staffID', $person->id)
-                    ->whereDate('attendance_date', $recordDate)
-                    ->first();
-
-                if ($existing && $existing->check_in_time) {
-                    $existingIn = Carbon::parse($existing->check_in_time);
-                    if ($existingIn->lt($firstRecord['time'])) {
-                        $checkIn = $existingIn->format('Y-m-d H:i:s');
-                    }
-                }
-
-                if (!$checkOut && $existing && $existing->check_out_time) {
-                    $checkOut = $existing->check_out_time->format('Y-m-d H:i:s');
-                }
-
-                $staffName = trim(($person->first_name ?? '') . ' ' . ($person->middle_name ?? '') . ' ' . ($person->last_name ?? ''));
-                $status = $checkOut ? 1 : 0;
-
-                $wasExisting = (bool) $existing;
-                StaffFingerprintAttendance::updateOrCreate(
-                    [
-                        'staffID' => $person->id,
-                        'attendance_date' => $recordDate,
-                    ],
-                    [
-                        'user_id' => $person->id,
-                        'user_name' => $staffName !== '' ? $staffName : 'N/A',
-                        'enroll_id' => $person->fingerprint_id ?? $person->id,
-                        'check_in_time' => $checkIn,
-                        'check_out_time' => $checkOut,
-                        'status' => $status,
-                        'verify_mode' => $verifyMode,
-                        'device_ip' => $resolvedDeviceIp,
-                    ]
-                );
-
-                if ($wasExisting) {
-                    $updatedCount++;
                 } else {
-                    $syncedCount++;
-                }
-
-                foreach ($records as $rec) {
-                    $events[] = $this->buildLiveEventFromRecord(
-                        'staff',
-                        $person,
-                        $rec['time'],
-                        $checkIn,
-                        $checkOut
-                    );
+                    $updatedCount++;
                 }
             }
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Live teacher/staff punches saved to database.',
-            'processed_groups' => count($groups),
-            'saved_groups' => $syncedCount + $updatedCount,
+            'message' => count($events)
+                ? 'Live attendance updated.'
+                : 'No new punches to save.',
+            'events' => $events,
             'synced' => $syncedCount,
             'updated' => $updatedCount,
-            'events' => $events,
         ]);
     }
 
     /**
-     * @param Teacher|OtherStaff $person
-     * @return array<string, mixed>
+     * @param array<int, array{type:string, model: Teacher|OtherStaff}> $peopleMap
+     * @param array{user_id:int,record_time:Carbon,type:string,device_ip:string} $punch
+     * @return array<string, mixed>|null
      */
-    private function buildLiveEventFromRecord(
-        string $personType,
-        $person,
-        Carbon $punchTime,
-        string $checkIn,
-        ?string $checkOut
-    ): array {
-        $name = trim(($person->first_name ?? '') . ' ' . ($person->middle_name ?? '') . ' ' . ($person->last_name ?? ''));
+    private function applySingleLivePunch(array $peopleMap, array $punch, string $deviceIpTop): ?array
+    {
+        $userId = $punch['user_id'];
+        $punchTime = $punch['record_time'];
+        $recordDate = $punchTime->toDateString();
         $punchFormatted = $punchTime->format('Y-m-d H:i:s');
 
-        $action = 'Sign In';
-        if ($checkOut && $punchFormatted === $checkOut) {
-            $action = 'Sign Out';
-        } elseif ($checkIn && $punchFormatted !== $checkIn && $checkOut) {
-            $action = 'Sign Out';
+        $entry = $peopleMap[$userId] ?? null;
+        if (!$entry) {
+            return [
+                'matched' => false,
+                'user_id' => $userId,
+                'record_time' => $punchFormatted,
+                'action' => 'Unknown',
+                'message' => 'Enroll ID not found in school teachers/staff.',
+            ];
         }
 
-        $statusLabel = $checkOut ? 'Complete' : 'Check In Only';
+        $personType = $entry['type'];
+        /** @var Teacher|OtherStaff $person */
+        $person = $entry['model'];
+        $name = trim(($person->first_name ?? '') . ' ' . ($person->middle_name ?? '') . ' ' . ($person->last_name ?? ''));
+        $verifyMode = $punch['type'] ?: 'Fingerprint';
+        $resolvedDeviceIp = $punch['device_ip'] !== '' ? $punch['device_ip'] : ($deviceIpTop !== '' ? $deviceIpTop : null);
+
+        if ($personType === 'teacher') {
+            return $this->applyTeacherLivePunch($person, $recordDate, $punchTime, $punchFormatted, $name, $verifyMode, $resolvedDeviceIp);
+        }
+
+        return $this->applyStaffLivePunch($person, $recordDate, $punchTime, $punchFormatted, $name, $verifyMode, $resolvedDeviceIp);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function applyTeacherLivePunch(
+        Teacher $person,
+        string $recordDate,
+        Carbon $punchTime,
+        string $punchFormatted,
+        string $name,
+        string $verifyMode,
+        ?string $deviceIp
+    ): array {
+        $existing = TeacherFingerprintAttendance::where('teacherID', $person->id)
+            ->whereDate('attendance_date', $recordDate)
+            ->first();
+
+        $action = 'Sign In';
+        $created = false;
+
+        if (!$existing || !$existing->check_in_time) {
+            TeacherFingerprintAttendance::updateOrCreate(
+                ['teacherID' => $person->id, 'attendance_date' => $recordDate],
+                [
+                    'user_id' => $person->id,
+                    'user_name' => $name !== '' ? $name : 'N/A',
+                    'enroll_id' => $person->fingerprint_id ?? $person->id,
+                    'check_in_time' => $punchFormatted,
+                    'check_out_time' => null,
+                    'status' => 0,
+                    'verify_mode' => $verifyMode,
+                    'device_ip' => $deviceIp,
+                ]
+            );
+            $created = !$existing;
+        } elseif (!$existing->check_out_time) {
+            $checkIn = Carbon::parse($existing->check_in_time);
+            if ($punchTime->lte($checkIn)) {
+                return $this->skipEvent('teacher', $person, $punchFormatted, $name, 'Duplicate punch ignored.');
+            }
+
+            $existing->update([
+                'check_out_time' => $punchFormatted,
+                'status' => 1,
+                'verify_mode' => $verifyMode,
+                'device_ip' => $deviceIp ?? $existing->device_ip,
+            ]);
+            $action = 'Sign Out';
+        } else {
+            return $this->skipEvent('teacher', $person, $punchFormatted, $name, 'Day already complete (Sign In + Sign Out).');
+        }
+
+        $hasCheckOut = $action === 'Sign Out';
 
         return [
             'matched' => true,
-            'person_type' => $personType,
+            'created' => $created,
+            'person_type' => 'teacher',
             'user_id' => (int) $person->id,
             'user_name' => $name !== '' ? $name : 'N/A',
             'record_time' => $punchFormatted,
             'action' => $action,
-            'status' => $statusLabel,
+            'status' => $hasCheckOut ? 'Complete' : 'Check In Only',
             'sent_to_live' => true,
             'message' => 'Sent to live system',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function applyStaffLivePunch(
+        OtherStaff $person,
+        string $recordDate,
+        Carbon $punchTime,
+        string $punchFormatted,
+        string $name,
+        string $verifyMode,
+        ?string $deviceIp
+    ): array {
+        $existing = StaffFingerprintAttendance::where('staffID', $person->id)
+            ->whereDate('attendance_date', $recordDate)
+            ->first();
+
+        $action = 'Sign In';
+        $created = false;
+
+        if (!$existing || !$existing->check_in_time) {
+            StaffFingerprintAttendance::updateOrCreate(
+                ['staffID' => $person->id, 'attendance_date' => $recordDate],
+                [
+                    'user_id' => $person->id,
+                    'user_name' => $name !== '' ? $name : 'N/A',
+                    'enroll_id' => $person->fingerprint_id ?? $person->id,
+                    'check_in_time' => $punchFormatted,
+                    'check_out_time' => null,
+                    'status' => 0,
+                    'verify_mode' => $verifyMode,
+                    'device_ip' => $deviceIp,
+                ]
+            );
+            $created = !$existing;
+        } elseif (!$existing->check_out_time) {
+            $checkIn = Carbon::parse($existing->check_in_time);
+            if ($punchTime->lte($checkIn)) {
+                return $this->skipEvent('staff', $person, $punchFormatted, $name, 'Duplicate punch ignored.');
+            }
+
+            $existing->update([
+                'check_out_time' => $punchFormatted,
+                'status' => 1,
+                'verify_mode' => $verifyMode,
+                'device_ip' => $deviceIp ?? $existing->device_ip,
+            ]);
+            $action = 'Sign Out';
+        } else {
+            return $this->skipEvent('staff', $person, $punchFormatted, $name, 'Day already complete (Sign In + Sign Out).');
+        }
+
+        $hasCheckOut = $action === 'Sign Out';
+
+        return [
+            'matched' => true,
+            'created' => $created,
+            'person_type' => 'staff',
+            'user_id' => (int) $person->id,
+            'user_name' => $name !== '' ? $name : 'N/A',
+            'record_time' => $punchFormatted,
+            'action' => $action,
+            'status' => $hasCheckOut ? 'Complete' : 'Check In Only',
+            'sent_to_live' => true,
+            'message' => 'Sent to live system',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function skipEvent(string $personType, $person, string $punchFormatted, string $name, string $message): array
+    {
+        return [
+            'matched' => true,
+            'created' => false,
+            'skipped' => true,
+            'person_type' => $personType,
+            'user_id' => (int) $person->id,
+            'user_name' => $name !== '' ? $name : 'N/A',
+            'record_time' => $punchFormatted,
+            'action' => 'Ignored',
+            'message' => $message,
         ];
     }
 
@@ -311,4 +304,3 @@ class SchoolAgentAttendanceController extends Controller
         return $map;
     }
 }
-

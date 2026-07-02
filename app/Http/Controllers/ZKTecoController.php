@@ -2472,9 +2472,10 @@ class ZKTecoController extends Controller
         $fingerprintId = $teacher->fingerprint_id ?? $teacher->id;
 
         $isNew = false;
-        if ($record->check_in_time) {
-            $checkInTime = Carbon::parse($record->check_in_time);
-            $isNew = $checkInTime->diffInMinutes(Carbon::now()) <= 10;
+        if ($record->check_out_time) {
+            $isNew = Carbon::parse($record->check_out_time)->diffInMinutes(Carbon::now()) <= 10;
+        } elseif ($record->check_in_time) {
+            $isNew = Carbon::parse($record->check_in_time)->diffInMinutes(Carbon::now()) <= 10;
         }
 
         return [
@@ -2503,9 +2504,10 @@ class ZKTecoController extends Controller
         $fingerprintId = $staff->fingerprint_id ?? $staff->id;
 
         $isNew = false;
-        if ($record->check_in_time) {
-            $checkInTime = Carbon::parse($record->check_in_time);
-            $isNew = $checkInTime->diffInMinutes(Carbon::now()) <= 10;
+        if ($record->check_out_time) {
+            $isNew = Carbon::parse($record->check_out_time)->diffInMinutes(Carbon::now()) <= 10;
+        } elseif ($record->check_in_time) {
+            $isNew = Carbon::parse($record->check_in_time)->diffInMinutes(Carbon::now()) <= 10;
         }
 
         return [

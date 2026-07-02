@@ -392,7 +392,7 @@
 
 <script>
 (function () {
-    var LIVE_DB_POLL_MS = 3000;
+    var LIVE_DB_POLL_MS = 2000;
     var LIVE_DEVICE_SYNC_MS = 6000;
     var tsLastDeviceSyncAt = 0;
     var tsLiveInterval = null;

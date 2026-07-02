@@ -84,27 +84,31 @@ function sx_device_port_open(string $ip, int $port, int $timeout = 5): array
 /**
  * @return array{client?:object,message:string}
  */
-function sx_zkteco_connect(string $ip, int $port, int $password): array
+function sx_zkteco_connect(string $ip, int $port, int $password, bool $fast = false): array
 {
     $lastMessage = 'Failed to connect to device.';
+    $timeouts = $fast ? [8] : [20];
+    $pingModes = $fast ? [false] : [false, true];
 
-    foreach ([false, true] as $shouldPing) {
-        try {
-            $client = new \CodingLibs\ZktecoPhp\Libs\ZKTeco(
-                ip: $ip,
-                port: $port,
-                shouldPing: $shouldPing,
-                timeout: 20,
-                password: $password
-            );
+    foreach ($pingModes as $shouldPing) {
+        foreach ($timeouts as $timeout) {
+            try {
+                $client = new \CodingLibs\ZktecoPhp\Libs\ZKTeco(
+                    ip: $ip,
+                    port: $port,
+                    shouldPing: $shouldPing,
+                    timeout: $timeout,
+                    password: $password
+                );
 
-            if ($client->connect()) {
-                return ['client' => $client, 'message' => ''];
+                if ($client->connect()) {
+                    return ['client' => $client, 'message' => ''];
+                }
+
+                $lastMessage = 'Device did not accept the connection. Verify Comm Key (usually 0) and device IP.';
+            } catch (\Throwable $e) {
+                $lastMessage = $e->getMessage();
             }
-
-            $lastMessage = 'Device did not accept the connection. Verify Comm Key (usually 0) and device IP.';
-        } catch (\Throwable $e) {
-            $lastMessage = $e->getMessage();
         }
     }
 
@@ -253,13 +257,13 @@ function sx_zkteco_pull_today_attendance(string $ip, int $port, string $commKey)
         return ['success' => false, 'message' => sx_zkteco_library_missing_message()];
     }
 
-    $portCheck = sx_device_port_open($ip, $port, 8);
+    $portCheck = sx_device_port_open($ip, $port, 4);
     if (!$portCheck['ok']) {
         return ['success' => false, 'message' => $portCheck['message']];
     }
 
     $password = is_numeric($commKey) ? (int) $commKey : 0;
-    $connected = sx_zkteco_connect($ip, $port, $password);
+    $connected = sx_zkteco_connect($ip, $port, $password, true);
 
     if (empty($connected['client'])) {
         return ['success' => false, 'message' => $connected['message']];
