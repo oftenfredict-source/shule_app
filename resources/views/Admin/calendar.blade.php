@@ -825,8 +825,13 @@
                 jQuery('#end_date').val(response.end_date);
                 jQuery('#type').val(response.type);
                 jQuery('#description').val(response.description);
-                jQuery('#has_working_days').prop('checked', response.has_working_days == 1);
-                jQuery('#working_days_count').val(response.working_days_count ?? '');
+                const hasWorking = response && (response.has_working_days === true || response.has_working_days == 1);
+                jQuery('#has_working_days').prop('checked', !!hasWorking);
+
+                const wdc = (response && response.working_days_count !== null && response.working_days_count !== undefined)
+                    ? response.working_days_count
+                    : '';
+                jQuery('#working_days_count').val(wdc);
                 toggleWorkingDaysInputs();
                 new bootstrap.Modal(document.getElementById('holidayModal')).show();
             },
@@ -849,7 +854,7 @@
             type: jQuery('#type').val(),
             description: jQuery('#description').val(),
             has_working_days: jQuery('#has_working_days').is(':checked') ? 1 : 0,
-            working_days_count: jQuery('#has_working_days').is(':checked') ? (jQuery('#working_days_count').val() || 0) : null,
+            working_days_count: jQuery('#has_working_days').is(':checked') ? (jQuery('#working_days_count').val() || 0) : '',
             _token: jQuery('meta[name="csrf-token"]').attr('content')
         };
 
