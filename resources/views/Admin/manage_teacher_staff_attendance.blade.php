@@ -391,6 +391,7 @@
 
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <script>
 (function () {
@@ -408,6 +409,7 @@
     var tsLiveStopped = false;
     var tsLiveHasData = false;
     var tsSeenEventIds = {};
+    var tsLateEarlyChart = null;
 
     function tsLiveEventsStorageKey() {
         return 'sx_ts_central_events_' + '{{ date("Y-m-d") }}';
@@ -1124,6 +1126,10 @@
     function openTsReportDetail(personType, personId) {
         if (!tsLastReportParams) return;
         destroyTsReportDetailDataTable();
+        if (tsLateEarlyChart) {
+            try { tsLateEarlyChart.destroy(); } catch (e) {}
+            tsLateEarlyChart = null;
+        }
         var params = $.extend({}, tsLastReportParams, {
             person_type: personType,
             person_id: personId
@@ -1166,6 +1172,19 @@
                 }
 
                 html += '<p class="small text-muted">Official time: <strong>' + formatAmPm(res.work_start_time) + ' - ' + formatAmPm(res.work_end_time) + '</strong></p>';
+
+                // Late/Early trend line chart (month/date-range/year only)
+                var filterType = res.filter_type || (tsLastReportParams ? tsLastReportParams.filter_type : '');
+                if (filterType && filterType !== 'day') {
+                    html += '<div class="card border-0 shadow-sm mb-3"><div class="card-body py-3">' +
+                        '<div class="d-flex justify-content-between align-items-center mb-2">' +
+                        '<strong>Late vs Early (daily)</strong>' +
+                        '<small class="text-muted">' + escapeHtml(res.period_label || '') + '</small>' +
+                        '</div>' +
+                        '<div style="height:220px;"><canvas id="tsLateEarlyChart"></canvas></div>' +
+                        '</div></div>';
+                }
+
                 html += '<div class="table-responsive"><table id="tsReportDetailDailyTable" class="table table-sm table-bordered table-striped mb-0 w-100">' +
                     '<thead><tr><th>Date</th><th>Check In</th><th>Check Out</th><th>Status</th></tr></thead><tbody>';
 
@@ -1190,10 +1209,82 @@
                 html += '</tbody></table></div>';
                 $('#tsReportDetailBody').html(html);
                 initTsReportDetailDataTable();
+
+                if (filterType && filterType !== 'day') {
+                    initTsLateEarlyChart(res.daily_records || []);
+                }
             },
             error: function (xhr) {
                 var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Error loading details.';
                 $('#tsReportDetailBody').html('<div class="alert alert-danger mb-0">' + msg + '</div>');
+            }
+        });
+    }
+
+    function initTsLateEarlyChart(dailyRecords) {
+        if (!window.Chart) return;
+        var canvas = document.getElementById('tsLateEarlyChart');
+        if (!canvas) return;
+
+        var labels = [];
+        var latePoints = [];
+        var earlyPoints = [];
+
+        (dailyRecords || []).forEach(function (d) {
+            labels.push((d && d.date_label) ? d.date_label : '');
+            var status = (d && d.status) ? String(d.status) : '';
+            latePoints.push(status === 'Late' ? 1 : 0);
+            earlyPoints.push(status === 'Early' ? 1 : 0);
+        });
+
+        tsLateEarlyChart = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Late',
+                        data: latePoints,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220,53,69,0.15)',
+                        pointRadius: 2,
+                        tension: 0.25,
+                        fill: true
+                    },
+                    {
+                        label: 'Early',
+                        data: earlyPoints,
+                        borderColor: '#0dcaf0',
+                        backgroundColor: 'rgba(13,202,240,0.15)',
+                        pointRadius: 2,
+                        tension: 0.25,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 1,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 10
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: true },
+                    tooltip: { enabled: true }
+                }
             }
         });
     }
