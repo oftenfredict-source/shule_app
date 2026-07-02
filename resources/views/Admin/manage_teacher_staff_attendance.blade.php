@@ -76,65 +76,59 @@
     #tsReportTable thead th { background-color: var(--primary-color) !important; color: #fff !important; white-space: nowrap; }
     #tsReportTable_wrapper .dataTables_filter input { margin-left: 8px; }
     #tsReportDetailDailyTable thead th { background-color: #f8f9fa; white-space: nowrap; }
-    .ts-live-waiting {
-        text-align: center;
-        padding: 28px 16px;
-        border: 1px dashed #e3c5c5;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
-        color: #666;
-    }
-    .ts-live-waiting i { font-size: 36px; color: var(--primary-color); margin-bottom: 10px; display: block; }
-    .ts-live-feed {
+    .ts-toast-container {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 9999;
         display: flex;
         flex-direction: column;
         gap: 10px;
-        margin-bottom: 16px;
+        width: min(360px, calc(100vw - 32px));
+        pointer-events: none;
     }
-    .ts-live-event {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 14px 16px;
-        border-radius: 10px;
-        border: 1px solid #e3e8ee;
+    .ts-toast {
+        pointer-events: auto;
         background: #fff;
+        border: 1px solid #e9ecef;
+        border-left: 5px solid var(--primary-color);
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        padding: 12px 14px;
+        overflow: hidden;
+        animation: tsToastIn 180ms ease-out;
     }
-    .ts-live-event.latest {
-        border-color: #9fd4b0;
-        background: #f3fbf6;
+    @keyframes tsToastIn {
+        from { transform: translateY(-6px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
     }
-    .ts-live-event.unknown {
-        border-color: #f0d9a8;
-        background: #fffaf0;
+    .ts-toast.signout { border-left-color: #198754; }
+    .ts-toast.ready { border-left-color: #0d6efd; }
+    .ts-toast.unknown { border-left-color: #fd7e14; }
+    .ts-toast-title {
+        font-weight: 700;
+        color: #212529;
+        font-size: 14px;
+        margin: 0;
     }
-    .ts-live-event.ready {
-        border-color: #b8d4f0;
-        background: #f0f7ff;
+    .ts-toast-meta {
+        font-size: 12px;
+        color: #666;
+        margin-top: 3px;
     }
-    .ts-live-event-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: var(--primary-color);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        font-size: 18px;
+    .ts-toast-msg {
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 6px;
+        color: #1e7e45;
     }
-    .ts-live-event.ready .ts-live-event-icon { background: #0d6efd; }
-    .ts-live-event.unknown .ts-live-event-icon { background: #fd7e14; }
-    .ts-live-event-body { flex: 1; min-width: 0; }
-    .ts-live-event-name { font-weight: 700; color: var(--primary-color); font-size: 15px; }
-    .ts-live-event-meta { font-size: 13px; color: #555; margin-top: 4px; }
-    .ts-live-event-sent { font-size: 12px; color: #1e7e45; font-weight: 600; margin-top: 6px; }
-    .ts-live-event.ready .ts-live-event-sent { color: #0d6efd; }
-    .ts-live-event.unknown .ts-live-event-sent { color: #b45309; }
+    .ts-toast.ready .ts-toast-msg { color: #0d6efd; }
+    .ts-toast.unknown .ts-toast-msg { color: #b45309; }
 </style>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+
+<div class="ts-toast-container" id="tsToastContainer" aria-live="polite" aria-atomic="true"></div>
 
 <div class="container-fluid" style="padding: 20px;">
     <div class="row mb-3">
@@ -228,13 +222,6 @@
                 </div>
             </div>
             <div id="tsLiveContent">
-                <div id="tsLiveWidgetArea" class="mb-3">
-                    <div id="tsLiveWaiting" class="ts-live-waiting">
-                        <i class="bi bi-fingerprint"></i>
-                        <p class="mb-0">Subiri mtu akiweka kidole — Sign In au Sign Out itaonekana hapa papo hapo.</p>
-                    </div>
-                    <div id="tsLiveFeed" class="ts-live-feed" style="display:none;"></div>
-                </div>
                 <div id="tsLiveTableArea">
                     <div class="alert alert-info mb-0">
                         <i class="bi bi-info-circle"></i> Live attendance updates zinapokelewa kutoka Local Agent (school LAN).
@@ -470,116 +457,94 @@
     var tsDeviceSyncInFlight = false;
     var tsLiveStopped = false;
     var tsLiveHasData = false;
-    var tsLiveFeedItems = [];
-    var tsSeenEventIds = {};
+    var tsSeenToastEventIds = {};
 
-    function tsLiveEventsStorageKey() {
-        return 'sx_ts_central_events_' + '{{ date("Y-m-d") }}';
+    function tsToastStorageKey() {
+        return 'sx_ts_central_toasts_' + '{{ date("Y-m-d") }}';
     }
 
-    function loadTsSeenEventIds() {
+    function loadTsSeenToastIds() {
         try {
-            var raw = sessionStorage.getItem(tsLiveEventsStorageKey());
-            tsSeenEventIds = raw ? JSON.parse(raw) : {};
+            var raw = sessionStorage.getItem(tsToastStorageKey());
+            tsSeenToastEventIds = raw ? JSON.parse(raw) : {};
         } catch (e) {
-            tsSeenEventIds = {};
+            tsSeenToastEventIds = {};
         }
     }
 
-    function saveTsSeenEventIds() {
+    function saveTsSeenToastIds() {
         try {
-            sessionStorage.setItem(tsLiveEventsStorageKey(), JSON.stringify(tsSeenEventIds));
+            sessionStorage.setItem(tsToastStorageKey(), JSON.stringify(tsSeenToastEventIds));
         } catch (e) { /* ignore */ }
     }
 
-    function formatTsLiveTime(recordTime) {
+    function toastType(ev) {
+        var action = (ev && ev.action) ? String(ev.action) : '';
+        if (action === 'Sign Out') return 'signout';
+        if (action === 'Ready') return 'ready';
+        if (action === 'Unknown' || ev.matched === false) return 'unknown';
+        return 'signin';
+    }
+
+    function toastMessage(ev) {
+        if (!ev) return '';
+        if (ev.action === 'Sign In') return 'Signed in successfully.';
+        if (ev.action === 'Sign Out') return 'Signed out successfully.';
+        if (ev.action === 'Ready') return 'This user already signed in and signed out.';
+        if (ev.action === 'Unknown' || ev.matched === false) return ev.message || 'Enroll ID not found in school teachers/staff.';
+        return ev.message || 'Recorded.';
+    }
+
+    function formatToastTime(recordTime) {
         if (!recordTime) return '';
         var parts = String(recordTime).split(' ');
         return parts.length === 2 ? parts[1] : recordTime;
     }
 
-    function tsLiveEventClass(item, index) {
-        var cls = 'ts-live-event';
-        if (index === 0) cls += ' latest';
-        if (item.action === 'Unknown' || item.matched === false) cls += ' unknown';
-        if (item.action === 'Ready') cls += ' ready';
-        return cls;
-    }
+    function showTsToast(ev) {
+        var container = document.getElementById('tsToastContainer');
+        if (!container) return;
 
-    function tsLiveEventMessage(item) {
-        if (item.action === 'Sign In') return 'Signed in successfully.';
-        if (item.action === 'Sign Out') return 'Signed out successfully.';
-        if (item.action === 'Ready') return 'This user already signed in and signed out.';
-        if (item.action === 'Unknown' || item.matched === false) {
-            return item.message || 'Enroll ID not found in school teachers/staff.';
-        }
-        return item.message || 'Recorded.';
-    }
+        var type = toastType(ev);
+        var title = (ev.user_name || ('ID ' + ev.user_id)) + ' — ' + (ev.action || 'Sign In');
+        var meta = (ev.person_type ? ev.person_type + ' • ' : '') + formatToastTime(ev.record_time);
+        var msg = toastMessage(ev);
 
-    function renderTsLiveFeed() {
-        var $feed = $('#tsLiveFeed');
-        var $waiting = $('#tsLiveWaiting');
+        var toast = document.createElement('div');
+        toast.className = 'ts-toast ' + type;
+        toast.innerHTML =
+            '<div class="ts-toast-title">' + escapeHtml(title) + '</div>' +
+            '<div class="ts-toast-meta">' + escapeHtml(meta) + '</div>' +
+            '<div class="ts-toast-msg">' + escapeHtml(msg) + '</div>';
 
-        if (!tsLiveFeedItems.length) {
-            $feed.hide();
-            if (!tsLiveStopped) $waiting.show();
-            return;
+        container.prepend(toast);
+        while (container.children.length > 6) {
+            container.removeChild(container.lastElementChild);
         }
 
-        $waiting.hide();
-        $feed.show();
-
-        var html = tsLiveFeedItems.map(function (item, index) {
-            var actionLabel = item.action || 'Sign In';
-            if (actionLabel === 'Ready') actionLabel = 'Ready';
-            return '<div class="' + tsLiveEventClass(item, index) + '">' +
-                '<div class="ts-live-event-icon"><i class="bi bi-fingerprint"></i></div>' +
-                '<div class="ts-live-event-body">' +
-                    '<div class="ts-live-event-name">' + escapeHtml(item.user_name || ('ID ' + item.user_id)) + '</div>' +
-                    '<div class="ts-live-event-meta">' +
-                        escapeHtml(actionLabel) + ' &bull; ' + escapeHtml(formatTsLiveTime(item.record_time)) +
-                        (item.person_type ? ' &bull; ' + escapeHtml(item.person_type) : '') +
-                    '</div>' +
-                    '<div class="ts-live-event-sent">' + escapeHtml(tsLiveEventMessage(item)) + '</div>' +
-                '</div>' +
-            '</div>';
-        }).join('');
-
-        $feed.html(html);
+        setTimeout(function () {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-4px)';
+            toast.style.transition = 'opacity 180ms ease, transform 180ms ease';
+            setTimeout(function () {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 220);
+        }, 4500);
     }
 
-    function prependTsLiveEvent(item) {
-        tsLiveFeedItems.unshift(item);
-        if (tsLiveFeedItems.length > 30) {
-            tsLiveFeedItems = tsLiveFeedItems.slice(0, 30);
-        }
-        renderTsLiveFeed();
-    }
-
-    function processTsRecentEvents(events) {
+    function processTsRecentEventsToasts(events) {
         if (!events || !events.length) return;
 
-        var added = false;
+        var changed = false;
         events.slice().reverse().forEach(function (ev) {
-            if (!ev || !ev.id || tsSeenEventIds[ev.id]) return;
-            tsSeenEventIds[ev.id] = true;
-            prependTsLiveEvent(ev);
-            added = true;
+            if (!ev || !ev.id || tsSeenToastEventIds[ev.id]) return;
+            tsSeenToastEventIds[ev.id] = true;
+            showTsToast(ev);
+            changed = true;
         });
 
-        if (added) {
-            saveTsSeenEventIds();
-        }
+        if (changed) saveTsSeenToastIds();
     }
-
-    function seedTsSeenEvents(events) {
-        if (!events || !events.length) return;
-        events.forEach(function (ev) {
-            if (ev && ev.id) tsSeenEventIds[ev.id] = true;
-        });
-        saveTsSeenEventIds();
-    }
-
     function getCsrf() {
         return $('meta[name="csrf-token"]').attr('content');
     }
@@ -846,7 +811,7 @@
             }
 
             var records = response.data || [];
-            processTsRecentEvents(response.recent_events || []);
+            processTsRecentEventsToasts(response.recent_events || []);
 
             if (records.length || !isBackground || !hasTable || showLoader) {
                 renderTsAttendanceTable(records, response.date, {
@@ -906,14 +871,9 @@
         tsDbPollInFlight = false;
         tsDeviceSyncInFlight = false;
 
-        loadTsSeenEventIds();
         updateLiveBadge('live');
 
-        loadTsLiveAttendance(true, false, function (ok, response) {
-            if (ok && response && response.recent_events) {
-                seedTsSeenEvents(response.recent_events);
-            }
-        });
+        loadTsLiveAttendance(true, false);
 
         tsLiveInterval = setInterval(function () {
             if (!isTsLiveTabActive() || tsLiveStopped) {
@@ -1516,7 +1476,7 @@
     $(document).ready(function () {
         $('#tsRecordsDateFilter').val('{{ date("Y-m-d") }}');
 
-        loadTsSeenEventIds();
+        loadTsSeenToastIds();
         loadFingerprintDevices();
 
         $('#tsLiveDeviceSelect').on('change', function () {
