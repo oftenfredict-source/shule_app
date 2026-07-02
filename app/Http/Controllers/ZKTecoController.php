@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\TeacherStaffAttendanceSyncService;
 use App\Services\TeacherStaffLiveEventBuffer;
 use App\Services\ZKTecoService;
 use Illuminate\Http\Request;
@@ -2340,7 +2341,8 @@ class ZKTecoController extends Controller
                 ], 500);
             }
 
-            $persistStats = $this->persistTeacherStaffBulkSyncSkipExisting($schoolID, $syncResult['userDateRecords']);
+            $persistStats = app(TeacherStaffAttendanceSyncService::class)
+                ->persistBulkSyncSkipExisting($schoolID, $syncResult['userDateRecords']);
             $deviceLabel = collect($syncResult['summary'])->where('success', true)->pluck('label')->first() ?? 'device';
 
             $synced = $persistStats['synced'];

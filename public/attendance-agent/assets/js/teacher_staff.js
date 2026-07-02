@@ -175,36 +175,117 @@
         renderLiveFeed();
     }
 
+    function getSelectedSyncDevice() {
+        var id = $('tsSyncDeviceSelect') ? $('tsSyncDeviceSelect').value : '';
+        if (!id) return null;
+        return tsDevices.find(function (d) { return String(d.id) === String(id); }) || null;
+    }
+
+    function renderSyncResult(html) {
+        var box = $('tsSyncResultContent');
+        if (box) box.innerHTML = html;
+    }
+
+    function syncAllToLive() {
+        var device = getSelectedSyncDevice();
+        if (!device) {
+            renderSyncResult('<div class="alert-info-box alert-warn"><i class="fa fa-exclamation-circle"></i> Select a fingerprint device first.</div>');
+            return;
+        }
+
+        var btn = $('tsSyncFromDeviceBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Syncing...';
+        }
+
+        renderSyncResult(
+            '<div class="alert-info-box"><i class="fa fa-spinner fa-spin"></i> ' +
+            'Reading all logs from device and sending to live system... This may take several minutes.</div>'
+        );
+
+        postJson(window.SX_AGENT.attendanceApi, {
+            action: 'sync_teacher_staff_from_device',
+            ip: device.ip,
+            port: parseInt(device.port, 10) || 4370,
+            comm_key: device.comm_key || '0',
+            device_label: device.label || device.ip
+        }).then(function (data) {
+            if (!data.success) {
+                renderSyncResult('<div class="alert-info-box alert-warn"><i class="fa fa-times-circle"></i> ' +
+                    escapeHtml(data.message || 'Sync failed.') + '</div>');
+                return;
+            }
+
+            var html = '<div class="alert-info-box alert-success"><i class="fa fa-check-circle"></i> ' +
+                escapeHtml(data.message || 'Sync completed.') + '</div>';
+            html += '<div class="ts-sync-stats">' +
+                '<div><strong>' + (data.synced || 0) + '</strong><span>New saved</span></div>' +
+                '<div><strong>' + (data.updated_checkout || 0) + '</strong><span>Check-out updated</span></div>' +
+                '<div><strong>' + (data.skipped_existing || 0) + '</strong><span>Already complete</span></div>' +
+                '<div><strong>' + (data.device_days_matched || 0) + '</strong><span>Matched days</span></div>' +
+                '</div>';
+            if (data.records_pulled) {
+                html += '<p class="ts-sync-meta">Pulled ' + data.records_pulled + ' punch(es) in ' +
+                    (data.batches_sent || 1) + ' batch(es).</p>';
+            }
+            renderSyncResult(html);
+        }).catch(function () {
+            renderSyncResult('<div class="alert-info-box alert-warn"><i class="fa fa-times-circle"></i> Connection error during sync.</div>');
+        }).finally(function () {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-cloud-upload-alt"></i> Sync All to Live';
+            }
+        });
+    }
+
     function loadTsDevices() {
         return postJson(window.SX_AGENT.remoteApi, { action: 'list_devices' })
             .then(function (data) {
                 var select = $('tsLiveDeviceSelect');
-                if (!select) return;
+                var syncSelect = $('tsSyncDeviceSelect');
+                if (!select && !syncSelect) return;
 
                 tsDevices = (data.devices || []).filter(function (d) { return d.status === 'active'; });
-                var current = select.value;
-                select.innerHTML = '<option value="">-- Select device --</option>';
+                var current = select ? select.value : '';
+                var syncCurrent = syncSelect ? syncSelect.value : '';
+                var options = '<option value="">-- Select device --</option>';
 
                 if (!tsDevices.length) {
-                    select.innerHTML = '<option value="">No active devices — register one first</option>';
+                    options = '<option value="">No active devices — register one first</option>';
+                    if (select) select.innerHTML = options;
+                    if (syncSelect) syncSelect.innerHTML = options;
                     showWaiting('Register a device under the Devices tab first.');
                     return;
                 }
 
                 tsDevices.forEach(function (d) {
-                    var opt = document.createElement('option');
-                    opt.value = d.id;
-                    opt.textContent = d.label + ' (' + d.ip + ')';
-                    select.appendChild(opt);
+                    options += '<option value="' + d.id + '">' + escapeHtml(d.label) + ' (' + escapeHtml(d.ip) + ')</option>';
                 });
 
-                if (current && select.querySelector('option[value="' + current + '"]')) {
-                    select.value = current;
+                if (select) {
+                    select.innerHTML = options;
+                    if (current && select.querySelector('option[value="' + current + '"]')) {
+                        select.value = current;
+                    }
+                }
+
+                if (syncSelect) {
+                    syncSelect.innerHTML = options;
+                    if (syncCurrent && syncSelect.querySelector('option[value="' + syncCurrent + '"]')) {
+                        syncSelect.value = syncCurrent;
+                    } else if (tsDevices.length === 1) {
+                        syncSelect.value = String(tsDevices[0].id);
+                    }
                 }
             })
             .catch(function () {
+                var fail = '<option value="">Failed to load devices</option>';
                 var select = $('tsLiveDeviceSelect');
-                if (select) select.innerHTML = '<option value="">Failed to load devices</option>';
+                var syncSelect = $('tsSyncDeviceSelect');
+                if (select) select.innerHTML = fail;
+                if (syncSelect) syncSelect.innerHTML = fail;
             });
     }
 
@@ -432,6 +513,10 @@
                 stopLiveListening();
                 showWaiting('Live listening stopped. Select device to start again.');
             });
+        }
+
+        if ($('tsSyncFromDeviceBtn')) {
+            $('tsSyncFromDeviceBtn').addEventListener('click', syncAllToLive);
         }
 
         document.querySelectorAll('.agent-tab-btn').forEach(function (btn) {

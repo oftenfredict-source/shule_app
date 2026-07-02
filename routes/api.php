@@ -41,6 +41,9 @@ Route::middleware('school.agent')->prefix('school-agent')->group(function () {
     // Local attendance-agent (school LAN PC) ingests teacher/staff live punches here.
     Route::post('/attendance/teacher-staff-live', [SchoolAgentAttendanceController::class, 'ingestTeacherStaffLive'])
         ->name('api.school_agent.attendance.teacher_staff_live.ingest');
+
+    Route::post('/attendance/teacher-staff-sync', [SchoolAgentAttendanceController::class, 'syncTeacherStaffBulk'])
+        ->name('api.school_agent.attendance.teacher_staff_sync');
 });
 
 // User profile endpoint

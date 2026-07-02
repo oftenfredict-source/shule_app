@@ -331,3 +331,90 @@ function sx_zkteco_pull_today_attendance(string $ip, int $port, string $commKey)
         'count' => count($records),
     ];
 }
+
+/**
+ * Pull ALL attendance logs from device (for bulk historical sync).
+ *
+ * @return array{success:bool,message:string,records?:array<int,array<string,mixed>>,count?:int}
+ */
+function sx_zkteco_pull_all_attendance(string $ip, int $port, string $commKey): array
+{
+    if ($msg = sx_sockets_extension_message()) {
+        return ['success' => false, 'message' => $msg];
+    }
+
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        return ['success' => false, 'message' => 'Invalid device IP address.'];
+    }
+
+    if (!sx_load_composer_autoload()) {
+        return ['success' => false, 'message' => sx_zkteco_library_missing_message()];
+    }
+
+    $portCheck = sx_device_port_open($ip, $port, 8);
+    if (!$portCheck['ok']) {
+        return ['success' => false, 'message' => $portCheck['message']];
+    }
+
+    $password = is_numeric($commKey) ? (int) $commKey : 0;
+    $connected = sx_zkteco_connect($ip, $port, $password, false);
+
+    if (empty($connected['client'])) {
+        return ['success' => false, 'message' => $connected['message']];
+    }
+
+    /** @var object $client */
+    $client = $connected['client'];
+    $records = [];
+
+    try {
+        if (!method_exists($client, 'getAttendances')) {
+            return ['success' => false, 'message' => 'Device does not support attendance logs.'];
+        }
+
+        $raw = $client->getAttendances() ?? [];
+        if (!is_array($raw)) {
+            $raw = [];
+        }
+
+        foreach ($raw as $row) {
+            if (!is_array($row) || empty($row['record_time'])) {
+                continue;
+            }
+
+            $userId = isset($row['user_id']) ? (int) $row['user_id'] : 0;
+            if ($userId <= 0) {
+                continue;
+            }
+
+            $records[] = [
+                'user_id' => $userId,
+                'record_time' => (string) $row['record_time'],
+                'type' => (string) ($row['type'] ?? 'Fingerprint'),
+                'state' => $row['state'] ?? null,
+                'device_ip' => (string) ($row['device_ip'] ?? $ip),
+            ];
+        }
+
+        usort($records, function ($a, $b) {
+            return strcmp($a['record_time'], $b['record_time']);
+        });
+    } catch (\Throwable $e) {
+        return ['success' => false, 'message' => 'Failed to read attendance: ' . $e->getMessage()];
+    } finally {
+        try {
+            if (method_exists($client, 'disconnect')) {
+                $client->disconnect();
+            }
+        } catch (\Throwable $e) {
+            // ignore disconnect errors
+        }
+    }
+
+    return [
+        'success' => true,
+        'message' => count($records) ? 'All attendance logs loaded from device.' : 'No attendance logs found on device.',
+        'records' => $records,
+        'count' => count($records),
+    ];
+}

@@ -48,6 +48,12 @@ switch ($action) {
         echo json_encode($result);
         break;
 
+    case 'pull_all_attendance':
+        set_time_limit(300);
+        $result = sx_zkteco_pull_all_attendance($ip, $port, $commKey);
+        echo json_encode($result);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Unknown action.']);

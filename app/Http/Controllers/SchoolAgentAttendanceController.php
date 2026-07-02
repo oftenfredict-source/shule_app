@@ -8,6 +8,7 @@ use App\Models\OtherStaff;
 use App\Models\StaffFingerprintAttendance;
 use App\Models\Teacher;
 use App\Models\TeacherFingerprintAttendance;
+use App\Services\TeacherStaffAttendanceSyncService;
 use App\Services\TeacherStaffLiveEventBuffer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -88,6 +89,81 @@ class SchoolAgentAttendanceController extends Controller
             'events' => $events,
             'synced' => $syncedCount,
             'updated' => $updatedCount,
+        ]);
+    }
+
+    /**
+     * Local attendance-agent bulk sync: all device logs → live DB.
+     * Uses the same skip-existing + check-out update rules as the web sync.
+     */
+    public function syncTeacherStaffBulk(Request $request, TeacherStaffAttendanceSyncService $syncService)
+    {
+        $schoolAgent = $request->attributes->get('school_agent');
+        $schoolID = (int) (($schoolAgent['schoolID'] ?? 0));
+        if ($schoolID <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'School session not found. Please log in again.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'device_ip' => 'nullable|string|max:45',
+            'device_label' => 'nullable|string|max:120',
+            'records' => 'required|array|min:1',
+            'records.*.user_id' => 'required|integer',
+            'records.*.record_time' => 'required|string',
+            'records.*.type' => 'nullable|string|max:80',
+            'records.*.device_ip' => 'nullable|string|max:45',
+        ]);
+
+        set_time_limit(300);
+
+        $peopleMap = $syncService->getPeopleMap($schoolID);
+        if (empty($peopleMap)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active teachers or staff found for this school.',
+            ], 400);
+        }
+
+        $deviceIp = trim((string) ($validated['device_ip'] ?? ''));
+        $deviceLabel = trim((string) ($validated['device_label'] ?? ''));
+        $logs = [];
+
+        foreach ($validated['records'] as $record) {
+            $logs[] = [
+                'user_id' => (int) ($record['user_id'] ?? 0),
+                'record_time' => (string) ($record['record_time'] ?? ''),
+                'type' => (string) ($record['type'] ?? 'Fingerprint'),
+                'device_ip' => trim((string) ($record['device_ip'] ?? $deviceIp)),
+            ];
+        }
+
+        $userDateRecords = $syncService->extractUserDateRecords($logs, $peopleMap, null, $deviceIp);
+        $persistStats = $syncService->persistBulkSyncSkipExisting($schoolID, $userDateRecords);
+
+        $label = $deviceLabel !== '' ? $deviceLabel : ($deviceIp !== '' ? $deviceIp : 'device');
+        $synced = $persistStats['synced'];
+        $skipped = $persistStats['skipped_existing'];
+        $updatedCheckout = $persistStats['updated_checkout'];
+
+        $message = "Synced from {$label}. {$synced} new day(s) saved to database.";
+        if ($updatedCheckout > 0) {
+            $message .= " {$updatedCheckout} check-out time(s) updated.";
+        }
+        if ($skipped > 0) {
+            $message .= " {$skipped} already complete in database (skipped).";
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'synced' => $synced,
+            'skipped_existing' => $skipped,
+            'updated_checkout' => $updatedCheckout,
+            'device_days_matched' => $persistStats['device_days_matched'],
+            'records_received' => count($logs),
         ]);
     }
 

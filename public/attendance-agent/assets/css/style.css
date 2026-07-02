@@ -841,3 +841,52 @@ select.form-control {
     min-height: 220px;
   }
 }
+
+.ts-sync-result { margin-top: 16px; }
+.alert-info-box {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid #e3e8ee;
+  background: #f8fafc;
+  color: #444;
+  font-size: 14px;
+}
+.alert-info-box.alert-success {
+  border-color: #9fd4b0;
+  background: #f3fbf6;
+  color: #1e7e45;
+}
+.alert-info-box.alert-warn {
+  border-color: #f0d9a8;
+  background: #fffaf0;
+  color: #9a6700;
+}
+.ts-sync-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.ts-sync-stats div {
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px 8px;
+  text-align: center;
+  background: #fff;
+}
+.ts-sync-stats strong {
+  display: block;
+  font-size: 20px;
+  color: var(--brand);
+}
+.ts-sync-stats span {
+  display: block;
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+}
+.ts-sync-meta {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #666;
+}

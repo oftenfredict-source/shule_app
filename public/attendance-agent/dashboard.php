@@ -181,10 +181,26 @@ $activeTab = (string) ($_GET['tab'] ?? 'devices');
             </div>
 
             <div class="agent-subpanel" id="subpanel-ts-sync">
-                <div class="coming-soon-box" style="margin-top:0;">
-                    <div><i class="fa fa-cloud-download-alt"></i></div>
-                    <h3 class="fp-section-title">Sync from Device</h3>
-                    <p>Pull all historical teacher/staff logs from device — coming in the next step.</p>
+                <p class="ts-live-intro">
+                    Pull <strong>all historical logs</strong> from the fingerprint device on this LAN PC and save them to
+                    <strong><?= htmlspecialchars($serverLabel) ?></strong>. Only new teacher/staff days are saved; complete records are skipped.
+                </p>
+                <div class="fp-toolbar ts-live-toolbar">
+                    <div class="sx-form-group" style="min-width:260px;flex:1;">
+                        <label for="tsSyncDeviceSelect">Fingerprint Device *</label>
+                        <select id="tsSyncDeviceSelect">
+                            <option value="">Loading devices...</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn-brand-sm" id="tsSyncFromDeviceBtn">
+                        <i class="fa fa-cloud-upload-alt"></i> Sync All to Live
+                    </button>
+                </div>
+                <div id="tsSyncResultContent" class="ts-sync-result">
+                    <div class="alert-info-box">
+                        <i class="fa fa-info-circle"></i>
+                        Select a device, then click <strong>Sync All to Live</strong>. This may take several minutes if the device has many logs.
+                    </div>
                 </div>
             </div>
         </div>

@@ -76,65 +76,44 @@
     #tsReportTable thead th { background-color: var(--primary-color) !important; color: #fff !important; white-space: nowrap; }
     #tsReportTable_wrapper .dataTables_filter input { margin-left: 8px; }
     #tsReportDetailDailyTable thead th { background-color: #f8f9fa; white-space: nowrap; }
-    .ts-live-waiting {
-        text-align: center;
-        padding: 28px 16px;
-        border: 1px dashed #e3c5c5;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
-        color: #666;
-    }
-    .ts-live-waiting i { font-size: 36px; color: var(--primary-color); margin-bottom: 10px; display: block; }
-    .ts-live-feed {
+    .ts-toast-container {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 9999;
         display: flex;
         flex-direction: column;
         gap: 10px;
-        margin-bottom: 16px;
+        width: min(360px, calc(100vw - 32px));
+        pointer-events: none;
     }
-    .ts-live-event {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 14px 16px;
-        border-radius: 10px;
-        border: 1px solid #e3e8ee;
+    .ts-toast {
+        pointer-events: auto;
         background: #fff;
+        border: 1px solid #e9ecef;
+        border-left: 5px solid var(--primary-color);
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        padding: 12px 14px;
+        animation: tsToastIn 180ms ease-out;
     }
-    .ts-live-event.latest {
-        border-color: #9fd4b0;
-        background: #f3fbf6;
+    @keyframes tsToastIn {
+        from { transform: translateY(-6px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
     }
-    .ts-live-event.unknown {
-        border-color: #f0d9a8;
-        background: #fffaf0;
-    }
-    .ts-live-event.ready {
-        border-color: #b8d4f0;
-        background: #f0f7ff;
-    }
-    .ts-live-event-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: var(--primary-color);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        font-size: 18px;
-    }
-    .ts-live-event.ready .ts-live-event-icon { background: #0d6efd; }
-    .ts-live-event.unknown .ts-live-event-icon { background: #fd7e14; }
-    .ts-live-event-body { flex: 1; min-width: 0; }
-    .ts-live-event-name { font-weight: 700; color: var(--primary-color); font-size: 15px; }
-    .ts-live-event-meta { font-size: 13px; color: #555; margin-top: 4px; }
-    .ts-live-event-sent { font-size: 12px; color: #1e7e45; font-weight: 600; margin-top: 6px; }
-    .ts-live-event.ready .ts-live-event-sent { color: #0d6efd; }
-    .ts-live-event.unknown .ts-live-event-sent { color: #b45309; }
+    .ts-toast.signout { border-left-color: #198754; }
+    .ts-toast.ready { border-left-color: #0d6efd; }
+    .ts-toast.unknown { border-left-color: #fd7e14; }
+    .ts-toast-title { font-weight: 700; font-size: 14px; margin: 0; }
+    .ts-toast-meta { font-size: 12px; color: #666; margin-top: 3px; }
+    .ts-toast-msg { font-size: 12px; font-weight: 600; margin-top: 6px; color: #1e7e45; }
+    .ts-toast.ready .ts-toast-msg { color: #0d6efd; }
+    .ts-toast.unknown .ts-toast-msg { color: #b45309; }
 </style>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+
+<div class="ts-toast-container" id="tsToastContainer" aria-live="polite" aria-atomic="true"></div>
 
 <div class="container-fluid" style="padding: 20px;">
     <div class="row mb-3">
@@ -166,11 +145,6 @@
         <li class="nav-item">
             <a class="nav-link active" id="ts-live-tab" data-toggle="tab" href="#ts-live" role="tab">
                 <i class="bi bi-broadcast"></i> Live Today
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" id="ts-device-tab" data-toggle="tab" href="#ts-device" role="tab">
-                <i class="bi bi-cloud-download"></i> Sync from Device
             </a>
         </li>
         <li class="nav-item">
@@ -212,8 +186,8 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <button type="button" class="btn btn-primary-custom btn-block" id="tsSyncLiveNow" title="Force sync from device now">
-                            <i class="bi bi-cloud-download"></i> Sync Now
+                        <button type="button" class="btn btn-primary-custom btn-block" id="tsSyncLiveNow" title="Refresh live table">
+                            <i class="bi bi-arrow-repeat"></i> Refresh
                         </button>
                     </div>
                     <div class="col-md-4 d-flex align-items-center justify-content-end gap-2 flex-wrap">
@@ -228,48 +202,11 @@
                 </div>
             </div>
             <div id="tsLiveContent">
-                <div id="tsLiveWidgetArea" class="mb-3">
-                    <div id="tsLiveWaiting" class="ts-live-waiting">
-                        <i class="bi bi-fingerprint"></i>
-                        <p class="mb-0">Subiri mtu akiweka kidole — Sign In au Sign Out itaonekana hapa papo hapo.</p>
-                    </div>
-                    <div id="tsLiveFeed" class="ts-live-feed" style="display:none;"></div>
-                </div>
                 <div id="tsLiveTableArea">
                     <div class="alert alert-info mb-0">
                         <i class="bi bi-info-circle"></i> Live attendance updates zinapokelewa kutoka Local Agent (school LAN).
-                        Jedwali la chini linaonyesha rekodi zote za leo.
+                        Historical sync inafanywa kwenye Local Agent, si hapa.
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sync from Device -->
-        <div class="tab-pane fade" id="ts-device" role="tabpanel">
-            <div class="attendance-device-bar mb-3">
-                <div class="row align-items-end">
-                    <div class="col-md-5">
-                        <label for="tsSyncDeviceSelect" class="mb-1 text-primary-custom fw-bold">
-                            <i class="bi bi-router"></i> Fingerprint Device
-                        </label>
-                        <select id="tsSyncDeviceSelect" class="form-control">
-                            <option value="">Loading devices...</option>
-                        </select>
-                    </div>
-                    <div class="col-md-7 d-flex gap-2 align-items-end">
-                        <button type="button" class="btn btn-success flex-grow-1" id="tsSyncFromDevice">
-                            <i class="bi bi-cloud-download"></i> Sync All from Device
-                        </button>
-                        <button type="button" class="btn btn-primary-custom flex-grow-1" id="tsRefreshRecordsQuick">
-                            <i class="bi bi-arrow-repeat"></i> View Saved Records
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div id="tsSyncResultContent">
-                <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle"></i> Connect the device to the network, select a device, then click <strong>Sync All from Device</strong>.
-                    The system will pull all logs from the device and save to the database only records that have not been synced before (teacher + date).
                 </div>
             </div>
         </div>
@@ -470,7 +407,6 @@
     var tsDeviceSyncInFlight = false;
     var tsLiveStopped = false;
     var tsLiveHasData = false;
-    var tsLiveFeedItems = [];
     var tsSeenEventIds = {};
 
     function tsLiveEventsStorageKey() {
@@ -498,14 +434,6 @@
         return parts.length === 2 ? parts[1] : recordTime;
     }
 
-    function tsLiveEventClass(item, index) {
-        var cls = 'ts-live-event';
-        if (index === 0) cls += ' latest';
-        if (item.action === 'Unknown' || item.matched === false) cls += ' unknown';
-        if (item.action === 'Ready') cls += ' ready';
-        return cls;
-    }
-
     function tsLiveEventMessage(item) {
         if (item.action === 'Sign In') return 'Signed in successfully.';
         if (item.action === 'Sign Out') return 'Signed out successfully.';
@@ -516,44 +444,36 @@
         return item.message || 'Recorded.';
     }
 
-    function renderTsLiveFeed() {
-        var $feed = $('#tsLiveFeed');
-        var $waiting = $('#tsLiveWaiting');
+    function showTsToast(ev) {
+        var container = document.getElementById('tsToastContainer');
+        if (!container || !ev) return;
 
-        if (!tsLiveFeedItems.length) {
-            $feed.hide();
-            if (!tsLiveStopped) $waiting.show();
-            return;
+        var action = ev.action || 'Sign In';
+        var type = 'signin';
+        if (action === 'Sign Out') type = 'signout';
+        if (action === 'Ready') type = 'ready';
+        if (action === 'Unknown' || ev.matched === false) type = 'unknown';
+
+        var toast = document.createElement('div');
+        toast.className = 'ts-toast ' + type;
+        toast.innerHTML =
+            '<div class="ts-toast-title">' + escapeHtml((ev.user_name || ('ID ' + ev.user_id)) + ' — ' + action) + '</div>' +
+            '<div class="ts-toast-meta">' + escapeHtml((ev.person_type ? ev.person_type + ' • ' : '') + formatTsLiveTime(ev.record_time)) + '</div>' +
+            '<div class="ts-toast-msg">' + escapeHtml(tsLiveEventMessage(ev)) + '</div>';
+
+        container.prepend(toast);
+        while (container.children.length > 6) {
+            container.removeChild(container.lastElementChild);
         }
 
-        $waiting.hide();
-        $feed.show();
-
-        var html = tsLiveFeedItems.map(function (item, index) {
-            var actionLabel = item.action || 'Sign In';
-            if (actionLabel === 'Ready') actionLabel = 'Ready';
-            return '<div class="' + tsLiveEventClass(item, index) + '">' +
-                '<div class="ts-live-event-icon"><i class="bi bi-fingerprint"></i></div>' +
-                '<div class="ts-live-event-body">' +
-                    '<div class="ts-live-event-name">' + escapeHtml(item.user_name || ('ID ' + item.user_id)) + '</div>' +
-                    '<div class="ts-live-event-meta">' +
-                        escapeHtml(actionLabel) + ' &bull; ' + escapeHtml(formatTsLiveTime(item.record_time)) +
-                        (item.person_type ? ' &bull; ' + escapeHtml(item.person_type) : '') +
-                    '</div>' +
-                    '<div class="ts-live-event-sent">' + escapeHtml(tsLiveEventMessage(item)) + '</div>' +
-                '</div>' +
-            '</div>';
-        }).join('');
-
-        $feed.html(html);
-    }
-
-    function prependTsLiveEvent(item) {
-        tsLiveFeedItems.unshift(item);
-        if (tsLiveFeedItems.length > 30) {
-            tsLiveFeedItems = tsLiveFeedItems.slice(0, 30);
-        }
-        renderTsLiveFeed();
+        setTimeout(function () {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-4px)';
+            toast.style.transition = 'opacity 180ms ease, transform 180ms ease';
+            setTimeout(function () {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 220);
+        }, 4500);
     }
 
     function processTsRecentEvents(events) {
@@ -563,7 +483,7 @@
         events.slice().reverse().forEach(function (ev) {
             if (!ev || !ev.id || tsSeenEventIds[ev.id]) return;
             tsSeenEventIds[ev.id] = true;
-            prependTsLiveEvent(ev);
+            showTsToast(ev);
             added = true;
         });
 
@@ -586,10 +506,6 @@
 
     function getSelectedLiveDeviceId() {
         return $('#tsLiveDeviceSelect').val() || '';
-    }
-
-    function getSelectedSyncDeviceId() {
-        return $('#tsSyncDeviceSelect').val() || '';
     }
 
     function getPersonTypeFilter() {
@@ -685,7 +601,6 @@
         }).done(function (res) {
             var devices = (res && res.success && res.devices) ? res.devices : [];
             var liveCurrent = $('#tsLiveDeviceSelect').val();
-            var syncCurrent = $('#tsSyncDeviceSelect').val();
             var options = '<option value="">-- Select device --</option>';
 
             devices = devices.filter(function (d) { return d.status !== 'inactive'; });
@@ -698,15 +613,13 @@
                 });
             }
 
-            $('#tsLiveDeviceSelect, #tsSyncDeviceSelect').html(options);
+            $('#tsLiveDeviceSelect').html(options);
             restoreOrDefault($('#tsLiveDeviceSelect'), liveCurrent);
-            restoreOrDefault($('#tsSyncDeviceSelect'), syncCurrent);
 
             if (isTsLiveTabActive() && !tsLiveStopped) {
                 startTsLivePolling();
             }
         }).fail(function () {
-            $('#tsLiveDeviceSelect, #tsSyncDeviceSelect').html('<option value="">Failed to load devices</option>');
             $('#tsLiveTableArea').html('<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> Failed to load fingerprint devices. Refresh page and try again.</div>');
         });
     }
@@ -1464,55 +1377,6 @@
         });
     }
 
-    function syncTsFromDevice() {
-        var deviceId = getSelectedSyncDeviceId();
-        if (!deviceId) {
-            Swal.fire('Error', 'Please select a fingerprint device.', 'error');
-            return;
-        }
-        var $btn = $('#tsSyncFromDevice');
-        var original = $btn.html();
-        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Syncing all logs...');
-
-        $('#tsSyncResultContent').html(
-            '<div class="alert alert-info mb-0"><i class="bi bi-hourglass-split"></i> ' +
-            'Inasoma attendance zote kutoka device... Hii inaweza kuchukua dakika kadhaa ikiwa kuna logs nyingi.</div>'
-        );
-
-        $.ajax({
-            url: '{{ route("zkteco.attendance.teacher-staff-sync") }}',
-            type: 'POST',
-            data: {
-                _token: getCsrf(),
-                device_id: deviceId
-            },
-            dataType: 'json',
-            timeout: 300000,
-            success: function (res) {
-                var html = '<div class="alert alert-success mb-0"><i class="bi bi-check-circle"></i> ' + (res.message || 'Sync completed.') + '</div>';
-                if (res.synced !== undefined || res.skipped_existing !== undefined) {
-                    html += '<div class="card mt-3"><div class="card-body py-3"><div class="row text-center">';
-                    html += '<div class="col-md-3"><h5 class="text-success mb-0">' + (res.synced || 0) + '</h5><small class="text-muted">New saved</small></div>';
-                    html += '<div class="col-md-3"><h5 class="text-primary mb-0">' + (res.updated_checkout || 0) + '</h5><small class="text-muted">Check-out updated</small></div>';
-                    html += '<div class="col-md-3"><h5 class="text-secondary mb-0">' + (res.skipped_existing || 0) + '</h5><small class="text-muted">Already complete</small></div>';
-                    html += '<div class="col-md-3"><h5 class="text-info mb-0">' + (res.device_days_matched || 0) + '</h5><small class="text-muted">Matched on device</small></div>';
-                    html += '</div></div></div>';
-                }
-                $('#tsSyncResultContent').html(html);
-            },
-            error: function (xhr) {
-                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Sync failed.';
-                if (xhr.statusText === 'timeout') {
-                    msg = 'Sync timed out. Device ina logs nyingi — jaribu tena au hakikisha device iko kwenye network.';
-                }
-                $('#tsSyncResultContent').html('<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> ' + msg + '</div>');
-            },
-            complete: function () {
-                $btn.prop('disabled', false).html(original);
-            }
-        });
-    }
-
     $(document).ready(function () {
         $('#tsRecordsDateFilter').val('{{ date("Y-m-d") }}');
 
@@ -1538,9 +1402,7 @@
             setTimeout(function () { tsManualSyncActive = false; }, 3000);
         });
 
-        $('#tsSyncFromDevice').on('click', syncTsFromDevice);
-        $('#tsRefreshRecords, #tsRefreshRecordsQuick').on('click', function () {
-            $('a[href="#ts-records"]').tab('show');
+        $('#tsRefreshRecords').on('click', function () {
             loadTsSavedRecords(1);
         });
 
