@@ -15,6 +15,44 @@ use Barryvdh\DomPDF\Facade\Pdf as PDF;
 class CalendarController extends Controller
 {
     /**
+     * @param \Illuminate\Support\Collection<int, \App\Models\Holiday> $holidays
+     * @return array{holiday_dates: array<int,string>, holiday_working_dates: array<int,string>}
+     */
+    private function buildHolidayDateSets($holidays): array
+    {
+        $holidayDates = [];
+        $holidayWorkingDates = [];
+
+        foreach ($holidays as $holiday) {
+            $current = Carbon::parse($holiday->start_date)->startOfDay();
+            $end = Carbon::parse($holiday->end_date)->startOfDay();
+
+            $workingAllowance = 0;
+            if (!empty($holiday->has_working_days) && (int) ($holiday->working_days_count ?? 0) > 0) {
+                $workingAllowance = (int) $holiday->working_days_count;
+            }
+
+            while ($current->lte($end)) {
+                $dateStr = $current->format('Y-m-d');
+                $holidayDates[] = $dateStr;
+
+                // If holiday has working days, count the first N weekdays in this range as working days.
+                if ($workingAllowance > 0 && $current->isWeekday()) {
+                    $holidayWorkingDates[] = $dateStr;
+                    $workingAllowance--;
+                }
+
+                $current->addDay();
+            }
+        }
+
+        return [
+            'holiday_dates' => array_values(array_unique($holidayDates)),
+            'holiday_working_dates' => array_values(array_unique($holidayWorkingDates)),
+        ];
+    }
+
+    /**
      * Admin Calendar View - Full year calendar with CRUD operations
      */
     public function adminCalendar()
@@ -470,16 +508,10 @@ class CalendarController extends Controller
         // Calculate total days in year (exact integer)
         $totalDays = (int)($startDate->diffInDays($endDate) + 1);
 
-        // Get all holiday dates (including ranges from manual holidays)
-        $holidayDates = [];
-        foreach ($holidays as $holiday) {
-            $current = Carbon::parse($holiday->start_date);
-            $end = Carbon::parse($holiday->end_date);
-            while ($current <= $end) {
-                $holidayDates[] = $current->format('Y-m-d');
-                $current->addDay();
-            }
-        }
+        // Get all holiday dates + holiday working-days overrides (manual holidays)
+        $dateSets = $this->buildHolidayDateSets($holidays);
+        $holidayDates = $dateSets['holiday_dates'];
+        $holidayWorkingDates = $dateSets['holiday_working_dates'];
 
         // Add auto-detected holidays
         foreach ($autoHolidays as $autoHoliday) {
@@ -507,7 +539,8 @@ class CalendarController extends Controller
 
             if ($dayOfWeek == 0 || $dayOfWeek == 6) {
                 $weekendDays++;
-            } elseif (!in_array($dateStr, $holidayDates) && !in_array($dateStr, $nonWorkingEventDates)) {
+            } elseif ((!in_array($dateStr, $holidayDates) || in_array($dateStr, $holidayWorkingDates))
+                && !in_array($dateStr, $nonWorkingEventDates)) {
                 $workingDays++;
             }
             $current->addDay();
@@ -546,16 +579,10 @@ class CalendarController extends Controller
     {
         $monthlyStats = [];
 
-        // Get all holiday dates from manual holidays
-        $holidayDates = [];
-        foreach ($holidays as $holiday) {
-            $current = Carbon::parse($holiday->start_date);
-            $end = Carbon::parse($holiday->end_date);
-            while ($current <= $end) {
-                $holidayDates[] = $current->format('Y-m-d');
-                $current->addDay();
-            }
-        }
+        // Get all holiday dates + working overrides from manual holidays
+        $dateSets = $this->buildHolidayDateSets($holidays);
+        $holidayDates = $dateSets['holiday_dates'];
+        $holidayWorkingDates = $dateSets['holiday_working_dates'];
 
         // Add auto-detected holidays
         $autoHolidays = TanzaniaHolidaysService::getHolidaysForYear($year);
@@ -590,7 +617,7 @@ class CalendarController extends Controller
 
                 if ($dayOfWeek == 0 || $dayOfWeek == 6) {
                     $weekendDays++;
-                } elseif (in_array($dateStr, $holidayDates)) {
+                } elseif (in_array($dateStr, $holidayDates) && !in_array($dateStr, $holidayWorkingDates)) {
                     $holidayDays++;
                 } elseif (in_array($dateStr, $nonWorkingEventDates)) {
                     $holidayDays++;
