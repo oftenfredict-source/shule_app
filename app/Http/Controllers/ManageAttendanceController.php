@@ -1814,7 +1814,6 @@ class ManageAttendanceController extends Controller
             return response()->json([
                 'success' => true,
                 'person' => $person,
-                'filter_type' => $filterType,
                 'title' => $this->buildTeacherStaffReportTitle(
                     $person['person_type'],
                     $request->input('filter_type'),
