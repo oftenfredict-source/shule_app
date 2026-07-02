@@ -8,6 +8,7 @@ use App\Models\OtherStaff;
 use App\Models\StaffFingerprintAttendance;
 use App\Models\Teacher;
 use App\Models\TeacherFingerprintAttendance;
+use App\Services\TeacherStaffLiveEventBuffer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -69,6 +70,7 @@ class SchoolAgentAttendanceController extends Controller
             }
 
             $events[] = $event;
+            TeacherStaffLiveEventBuffer::push($schoolID, $event);
             if (!empty($event['matched'])) {
                 if (!empty($event['created'])) {
                     $syncedCount++;
@@ -163,7 +165,7 @@ class SchoolAgentAttendanceController extends Controller
         } elseif (!$existing->check_out_time) {
             $checkIn = Carbon::parse($existing->check_in_time);
             if ($punchTime->lte($checkIn)) {
-                return $this->skipEvent('teacher', $person, $punchFormatted, $name, 'Duplicate punch ignored.');
+                return $this->skipEvent('teacher', $person, $punchFormatted, $name, false);
             }
 
             $existing->update([
@@ -174,7 +176,7 @@ class SchoolAgentAttendanceController extends Controller
             ]);
             $action = 'Sign Out';
         } else {
-            return $this->skipEvent('teacher', $person, $punchFormatted, $name, 'Day already complete (Sign In + Sign Out).');
+            return $this->skipEvent('teacher', $person, $punchFormatted, $name, true);
         }
 
         $hasCheckOut = $action === 'Sign Out';
@@ -230,7 +232,7 @@ class SchoolAgentAttendanceController extends Controller
         } elseif (!$existing->check_out_time) {
             $checkIn = Carbon::parse($existing->check_in_time);
             if ($punchTime->lte($checkIn)) {
-                return $this->skipEvent('staff', $person, $punchFormatted, $name, 'Duplicate punch ignored.');
+                return $this->skipEvent('staff', $person, $punchFormatted, $name, false);
             }
 
             $existing->update([
@@ -241,7 +243,7 @@ class SchoolAgentAttendanceController extends Controller
             ]);
             $action = 'Sign Out';
         } else {
-            return $this->skipEvent('staff', $person, $punchFormatted, $name, 'Day already complete (Sign In + Sign Out).');
+            return $this->skipEvent('staff', $person, $punchFormatted, $name, true);
         }
 
         $hasCheckOut = $action === 'Sign Out';
@@ -263,8 +265,23 @@ class SchoolAgentAttendanceController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function skipEvent(string $personType, $person, string $punchFormatted, string $name, string $message): array
+    private function skipEvent(string $personType, $person, string $punchFormatted, string $name, bool $dayComplete = false): array
     {
+        if ($dayComplete) {
+            return [
+                'matched' => true,
+                'created' => false,
+                'skipped' => true,
+                'person_type' => $personType,
+                'user_id' => (int) $person->id,
+                'user_name' => $name !== '' ? $name : 'N/A',
+                'record_time' => $punchFormatted,
+                'action' => 'Ready',
+                'status' => 'Complete',
+                'message' => 'This user already signed in and signed out.',
+            ];
+        }
+
         return [
             'matched' => true,
             'created' => false,
@@ -274,7 +291,7 @@ class SchoolAgentAttendanceController extends Controller
             'user_name' => $name !== '' ? $name : 'N/A',
             'record_time' => $punchFormatted,
             'action' => 'Ignored',
-            'message' => $message,
+            'message' => 'Duplicate punch ignored.',
         ];
     }
 

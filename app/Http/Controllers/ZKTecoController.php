@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\TeacherStaffLiveEventBuffer;
 use App\Services\ZKTecoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -2462,6 +2463,7 @@ class ZKTecoController extends Controller
             'data' => $data,
             'count' => count($data),
             'teacher_count' => $teachers->count(),
+            'recent_events' => TeacherStaffLiveEventBuffer::all($schoolID),
             'message' => $data ? null : 'No teacher/staff attendance records found for today.',
         ]);
     }

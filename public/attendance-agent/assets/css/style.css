@@ -714,6 +714,11 @@ select.form-control {
   background: #fffaf0;
 }
 
+.ts-live-event.ready {
+  border-color: #b8d4f0;
+  background: #f0f7ff;
+}
+
 .ts-live-event-icon {
   width: 40px;
   height: 40px;

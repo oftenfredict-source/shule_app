@@ -138,19 +138,29 @@
         if (waiting) waiting.style.display = 'none';
 
         feed.innerHTML = liveFeedItems.map(function (item, index) {
-            var cls = 'ts-live-event' + (index === 0 ? ' latest' : '') + (item.matched === false ? ' unknown' : '');
+            var cls = 'ts-live-event' + (index === 0 ? ' latest' : '');
+            if (item.action === 'Unknown' || item.matched === false) cls += ' unknown';
+            if (item.action === 'Ready') cls += ' ready';
             var sentCls = item.sent_ok === false ? ' failed' : '';
+            var actionLabel = item.action || 'Sign In';
+            var statusMsg = item.message || 'Sent to live system';
+            if (actionLabel === 'Sign In') statusMsg = 'Signed in successfully.';
+            if (actionLabel === 'Sign Out') statusMsg = 'Signed out successfully.';
+            if (actionLabel === 'Ready') statusMsg = 'This user already signed in and signed out.';
+            if (actionLabel === 'Unknown' || item.matched === false) {
+                statusMsg = item.message || 'Enroll ID not found in school teachers/staff.';
+            }
             return '<div class="' + cls + '">' +
                 '<div class="ts-live-event-icon"><i class="fa fa-fingerprint"></i></div>' +
                 '<div class="ts-live-event-body">' +
                     '<div class="ts-live-event-name">' + escapeHtml(item.user_name || ('ID ' + item.user_id)) + '</div>' +
                     '<div class="ts-live-event-meta">' +
-                        escapeHtml(item.action || 'Sign In') + ' &bull; ' + escapeHtml(item.record_time || '') +
+                        escapeHtml(actionLabel) + ' &bull; ' + escapeHtml(item.record_time || '') +
                         (item.person_type ? ' &bull; ' + escapeHtml(item.person_type) : '') +
                     '</div>' +
                     '<div class="ts-live-event-sent' + sentCls + '">' +
                         '<i class="fa fa-' + (item.sent_ok === false ? 'times' : 'check') + '-circle"></i> ' +
-                        escapeHtml(item.message || 'Sent to live system') +
+                        escapeHtml(statusMsg) +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -253,7 +263,7 @@
             var events = data.events || [];
             if (events.length) {
                 events.forEach(function (ev) {
-                    if (ev.skipped) {
+                    if (ev.action === 'Ignored') {
                         return;
                     }
                     prependFeedItem({

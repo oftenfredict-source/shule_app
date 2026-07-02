@@ -76,6 +76,62 @@
     #tsReportTable thead th { background-color: var(--primary-color) !important; color: #fff !important; white-space: nowrap; }
     #tsReportTable_wrapper .dataTables_filter input { margin-left: 8px; }
     #tsReportDetailDailyTable thead th { background-color: #f8f9fa; white-space: nowrap; }
+    .ts-live-waiting {
+        text-align: center;
+        padding: 28px 16px;
+        border: 1px dashed #e3c5c5;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+        color: #666;
+    }
+    .ts-live-waiting i { font-size: 36px; color: var(--primary-color); margin-bottom: 10px; display: block; }
+    .ts-live-feed {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .ts-live-event {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        border: 1px solid #e3e8ee;
+        background: #fff;
+    }
+    .ts-live-event.latest {
+        border-color: #9fd4b0;
+        background: #f3fbf6;
+    }
+    .ts-live-event.unknown {
+        border-color: #f0d9a8;
+        background: #fffaf0;
+    }
+    .ts-live-event.ready {
+        border-color: #b8d4f0;
+        background: #f0f7ff;
+    }
+    .ts-live-event-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 18px;
+    }
+    .ts-live-event.ready .ts-live-event-icon { background: #0d6efd; }
+    .ts-live-event.unknown .ts-live-event-icon { background: #fd7e14; }
+    .ts-live-event-body { flex: 1; min-width: 0; }
+    .ts-live-event-name { font-weight: 700; color: var(--primary-color); font-size: 15px; }
+    .ts-live-event-meta { font-size: 13px; color: #555; margin-top: 4px; }
+    .ts-live-event-sent { font-size: 12px; color: #1e7e45; font-weight: 600; margin-top: 6px; }
+    .ts-live-event.ready .ts-live-event-sent { color: #0d6efd; }
+    .ts-live-event.unknown .ts-live-event-sent { color: #b45309; }
 </style>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
@@ -172,9 +228,18 @@
                 </div>
             </div>
             <div id="tsLiveContent">
-                <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle"></i> Live attendance updates zinapokelewa kutoka Local Agent (school LAN).
-                    Ukipiga kidole kwenye kifaa, jina na status itaonekana hapa moja kwa moja.
+                <div id="tsLiveWidgetArea" class="mb-3">
+                    <div id="tsLiveWaiting" class="ts-live-waiting">
+                        <i class="bi bi-fingerprint"></i>
+                        <p class="mb-0">Subiri mtu akiweka kidole — Sign In au Sign Out itaonekana hapa papo hapo.</p>
+                    </div>
+                    <div id="tsLiveFeed" class="ts-live-feed" style="display:none;"></div>
+                </div>
+                <div id="tsLiveTableArea">
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> Live attendance updates zinapokelewa kutoka Local Agent (school LAN).
+                        Jedwali la chini linaonyesha rekodi zote za leo.
+                    </div>
                 </div>
             </div>
         </div>
@@ -405,6 +470,115 @@
     var tsDeviceSyncInFlight = false;
     var tsLiveStopped = false;
     var tsLiveHasData = false;
+    var tsLiveFeedItems = [];
+    var tsSeenEventIds = {};
+
+    function tsLiveEventsStorageKey() {
+        return 'sx_ts_central_events_' + '{{ date("Y-m-d") }}';
+    }
+
+    function loadTsSeenEventIds() {
+        try {
+            var raw = sessionStorage.getItem(tsLiveEventsStorageKey());
+            tsSeenEventIds = raw ? JSON.parse(raw) : {};
+        } catch (e) {
+            tsSeenEventIds = {};
+        }
+    }
+
+    function saveTsSeenEventIds() {
+        try {
+            sessionStorage.setItem(tsLiveEventsStorageKey(), JSON.stringify(tsSeenEventIds));
+        } catch (e) { /* ignore */ }
+    }
+
+    function formatTsLiveTime(recordTime) {
+        if (!recordTime) return '';
+        var parts = String(recordTime).split(' ');
+        return parts.length === 2 ? parts[1] : recordTime;
+    }
+
+    function tsLiveEventClass(item, index) {
+        var cls = 'ts-live-event';
+        if (index === 0) cls += ' latest';
+        if (item.action === 'Unknown' || item.matched === false) cls += ' unknown';
+        if (item.action === 'Ready') cls += ' ready';
+        return cls;
+    }
+
+    function tsLiveEventMessage(item) {
+        if (item.action === 'Sign In') return 'Signed in successfully.';
+        if (item.action === 'Sign Out') return 'Signed out successfully.';
+        if (item.action === 'Ready') return 'This user already signed in and signed out.';
+        if (item.action === 'Unknown' || item.matched === false) {
+            return item.message || 'Enroll ID not found in school teachers/staff.';
+        }
+        return item.message || 'Recorded.';
+    }
+
+    function renderTsLiveFeed() {
+        var $feed = $('#tsLiveFeed');
+        var $waiting = $('#tsLiveWaiting');
+
+        if (!tsLiveFeedItems.length) {
+            $feed.hide();
+            if (!tsLiveStopped) $waiting.show();
+            return;
+        }
+
+        $waiting.hide();
+        $feed.show();
+
+        var html = tsLiveFeedItems.map(function (item, index) {
+            var actionLabel = item.action || 'Sign In';
+            if (actionLabel === 'Ready') actionLabel = 'Ready';
+            return '<div class="' + tsLiveEventClass(item, index) + '">' +
+                '<div class="ts-live-event-icon"><i class="bi bi-fingerprint"></i></div>' +
+                '<div class="ts-live-event-body">' +
+                    '<div class="ts-live-event-name">' + escapeHtml(item.user_name || ('ID ' + item.user_id)) + '</div>' +
+                    '<div class="ts-live-event-meta">' +
+                        escapeHtml(actionLabel) + ' &bull; ' + escapeHtml(formatTsLiveTime(item.record_time)) +
+                        (item.person_type ? ' &bull; ' + escapeHtml(item.person_type) : '') +
+                    '</div>' +
+                    '<div class="ts-live-event-sent">' + escapeHtml(tsLiveEventMessage(item)) + '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        $feed.html(html);
+    }
+
+    function prependTsLiveEvent(item) {
+        tsLiveFeedItems.unshift(item);
+        if (tsLiveFeedItems.length > 30) {
+            tsLiveFeedItems = tsLiveFeedItems.slice(0, 30);
+        }
+        renderTsLiveFeed();
+    }
+
+    function processTsRecentEvents(events) {
+        if (!events || !events.length) return;
+
+        var added = false;
+        events.slice().reverse().forEach(function (ev) {
+            if (!ev || !ev.id || tsSeenEventIds[ev.id]) return;
+            tsSeenEventIds[ev.id] = true;
+            prependTsLiveEvent(ev);
+            added = true;
+        });
+
+        if (added) {
+            saveTsSeenEventIds();
+        }
+    }
+
+    function seedTsSeenEvents(events) {
+        if (!events || !events.length) return;
+        events.forEach(function (ev) {
+            if (ev && ev.id) tsSeenEventIds[ev.id] = true;
+        });
+        saveTsSeenEventIds();
+    }
 
     function getCsrf() {
         return $('meta[name="csrf-token"]').attr('content');
@@ -533,7 +707,7 @@
             }
         }).fail(function () {
             $('#tsLiveDeviceSelect, #tsSyncDeviceSelect').html('<option value="">Failed to load devices</option>');
-            $('#tsLiveContent').html('<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> Failed to load fingerprint devices. Refresh page and try again.</div>');
+            $('#tsLiveTableArea').html('<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> Failed to load fingerprint devices. Refresh page and try again.</div>');
         });
     }
 
@@ -553,8 +727,8 @@
         meta = meta || {};
         var msg = meta.deviceFailed
             ? 'Device haipatikani. Hakuna rekodi za leo kwenye database bado.'
-            : 'Hakuna attendance ya leo bado. Subiri Local Agent itume data baada ya mtu kuweka kidole.';
-        $('#tsLiveContent').html(
+            : 'Hakuna attendance ya leo bado. Subiri mtu akiweka kidole.';
+        $('#tsLiveTableArea').html(
             '<div class="alert ' + (meta.deviceFailed ? 'alert-warning' : 'alert-info') + ' mb-0">' +
             '<i class="bi bi-info-circle"></i> ' + msg +
             '<div class="small text-muted mt-1">Date: ' + (date || '{{ date("Y-m-d") }}') + '</div></div>'
@@ -563,9 +737,9 @@
 
     function renderTsAttendanceTable(records, date, meta, container) {
         meta = meta || {};
-        container = container || '#tsLiveContent';
+        container = container || '#tsLiveTableArea';
         if (!records || !records.length) {
-            if (container === '#tsLiveContent') {
+            if (container === '#tsLiveTableArea') {
                 renderTsLiveEmpty(date, meta);
             } else {
                 $(container).html('<div class="alert alert-info mb-0">No teacher attendance records found.</div>');
@@ -605,11 +779,11 @@
 
         html += '</tbody></table></div>';
         html += '<div class="mt-2 small text-muted">Date: ' + date + ' &bullet; Records: ' + records.length;
-        if (meta.source && container !== '#tsLiveContent') html += ' &bullet; ' + meta.source;
+        if (meta.source && container !== '#tsLiveTableArea') html += ' &bullet; ' + meta.source;
         html += '</div>';
 
         $(container).html(html);
-        if (container === '#tsLiveContent') {
+        if (container === '#tsLiveTableArea') {
             tsLiveHasData = true;
             setLastUpdateLabel();
         }
@@ -620,7 +794,7 @@
         if (typeof syncFromDevice === 'undefined') syncFromDevice = false;
 
         var deviceId = getSelectedLiveDeviceId();
-        var $container = $('#tsLiveContent');
+        var $container = $('#tsLiveTableArea');
         var dbOnly = !syncFromDevice;
         var isBackground = !showLoader;
         var hasTable = $container.find('table').length > 0;
@@ -672,6 +846,8 @@
             }
 
             var records = response.data || [];
+            processTsRecentEvents(response.recent_events || []);
+
             if (records.length || !isBackground || !hasTable || showLoader) {
                 renderTsAttendanceTable(records, response.date, {
                     deviceFailed: response.device_failed
@@ -682,7 +858,7 @@
             }
 
             if (!tsLiveStopped) updateLiveBadge('live');
-            if (onComplete) onComplete(true);
+            if (onComplete) onComplete(true, response);
         }).fail(function (xhr, status) {
             tsManualSyncActive = false;
             if (status === 'abort') {
@@ -730,9 +906,14 @@
         tsDbPollInFlight = false;
         tsDeviceSyncInFlight = false;
 
+        loadTsSeenEventIds();
         updateLiveBadge('live');
 
-        loadTsLiveAttendance(true, false);
+        loadTsLiveAttendance(true, false, function (ok, response) {
+            if (ok && response && response.recent_events) {
+                seedTsSeenEvents(response.recent_events);
+            }
+        });
 
         tsLiveInterval = setInterval(function () {
             if (!isTsLiveTabActive() || tsLiveStopped) {
@@ -1335,6 +1516,7 @@
     $(document).ready(function () {
         $('#tsRecordsDateFilter').val('{{ date("Y-m-d") }}');
 
+        loadTsSeenEventIds();
         loadFingerprintDevices();
 
         $('#tsLiveDeviceSelect').on('change', function () {
