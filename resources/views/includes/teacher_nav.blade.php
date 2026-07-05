@@ -552,6 +552,14 @@
 
                         <li><a href="{{ route('teacher.duty_book') }}" class="nav-link"><i class="fa fa-book"></i> Duty Book</a></li>
 
+                        <li><a href="{{ route('teacher.store_requisitions') }}" class="nav-link"><i class="fa fa-clipboard"></i> Item Requisition</a></li>
+                        @php
+                            $teacherHasInventoryAccess = app(\App\Services\StoreAccessService::class)->currentUserHasStoreAccess((int) Session::get('schoolID'));
+                        @endphp
+                        @if($teacherHasInventoryAccess && Session::get('user_type') === 'Teacher')
+                        <li><a href="{{ route('manage_store') }}" class="nav-link"><i class="fa fa-archive"></i> Inventory</a></li>
+                        @endif
+
                         <!-- Teaching Activities -->
                         <li class="dropdown-nav-item">
                             <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#teachingActivities" aria-expanded="false">

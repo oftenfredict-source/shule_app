@@ -74,22 +74,15 @@
         font-weight: 600;
         border-radius: 10px;
     }
-    .manage-exam-wrapper,
-    .manage-exam-wrapper * {
+    .manage-exam-wrapper {
         font-family: "Century Gothic", "Segoe UI", Tahoma, sans-serif;
     }
-    .nav-tabs .nav-link.active {
-        background-color: #940000;
-        color: white;
-        border-color: #940000;
+    .manage-exam-wrapper .bi::before,
+    .manage-exam-wrapper [class^="bi-"]::before,
+    .manage-exam-wrapper [class*=" bi-"]::before {
+        font-family: bootstrap-icons !important;
     }
-    .nav-tabs .nav-link {
-        color: #940000;
-    }
-    .nav-tabs .nav-link:hover {
-        border-color: #940000;
-        color: #940000;
-    }
+    /* Legacy nav-tabs (unused — exam uses inventory-style list-group tabs) */
     .badge-status-wait-approval {
         background-color: #dc3545;
         color: white;
@@ -314,7 +307,10 @@
         }
 
         /* Prevent long text overflow */
-        * {
+        .manage-exam-wrapper img,
+        .manage-exam-wrapper table,
+        .manage-exam-wrapper .form-control,
+        .manage-exam-wrapper .card {
             max-width: 100%;
             box-sizing: border-box;
         }
@@ -339,13 +335,18 @@
 
     
     /* Touch target improvements */
-    .btn, .form-control, .nav-link, .dropdown-item {
+    .manage-exam-wrapper .btn:not(.store-action-toggle):not(.exam-view-toggle .btn),
+    .manage-exam-wrapper .form-control,
+    .manage-exam-wrapper .nav-link,
+    .manage-exam-wrapper .dropdown-item {
         min-height: 44px;
         display: flex;
         align-items: center;
     }
     
-    .btn, .nav-link, .dropdown-item {
+    .manage-exam-wrapper .btn:not(.store-action-toggle):not(.exam-view-toggle .btn),
+    .manage-exam-wrapper .nav-link,
+    .manage-exam-wrapper .dropdown-item {
         justify-content: center;
     }
 
@@ -359,6 +360,140 @@
     
     .cursor-pointer {
         cursor: pointer;
+    }
+
+    /* Inventory-style layout */
+    .exam-page-header {
+        background: #fff !important;
+        color: #940000 !important;
+        border-bottom: 2px solid #f0d0d0;
+    }
+    .exam-page-header h4,
+    .exam-page-header strong {
+        color: #940000 !important;
+    }
+    .exam-page-header small {
+        color: #6c757d !important;
+        opacity: 1 !important;
+    }
+    .exam-menu-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin-bottom: 1rem;
+        width: 100%;
+    }
+    .exam-menu {
+        flex-wrap: nowrap;
+        min-width: min-content;
+        width: 100%;
+        display: flex;
+    }
+    .exam-menu .list-group-item {
+        cursor: pointer;
+        border-left: 4px solid transparent;
+        white-space: nowrap;
+        min-width: 0;
+        font-size: 0.82rem;
+        padding: 10px 8px;
+        text-align: center;
+        color: #333;
+        text-decoration: none !important;
+    }
+    .exam-menu .list-group-item.active {
+        border-left-color: #940000;
+        background: #fff5f5;
+        color: #940000;
+        font-weight: 600;
+        z-index: 2;
+    }
+    .exam-menu .list-group-item:hover {
+        background: #fffafa;
+        color: #940000;
+    }
+    .exam-section-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .exam-view-toggle .btn {
+        min-width: 72px;
+        min-height: 34px !important;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 6px 12px;
+    }
+    .exam-view-toggle .btn i {
+        font-size: 1rem;
+        line-height: 1;
+        display: inline-block !important;
+    }
+    .exam-view-toggle .btn.active {
+        background-color: #940000;
+        border-color: #940000;
+        color: #fff;
+    }
+    .exam-data-wrapper .exam-grid-view { display: none; }
+    .exam-data-wrapper[data-active-view="list"] .exam-list-view { display: block !important; }
+    .exam-data-wrapper[data-active-view="list"] .exam-grid-view { display: none !important; }
+    .exam-data-wrapper[data-active-view="grid"] .exam-list-view { display: none !important; }
+    .exam-data-wrapper[data-active-view="grid"] .exam-grid-view { display: flex !important; flex-wrap: wrap; }
+    .store-action-dropdown { display: inline-block; }
+    .store-action-dropdown .store-action-toggle {
+        padding: 4px 12px;
+        color: #555;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        line-height: 1.2;
+        min-height: 32px !important;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+    .store-action-dropdown .store-action-toggle i {
+        font-size: 1.1rem;
+        line-height: 1;
+        display: inline-block !important;
+        color: #555;
+    }
+    .store-action-dropdown .store-action-toggle:hover,
+    .store-action-dropdown.show .store-action-toggle { background: #f8f9fa; color: #940000; border-color: #ccc; }
+    .exam-action-dropdown .dropdown-menu { min-width: 200px; font-size: 0.875rem; }
+    .exam-action-dropdown .dropdown-item { padding: 8px 14px; min-height: auto; justify-content: flex-start; }
+    .exam-action-dropdown .dropdown-item i { width: 18px; margin-right: 6px; }
+    .store-actions-cell { width: 60px; text-align: center; }
+    .exam-table-compact td, .exam-table-compact th { vertical-align: middle !important; }
+    .exam-grid-card {
+        border: 1px solid #dee2e6; border-radius: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        font-family: "Century Gothic", Arial, sans-serif;
+    }
+    .exam-status-pill {
+        display: inline-block; padding: 3px 8px; font-size: 0.78rem; font-weight: 600;
+        background: #f0f0f0; color: #495057; border: 1px solid #dee2e6;
+    }
+    .exam-view-label { font-weight: 600; font-size: 0.8rem; color: #940000; text-transform: uppercase; margin-bottom: 4px; }
+    .exam-view-value { font-size: 0.95rem; color: #333; }
+    @media (max-width: 767.98px) {
+        .exam-menu .list-group-item {
+            min-width: 90px;
+            font-size: 0.72rem;
+            padding: 8px 6px;
+        }
+        .exam-menu .list-group-item i {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 3px;
+        }
+        .exam-view-toggle { width: 100%; }
+        .exam-view-toggle .btn { flex: 1; }
+        .exam-section-toolbar { justify-content: stretch; }
+    }
+    @media (min-width: 768px) {
+        .exam-menu { flex-wrap: wrap; }
     }
 
 </style>
@@ -379,6 +514,13 @@
     $canCreateExam = $isAdmin || $perms->intersect(['examination_create', 'create_exam'])->isNotEmpty();
     $canEditExam = $isAdmin || $perms->intersect(['examination_update', 'edit_exam', 'update_exam'])->isNotEmpty();
     $canDeleteExam = $isAdmin || $perms->intersect(['examination_delete', 'delete_exam'])->isNotEmpty();
+    
+    $examViewToggle = function ($tableId) {
+        return '<div class="btn-group btn-group-sm exam-view-toggle" data-table="' . $tableId . '">
+            <button type="button" class="btn btn-outline-secondary" data-view="list" title="List view"><i class="bi bi-list-ul"></i> <span class="d-none d-sm-inline">List</span></button>
+            <button type="button" class="btn btn-outline-secondary" data-view="grid" title="Grid view"><i class="bi bi-grid-3x3-gap"></i> <span class="d-none d-sm-inline">Grid</span></button>
+        </div>';
+    };
     
     // For individual exam actions, the hierarchy already covers them through the global variables
 @endphp
@@ -406,18 +548,18 @@
 
             <!-- Page Header -->
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body bg-primary-custom text-white rounded p-3 p-md-4">
+                <div class="card-body exam-page-header rounded p-3 p-md-4">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                        <h4 class="mb-0">
+                        <h4 class="mb-0 text-primary-custom">
                             <i class="bi bi-clipboard-check"></i> Manage Examinations
-                            @if($totalExams ?? 0 > 0)
-                            <small class="ms-md-2" style="font-size: 0.85rem; opacity: 0.9; display: block; display: md-inline;">
-                                ({{ $totalExams ?? 0 }} {{ $totalExams == 1 ? 'Exam' : 'Exams' }})
+                            @if(($totalExams ?? 0) > 0)
+                            <small class="ms-md-2 d-block d-md-inline" style="font-size: 0.85rem;">
+                                ({{ $totalExams }} {{ $totalExams == 1 ? 'Exam' : 'Exams' }})
                             </small>
                             @endif
                         </h4>
                         @if($canCreateExam)
-                        <button class="btn btn-light text-primary-custom fw-bold mt-2 mt-md-0 d-flex align-items-center justify-content-center" type="button" data-toggle="modal" data-target="#createExamModal">
+                        <button class="btn btn-primary-custom fw-bold mt-2 mt-md-0 d-inline-flex align-items-center justify-content-center" type="button" data-toggle="modal" data-target="#createExamModal">
                             <i class="bi bi-plus-circle me-2"></i> Create New Examination
                         </button>
                         @endif
@@ -486,79 +628,150 @@
             <!-- Examinations Tabs -->
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <ul class="nav nav-tabs" id="examTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <a class="nav-link active" id="school-exams-tab" data-toggle="tab" href="#school-exams" role="tab">
+                    <div class="exam-menu-wrap">
+                        <div class="list-group list-group-horizontal exam-menu" id="examTabs" role="tablist">
+                            <a class="list-group-item active flex-fill text-center" id="school-exams-tab" data-toggle="tab" href="#school-exams" role="tab">
                                 <i class="bi bi-building"></i> School Exams
                             </a>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <a class="nav-link" id="test-tab" data-toggle="tab" href="#test" role="tab">
+                            <a class="list-group-item flex-fill text-center" id="test-tab" data-toggle="tab" href="#test" role="tab">
                                 <i class="bi bi-clipboard-check"></i> Test
                             </a>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <a class="nav-link" id="special-exams-tab" data-toggle="tab" href="#special-exams" role="tab">
+                            <a class="list-group-item flex-fill text-center" id="special-exams-tab" data-toggle="tab" href="#special-exams" role="tab">
                                 <i class="bi bi-star"></i> Special Exams
                             </a>
-                        </li>
-                    </ul>
+                        </div>
+                    </div>
 
-                    <div class="tab-content mt-4" id="examTabsContent">
+                    <div class="tab-content mt-3" id="examTabsContent">
                         <!-- School Exams -->
                         <div class="tab-pane fade show active" id="school-exams" role="tabpanel">
-                            <div class="row" id="schoolExamsContainer">
-                                @if(isset($examinationsGrouped['school_exams']) && $examinationsGrouped['school_exams']->count() > 0)
-                                    @foreach($examinationsGrouped['school_exams'] as $exam)
-                                        <div class="col-md-6 col-lg-4 mb-4">
-                                            @include('Admin.partials.exam_widget', ['exam' => $exam])
-                                        </div>
-                                    @endforeach
-                                @else
-                                    <div class="col-12">
-                                        <div class="alert alert-info text-center">
-                                            <i class="bi bi-info-circle"></i> No school examinations found.
-                                        </div>
+                            <div class="exam-section-toolbar">{!! $examViewToggle('schoolExamsTable') !!}</div>
+                            <div class="exam-data-wrapper" data-table-id="schoolExamsTable">
+                                <div class="exam-list-view">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-hover exam-table-compact" id="schoolExamsTable">
+                                            <thead class="bg-light">
+                                                <tr>
+                                                    <th width="50">#</th>
+                                                    <th>Exam Name</th>
+                                                    <th>Term / Year</th>
+                                                    <th>Status</th>
+                                                    <th class="store-actions-cell">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @if(isset($examinationsGrouped['school_exams']) && $examinationsGrouped['school_exams']->count() > 0)
+                                                    @foreach($examinationsGrouped['school_exams'] as $index => $exam)
+                                                        @include('Admin.partials.exam_list_row', ['exam' => $exam, 'rowIndex' => $index + 1])
+                                                    @endforeach
+                                                @else
+                                                    <tr id="noSchoolExamsRow">
+                                                        <td colspan="5" class="text-center text-muted py-4">No school examinations found.</td>
+                                                    </tr>
+                                                @endif
+                                            </tbody>
+                                        </table>
                                     </div>
-                                @endif
+                                </div>
+                                <div class="exam-grid-view row" id="schoolExamsContainer">
+                                    @if(isset($examinationsGrouped['school_exams']) && $examinationsGrouped['school_exams']->count() > 0)
+                                        @foreach($examinationsGrouped['school_exams'] as $exam)
+                                            <div class="col-12 col-sm-6 col-xl-4 mb-3">
+                                                @include('Admin.partials.exam_widget', ['exam' => $exam])
+                                            </div>
+                                        @endforeach
+                                    @else
+                                        <div class="col-12"><div class="alert alert-info text-center mb-0">No school examinations found.</div></div>
+                                    @endif
+                                </div>
                             </div>
                         </div>
 
                         <!-- Test -->
                         <div class="tab-pane fade" id="test" role="tabpanel">
-                            <div class="row" id="testExamsContainer">
-                                @if(isset($examinationsGrouped['test']) && $examinationsGrouped['test']->count() > 0)
-                                    @foreach($examinationsGrouped['test'] as $exam)
-                                        <div class="col-md-6 col-lg-4 mb-4">
-                                            @include('Admin.partials.exam_widget', ['exam' => $exam])
-                                        </div>
-                                    @endforeach
-                                @else
-                                    <div class="col-12">
-                                        <div class="alert alert-info text-center">
-                                            <i class="bi bi-info-circle"></i> No test examinations found.
-                                        </div>
+                            <div class="exam-section-toolbar">{!! $examViewToggle('testExamsTable') !!}</div>
+                            <div class="exam-data-wrapper" data-table-id="testExamsTable">
+                                <div class="exam-list-view">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-hover exam-table-compact" id="testExamsTable">
+                                            <thead class="bg-light">
+                                                <tr>
+                                                    <th width="50">#</th>
+                                                    <th>Exam Name</th>
+                                                    <th>Term / Year</th>
+                                                    <th>Status</th>
+                                                    <th class="store-actions-cell">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @if(isset($examinationsGrouped['test']) && $examinationsGrouped['test']->count() > 0)
+                                                    @foreach($examinationsGrouped['test'] as $index => $exam)
+                                                        @include('Admin.partials.exam_list_row', ['exam' => $exam, 'rowIndex' => $index + 1])
+                                                    @endforeach
+                                                @else
+                                                    <tr id="noTestExamsRow">
+                                                        <td colspan="5" class="text-center text-muted py-4">No test examinations found.</td>
+                                                    </tr>
+                                                @endif
+                                            </tbody>
+                                        </table>
                                     </div>
-                                @endif
+                                </div>
+                                <div class="exam-grid-view row" id="testExamsContainer">
+                                    @if(isset($examinationsGrouped['test']) && $examinationsGrouped['test']->count() > 0)
+                                        @foreach($examinationsGrouped['test'] as $exam)
+                                            <div class="col-12 col-sm-6 col-xl-4 mb-3">
+                                                @include('Admin.partials.exam_widget', ['exam' => $exam])
+                                            </div>
+                                        @endforeach
+                                    @else
+                                        <div class="col-12"><div class="alert alert-info text-center mb-0">No test examinations found.</div></div>
+                                    @endif
+                                </div>
                             </div>
                         </div>
 
                         <!-- Special Exams -->
                         <div class="tab-pane fade" id="special-exams" role="tabpanel">
-                            <div class="row" id="specialExamsContainer">
-                                @if(isset($examinationsGrouped['special_exams']) && $examinationsGrouped['special_exams']->count() > 0)
-                                    @foreach($examinationsGrouped['special_exams'] as $exam)
-                                        <div class="col-md-6 col-lg-4 mb-4">
-                                            @include('Admin.partials.exam_widget', ['exam' => $exam])
-                                        </div>
-                                    @endforeach
-                                @else
-                                    <div class="col-12">
-                                        <div class="alert alert-info text-center">
-                                            <i class="bi bi-info-circle"></i> No special examinations found.
-                                        </div>
+                            <div class="exam-section-toolbar">{!! $examViewToggle('specialExamsTable') !!}</div>
+                            <div class="exam-data-wrapper" data-table-id="specialExamsTable">
+                                <div class="exam-list-view">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-hover exam-table-compact" id="specialExamsTable">
+                                            <thead class="bg-light">
+                                                <tr>
+                                                    <th width="50">#</th>
+                                                    <th>Exam Name</th>
+                                                    <th>Term / Year</th>
+                                                    <th>Status</th>
+                                                    <th class="store-actions-cell">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @if(isset($examinationsGrouped['special_exams']) && $examinationsGrouped['special_exams']->count() > 0)
+                                                    @foreach($examinationsGrouped['special_exams'] as $index => $exam)
+                                                        @include('Admin.partials.exam_list_row', ['exam' => $exam, 'rowIndex' => $index + 1])
+                                                    @endforeach
+                                                @else
+                                                    <tr id="noSpecialExamsRow">
+                                                        <td colspan="5" class="text-center text-muted py-4">No special examinations found.</td>
+                                                    </tr>
+                                                @endif
+                                            </tbody>
+                                        </table>
                                     </div>
-                                @endif
+                                </div>
+                                <div class="exam-grid-view row" id="specialExamsContainer">
+                                    @if(isset($examinationsGrouped['special_exams']) && $examinationsGrouped['special_exams']->count() > 0)
+                                        @foreach($examinationsGrouped['special_exams'] as $exam)
+                                            <div class="col-12 col-sm-6 col-xl-4 mb-3">
+                                                @include('Admin.partials.exam_widget', ['exam' => $exam])
+                                            </div>
+                                        @endforeach
+                                    @else
+                                        <div class="col-12"><div class="alert alert-info text-center mb-0">No special examinations found.</div></div>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -568,6 +781,22 @@
     </div>
 </div>
 
+
+<!-- Exam View More Modal -->
+<div class="modal fade" id="examViewMoreModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title" id="examViewMoreTitle">Exam Details</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body" id="examViewMoreBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Create Examination Modal -->
 <div class="modal fade" id="createExamModal" tabindex="-1" role="dialog" aria-labelledby="createExamModalLabel" aria-hidden="true">
@@ -7247,5 +7476,63 @@ $(document).on('change', '.attendance-select-view', function() {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+(function () {
+    const examViewTables = ['schoolExamsTable', 'testExamsTable', 'specialExamsTable'];
+
+    function examIsMobile() {
+        return window.matchMedia('(max-width: 767.98px)').matches;
+    }
+    function examDeviceKey() { return examIsMobile() ? 'mobile' : 'desktop'; }
+    function examDefaultView() { return examIsMobile() ? 'grid' : 'list'; }
+    function examPrefKey(id) { return 'exam_view_' + examDeviceKey() + '_' + id; }
+    function examUserPrefKey(id) { return 'exam_view_user_' + examDeviceKey() + '_' + id; }
+    function examHasUserPref(id) {
+        try { return localStorage.getItem(examUserPrefKey(id)) === '1'; } catch (e) { return false; }
+    }
+    function examGetView(id) {
+        if (examHasUserPref(id)) {
+            const s = localStorage.getItem(examPrefKey(id));
+            if (s === 'list' || s === 'grid') return s;
+        }
+        return examDefaultView();
+    }
+    function examSetUserPref(id, view) {
+        try {
+            localStorage.setItem(examPrefKey(id), view);
+            localStorage.setItem(examUserPrefKey(id), '1');
+        } catch (e) {}
+    }
+    function setExamView(tableId, view, userChoice) {
+        const $w = jQuery('.exam-data-wrapper[data-table-id="' + tableId + '"]');
+        if (!$w.length) return;
+        $w.attr('data-active-view', view);
+        jQuery('.exam-view-toggle[data-table="' + tableId + '"] button').removeClass('active');
+        jQuery('.exam-view-toggle[data-table="' + tableId + '"] button[data-view="' + view + '"]').addClass('active');
+        if (userChoice) examSetUserPref(tableId, view);
+    }
+    function initExamDataViews() {
+        examViewTables.forEach(function (id) {
+            setExamView(id, examGetView(id), false);
+        });
+    }
+    jQuery(document).on('click', '.exam-view-toggle button', function () {
+        setExamView(jQuery(this).closest('.exam-view-toggle').data('table'), jQuery(this).data('view'), true);
+    });
+    jQuery(document).on('click', '.exam-action-dropdown .dropdown-item', function () {
+        jQuery(this).closest('.dropdown').removeClass('show');
+    });
+    jQuery(window).on('resize', function () {
+        clearTimeout(window._examResizeTimer);
+        window._examResizeTimer = setTimeout(function () {
+            examViewTables.forEach(function (id) {
+                if (!examHasUserPref(id)) setExamView(id, examDefaultView(), false);
+            });
+        }, 200);
+    });
+    jQuery(document).ready(initExamDataViews);
+})();
+</script>
 
 @include('includes.footer')

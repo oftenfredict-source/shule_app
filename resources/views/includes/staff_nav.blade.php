@@ -362,6 +362,14 @@
                             <li><a href="{{ route('staff.student_permission') }}" class="nav-link"><i class="fa fa-user-plus"></i> Student Permission</a></li>
                             @endif
 
+                            <li><a href="{{ route('staff.store_requisitions') }}" class="nav-link"><i class="fa fa-clipboard"></i> Item Requisition</a></li>
+                            @php
+                                $staffHasInventoryAccess = app(\App\Services\StoreAccessService::class)->currentUserHasStoreAccess((int) Session::get('schoolID'));
+                            @endphp
+                            @if($staffHasInventoryAccess && Session::get('user_type') === 'Staff')
+                            <li><a href="{{ route('manage_store') }}" class="nav-link"><i class="fa fa-archive"></i> Inventory</a></li>
+                            @endif
+
                             <li class="dropdown-nav-item">
                                 <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse"
                                     data-target="#staffFeedback" aria-expanded="false">

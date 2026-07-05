@@ -658,6 +658,17 @@
                             </ul>
                         </li>
 
+                        <!-- Inventory -->
+                        <li class="dropdown-nav-item">
+                            <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#inventoryMenu" aria-expanded="false">
+                                <i class="fa fa-shopping-cart"></i> Inventory <i class="fa fa-chevron-down float-right"></i>
+                            </a>
+                            <ul id="inventoryMenu" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
+                                <li><a href="{{ route('manage_store') }}" class="nav-link"><i class="fa fa-archive"></i> Manage Store</a></li>
+                                <li><a href="{{ route('manage_store', ['open' => 'requisitions']) }}" class="nav-link"><i class="fa fa-hand-o-right"></i> Requisition Requests</a></li>
+                            </ul>
+                        </li>
+
                         <!-- School Resources -->
                         <li class="dropdown-nav-item">
                             <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#schoolResources" aria-expanded="false">

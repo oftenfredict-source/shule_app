@@ -37,6 +37,8 @@ use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\AccountantReportController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\IncomeCategoryController;
+use App\Http\Controllers\StoreController;
+use App\Http\Controllers\StorePortalController;
 use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\GoalManagementController;
 use App\Http\Controllers\SuperAdminController;
@@ -1994,6 +1996,58 @@ Route::get("manage_damaged_lost_items", [
     AdminController::class,
     "manageDamagedLostItems",
 ])->name("manage_damaged_lost_items");
+
+// Store / Requisition
+Route::get("manage_store", [StoreController::class, "manageStore"])->name("manage_store");
+Route::get("items_requests", [StoreController::class, "itemsRequests"])->name("items_requests");
+Route::get("store/measurement-types/{measurementTypeID}/units", [
+    StoreController::class,
+    "getUnitsByType",
+])->name("store.units_by_type");
+Route::post("store/categories", [StoreController::class, "storeCategory"])->name("store.categories.store");
+Route::post("store/categories/{categoryID}/update", [StoreController::class, "updateCategory"])->name("store.categories.update");
+Route::post("store/categories/{categoryID}/delete", [StoreController::class, "deleteCategory"])->name("store.categories.delete");
+Route::post("store/measurement-types", [StoreController::class, "storeMeasurementType"])->name("store.measurement_types.store");
+Route::post("store/measurement-types/{measurementTypeID}/update", [StoreController::class, "updateMeasurementType"])->name("store.measurement_types.update");
+Route::post("store/measurement-types/{measurementTypeID}/delete", [StoreController::class, "deleteMeasurementType"])->name("store.measurement_types.delete");
+Route::post("store/units", [StoreController::class, "storeUnit"])->name("store.units.store");
+Route::post("store/units/{unitID}/update", [StoreController::class, "updateUnit"])->name("store.units.update");
+Route::post("store/units/{unitID}/delete", [StoreController::class, "deleteUnit"])->name("store.units.delete");
+Route::post("store/items", [StoreController::class, "storeItem"])->name("store.items.store");
+Route::post("store/items/{itemID}/update", [StoreController::class, "updateItem"])->name("store.items.update");
+Route::post("store/items/{itemID}/delete", [StoreController::class, "deleteItem"])->name("store.items.delete");
+Route::post("store/packages/bulk", [StoreController::class, "storePackagesBulk"])->name("store.packages.bulk");
+Route::post("store/packages/{packageID}/update", [StoreController::class, "updatePackage"])->name("store.packages.update");
+Route::post("store/packages/{packageID}/delete", [StoreController::class, "deletePackage"])->name("store.packages.delete");
+Route::post("store/stock", [StoreController::class, "storeItemStock"])->name("store.stock.store");
+Route::post("store/stock/{stockEntryID}/delete", [StoreController::class, "deleteItemStock"])->name("store.stock.delete");
+Route::post("store/requisitions", [StoreController::class, "storeRequisition"])->name("store.requisitions.store");
+Route::post("store/requisitions/{requisitionID}/return", [StoreController::class, "returnRequisition"])->name("store.requisitions.return");
+Route::post("store/incidents", [StoreController::class, "storeIncident"])->name("store.incidents.store");
+Route::post("store/incidents/{incidentID}/update", [StoreController::class, "updateIncident"])->name("store.incidents.update");
+Route::post("store/incidents/{incidentID}/delete", [StoreController::class, "deleteIncident"])->name("store.incidents.delete");
+Route::post("store/incidents/{incidentID}/resolve", [StoreController::class, "resolveIncident"])->name("store.incidents.resolve");
+Route::get("store/dashboard", [StoreController::class, "storeDashboard"])->name("store.dashboard");
+Route::get("store/reports/all-inventory", [StoreController::class, "allInventoryReport"])->name("store.reports.all_inventory");
+Route::get("store/reports/requisitions", [StoreController::class, "requisitionReport"])->name("store.reports.requisitions");
+Route::get("store/reports/specific-item", [StoreController::class, "specificItemReport"])->name("store.reports.specific_item");
+Route::get("store/export-pdf", [StoreController::class, "exportStorePdf"])->name("store.export_pdf");
+Route::post("store/item-requests/{requestID}/approve", [StoreController::class, "approveItemRequest"])->name("store.item_requests.approve");
+Route::post("store/item-requests/{requestID}/reject", [StoreController::class, "rejectItemRequest"])->name("store.item_requests.reject");
+Route::post("store/item-requests/mark-read", [StoreController::class, "markItemRequestsRead"])->name("store.item_requests.mark_read");
+Route::get("store/inventory-actors", [StoreController::class, "listInventoryActors"])->name("store.inventory_actors.index");
+Route::post("store/inventory-actors", [StoreController::class, "storeInventoryActor"])->name("store.inventory_actors.store");
+Route::post("store/inventory-actors/{actorID}/update", [StoreController::class, "updateInventoryActor"])->name("store.inventory_actors.update");
+Route::post("store/inventory-actors/{actorID}/delete", [StoreController::class, "deleteInventoryActor"])->name("store.inventory_actors.delete");
+
+Route::get("teacher/store-requisitions", [StorePortalController::class, "teacherPortal"])->name("teacher.store_requisitions");
+Route::post("teacher/store-requisitions", [StorePortalController::class, "teacherStoreRequest"])->name("teacher.store_requisitions.store");
+Route::get("teacher/store-requisitions/export-pdf", [StorePortalController::class, "teacherExportPdf"])->name("teacher.store_requisitions.export_pdf");
+
+Route::get("staff/store-requisitions", [StorePortalController::class, "staffPortal"])->name("staff.store_requisitions");
+Route::post("staff/store-requisitions", [StorePortalController::class, "staffStoreRequest"])->name("staff.store_requisitions.store");
+Route::get("staff/store-requisitions/export-pdf", [StorePortalController::class, "staffExportPdf"])->name("staff.store_requisitions.export_pdf");
+
 Route::get("admin/suggestions", [
     AdminController::class,
     "manageTeacherFeedbackAdmin",
