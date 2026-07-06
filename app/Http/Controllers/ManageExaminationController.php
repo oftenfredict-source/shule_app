@@ -22,12 +22,12 @@ use App\Models\Subclass;
 use App\Models\SubjectElector;
 use App\Models\Teacher;
 use App\Models\WeeklyTestSchedule;
-use App\Services\PublicUploadPathService;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -2626,7 +2626,9 @@ class ManageExaminationController extends Controller
             // 5. Delete exam papers (and their files)
             $examPapers = DB::table('exam_papers')->where('examID', $examID)->get();
             foreach ($examPapers as $examPaper) {
-                $this->deleteExamPaperFile($examPaper->file_path);
+                if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
+                    Storage::disk('public')->delete($examPaper->file_path);
+                }
             }
             DB::table('exam_papers')->where('examID', $examID)->delete();
 
@@ -4525,7 +4527,12 @@ class ManageExaminationController extends Controller
             }
 
             if ($request->hasFile('file')) {
-                $examPaper->file_path = $this->storeExamPaperFile($request->file('file'));
+                $file = $request->file('file');
+                $fileName = time().'_'.$file->getClientOriginalName();
+                $uploadPath = $this->resolveExamPaperUploadPath();
+
+                $file->move($uploadPath, $fileName);
+                $examPaper->file_path = 'exam_papers/'.$fileName;
             } elseif ($reusePaper && $reusePaper->file_path) {
                 $examPaper->file_path = $reusePaper->file_path;
             }
@@ -5902,10 +5909,25 @@ class ManageExaminationController extends Controller
                 $examPaper->test_week = $request->test_week;
             }
 
-            // Handle file upload (same method as manage_student photo upload)
+            // Handle file upload
             if ($request->hasFile('file')) {
-                $this->deleteExamPaperFile($examPaper->file_path);
-                $examPaper->file_path = $this->storeExamPaperFile($request->file('file'));
+                $file = $request->file('file');
+                $fileName = time().'_'.$file->getClientOriginalName();
+                $uploadPath = $this->resolveExamPaperUploadPath();
+
+                // Delete old file if exists
+                if ($examPaper->file_path) {
+                    $oldFilePath = $uploadPath.'/'.basename($examPaper->file_path);
+                    if (file_exists($oldFilePath)) {
+                        @unlink($oldFilePath);
+                    }
+                    if (Storage::disk('public')->exists($examPaper->file_path)) {
+                        Storage::disk('public')->delete($examPaper->file_path);
+                    }
+                }
+
+                $file->move($uploadPath, $fileName);
+                $examPaper->file_path = 'exam_papers/'.$fileName;
                 $examPaper->upload_type = 'upload';
             }
 
@@ -6145,8 +6167,8 @@ class ManageExaminationController extends Controller
             DB::beginTransaction();
 
             // Clear old file if switching to questions mode
-            if ($examPaper->file_path) {
-                $this->deleteExamPaperFile($examPaper->file_path);
+            if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
+                Storage::disk('public')->delete($examPaper->file_path);
                 $examPaper->file_path = null;
             }
 
@@ -6624,7 +6646,25 @@ class ManageExaminationController extends Controller
             $fileName = $examPaper->file_path ? basename($examPaper->file_path) : 'exam_paper';
 
             if ($examPaper->file_path) {
-                $foundPath = $this->resolveExamPaperFilePath($examPaper->file_path);
+                $scriptPath = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']).'/'.$examPaper->file_path : null;
+
+                $pathsToCheck = [
+                    $scriptPath,
+                    public_path($examPaper->file_path),
+                    isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'].'/'.$examPaper->file_path : null,
+                    Storage::disk('public')->path($examPaper->file_path),
+                ];
+
+                $basePath = base_path();
+                $parentDir = dirname($basePath);
+                $pathsToCheck[] = $parentDir.'/public_html/'.$examPaper->file_path;
+
+                foreach ($pathsToCheck as $path) {
+                    if ($path && file_exists($path)) {
+                        $foundPath = $path;
+                        break;
+                    }
+                }
             }
 
             if (!$foundPath) {
@@ -6683,7 +6723,9 @@ class ManageExaminationController extends Controller
             DB::beginTransaction();
 
             // Delete file if exists
-            $this->deleteExamPaperFile($examPaper->file_path);
+            if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
+                Storage::disk('public')->delete($examPaper->file_path);
+            }
 
             // Delete the exam paper record
             $examPaper->delete();
@@ -9081,43 +9123,26 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Exam paper uploads — same multi-environment logic as manage_student, folder: public/exam_papers.
+     * Resolve exam_papers upload directory — same logic as ShuleLinkWeb (manage_student style).
      */
-    private const EXAM_PAPER_UPLOAD_FOLDER = 'exam_papers';
-
-    private function storeExamPaperFile(\Illuminate\Http\UploadedFile $file): string
+    private function resolveExamPaperUploadPath(): string
     {
-        $stored = PublicUploadPathService::storeUploadedFile($file, self::EXAM_PAPER_UPLOAD_FOLDER);
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+        $uploadPath = $scriptDir.'/exam_papers';
 
-        return $stored['relative_path'];
-    }
-
-    private function resolveExamPaperFilePath(?string $relativePath): ?string
-    {
-        if (!$relativePath) {
-            return null;
-        }
-
-        $path = PublicUploadPathService::resolveExistingFile($relativePath);
-        if ($path) {
-            return $path;
-        }
-
-        $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
-        $filename = basename($relativePath);
-
-        foreach (['exam_papers', 'userImages/exam_papers'] as $legacyFolder) {
-            $path = PublicUploadPathService::resolveExistingFile($legacyFolder . '/' . $filename);
-            if ($path) {
-                return $path;
+        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'].'/exam_papers' : null;
+            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            } else {
+                $uploadPath = public_path('exam_papers');
             }
         }
 
-        return null;
-    }
+        if (!file_exists($uploadPath)) {
+            @mkdir($uploadPath, 0755, true);
+        }
 
-    private function deleteExamPaperFile(?string $relativePath): void
-    {
-        PublicUploadPathService::deleteIfExists($relativePath);
+        return $uploadPath;
     }
 }
