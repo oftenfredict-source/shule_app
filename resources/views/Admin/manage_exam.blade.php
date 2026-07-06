@@ -465,7 +465,9 @@
     .exam-action-dropdown .dropdown-menu { min-width: 200px; font-size: 0.875rem; }
     .exam-action-dropdown .dropdown-item { padding: 8px 14px; min-height: auto; justify-content: flex-start; }
     .exam-action-dropdown .dropdown-item i { width: 18px; margin-right: 6px; }
-    .store-actions-cell { width: 60px; text-align: center; }
+    .store-actions-cell { width: 60px; text-align: center; position: relative; }
+    .manage-exam-wrapper .table-responsive { overflow: visible; }
+    .manage-exam-wrapper .exam-action-dropdown .dropdown-menu { z-index: 1060; }
     .exam-table-compact td, .exam-table-compact th { vertical-align: middle !important; }
     .exam-grid-card {
         border: 1px solid #dee2e6; border-radius: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
@@ -1491,17 +1493,13 @@ jQuery(document).ready(function($) {
         }
     });
 
-    // Close dropdown when clicking on dropdown items
-    $(document).on('click', '.dropdown-item', function(e) {
+    // Close dropdown when clicking on dropdown items (do not stop propagation — action handlers on document need the event)
+    $(document).on('click', '.exam-action-dropdown .dropdown-item', function() {
         const $dropdown = $(this).closest('.dropdown');
-        const $menu = $dropdown.find('.dropdown-menu');
-        const $toggle = $dropdown.find('[data-toggle="dropdown"]');
-        
-        // Close dropdown after a short delay to allow onclick to execute
         setTimeout(function() {
-            $menu.removeClass('show');
-            $toggle.attr('aria-expanded', 'false');
-        }, 100);
+            $dropdown.find('.dropdown-menu').removeClass('show');
+            $dropdown.find('[data-toggle="dropdown"]').attr('aria-expanded', 'false');
+        }, 50);
     });
 
     // Close dropdown when clicking outside (only for content area dropdowns, not sidebar)
@@ -1515,11 +1513,6 @@ jQuery(document).ready(function($) {
             $('.dropdown-menu').not('#left-panel .dropdown-menu, .sidebar-links-container .dropdown-menu').removeClass('show');
             $('[data-toggle="dropdown"]').not('#left-panel [data-toggle="dropdown"], .sidebar-links-container [data-toggle="dropdown"]').attr('aria-expanded', 'false');
         }
-    });
-
-    // Prevent dropdown from closing when clicking inside menu items (only for content area dropdowns)
-    $('.dropdown-menu').not('#left-panel .dropdown-menu, .sidebar-links-container .dropdown-menu').on('click', function(e) {
-        e.stopPropagation();
     });
 
     let subclassCount = 0;
@@ -7519,9 +7512,6 @@ $(document).on('change', '.attendance-select-view', function() {
     }
     jQuery(document).on('click', '.exam-view-toggle button', function () {
         setExamView(jQuery(this).closest('.exam-view-toggle').data('table'), jQuery(this).data('view'), true);
-    });
-    jQuery(document).on('click', '.exam-action-dropdown .dropdown-item', function () {
-        jQuery(this).closest('.dropdown').removeClass('show');
     });
     jQuery(window).on('resize', function () {
         clearTimeout(window._examResizeTimer);
