@@ -8,104 +8,23 @@ use RuntimeException;
 class PublicUploadPathService
 {
     /**
-     * Resolve upload directory using the same strategy as manage_student:
-     * 1) folder next to index.php (SCRIPT_FILENAME) — subdomain / local public/
-     * 2) DOCUMENT_ROOT subfolder when document root points to public/
-     * 3) Laravel public_path()
-     * 4) cPanel public_html for main domain installs
-     *
-     * Also mirrors userImages when it already exists (proven writable on the server).
+     * Ordered upload directory candidates (subdomain public/, main domain public_html/, local).
      */
-    public static function resolveWritableDirectory(string $subdirectory): string
-    {
-        $subdirectory = trim($subdirectory, '/');
-
-        $scriptDir = !empty($_SERVER['SCRIPT_FILENAME'])
-            ? dirname($_SERVER['SCRIPT_FILENAME'])
-            : public_path();
-
-        // If student photos already upload here, use the same public root for other folders.
-        $userImagesDir = $scriptDir . '/userImages';
-        if (is_dir($userImagesDir)) {
-            $siblingPath = $scriptDir . '/' . $subdirectory;
-            self::ensureDirectory($siblingPath);
-
-            if (is_dir($siblingPath)) {
-                return $siblingPath;
-            }
-        }
-
-        // manage_student primary path: directory where index.php lives (e.g. public/exam_papers)
-        $uploadPath = $scriptDir . '/' . $subdirectory;
-
-        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
-            $docRootPath = !empty($_SERVER['DOCUMENT_ROOT'])
-                ? rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . $subdirectory
-                : null;
-
-            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
-                $uploadPath = $docRootPath;
-            } else {
-                $uploadPath = public_path($subdirectory);
-            }
-        }
-
-        self::ensureDirectory($uploadPath);
-
-        if (!is_dir($uploadPath)) {
-            $parentDir = dirname(base_path());
-            $publicHtmlPath = $parentDir . '/public_html/' . $subdirectory;
-
-            if (file_exists($parentDir . '/public_html') && (is_dir($publicHtmlPath) || @mkdir($publicHtmlPath, 0777, true))) {
-                $uploadPath = $publicHtmlPath;
-            }
-        }
-
-        if (!is_dir($uploadPath)) {
-            throw new RuntimeException(
-                'Unable to find upload directory for "' . $subdirectory . '". '
-                . 'Tried: ' . $scriptDir . '/' . $subdirectory
-                . (!empty($_SERVER['DOCUMENT_ROOT']) ? ', ' . rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . $subdirectory : '')
-                . ', ' . public_path($subdirectory)
-            );
-        }
-
-        return $uploadPath;
-    }
-
-    private static function ensureDirectory(string $path): void
-    {
-        if (!file_exists($path)) {
-            @mkdir($path, 0755, true);
-        }
-    }
-
-    /**
-     * @return array{absolute_path: string, relative_path: string, filename: string, directory: string}
-     */
-    public static function storeUploadedFile(UploadedFile $file, string $subdirectory): array
-    {
-        $subdirectory = trim($subdirectory, '/');
-        $fileName = time() . '_' . $file->getClientOriginalName();
-        $directory = self::resolveWritableDirectory($subdirectory);
-
-        $file->move($directory, $fileName);
-
-        return [
-            'absolute_path' => $directory . DIRECTORY_SEPARATOR . $fileName,
-            'relative_path' => $subdirectory . '/' . $fileName,
-            'filename' => $fileName,
-            'directory' => $directory,
-        ];
-    }
-
     public static function directoryCandidates(string $subdirectory): array
     {
         $subdirectory = trim($subdirectory, '/');
         $candidates = [];
 
-        if (!empty($_SERVER['SCRIPT_FILENAME'])) {
-            $candidates[] = dirname($_SERVER['SCRIPT_FILENAME']) . '/' . $subdirectory;
+        $scriptDir = !empty($_SERVER['SCRIPT_FILENAME'])
+            ? dirname($_SERVER['SCRIPT_FILENAME'])
+            : null;
+
+        if ($scriptDir) {
+            // Same public root as manage_student userImages uploads
+            if (is_dir($scriptDir . '/userImages')) {
+                $candidates[] = $scriptDir . '/' . $subdirectory;
+            }
+            $candidates[] = $scriptDir . '/' . $subdirectory;
         }
 
         if (!empty($_SERVER['DOCUMENT_ROOT'])) {
@@ -116,9 +35,78 @@ class PublicUploadPathService
         $candidates[] = base_path('public/' . $subdirectory);
 
         $parentDir = dirname(base_path());
-        $candidates[] = $parentDir . '/public_html/' . $subdirectory;
+        if (file_exists($parentDir . '/public_html')) {
+            $candidates[] = $parentDir . '/public_html/' . $subdirectory;
+        }
 
         return array_values(array_unique(array_filter($candidates)));
+    }
+
+    public static function resolveWritableDirectory(string $subdirectory): string
+    {
+        $errors = [];
+
+        foreach (self::directoryCandidates($subdirectory) as $directory) {
+            self::prepareDirectory($directory);
+
+            if (self::canWriteToDirectory($directory)) {
+                return $directory;
+            }
+
+            $errors[] = $directory;
+        }
+
+        throw new RuntimeException(
+            'Unable to find a writable upload directory for "' . trim($subdirectory, '/') . '". '
+            . 'Checked: ' . implode(', ', $errors)
+            . '. Create the folder and set permissions to 755 or 775 (same as userImages).'
+        );
+    }
+
+    /**
+     * @return array{absolute_path: string, relative_path: string, filename: string, directory: string}
+     */
+    public static function storeUploadedFile(UploadedFile $file, string $subdirectory): array
+    {
+        $subdirectory = trim($subdirectory, '/');
+        $safeOriginal = preg_replace('/[^A-Za-z0-9._-]/', '_', $file->getClientOriginalName()) ?: 'upload.bin';
+        $fileName = time() . '_' . $safeOriginal;
+
+        $source = $file->getRealPath();
+        if (!$source || !is_readable($source)) {
+            throw new RuntimeException('Uploaded file is not readable.');
+        }
+
+        $errors = [];
+
+        foreach (self::directoryCandidates($subdirectory) as $directory) {
+            self::prepareDirectory($directory);
+
+            if (!self::canWriteToDirectory($directory)) {
+                $errors[] = $directory . ' (permission denied)';
+                continue;
+            }
+
+            $destination = rtrim($directory, '/\\') . DIRECTORY_SEPARATOR . $fileName;
+
+            if (@copy($source, $destination)) {
+                @chmod($destination, 0644);
+
+                return [
+                    'absolute_path' => $destination,
+                    'relative_path' => $subdirectory . '/' . $fileName,
+                    'filename' => $fileName,
+                    'directory' => $directory,
+                ];
+            }
+
+            $errors[] = $directory . ' (copy failed)';
+        }
+
+        throw new RuntimeException(
+            'Unable to save uploaded file to "' . $subdirectory . '". '
+            . implode('; ', $errors)
+        );
     }
 
     public static function resolveExistingFile(string $relativePath): ?string
@@ -167,5 +155,41 @@ class PublicUploadPathService
         if ($absolute && file_exists($absolute)) {
             @unlink($absolute);
         }
+    }
+
+    private static function prepareDirectory(string $path): void
+    {
+        if (!is_dir($path)) {
+            @mkdir($path, 0777, true);
+        }
+
+        $permissionTemplate = dirname($path) . '/userImages';
+        if (is_dir($permissionTemplate)) {
+            $perms = fileperms($permissionTemplate) & 0777;
+            if ($perms > 0) {
+                @chmod($path, $perms);
+                return;
+            }
+        }
+
+        @chmod($path, 0775);
+    }
+
+    private static function canWriteToDirectory(string $path): bool
+    {
+        if (!is_dir($path)) {
+            return false;
+        }
+
+        $probe = $path . '/.upload_probe_' . uniqid('', true);
+        $written = @file_put_contents($probe, 'ok');
+
+        if ($written !== false) {
+            @unlink($probe);
+
+            return true;
+        }
+
+        return false;
     }
 }
