@@ -18,31 +18,58 @@ class CalendarController extends Controller
      * @param \Illuminate\Support\Collection<int, \App\Models\Holiday> $holidays
      * @return array{holiday_dates: array<int,string>, holiday_working_dates: array<int,string>}
      */
-    private function buildHolidayDateSets($holidays): array
+    private function buildHolidayDateSets($holidays, ?int $year = null): array
     {
         $holidayDates = [];
         $holidayWorkingDates = [];
 
         foreach ($holidays as $holiday) {
+            if (empty($holiday->start_date) || empty($holiday->end_date)) {
+                continue;
+            }
+
             $current = Carbon::parse($holiday->start_date)->startOfDay();
             $end = Carbon::parse($holiday->end_date)->startOfDay();
+
+            if ($end->lt($current)) {
+                continue;
+            }
+
+            if ($year !== null) {
+                $yearStart = Carbon::create($year, 1, 1)->startOfDay();
+                $yearEnd = Carbon::create($year, 12, 31)->startOfDay();
+
+                if ($end->lt($yearStart) || $current->gt($yearEnd)) {
+                    continue;
+                }
+
+                if ($current->lt($yearStart)) {
+                    $current = $yearStart->copy();
+                }
+                if ($end->gt($yearEnd)) {
+                    $end = $yearEnd->copy();
+                }
+            }
 
             $workingAllowance = 0;
             if (!empty($holiday->has_working_days) && (int) ($holiday->working_days_count ?? 0) > 0) {
                 $workingAllowance = (int) $holiday->working_days_count;
             }
 
-            while ($current->lte($end)) {
+            $dayCount = 0;
+            $maxDays = $year !== null ? 366 : 3660;
+
+            while ($current->lte($end) && $dayCount < $maxDays) {
                 $dateStr = $current->format('Y-m-d');
                 $holidayDates[] = $dateStr;
 
-                // If holiday has working days, count the first N weekdays in this range as working days.
                 if ($workingAllowance > 0 && $current->isWeekday()) {
                     $holidayWorkingDates[] = $dateStr;
                     $workingAllowance--;
                 }
 
                 $current->addDay();
+                $dayCount++;
             }
         }
 
@@ -509,7 +536,7 @@ class CalendarController extends Controller
         $totalDays = (int)($startDate->diffInDays($endDate) + 1);
 
         // Get all holiday dates + holiday working-days overrides (manual holidays)
-        $dateSets = $this->buildHolidayDateSets($holidays);
+        $dateSets = $this->buildHolidayDateSets($holidays, (int) $year);
         $holidayDates = $dateSets['holiday_dates'];
         $holidayWorkingDates = $dateSets['holiday_working_dates'];
 
@@ -580,7 +607,7 @@ class CalendarController extends Controller
         $monthlyStats = [];
 
         // Get all holiday dates + working overrides from manual holidays
-        $dateSets = $this->buildHolidayDateSets($holidays);
+        $dateSets = $this->buildHolidayDateSets($holidays, (int) $year);
         $holidayDates = $dateSets['holiday_dates'];
         $holidayWorkingDates = $dateSets['holiday_working_dates'];
 

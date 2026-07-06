@@ -9123,26 +9123,77 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Resolve exam_papers upload directory — same logic as ShuleLinkWeb (manage_student style).
+     * Resolve exam_papers upload directory — manage_student style + writable probe for subdomains.
      */
     private function resolveExamPaperUploadPath(): string
     {
-        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
-        $uploadPath = $scriptDir.'/exam_papers';
+        $folder = 'exam_papers';
+        $basePath = base_path();
+        $parentDir = dirname($basePath);
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : null;
 
-        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
-            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'].'/exam_papers' : null;
-            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
-                $uploadPath = $docRootPath;
-            } else {
-                $uploadPath = public_path('exam_papers');
+        $candidates = array_values(array_unique(array_filter([
+            $scriptDir ? $scriptDir.'/'.$folder : null,
+            isset($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/').'/'.$folder : null,
+            public_path($folder),
+            $parentDir.'/public_html/'.$folder,
+        ])));
+
+        foreach ($candidates as $candidate) {
+            if ($this->ensureWritableUploadDirectory($candidate)) {
+                return $candidate;
             }
         }
 
-        if (!file_exists($uploadPath)) {
-            @mkdir($uploadPath, 0755, true);
+        $fallback = public_path($folder);
+        if (!is_dir($fallback)) {
+            @mkdir($fallback, 0777, true);
+        }
+        $this->ensureWritableUploadDirectory($fallback);
+
+        return $fallback;
+    }
+
+    /**
+     * Ensure directory exists and PHP can write — fixes subdomain permission issues.
+     */
+    private function ensureWritableUploadDirectory(string $dir): bool
+    {
+        if (!is_dir($dir) && !@mkdir($dir, 0777, true)) {
+            return false;
         }
 
-        return $uploadPath;
+        $probe = $dir.'/.upload_probe_'.uniqid('', true);
+        if (@file_put_contents($probe, '1') !== false) {
+            @unlink($probe);
+
+            return true;
+        }
+
+        $referenceDir = dirname($dir).'/userImages';
+        if (is_dir($referenceDir)) {
+            $refPerms = fileperms($referenceDir) & 0777;
+            if ($refPerms > 0) {
+                @chmod($dir, $refPerms);
+            } else {
+                @chmod($dir, 0777);
+            }
+
+            if (@file_put_contents($probe, '1') !== false) {
+                @unlink($probe);
+
+                return true;
+            }
+        }
+
+        @chmod($dir, 0777);
+
+        if (@file_put_contents($probe, '1') !== false) {
+            @unlink($probe);
+
+            return true;
+        }
+
+        return false;
     }
 }
