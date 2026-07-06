@@ -40,6 +40,54 @@ class SchoolWorkingDaysService
     }
 
     /**
+     * Human-readable reason when a date is not a working day, or null if it is working.
+     */
+    public function getNonWorkingReason(int $schoolID, Carbon $date): ?string
+    {
+        $day = $date->copy()->startOfDay();
+        $dayOfWeek = $day->dayOfWeek;
+
+        if ($dayOfWeek === 0) {
+            return 'Jumapili (mapumziko)';
+        }
+        if ($dayOfWeek === 6) {
+            return 'Jumamosi (mapumziko)';
+        }
+
+        $context = $this->buildCalendarContext($schoolID, (int) $day->year, (int) $day->year);
+        $dateStr = $day->format('Y-m-d');
+
+        if (in_array($dateStr, $context['non_working_event_dates'], true)) {
+            return 'Siku ya tukio (hakuna masomo)';
+        }
+
+        if (in_array($dateStr, $context['holiday_working_dates'], true)) {
+            return null;
+        }
+
+        if (in_array($dateStr, $context['holiday_dates'], true)) {
+            $schoolHoliday = Holiday::where('schoolID', $schoolID)
+                ->whereDate('start_date', '<=', $dateStr)
+                ->whereDate('end_date', '>=', $dateStr)
+                ->first();
+
+            if ($schoolHoliday && $schoolHoliday->holiday_name) {
+                return $schoolHoliday->holiday_name;
+            }
+
+            foreach (TanzaniaHolidaysService::getHolidaysForYear((int) $day->year) as $autoHoliday) {
+                if ($autoHoliday['date']->format('Y-m-d') === $dateStr) {
+                    return $autoHoliday['name'];
+                }
+            }
+
+            return 'Siku ya mapumziko';
+        }
+
+        return null;
+    }
+
+    /**
      * @return array<int, string> List of Y-m-d working dates
      */
     public function getWorkingDates(int $schoolID, Carbon $startDate, Carbon $endDate): array

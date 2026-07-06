@@ -11,10 +11,259 @@
 <style>
     :root {
         --primary-color: #940000;
+        --att-border: #e8e4e4;
+        --att-surface: #ffffff;
+        --att-muted: #6b7280;
     }
 
     body {
-        background-color: #f8f9fa;
+        background-color: #f4f5f7;
+    }
+
+    /* ── Page header ── */
+    .att-page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid var(--att-border);
+    }
+
+    .att-page-header h2 {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .att-page-header h2 i {
+        color: var(--primary-color);
+        font-size: 1.5rem;
+    }
+
+    /* ── Mode switch (replaces nav-tabs) ── */
+    .att-mode-switch {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 22px;
+        padding: 6px;
+        background: var(--att-surface);
+        border: 1px solid var(--att-border);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    }
+
+    .att-mode-btn {
+        flex: 1 1 160px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 14px 18px;
+        border: 2px solid transparent;
+        background: #f8f9fa;
+        color: #4b5563;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-height: 52px;
+    }
+
+    .att-mode-btn .att-mode-icon {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(148, 0, 0, 0.08);
+        color: var(--primary-color);
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .att-mode-btn:hover:not(.active) {
+        background: #fff5f5;
+        border-color: rgba(148, 0, 0, 0.2);
+        color: var(--primary-color);
+    }
+
+    .att-mode-btn.active {
+        background: var(--primary-color);
+        color: #fff;
+        border-color: var(--primary-color);
+        box-shadow: 0 4px 14px rgba(148, 0, 0, 0.28);
+    }
+
+    .att-mode-btn.active .att-mode-icon {
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+    }
+
+    /* ── Filter panel ── */
+    .att-filter-panel {
+        background: var(--att-surface);
+        border: 1px solid var(--att-border);
+        margin-bottom: 24px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    }
+
+    .att-filter-panel-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 20px;
+        background: linear-gradient(90deg, #940000 0%, #b30000 100%);
+        color: #fff;
+    }
+
+    .att-filter-panel-head i {
+        font-size: 1.25rem;
+        opacity: 0.95;
+    }
+
+    .att-filter-panel-head h5 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .att-filter-panel-head small {
+        opacity: 0.85;
+        font-size: 0.78rem;
+        margin-left: auto;
+        display: none;
+    }
+
+    @media (min-width: 768px) {
+        .att-filter-panel-head small {
+            display: block;
+        }
+    }
+
+    .att-filter-panel-body {
+        padding: 20px;
+    }
+
+    .att-filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 16px 20px;
+    }
+
+    .att-filter-item {
+        flex: 1 1 200px;
+        min-width: 0;
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .att-filter-item.att-filter-item--narrow {
+        flex: 0 1 140px;
+    }
+
+    .att-filter-item.att-filter-item--medium {
+        flex: 1 1 220px;
+    }
+
+    .att-filter-item label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #374151;
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    .att-filter-item .form-control,
+    .att-filter-item .form-select {
+        height: 42px;
+        border: 1px solid #d1d5db;
+        border-radius: 0;
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+
+    .att-filter-item .form-control:focus,
+    .att-filter-item .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(148, 0, 0, 0.12);
+    }
+
+    .att-filter-hint {
+        font-size: 0.72rem;
+        color: var(--att-muted);
+        line-height: 1.35;
+        min-height: 1.35em;
+    }
+
+    .att-filter-action {
+        flex: 0 0 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding-top: calc(0.78rem * 1.2 + 6px);
+    }
+
+    .att-filter-btn {
+        height: 42px;
+        width: 100%;
+        border: none;
+        background: var(--primary-color);
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: background 0.2s, box-shadow 0.2s;
+        box-shadow: 0 2px 8px rgba(148, 0, 0, 0.25);
+    }
+
+    .att-filter-btn:hover {
+        background: #b30000;
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(148, 0, 0, 0.35);
+    }
+
+    /* SMS toolbar */
+    .att-sms-strip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 12px 16px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        border-left: 4px solid #f59e0b;
+    }
+
+    .att-sms-strip label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #92400e;
+        margin-bottom: 4px;
+    }
+
+    .att-sms-strip .form-select {
+        height: 38px;
+        min-width: 220px;
+        border-radius: 0;
     }
 
     .search-card {
@@ -204,6 +453,10 @@
         border-bottom: 2px solid #e9ecef;
     }
 
+    .section-header--legacy {
+        display: none;
+    }
+
     .hidden {
         display: none !important;
     }
@@ -213,126 +466,158 @@
             display: none !important;
         }
     }
+
+    @media (max-width: 576px) {
+        .att-mode-btn {
+            flex: 1 1 100%;
+        }
+
+        .att-filter-action {
+            flex: 1 1 100%;
+            padding-top: 0;
+        }
+
+        .att-sms-strip {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .att-sms-strip .form-select {
+            min-width: 0;
+            width: 100%;
+        }
+    }
 </style>
 
 <div class="container-fluid" style="padding: 20px;">
-    
-    <!-- Page Header -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <h2 class="section-header">
-                <i class="bi bi-calendar-check"></i> Attendance Management
-            </h2>
-        </div>
+
+    <div class="att-page-header no-print">
+        <h2><i class="bi bi-calendar-check"></i> Attendance Management</h2>
     </div>
 
-    <!-- Tabs for System vs Fingerprint Attendance -->
-    <ul class="nav nav-tabs mb-3 no-print" id="attendanceTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="system-attendance-tab" type="button" onclick="showAttendanceTab('system')">
-                <i class="bi bi-grid"></i> System Attendance
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="fingerprint-attendance-tab" type="button" onclick="showAttendanceTab('fingerprint')">
-                <i class="bi bi-fingerprint"></i> Fingerprint Attendance
-            </button>
-        </li>
+    <!-- Mode switch: System / Fingerprint / Exam -->
+    <div class="att-mode-switch no-print" id="attendanceTabs" role="tablist">
+        <button type="button" class="att-mode-btn active" id="system-attendance-tab" onclick="showAttendanceTab('system')">
+            <span class="att-mode-icon"><i class="bi bi-grid-1x2-fill"></i></span>
+            <span class="att-mode-text">System Attendance</span>
+        </button>
+        <button type="button" class="att-mode-btn" id="fingerprint-attendance-tab" onclick="showAttendanceTab('fingerprint')">
+            <span class="att-mode-icon"><i class="bi bi-fingerprint"></i></span>
+            <span class="att-mode-text">Fingerprint Attendance</span>
+        </button>
         @if(!isset($isCoordinatorView) || !$isCoordinatorView)
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="exam-attendance-tab" type="button" onclick="showAttendanceTab('exam')">
-                <i class="bi bi-calendar-check"></i> Exam Attendance
-            </button>
-        </li>
+        <button type="button" class="att-mode-btn" id="exam-attendance-tab" onclick="showAttendanceTab('exam')">
+            <span class="att-mode-icon"><i class="bi bi-journal-check"></i></span>
+            <span class="att-mode-text">Exam Attendance</span>
+        </button>
         @endif
-    </ul>
+    </div>
 
     <!-- System Attendance Section (existing logic) -->
     <div id="systemAttendanceSection">
-        <!-- Search Form -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card" style="border: 1px solid #e9ecef; border-radius: 4px;">
-                    <div class="card-header" style="background-color: #940000; color: white; padding: 15px 20px;">
-                        <h5 class="mb-0">
-                            <i class="bi bi-search me-2"></i>Search Attendance
-                        </h5>
+        <div class="att-sms-strip no-print" id="attendanceSmsToolbar">
+            <div class="flex-grow-1" style="min-width: 200px;">
+                @if(isset($isCoordinatorView) && $isCoordinatorView)
+                    <label for="smsSubclassPicker">Subclass for SMS</label>
+                    <select class="form-select form-select-sm" id="smsSubclassPicker">
+                        <option value="">Select subclass for SMS...</option>
+                        @foreach($coordinatorSubclasses as $subclass)
+                            <option value="{{ $subclass->subclassID }}">{{ $subclass->display_name }}</option>
+                        @endforeach
+                    </select>
+                @else
+                    <label for="smsSubclassPicker">Subclass for SMS</label>
+                    <select class="form-select form-select-sm" id="smsSubclassPicker">
+                        <option value="">Select subclass for SMS...</option>
+                        @foreach($subclasses as $subclass)
+                            <option value="{{ $subclass->subclassID }}">{{ $subclass->display_name }}</option>
+                        @endforeach
+                    </select>
+                @endif
+            </div>
+            <div>
+                <button type="button" class="btn btn-primary-custom btn-sm px-4" id="btnOpenAttendanceSms" style="height: 38px;">
+                    <i class="bi bi-chat-dots"></i> Send Attendance SMS
+                </button>
+            </div>
+        </div>
+
+        <div class="att-filter-panel no-print">
+            <div class="att-filter-panel-head">
+                <i class="bi bi-sliders"></i>
+                <h5>Search System Attendance</h5>
+                <small>Filter records by date, month, or year</small>
+            </div>
+            <div class="att-filter-panel-body">
+                <form id="searchAttendanceForm">
+                    <div class="att-filter-row">
+                        @if(isset($isCoordinatorView) && $isCoordinatorView && $selectedClass)
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Main Class</label>
+                            <input type="text" class="form-control" value="{{ $selectedClass->class_name }}" readonly style="background:#f3f4f6;cursor:not-allowed;">
+                            <input type="hidden" name="classID" id="lockedClassID" value="{{ $classIDParam }}">
+                            <span class="att-filter-hint"><i class="bi bi-lock-fill"></i> Coordinator class (locked)</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Subclass</label>
+                            <select class="form-select" id="subclassFilter" name="subclassID">
+                                <option value="">All Subclasses</option>
+                                @foreach($coordinatorSubclasses as $subclass)
+                                    <option value="{{ $subclass->subclassID }}">{{ $subclass->display_name }}</option>
+                                @endforeach
+                            </select>
+                            <span class="att-filter-hint">Optional subclass filter</span>
+                        </div>
+                        @endif
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Search Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="search_type" name="search_type" required>
+                                <option value="">Select Type</option>
+                                <option value="date">By Date</option>
+                                <option value="month">By Month</option>
+                                <option value="year">By Year</option>
+                            </select>
+                            <span class="att-filter-hint">How to search attendance</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium" id="date_field" style="display: none;">
+                            <label>Date</label>
+                            <input type="date" class="form-control" id="date" name="date">
+                            <span class="att-filter-hint">Specific day</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--narrow" id="year_field" style="display: none;">
+                            <label>Year</label>
+                            <select class="form-select" id="year" name="year">
+                                @for($y = date('Y'); $y >= 2020; $y--)
+                                    <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
+                                @endfor
+                            </select>
+                            <span class="att-filter-hint">Calendar year</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--narrow" id="month_field" style="display: none;">
+                            <label>Month</label>
+                            <select class="form-select" id="month" name="month">
+                                <option value="01">January</option>
+                                <option value="02">February</option>
+                                <option value="03">March</option>
+                                <option value="04">April</option>
+                                <option value="05">May</option>
+                                <option value="06">June</option>
+                                <option value="07">July</option>
+                                <option value="08">August</option>
+                                <option value="09">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                            <span class="att-filter-hint">Month name</span>
+                        </div>
+                        <div class="att-filter-action">
+                            <button type="submit" class="att-filter-btn">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                        </div>
                     </div>
-                    <div class="card-body" style="padding: 25px;">
-                        <form id="searchAttendanceForm">
-                            <div class="row g-3 align-items-end">
-                                @if(isset($isCoordinatorView) && $isCoordinatorView && $selectedClass)
-                                <!-- Coordinator View: Locked Main Class -->
-                                <div class="col-md-3">
-                                    <label class="form-label mb-1">Main Class</label>
-                                    <input type="text" class="form-control" value="{{ $selectedClass->class_name }}" readonly style="background-color: #e9ecef !important; color: #6c757d !important; cursor: not-allowed; opacity: 0.7;">
-                                    <input type="hidden" name="classID" id="lockedClassID" value="{{ $classIDParam }}">
-                                    <small class="form-text text-muted"><i class="bi bi-lock-fill"></i> Locked - Coordinator assigned class</small>
-                                </div>
-                                <!-- Coordinator View: Subclass Filter -->
-                                <div class="col-md-3">
-                                    <label class="form-label mb-1">Subclass</label>
-                                    <select class="form-select" id="subclassFilter" name="subclassID">
-                                        <option value="">All Subclasses</option>
-                                        @foreach($coordinatorSubclasses as $subclass)
-                                            <option value="{{ $subclass->subclassID }}">{{ $subclass->display_name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <small class="form-text text-muted">Select subclass to filter</small>
-                                </div>
-                                @endif
-                                <div class="col-md-3">
-                                    <label class="form-label mb-1">Search Type <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="search_type" name="search_type" required>
-                                        <option value="">Select Type</option>
-                                        <option value="date">By Date</option>
-                                        <option value="month">By Month</option>
-                                        <option value="year">By Year</option>
-                                    </select>
-                                    <small class="form-text text-muted">Choose how to search attendance</small>
-                                </div>
-                                <div class="col-md-3" id="date_field" style="display: none;">
-                                    <label class="form-label mb-1">Date</label>
-                                    <input type="date" class="form-control" id="date" name="date">
-                                    <small class="form-text text-muted">Select specific date</small>
-                                </div>
-                                <div class="col-md-2" id="year_field" style="display: none;">
-                                    <label class="form-label mb-1">Year</label>
-                                    <select class="form-select" id="year" name="year">
-                                        @for($y = date('Y'); $y >= 2020; $y--)
-                                            <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
-                                        @endfor
-                                    </select>
-                                    <small class="form-text text-muted">Select year</small>
-                                </div>
-                                <div class="col-md-2" id="month_field" style="display: none;">
-                                    <label class="form-label mb-1">Month</label>
-                                    <select class="form-select" id="month" name="month">
-                                        <option value="01">January</option>
-                                        <option value="02">February</option>
-                                        <option value="03">March</option>
-                                        <option value="04">April</option>
-                                        <option value="05">May</option>
-                                        <option value="06">June</option>
-                                        <option value="07">July</option>
-                                        <option value="08">August</option>
-                                        <option value="09">September</option>
-                                        <option value="10">October</option>
-                                        <option value="11">November</option>
-                                        <option value="12">December</option>
-                                    </select>
-                                    <small class="form-text text-muted">Select month</small>
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label mb-1 d-block">&nbsp;</label>
-                                    <button type="submit" class="btn w-100" style="background-color: #940000; color: white; border-color: #940000;">
-                                        <i class="bi bi-search me-1"></i>Search
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                </form>
             </div>
         </div>
 
@@ -343,14 +628,19 @@
             <div class="row mb-4" id="attendanceByClassSection">
                 <div class="col-12">
                     <div class="data-table-card">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                             <h4 class="mb-0">
                                 <i class="bi bi-people"></i> Attendance by Class
                             </h4>
-                            <div class="col-md-4">
-                                <select class="form-select form-select-sm" id="searchClasses">
-                                    <option value="">All Classes</option>
-                                </select>
+                            <div class="d-flex gap-3 align-items-center flex-wrap">
+                                <div style="min-width: 250px; flex: 0 0 auto;">
+                                    <select class="form-select form-select-sm" id="searchClasses">
+                                        <option value="">All Classes</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-danger btn-sm" id="exportAttendanceReportPdfBtn" title="Download full attendance report PDF" style="display: none;">
+                                    <i class="bi bi-file-earmark-pdf"></i> Download Full PDF
+                                </button>
                             </div>
                         </div>
                         <div id="attendanceByClassContent">
@@ -364,90 +654,82 @@
 
     <!-- Fingerprint Attendance Section (external API) -->
     <div id="fingerprintAttendanceSection" style="display: none;">
-        <!-- Search Form -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card" style="border: 1px solid #e9ecef; border-radius: 4px;">
-                    <div class="card-header" style="background-color: #940000; color: white; padding: 15px 20px;">
-                        <h5 class="mb-0">
-                            <i class="bi bi-search me-2"></i>Search Fingerprint Attendance
-                        </h5>
+        <div class="att-filter-panel no-print">
+            <div class="att-filter-panel-head">
+                <i class="bi bi-fingerprint"></i>
+                <h5>Search Fingerprint Attendance</h5>
+                <small>Device check-in / check-out records</small>
+            </div>
+            <div class="att-filter-panel-body">
+                <form id="searchFingerprintAttendanceForm">
+                    <div class="att-filter-row">
+                        @if(isset($isCoordinatorView) && $isCoordinatorView && $selectedClass)
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Main Class</label>
+                            <input type="text" class="form-control" value="{{ $selectedClass->class_name }}" readonly style="background:#f3f4f6;cursor:not-allowed;">
+                            <input type="hidden" name="classID" id="fingerprintLockedClassID" value="{{ $classIDParam }}">
+                            <span class="att-filter-hint"><i class="bi bi-lock-fill"></i> Coordinator class (locked)</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Subclass</label>
+                            <select class="form-select" id="fingerprintSubclassFilter" name="subclassID">
+                                <option value="">All Subclasses</option>
+                                @foreach($coordinatorSubclasses as $subclass)
+                                    <option value="{{ $subclass->subclassID }}">{{ $subclass->display_name }}</option>
+                                @endforeach
+                            </select>
+                            <span class="att-filter-hint">Optional subclass filter</span>
+                        </div>
+                        @endif
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Search Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="fingerprint_search_type" name="search_type" required>
+                                <option value="">Select Type</option>
+                                <option value="date">By Date</option>
+                                <option value="month">By Month</option>
+                                <option value="year">By Year</option>
+                            </select>
+                            <span class="att-filter-hint">How to search attendance</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium" id="fingerprint_date_field" style="display: none;">
+                            <label>Date</label>
+                            <input type="date" class="form-control" id="fingerprint_date" name="date">
+                            <span class="att-filter-hint">Specific day</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--narrow" id="fingerprint_year_field" style="display: none;">
+                            <label>Year</label>
+                            <select class="form-select" id="fingerprint_year" name="year">
+                                @for($y = date('Y'); $y >= 2020; $y--)
+                                    <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
+                                @endfor
+                            </select>
+                            <span class="att-filter-hint">Calendar year</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--narrow" id="fingerprint_month_field" style="display: none;">
+                            <label>Month</label>
+                            <select class="form-select" id="fingerprint_month" name="month">
+                                <option value="01">January</option>
+                                <option value="02">February</option>
+                                <option value="03">March</option>
+                                <option value="04">April</option>
+                                <option value="05">May</option>
+                                <option value="06">June</option>
+                                <option value="07">July</option>
+                                <option value="08">August</option>
+                                <option value="09">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                            <span class="att-filter-hint">Month name</span>
+                        </div>
+                        <div class="att-filter-action">
+                            <button type="submit" class="att-filter-btn">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                        </div>
                     </div>
-                    <div class="card-body" style="padding: 25px;">
-                        <form id="searchFingerprintAttendanceForm">
-                            <div class="row g-3 align-items-end">
-                                @if(isset($isCoordinatorView) && $isCoordinatorView && $selectedClass)
-                                <!-- Coordinator View: Locked Main Class -->
-                                <div class="col-md-3">
-                                    <label class="form-label mb-1">Main Class</label>
-                                    <input type="text" class="form-control" value="{{ $selectedClass->class_name }}" readonly style="background-color: #e9ecef !important; color: #6c757d !important; cursor: not-allowed; opacity: 0.7;">
-                                    <input type="hidden" name="classID" id="fingerprintLockedClassID" value="{{ $classIDParam }}">
-                                    <small class="form-text text-muted"><i class="bi bi-lock-fill"></i> Locked - Coordinator assigned class</small>
-                                </div>
-                                <!-- Coordinator View: Subclass Filter -->
-                                <div class="col-md-3">
-                                    <label class="form-label mb-1">Subclass</label>
-                                    <select class="form-select" id="fingerprintSubclassFilter" name="subclassID">
-                                        <option value="">All Subclasses</option>
-                                        @foreach($coordinatorSubclasses as $subclass)
-                                            <option value="{{ $subclass->subclassID }}">{{ $subclass->display_name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <small class="form-text text-muted">Select subclass to filter</small>
-                                </div>
-                                @endif
-                                <div class="col-md-3">
-                                    <label class="form-label mb-1">Search Type <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="fingerprint_search_type" name="search_type" required>
-                                        <option value="">Select Type</option>
-                                        <option value="date">By Date</option>
-                                        <option value="month">By Month</option>
-                                        <option value="year">By Year</option>
-                                    </select>
-                                    <small class="form-text text-muted">Choose how to search attendance</small>
-                                </div>
-                                <div class="col-md-3" id="fingerprint_date_field" style="display: none;">
-                                    <label class="form-label mb-1">Date</label>
-                                    <input type="date" class="form-control" id="fingerprint_date" name="date">
-                                    <small class="form-text text-muted">Select specific date</small>
-                                </div>
-                                <div class="col-md-2" id="fingerprint_year_field" style="display: none;">
-                                    <label class="form-label mb-1">Year</label>
-                                    <select class="form-select" id="fingerprint_year" name="year">
-                                        @for($y = date('Y'); $y >= 2020; $y--)
-                                            <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
-                                        @endfor
-                                    </select>
-                                    <small class="form-text text-muted">Select year</small>
-                                </div>
-                                <div class="col-md-2" id="fingerprint_month_field" style="display: none;">
-                                    <label class="form-label mb-1">Month</label>
-                                    <select class="form-select" id="fingerprint_month" name="month">
-                                        <option value="01">January</option>
-                                        <option value="02">February</option>
-                                        <option value="03">March</option>
-                                        <option value="04">April</option>
-                                        <option value="05">May</option>
-                                        <option value="06">June</option>
-                                        <option value="07">July</option>
-                                        <option value="08">August</option>
-                                        <option value="09">September</option>
-                                        <option value="10">October</option>
-                                        <option value="11">November</option>
-                                        <option value="12">December</option>
-                                    </select>
-                                    <small class="form-text text-muted">Select month</small>
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label mb-1 d-block">&nbsp;</label>
-                                    <button type="submit" class="btn w-100" style="background-color: #940000; color: white; border-color: #940000;">
-                                        <i class="bi bi-search me-1"></i>Search
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                </form>
             </div>
         </div>
 
@@ -488,60 +770,61 @@
 
     <!-- Exam Attendance Section -->
     <div id="examAttendanceSection" style="display: none;">
-        <!-- Filters Section -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card" style="border: 1px solid #e9ecef; border-radius: 4px;">
-                    <div class="card-header" style="background-color: #940000; color: white; padding: 15px 20px;">
-                        <h5 class="mb-0">
-                            <i class="bi bi-funnel me-2"></i>Filter Exam Attendance
-                        </h5>
+        <div class="att-filter-panel no-print">
+            <div class="att-filter-panel-head">
+                <i class="bi bi-journal-check"></i>
+                <h5>Filter Exam Attendance</h5>
+                <small>Select exam, class, and subject</small>
+            </div>
+            <div class="att-filter-panel-body">
+                <div class="att-filter-row">
+                    <div class="att-filter-item att-filter-item--narrow">
+                        <label>Year <span class="text-danger">*</span></label>
+                        <select class="form-select" id="examFilterYear">
+                            <option value="">Select Year</option>
+                            @php
+                                $currentYear = date('Y');
+                                for($y = $currentYear; $y >= 2020; $y--) {
+                                    echo "<option value=\"{$y}\">{$y}</option>";
+                                }
+                            @endphp
+                        </select>
+                        <span class="att-filter-hint">Academic year</span>
                     </div>
-                    <div class="card-body" style="padding: 25px;">
-                        <div class="row g-3">
-                            <div class="col-md-2">
-                                <label class="form-label mb-1">Year <span class="text-danger">*</span></label>
-                                <select class="form-select" id="examFilterYear">
-                                    <option value="">Select Year</option>
-                                    @php
-                                        $currentYear = date('Y');
-                                        for($y = $currentYear; $y >= 2020; $y--) {
-                                            echo "<option value=\"{$y}\">{$y}</option>";
-                                        }
-                                    @endphp
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label mb-1">Term</label>
-                                <select class="form-select" id="examFilterTerm" disabled>
-                                    <option value="">Select Term</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label mb-1">Exam Name</label>
-                                <select class="form-select" id="examFilterExam" disabled>
-                                    <option value="">Select Exam</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label mb-1">Main Class</label>
-                                <select class="form-select" id="examFilterMainClass">
-                                    <option value="">All Classes</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label mb-1">Subclass</label>
-                                <select class="form-select" id="examFilterSubclass" disabled>
-                                    <option value="">All Subclasses</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label mb-1">Subject</label>
-                                <select class="form-select" id="examFilterSubject">
-                                    <option value="">All Subjects</option>
-                                </select>
-                            </div>
-                        </div>
+                    <div class="att-filter-item att-filter-item--narrow">
+                        <label>Term</label>
+                        <select class="form-select" id="examFilterTerm" disabled>
+                            <option value="">Select Term</option>
+                        </select>
+                        <span class="att-filter-hint">After year</span>
+                    </div>
+                    <div class="att-filter-item att-filter-item--medium">
+                        <label>Exam Name</label>
+                        <select class="form-select" id="examFilterExam" disabled>
+                            <option value="">Select Exam</option>
+                        </select>
+                        <span class="att-filter-hint">Examination</span>
+                    </div>
+                    <div class="att-filter-item att-filter-item--medium">
+                        <label>Main Class</label>
+                        <select class="form-select" id="examFilterMainClass">
+                            <option value="">All Classes</option>
+                        </select>
+                        <span class="att-filter-hint">Optional filter</span>
+                    </div>
+                    <div class="att-filter-item att-filter-item--medium">
+                        <label>Subclass</label>
+                        <select class="form-select" id="examFilterSubclass" disabled>
+                            <option value="">All Subclasses</option>
+                        </select>
+                        <span class="att-filter-hint">After main class</span>
+                    </div>
+                    <div class="att-filter-item att-filter-item--medium">
+                        <label>Subject</label>
+                        <select class="form-select" id="examFilterSubject">
+                            <option value="">All Subjects</option>
+                        </select>
+                        <span class="att-filter-hint">Optional filter</span>
                     </div>
                 </div>
             </div>
@@ -627,6 +910,12 @@
             <div class="modal-body" id="studentDetailsContent" style="padding: 25px;">
                 <!-- Content will be loaded here -->
             </div>
+            <div class="modal-footer border-top" id="studentDetailsModalFooter" style="display: none;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="exportStudentAttendancePdfBtn">
+                    <i class="bi bi-file-earmark-pdf"></i> Download PDF Report
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -655,6 +944,9 @@
 
 <script>
     let studentChart = null;
+    let currentAttendanceSearchParams = null;
+    let currentModalStudentID = null;
+    let currentModalSearchType = 'month';
 
     // Toggle between System Attendance, Fingerprint Attendance, and Exam Attendance tabs
     function showAttendanceTab(tab) {
@@ -718,14 +1010,14 @@
         // Show relevant fields
         switch(searchType) {
             case 'date':
-                document.getElementById('date_field').style.display = 'block';
+                document.getElementById('date_field').style.display = 'flex';
                 break;
             case 'year':
-                document.getElementById('year_field').style.display = 'block';
+                document.getElementById('year_field').style.display = 'flex';
                 break;
             case 'month':
-                document.getElementById('year_field').style.display = 'block';
-                document.getElementById('month_field').style.display = 'block';
+                document.getElementById('year_field').style.display = 'flex';
+                document.getElementById('month_field').style.display = 'flex';
                 break;
         }
     });
@@ -744,14 +1036,14 @@
             // Show relevant fields
             switch(searchType) {
                 case 'date':
-                    document.getElementById('fingerprint_date_field').style.display = 'block';
+                    document.getElementById('fingerprint_date_field').style.display = 'flex';
                     break;
                 case 'year':
-                    document.getElementById('fingerprint_year_field').style.display = 'block';
+                    document.getElementById('fingerprint_year_field').style.display = 'flex';
                     break;
                 case 'month':
-                    document.getElementById('fingerprint_year_field').style.display = 'block';
-                    document.getElementById('fingerprint_month_field').style.display = 'block';
+                    document.getElementById('fingerprint_year_field').style.display = 'flex';
+                    document.getElementById('fingerprint_month_field').style.display = 'flex';
                     break;
             }
         });
@@ -789,6 +1081,16 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                currentAttendanceSearchParams = Object.fromEntries(formData.entries());
+                @if(isset($isCoordinatorView) && $isCoordinatorView && $classIDParam)
+                if (!currentAttendanceSearchParams.classID) {
+                    const lockedClassID = document.getElementById('lockedClassID');
+                    if (lockedClassID) {
+                        currentAttendanceSearchParams.classID = lockedClassID.value;
+                        currentAttendanceSearchParams.coordinator = 'true';
+                    }
+                }
+                @endif
                 displayAttendanceResults(data);
             } else {
                 Swal.fire({
@@ -816,6 +1118,11 @@
     function displayAttendanceResults(data) {
         // Show results section
         document.getElementById('resultsSection').style.display = 'block';
+
+        const pdfBtn = document.getElementById('exportAttendanceReportPdfBtn');
+        if (pdfBtn) {
+            pdfBtn.style.display = (data.attendance_by_class && data.attendance_by_class.length > 0) ? 'inline-block' : 'none';
+        }
 
         // Display attendance by class if available
         if (data.attendance_by_class && data.attendance_by_class.length > 0) {
@@ -1317,6 +1624,9 @@
         const modal = new bootstrap.Modal(document.getElementById('studentDetailsModal'));
         const modalContent = document.getElementById('studentDetailsContent');
         const modalTitle = document.getElementById('studentDetailsModalLabel');
+        const modalFooter = document.getElementById('studentDetailsModalFooter');
+
+        if (modalFooter) modalFooter.style.display = 'none';
         
         modalTitle.innerHTML = '<i class="bi bi-person me-2"></i>Fingerprint Attendance Details - ' + studentName;
         
@@ -1894,15 +2204,20 @@
 
             // Has attendance - show statistics
             html += `
-                <div class="card mb-4" style="border-color: #940000; border-width: 2px;">
+                <div class="card mb-4" style="border-color: #940000; border-width: 2px;" data-subclass-id="${classData.subclassID}">
                     <div class="card-header text-white" style="background-color: #940000;">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h5 class="mb-0">
                                 <i class="bi bi-folder"></i> ${classData.display_name || (classData.class_name + ' ' + classData.subclass_name) || classData.subclass_name}
                             </h5>
-                            <button class="btn btn-sm btn-light toggle-subclass-btn" data-subclass-id="${classData.subclassID}">
-                                <i class="bi bi-chevron-down"></i> View Students
-                            </button>
+                            <div class="d-flex gap-2 align-items-center">
+                                <button type="button" class="btn btn-sm btn-danger export-system-class-pdf-btn" data-subclass-id="${classData.subclassID}" title="Download class PDF report">
+                                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                                </button>
+                                <button class="btn btn-sm btn-light toggle-subclass-btn" data-subclass-id="${classData.subclassID}">
+                                    <i class="bi bi-chevron-down"></i> View Students
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body">
@@ -2033,9 +2348,14 @@
                             <td><span class="badge bg-warning">${student.days_sick || 0}</span></td>
                             <td><span class="badge bg-info">${student.days_excused || 0}</span></td>
                             <td>
-                                <button class="btn btn-sm btn-view" onclick="viewStudentDetails(${student.studentID}, '${searchType}')">
-                                    <i class="bi bi-eye"></i> View More
-                                </button>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button class="btn btn-sm btn-view" onclick="viewStudentDetails(${student.studentID}, '${searchType}')">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="downloadStudentAttendancePdf(${student.studentID})" title="Download PDF">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     `;
@@ -2169,6 +2489,12 @@
             }
         });
 
+        document.querySelectorAll('.export-system-class-pdf-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                downloadAttendanceReportPdf(this.getAttribute('data-subclass-id'));
+            });
+        });
+
         // Add toggle functionality
         $('.toggle-subclass-btn').on('click', function() {
             const subclassID = $(this).data('subclass-id');
@@ -2228,10 +2554,76 @@
         return labels[searchType] || '';
     }
 
+    function buildAttendancePdfQueryString(extraParams = {}) {
+        if (!currentAttendanceSearchParams) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'No search data',
+                text: 'Please search attendance first before downloading PDF.',
+                confirmButtonColor: '#940000'
+            });
+            return null;
+        }
+
+        const params = new URLSearchParams();
+        const merged = { ...currentAttendanceSearchParams, ...extraParams };
+
+        ['search_type', 'date', 'year', 'month', 'classID', 'coordinator', 'subclassID'].forEach(key => {
+            if (merged[key]) {
+                params.append(key, merged[key]);
+            }
+        });
+
+        return params.toString();
+    }
+
+    function downloadAttendanceReportPdf(subclassID = null) {
+        const extra = subclassID ? { subclassID } : {};
+        const query = buildAttendancePdfQueryString(extra);
+        if (!query) return;
+
+        window.location.href = `{{ route('export_attendance_report_pdf') }}?${query}`;
+    }
+
+    function downloadStudentAttendancePdf(studentID) {
+        if (!studentID) return;
+
+        const searchType = document.getElementById('search_type') ? document.getElementById('search_type').value : 'month';
+        const year = document.getElementById('year') ? document.getElementById('year').value : new Date().getFullYear();
+        const month = document.getElementById('month') ? document.getElementById('month').value : String(new Date().getMonth() + 1).padStart(2, '0');
+        const date = document.getElementById('date') ? document.getElementById('date').value : '';
+
+        const params = new URLSearchParams();
+        params.append('search_type', searchType);
+        params.append('year', year);
+        if (searchType === 'month') {
+            params.append('month', month);
+        } else if (searchType === 'date' && date) {
+            params.append('date', date);
+        }
+
+        window.location.href = `{{ url('export_student_attendance_pdf') }}/${studentID}?${params.toString()}`;
+    }
+
+    document.getElementById('exportAttendanceReportPdfBtn')?.addEventListener('click', function() {
+        downloadAttendanceReportPdf();
+    });
+
+    document.getElementById('exportStudentAttendancePdfBtn')?.addEventListener('click', function() {
+        if (currentModalStudentID) {
+            downloadStudentAttendancePdf(currentModalStudentID);
+        }
+    });
+
 
     function viewStudentDetails(studentID, searchType = 'month') {
         const modal = new bootstrap.Modal(document.getElementById('studentDetailsModal'));
         const content = document.getElementById('studentDetailsContent');
+        const modalFooter = document.getElementById('studentDetailsModalFooter');
+
+        currentModalStudentID = studentID;
+        currentModalSearchType = searchType;
+        if (modalFooter) modalFooter.style.display = 'none';
         
         const currentYear = document.getElementById('year') ? document.getElementById('year').value : new Date().getFullYear();
         const currentMonth = document.getElementById('month') ? document.getElementById('month').value : String(new Date().getMonth() + 1).padStart(2, '0');
@@ -2268,6 +2660,7 @@
 
     function displayStudentDetails(data, searchType = 'month') {
         const content = document.getElementById('studentDetailsContent');
+        const modalFooter = document.getElementById('studentDetailsModalFooter');
         const student = data.student;
         const stats = data.stats;
         const chartData = data.chart_data;
@@ -2408,6 +2801,8 @@
                 </div>
             </div>
         `;
+
+        if (modalFooter) modalFooter.style.display = 'flex';
 
         // Display student chart (only for month and year, not for date)
         if (searchType !== 'date') {
@@ -3776,5 +4171,51 @@
         </div>
     </div>
 </div>
+
+@include('partials.attendance_sms_modal')
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btn = document.getElementById('btnOpenAttendanceSms');
+    if (!btn) return;
+
+    btn.addEventListener('click', function () {
+        let subclassID = document.getElementById('smsSubclassPicker')?.value || '';
+        if (!subclassID) {
+            const coordFilter = document.getElementById('subclassFilter')?.value;
+            if (coordFilter) subclassID = coordFilter;
+        }
+        if (!subclassID) {
+            alert('Tafadhali chagua darasa (subclass) kwanza.');
+            return;
+        }
+
+        let referenceDate = document.getElementById('date')?.value || null;
+        const searchType = document.getElementById('search_type')?.value;
+        if (!referenceDate && searchType === 'month') {
+            const y = document.getElementById('year')?.value;
+            const m = document.getElementById('month')?.value;
+            if (y && m) referenceDate = y + '-' + m + '-01';
+        } else if (!referenceDate && searchType === 'year') {
+            const y = document.getElementById('year')?.value;
+            if (y) referenceDate = y + '-01-01';
+        }
+
+        if (typeof openAttendanceSmsModal === 'function') {
+            openAttendanceSmsModal({ subclassID: subclassID, referenceDate: referenceDate });
+        }
+    });
+
+    fetch('{{ route("attendance_sms.schedule_info") }}', { headers: { 'Accept': 'application/json' } })
+        .then(r => r.json())
+        .then(info => {
+            if (info && info.success && !info.manual_allowed) {
+                const toolbar = document.getElementById('attendanceSmsToolbar');
+                if (toolbar) toolbar.style.display = 'none';
+            }
+        })
+        .catch(() => {});
+});
+</script>
 
 @include('includes.footer')

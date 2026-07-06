@@ -1090,11 +1090,9 @@ class ParentsContoller extends Controller
             return redirect()->route('login')->with('error', 'Access denied');
         }
 
-        // Set locale from session
         $locale = Session::get('locale', 'sw');
         app()->setLocale($locale);
 
-        // Get parent details
         $parent = ParentModel::where('parentID', $parentID)
             ->where('schoolID', $schoolID)
             ->first();
@@ -1103,77 +1101,67 @@ class ParentsContoller extends Controller
             return redirect()->route('login')->with('error', 'Parent not found');
         }
 
-        // Get all students of this parent
         $students = Student::where('parentID', $parentID)
             ->where('schoolID', $schoolID)
             ->with(['subclass.class'])
             ->get();
 
-        // Get filter parameters
         $studentFilter = $request->input('student', '');
         $yearFilter = $request->input('year', date('Y'));
         $monthFilter = $request->input('month', date('m'));
         $dateFilter = $request->input('date', '');
-        $searchType = $request->input('search_type', 'month'); // month, year, date
+        $searchType = $request->input('search_type', 'month');
 
-        // Get school details
         $school = School::where('schoolID', $schoolID)->first();
 
-        // Get available years from attendance records
         $years = Attendance::whereIn('studentID', $students->pluck('studentID'))
-            ->distinct()
             ->orderBy('attendance_date', 'desc')
             ->get()
             ->pluck('attendance_date')
-            ->map(function($date) {
-                return \Carbon\Carbon::parse($date)->format('Y');
-            })
+            ->map(fn ($date) => Carbon::parse($date)->format('Y'))
             ->unique()
             ->values()
             ->sort()
             ->reverse()
             ->values();
 
-        // Initialize attendance data
-        $attendanceData = null;
+        if ($years->isEmpty()) {
+            $years = collect([date('Y')]);
+        }
+
+        $childrenOverview = [];
+        foreach ($students as $student) {
+            $childData = $this->getParentChildAttendanceData(
+                $student->studentID,
+                $schoolID,
+                $searchType,
+                $yearFilter,
+                $monthFilter,
+                $dateFilter
+            );
+            $childrenOverview[] = [
+                'student' => $student,
+                'stats' => $childData['stats'],
+            ];
+        }
+
         $overviewData = null;
         $dailyRecords = collect();
+        $selectedStudent = null;
 
-        // If filters are applied, get attendance data
-        if ($studentFilter || $searchType) {
-            $query = Attendance::whereIn('studentID', $students->pluck('studentID'))
-                ->with(['student.subclass.class']);
-
-            // Apply student filter
-            if (!empty($studentFilter)) {
-                $query->where('studentID', $studentFilter);
-            }
-
-            // Apply date filters based on search type
-            if ($searchType === 'date' && !empty($dateFilter)) {
-                $query->whereDate('attendance_date', $dateFilter);
-                $dailyRecords = $query->orderBy('attendance_date', 'desc')->get();
-            } elseif ($searchType === 'month' && !empty($yearFilter) && !empty($monthFilter)) {
-                $query->whereYear('attendance_date', $yearFilter)
-                      ->whereMonth('attendance_date', $monthFilter);
-                $dailyRecords = $query->orderBy('attendance_date', 'desc')->get();
-            } elseif ($searchType === 'year' && !empty($yearFilter)) {
-                $query->whereYear('attendance_date', $yearFilter);
-                $dailyRecords = $query->orderBy('attendance_date', 'desc')->get();
-            }
-
-            // Calculate overview statistics
-            if ($dailyRecords->count() > 0) {
-                $overviewData = [
-                    'total_days' => $dailyRecords->count(),
-                    'present' => $dailyRecords->where('status', 'Present')->count(),
-                    'absent' => $dailyRecords->where('status', 'Absent')->count(),
-                    'late' => $dailyRecords->where('status', 'Late')->count(),
-                    'excused' => $dailyRecords->where('status', 'Excused')->count(),
-                    'attendance_rate' => $dailyRecords->count() > 0
-                        ? round(($dailyRecords->where('status', 'Present')->count() / $dailyRecords->count()) * 100, 2)
-                        : 0
-                ];
+        if (!empty($studentFilter)) {
+            $selectedStudent = $students->firstWhere('studentID', (int) $studentFilter);
+            if ($selectedStudent) {
+                $childData = $this->getParentChildAttendanceData(
+                    $selectedStudent->studentID,
+                    $schoolID,
+                    $searchType,
+                    $yearFilter,
+                    $monthFilter,
+                    $dateFilter
+                );
+                $dailyRecords = $childData['records'];
+                $overviewData = $childData['stats'];
             }
         }
 
@@ -1188,8 +1176,76 @@ class ParentsContoller extends Controller
             'searchType',
             'overviewData',
             'dailyRecords',
+            'childrenOverview',
+            'selectedStudent',
             'school'
         ));
+    }
+
+    public function parentFingerprintAttendance(Request $request)
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+        $parentID = Session::get('parentID');
+
+        if (!$userType || !$schoolID || !$parentID) {
+            return redirect()->route('login')->with('error', 'Access denied');
+        }
+
+        $parent = ParentModel::where('parentID', $parentID)
+            ->where('schoolID', $schoolID)
+            ->first();
+
+        if (!$parent) {
+            return redirect()->route('login')->with('error', 'Parent not found');
+        }
+
+        $students = Student::where('parentID', $parentID)
+            ->where('schoolID', $schoolID)
+            ->with(['subclass.class'])
+            ->get();
+
+        $school = School::where('schoolID', $schoolID)->first();
+
+        return view('Parents.fingerprint_attendance', compact('parent', 'students', 'school'));
+    }
+
+    private function getParentChildAttendanceData(
+        int $studentID,
+        int $schoolID,
+        string $searchType,
+        ?string $yearFilter,
+        ?string $monthFilter,
+        ?string $dateFilter
+    ): array {
+        $query = Attendance::where('studentID', $studentID)
+            ->where('schoolID', $schoolID);
+
+        if ($searchType === 'date' && !empty($dateFilter)) {
+            $query->whereDate('attendance_date', $dateFilter);
+        } elseif ($searchType === 'month' && !empty($yearFilter) && !empty($monthFilter)) {
+            $query->whereYear('attendance_date', $yearFilter)
+                ->whereMonth('attendance_date', $monthFilter);
+        } elseif ($searchType === 'year' && !empty($yearFilter)) {
+            $query->whereYear('attendance_date', $yearFilter);
+        }
+
+        $records = $query->orderBy('attendance_date', 'desc')->get();
+        $present = $records->where('status', 'Present')->count();
+        $total = $records->count();
+
+        return [
+            'records' => $records,
+            'stats' => [
+                'total_days' => $total,
+                'present' => $present,
+                'absent' => $records->where('status', 'Absent')->count(),
+                'sick' => $records->where('status', 'Sick')->count(),
+                'excused' => $records->where('status', 'Excused')->count(),
+                'late' => $records->where('status', 'Late')->count(),
+                'attendance_rate' => $total > 0 ? round(($present / $total) * 100, 1) : 0,
+            ],
+        ];
     }
 
     /**

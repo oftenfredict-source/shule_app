@@ -41,6 +41,7 @@ use App\Http\Controllers\StoreController;
 use App\Http\Controllers\StorePortalController;
 use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\GoalManagementController;
+use App\Http\Controllers\AttendanceSmsController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\CharacterAssessmentController;
 use App\Http\Controllers\ExamAttendanceController;
@@ -344,6 +345,20 @@ Route::post("super-admin/customer-care/send-sms", [
     "sendCustomerCareSms",
 ])->name("superadmin.customer_care.send_sms");
 
+// Super Admin: Attendance SMS Schedule per school
+Route::get("super-admin/attendance-sms-schedule", [
+    SuperAdminController::class,
+    "attendanceSmsSchedule",
+])->name("superadmin.attendance_sms_schedule");
+Route::get("super-admin/attendance-sms-schedule/{schoolID}", [
+    SuperAdminController::class,
+    "getAttendanceSmsSchedule",
+])->name("superadmin.attendance_sms_schedule.get");
+Route::post("super-admin/attendance-sms-schedule", [
+    SuperAdminController::class,
+    "saveAttendanceSmsSchedule",
+])->name("superadmin.attendance_sms_schedule.save");
+
 // Super Admin: System Alert (Header Alerts)
 Route::get("super-admin/system-alerts", [
     SuperAdminController::class,
@@ -524,6 +539,10 @@ Route::get("parentAttendance", [
     ParentsContoller::class,
     "parentAttendance",
 ])->name("parentAttendance");
+Route::get("parentFingerprintAttendance", [
+    ParentsContoller::class,
+    "parentFingerprintAttendance",
+])->name("parentFingerprintAttendance");
 Route::get("parentPayments", [ParentsContoller::class, "parentPayments"])->name(
     "parentPayments",
 );
@@ -3038,6 +3057,18 @@ Route::get("manageAttendance", [
     ManageAttendanceController::class,
     "manageAttendance",
 ])->name("manageAttendance");
+Route::get("attendance-sms/schedule-info", [
+    AttendanceSmsController::class,
+    "scheduleInfo",
+])->name("attendance_sms.schedule_info");
+Route::get("attendance-sms/recipients", [
+    AttendanceSmsController::class,
+    "recipients",
+])->name("attendance_sms.recipients");
+Route::post("attendance-sms/send", [
+    AttendanceSmsController::class,
+    "send",
+])->name("attendance_sms.send");
 Route::get("manageTeacherStaffAttendance", [
     ManageAttendanceController::class,
     "manageTeacherStaffAttendance",
@@ -3054,6 +3085,14 @@ Route::get("student_attendance_details/{studentID}", [
     ManageAttendanceController::class,
     "getStudentAttendanceDetails",
 ])->name("student_attendance_details");
+Route::get("export_attendance_report_pdf", [
+    ManageAttendanceController::class,
+    "exportAttendanceReportPdf",
+])->name("export_attendance_report_pdf");
+Route::get("export_student_attendance_pdf/{studentID}", [
+    ManageAttendanceController::class,
+    "exportStudentAttendancePdf",
+])->name("export_student_attendance_pdf");
 Route::get("student_fingerprint_attendance_details/{studentID}", [
     ManageAttendanceController::class,
     "getStudentFingerprintAttendanceDetails",

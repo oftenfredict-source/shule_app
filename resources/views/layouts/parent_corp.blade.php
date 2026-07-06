@@ -247,9 +247,19 @@
             </a>
         </div>
 
-        <a href="{{ route('parentAttendance') }}" class="sidebar-link {{ request()->routeIs('parentAttendance') ? 'active' : '' }}">
+        <a class="sidebar-link {{ request()->routeIs('parentAttendance') || request()->routeIs('parentFingerprintAttendance') ? 'active' : '' }}" data-bs-toggle="collapse" href="#mahudhurioCollapse" role="button" aria-expanded="{{ request()->routeIs('parentAttendance') || request()->routeIs('parentFingerprintAttendance') ? 'true' : 'false' }}" aria-controls="mahudhurioCollapse">
             <i class="bx bx-calendar-check"></i> Mahudhurio
+            <i class="bx bx-chevron-down ms-auto" style="font-size: 14px;"></i>
         </a>
+        <div class="collapse {{ request()->routeIs('parentAttendance') || request()->routeIs('parentFingerprintAttendance') ? 'show' : '' }}" id="mahudhurioCollapse">
+            <a href="{{ route('parentAttendance') }}" class="sidebar-link" style="padding-left: 45px; font-size: 12px; {{ request()->routeIs('parentAttendance') ? 'color: #940000; font-weight: bold;' : '' }}">
+                <i class="bx bx-clipboard" style="font-size: 14px;"></i> Mahudhurio ya Mfumo
+            </a>
+            <a href="{{ route('parentFingerprintAttendance') }}" class="sidebar-link" style="padding-left: 45px; font-size: 12px; {{ request()->routeIs('parentFingerprintAttendance') ? 'color: #940000; font-weight: bold;' : '' }}">
+                <i class="bx bx-fingerprint" style="font-size: 14px;"></i> Alama za Vidole
+                <span class="badge bg-secondary ms-1" style="font-size: 8px; padding: 2px 5px;">Hivi Karibuni</span>
+            </a>
+        </div>
         <a href="{{ route('parentSubjects') }}" class="sidebar-link {{ request()->routeIs('parentSubjects') ? 'active' : '' }}">
             <i class="bx bx-book"></i> Masomo
         </a>

@@ -507,6 +507,19 @@
         </div>
     </div>
 
+    <!-- Send Attendance SMS Widget -->
+    <div class="col-12 col-sm-6 col-md-3">
+        <div class="card shadow-sm widget-card h-100" id="sendAttendanceSmsBtn">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-chat-dots text-primary-custom" style="font-size: 3rem;"></i>
+                </div>
+                <h6 class="card-title mb-0 fw-bold">Send Attendance SMS</h6>
+                <small class="text-muted">Notify parents by SMS</small>
+            </div>
+        </div>
+    </div>
+
     <!-- Subject Management Widget -->
     <div class="col-12 col-sm-6 col-md-3">
         <div class="card shadow-sm widget-card h-100" id="subjectManagementBtn">
@@ -6956,6 +6969,32 @@
                 $('#attendance_date').attr('max', today);
             });
 
+            $('#sendAttendanceSmsBtn').on('click', function () {
+                let smsSubclassID = null;
+                if (typeof isCoordinatorView !== 'undefined' && isCoordinatorView) {
+                    smsSubclassID = $('#attendanceSubclassSelect').val();
+                    if (!smsSubclassID) {
+                        Swal.fire('Chagua Darasa', 'Tafadhali chagua subclass kwenye Attendance kwanza.', 'info');
+                        return;
+                    }
+                } else if (typeof subclassID !== 'undefined' && subclassID) {
+                    smsSubclassID = subclassID;
+                } else {
+                    Swal.fire('Error', 'Class not found', 'error');
+                    return;
+                }
+                const refDate = $('#attendance_date').val() || null;
+                if (typeof openAttendanceSmsModal === 'function') {
+                    openAttendanceSmsModal({ subclassID: smsSubclassID, referenceDate: refDate });
+                }
+            });
+
+            $.get('{{ route("attendance_sms.schedule_info") }}', function (info) {
+                if (info && info.success && !info.manual_allowed) {
+                    $('#sendAttendanceSmsBtn').closest('.col-12').hide();
+                }
+            });
+
             // Reload students when date changes
             $('#attendance_date').on('change', function () {
                 var selectedDate = $(this).val();
@@ -11061,3 +11100,5 @@
 <!-- DataTables JS -->
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+
+@include('partials.attendance_sms_modal')

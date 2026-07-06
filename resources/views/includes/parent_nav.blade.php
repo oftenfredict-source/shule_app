@@ -190,7 +190,26 @@
                                 <span data-translate="results_report">Ripoti</span>
                             </a>
                         </li>
-                        <li><a href="{{ route('parentAttendance') }}" class="nav-link"><i class="fa fa-calendar-check-o"></i> <span data-translate="attendance">Attendance</span></a></li>
+                        <li class="has-submenu {{ request()->routeIs('parentAttendance') || request()->routeIs('parentFingerprintAttendance') ? 'open' : '' }}">
+                            <a href="#" class="nav-link submenu-toggle">
+                                <i class="fa fa-calendar-check-o"></i>
+                                <span data-translate="attendance">Mahudhurio</span>
+                                <i class="fa fa-chevron-down submenu-arrow float-right"></i>
+                            </a>
+                            <ul class="submenu" style="list-style: none; padding-left: 20px; {{ request()->routeIs('parentAttendance') || request()->routeIs('parentFingerprintAttendance') ? 'display: block;' : 'display: none;' }}">
+                                <li>
+                                    <a href="{{ route('parentAttendance') }}" class="nav-link" style="font-size: 13px;">
+                                        <i class="fa fa-clipboard"></i> Mahudhurio ya Mfumo
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ route('parentFingerprintAttendance') }}" class="nav-link" style="font-size: 13px;">
+                                        <i class="fa fa-hand-pointer-o"></i> Alama za Vidole
+                                        <small class="text-muted">(Hivi Karibuni)</small>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
                         <li><a href="{{ route('parentSubjects') }}" class="nav-link"><i class="fa fa-book"></i> <span data-translate="subjects">Subjects</span></a></li>
                         <li><a href="{{ route('parentPayments') }}" class="nav-link"><i class="fa fa-credit-card"></i> <span data-translate="payments">Payments</span></a></li>
                         <li><a href="{{ route('parentFeesSummary') }}" class="nav-link"><i class="fa fa-list-alt"></i> <span data-translate="fees_summary">Fees Summary</span></a></li>

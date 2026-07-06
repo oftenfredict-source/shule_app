@@ -22,6 +22,12 @@ Schedule::command('session:notify-teachers')
     ->withoutOverlapping()
     ->runInBackground();
 
+// Auto attendance SMS to parents (checks send_time every minute)
+Schedule::command('attendance:send-auto-sms')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 Artisan::command('students:import-template {file : Path to TSV file} {--school=7 : schoolID} {--dry-run : Validate only; do not write to DB}', function () {
     $file = (string) $this->argument('file');
     $schoolID = (int) $this->option('school');

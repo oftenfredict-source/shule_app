@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\School;
+use App\Models\SchoolAttendanceSmsSchedule;
 use App\Models\Teacher;
 use App\Models\OtherStaff;
 use App\Models\Watchman;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\QueryException;
+use Carbon\Carbon;
 
 class SuperAdminController extends Controller
 {
@@ -1591,5 +1593,131 @@ class SuperAdminController extends Controller
         BlockedIp::where('ip_address', $request->ip_address)->delete();
 
         return response()->json(['success' => true, 'message' => 'IP Address unblocked successfully']);
+    }
+
+    public function attendanceSmsSchedule()
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $schools = School::orderBy('school_name', 'asc')
+            ->get(['schoolID', 'school_name', 'school_logo', 'registration_number', 'environment']);
+
+        $scheduleRows = SchoolAttendanceSmsSchedule::whereIn('schoolID', $schools->pluck('schoolID'))
+            ->get()
+            ->keyBy('schoolID');
+
+        return view('SuperAdmin.attendance_sms_schedule', compact('schools', 'scheduleRows'));
+    }
+
+    public function getAttendanceSmsSchedule($schoolID)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $schedule = SchoolAttendanceSmsSchedule::where('schoolID', $schoolID)->first();
+
+        return response()->json([
+            'success' => true,
+            'schoolID' => (int) $schoolID,
+            'schedule' => $schedule?->schedule ?? SchoolAttendanceSmsSchedule::SCHEDULE_NONE,
+            'send_method' => $schedule?->send_method ?? SchoolAttendanceSmsSchedule::METHOD_MANUAL,
+            'send_time' => $schedule?->send_time ? Carbon::parse($schedule->send_time)->format('H:i') : null,
+            'send_day_of_week' => $schedule?->send_day_of_week,
+            'send_day_of_month' => $schedule?->send_day_of_month,
+            'send_month' => $schedule?->send_month,
+        ]);
+    }
+
+    public function saveAttendanceSmsSchedule(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $schedule = $request->input('schedule');
+        $sendMethod = $request->input('send_method', SchoolAttendanceSmsSchedule::METHOD_MANUAL);
+
+        $rules = [
+            'schoolID' => 'required|integer|exists:schools,schoolID',
+            'schedule' => 'required|in:none,daily,weekly,monthly,yearly',
+            'send_method' => 'required|in:manual,auto',
+            'send_time' => 'nullable|date_format:H:i',
+            'send_day_of_week' => 'nullable|integer|min:1|max:7',
+            'send_day_of_month' => 'nullable|integer|min:1|max:31',
+            'send_month' => 'nullable|integer|min:1|max:12',
+        ];
+
+        if ($schedule !== SchoolAttendanceSmsSchedule::SCHEDULE_NONE && $sendMethod === SchoolAttendanceSmsSchedule::METHOD_AUTO) {
+            $rules['send_time'] = 'required|date_format:H:i';
+            if ($schedule === SchoolAttendanceSmsSchedule::SCHEDULE_WEEKLY) {
+                $rules['send_day_of_week'] = 'required|integer|min:1|max:7';
+            }
+            if ($schedule === SchoolAttendanceSmsSchedule::SCHEDULE_MONTHLY) {
+                $rules['send_day_of_month'] = 'required|integer|min:1|max:31';
+            }
+            if ($schedule === SchoolAttendanceSmsSchedule::SCHEDULE_YEARLY) {
+                $rules['send_month'] = 'required|integer|min:1|max:12';
+                $rules['send_day_of_month'] = 'required|integer|min:1|max:31';
+            }
+        }
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $userID = Session::get('userID');
+
+        $payload = [
+            'schedule' => $schedule,
+            'send_method' => $schedule === SchoolAttendanceSmsSchedule::SCHEDULE_NONE
+                ? SchoolAttendanceSmsSchedule::METHOD_MANUAL
+                : $sendMethod,
+            'send_time' => null,
+            'send_day_of_week' => null,
+            'send_day_of_month' => null,
+            'send_month' => null,
+            'updated_by' => $userID ? (int) $userID : null,
+        ];
+
+        if ($schedule !== SchoolAttendanceSmsSchedule::SCHEDULE_NONE && $sendMethod === SchoolAttendanceSmsSchedule::METHOD_AUTO) {
+            $payload['send_time'] = $request->input('send_time') . ':00';
+            if ($schedule === SchoolAttendanceSmsSchedule::SCHEDULE_WEEKLY) {
+                $payload['send_day_of_week'] = (int) $request->input('send_day_of_week');
+            }
+            if (in_array($schedule, [SchoolAttendanceSmsSchedule::SCHEDULE_MONTHLY, SchoolAttendanceSmsSchedule::SCHEDULE_YEARLY], true)) {
+                $payload['send_day_of_month'] = (int) $request->input('send_day_of_month');
+            }
+            if ($schedule === SchoolAttendanceSmsSchedule::SCHEDULE_YEARLY) {
+                $payload['send_month'] = (int) $request->input('send_month');
+            }
+        }
+
+        $existing = SchoolAttendanceSmsSchedule::where('schoolID', (int) $request->input('schoolID'))->first();
+        if ($existing && (
+            $existing->schedule !== $schedule
+            || $existing->send_method !== $payload['send_method']
+            || $existing->send_time !== $payload['send_time']
+        )) {
+            $payload['last_auto_period_key'] = null;
+            $payload['last_auto_run_at'] = null;
+        }
+
+        SchoolAttendanceSmsSchedule::updateOrCreate(
+            ['schoolID' => (int) $request->input('schoolID')],
+            $payload
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Attendance SMS schedule saved successfully.',
+        ]);
     }
 }

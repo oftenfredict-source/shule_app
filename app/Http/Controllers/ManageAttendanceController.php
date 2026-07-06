@@ -2515,4 +2515,188 @@ class ManageAttendanceController extends Controller
             'detailed' => $detailed,
         ];
     }
+
+    public function exportAttendanceReportPdf(Request $request)
+    {
+        set_time_limit(0);
+        ini_set('memory_limit', '2048M');
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return redirect()->route('login')->with('error', 'Access denied');
+        }
+
+        $searchType = $request->input('search_type');
+        if (!in_array($searchType, ['date', 'month', 'year'], true)) {
+            return redirect()->back()->with('error', 'Invalid search type for PDF export.');
+        }
+
+        $date = $request->input('date');
+        $year = $request->input('year');
+        $month = $request->input('month');
+        $subclassID = $request->input('subclassID');
+        $classID = $request->input('classID');
+        $isCoordinatorView = $request->input('coordinator') === 'true';
+
+        $attendanceByClass = $this->getAttendanceByClass(
+            $searchType,
+            $date,
+            $year,
+            $month,
+            null,
+            $subclassID,
+            $schoolID,
+            $classID,
+            $isCoordinatorView
+        );
+
+        $school = School::find($schoolID);
+        $periodLabel = $this->buildStudentAttendancePeriodLabel($searchType, $date, $year, $month);
+        $scopeLabel = 'All Classes';
+
+        if ($subclassID) {
+            $sub = Subclass::with('class')->find($subclassID);
+            if ($sub && $sub->class) {
+                $sn = trim($sub->subclass_name ?? '');
+                $scopeLabel = $sn ? $sub->class->class_name . ' ' . $sn : $sub->class->class_name;
+            }
+        } elseif ($isCoordinatorView && $classID) {
+            try {
+                $decryptedClassID = Crypt::decrypt($classID);
+            } catch (\Exception $e) {
+                $decryptedClassID = $classID;
+            }
+            $mainClass = ClassModel::find($decryptedClassID);
+            if ($mainClass) {
+                $scopeLabel = $mainClass->class_name . ' (All Subclasses)';
+            }
+        }
+
+        $normalized = collect($attendanceByClass)->map(function ($item) {
+            $row = is_array($item) ? $item : (array) $item;
+            $row['students'] = collect($row['students'] ?? [])->map(fn ($s) => (array) $s)->values()->all();
+
+            return $row;
+        })->values()->all();
+
+        $data = [
+            'school' => $school,
+            'title' => 'Student Attendance Report - ' . $periodLabel,
+            'period_label' => $periodLabel,
+            'scope_label' => $scopeLabel,
+            'search_type' => $searchType,
+            'attendanceByClass' => $normalized,
+            'generated_at' => now()->format('d M Y H:i'),
+        ];
+
+        $pdf = PDF::loadView('Admin.pdf.student_attendance_report_pdf', $data);
+        $pdf->setOptions([
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'chroot' => base_path(),
+        ]);
+        $pdf->setPaper('A4', 'portrait');
+
+        $filename = 'Student_Attendance_Report_' . date('YmdHis') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    public function exportStudentAttendancePdf($studentID, Request $request)
+    {
+        set_time_limit(0);
+        ini_set('memory_limit', '512M');
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return redirect()->route('login')->with('error', 'Access denied');
+        }
+
+        $student = Student::where('studentID', $studentID)
+            ->where('schoolID', $schoolID)
+            ->first();
+
+        if (!$student) {
+            return redirect()->back()->with('error', 'Student not found.');
+        }
+
+        $year = $request->input('year', date('Y'));
+        $month = $request->input('month', date('m'));
+        $date = $request->input('date');
+        $searchType = $request->input('search_type', 'month');
+
+        $query = Attendance::where('studentID', $studentID)
+            ->where('schoolID', $schoolID);
+
+        if ($searchType === 'year' && $year) {
+            $query->whereYear('attendance_date', $year);
+        } elseif ($searchType === 'month' && $year && $month) {
+            $query->whereYear('attendance_date', $year)
+                ->whereMonth('attendance_date', $month);
+        } elseif ($searchType === 'date' && $date) {
+            $query->whereDate('attendance_date', $date);
+        } else {
+            $query->whereYear('attendance_date', $year)
+                ->whereMonth('attendance_date', $month);
+            $searchType = 'month';
+        }
+
+        $attendances = $query->orderBy('attendance_date', 'asc')->get();
+
+        $stats = [
+            'total_days' => $attendances->count(),
+            'present' => $attendances->where('status', 'Present')->count(),
+            'absent' => $attendances->where('status', 'Absent')->count(),
+            'sick' => $attendances->where('status', 'Sick')->count(),
+            'excused' => $attendances->where('status', 'Excused')->count(),
+        ];
+
+        $school = School::find($schoolID);
+        $periodLabel = $this->buildStudentAttendancePeriodLabel($searchType, $date, $year, $month);
+        $studentName = trim($student->first_name . ' ' . ($student->middle_name ?? '') . ' ' . $student->last_name);
+        $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $studentName);
+
+        $data = [
+            'school' => $school,
+            'student' => $student,
+            'attendances' => $attendances,
+            'stats' => $stats,
+            'period_label' => $periodLabel,
+            'title' => 'Attendance - ' . $studentName,
+            'generated_at' => now()->format('d M Y H:i'),
+        ];
+
+        $pdf = PDF::loadView('Admin.pdf.student_attendance_individual_pdf', $data);
+        $pdf->setOptions([
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'chroot' => base_path(),
+        ]);
+        $pdf->setPaper('A4', 'portrait');
+
+        $filename = 'Attendance_' . $safeName . '_' . date('YmdHis') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    private function buildStudentAttendancePeriodLabel(
+        string $searchType,
+        ?string $date = null,
+        ?string $year = null,
+        ?string $month = null
+    ): string {
+        if ($searchType === 'date' && $date) {
+            return Carbon::parse($date)->format('d M Y');
+        }
+
+        if ($searchType === 'month' && $year && $month) {
+            return Carbon::create((int) $year, (int) $month, 1)->format('F Y');
+        }
+
+        if ($searchType === 'year' && $year) {
+            return 'Year ' . $year;
+        }
+
+        return 'Selected Period';
+    }
 }
