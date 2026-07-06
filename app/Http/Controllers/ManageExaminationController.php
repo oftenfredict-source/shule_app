@@ -9081,9 +9081,9 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Exam paper uploads — same multi-environment logic as manage_student (userImages).
+     * Exam paper uploads — same multi-environment logic as manage_student, folder: public/exam_papers.
      */
-    private const EXAM_PAPER_UPLOAD_FOLDER = 'userImages/exam_papers';
+    private const EXAM_PAPER_UPLOAD_FOLDER = 'exam_papers';
 
     private function storeExamPaperFile(\Illuminate\Http\UploadedFile $file): string
     {
@@ -9106,7 +9106,7 @@ class ManageExaminationController extends Controller
         $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
         $filename = basename($relativePath);
 
-        foreach (['exam_papers', self::EXAM_PAPER_UPLOAD_FOLDER] as $legacyFolder) {
+        foreach (['exam_papers', 'userImages/exam_papers'] as $legacyFolder) {
             $path = PublicUploadPathService::resolveExistingFile($legacyFolder . '/' . $filename);
             if ($path) {
                 return $path;
