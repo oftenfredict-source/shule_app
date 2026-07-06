@@ -22,6 +22,7 @@ use App\Models\Subclass;
 use App\Models\SubjectElector;
 use App\Models\Teacher;
 use App\Models\WeeklyTestSchedule;
+use App\Services\PublicUploadPathService;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -4527,29 +4528,8 @@ class ManageExaminationController extends Controller
             }
 
             if ($request->hasFile('file')) {
-                $file = $request->file('file');
-                $fileName = time().'_'.$file->getClientOriginalName();
-
-                // Determine upload path - Prioritize the directory where index.php is located
-                $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
-                $uploadPath = $scriptDir . '/exam_papers';
-
-                // If scriptDir doesn't exist or isn't writable, fallback to other common paths
-                if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
-                    $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/exam_papers' : null;
-                    if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
-                        $uploadPath = $docRootPath;
-                    } else {
-                        $uploadPath = public_path('exam_papers');
-                    }
-                }
-
-                if (!file_exists($uploadPath)) {
-                    @mkdir($uploadPath, 0755, true);
-                }
-
-                $file->move($uploadPath, $fileName);
-                $examPaper->file_path = 'exam_papers/' . $fileName;
+                $stored = PublicUploadPathService::storeUploadedFile($request->file('file'), 'exam_papers');
+                $examPaper->file_path = $stored['relative_path'];
             } elseif ($reusePaper && $reusePaper->file_path) {
                 $examPaper->file_path = $reusePaper->file_path;
             }
@@ -5928,41 +5908,13 @@ class ManageExaminationController extends Controller
 
             // Handle file upload
             if ($request->hasFile('file')) {
-                $file = $request->file('file');
-                $fileName = time().'_'.$file->getClientOriginalName();
-
-                // Determine upload path - Prioritize the directory where index.php is located
-                $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
-                $uploadPath = $scriptDir . '/exam_papers';
-
-                // If scriptDir doesn't exist or isn't writable, fallback to other common paths
-                if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
-                    $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/exam_papers' : null;
-                    if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
-                        $uploadPath = $docRootPath;
-                    } else {
-                        $uploadPath = public_path('exam_papers');
-                    }
+                PublicUploadPathService::deleteIfExists($examPaper->file_path);
+                if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
+                    Storage::disk('public')->delete($examPaper->file_path);
                 }
 
-                if (!file_exists($uploadPath)) {
-                    @mkdir($uploadPath, 0755, true);
-                }
-
-                // Delete old file if exists
-                if ($examPaper->file_path) {
-                    $oldFilePath = $uploadPath . '/' . basename($examPaper->file_path);
-                    if (file_exists($oldFilePath)) {
-                        @unlink($oldFilePath);
-                    }
-                    // Also check Laravel Storage just in case
-                    if (Storage::disk('public')->exists($examPaper->file_path)) {
-                        Storage::disk('public')->delete($examPaper->file_path);
-                    }
-                }
-
-                $file->move($uploadPath, $fileName);
-                $examPaper->file_path = 'exam_papers/' . $fileName;
+                $stored = PublicUploadPathService::storeUploadedFile($request->file('file'), 'exam_papers');
+                $examPaper->file_path = $stored['relative_path'];
                 $examPaper->upload_type = 'upload';
             }
 
@@ -6681,25 +6633,10 @@ class ManageExaminationController extends Controller
             $fileName = $examPaper->file_path ? basename($examPaper->file_path) : 'exam_paper';
 
             if ($examPaper->file_path) {
-                // Check all potential paths
-                $scriptPath = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) . '/' . $examPaper->file_path : null;
+                $foundPath = PublicUploadPathService::resolveExistingFile($examPaper->file_path);
 
-                $pathsToCheck = [
-                    $scriptPath,
-                    public_path($examPaper->file_path),
-                    isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/' . $examPaper->file_path : null,
-                    Storage::disk('public')->path($examPaper->file_path),
-                ];
-
-                $basePath = base_path();
-                $parentDir = dirname($basePath);
-                $pathsToCheck[] = $parentDir . '/public_html/' . $examPaper->file_path;
-
-                foreach ($pathsToCheck as $path) {
-                    if ($path && file_exists($path)) {
-                        $foundPath = $path;
-                        break;
-                    }
+                if (!$foundPath && Storage::disk('public')->exists($examPaper->file_path)) {
+                    $foundPath = Storage::disk('public')->path($examPaper->file_path);
                 }
             }
 
@@ -6759,6 +6696,7 @@ class ManageExaminationController extends Controller
             DB::beginTransaction();
 
             // Delete file if exists
+            PublicUploadPathService::deleteIfExists($examPaper->file_path);
             if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
                 Storage::disk('public')->delete($examPaper->file_path);
             }
