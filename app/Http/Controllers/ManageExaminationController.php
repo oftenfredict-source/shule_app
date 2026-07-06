@@ -4527,7 +4527,7 @@ class ManageExaminationController extends Controller
             }
 
             if ($request->hasFile('file')) {
-                $examPaper->file_path = $this->storePublicUploadedFile($request->file('file'), 'exam_papers');
+                $examPaper->file_path = $this->storeExamPaperFile($request->file('file'));
             } elseif ($reusePaper && $reusePaper->file_path) {
                 $examPaper->file_path = $reusePaper->file_path;
             }
@@ -4850,7 +4850,7 @@ class ManageExaminationController extends Controller
                 'exam_paper' => $examPaper,
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
 
             Log::error('Error storing exam paper: '.$e->getMessage(), [
@@ -5906,8 +5906,8 @@ class ManageExaminationController extends Controller
 
             // Handle file upload (same method as manage_student photo upload)
             if ($request->hasFile('file')) {
-                $this->deletePublicUploadedFile($examPaper->file_path, 'exam_papers');
-                $examPaper->file_path = $this->storePublicUploadedFile($request->file('file'), 'exam_papers');
+                $this->deleteExamPaperFile($examPaper->file_path);
+                $examPaper->file_path = $this->storeExamPaperFile($request->file('file'));
                 $examPaper->upload_type = 'upload';
             }
 
@@ -6626,7 +6626,7 @@ class ManageExaminationController extends Controller
             $fileName = $examPaper->file_path ? basename($examPaper->file_path) : 'exam_paper';
 
             if ($examPaper->file_path) {
-                $foundPath = $this->resolvePublicUploadedFilePath($examPaper->file_path, 'exam_papers');
+                $foundPath = $this->resolveExamPaperFilePath($examPaper->file_path);
             }
 
             if (!$foundPath) {
@@ -6685,7 +6685,7 @@ class ManageExaminationController extends Controller
             DB::beginTransaction();
 
             // Delete file if exists
-            $this->deletePublicUploadedFile($examPaper->file_path, 'exam_papers');
+            $this->deleteExamPaperFile($examPaper->file_path);
 
             // Delete the exam paper record
             $examPaper->delete();
@@ -9167,6 +9167,59 @@ class ManageExaminationController extends Controller
     }
 
     /**
+     * Store exam paper file — same upload root as manage_student (userImages), subfolder exam_papers.
+     */
+    private function storeExamPaperFile(\Illuminate\Http\UploadedFile $file): string
+    {
+        return $this->storePublicUploadedFile($file, 'userImages/exam_papers');
+    }
+
+    private function resolveExamPaperFilePath(?string $relativePath): ?string
+    {
+        if (!$relativePath) {
+            return null;
+        }
+
+        $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
+        $filename = basename($relativePath);
+
+        $path = $this->resolvePublicUploadedFilePath($relativePath, 'userImages/exam_papers');
+        if ($path) {
+            return $path;
+        }
+
+        $path = $this->resolvePublicUploadedFilePath($relativePath, 'exam_papers');
+        if ($path) {
+            return $path;
+        }
+
+        $scriptDir = !empty($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+        $legacyCandidates = [
+            $relativePath,
+            $scriptDir . '/' . $relativePath,
+            public_path($relativePath),
+            public_path('exam_papers/' . $filename),
+            public_path('userImages/exam_papers/' . $filename),
+        ];
+
+        foreach (array_unique(array_filter($legacyCandidates)) as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function deleteExamPaperFile(?string $relativePath): void
+    {
+        $path = $this->resolveExamPaperFilePath($relativePath);
+        if ($path && file_exists($path)) {
+            @unlink($path);
+        }
+    }
+
+    /**
      * Store uploaded file — identical to manage_student $request->file('photo')->move(...)
      */
     private function storePublicUploadedFile(\Illuminate\Http\UploadedFile $file, string $folder): string
@@ -9183,19 +9236,26 @@ class ManageExaminationController extends Controller
      */
     private function resolvePublicUploadedFilePath(string $relativePath, string $folder): ?string
     {
+        $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
         $filename = basename($relativePath);
         $basePath = base_path();
         $parentDir = dirname($basePath);
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : null;
 
         $candidates = [
-            isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) . '/' . $folder . '/' . $filename : null,
+            $relativePath,
+            $scriptDir ? $scriptDir . '/' . $relativePath : null,
+            $scriptDir ? $scriptDir . '/' . $folder . '/' . $filename : null,
+            public_path($relativePath),
             public_path($folder . '/' . $filename),
-            isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/' . $folder . '/' . $filename : null,
+            isset($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . $relativePath : null,
+            isset($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . $folder . '/' . $filename : null,
+            $parentDir . '/public_html/' . $relativePath,
             $parentDir . '/public_html/' . $folder . '/' . $filename,
         ];
 
         foreach (array_filter($candidates) as $path) {
-            if (file_exists($path)) {
+            if (is_file($path)) {
                 return $path;
             }
         }

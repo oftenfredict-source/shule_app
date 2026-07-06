@@ -2412,8 +2412,14 @@ jQuery(document).ready(function($) {
                 let errorMsg = 'Failed to submit exam paper';
                 if (xhr.responseJSON && xhr.responseJSON.error) {
                     errorMsg = xhr.responseJSON.error;
+                } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
                 } else if (xhr.responseJSON && xhr.responseJSON.errors) {
                     errorMsg = Object.values(xhr.responseJSON.errors).flat().join('<br>');
+                } else if (xhr.status === 0) {
+                    errorMsg = 'Network error. Check your connection and try again.';
+                } else if (xhr.status >= 500) {
+                    errorMsg = 'Server error (' + xhr.status + '). Please try again or contact support.';
                 }
                 Swal.fire('Error', errorMsg, 'error');
             }
