@@ -22,12 +22,12 @@ use App\Models\Subclass;
 use App\Models\SubjectElector;
 use App\Models\Teacher;
 use App\Models\WeeklyTestSchedule;
+use App\Services\PublicUploadPathService;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -2626,9 +2626,7 @@ class ManageExaminationController extends Controller
             // 5. Delete exam papers (and their files)
             $examPapers = DB::table('exam_papers')->where('examID', $examID)->get();
             foreach ($examPapers as $examPaper) {
-                if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
-                    Storage::disk('public')->delete($examPaper->file_path);
-                }
+                $this->deleteExamPaperFile($examPaper->file_path);
             }
             DB::table('exam_papers')->where('examID', $examID)->delete();
 
@@ -6147,8 +6145,8 @@ class ManageExaminationController extends Controller
             DB::beginTransaction();
 
             // Clear old file if switching to questions mode
-            if ($examPaper->file_path && Storage::disk('public')->exists($examPaper->file_path)) {
-                Storage::disk('public')->delete($examPaper->file_path);
+            if ($examPaper->file_path) {
+                $this->deleteExamPaperFile($examPaper->file_path);
                 $examPaper->file_path = null;
             }
 
@@ -9083,95 +9081,15 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Resolve public upload directory — identical to ManageStudentController photo upload.
+     * Exam paper uploads — same multi-environment logic as manage_student (userImages).
      */
-    private function resolvePublicUploadPath(string $folder): string
-    {
-        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
-        $uploadPath = $scriptDir . '/' . $folder;
+    private const EXAM_PAPER_UPLOAD_FOLDER = 'userImages/exam_papers';
 
-        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
-            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/' . $folder : null;
-            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
-                $uploadPath = $docRootPath;
-            } else {
-                $uploadPath = public_path($folder);
-            }
-        }
-
-        if (!file_exists($uploadPath)) {
-            @mkdir($uploadPath, 0755, true);
-        }
-
-        $this->healUploadDirectoryPermissions($uploadPath, $scriptDir . '/userImages');
-
-        return $uploadPath;
-    }
-
-    /**
-     * userImages inafanya kazi kwenye server — sawazisha exam_papers nayo.
-     */
-    private function healUploadDirectoryPermissions(string $targetDir, string $referenceDir): void
-    {
-        if (!is_dir($referenceDir)) {
-            return;
-        }
-
-        $refProbe = $referenceDir . '/.perm_check';
-        if (@file_put_contents($refProbe, '1') === false) {
-            return;
-        }
-        @unlink($refProbe);
-
-        $targetProbe = $targetDir . '/.perm_check';
-        if (@file_put_contents($targetProbe, '1') !== false) {
-            @unlink($targetProbe);
-
-            return;
-        }
-
-        $refPerms = fileperms($referenceDir) & 0777;
-        if ($refPerms > 0) {
-            @chmod($targetDir, $refPerms);
-        } else {
-            @chmod($targetDir, 0777);
-        }
-
-        if (@file_put_contents($targetProbe, '1') !== false) {
-            @unlink($targetProbe);
-
-            return;
-        }
-
-        if (!is_dir($targetDir)) {
-            @mkdir($targetDir, $refPerms > 0 ? $refPerms : 0777, true);
-
-            return;
-        }
-
-        $isEmpty = true;
-        if ($handle = @opendir($targetDir)) {
-            while (($entry = readdir($handle)) !== false) {
-                if ($entry !== '.' && $entry !== '..') {
-                    $isEmpty = false;
-                    break;
-                }
-            }
-            closedir($handle);
-        }
-
-        if ($isEmpty) {
-            @rmdir($targetDir);
-            @mkdir($targetDir, $refPerms > 0 ? $refPerms : 0777, true);
-        }
-    }
-
-    /**
-     * Store exam paper file — same upload root as manage_student (userImages), subfolder exam_papers.
-     */
     private function storeExamPaperFile(\Illuminate\Http\UploadedFile $file): string
     {
-        return $this->storePublicUploadedFile($file, 'userImages/exam_papers');
+        $stored = PublicUploadPathService::storeUploadedFile($file, self::EXAM_PAPER_UPLOAD_FOLDER);
+
+        return $stored['relative_path'];
     }
 
     private function resolveExamPaperFilePath(?string $relativePath): ?string
@@ -9180,31 +9098,18 @@ class ManageExaminationController extends Controller
             return null;
         }
 
+        $path = PublicUploadPathService::resolveExistingFile($relativePath);
+        if ($path) {
+            return $path;
+        }
+
         $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
         $filename = basename($relativePath);
 
-        $path = $this->resolvePublicUploadedFilePath($relativePath, 'userImages/exam_papers');
-        if ($path) {
-            return $path;
-        }
-
-        $path = $this->resolvePublicUploadedFilePath($relativePath, 'exam_papers');
-        if ($path) {
-            return $path;
-        }
-
-        $scriptDir = !empty($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
-        $legacyCandidates = [
-            $relativePath,
-            $scriptDir . '/' . $relativePath,
-            public_path($relativePath),
-            public_path('exam_papers/' . $filename),
-            public_path('userImages/exam_papers/' . $filename),
-        ];
-
-        foreach (array_unique(array_filter($legacyCandidates)) as $candidate) {
-            if (is_file($candidate)) {
-                return $candidate;
+        foreach (['exam_papers', self::EXAM_PAPER_UPLOAD_FOLDER] as $legacyFolder) {
+            $path = PublicUploadPathService::resolveExistingFile($legacyFolder . '/' . $filename);
+            if ($path) {
+                return $path;
             }
         }
 
@@ -9213,65 +9118,6 @@ class ManageExaminationController extends Controller
 
     private function deleteExamPaperFile(?string $relativePath): void
     {
-        $path = $this->resolveExamPaperFilePath($relativePath);
-        if ($path && file_exists($path)) {
-            @unlink($path);
-        }
-    }
-
-    /**
-     * Store uploaded file — identical to manage_student $request->file('photo')->move(...)
-     */
-    private function storePublicUploadedFile(\Illuminate\Http\UploadedFile $file, string $folder): string
-    {
-        $uploadPath = $this->resolvePublicUploadPath($folder);
-        $fileName = time() . '_' . $file->getClientOriginalName();
-        $file->move($uploadPath, $fileName);
-
-        return trim($folder, '/') . '/' . $fileName;
-    }
-
-    /**
-     * Locate an uploaded file — same multi-path lookup as manage_student images.
-     */
-    private function resolvePublicUploadedFilePath(string $relativePath, string $folder): ?string
-    {
-        $relativePath = ltrim(str_replace('\\', '/', $relativePath), '/');
-        $filename = basename($relativePath);
-        $basePath = base_path();
-        $parentDir = dirname($basePath);
-        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : null;
-
-        $candidates = [
-            $relativePath,
-            $scriptDir ? $scriptDir . '/' . $relativePath : null,
-            $scriptDir ? $scriptDir . '/' . $folder . '/' . $filename : null,
-            public_path($relativePath),
-            public_path($folder . '/' . $filename),
-            isset($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . $relativePath : null,
-            isset($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/' . $folder . '/' . $filename : null,
-            $parentDir . '/public_html/' . $relativePath,
-            $parentDir . '/public_html/' . $folder . '/' . $filename,
-        ];
-
-        foreach (array_filter($candidates) as $path) {
-            if (is_file($path)) {
-                return $path;
-            }
-        }
-
-        return null;
-    }
-
-    private function deletePublicUploadedFile(?string $relativePath, string $folder): void
-    {
-        if (!$relativePath) {
-            return;
-        }
-
-        $path = $this->resolvePublicUploadedFilePath($relativePath, $folder);
-        if ($path && file_exists($path)) {
-            @unlink($path);
-        }
+        PublicUploadPathService::deleteIfExists($relativePath);
     }
 }
