@@ -30,6 +30,8 @@
 @include('partials.fingerprint_attendance_grid_list')
 
 <div class="container-fluid" style="padding: 20px;">
+    @include('partials.fingerprint_setup_download')
+
     <div class="row mb-3">
         <div class="col-md-8">
             <h2 class="section-header"><i class="bi bi-fingerprint"></i> Student Fingerprint Attendance</h2>

@@ -83,6 +83,9 @@
             <a href="{{ route('superadmin.schools.index') }}" class="btn btn-outline-primary-custom btn-sm py-2 px-3">
                 <i class="bx bx-list-ul me-1"></i> All Schools
             </a>
+            <a href="{{ route('superadmin.fingerprint_attendance_setup.index') }}" class="btn btn-outline-primary-custom btn-sm py-2 px-3">
+                <i class="bx bx-desktop me-1"></i> Attendance Setup
+            </a>
         </div>
     </div>
 
@@ -146,6 +149,9 @@
                         </a>
                         <a href="{{ route('superadmin.user_password') }}" class="btn btn-sm btn-outline-dark text-start">
                             <i class="bx bx-key me-2"></i> Reset User Password
+                        </a>
+                        <a href="{{ route('superadmin.fingerprint_attendance_setup.index') }}" class="btn btn-sm btn-outline-dark text-start">
+                            <i class="bx bx-desktop me-2"></i> Fingerprint Attendance Setup
                         </a>
                     </div>
                 </div>

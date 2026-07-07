@@ -17,6 +17,7 @@ use App\Models\TeacherFingerprintAttendance;
 use App\Models\StaffFingerprintAttendance;
 use App\Models\TeacherStaffWorkTimeSetting;
 use App\Models\StudentWorkTimeSetting;
+use App\Services\FingerprintAttendanceSetupService;
 use App\Services\SchoolWorkingDaysService;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -170,8 +171,14 @@ class ManageAttendanceController extends Controller
         $teacherCount = Teacher::where('schoolID', $schoolID)->where('status', 'Active')->count();
         $staffCount = OtherStaff::where('schoolID', $schoolID)->where('status', 'Active')->count();
         $workTime = TeacherStaffWorkTimeSetting::forSchool((int) $schoolID);
+        $setupData = $this->fingerprintSetupViewData();
 
-        return view('Admin.manage_teacher_staff_attendance', compact('school_details', 'teacherCount', 'staffCount', 'workTime'));
+        return view('Admin.manage_teacher_staff_attendance', compact(
+            'school_details',
+            'teacherCount',
+            'staffCount',
+            'workTime'
+        ) + $setupData);
     }
 
     public function manageStudentFingerprintAttendance(Request $request)
@@ -227,7 +234,7 @@ class ManageAttendanceController extends Controller
             'workTime',
             'subclasses',
             'mainClasses'
-        ));
+        ) + $this->fingerprintSetupViewData());
     }
 
     public function getStudentWorkTime()
@@ -2658,6 +2665,15 @@ class ManageAttendanceController extends Controller
         }
 
         return [$classID, $subclassID];
+    }
+
+    private function fingerprintSetupViewData(): array
+    {
+        $service = app(FingerprintAttendanceSetupService::class);
+
+        return [
+            'fingerprintSetup' => $service->currentSetup(),
+        ];
     }
 
     private function teacherCanAccessMainClass(int $schoolID, int $classID, $teacherID): bool

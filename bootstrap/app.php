@@ -33,5 +33,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, $request) {
+            if ($request->ajax() || $request->wantsJson()) {
+                $limit = ini_get('post_max_size') ?: 'server limit';
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File ni kubwa sana. Kikomo cha server ni '.$limit.'.',
+                ], 413);
+            }
+        });
     })->create();

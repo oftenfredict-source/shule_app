@@ -43,6 +43,7 @@ use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\GoalManagementController;
 use App\Http\Controllers\AttendanceSmsController;
 use App\Http\Controllers\FingerprintAttendanceSmsController;
+use App\Http\Controllers\FingerprintAttendanceSetupController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\CharacterAssessmentController;
 use App\Http\Controllers\ExamAttendanceController;
@@ -367,6 +368,27 @@ Route::post("super-admin/fingerprint-attendance-sms-schedule", [
     SuperAdminController::class,
     "saveFingerprintAttendanceSmsSchedule",
 ])->name("superadmin.fingerprint_attendance_sms_schedule.save");
+
+Route::get("super-admin/fingerprint-attendance-setup", [
+    FingerprintAttendanceSetupController::class,
+    "index",
+])->name("superadmin.fingerprint_attendance_setup.index");
+Route::post("super-admin/fingerprint-attendance-setup", [
+    FingerprintAttendanceSetupController::class,
+    "store",
+])->name("superadmin.fingerprint_attendance_setup.store");
+Route::put("super-admin/fingerprint-attendance-setup/{setupID}", [
+    FingerprintAttendanceSetupController::class,
+    "update",
+])->name("superadmin.fingerprint_attendance_setup.update");
+Route::delete("super-admin/fingerprint-attendance-setup/{setupID}", [
+    FingerprintAttendanceSetupController::class,
+    "destroy",
+])->name("superadmin.fingerprint_attendance_setup.destroy");
+Route::get("fingerprint-attendance-setup/download/{setupID}", [
+    FingerprintAttendanceSetupController::class,
+    "download",
+])->name("fingerprint_attendance_setup.download");
 
 // Super Admin: System Alert (Header Alerts)
 Route::get("super-admin/system-alerts", [

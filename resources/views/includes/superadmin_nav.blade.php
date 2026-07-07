@@ -267,6 +267,9 @@
         <a href="{{ route('superadmin.attendance_sms_schedule') }}" class="sidebar-link {{ request()->routeIs('superadmin.attendance_sms_schedule') ? 'active' : '' }}">
             <i class="bx bx-calendar-check"></i> Attendance SMS Schedule
         </a>
+        <a href="{{ route('superadmin.fingerprint_attendance_setup.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.fingerprint_attendance_setup.*') ? 'active' : '' }}">
+            <i class="bx bx-desktop"></i> Attendance Setup
+        </a>
         <a href="{{ route('superadmin.system_alerts') }}" class="sidebar-link {{ request()->routeIs('superadmin.system_alerts') ? 'active' : '' }}">
             <i class="bx bx-bell"></i> System Alerts
         </a>

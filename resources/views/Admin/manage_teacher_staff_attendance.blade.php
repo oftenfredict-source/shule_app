@@ -116,6 +116,8 @@
 <div class="ts-toast-container" id="tsToastContainer" aria-live="polite" aria-atomic="true"></div>
 
 <div class="container-fluid" style="padding: 20px;">
+    @include('partials.fingerprint_setup_download')
+
     <div class="row mb-3">
         <div class="col-md-8">
             <h2 class="section-header">
