@@ -144,25 +144,52 @@ class SchoolWorkingDaysService
             })
             ->get();
 
+        // Clamp iteration to the requested year range so malformed holiday
+        // dates (e.g. NULL or far-future end_date) cannot trigger a runaway
+        // loop that exhausts memory.
+        $rangeStart = Carbon::create($startYear, 1, 1)->startOfDay();
+        $rangeEnd = Carbon::create($endYear, 12, 31)->startOfDay();
+
         foreach ($holidays as $holiday) {
-            $current = Carbon::parse($holiday->start_date)->startOfDay();
-            $end = Carbon::parse($holiday->end_date)->startOfDay();
+            try {
+                $current = Carbon::parse($holiday->start_date)->startOfDay();
+                $end = Carbon::parse($holiday->end_date)->startOfDay();
+            } catch (\Throwable $e) {
+                continue;
+            }
+
+            if ($end->lt($current)) {
+                continue;
+            }
 
             $workingAllowance = 0;
             if (!empty($holiday->has_working_days) && (int) ($holiday->working_days_count ?? 0) > 0) {
                 $workingAllowance = (int) $holiday->working_days_count;
             }
 
-            while ($current->lte($end)) {
-                $holidayDates[] = $current->format('Y-m-d');
+            // Apply the working-day allowance from the holiday's real start,
+            // but stop scanning once we pass the requested range.
+            $allowanceCursor = $current->copy();
+            while ($workingAllowance > 0 && $allowanceCursor->lte($end) && $allowanceCursor->lt($rangeStart)) {
+                if ($allowanceCursor->isWeekday()) {
+                    $workingAllowance--;
+                }
+                $allowanceCursor->addDay();
+            }
 
-                // If holiday has working days, treat the first N weekdays in the range as working.
-                if ($workingAllowance > 0 && $current->isWeekday()) {
-                    $holidayWorkingDates[] = $current->format('Y-m-d');
+            $iterStart = $current->lt($rangeStart) ? $rangeStart->copy() : $current->copy();
+            $iterEnd = $end->gt($rangeEnd) ? $rangeEnd->copy() : $end->copy();
+
+            while ($iterStart->lte($iterEnd)) {
+                $holidayDates[] = $iterStart->format('Y-m-d');
+
+                // If holiday has working days, treat the first N weekdays as working.
+                if ($workingAllowance > 0 && $iterStart->isWeekday()) {
+                    $holidayWorkingDates[] = $iterStart->format('Y-m-d');
                     $workingAllowance--;
                 }
 
-                $current->addDay();
+                $iterStart->addDay();
             }
         }
 
