@@ -31,7 +31,7 @@ $biometricImagesByServer = sx_biometric_images_by_server();
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@600;700&family=Open+Sans&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-    <link href="assets/css/style.css" rel="stylesheet">
+    <link href="<?= htmlspecialchars(sx_asset('assets/css/style.css')) ?>" rel="stylesheet">
 </head>
 <body>
 
@@ -73,7 +73,7 @@ $biometricImagesByServer = sx_biometric_images_by_server();
                 <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
             <?php endif; ?>
 
-            <form method="POST" action="login.php" id="loginForm" autocomplete="off">
+            <form method="POST" action="<?= htmlspecialchars(sx_url('login.php')) ?>" id="loginForm" autocomplete="off">
                 <label class="form-label" for="server">Environment</label>
                 <div class="input-wrap">
                     <i class="fa fa-globe"></i>

@@ -10,7 +10,7 @@ sx_require_login();
 $verify = sx_agent_verify_token((string) $_SESSION['agent_token']);
 if (!$verify['ok']) {
     sx_flash('error', 'Your session has expired. Please sign in again.');
-    header('Location: logout.php');
+    header('Location: ' . sx_url('logout.php'));
     exit;
 }
 
@@ -31,7 +31,7 @@ $activeTab = (string) ($_GET['tab'] ?? 'devices');
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@600;700&family=Open+Sans&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-    <link href="assets/css/style.css" rel="stylesheet">
+    <link href="<?= htmlspecialchars(sx_asset('assets/css/style.css')) ?>" rel="stylesheet">
 </head>
 <body>
 <div class="dashboard-wrap">
@@ -44,7 +44,7 @@ $activeTab = (string) ($_GET['tab'] ?? 'devices');
             <button type="button" class="btn-outline-light" id="btnOpenSettings" title="LAN Server Settings">
                 <i class="fa fa-cog"></i> LAN Settings
             </button>
-            <a href="logout.php" class="btn-outline-light"><i class="fa fa-sign-out-alt"></i> Sign Out</a>
+            <a href="<?= htmlspecialchars(sx_url('logout.php')) ?>" class="btn-outline-light"><i class="fa fa-sign-out-alt"></i> Sign Out</a>
         </div>
     </div>
 
@@ -205,12 +205,65 @@ $activeTab = (string) ($_GET['tab'] ?? 'devices');
             </div>
         </div>
 
-        <!-- Students placeholder -->
+        <!-- Students -->
         <div class="agent-tab-panel <?= $activeTab === 'students' ? 'active' : '' ?>" id="tab-students">
-            <div class="coming-soon-box">
-                <div><i class="fa fa-user-graduate"></i></div>
-                <h3 class="fp-section-title">Student Attendance</h3>
-                <p>Sync and view student attendance via ShuleXpert — coming in the next step.</p>
+            <div class="agent-subtabs">
+                <button type="button" class="agent-subtab-btn active" data-subtab="st-live">Live Attendance</button>
+                <button type="button" class="agent-subtab-btn" data-subtab="st-sync">Sync from Device</button>
+            </div>
+
+            <div class="agent-subpanel active" id="subpanel-st-live">
+                <p class="ts-live-intro">
+                    This PC reads fingerprint signals from the device and sends student attendance to
+                    <strong><?= htmlspecialchars($serverLabel) ?></strong> in real time.
+                </p>
+                <div class="fp-toolbar ts-live-toolbar">
+                    <div class="sx-form-group" style="min-width:260px;flex:1;">
+                        <label for="stLiveDeviceSelect">Fingerprint Device *</label>
+                        <select id="stLiveDeviceSelect">
+                            <option value="">Loading devices...</option>
+                        </select>
+                    </div>
+                    <div class="ts-live-status-wrap">
+                        <span class="live-status-badge waiting" id="stLiveStatusBadge">
+                            <i class="fa fa-circle"></i> Select device
+                        </span>
+                        <button type="button" class="btn-outline-brand btn-sm" id="stStopLiveBtn" style="display:none;">
+                            <i class="fa fa-stop"></i> Stop
+                        </button>
+                    </div>
+                </div>
+
+                <div id="stLiveWaiting" class="ts-live-waiting">
+                    <i class="fa fa-fingerprint"></i>
+                    <p>Select a device to start listening for student fingerprint signals.</p>
+                </div>
+
+                <div id="stLiveFeed" class="ts-live-feed" style="display:none;"></div>
+            </div>
+
+            <div class="agent-subpanel" id="subpanel-st-sync">
+                <p class="ts-live-intro">
+                    Pull <strong>all historical logs</strong> from the fingerprint device and save student attendance to
+                    <strong><?= htmlspecialchars($serverLabel) ?></strong>. Only new student days are saved.
+                </p>
+                <div class="fp-toolbar ts-live-toolbar">
+                    <div class="sx-form-group" style="min-width:260px;flex:1;">
+                        <label for="stSyncDeviceSelect">Fingerprint Device *</label>
+                        <select id="stSyncDeviceSelect">
+                            <option value="">Loading devices...</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn-brand-sm" id="stSyncFromDeviceBtn">
+                        <i class="fa fa-cloud-upload-alt"></i> Sync All to Live
+                    </button>
+                </div>
+                <div id="stSyncResultContent" class="ts-sync-result">
+                    <div class="alert-info-box">
+                        <i class="fa fa-info-circle"></i>
+                        Select a device, then click <strong>Sync All to Live</strong>.
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -349,14 +402,15 @@ $activeTab = (string) ($_GET['tab'] ?? 'devices');
 
 <script>
 window.SX_AGENT = {
-    remoteApi: 'api/remote.php',
-    localApi: 'api/local.php',
-    attendanceApi: 'api/attendance.php',
-    settingsApi: 'api/settings.php',
+    remoteApi: <?= json_encode(sx_url('api/remote.php'), JSON_UNESCAPED_SLASHES) ?>,
+    localApi: <?= json_encode(sx_url('api/local.php'), JSON_UNESCAPED_SLASHES) ?>,
+    attendanceApi: <?= json_encode(sx_url('api/attendance.php'), JSON_UNESCAPED_SLASHES) ?>,
+    settingsApi: <?= json_encode(sx_url('api/settings.php'), JSON_UNESCAPED_SLASHES) ?>,
     schoolId: <?= (int) ($_SESSION['schoolID'] ?? 0) ?>
 };
 </script>
-<script src="assets/js/devices.js"></script>
-<script src="assets/js/teacher_staff.js"></script>
+<script src="<?= htmlspecialchars(sx_asset('assets/js/devices.js')) ?>"></script>
+<script src="<?= htmlspecialchars(sx_asset('assets/js/teacher_staff.js')) ?>"></script>
+<script src="<?= htmlspecialchars(sx_asset('assets/js/students.js')) ?>"></script>
 </body>
 </html>

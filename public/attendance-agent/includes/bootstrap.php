@@ -36,19 +36,41 @@ function sx_config(string $key, $default = null)
     return $config[$key] ?? $default;
 }
 
+function sx_web_path(): string
+{
+    $configured = trim((string) sx_config('web_path', ''), '/');
+    if ($configured !== '') {
+        return '/' . $configured;
+    }
+
+    $script = (string) ($_SERVER['SCRIPT_NAME'] ?? '/attendance-agent/index.php');
+    $dir = str_replace('\\', '/', dirname($script));
+    $dir = rtrim($dir, '/');
+
+    if ($dir === '' || $dir === '.' || $dir === '/') {
+        return '/attendance-agent';
+    }
+
+    return $dir;
+}
+
 function sx_base_url(): string
 {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $script = $_SERVER['SCRIPT_NAME'] ?? '/';
-    $dir = str_replace('\\', '/', dirname($script));
-    $dir = rtrim($dir, '/');
-    return $scheme . '://' . $host . ($dir === '' ? '' : $dir);
+
+    return $scheme . '://' . $host . sx_web_path();
 }
 
 function sx_asset(string $path): string
 {
     return rtrim(sx_base_url(), '/') . '/' . ltrim($path, '/');
+}
+
+/** Internal link within attendance-agent (index.php, dashboard.php, api/...). */
+function sx_url(string $path): string
+{
+    return sx_asset($path);
 }
 
 function sx_is_logged_in(): bool
@@ -59,13 +81,15 @@ function sx_is_logged_in(): bool
 function sx_require_login(): void
 {
     if (!sx_is_logged_in()) {
-        header('Location: index.php');
-        exit;
+        sx_redirect('index.php');
     }
 }
 
 function sx_redirect(string $path): void
 {
+    if (!preg_match('#^https?://#i', $path)) {
+        $path = sx_url($path);
+    }
     header('Location: ' . $path);
     exit;
 }

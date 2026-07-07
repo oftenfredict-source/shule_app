@@ -420,3 +420,52 @@ function sx_agent_sync_teacher_staff(string $deviceIp, string $deviceLabel, arra
         'data' => $data,
     ];
 }
+
+/**
+ * @param array<int, array<string, mixed>> $punches
+ * @return array{ok:bool,message:string,data?:array<string,mixed>}
+ */
+function sx_agent_ingest_student_live(string $deviceIp, array $punches): array
+{
+    $response = sx_agent_api('POST', 'school-agent/attendance/student-live', [
+        'device_ip' => $deviceIp,
+        'punches' => $punches,
+    ], 45);
+
+    $data = $response['data'];
+
+    if (!$response['ok'] || empty($data['success'])) {
+        return ['ok' => false, 'message' => sx_format_login_error($response)];
+    }
+
+    return [
+        'ok' => true,
+        'message' => (string) ($data['message'] ?? 'Sent to live system.'),
+        'data' => $data,
+    ];
+}
+
+/**
+ * @param array<int, array<string, mixed>> $records
+ * @return array{ok:bool,message:string,data?:array<string,mixed>}
+ */
+function sx_agent_sync_student(string $deviceIp, string $deviceLabel, array $records): array
+{
+    $response = sx_agent_api('POST', 'school-agent/attendance/student-sync', [
+        'device_ip' => $deviceIp,
+        'device_label' => $deviceLabel,
+        'records' => $records,
+    ], 300);
+
+    $data = $response['data'];
+
+    if (!$response['ok'] || empty($data['success'])) {
+        return ['ok' => false, 'message' => sx_format_login_error($response)];
+    }
+
+    return [
+        'ok' => true,
+        'message' => (string) ($data['message'] ?? 'Sync completed.'),
+        'data' => $data,
+    ];
+}

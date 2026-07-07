@@ -36,13 +36,8 @@ class AttendanceSmsService
 
     public function isManualSendAllowed(int $schoolID): bool
     {
-        $config = $this->getConfigForSchool($schoolID);
-        if (!$config || $config->schedule === SchoolAttendanceSmsSchedule::SCHEDULE_NONE) {
-            return false;
-        }
-
-        return ($config->send_method ?? SchoolAttendanceSmsSchedule::METHOD_MANUAL)
-            === SchoolAttendanceSmsSchedule::METHOD_MANUAL;
+        // Manual send stays available even when auto is enabled (e.g. no internet).
+        return $this->isFeatureEnabled($schoolID);
     }
 
     public function isAutoSendEnabled(int $schoolID): bool

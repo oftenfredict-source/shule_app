@@ -68,9 +68,8 @@ class AttendanceSmsController extends Controller
         if (!$this->attendanceSmsService->isManualSendAllowed($schoolID)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Attendance SMS is set to Automatic for your school. The system will send messages on the configured schedule.',
+                'message' => 'Attendance SMS is not enabled for your school.',
                 'enabled' => false,
-                'auto_enabled' => true,
             ], 403);
         }
 
@@ -116,7 +115,7 @@ class AttendanceSmsController extends Controller
         if (!$this->attendanceSmsService->isManualSendAllowed($schoolID)) {
             return response()->json([
                 'success' => false,
-                'error' => 'Manual send is disabled. Attendance SMS is sent automatically by the system.',
+                'error' => 'Attendance SMS is not enabled for your school.',
             ], 403);
         }
 

@@ -30,4 +30,5 @@ return [
   ],
   'session_name' => 'sx_fingerprint_agent',
   'session_lifetime' => 43200,
+  'web_path' => 'attendance-agent',
 ];

@@ -981,12 +981,8 @@
         if (examSection) examSection.style.display = 'none';
 
         if (tab === 'fingerprint') {
-            console.log('Showing fingerprint section');
-            if (fingerprintTab) fingerprintTab.classList.add('active');
-            if (fingerprintSection) {
-            fingerprintSection.style.display = 'block';
-                console.log('Fingerprint section displayed');
-            }
+            window.location.href = '{{ route("manageStudentFingerprintAttendance") }}';
+            return;
         } else if (tab === 'exam') {
             console.log('Showing exam section');
             if (examTab) examTab.classList.add('active');
@@ -4209,9 +4205,9 @@ document.addEventListener('DOMContentLoaded', function () {
     fetch('{{ route("attendance_sms.schedule_info") }}', { headers: { 'Accept': 'application/json' } })
         .then(r => r.json())
         .then(info => {
-            if (info && info.success && !info.manual_allowed) {
-                const toolbar = document.getElementById('attendanceSmsToolbar');
-                if (toolbar) toolbar.style.display = 'none';
+            if (info && info.success && info.auto_enabled) {
+                const hint = document.getElementById('attendanceSmsAutoHint');
+                if (hint) hint.textContent = 'Auto SMS is on — you can still send manually here.';
             }
         })
         .catch(() => {});

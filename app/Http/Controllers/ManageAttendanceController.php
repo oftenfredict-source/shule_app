@@ -16,6 +16,7 @@ use App\Models\StudentFingerprintAttendance;
 use App\Models\TeacherFingerprintAttendance;
 use App\Models\StaffFingerprintAttendance;
 use App\Models\TeacherStaffWorkTimeSetting;
+use App\Models\StudentWorkTimeSetting;
 use App\Services\SchoolWorkingDaysService;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -171,6 +172,543 @@ class ManageAttendanceController extends Controller
         $workTime = TeacherStaffWorkTimeSetting::forSchool((int) $schoolID);
 
         return view('Admin.manage_teacher_staff_attendance', compact('school_details', 'teacherCount', 'staffCount', 'workTime'));
+    }
+
+    public function manageStudentFingerprintAttendance(Request $request)
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+
+        if (! $userType || ! $schoolID) {
+            return redirect()->route('login')->with('error', 'Access denied');
+        }
+
+        if (! in_array($userType, ['Admin', 'Staff'], true)) {
+            return redirect()->route('login')->with('error', 'Access denied');
+        }
+
+        $school = School::where('schoolID', $schoolID)->first();
+        $school_details = (object) [
+            'school_name' => $school->school_name ?? 'School',
+            'school_logo' => $school->school_logo ?? null,
+        ];
+
+        $studentCount = Student::where('schoolID', $schoolID)->where('status', '!=', 'Transferred')->count();
+        $workTime = StudentWorkTimeSetting::forSchool((int) $schoolID);
+
+        $subclasses = Subclass::with('class')
+            ->whereHas('class', function ($q) use ($schoolID) {
+                $q->where('schoolID', $schoolID);
+            })
+            ->get()
+            ->map(function ($subclass) {
+                $subName = trim($subclass->subclass_name ?? '');
+                $className = $subclass->class->class_name ?? '';
+                $display = trim($className.($subName !== '' ? ' '.$subName : ''));
+
+                return (object) [
+                    'subclassID' => $subclass->subclassID,
+                    'classID' => $subclass->classID,
+                    'subclass_name' => $subName,
+                    'main_class_name' => $className,
+                    'display_name' => $display !== '' ? $display : 'Class',
+                ];
+            })
+            ->sortBy('display_name')
+            ->values();
+
+        $mainClasses = ClassModel::where('schoolID', $schoolID)
+            ->orderBy('class_name')
+            ->get(['classID', 'class_name']);
+
+        return view('Admin.manage_student_fingerprint_attendance', compact(
+            'school_details',
+            'studentCount',
+            'workTime',
+            'subclasses',
+            'mainClasses'
+        ));
+    }
+
+    public function getStudentWorkTime()
+    {
+        $schoolID = Session::get('schoolID');
+        if (! $schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $settings = StudentWorkTimeSetting::forSchool((int) $schoolID);
+
+        return response()->json([
+            'success' => true,
+            'work_start_time' => substr((string) $settings->work_start_time, 0, 5),
+            'work_end_time' => substr((string) $settings->work_end_time, 0, 5),
+        ]);
+    }
+
+    public function saveStudentWorkTime(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        if (! $schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $validated = $request->validate([
+            'work_start_time' => 'required|date_format:H:i',
+            'work_end_time' => 'required|date_format:H:i',
+        ]);
+
+        $settings = StudentWorkTimeSetting::forSchool((int) $schoolID);
+        $settings->update([
+            'work_start_time' => $validated['work_start_time'].':00',
+            'work_end_time' => $validated['work_end_time'].':00',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student working time saved.',
+            'work_start_time' => substr((string) $settings->work_start_time, 0, 5),
+            'work_end_time' => substr((string) $settings->work_end_time, 0, 5),
+        ]);
+    }
+
+    public function getStudentFingerprintSavedRecords(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        if (! $schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $dateFilter = $request->input('date');
+        $classID = $request->input('classID') ? (int) $request->input('classID') : null;
+        $subclassID = $request->input('subclassID') ? (int) $request->input('subclassID') : null;
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 50;
+
+        if (Session::get('user_type') === 'Teacher') {
+            try {
+                [$classID, $subclassID] = $this->resolveStudentFingerprintReportScope($request, (int) $schoolID);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+        }
+
+        $query = StudentFingerprintAttendance::with(['student.subclass.class'])
+            ->whereHas('student', function ($q) use ($schoolID, $subclassID, $classID) {
+                $q->where('schoolID', $schoolID)->where('status', '!=', 'Transferred');
+                if ($subclassID) {
+                    $q->where('subclassID', $subclassID);
+                } elseif ($classID) {
+                    $q->whereHas('subclass', fn ($sq) => $sq->where('classID', $classID));
+                }
+            });
+
+        if ($dateFilter) {
+            $query->whereDate('attendance_date', $dateFilter);
+        }
+
+        $total = $query->count();
+        $records = $query->orderByDesc('attendance_date')
+            ->orderByDesc('check_in_time')
+            ->skip(($page - 1) * $perPage)
+            ->take($perPage)
+            ->get();
+
+        $data = $records->map(function ($record) {
+            $student = $record->student;
+            $classLabel = 'N/A';
+            if ($student && $student->subclass) {
+                $main = $student->subclass->class->class_name ?? '';
+                $sub = trim($student->subclass->subclass_name ?? '');
+                $classLabel = trim($main.($sub !== '' ? ' '.$sub : ''));
+            }
+
+            return [
+                'studentID' => $record->studentID,
+                'user_name' => $record->user_name,
+                'class_name' => $classLabel,
+                'gender' => $student->gender ?? null,
+                'fingerprint_id' => $student->fingerprint_id ?? $record->studentID,
+                'attendance_date' => $record->attendance_date?->format('Y-m-d'),
+                'check_in_time' => $record->check_in_time?->format('Y-m-d H:i:s'),
+                'check_out_time' => $record->check_out_time?->format('Y-m-d H:i:s'),
+                'status' => $record->status,
+                'device_ip' => $record->device_ip,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'pagination' => [
+                'current_page' => $page,
+                'last_page' => max(1, (int) ceil($total / $perPage)),
+                'total' => $total,
+            ],
+        ]);
+    }
+
+    public function studentFingerprintAttendanceReport(Request $request, SchoolWorkingDaysService $workingDaysService)
+    {
+        $schoolID = Session::get('schoolID');
+        if (! $schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $request->validate([
+            'filter_type' => 'required|in:day,date_range,month,year',
+            'classID' => 'nullable|integer',
+            'subclassID' => 'nullable|integer',
+            'date' => 'nullable|date',
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date|after_or_equal:from_date',
+            'month' => 'nullable|integer|min:1|max:12',
+            'year' => 'nullable|integer|min:2000|max:2100',
+        ]);
+
+        try {
+            [$classID, $subclassID] = $this->resolveStudentFingerprintReportScope($request, (int) $schoolID);
+            $request->merge([
+                'classID' => $classID,
+                'subclassID' => $subclassID,
+            ]);
+            $payload = $this->collectStudentFingerprintReportPayload($request, $workingDaysService, (int) $schoolID);
+
+            return response()->json([
+                'success' => true,
+                'title' => $payload['title'],
+                'filter_type' => $payload['filter_type'],
+                'period_label' => $payload['range']['label'],
+                'period_incomplete' => $payload['range']['incomplete'],
+                'total_working_days' => $payload['workingDayCounts']['display_working_days'],
+                'complete_working_days' => $payload['workingDayCounts']['elapsed_working_days'],
+                'elapsed_working_days' => $payload['workingDayCounts']['elapsed_working_days'],
+                'work_start_time' => substr((string) $payload['workTime']->work_start_time, 0, 5),
+                'work_end_time' => substr((string) $payload['workTime']->work_end_time, 0, 5),
+                'gender_totals' => $payload['gender_totals'],
+                'attendance_overview' => $payload['attendance_overview'],
+                'data' => $payload['rows'],
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function exportStudentFingerprintAttendanceReportPdf(Request $request, SchoolWorkingDaysService $workingDaysService)
+    {
+        set_time_limit(0);
+        ini_set('memory_limit', '2048M');
+
+        $schoolID = Session::get('schoolID');
+        if (! $schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $request->validate([
+            'filter_type' => 'required|in:day,date_range,month,year',
+            'classID' => 'nullable|integer',
+            'subclassID' => 'nullable|integer',
+            'date' => 'nullable|date',
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date|after_or_equal:from_date',
+            'month' => 'nullable|integer|min:1|max:12',
+            'year' => 'nullable|integer|min:2000|max:2100',
+        ]);
+
+        try {
+            [$classID, $subclassID] = $this->resolveStudentFingerprintReportScope($request, (int) $schoolID);
+            $request->merge([
+                'classID' => $classID,
+                'subclassID' => $subclassID,
+            ]);
+            $payload = $this->collectStudentFingerprintReportPayload($request, $workingDaysService, (int) $schoolID);
+            $school = School::find((int) $schoolID);
+
+            $data = [
+                'school' => $school,
+                'title' => $payload['title'],
+                'filter_type' => $payload['filter_type'],
+                'period_label' => $payload['range']['label'],
+                'period_incomplete' => $payload['range']['incomplete'],
+                'total_working_days' => $payload['workingDayCounts']['display_working_days'],
+                'complete_working_days' => $payload['workingDayCounts']['elapsed_working_days'],
+                'elapsed_working_days' => $payload['workingDayCounts']['elapsed_working_days'],
+                'work_start_time' => substr((string) $payload['workTime']->work_start_time, 0, 5),
+                'work_end_time' => substr((string) $payload['workTime']->work_end_time, 0, 5),
+                'gender_totals' => $payload['gender_totals'],
+                'attendance_overview' => $payload['attendance_overview'],
+                'rows' => $payload['rows'],
+                'generated_at' => now()->format('d M Y H:i'),
+            ];
+
+            $pdf = PDF::loadView('Admin.pdf.student_fingerprint_attendance_report_pdf', $data);
+            $pdf->setOptions([
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
+                'chroot' => base_path(),
+            ]);
+            $pdf->setPaper('A4', 'portrait');
+
+            $filename = 'Student_Fingerprint_Attendance_Report_'.date('YmdHis').'.pdf';
+
+            return $pdf->download($filename);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @return array{
+     *     title: string,
+     *     filter_type: string,
+     *     range: array<string, mixed>,
+     *     workingDayCounts: array<string, mixed>,
+     *     workTime: StudentWorkTimeSetting,
+     *     gender_totals: array<string, int>,
+     *     rows: array<int, array<string, mixed>>
+     * }
+     */
+    private function collectStudentFingerprintReportPayload(
+        Request $request,
+        SchoolWorkingDaysService $workingDaysService,
+        int $schoolID
+    ): array {
+        $filterType = $request->input('filter_type');
+        $classID = $request->input('classID') ? (int) $request->input('classID') : null;
+        $subclassID = $request->input('subclassID') ? (int) $request->input('subclassID') : null;
+
+        $range = $this->resolveTeacherStaffReportDateRange($request);
+        $workingDayCounts = $this->resolveReportWorkingDayCounts(
+            $workingDaysService,
+            $schoolID,
+            $filterType,
+            $range
+        );
+        $workingDates = $workingDayCounts['working_dates'];
+        $workTime = StudentWorkTimeSetting::forSchool($schoolID);
+        $students = $this->getStudentReportPeople($schoolID, $classID, $subclassID);
+        $studentIds = array_column($students, 'student_id');
+        $attendanceMap = $this->loadStudentFingerprintAttendanceMap(
+            $studentIds,
+            $range['start']->toDateString(),
+            $range['end']->toDateString()
+        );
+
+        $rows = [];
+        foreach ($students as $student) {
+            $studentKey = 'student_'.$student['student_id'];
+            $studentAttendance = $attendanceMap[$studentKey] ?? [];
+            $stats = $this->calculateStudentFingerprintAttendanceStats(
+                $studentAttendance,
+                $workingDates,
+                (string) $workTime->work_start_time,
+                (string) $workTime->work_end_time
+            );
+
+            $rows[] = array_merge($student, [
+                'present_days' => $stats['present_days'],
+                'absent_days' => $stats['absent_days'],
+                'total_working_days' => $workingDayCounts['display_working_days'],
+                'complete_working_days' => $workingDayCounts['elapsed_working_days'],
+                'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
+                'late_days' => $stats['late_days'],
+                'early_days' => $stats['early_arrival_days'],
+                'early_arrival_days' => $stats['early_arrival_days'],
+                'early_departure_days' => $stats['early_departure_days'],
+                'no_checkout_days' => $stats['no_checkout_days'],
+            ]);
+        }
+
+        usort($rows, function ($a, $b) {
+            $classCmp = strcasecmp($a['class_name'], $b['class_name']);
+            if ($classCmp !== 0) {
+                return $classCmp;
+            }
+
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        $genderTotals = [
+            'male_present' => 0,
+            'female_present' => 0,
+            'male_absent' => 0,
+            'female_absent' => 0,
+        ];
+        if ($filterType === 'day') {
+            $reportDate = $range['start']->toDateString();
+            foreach ($students as $student) {
+                $studentKey = 'student_'.$student['student_id'];
+                $dayRecord = $attendanceMap[$studentKey][$reportDate] ?? null;
+                $isPresent = $dayRecord && ! empty($dayRecord['check_in_time']);
+                $gender = strtolower((string) ($student['gender'] ?? ''));
+                if ($isPresent) {
+                    if ($gender === 'male') {
+                        $genderTotals['male_present']++;
+                    } elseif ($gender === 'female') {
+                        $genderTotals['female_present']++;
+                    }
+                } else {
+                    if ($gender === 'male') {
+                        $genderTotals['male_absent']++;
+                    } elseif ($gender === 'female') {
+                        $genderTotals['female_absent']++;
+                    }
+                }
+            }
+        }
+
+        $attendanceOverview = $this->buildStudentFingerprintAttendanceOverview(
+            $filterType,
+            $rows,
+            $students,
+            $attendanceMap,
+            $range,
+            (string) $workTime->work_start_time,
+            (string) $workTime->work_end_time
+        );
+
+        return [
+            'title' => $this->buildStudentReportTitle($filterType, $range, $classID, $subclassID),
+            'filter_type' => $filterType,
+            'range' => $range,
+            'workingDayCounts' => $workingDayCounts,
+            'workTime' => $workTime,
+            'gender_totals' => $genderTotals,
+            'attendance_overview' => $attendanceOverview,
+            'rows' => $rows,
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function getStudentReportPeople(int $schoolID, ?int $classID, ?int $subclassID): array
+    {
+        $query = Student::with(['subclass.class'])
+            ->where('schoolID', $schoolID)
+            ->where('status', '!=', 'Transferred');
+
+        if ($subclassID) {
+            $query->where('subclassID', $subclassID);
+        } elseif ($classID) {
+            $query->whereHas('subclass', fn ($q) => $q->where('classID', $classID));
+        }
+
+        return $query->get()->map(fn ($student) => $this->formatStudentReportPersonRow($student))->all();
+    }
+
+    private function formatStudentReportPersonRow(Student $student): array
+    {
+        $name = trim(($student->first_name ?? '').' '.($student->middle_name ?? '').' '.($student->last_name ?? ''));
+        $mainClass = $student->subclass->class->class_name ?? '';
+        $subName = trim($student->subclass->subclass_name ?? '');
+        $className = trim($mainClass.($subName !== '' ? ' '.$subName : ''));
+
+        if ($student->photo) {
+            $imageUrl = asset('userImages/'.$student->photo);
+        } else {
+            $imageUrl = strtolower((string) ($student->gender ?? '')) === 'female'
+                ? asset('images/female.png')
+                : asset('images/male.png');
+        }
+
+        return [
+            'student_id' => (int) $student->studentID,
+            'name' => $name !== '' ? $name : 'N/A',
+            'class_name' => $className !== '' ? $className : 'N/A',
+            'main_class_name' => $mainClass !== '' ? $mainClass : 'N/A',
+            'subclass_name' => $subName !== '' ? $subName : '—',
+            'subclassID' => (int) ($student->subclassID ?? 0),
+            'classID' => (int) ($student->subclass->classID ?? 0),
+            'gender' => $this->formatGenderLabel($student->gender ?? null),
+            'admission_number' => $student->admission_number ?? null,
+            'fingerprint_id' => $student->fingerprint_id ?? $student->studentID,
+            'image_url' => $imageUrl,
+        ];
+    }
+
+    /**
+     * @param array<int, int|string> $studentIds
+     * @return array<string, array<string, array{check_in_time: ?string, check_out_time: ?string}>>
+     */
+    private function loadStudentFingerprintAttendanceMap(array $studentIds, string $fromDate, string $toDate): array
+    {
+        $map = [];
+        if (empty($studentIds)) {
+            return $map;
+        }
+
+        StudentFingerprintAttendance::whereIn('studentID', $studentIds)
+            ->where('attendance_date', '>=', $fromDate)
+            ->where('attendance_date', '<=', $toDate)
+            ->get()
+            ->each(function ($row) use (&$map) {
+                $key = 'student_'.$row->studentID;
+                $date = $row->attendance_date instanceof Carbon
+                    ? $row->attendance_date->toDateString()
+                    : (string) $row->attendance_date;
+                $map[$key][$date] = [
+                    'check_in_time' => $row->check_in_time ? $row->check_in_time->format('Y-m-d H:i:s') : null,
+                    'check_out_time' => $row->check_out_time ? $row->check_out_time->format('Y-m-d H:i:s') : null,
+                ];
+            });
+
+        return $map;
+    }
+
+    private function formatGenderLabel(?string $gender): string
+    {
+        $value = strtolower(trim((string) $gender));
+        if ($value === 'male' || $value === 'm') {
+            return 'Male';
+        }
+        if ($value === 'female' || $value === 'f') {
+            return 'Female';
+        }
+
+        return $gender !== null && trim((string) $gender) !== '' ? ucfirst(trim((string) $gender)) : '-';
+    }
+
+    private function buildStudentReportTitle(
+        string $filterType,
+        array $range,
+        ?int $classID,
+        ?int $subclassID
+    ): string {
+        $scope = 'STUDENTS FINGERPRINT ATTENDANCE REPORT';
+
+        if ($subclassID) {
+            $sub = Subclass::with('class')->find($subclassID);
+            if ($sub) {
+                $main = $sub->class->class_name ?? '';
+                $subName = trim($sub->subclass_name ?? '');
+                $scope .= ' — '.strtoupper(trim($main.($subName !== '' ? ' '.$subName : '')));
+            }
+        } elseif ($classID) {
+            $class = ClassModel::find($classID);
+            if ($class) {
+                $scope .= ' — '.strtoupper($class->class_name);
+            }
+        }
+
+        if ($filterType === 'day') {
+            return $scope.' ON '.strtoupper($range['start']->format('j F Y'));
+        }
+
+        if ($filterType === 'date_range') {
+            return $scope.' ON '.strtoupper($range['start']->format('j F Y'))
+                .' UP TO '.strtoupper($range['end']->format('j F Y'));
+        }
+
+        if ($filterType === 'month') {
+            return $scope.' ON '.strtoupper($range['start']->format('F Y'));
+        }
+
+        return $scope.' FOR YEAR '.$range['start']->year;
     }
 
     public function searchAttendance(Request $request)
@@ -2087,6 +2625,245 @@ class ManageAttendanceController extends Controller
         }
 
         return $map;
+    }
+
+    /**
+     * @return array{0: ?int, 1: ?int}
+     */
+    private function resolveStudentFingerprintReportScope(Request $request, int $schoolID): array
+    {
+        $userType = Session::get('user_type');
+        $teacherID = Session::get('teacherID');
+        $classID = $request->input('classID') ? (int) $request->input('classID') : null;
+        $subclassID = $request->input('subclassID') ? (int) $request->input('subclassID') : null;
+
+        if ($userType === 'Teacher') {
+            if ($subclassID) {
+                if (! $this->teacherCanAccessSubclass($schoolID, $subclassID, $teacherID)) {
+                    throw new \InvalidArgumentException('Unauthorized access to this class.');
+                }
+
+                return [null, $subclassID];
+            }
+
+            if ($classID) {
+                if (! $this->teacherCanAccessMainClass($schoolID, $classID, $teacherID)) {
+                    throw new \InvalidArgumentException('Unauthorized access to this class.');
+                }
+
+                return [$classID, null];
+            }
+
+            throw new \InvalidArgumentException('Class or subclass is required.');
+        }
+
+        return [$classID, $subclassID];
+    }
+
+    private function teacherCanAccessMainClass(int $schoolID, int $classID, $teacherID): bool
+    {
+        if (! $teacherID) {
+            return false;
+        }
+
+        return ClassModel::where('classID', $classID)
+            ->where('schoolID', $schoolID)
+            ->where('teacherID', $teacherID)
+            ->exists();
+    }
+
+    private function teacherCanAccessSubclass(int $schoolID, int $subclassID, $teacherID): bool
+    {
+        $subclass = Subclass::with('class')->find($subclassID);
+        if (! $subclass || ! $subclass->class || (int) $subclass->class->schoolID !== $schoolID) {
+            return false;
+        }
+
+        if (! $teacherID) {
+            return false;
+        }
+
+        if ((int) $subclass->teacherID === (int) $teacherID) {
+            return true;
+        }
+
+        return ClassModel::where('classID', $subclass->classID)
+            ->where('teacherID', $teacherID)
+            ->where('schoolID', $schoolID)
+            ->exists();
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @param array<int, array<string, mixed>> $students
+     * @param array<string, array<string, array{check_in_time: ?string, check_out_time: ?string}>> $attendanceMap
+     * @return array{late: int, early_arrival: int, early_departure: int, no_checkout: int}
+     */
+    private function buildStudentFingerprintAttendanceOverview(
+        string $filterType,
+        array $rows,
+        array $students,
+        array $attendanceMap,
+        array $range,
+        string $workStartTime,
+        string $workEndTime
+    ): array {
+        if ($filterType === 'day') {
+            return $this->buildStudentDayFingerprintOverview(
+                $students,
+                $attendanceMap,
+                $range['start']->toDateString(),
+                $workStartTime,
+                $workEndTime
+            );
+        }
+
+        return [
+            'late' => (int) array_sum(array_column($rows, 'late_days')),
+            'early_arrival' => (int) array_sum(array_column($rows, 'early_arrival_days')),
+            'early_departure' => (int) array_sum(array_column($rows, 'early_departure_days')),
+            'no_checkout' => (int) array_sum(array_column($rows, 'no_checkout_days')),
+        ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $students
+     * @param array<string, array<string, array{check_in_time: ?string, check_out_time: ?string}>> $attendanceMap
+     * @return array{late: int, early_arrival: int, early_departure: int, no_checkout: int}
+     */
+    private function buildStudentDayFingerprintOverview(
+        array $students,
+        array $attendanceMap,
+        string $reportDate,
+        string $workStartTime,
+        string $workEndTime
+    ): array {
+        $overview = [
+            'late' => 0,
+            'early_arrival' => 0,
+            'early_departure' => 0,
+            'no_checkout' => 0,
+        ];
+        $now = Carbon::now();
+
+        foreach ($students as $student) {
+            $studentKey = 'student_'.$student['student_id'];
+            $record = $attendanceMap[$studentKey][$reportDate] ?? null;
+            if (! $record || empty($record['check_in_time'])) {
+                continue;
+            }
+
+            $punctuality = $this->classifyCheckInPunctuality($record['check_in_time'], $reportDate, $workStartTime);
+            if ($punctuality === 'late') {
+                $overview['late']++;
+            } elseif ($punctuality === 'early') {
+                $overview['early_arrival']++;
+            }
+
+            if (! empty($record['check_out_time'])) {
+                if ($this->isEarlyDeparture($record['check_out_time'], $reportDate, $workEndTime)) {
+                    $overview['early_departure']++;
+                }
+            } elseif ($this->isDayCompletedForCheckout($reportDate, $workEndTime, $now)) {
+                $overview['no_checkout']++;
+            }
+        }
+
+        return $overview;
+    }
+
+    /**
+     * @param array<string, array{check_in_time: ?string, check_out_time: ?string}> $personAttendance
+     * @param array<int, string> $workingDates
+     * @return array{
+     *     present_days: int,
+     *     absent_days: int,
+     *     late_days: int,
+     *     early_arrival_days: int,
+     *     early_departure_days: int,
+     *     no_checkout_days: int
+     * }
+     */
+    private function calculateStudentFingerprintAttendanceStats(
+        array $personAttendance,
+        array $workingDates,
+        string $workStartTime,
+        string $workEndTime
+    ): array {
+        $workingDateSet = array_flip($workingDates);
+        $now = Carbon::now();
+        $presentDays = 0;
+        $lateDays = 0;
+        $earlyArrivalDays = 0;
+        $earlyDepartureDays = 0;
+        $noCheckoutDays = 0;
+
+        foreach ($personAttendance as $date => $record) {
+            if (empty($record['check_in_time'])) {
+                continue;
+            }
+
+            $presentDays++;
+
+            if (! isset($workingDateSet[$date])) {
+                continue;
+            }
+
+            $punctuality = $this->classifyCheckInPunctuality($record['check_in_time'], $date, $workStartTime);
+            if ($punctuality === 'late') {
+                $lateDays++;
+            } elseif ($punctuality === 'early') {
+                $earlyArrivalDays++;
+            }
+
+            if (! empty($record['check_out_time'])) {
+                if ($this->isEarlyDeparture($record['check_out_time'], $date, $workEndTime)) {
+                    $earlyDepartureDays++;
+                }
+            } elseif ($this->isDayCompletedForCheckout($date, $workEndTime, $now)) {
+                $noCheckoutDays++;
+            }
+        }
+
+        $absentDays = 0;
+        foreach ($workingDates as $workDate) {
+            $record = $personAttendance[$workDate] ?? null;
+            if (! $record || empty($record['check_in_time'])) {
+                $absentDays++;
+            }
+        }
+
+        return [
+            'present_days' => $presentDays,
+            'absent_days' => $absentDays,
+            'late_days' => $lateDays,
+            'early_arrival_days' => $earlyArrivalDays,
+            'early_departure_days' => $earlyDepartureDays,
+            'no_checkout_days' => $noCheckoutDays,
+        ];
+    }
+
+    private function isEarlyDeparture(string $checkOutDateTime, string $workDate, string $workEndTime): bool
+    {
+        $checkOut = Carbon::parse($checkOutDateTime);
+        $officialEnd = Carbon::parse($workDate.' '.substr((string) $workEndTime, 0, 8));
+
+        return $checkOut->lt($officialEnd);
+    }
+
+    private function isDayCompletedForCheckout(string $date, string $workEndTime, Carbon $now): bool
+    {
+        if ($date < $now->toDateString()) {
+            return true;
+        }
+
+        if ($date === $now->toDateString()) {
+            $officialEnd = Carbon::parse($date.' '.substr((string) $workEndTime, 0, 8));
+
+            return $now->gt($officialEnd);
+        }
+
+        return false;
     }
 
     /**

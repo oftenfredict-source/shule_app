@@ -1,0 +1,9 @@
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # /attendance-agent -> /attendance-agent/ so relative assets resolve correctly
+    RewriteCond %{REQUEST_URI} ^/attendance-agent$
+    RewriteRule ^ /attendance-agent/ [R=301,L]
+</IfModule>

@@ -42,6 +42,7 @@ use App\Http\Controllers\StorePortalController;
 use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\GoalManagementController;
 use App\Http\Controllers\AttendanceSmsController;
+use App\Http\Controllers\FingerprintAttendanceSmsController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\CharacterAssessmentController;
 use App\Http\Controllers\ExamAttendanceController;
@@ -358,6 +359,14 @@ Route::post("super-admin/attendance-sms-schedule", [
     SuperAdminController::class,
     "saveAttendanceSmsSchedule",
 ])->name("superadmin.attendance_sms_schedule.save");
+Route::get("super-admin/fingerprint-attendance-sms-schedule/{schoolID}", [
+    SuperAdminController::class,
+    "getFingerprintAttendanceSmsSchedule",
+])->name("superadmin.fingerprint_attendance_sms_schedule.get");
+Route::post("super-admin/fingerprint-attendance-sms-schedule", [
+    SuperAdminController::class,
+    "saveFingerprintAttendanceSmsSchedule",
+])->name("superadmin.fingerprint_attendance_sms_schedule.save");
 
 // Super Admin: System Alert (Header Alerts)
 Route::get("super-admin/system-alerts", [
@@ -3069,10 +3078,30 @@ Route::post("attendance-sms/send", [
     AttendanceSmsController::class,
     "send",
 ])->name("attendance_sms.send");
+Route::get("fingerprint-attendance-sms/schedule-info", [
+    FingerprintAttendanceSmsController::class,
+    "scheduleInfo",
+])->name("fingerprint_attendance_sms.schedule_info");
+Route::get("fingerprint-attendance-sms/recipients", [
+    FingerprintAttendanceSmsController::class,
+    "recipients",
+])->name("fingerprint_attendance_sms.recipients");
+Route::post("fingerprint-attendance-sms/send", [
+    FingerprintAttendanceSmsController::class,
+    "send",
+])->name("fingerprint_attendance_sms.send");
+Route::post("fingerprint-attendance-sms/send-bulk", [
+    FingerprintAttendanceSmsController::class,
+    "sendBulk",
+])->name("fingerprint_attendance_sms.send_bulk");
 Route::get("manageTeacherStaffAttendance", [
     ManageAttendanceController::class,
     "manageTeacherStaffAttendance",
 ])->name("manageTeacherStaffAttendance");
+Route::get("manageStudentFingerprintAttendance", [
+    ManageAttendanceController::class,
+    "manageStudentFingerprintAttendance",
+])->name("manageStudentFingerprintAttendance");
 Route::post("search_attendance", [
     ManageAttendanceController::class,
     "searchAttendance",
@@ -3530,6 +3559,10 @@ Route::get("zkteco/attendance/teacher-staff-live-today", [
 
 // Live teacher/staff attendance for Today when device sync happens on local LAN agent.
 // This endpoint only reads from database.
+Route::get("zkteco/attendance/student-live-today-from-db", [
+    ZKTecoController::class,
+    "getStudentLiveTodayFromDb",
+])->name("zkteco.attendance.student-live-today-from-db");
 Route::get("zkteco/attendance/teacher-staff-live-today-from-db", [
     ZKTecoController::class,
     "getTeacherStaffLiveTodayFromDb",
@@ -3538,6 +3571,26 @@ Route::post("zkteco/attendance/teacher-staff-sync", [
     ZKTecoController::class,
     "syncTeacherStaffAttendanceFromDevice",
 ])->name("zkteco.attendance.teacher-staff-sync");
+Route::get("attendance/student-fingerprint-saved", [
+    ManageAttendanceController::class,
+    "getStudentFingerprintSavedRecords",
+])->name("attendance.student_fingerprint_saved");
+Route::get("attendance/student-fingerprint-report", [
+    ManageAttendanceController::class,
+    "studentFingerprintAttendanceReport",
+])->name("attendance.student_fingerprint_report");
+Route::get("attendance/student-fingerprint-report-pdf", [
+    ManageAttendanceController::class,
+    "exportStudentFingerprintAttendanceReportPdf",
+])->name("attendance.student_fingerprint_report_pdf");
+Route::get("attendance/student-work-time", [
+    ManageAttendanceController::class,
+    "getStudentWorkTime",
+])->name("attendance.student_work_time");
+Route::post("attendance/student-work-time", [
+    ManageAttendanceController::class,
+    "saveStudentWorkTime",
+])->name("attendance.student_work_time.save");
 Route::get("attendance/teacher-staff-fingerprint", [
     AttendanceApiController::class,
     "getTeacherStaffFingerprintAttendance",

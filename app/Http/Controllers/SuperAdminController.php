@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\School;
 use App\Models\SchoolAttendanceSmsSchedule;
+use App\Models\SchoolFingerprintAttendanceSmsSchedule;
 use App\Models\Teacher;
 use App\Models\OtherStaff;
 use App\Models\Watchman;
@@ -1718,6 +1719,110 @@ class SuperAdminController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Attendance SMS schedule saved successfully.',
+        ]);
+    }
+
+    public function getFingerprintAttendanceSmsSchedule($schoolID)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $schedule = SchoolFingerprintAttendanceSmsSchedule::where('schoolID', $schoolID)->first();
+
+        return response()->json([
+            'success' => true,
+            'schoolID' => (int) $schoolID,
+            'schedule' => $schedule?->schedule ?? SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_NONE,
+            'send_method' => $schedule?->send_method ?? SchoolFingerprintAttendanceSmsSchedule::METHOD_MANUAL,
+            'send_time' => $schedule?->send_time ? Carbon::parse($schedule->send_time)->format('H:i') : null,
+            'send_day_of_week' => $schedule?->send_day_of_week,
+            'send_day_of_month' => $schedule?->send_day_of_month,
+            'send_month' => $schedule?->send_month,
+        ]);
+    }
+
+    public function saveFingerprintAttendanceSmsSchedule(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $schedule = $request->input('schedule');
+        $sendMethod = $request->input('send_method', SchoolFingerprintAttendanceSmsSchedule::METHOD_MANUAL);
+
+        $rules = [
+            'schoolID' => 'required|integer|exists:schools,schoolID',
+            'schedule' => 'required|in:none,daily,weekly,monthly,yearly',
+            'send_method' => 'required|in:manual,auto',
+            'send_time' => 'nullable|date_format:H:i',
+            'send_day_of_week' => 'nullable|integer|min:1|max:7',
+            'send_day_of_month' => 'nullable|integer|min:1|max:31',
+            'send_month' => 'nullable|integer|min:1|max:12',
+        ];
+
+        if ($schedule !== SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_NONE && $sendMethod === SchoolFingerprintAttendanceSmsSchedule::METHOD_AUTO) {
+            $rules['send_time'] = 'required|date_format:H:i';
+            if ($schedule === SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_WEEKLY) {
+                $rules['send_day_of_week'] = 'required|integer|min:1|max:7';
+            }
+            if ($schedule === SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_MONTHLY) {
+                $rules['send_day_of_month'] = 'required|integer|min:1|max:31';
+            }
+            if ($schedule === SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_YEARLY) {
+                $rules['send_month'] = 'required|integer|min:1|max:12';
+                $rules['send_day_of_month'] = 'required|integer|min:1|max:31';
+            }
+        }
+
+        $validator = Validator::make($request->all(), $rules);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $payload = [
+            'schedule' => $schedule,
+            'send_method' => $schedule === SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_NONE
+                ? SchoolFingerprintAttendanceSmsSchedule::METHOD_MANUAL
+                : $sendMethod,
+            'send_time' => null,
+            'send_day_of_week' => null,
+            'send_day_of_month' => null,
+            'send_month' => null,
+            'updated_by' => Session::get('userID'),
+        ];
+
+        if ($schedule !== SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_NONE && $sendMethod === SchoolFingerprintAttendanceSmsSchedule::METHOD_AUTO) {
+            $payload['send_time'] = $request->input('send_time').':00';
+            if ($schedule === SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_WEEKLY) {
+                $payload['send_day_of_week'] = (int) $request->input('send_day_of_week');
+            }
+            if (in_array($schedule, [SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_MONTHLY, SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_YEARLY], true)) {
+                $payload['send_day_of_month'] = (int) $request->input('send_day_of_month');
+            }
+            if ($schedule === SchoolFingerprintAttendanceSmsSchedule::SCHEDULE_YEARLY) {
+                $payload['send_month'] = (int) $request->input('send_month');
+            }
+        }
+
+        $existing = SchoolFingerprintAttendanceSmsSchedule::where('schoolID', (int) $request->input('schoolID'))->first();
+        if ($existing && (
+            $existing->schedule !== $schedule
+            || $existing->send_method !== $payload['send_method']
+            || $existing->send_time !== $payload['send_time']
+        )) {
+            $payload['last_auto_period_key'] = null;
+            $payload['last_auto_run_at'] = null;
+        }
+
+        SchoolFingerprintAttendanceSmsSchedule::updateOrCreate(
+            ['schoolID' => (int) $request->input('schoolID')],
+            $payload
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Fingerprint attendance SMS schedule saved successfully.',
         ]);
     }
 }

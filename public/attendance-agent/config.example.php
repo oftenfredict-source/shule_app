@@ -33,4 +33,7 @@ return [
 
   'session_name' => 'sx_fingerprint_agent',
   'session_lifetime' => 43200,
+
+  // Web path where this folder is served (no trailing slash). Leave empty for auto-detect.
+  'web_path' => 'attendance-agent',
 ];

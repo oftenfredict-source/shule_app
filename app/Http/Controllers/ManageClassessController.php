@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
-use App\Models\Subclass;
 use App\Models\Student;
+use App\Models\StudentWorkTimeSetting;
+use App\Models\Subclass;
 use App\Models\ClassSubject;
 use App\Models\Teacher;
 use App\Models\Combie;
@@ -352,7 +353,72 @@ class ManageClassessController extends Controller
             }
         }
 
-        return view('Teacher.classMangement', compact('decryptedSubclassID', 'decryptedClassID', 'subclassDisplayName', 'isCoordinatorView'));
+        $fpSubclasses = $this->buildTeacherFingerprintSubclasses(
+            (int) $schoolID,
+            $isCoordinatorView,
+            $decryptedClassID,
+            $decryptedSubclassID
+        );
+        $fpMainClasses = $isCoordinatorView && $decryptedClassID
+            ? ClassModel::where('schoolID', $schoolID)->where('classID', $decryptedClassID)->get(['classID', 'class_name'])
+            : collect();
+        $fpStudentCount = $this->countTeacherFingerprintStudents($fpSubclasses);
+        $fpWorkTime = StudentWorkTimeSetting::forSchool((int) $schoolID);
+
+        return view('Teacher.classMangement', compact(
+            'decryptedSubclassID',
+            'decryptedClassID',
+            'subclassDisplayName',
+            'isCoordinatorView',
+            'fpSubclasses',
+            'fpMainClasses',
+            'fpStudentCount',
+            'fpWorkTime'
+        ));
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, object{subclassID:int,classID:int,display_name:string}>
+     */
+    private function buildTeacherFingerprintSubclasses(
+        int $schoolID,
+        bool $isCoordinatorView,
+        ?int $classID,
+        ?int $subclassID
+    ) {
+        $query = Subclass::with('class')->whereHas('class', fn ($q) => $q->where('schoolID', $schoolID));
+
+        if ($isCoordinatorView && $classID) {
+            $query->where('classID', $classID)->where('status', 'Active');
+        } elseif ($subclassID) {
+            $query->where('subclassID', $subclassID);
+        } else {
+            return collect();
+        }
+
+        return $query->get()->map(function ($subclass) {
+            $subName = trim($subclass->subclass_name ?? '');
+            $className = $subclass->class->class_name ?? '';
+            $display = trim($className.($subName !== '' ? ' '.$subName : ''));
+
+            return (object) [
+                'subclassID' => (int) $subclass->subclassID,
+                'classID' => (int) $subclass->classID,
+                'display_name' => $display !== '' ? $display : 'Class',
+            ];
+        })->sortBy('display_name')->values();
+    }
+
+    private function countTeacherFingerprintStudents($fpSubclasses): int
+    {
+        $ids = $fpSubclasses->pluck('subclassID')->filter()->all();
+        if (empty($ids)) {
+            return 0;
+        }
+
+        return Student::whereIn('subclassID', $ids)
+            ->where('status', '!=', 'Transferred')
+            ->count();
     }
 
     public function getExaminationsForSubclass($subclassID)

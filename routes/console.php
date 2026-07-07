@@ -28,6 +28,11 @@ Schedule::command('attendance:send-auto-sms')
     ->withoutOverlapping()
     ->runInBackground();
 
+Schedule::command('attendance:send-auto-fingerprint-sms')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 Artisan::command('students:import-template {file : Path to TSV file} {--school=7 : schoolID} {--dry-run : Validate only; do not write to DB}', function () {
     $file = (string) $this->argument('file');
     $schoolID = (int) $this->option('school');

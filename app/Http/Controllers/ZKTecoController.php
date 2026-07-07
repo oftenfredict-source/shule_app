@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\TeacherStaffAttendanceSyncService;
 use App\Services\TeacherStaffLiveEventBuffer;
+use App\Services\StudentLiveEventBuffer;
 use App\Services\ZKTecoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ use App\Models\OtherStaff;
 use App\Models\TeacherFingerprintAttendance;
 use App\Models\StaffFingerprintAttendance;
 use App\Models\Subclass;
+use App\Models\ClassModel;
 use Carbon\Carbon;
 
 class ZKTecoController extends Controller
@@ -1562,6 +1564,65 @@ class ZKTecoController extends Controller
     }
 
     /**
+     * Live student attendance for Today (DB only).
+     * Used when device sync is done by local LAN agent.
+     */
+    public function getStudentLiveTodayFromDb(Request $request)
+    {
+        $request->validate([
+            'subclassID' => 'nullable|integer',
+            'classID' => 'nullable|integer',
+        ]);
+
+        $schoolID = Session::get('schoolID');
+        if (! $schoolID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'School session not found. Please refresh the page or log in again.',
+            ], 403);
+        }
+
+        $schoolID = (int) $schoolID;
+        $today = Carbon::today()->toDateString();
+        $subclassID = $request->input('subclassID') ? (int) $request->input('subclassID') : null;
+        $classID = $request->input('classID') ? (int) $request->input('classID') : null;
+
+        if (Session::get('user_type') === 'Teacher') {
+            $teacherID = Session::get('teacherID');
+            if ($subclassID) {
+                $subclass = Subclass::with('class')->find($subclassID);
+                if (! $subclass || ! $subclass->class || (int) $subclass->class->schoolID !== $schoolID) {
+                    return response()->json(['success' => false, 'message' => 'Unauthorized access to this class.'], 403);
+                }
+                $isClassTeacher = (int) $subclass->teacherID === (int) $teacherID;
+                $isCoordinator = ClassModel::where('classID', $subclass->classID)
+                    ->where('teacherID', $teacherID)
+                    ->where('schoolID', $schoolID)
+                    ->exists();
+                if (! $isClassTeacher && ! $isCoordinator) {
+                    return response()->json(['success' => false, 'message' => 'Unauthorized access to this class.'], 403);
+                }
+            } elseif ($classID) {
+                if (! ClassModel::where('classID', $classID)->where('schoolID', $schoolID)->where('teacherID', $teacherID)->exists()) {
+                    return response()->json(['success' => false, 'message' => 'Unauthorized access to this class.'], 403);
+                }
+            } else {
+                return response()->json(['success' => false, 'message' => 'Class or subclass filter is required.'], 422);
+            }
+        }
+
+        return $this->getLiveAttendanceTodayFromDB(
+            $subclassID ?? 0,
+            $today,
+            false,
+            null,
+            [],
+            $schoolID,
+            $classID
+        );
+    }
+
+    /**
      * Helper: Get today's fingerprint attendance for subclass from DB
      * - Always one row per student per day (enforced by updateOrCreate above)
      * - Used both after successful sync and as fallback when device is unavailable
@@ -1571,18 +1632,35 @@ class ZKTecoController extends Controller
         string $today,
         bool $deviceFailed = false,
         ?string $deviceIp = null,
-        array $devicesSummary = []
-    )
-    {
+        array $devicesSummary = [],
+        ?int $schoolID = null,
+        ?int $classID = null
+    ) {
         try {
-            $students = Student::with('subclass')
-                ->where('subclassID', $subclassID)
-                ->where('status', '!=', 'Transferred')
-                ->get()
-                ->keyBy('studentID');
+            $studentQuery = Student::with(['subclass.class'])
+                ->where('status', '!=', 'Transferred');
+
+            if ($subclassID > 0) {
+                $studentQuery->where('subclassID', $subclassID);
+            } elseif ($classID) {
+                $studentQuery->whereHas('subclass', function ($q) use ($classID) {
+                    $q->where('classID', $classID);
+                });
+            } elseif ($schoolID) {
+                $studentQuery->where('schoolID', $schoolID);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Class or school filter is required.',
+                    'data' => [],
+                    'count' => 0,
+                ], 422);
+            }
+
+            $students = $studentQuery->get()->keyBy('studentID');
 
             if ($students->isEmpty()) {
-                return response()->json([
+                $payload = [
                     'success' => true,
                     'date' => $today,
                     'device_failed' => $deviceFailed,
@@ -1590,13 +1668,18 @@ class ZKTecoController extends Controller
                     'devices_synced' => $devicesSummary,
                     'data' => [],
                     'count' => 0,
-                    'message' => 'No students found in this class.',
-                ]);
+                    'message' => 'No students found for this filter.',
+                ];
+                if ($schoolID) {
+                    $payload['recent_events'] = StudentLiveEventBuffer::all($schoolID);
+                }
+
+                return response()->json($payload);
             }
 
             $attendanceRecords = StudentFingerprintAttendance::whereIn('studentID', $students->pluck('studentID'))
                 ->whereDate('attendance_date', $today)
-                ->orderBy('check_in_time', 'desc') // Latest check-in first (for new records)
+                ->orderBy('check_in_time', 'desc')
                 ->get();
 
             $data = [];
@@ -1606,22 +1689,23 @@ class ZKTecoController extends Controller
             foreach ($attendanceRecords as $record) {
                 /** @var Student|null $student */
                 $student = $students->get($record->studentID);
-                if (!$student) {
+                if (! $student) {
                     continue;
                 }
 
-                $studentName = trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? ''));
-                $className = $student->subclass ? $student->subclass->subclass_name : 'N/A';
+                $studentName = trim(($student->first_name ?? '').' '.($student->middle_name ?? '').' '.($student->last_name ?? ''));
+                $className = 'N/A';
+                if ($student->subclass) {
+                    $mainClass = $student->subclass->class->class_name ?? '';
+                    $subName = trim($student->subclass->subclass_name ?? '');
+                    $className = trim($mainClass.($subName !== '' ? ' '.$subName : ''));
+                }
                 $fingerprintId = $student->fingerprint_id ?? $student->studentID;
 
-                // Check if record is new based on check-in time (within last 10 minutes)
-                // Use Carbon to properly validate time - check if check-in time is recent
                 $isNew = false;
                 if ($record->check_in_time) {
                     $checkInTime = Carbon::parse($record->check_in_time);
-                    $now = Carbon::now();
-                    $minutesAgo = $checkInTime->diffInMinutes($now);
-                    $isNew = $minutesAgo <= 10; // New if check-in time is within last 10 minutes
+                    $isNew = $checkInTime->diffInMinutes(Carbon::now()) <= 10;
                 }
 
                 $recordData = [
@@ -1631,16 +1715,17 @@ class ZKTecoController extends Controller
                     'enroll_id' => $student->studentID,
                     'fingerprint_id' => $fingerprintId,
                     'class_name' => $className,
+                    'subclassID' => (int) ($student->subclassID ?? 0),
+                    'gender' => $student->gender ?? null,
                     'attendance_date' => $record->attendance_date ? $record->attendance_date->toDateString() : $today,
                     'check_in_time' => $record->check_in_time ? $record->check_in_time->format('Y-m-d H:i:s') : null,
                     'check_out_time' => $record->check_out_time ? $record->check_out_time->format('Y-m-d H:i:s') : null,
                     'status' => ($record->check_in_time && $record->check_out_time) ? 'Complete' : 'Check In Only',
                     'verify_mode' => $record->verify_mode ?? null,
                     'device_ip' => $record->device_ip ?? null,
-                    'is_new' => $isNew, // Will be updated later - only latest new record gets this flag
+                    'is_new' => $isNew,
                 ];
 
-                // Separate new and old records
                 if ($isNew) {
                     $newRecords[] = $recordData;
                 } else {
@@ -1648,35 +1733,31 @@ class ZKTecoController extends Controller
                 }
             }
 
-            // Sort new records by check_in_time descending (latest first - aliye chelewa juu)
-            usort($newRecords, function($a, $b) {
+            usort($newRecords, function ($a, $b) {
                 $timeA = $a['check_in_time'] ? strtotime($a['check_in_time']) : 0;
                 $timeB = $b['check_in_time'] ? strtotime($b['check_in_time']) : 0;
-                return $timeB - $timeA; // Descending (latest first)
+
+                return $timeB - $timeA;
             });
 
-            // Only the first (latest) new record should have is_new = true
-            // All other new records should have is_new = false
             if (count($newRecords) > 0) {
-                // Mark only the first one (latest check-in time) as new
                 $newRecords[0]['is_new'] = true;
-                // Mark all others as not new
                 for ($i = 1; $i < count($newRecords); $i++) {
                     $newRecords[$i]['is_new'] = false;
                 }
             }
 
-            // Sort old records by check_in_time descending (latest first)
-            usort($oldRecords, function($a, $b) {
+            usort($oldRecords, function ($a, $b) {
                 $timeA = $a['check_in_time'] ? strtotime($a['check_in_time']) : 0;
                 $timeB = $b['check_in_time'] ? strtotime($b['check_in_time']) : 0;
-                return $timeB - $timeA; // Descending (latest first)
+
+                return $timeB - $timeA;
             });
 
-            // Combine: new records first, then old records
             $data = array_merge($newRecords, $oldRecords);
 
-            return response()->json([
+            $resolvedSchoolID = $schoolID ?? (int) Session::get('schoolID');
+            $response = [
                 'success' => true,
                 'date' => $today,
                 'device_failed' => $deviceFailed,
@@ -1684,16 +1765,24 @@ class ZKTecoController extends Controller
                 'devices_synced' => $devicesSummary,
                 'data' => $data,
                 'count' => count($data),
-                'message' => ($deviceFailed ? 'Device unavailable, showing attendance from database for today.' : 'Live attendance synced from registered device(s) and stored to database for today.')
-            ]);
+                'message' => $deviceFailed
+                    ? 'Device unavailable, showing attendance from database for today.'
+                    : null,
+            ];
+
+            if ($resolvedSchoolID > 0) {
+                $response['recent_events'] = StudentLiveEventBuffer::all($resolvedSchoolID);
+            }
+
+            return response()->json($response);
         } catch (\Exception $e) {
-            Log::error('Get live attendance today from DB error: ' . $e->getMessage());
+            Log::error('Get live attendance today from DB error: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
                 'date' => $today,
                 'device_failed' => $deviceFailed,
-                'message' => 'Error retrieving today\'s attendance from database: ' . $e->getMessage(),
+                'message' => 'Error retrieving today\'s attendance from database: '.$e->getMessage(),
                 'data' => [],
                 'count' => 0,
             ], 500);
