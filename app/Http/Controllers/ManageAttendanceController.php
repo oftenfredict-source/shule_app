@@ -649,19 +649,21 @@ class ManageAttendanceController extends Controller
             return $map;
         }
 
-        StudentFingerprintAttendance::whereIn('studentID', $studentIds)
+        DB::table('student_fingerprint_attendance')
+            ->select(['studentID', 'attendance_date', 'check_in_time', 'check_out_time'])
+            ->whereIn('studentID', $studentIds)
             ->where('attendance_date', '>=', $fromDate)
             ->where('attendance_date', '<=', $toDate)
-            ->get()
-            ->each(function ($row) use (&$map) {
-                $key = 'student_'.$row->studentID;
-                $date = $row->attendance_date instanceof Carbon
-                    ? $row->attendance_date->toDateString()
-                    : (string) $row->attendance_date;
-                $map[$key][$date] = [
-                    'check_in_time' => $row->check_in_time ? $row->check_in_time->format('Y-m-d H:i:s') : null,
-                    'check_out_time' => $row->check_out_time ? $row->check_out_time->format('Y-m-d H:i:s') : null,
-                ];
+            ->orderBy('id')
+            ->chunk(2000, function ($rows) use (&$map) {
+                foreach ($rows as $row) {
+                    $key = 'student_'.$row->studentID;
+                    $date = substr((string) $row->attendance_date, 0, 10);
+                    $map[$key][$date] = [
+                        'check_in_time' => $this->normalizeAttendanceDateTime($row->check_in_time),
+                        'check_out_time' => $this->normalizeAttendanceDateTime($row->check_out_time),
+                    ];
+                }
             });
 
         return $map;
@@ -2592,46 +2594,77 @@ class ManageAttendanceController extends Controller
         $map = [];
 
         if ($personType !== 'staff') {
-            $teacherIds = Teacher::where('schoolID', $schoolID)->where('status', 'Active')->pluck('id');
-            if ($teacherIds->isNotEmpty()) {
-                TeacherFingerprintAttendance::whereIn('teacherID', $teacherIds)
+            $teacherIds = Teacher::where('schoolID', $schoolID)
+                ->where('status', 'Active')
+                ->pluck('id')
+                ->all();
+
+            if (! empty($teacherIds)) {
+                DB::table('teacher_fingerprint_attendance')
+                    ->select(['teacherID', 'attendance_date', 'check_in_time', 'check_out_time'])
+                    ->whereIn('teacherID', $teacherIds)
                     ->where('attendance_date', '>=', $fromDate)
                     ->where('attendance_date', '<=', $toDate)
-                    ->get()
-                    ->each(function ($row) use (&$map) {
-                        $key = 'teacher_' . $row->teacherID;
-                        $date = $row->attendance_date instanceof Carbon
-                            ? $row->attendance_date->toDateString()
-                            : (string) $row->attendance_date;
-                        $map[$key][$date] = [
-                            'check_in_time' => $row->check_in_time ? $row->check_in_time->format('Y-m-d H:i:s') : null,
-                            'check_out_time' => $row->check_out_time ? $row->check_out_time->format('Y-m-d H:i:s') : null,
-                        ];
+                    ->orderBy('id')
+                    ->chunk(2000, function ($rows) use (&$map) {
+                        foreach ($rows as $row) {
+                            $key = 'teacher_' . $row->teacherID;
+                            $date = substr((string) $row->attendance_date, 0, 10);
+                            $map[$key][$date] = [
+                                'check_in_time' => $this->normalizeAttendanceDateTime($row->check_in_time),
+                                'check_out_time' => $this->normalizeAttendanceDateTime($row->check_out_time),
+                            ];
+                        }
                     });
             }
         }
 
         if ($personType !== 'teacher') {
-            $staffIds = OtherStaff::where('schoolID', $schoolID)->where('status', 'Active')->pluck('id');
-            if ($staffIds->isNotEmpty()) {
-                StaffFingerprintAttendance::whereIn('staffID', $staffIds)
+            $staffIds = OtherStaff::where('schoolID', $schoolID)
+                ->where('status', 'Active')
+                ->pluck('id')
+                ->all();
+
+            if (! empty($staffIds)) {
+                DB::table('staff_fingerprint_attendance')
+                    ->select(['staffID', 'attendance_date', 'check_in_time', 'check_out_time'])
+                    ->whereIn('staffID', $staffIds)
                     ->where('attendance_date', '>=', $fromDate)
                     ->where('attendance_date', '<=', $toDate)
-                    ->get()
-                    ->each(function ($row) use (&$map) {
-                        $key = 'staff_' . $row->staffID;
-                        $date = $row->attendance_date instanceof Carbon
-                            ? $row->attendance_date->toDateString()
-                            : (string) $row->attendance_date;
-                        $map[$key][$date] = [
-                            'check_in_time' => $row->check_in_time ? $row->check_in_time->format('Y-m-d H:i:s') : null,
-                            'check_out_time' => $row->check_out_time ? $row->check_out_time->format('Y-m-d H:i:s') : null,
-                        ];
+                    ->orderBy('id')
+                    ->chunk(2000, function ($rows) use (&$map) {
+                        foreach ($rows as $row) {
+                            $key = 'staff_' . $row->staffID;
+                            $date = substr((string) $row->attendance_date, 0, 10);
+                            $map[$key][$date] = [
+                                'check_in_time' => $this->normalizeAttendanceDateTime($row->check_in_time),
+                                'check_out_time' => $this->normalizeAttendanceDateTime($row->check_out_time),
+                            ];
+                        }
                     });
             }
         }
 
         return $map;
+    }
+
+    private function normalizeAttendanceDateTime($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        $value = (string) $value;
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/', $value)) {
+            return substr($value, 0, 19);
+        }
+
+        try {
+            return Carbon::parse($value)->format('Y-m-d H:i:s');
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**
