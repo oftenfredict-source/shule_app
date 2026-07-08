@@ -450,11 +450,13 @@
         flex: 1 1 auto;
         min-height: 0;
         max-height: calc(100vh - 14rem);
-        overflow-y: scroll;
+        /* Use auto + stable gutter to keep scrollbar visible */
+        overflow-y: auto;
         overflow-x: hidden;
         overscroll-behavior: contain;
         overflow-anchor: none;
         -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable both-edges;
         scrollbar-width: thin;
         scrollbar-color: #b0b0b0 #f0f0f0;
         padding-right: 2px;
@@ -521,12 +523,14 @@
         flex-shrink: 0;
     }
     .store-modal .modal-body {
-        overflow-y: scroll;
+        /* Use auto + stable gutter to keep scrollbar visible */
+        overflow-y: auto;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
         flex: 1 1 auto;
         min-height: 0;
         overscroll-behavior: contain;
+        scrollbar-gutter: stable both-edges;
         scrollbar-width: thin;
         scrollbar-color: #b0b0b0 #f0f0f0;
     }
@@ -543,6 +547,12 @@
     }
     .store-modal .modal-body::-webkit-scrollbar-thumb:hover {
         background: #888;
+    }
+
+    /* Override any global scrollbar-hiding styles on store scroll areas */
+    .store-modal .modal-body::-webkit-scrollbar,
+    #inventoryActorsModal .store-actors-tab-scroll::-webkit-scrollbar {
+        display: block !important;
     }
     .store-modal .store-actors-scroll-box {
         scrollbar-width: thin;
