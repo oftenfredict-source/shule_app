@@ -506,46 +506,18 @@
         padding: 0.75rem 1rem;
     }
 
-    /* Store modals — scroll only in .modal-body (form wraps body+footer, so form must flex too) */
+    /* Store modals — let the browser/viewport handle scrolling (no inner modal-body scrollbars) */
     .store-modal .modal-dialog {
-        max-height: calc(100vh - 1.5rem);
         margin: 0.75rem auto;
     }
     .store-modal .modal-content {
-        max-height: calc(100vh - 1.5rem);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
         width: 100%;
     }
-    /* Critical: forms wrap header/body/footer — without this, modal-body cannot shrink/scroll */
-    .store-modal .modal-content > form {
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        min-height: 0;
-        max-height: 100%;
-        overflow: hidden;
-        margin: 0;
-    }
-    .store-modal .modal-header,
-    .store-modal .modal-footer {
-        flex-shrink: 0;
-    }
     .store-modal .modal-body {
-        flex: 1 1 auto;
-        min-height: 0;
-        /* Concrete max-height so scrollbar ALWAYS works even if flex fails */
-        max-height: calc(100vh - 220px);
-        overflow-y: scroll !important;
-        overflow-x: hidden !important;
-        -webkit-overflow-scrolling: touch;
+        overflow: visible !important;
+        max-height: none !important;
+        -webkit-overflow-scrolling: auto;
         overflow-anchor: none;
-        overscroll-behavior: contain;
-        touch-action: pan-y;
-        scrollbar-gutter: stable;
-        scrollbar-width: auto;
-        scrollbar-color: #940000 #f0f0f0;
     }
     /* Focused inputs must NOT pull scroll back while user is scrolling */
     .store-modal .modal-body input,
@@ -555,21 +527,6 @@
         scroll-margin: 0 !important;
         scroll-margin-block: 0 !important;
     }
-    .store-modal .modal-body::-webkit-scrollbar {
-        width: 12px;
-    }
-    .store-modal .modal-body::-webkit-scrollbar-track {
-        background: #f0f0f0;
-        border-radius: 4px;
-    }
-    .store-modal .modal-body::-webkit-scrollbar-thumb {
-        background: #b0b0b0;
-        border-radius: 4px;
-    }
-    .store-modal .modal-body::-webkit-scrollbar-thumb:hover {
-        background: #888;
-    }
-
     /* Sticky action bar inside Stock modal body */
     #addItemStockModal .stock-sticky-actions {
         position: sticky;
@@ -593,7 +550,6 @@
     }
 
     /* Override any global scrollbar-hiding styles on store scroll areas */
-    .store-modal .modal-body::-webkit-scrollbar,
     #inventoryActorsModal .store-actors-tab-scroll::-webkit-scrollbar {
         display: block !important;
     }
@@ -1753,8 +1709,14 @@
                                         </div>
 
                                         <div id="stockLabelsSection" style="display:none;">
-                                            <label class="font-weight-bold d-block">Labels <span class="text-danger">*</span></label>
-                                            <p class="text-muted small">Enter a unique label for each unit/package (e.g. Box-01, Chalk-A) so you can track who took what during requisition.</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <label class="font-weight-bold mb-0">Labels <span class="text-danger">*</span></label>
+                                                <label class="mb-0 small d-flex align-items-center" style="gap:8px;">
+                                                    <input type="checkbox" id="stockAutoLabels" checked>
+                                                    Auto label
+                                                </label>
+                                            </div>
+                                            <p class="text-muted small mb-2">Labels zimejazwa automatically (kwa idadi). Uki-hitaji kubadilisha jina, edit tu input husika.</p>
                                             <div id="stockLabelsContainer"></div>
                                         </div>
 
@@ -5417,8 +5379,21 @@
         }
     }
 
+    function stockAutoLabelsEnabled() {
+        return $('#stockAutoLabels').is(':checked');
+    }
+
+    function makeAutoLabel(prefix, index) {
+        return String(prefix || 'Label') + '-' + String(index).padStart(2, '0');
+    }
+
+    function readExistingLabelValues($container) {
+        return $container.find('input[type="text"]').toArray().map(el => ($(el).val() || '').trim());
+    }
+
     function renderStockLabels(count, $container, specOrPrefix, isPackage) {
         withStockModalScrollPreserved(function () {
+            const existing = readExistingLabelValues($container);
             $container.empty();
             if (!count || count < 1) {
                 updateStockSaveButton();
@@ -5440,13 +5415,16 @@
             }
 
             for (let i = 1; i <= count; i++) {
+                const existingValue = (existing[i - 1] || '').trim();
+                const autoValue = makeAutoLabel(prefix, i);
+                const value = existingValue || (stockAutoLabelsEnabled() ? autoValue : '');
                 $container.append(`
                     <div class="mb-2">
                         <div class="stock-label-row input-group">
                             <div class="input-group-prepend">
                                 <span class="input-group-text label-prefix">${escapeHtml(prefix)} ${i}</span>
                             </div>
-                            <input type="text" class="form-control stock-label-input stock-batch-label-input" placeholder="Enter label (e.g. ${escapeHtml(prefix)}-${String(i).padStart(2, '0')})" required>
+                            <input type="text" class="form-control stock-label-input stock-batch-label-input" value="${escapeHtml(value)}" placeholder="Enter label (e.g. ${escapeHtml(autoValue)})" required>
                         </div>
                         ${onePackageBreakdown ? `<div class="stock-label-breakdown">Contains: ${escapeHtml(onePackageBreakdown)}</div>` : ''}
                     </div>
@@ -5460,6 +5438,7 @@
         withStockModalScrollPreserved(function () {
             const prefix = $('#stockUnitSelect option:selected').text() || 'Unit';
             const $container = $('#stockLabelsContainer');
+            const existing = readExistingLabelValues($container);
             $container.empty();
             if (!count || count < 1) {
                 $('#stockLabelsSection, #stockRequisitionSection').hide();
@@ -5467,13 +5446,16 @@
                 return;
             }
             for (let i = 1; i <= count; i++) {
+                const existingValue = (existing[i - 1] || '').trim();
+                const autoValue = makeAutoLabel(prefix, i);
+                const value = existingValue || (stockAutoLabelsEnabled() ? autoValue : '');
                 $container.append(`
                     <div class="mb-2">
                         <div class="stock-label-row input-group">
                             <div class="input-group-prepend">
                                 <span class="input-group-text label-prefix">${escapeHtml(prefix)} ${i}</span>
                             </div>
-                            <input type="text" class="form-control stock-label-input" placeholder="Enter label (e.g. ${escapeHtml(prefix)}-${String(i).padStart(2, '0')})" required>
+                            <input type="text" class="form-control stock-label-input" value="${escapeHtml(value)}" placeholder="Enter label (e.g. ${escapeHtml(autoValue)})" required>
                         </div>
                     </div>
                 `);
@@ -5920,6 +5902,24 @@
 
     $(document).on('input', '.stock-label-input, .stock-batch-label-input', updateStockSaveButton);
     $('#stockRequisitionStatus').on('change', updateStockSaveButton);
+    $('#stockAutoLabels').on('change', function () {
+        // Only auto-fill missing values; never overwrite user's edits.
+        withStockModalScrollPreserved(function () {
+            const method = $('#stockStoreMethod').val();
+            if (method === 'unit') {
+                const qty = parseInt($('#stockQuantity').val(), 10);
+                if (qty > 0 && qty <= 500) renderUnitStockLabels(qty);
+            } else if (method === 'package') {
+                collectStockBatchRows().forEach($card => {
+                    const qty = parseInt($card.find('.stock-batch-qty').val(), 10);
+                    const spec = getStockBatchSpec($card);
+                    if (spec && qty > 0 && qty <= 500) {
+                        renderStockLabels(qty, $card.find('.stock-batch-labels'), spec, true);
+                    }
+                });
+            }
+        });
+    });
 
     $('#addItemStockModal').on('shown.bs.collapse', function () {
         lastRenderedStockQty = null;
