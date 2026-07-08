@@ -6,6 +6,8 @@
 @include('includes.teacher_nav')
 @endif
 
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
 
 <style>
     body, .content, .card, .btn, .form-control, .form-select, .table, .list-group-item {
@@ -361,6 +363,18 @@
                         <div class="mt-4">
                             <button class="btn btn-success w-100" id="exportUserRolesBtn">
                                 <i class="bi bi-file-earmark-excel"></i> Export User Roles to Excel
+                            </button>
+                            <button class="btn btn-outline-success w-100 mt-2" id="downloadTeacherImportTemplateBtn">
+                                <i class="bi bi-file-earmark-excel"></i> Download Teachers Excel Template
+                            </button>
+                            <button class="btn btn-primary-custom w-100 mt-2" id="openTeacherImportModalBtn" data-permission="teacher_create">
+                                <i class="bi bi-upload"></i> Upload Teachers Excel
+                            </button>
+                            <button class="btn btn-outline-success w-100 mt-2" id="downloadStaffImportTemplateBtn">
+                                <i class="bi bi-file-earmark-excel"></i> Download Staff Excel Template
+                            </button>
+                            <button class="btn btn-primary-custom w-100 mt-2" id="openStaffImportModalBtn" data-permission="staff_create">
+                                <i class="bi bi-upload"></i> Upload Staff Excel
                             </button>
                         </div>
                         <div class="card border-primary-custom mt-3">
@@ -2543,6 +2557,155 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="bi bi-x-circle"></i> Close
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Teacher Import Modal -->
+<div class="modal fade" id="teacherImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Upload Teachers Excel</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <strong>Note:</strong> Tumia template ya Excel, jaza walimu, kisha upload. Mfumo utawasajili mmoja-mmoja na kuonyesha progress.
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Excel File *</label>
+                        <input type="file" class="form-control" id="teacherImportFile" accept=".xlsx,.xls,.csv">
+                        <small class="text-muted">Supported: .xlsx, .xls, .csv</small>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-outline-primary w-100" id="parseTeacherImportBtn">
+                            <i class="bi bi-search"></i> Preview File
+                        </button>
+                    </div>
+                </div>
+
+                <div id="teacherImportPreviewWrap" class="mt-3 d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-bold">Preview</div>
+                        <div class="small text-muted">Rows: <span id="teacherImportRowCount">0</span></div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 280px; overflow:auto;">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>first_name</th>
+                                    <th>last_name</th>
+                                    <th>gender</th>
+                                    <th>national_id</th>
+                                    <th>employee_number</th>
+                                    <th>email</th>
+                                    <th>phone_number</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teacherImportPreviewBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span id="teacherImportProgressLabel">Ready</span>
+                            <strong id="teacherImportProgressPercent">0%</strong>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary-custom" id="teacherImportProgressBar" style="width:0%"></div>
+                        </div>
+                        <div class="small text-muted mt-2" id="teacherImportProgressMeta"></div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-primary-custom" id="startTeacherImportBtn">
+                            <i class="bi bi-person-plus"></i> Register Teachers
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="resetTeacherImportBtn">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Staff Import Modal -->
+<div class="modal fade" id="staffImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Upload Staff Excel</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <strong>Note:</strong> Tumia template ya Excel, jaza staff, kisha upload. Mfumo utawasajili mmoja-mmoja na kuonyesha progress.
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Excel File *</label>
+                        <input type="file" class="form-control" id="staffImportFile" accept=".xlsx,.xls,.csv">
+                        <small class="text-muted">Supported: .xlsx, .xls, .csv</small>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-outline-primary w-100" id="parseStaffImportBtn">
+                            <i class="bi bi-search"></i> Preview File
+                        </button>
+                    </div>
+                </div>
+
+                <div id="staffImportPreviewWrap" class="mt-3 d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-bold">Preview</div>
+                        <div class="small text-muted">Rows: <span id="staffImportRowCount">0</span></div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 280px; overflow:auto;">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>first_name</th>
+                                    <th>last_name</th>
+                                    <th>gender</th>
+                                    <th>national_id</th>
+                                    <th>employee_number</th>
+                                    <th>email</th>
+                                    <th>phone_number</th>
+                                    <th>profession_id</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffImportPreviewBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span id="staffImportProgressLabel">Ready</span>
+                            <strong id="staffImportProgressPercent">0%</strong>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary-custom" id="staffImportProgressBar" style="width:0%"></div>
+                        </div>
+                        <div class="small text-muted mt-2" id="staffImportProgressMeta"></div>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-primary-custom" id="startStaffImportBtn">
+                            <i class="bi bi-person-plus"></i> Register Staff
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="resetStaffImportBtn">
+                            Reset
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -6245,6 +6408,627 @@
                 timer: 2000,
                 showConfirmButton: false
             });
+        });
+
+        // ---------------------------
+        // Bulk Teacher Excel Template + Import
+        // ---------------------------
+        function normalizeHeader(h) {
+            return String(h || '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, '_')
+                .replace(/[^a-z0-9_]/g, '');
+        }
+
+        function normalizeGender(val) {
+            var v = String(val || '').trim().toLowerCase();
+            if (v === 'm' || v === 'male') return 'Male';
+            if (v === 'f' || v === 'female') return 'Female';
+            return '';
+        }
+
+        function normalizePhone(val) {
+            var v = String(val || '').replace(/\s+/g, '').replace(/^\+/, '');
+            // allow 0XXXXXXXXX -> 255XXXXXXXXX
+            if (/^0\d{9}$/.test(v)) return '255' + v.slice(1);
+            if (/^255\d{9}$/.test(v)) return v;
+            return v;
+        }
+
+        function requiredMissing(row) {
+            var missing = [];
+            ['first_name', 'last_name', 'gender', 'national_id', 'employee_number', 'email', 'phone_number'].forEach(function (k) {
+                if (!row[k]) missing.push(k);
+            });
+            return missing;
+        }
+
+        function setImportProgress(pct, label, meta) {
+            pct = Math.max(0, Math.min(100, pct));
+            $('#teacherImportProgressBar').css('width', pct + '%');
+            $('#teacherImportProgressPercent').text(pct + '%');
+            if (label) $('#teacherImportProgressLabel').text(label);
+            if (meta !== undefined) $('#teacherImportProgressMeta').text(meta || '');
+        }
+
+        function renderPreview(rows) {
+            var $body = $('#teacherImportPreviewBody');
+            $body.empty();
+            var max = Math.min(rows.length, 20);
+            for (var i = 0; i < max; i++) {
+                var r = rows[i] || {};
+                $body.append(
+                    '<tr>' +
+                    '<td>' + (i + 1) + '</td>' +
+                    '<td>' + (r.first_name || '') + '</td>' +
+                    '<td>' + (r.last_name || '') + '</td>' +
+                    '<td>' + (r.gender || '') + '</td>' +
+                    '<td>' + (r.national_id || '') + '</td>' +
+                    '<td>' + (r.employee_number || '') + '</td>' +
+                    '<td>' + (r.email || '') + '</td>' +
+                    '<td>' + (r.phone_number || '') + '</td>' +
+                    '</tr>'
+                );
+            }
+            $('#teacherImportRowCount').text(rows.length);
+            $('#teacherImportPreviewWrap').removeClass('d-none');
+            setImportProgress(0, 'Ready', '');
+        }
+
+        var teacherImportRows = [];
+        var staffImportRows = [];
+
+        $('#downloadTeacherImportTemplateBtn').on('click', function () {
+            if (typeof XLSX === 'undefined') {
+                Swal.fire('Error', 'Excel library not loaded', 'error');
+                return;
+            }
+
+            var headers = [
+                'first_name', 'middle_name', 'last_name', 'gender',
+                'national_id', 'employee_number', 'email', 'phone_number',
+                'qualification', 'specialization', 'experience',
+                'date_of_birth', 'date_hired', 'address',
+                'bank_account_number', 'position', 'status'
+            ];
+
+            var example = [
+                'John', '', 'Doe', 'Male',
+                '1999010100010001', 'EMP001', 'john.doe@example.com', '255612345678',
+                '', '', '',
+                '2000-01-01', '2026-01-01', '',
+                '', '', 'Active'
+            ];
+
+            var notes = [
+                ['NOTES'],
+                ['- gender: Male/Female'],
+                ['- phone_number: 255XXXXXXXXX (12 digits)'],
+                ['- status: Active/Inactive (optional, default Active)'],
+                ['- Mfumo utatengeneza fingerprint_id automatically, na password itakuwa first_name (kama usajili wa kawaida).']
+            ];
+
+            var wsData = [headers, example, [], ...notes];
+            var wb = XLSX.utils.book_new();
+            var ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = headers.map(function () { return { wch: 20 }; });
+            XLSX.utils.book_append_sheet(wb, ws, 'Teachers Template');
+
+            var schoolName = '{{ $school->school_name ?? "School" }}';
+            var safeSchoolName = schoolName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            XLSX.writeFile(wb, safeSchoolName + '_teachers_import_template.xlsx');
+        });
+
+        $('#openTeacherImportModalBtn').on('click', function () {
+            // permission guard (same style used elsewhere)
+            if (!hasPermission('teacher_create')) {
+                Swal.fire('Access Denied', 'Huna ruhusa ya kusajili walimu (teacher_create).', 'error');
+                return;
+            }
+            teacherImportRows = [];
+            $('#teacherImportFile').val('');
+            $('#teacherImportPreviewWrap').addClass('d-none');
+            $('#teacherImportPreviewBody').empty();
+            $('#teacherImportRowCount').text('0');
+            setImportProgress(0, 'Ready', '');
+            var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('teacherImportModal'));
+            m.show();
+        });
+
+        $('#resetTeacherImportBtn').on('click', function () {
+            teacherImportRows = [];
+            $('#teacherImportFile').val('');
+            $('#teacherImportPreviewWrap').addClass('d-none');
+            $('#teacherImportPreviewBody').empty();
+            $('#teacherImportRowCount').text('0');
+            setImportProgress(0, 'Ready', '');
+        });
+
+        $('#parseTeacherImportBtn').on('click', function () {
+            if (typeof XLSX === 'undefined') {
+                Swal.fire('Error', 'Excel library not loaded', 'error');
+                return;
+            }
+            var input = document.getElementById('teacherImportFile');
+            if (!input || !input.files || !input.files[0]) {
+                Swal.fire('Error', 'Chagua file kwanza.', 'error');
+                return;
+            }
+
+            var file = input.files[0];
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    var data = new Uint8Array(e.target.result);
+                    var wb = XLSX.read(data, { type: 'array' });
+                    var sheetName = wb.SheetNames[0];
+                    var ws = wb.Sheets[sheetName];
+                    var aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false });
+                    if (!aoa || aoa.length < 2) {
+                        Swal.fire('Error', 'File haina data ya kutosha.', 'error');
+                        return;
+                    }
+
+                    var rawHeaders = aoa[0] || [];
+                    var headers = rawHeaders.map(normalizeHeader);
+
+                    var idx = {};
+                    headers.forEach(function (h, i) { if (h) idx[h] = i; });
+
+                    var rows = [];
+                    for (var r = 1; r < aoa.length; r++) {
+                        var line = aoa[r];
+                        if (!line || !line.length) continue;
+
+                        // stop when first 7 required columns are empty
+                        var isEmpty = true;
+                        for (var c = 0; c < Math.min(line.length, 7); c++) {
+                            if (String(line[c] || '').trim() !== '') { isEmpty = false; break; }
+                        }
+                        if (isEmpty) continue;
+
+                        function col(name) {
+                            var i = idx[name];
+                            if (i === undefined) return '';
+                            return String(line[i] ?? '').trim();
+                        }
+
+                        var row = {
+                            first_name: col('first_name'),
+                            middle_name: col('middle_name'),
+                            last_name: col('last_name'),
+                            gender: normalizeGender(col('gender')),
+                            national_id: col('national_id'),
+                            employee_number: col('employee_number'),
+                            email: col('email'),
+                            phone_number: normalizePhone(col('phone_number')),
+                            qualification: col('qualification'),
+                            specialization: col('specialization'),
+                            experience: col('experience'),
+                            date_of_birth: col('date_of_birth'),
+                            date_hired: col('date_hired'),
+                            address: col('address'),
+                            bank_account_number: col('bank_account_number'),
+                            position: col('position'),
+                            status: col('status') || 'Active'
+                        };
+
+                        rows.push(row);
+                    }
+
+                    if (!rows.length) {
+                        Swal.fire('Error', 'Hakuna rows zilizopatikana.', 'error');
+                        return;
+                    }
+
+                    // Validate required fields
+                    var bad = rows.find(function (rr) { return requiredMissing(rr).length; });
+                    if (bad) {
+                        Swal.fire('Error', 'Kuna row ina missing fields: ' + requiredMissing(bad).join(', '), 'error');
+                        return;
+                    }
+
+                    teacherImportRows = rows;
+                    renderPreview(rows);
+                    Swal.fire('Ready', 'Preview imekamilika. Bonyeza Register Teachers kuanza.', 'success');
+                } catch (err) {
+                    Swal.fire('Error', 'Imeshindikana kusoma file: ' + (err.message || err), 'error');
+                }
+            };
+            reader.onerror = function () {
+                Swal.fire('Error', 'Imeshindikana kusoma file.', 'error');
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        $('#startTeacherImportBtn').on('click', function () {
+            if (!teacherImportRows.length) {
+                Swal.fire('Error', 'Preview file kwanza.', 'error');
+                return;
+            }
+
+            var total = teacherImportRows.length;
+            var ok = 0;
+            var fail = 0;
+            var failures = [];
+
+            $('#startTeacherImportBtn').prop('disabled', true);
+            $('#parseTeacherImportBtn').prop('disabled', true);
+            $('#resetTeacherImportBtn').prop('disabled', true);
+
+            function postRow(i) {
+                if (i >= total) {
+                    setImportProgress(100, 'Done', 'Success: ' + ok + ' | Failed: ' + fail);
+                    $('#startTeacherImportBtn').prop('disabled', false);
+                    $('#parseTeacherImportBtn').prop('disabled', false);
+                    $('#resetTeacherImportBtn').prop('disabled', false);
+
+                    if (failures.length) {
+                        var msg = failures.slice(0, 15).map(function (f) {
+                            return 'Row ' + f.row + ': ' + f.msg;
+                        }).join('<br>');
+                        Swal.fire({
+                            icon: fail ? 'warning' : 'success',
+                            title: 'Import Completed',
+                            html: 'Success: <b>' + ok + '</b>, Failed: <b>' + fail + '</b><br><br>' + msg
+                        }).then(function () { location.reload(); });
+                    } else {
+                        Swal.fire('Success', 'All teachers registered successfully.', 'success').then(function () {
+                            location.reload();
+                        });
+                    }
+                    return;
+                }
+
+                var row = teacherImportRows[i];
+                var pct = Math.round((i / total) * 100);
+                setImportProgress(pct, 'Registering...', 'Row ' + (i + 1) + ' of ' + total + ' — ' + (row.first_name || '') + ' ' + (row.last_name || ''));
+
+                $.ajax({
+                    url: '{{ route("save_teachers") }}',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {
+                        _token: $('meta[name=\"csrf-token\"]').attr('content') || '{{ csrf_token() }}',
+                        first_name: row.first_name,
+                        middle_name: row.middle_name,
+                        last_name: row.last_name,
+                        gender: row.gender,
+                        national_id: row.national_id,
+                        employee_number: row.employee_number,
+                        email: row.email,
+                        phone_number: row.phone_number,
+                        qualification: row.qualification,
+                        specialization: row.specialization,
+                        experience: row.experience,
+                        date_of_birth: row.date_of_birth,
+                        date_hired: row.date_hired,
+                        address: row.address,
+                        bank_account_number: row.bank_account_number,
+                        position: row.position,
+                        status: row.status
+                    }
+                }).done(function (res) {
+                    if (res && res.success) ok++;
+                    else {
+                        fail++;
+                        failures.push({ row: i + 1, msg: (res && (res.error || res.message)) ? (res.error || res.message) : 'Failed' });
+                    }
+                }).fail(function (xhr) {
+                    fail++;
+                    var msg = 'Failed';
+                    if (xhr && xhr.responseJSON) {
+                        if (xhr.responseJSON.error) msg = xhr.responseJSON.error;
+                        else if (xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                        else if (xhr.responseJSON.errors) msg = Object.values(xhr.responseJSON.errors).flat()[0] || msg;
+                    }
+                    failures.push({ row: i + 1, msg: msg });
+                }).always(function () {
+                    postRow(i + 1);
+                });
+            }
+
+            postRow(0);
+        });
+
+        // ---------------------------
+        // Bulk STAFF Excel Template + Import
+        // ---------------------------
+        function staffRequiredMissing(row) {
+            var missing = [];
+            ['first_name', 'last_name', 'gender', 'national_id', 'employee_number', 'email', 'phone_number'].forEach(function (k) {
+                if (!row[k]) missing.push(k);
+            });
+            return missing;
+        }
+
+        function setStaffImportProgress(pct, label, meta) {
+            pct = Math.max(0, Math.min(100, pct));
+            $('#staffImportProgressBar').css('width', pct + '%');
+            $('#staffImportProgressPercent').text(pct + '%');
+            if (label) $('#staffImportProgressLabel').text(label);
+            if (meta !== undefined) $('#staffImportProgressMeta').text(meta || '');
+        }
+
+        function renderStaffPreview(rows) {
+            var $body = $('#staffImportPreviewBody');
+            $body.empty();
+            var max = Math.min(rows.length, 20);
+            for (var i = 0; i < max; i++) {
+                var r = rows[i] || {};
+                $body.append(
+                    '<tr>' +
+                    '<td>' + (i + 1) + '</td>' +
+                    '<td>' + (r.first_name || '') + '</td>' +
+                    '<td>' + (r.last_name || '') + '</td>' +
+                    '<td>' + (r.gender || '') + '</td>' +
+                    '<td>' + (r.national_id || '') + '</td>' +
+                    '<td>' + (r.employee_number || '') + '</td>' +
+                    '<td>' + (r.email || '') + '</td>' +
+                    '<td>' + (r.phone_number || '') + '</td>' +
+                    '<td>' + (r.profession_id || '') + '</td>' +
+                    '</tr>'
+                );
+            }
+            $('#staffImportRowCount').text(rows.length);
+            $('#staffImportPreviewWrap').removeClass('d-none');
+            setStaffImportProgress(0, 'Ready', '');
+        }
+
+        $('#downloadStaffImportTemplateBtn').on('click', function () {
+            if (typeof XLSX === 'undefined') {
+                Swal.fire('Error', 'Excel library not loaded', 'error');
+                return;
+            }
+
+            var headers = [
+                'first_name', 'middle_name', 'last_name', 'gender',
+                'national_id', 'employee_number', 'email', 'phone_number',
+                'profession_id',
+                'qualification', 'specialization', 'experience',
+                'date_of_birth', 'date_hired', 'address',
+                'bank_account_number', 'position', 'status'
+            ];
+
+            var example = [
+                'Jane', '', 'Doe', 'Female',
+                '1999010100010002', 'STF001', 'jane.doe@example.com', '255612345679',
+                '',
+                '', '', '',
+                '2000-01-01', '2026-01-01', '',
+                '', '', 'Active'
+            ];
+
+            var notes = [
+                ['NOTES'],
+                ['- gender: Male/Female'],
+                ['- phone_number: 255XXXXXXXXX (12 digits)'],
+                ['- profession_id: optional (id ya position kwenye Staff Professions). Ukiiacha tupu, staff atasajiliwa bila position.'],
+                ['- status: Active/Inactive (optional, default Active)'],
+                ['- Mfumo utatengeneza fingerprint_id automatically, na password itakuwa first_name.']
+            ];
+
+            var wsData = [headers, example, [], ...notes];
+            var wb = XLSX.utils.book_new();
+            var ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = headers.map(function () { return { wch: 20 }; });
+            XLSX.utils.book_append_sheet(wb, ws, 'Staff Template');
+
+            var schoolName = '{{ $school->school_name ?? "School" }}';
+            var safeSchoolName = schoolName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            XLSX.writeFile(wb, safeSchoolName + '_staff_import_template.xlsx');
+        });
+
+        $('#openStaffImportModalBtn').on('click', function () {
+            if (!hasPermission('staff_create')) {
+                Swal.fire('Access Denied', 'Huna ruhusa ya kusajili staff (staff_create).', 'error');
+                return;
+            }
+            staffImportRows = [];
+            $('#staffImportFile').val('');
+            $('#staffImportPreviewWrap').addClass('d-none');
+            $('#staffImportPreviewBody').empty();
+            $('#staffImportRowCount').text('0');
+            setStaffImportProgress(0, 'Ready', '');
+            var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('staffImportModal'));
+            m.show();
+        });
+
+        $('#resetStaffImportBtn').on('click', function () {
+            staffImportRows = [];
+            $('#staffImportFile').val('');
+            $('#staffImportPreviewWrap').addClass('d-none');
+            $('#staffImportPreviewBody').empty();
+            $('#staffImportRowCount').text('0');
+            setStaffImportProgress(0, 'Ready', '');
+        });
+
+        $('#parseStaffImportBtn').on('click', function () {
+            if (typeof XLSX === 'undefined') {
+                Swal.fire('Error', 'Excel library not loaded', 'error');
+                return;
+            }
+            var input = document.getElementById('staffImportFile');
+            if (!input || !input.files || !input.files[0]) {
+                Swal.fire('Error', 'Chagua file kwanza.', 'error');
+                return;
+            }
+
+            var file = input.files[0];
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    var data = new Uint8Array(e.target.result);
+                    var wb = XLSX.read(data, { type: 'array' });
+                    var sheetName = wb.SheetNames[0];
+                    var ws = wb.Sheets[sheetName];
+                    var aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false });
+                    if (!aoa || aoa.length < 2) {
+                        Swal.fire('Error', 'File haina data ya kutosha.', 'error');
+                        return;
+                    }
+
+                    var rawHeaders = aoa[0] || [];
+                    var headers = rawHeaders.map(normalizeHeader);
+
+                    var idx = {};
+                    headers.forEach(function (h, i) { if (h) idx[h] = i; });
+
+                    var rows = [];
+                    for (var r = 1; r < aoa.length; r++) {
+                        var line = aoa[r];
+                        if (!line || !line.length) continue;
+
+                        var isEmpty = true;
+                        for (var c = 0; c < Math.min(line.length, 7); c++) {
+                            if (String(line[c] || '').trim() !== '') { isEmpty = false; break; }
+                        }
+                        if (isEmpty) continue;
+
+                        function col(name) {
+                            var i = idx[name];
+                            if (i === undefined) return '';
+                            return String(line[i] ?? '').trim();
+                        }
+
+                        var row = {
+                            first_name: col('first_name'),
+                            middle_name: col('middle_name'),
+                            last_name: col('last_name'),
+                            gender: normalizeGender(col('gender')),
+                            national_id: col('national_id'),
+                            employee_number: col('employee_number'),
+                            email: col('email'),
+                            phone_number: normalizePhone(col('phone_number')),
+                            profession_id: col('profession_id'),
+                            qualification: col('qualification'),
+                            specialization: col('specialization'),
+                            experience: col('experience'),
+                            date_of_birth: col('date_of_birth'),
+                            date_hired: col('date_hired'),
+                            address: col('address'),
+                            bank_account_number: col('bank_account_number'),
+                            position: col('position'),
+                            status: col('status') || 'Active'
+                        };
+
+                        rows.push(row);
+                    }
+
+                    if (!rows.length) {
+                        Swal.fire('Error', 'Hakuna rows zilizopatikana.', 'error');
+                        return;
+                    }
+
+                    var bad = rows.find(function (rr) { return staffRequiredMissing(rr).length; });
+                    if (bad) {
+                        Swal.fire('Error', 'Kuna row ina missing fields: ' + staffRequiredMissing(bad).join(', '), 'error');
+                        return;
+                    }
+
+                    staffImportRows = rows;
+                    renderStaffPreview(rows);
+                    Swal.fire('Ready', 'Preview imekamilika. Bonyeza Register Staff kuanza.', 'success');
+                } catch (err) {
+                    Swal.fire('Error', 'Imeshindikana kusoma file: ' + (err.message || err), 'error');
+                }
+            };
+            reader.onerror = function () {
+                Swal.fire('Error', 'Imeshindikana kusoma file.', 'error');
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        $('#startStaffImportBtn').on('click', function () {
+            if (!staffImportRows.length) {
+                Swal.fire('Error', 'Preview file kwanza.', 'error');
+                return;
+            }
+
+            var total = staffImportRows.length;
+            var ok = 0;
+            var fail = 0;
+            var failures = [];
+
+            $('#startStaffImportBtn').prop('disabled', true);
+            $('#parseStaffImportBtn').prop('disabled', true);
+            $('#resetStaffImportBtn').prop('disabled', true);
+
+            function postRow(i) {
+                if (i >= total) {
+                    setStaffImportProgress(100, 'Done', 'Success: ' + ok + ' | Failed: ' + fail);
+                    $('#startStaffImportBtn').prop('disabled', false);
+                    $('#parseStaffImportBtn').prop('disabled', false);
+                    $('#resetStaffImportBtn').prop('disabled', false);
+
+                    if (failures.length) {
+                        var msg = failures.slice(0, 15).map(function (f) {
+                            return 'Row ' + f.row + ': ' + f.msg;
+                        }).join('<br>');
+                        Swal.fire({
+                            icon: fail ? 'warning' : 'success',
+                            title: 'Import Completed',
+                            html: 'Success: <b>' + ok + '</b>, Failed: <b>' + fail + '</b><br><br>' + msg
+                        }).then(function () { location.reload(); });
+                    } else {
+                        Swal.fire('Success', 'All staff registered successfully.', 'success').then(function () {
+                            location.reload();
+                        });
+                    }
+                    return;
+                }
+
+                var row = staffImportRows[i];
+                var pct = Math.round((i / total) * 100);
+                setStaffImportProgress(pct, 'Registering...', 'Row ' + (i + 1) + ' of ' + total + ' — ' + (row.first_name || '') + ' ' + (row.last_name || ''));
+
+                $.ajax({
+                    url: '{{ route("save_other_staff") }}',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {
+                        _token: $('meta[name=\"csrf-token\"]').attr('content') || '{{ csrf_token() }}',
+                        first_name: row.first_name,
+                        middle_name: row.middle_name,
+                        last_name: row.last_name,
+                        gender: row.gender,
+                        national_id: row.national_id,
+                        employee_number: row.employee_number,
+                        email: row.email,
+                        phone_number: row.phone_number,
+                        profession_id: row.profession_id || '',
+                        qualification: row.qualification,
+                        specialization: row.specialization,
+                        experience: row.experience,
+                        date_of_birth: row.date_of_birth,
+                        date_hired: row.date_hired,
+                        address: row.address,
+                        bank_account_number: row.bank_account_number,
+                        position: row.position,
+                        status: row.status
+                    }
+                }).done(function (res) {
+                    if (res && res.success) ok++;
+                    else {
+                        fail++;
+                        failures.push({ row: i + 1, msg: (res && (res.error || res.message)) ? (res.error || res.message) : 'Failed' });
+                    }
+                }).fail(function (xhr) {
+                    fail++;
+                    var msg = 'Failed';
+                    if (xhr && xhr.responseJSON) {
+                        if (xhr.responseJSON.error) msg = xhr.responseJSON.error;
+                        else if (xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                        else if (xhr.responseJSON.errors) msg = Object.values(xhr.responseJSON.errors).flat()[0] || msg;
+                    }
+                    failures.push({ row: i + 1, msg: msg });
+                }).always(function () {
+                    postRow(i + 1);
+                });
+            }
+
+            postRow(0);
         });
 
         // Export to Excel (JavaScript only)

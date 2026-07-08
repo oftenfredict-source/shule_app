@@ -395,7 +395,13 @@
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-(function () {
+(function ($) {
+    if (typeof $ !== 'function') {
+        if (window.console && console.error) {
+            console.error('jQuery is not available for teacher/staff attendance page.');
+        }
+        return;
+    }
     var LIVE_DB_POLL_MS = 2000;
     var LIVE_DEVICE_SYNC_MS = 6000;
     var tsLastDeviceSyncAt = 0;
@@ -1475,5 +1481,5 @@
             }
         }
     });
-})();
+})(window.jQuery);
 </script>
