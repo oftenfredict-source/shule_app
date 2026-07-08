@@ -506,41 +506,46 @@
         padding: 0.75rem 1rem;
     }
 
-    /* Store modals — scroll inside body; scrollbar inaonekana */
+    /* Store modals — ONE scroll container only (modal-body). Dual scroll was causing jump. */
     .store-modal .modal-dialog {
-        /* Use max-height so browser can scroll naturally */
-        height: auto;
-        max-height: calc(100vh - 1rem);
-        margin: 0.5rem auto;
+        height: calc(100vh - 1.5rem);
+        max-height: calc(100vh - 1.5rem);
+        margin: 0.75rem auto;
+        display: flex;
+        align-items: stretch;
     }
     .store-modal .modal-content {
-        height: auto;
-        max-height: calc(100vh - 1rem);
         display: flex;
         flex-direction: column;
-        overflow: hidden;
         width: 100%;
+        height: 100%;
+        max-height: 100%;
+        overflow: hidden;
     }
     .store-modal .modal-header,
     .store-modal .modal-footer {
         flex-shrink: 0;
     }
     .store-modal .modal-body {
-        /* Force always-visible scrollbar */
-        overflow-y: scroll;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
         flex: 1 1 auto;
         min-height: 0;
-        /* Prevent scroll jumping when dynamic fields are added/removed */
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch;
         overflow-anchor: none;
-        overscroll-behavior: auto;
-        /* Ensure body has a scrollable height */
-        max-height: calc(100vh - 210px);
+        overscroll-behavior: contain;
         touch-action: pan-y;
-        scrollbar-gutter: stable both-edges;
+        scrollbar-gutter: stable;
         scrollbar-width: auto;
-        scrollbar-color: #b0b0b0 #f0f0f0;
+        scrollbar-color: #940000 #f0f0f0;
+    }
+    /* Focused inputs must NOT pull scroll back while user is scrolling */
+    .store-modal .modal-body input,
+    .store-modal .modal-body select,
+    .store-modal .modal-body textarea,
+    .store-modal .modal-body .select2-selection {
+        scroll-margin: 0 !important;
+        scroll-margin-block: 0 !important;
     }
     .store-modal .modal-body::-webkit-scrollbar {
         width: 12px;
@@ -571,9 +576,8 @@
         padding-right: 0 !important;
     }
     .store-modal.modal {
-        /* Keep Bootstrap default vertical scrolling enabled on modal container */
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
+        /* Outer modal must NOT scroll — only .modal-body scrolls */
+        overflow: hidden !important;
     }
 
     .store-checkbox-toolbar {
@@ -5717,21 +5721,52 @@
         updateStockSaveButton();
     });
 
+    var stockQtyLabelTimer = null;
+    var lastRenderedStockQty = null;
+
     $('#stockQuantity').on('input', function () {
         const qty = parseInt($(this).val(), 10);
-        if (qty > 0 && qty <= 500) {
-            renderUnitStockLabels(qty);
-        } else {
-            $('#stockLabelsSection, #stockRequisitionSection').hide();
-            $('#stockLabelsContainer').empty();
-        }
+        const $body = $('#addItemStockModal .modal-body');
+        const savedScroll = $body.scrollTop();
+
+        clearTimeout(stockQtyLabelTimer);
+        stockQtyLabelTimer = setTimeout(function () {
+            if (qty > 0 && qty <= 500) {
+                if (lastRenderedStockQty !== qty) {
+                    renderUnitStockLabels(qty);
+                    lastRenderedStockQty = qty;
+                }
+            } else {
+                $('#stockLabelsSection, #stockRequisitionSection').hide();
+                $('#stockLabelsContainer').empty();
+                lastRenderedStockQty = null;
+            }
+            updateStockSaveButton();
+            // Keep user's scroll position (avoid jump after DOM rebuild)
+            $body.scrollTop(savedScroll);
+        }, 180);
+
         updateStockSaveButton();
+    });
+
+    // When user starts scrolling the stock modal, blur focused number/select so
+    // the browser does not force scroll back to keep Quantity in view.
+    $(document).on('wheel touchstart', '#addItemStockModal .modal-body, #addItemModal .modal-body, #editItemModal .modal-body', function () {
+        var el = document.activeElement;
+        if (!el) return;
+        if (el.id === 'stockQuantity' || el.classList.contains('stock-batch-qty') || el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+            // Only blur form controls inside this modal body
+            if ($(el).closest('.modal-body').length) {
+                el.blur();
+            }
+        }
     });
 
     $(document).on('input', '.stock-label-input, .stock-batch-label-input', updateStockSaveButton);
     $('#stockRequisitionStatus').on('change', updateStockSaveButton);
 
     $('#addItemStockModal').on('shown.bs.modal', function () {
+        lastRenderedStockQty = null;
         initStockSelect2();
     });
 
