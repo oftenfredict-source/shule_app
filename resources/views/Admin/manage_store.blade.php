@@ -508,13 +508,13 @@
 
     /* Store modals — scroll inside body; scrollbar inaonekana */
     .store-modal .modal-dialog {
-        /* Make dialog a fixed-height container so modal-body can scroll */
-        height: calc(100vh - 1rem);
+        /* Use max-height so browser can scroll naturally */
+        height: auto;
         max-height: calc(100vh - 1rem);
         margin: 0.5rem auto;
     }
     .store-modal .modal-content {
-        height: 100%;
+        height: auto;
         max-height: calc(100vh - 1rem);
         display: flex;
         flex-direction: column;
@@ -532,7 +532,10 @@
         -webkit-overflow-scrolling: touch;
         flex: 1 1 auto;
         min-height: 0;
-        overscroll-behavior: contain;
+        overscroll-behavior: auto;
+        /* Ensure body has a scrollable height */
+        max-height: calc(100vh - 210px);
+        touch-action: pan-y;
         scrollbar-gutter: stable both-edges;
         scrollbar-width: auto;
         scrollbar-color: #b0b0b0 #f0f0f0;
