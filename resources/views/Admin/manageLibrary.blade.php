@@ -76,6 +76,21 @@
     /* Table & UI Standardization */
     .table-responsive { border-radius: 0; }
     .table thead th { background: #FFF5F5; color: #940000; border-bottom: 2px solid #940000; font-weight: 700; text-transform: uppercase; font-size: 12px; }
+
+    /* Unique ID generator list */
+    .unique-id-list-scroll {
+        max-height: 280px;
+        overflow-y: auto;
+        border-radius: 0 !important;
+        background: #fff !important;
+    }
+    .unique-id-list-scroll .isbn-row label {
+        font-size: 0.8rem;
+        margin-bottom: 2px;
+    }
+    .unique-id-list-scroll .isbn-input {
+        font-family: Consolas, Monaco, monospace;
+    }
     
     /* Search Filter Section */
     .search-filter-section {
@@ -592,22 +607,31 @@
                     </div>
                 </form>
                 <div id="bookEntriesSection" class="mt-3">
-                    <h6 class="mb-2">Unique ID List</h6>
-                    <div id="isbnList">
-                        <div class="row align-items-end isbn-row mb-2">
-                            <div class="col-md-8">
-                                <label class="form-label">Unique ID <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control isbn-input" placeholder="Enter Unique ID">
-                            </div>
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-danger remove-isbn-btn d-none">
-                                    <i class="fa fa-trash"></i> Remove
-                                </button>
-                            </div>
+                    <h6 class="mb-2">Unique ID Generator</h6>
+                    <div class="row align-items-end mb-3">
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label font-weight-bold">Quantity <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="bookCopyQuantity" min="1" max="2000" placeholder="e.g. 200">
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label font-weight-bold">Group <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control text-uppercase" id="bookCopyGroup" maxlength="10" placeholder="e.g. A">
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <button type="button" class="btn btn-primary-custom btn-block" id="generateUniqueIdsBtn">
+                                <i class="fa fa-magic"></i> Generate Unique IDs
+                            </button>
                         </div>
                     </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">Unique ID List <small class="text-muted" id="uniqueIdCountLabel">(0)</small></h6>
+                        <small class="text-muted">Format: no/total-group &nbsp; e.g. <strong>1/200-A</strong></small>
+                    </div>
+                    <div id="isbnList" class="unique-id-list-scroll border p-2 bg-light">
+                        <div class="text-muted small py-3 text-center">Weka Quantity na Group ili Unique ID zijazwe automatically.</div>
+                    </div>
                     <button type="button" class="btn btn-secondary mt-2" id="addIsbnRowBtn">
-                        <i class="fa fa-plus"></i> Add ISBN
+                        <i class="fa fa-plus"></i> Add One Unique ID
                     </button>
                 </div>
             </div>
@@ -976,11 +1000,30 @@
                 $('#bookModal').on('hidden.bs.modal', function() {
                     $('#bookForm')[0].reset();
                     $('#bookID').val('');
-                    $('#isbnList').html(getIsbnRowHtml());
+                    $('#bookCopyQuantity').val('');
+                    $('#bookCopyGroup').val('');
+                    $('#uniqueIdCountLabel').text('(0)');
+                    $('#isbnList').html('<div class="text-muted small py-3 text-center">Weka Quantity na Group ili Unique ID zijazwe automatically.</div>');
                 });
 
                 $('#addIsbnRowBtn').on('click', addIsbnRow);
-                $(document).on('click', '.remove-isbn-btn', function() { $(this).closest('.isbn-row').remove(); });
+                $(document).on('click', '.remove-isbn-btn', function() {
+                    $(this).closest('.isbn-row').remove();
+                    updateUniqueIdCountLabel();
+                });
+                $('#generateUniqueIdsBtn').on('click', function() {
+                    generateUniqueIdsFromQuantityGroup(true);
+                });
+                let uniqueIdGenTimer = null;
+                $('#bookCopyQuantity, #bookCopyGroup').on('input', function() {
+                    if ($(this).attr('id') === 'bookCopyGroup') {
+                        $(this).val(String($(this).val() || '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
+                    }
+                    clearTimeout(uniqueIdGenTimer);
+                    uniqueIdGenTimer = setTimeout(function() {
+                        generateUniqueIdsFromQuantityGroup(false);
+                    }, 350);
+                });
                 $('#borrowerType').on('change', toggleBorrowerSearch);
                 $('#bookType').on('change', toggleBookTypeFields);
                 
@@ -1490,7 +1533,10 @@
         function showAddBookModal() {
             $('#bookForm')[0].reset();
             $('#bookID').val('');
-            $('#isbnList').html(getIsbnRowHtml());
+            $('#bookCopyQuantity').val('');
+            $('#bookCopyGroup').val('');
+            $('#uniqueIdCountLabel').text('(0)');
+            $('#isbnList').html('<div class="text-muted small py-3 text-center">Weka Quantity na Group ili Unique ID zijazwe automatically.</div>');
             $('#bookEntriesSection').removeClass('d-none');
             $('#bookModalTitle').html('<i class="fa fa-book"></i> Add New Book Entries');
             $('#saveBooksBtn').removeClass('d-none');
@@ -1499,15 +1545,69 @@
             $('#bookModal').modal('show');
         }
 
-        function addIsbnRow() {
-            $('#isbnList').append(getIsbnRowHtml(true));
+        function updateUniqueIdCountLabel() {
+            const count = $('#isbnList .isbn-input').length;
+            $('#uniqueIdCountLabel').text('(' + count + ')');
         }
 
-        function getIsbnRowHtml(withRemove = false) {
+        function generateUniqueIdsFromQuantityGroup(showAlertOnInvalid) {
+            const qty = parseInt($('#bookCopyQuantity').val(), 10);
+            const group = String($('#bookCopyGroup').val() || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            $('#bookCopyGroup').val(group);
+
+            if (!qty || qty < 1 || !group) {
+                if (showAlertOnInvalid) {
+                    Swal.fire('Required', 'Weka Quantity na Group (mfano Quantity=200, Group=A).', 'warning');
+                }
+                return;
+            }
+            if (qty > 2000) {
+                Swal.fire('Limit', 'Quantity haitakiwi kuzidi 2000.', 'warning');
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            const wrap = document.createElement('div');
+            for (let i = 1; i <= qty; i++) {
+                const uniqueId = i + '/' + qty + '-' + group;
+                wrap.insertAdjacentHTML('beforeend', getIsbnRowHtml(true, uniqueId, i));
+            }
+            while (wrap.firstChild) fragment.appendChild(wrap.firstChild);
+            $('#isbnList').empty().append(fragment);
+            updateUniqueIdCountLabel();
+
+            if (showAlertOnInvalid) {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: qty + ' Unique IDs generated (' + '1/' + qty + '-' + group + ' …)',
+                    showConfirmButton: false,
+                    timer: 2500
+                });
+            }
+        }
+
+        function addIsbnRow() {
+            const qty = parseInt($('#bookCopyQuantity').val(), 10) || $('#isbnList .isbn-input').length + 1;
+            const group = String($('#bookCopyGroup').val() || 'A').trim().toUpperCase() || 'A';
+            const nextNo = $('#isbnList .isbn-input').length + 1;
+            const uniqueId = nextNo + '/' + qty + '-' + group;
+            // Replace empty placeholder message if present
+            if (!$('#isbnList .isbn-input').length) {
+                $('#isbnList').empty();
+            }
+            $('#isbnList').append(getIsbnRowHtml(true, uniqueId, nextNo));
+            updateUniqueIdCountLabel();
+        }
+
+        function getIsbnRowHtml(withRemove = false, value = '', index = null) {
+            const label = index != null ? ('Unique ID #' + index) : 'Unique ID';
+            const safeVal = (value || '').replace(/"/g, '&quot;');
             return `<div class="row align-items-end isbn-row mb-2">
                 <div class="${withRemove ? 'col-md-10' : 'col-md-12'}">
-                    <label class="form-label font-weight-bold">ISBN/SERIAL <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control isbn-input" placeholder="ENTER SERIAL/ISBN" required>
+                    <label class="form-label font-weight-bold">${label} <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control isbn-input" value="${safeVal}" placeholder="e.g. 1/200-A" required>
                 </div>
                 ${withRemove ? `<div class="col-md-2 text-right"><button type="button" class="btn btn-danger btn-sm remove-isbn-btn"><i class="fa fa-trash"></i></button></div>` : ''}
             </div>`;
@@ -1564,15 +1664,32 @@
 
         function saveBooks() {
             let isbns = [];
-            $('.isbn-input').each(function() { if($(this).val()) isbns.push($(this).val()); });
-            if (isbns.length === 0 || !$('#bookTitle').val()) { Swal.fire('Error', 'Title and at least one ISBN are required', 'warning'); return; }
+            $('.isbn-input').each(function() {
+                const v = String($(this).val() || '').trim();
+                if (v) isbns.push(v);
+            });
+            if (isbns.length === 0 || !$('#bookTitle').val()) {
+                Swal.fire('Error', 'Title and at least one Unique ID are required. Weka Quantity + Group kisha Generate.', 'warning');
+                return;
+            }
+            // Guard against accidental duplicates before submit
+            const uniqueSet = new Set(isbns.map(v => v.toUpperCase()));
+            if (uniqueSet.size !== isbns.length) {
+                Swal.fire('Error', 'Kuna Unique ID zinazorudiwa. Hakikisha kila ID ni unique.', 'warning');
+                return;
+            }
+            $('#saveBooksBtn').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
             $.post('{{ route("store_book") }}', {
                 _token: '{{ csrf_token() }}', book_type: $('#bookType').val(), classID: $('#bookClassID').val(), subjectID: $('#bookSubjectID').val(),
                 book_title: $('#bookTitle').val(), author: $('#bookAuthor').val(), publisher: $('#bookPublisher').val(),
                 publication_year: $('#bookPublicationYear').val(), description: $('#bookDescription').val(), isbns
             }, function(res) {
+                $('#saveBooksBtn').prop('disabled', false).html('<i class="fa fa-save"></i> Save All');
                 if(res.success) { Swal.fire('Saved', 'Books added successfully', 'success'); $('#bookModal').modal('hide'); loadBooks(); }
                 else Swal.fire('Error', res.message, 'error');
+            }).fail(function(xhr) {
+                $('#saveBooksBtn').prop('disabled', false).html('<i class="fa fa-save"></i> Save All');
+                Swal.fire('Error', (xhr.responseJSON && xhr.responseJSON.message) || 'Failed to save books', 'error');
             });
         }
 
