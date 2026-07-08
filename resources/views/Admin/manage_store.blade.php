@@ -570,6 +570,28 @@
         background: #888;
     }
 
+    /* Sticky action bar inside Stock modal body */
+    #addItemStockModal .stock-sticky-actions {
+        position: sticky;
+        bottom: -1px;
+        z-index: 5;
+        display: flex;
+        justify-content: flex-end;
+        padding: 0.75rem 0;
+        background: #fff;
+        border-top: 1px solid #dee2e6;
+    }
+
+    /* Inline expanded stock form: let page/browser handle scrolling */
+    #addItemStockModal .modal-body {
+        overflow: visible !important;
+        max-height: none !important;
+    }
+    #addItemStockModal .stock-modal-scroll {
+        max-height: none;
+        overflow: visible;
+    }
+
     /* Override any global scrollbar-hiding styles on store scroll areas */
     .store-modal .modal-body::-webkit-scrollbar,
     #inventoryActorsModal .store-actors-tab-scroll::-webkit-scrollbar {
@@ -1655,9 +1677,107 @@
                     <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center" style="gap:8px;">
                         {!! $storePdfBtn('stock') !!}
                         {!! $storeViewToggle('stockTable') !!}
-                        <button type="button" class="btn btn-sm btn-primary-custom" data-toggle="modal" data-target="#addItemStockModal">
+                        <button type="button" class="btn btn-sm btn-primary-custom" data-toggle="collapse" data-target="#addItemStockModal" aria-expanded="false" aria-controls="addItemStockModal">
                             <i class="fa fa-plus"></i> Add Item in Stock
                         </button>
+                    </div>
+                </div>
+                {{-- Inline (expand/collapse) Add Item in Stock form --}}
+                <div class="collapse mt-3" id="addItemStockModal">
+                    <div class="modal-dialog modal-xl" style="margin:0;max-width:none;">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary-custom text-white">
+                                <h5 class="modal-title"><i class="fa fa-warehouse"></i> Add Item in Stock</h5>
+                                <button type="button" class="close text-white" data-toggle="collapse" data-target="#addItemStockModal"><span>&times;</span></button>
+                            </div>
+                            <form id="addItemStockForm">
+                                <div class="modal-body">
+                                    <div class="stock-modal-scroll" id="addItemStockScroll">
+                                        <div class="form-group">
+                                            <label class="font-weight-bold">Select Item <span class="text-danger">*</span></label>
+                                            <select class="form-control stock-form-select" id="stockItemSelect" required>
+                                                <option value="">Search or select item...</option>
+                                                @foreach($items as $item)
+                                                    <option value="{{ $item->itemID }}">{{ $item->item_name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <div id="stockItemInfo" class="alert alert-light border small py-2" style="display:none;">
+                                            <strong>Measurement Type:</strong> <span id="stockMeasurementType">—</span>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label class="font-weight-bold">Store Method <span class="text-danger">*</span></label>
+                                            <select class="form-control" id="stockStoreMethod" required>
+                                                <option value="">Select store method...</option>
+                                                <option value="package">Package</option>
+                                                <option value="unit">Unit Measure</option>
+                                            </select>
+                                        </div>
+
+                                        <div id="stockPackageError" class="alert alert-danger py-2 small" style="display:none;"></div>
+
+                                        <div id="stockPackageSection" style="display:none;">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <label class="font-weight-bold mb-0">Package Receipts <span class="text-danger">*</span></label>
+                                            </div>
+                                            <p class="text-muted small mb-2">Add each package type received (e.g. 50 Sets and 60 Pieces). Total items are calculated automatically from each package chain.</p>
+                                            <div id="stockPackageBatches"></div>
+                                            <div id="stockTotalItemsDashboard" class="stock-total-items-dashboard border p-3 mb-3" style="display:none;">
+                                                <div class="stock-hierarchy-title"><i class="fa fa-calculator"></i> Total Items Summary</div>
+                                                <div id="stockTotalItemsBody"></div>
+                                            </div>
+                                            <div class="stock-sticky-actions">
+                                                <button type="button" class="btn btn-sm btn-primary-custom" id="btnAddStockPackageBatch">
+                                                    <i class="fa fa-plus"></i> Add Another Package
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div id="stockUnitSection" style="display:none;">
+                                            <div class="form-group">
+                                                <label class="font-weight-bold">Unit of Measure <span class="text-danger">*</span></label>
+                                                <select class="form-control stock-form-select" id="stockUnitSelect">
+                                                    <option value="">Select unit...</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div id="stockQuantitySection" style="display:none;">
+                                            <div class="form-group">
+                                                <label class="font-weight-bold" id="stockQuantityLabel">Quantity <span class="text-danger">*</span></label>
+                                                <input type="number" class="form-control" id="stockQuantity" min="1" max="500" placeholder="How many?">
+                                                <small class="text-muted" id="stockQuantityHint"></small>
+                                            </div>
+                                        </div>
+
+                                        <div id="stockLabelsSection" style="display:none;">
+                                            <label class="font-weight-bold d-block">Labels <span class="text-danger">*</span></label>
+                                            <p class="text-muted small">Enter a unique label for each unit/package (e.g. Box-01, Chalk-A) so you can track who took what during requisition.</p>
+                                            <div id="stockLabelsContainer"></div>
+                                        </div>
+
+                                        <div id="stockRequisitionSection" style="display:none;">
+                                            <div class="form-group mb-0">
+                                                <label class="font-weight-bold">Requisition Status <span class="text-danger">*</span></label>
+                                                <select class="form-control" id="stockRequisitionStatus">
+                                                    <option value="">Select...</option>
+                                                    <option value="can_return">Can Return — item can be returned after use (e.g. books, laptops)</option>
+                                                    <option value="cant_return">Can't Return — item is consumed on use (e.g. chalk box, supplies)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#addItemStockModal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary-custom" id="btnSaveStock" disabled>
+                                        <i class="fa fa-save"></i> Save Stock
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
                 <div class="store-data-wrapper" data-table-id="stockTable">
@@ -2897,100 +3017,7 @@
     </div>
 </div>
 
-{{-- Add Item in Stock Modal --}}
-<div class="modal fade store-modal" id="addItemStockModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title"><i class="fa fa-warehouse"></i> Add Item in Stock</h5>
-                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
-            </div>
-            <form id="addItemStockForm">
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label class="font-weight-bold">Select Item <span class="text-danger">*</span></label>
-                        <select class="form-control stock-form-select" id="stockItemSelect" required>
-                            <option value="">Search or select item...</option>
-                            @foreach($items as $item)
-                                <option value="{{ $item->itemID }}">{{ $item->item_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div id="stockItemInfo" class="alert alert-light border small py-2" style="display:none;">
-                        <strong>Measurement Type:</strong> <span id="stockMeasurementType">—</span>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="font-weight-bold">Store Method <span class="text-danger">*</span></label>
-                        <select class="form-control" id="stockStoreMethod" required>
-                            <option value="">Select store method...</option>
-                            <option value="package">Package</option>
-                            <option value="unit">Unit Measure</option>
-                        </select>
-                    </div>
-
-                    <div id="stockPackageError" class="alert alert-danger py-2 small" style="display:none;"></div>
-
-                    <div id="stockPackageSection" style="display:none;">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label class="font-weight-bold mb-0">Package Receipts <span class="text-danger">*</span></label>
-                            <button type="button" class="btn btn-sm btn-primary-custom" id="btnAddStockPackageBatch">
-                                <i class="fa fa-plus"></i> Add Another Package
-                            </button>
-                        </div>
-                        <p class="text-muted small mb-2">Add each package type received (e.g. 50 Sets and 60 Pieces). Total items are calculated automatically from each package chain.</p>
-                        <div id="stockPackageBatches"></div>
-                        <div id="stockTotalItemsDashboard" class="stock-total-items-dashboard border p-3 mb-3" style="display:none;">
-                            <div class="stock-hierarchy-title"><i class="fa fa-calculator"></i> Total Items Summary</div>
-                            <div id="stockTotalItemsBody"></div>
-                        </div>
-                    </div>
-
-                    <div id="stockUnitSection" style="display:none;">
-                        <div class="form-group">
-                            <label class="font-weight-bold">Unit of Measure <span class="text-danger">*</span></label>
-                            <select class="form-control stock-form-select" id="stockUnitSelect">
-                                <option value="">Select unit...</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div id="stockQuantitySection" style="display:none;">
-                        <div class="form-group">
-                            <label class="font-weight-bold" id="stockQuantityLabel">Quantity <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" id="stockQuantity" min="1" max="500" placeholder="How many?">
-                            <small class="text-muted" id="stockQuantityHint"></small>
-                        </div>
-                    </div>
-
-                    <div id="stockLabelsSection" style="display:none;">
-                        <label class="font-weight-bold d-block">Labels <span class="text-danger">*</span></label>
-                        <p class="text-muted small">Enter a unique label for each unit/package (e.g. Box-01, Chalk-A) so you can track who took what during requisition.</p>
-                        <div id="stockLabelsContainer"></div>
-                    </div>
-
-                    <div id="stockRequisitionSection" style="display:none;">
-                        <div class="form-group mb-0">
-                            <label class="font-weight-bold">Requisition Status <span class="text-danger">*</span></label>
-                            <select class="form-control" id="stockRequisitionStatus">
-                                <option value="">Select...</option>
-                                <option value="can_return">Can Return — item can be returned after use (e.g. books, laptops)</option>
-                                <option value="cant_return">Can't Return — item is consumed on use (e.g. chalk box, supplies)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary-custom" id="btnSaveStock" disabled>
-                        <i class="fa fa-save"></i> Save Stock
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{{-- Add Item in Stock Modal removed: now inline collapse inside section-stock --}}
 
 {{-- Issue Item (Requisition) Modal --}}
 <div class="modal fade store-modal" id="issueItemModal" tabindex="-1">
@@ -5359,7 +5386,7 @@
     }
 
     function getStockModalBodyEl() {
-        return document.querySelector('#addItemStockModal .modal-body');
+        return document.querySelector('#addItemStockModal .stock-modal-scroll');
     }
 
     /** Keep modal scroll position while DOM (labels/hierarchy/select2) rebuilds. */
@@ -5383,7 +5410,7 @@
     function blurStockModalActiveControl() {
         const el = document.activeElement;
         if (!el) return;
-        if (!$(el).closest('#addItemStockModal .modal-body').length) return;
+        if (!$(el).closest('#addItemStockModal .stock-modal-scroll').length) return;
         if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA'
             || el.classList.contains('select2-search__field')) {
             el.blur();
@@ -5815,7 +5842,7 @@
 
     // When user starts scrolling the stock modal, blur focused number/select so
     // the browser does not force scroll back to keep the focused field in view.
-    $(document).on('wheel touchstart pointerdown', '#addItemStockModal .modal-body, #addItemModal .modal-body, #editItemModal .modal-body', function (e) {
+    $(document).on('wheel touchstart pointerdown', '#addItemStockModal .stock-modal-scroll, #addItemModal .modal-body, #editItemModal .modal-body', function (e) {
         // Don't steal focus from Select2 search while picking an option
         if ($(e.target).closest('.select2-container, .select2-dropdown').length) return;
         blurStockModalActiveControl();
@@ -5834,7 +5861,7 @@
     let stockModalUserScrollTimer = null;
     let stockModalUserScrolling = false;
 
-    $(document).on('wheel touchstart pointerdown', '#addItemStockModal .modal-body', function () {
+    $(document).on('wheel touchstart pointerdown', '#addItemStockModal .stock-modal-scroll', function () {
         const el = getStockModalBodyEl();
         if (!el) return;
         stockModalUserScrolling = true;
@@ -5845,7 +5872,7 @@
         }, 350);
     });
 
-    $(document).on('scroll', '#addItemStockModal .modal-body', function () {
+    $(document).on('scroll', '#addItemStockModal .stock-modal-scroll', function () {
         if (!stockModalUserScrolling) {
             stockModalScrollMem = this.scrollTop || 0;
             return;
@@ -5862,17 +5889,47 @@
         stockModalScrollMem = top;
     });
 
+    // Focus can trigger auto "scroll into view" jumps (especially Select2 + Bootstrap modals).
+    // Whenever a control inside the stock modal gains focus, restore previous scroll position.
+    let stockModalFocusRestoreTimer = null;
+    $(document).on('focusin', '#addItemStockModal .stock-modal-scroll input, #addItemStockModal .stock-modal-scroll select, #addItemStockModal .stock-modal-scroll textarea, #addItemStockModal .stock-modal-scroll .select2-search__field', function () {
+        const el = getStockModalBodyEl();
+        if (!el) return;
+        const saved = stockModalScrollMem || el.scrollTop || 0;
+        clearTimeout(stockModalFocusRestoreTimer);
+        stockModalFocusRestoreTimer = setTimeout(function () {
+            el.scrollTop = saved;
+            requestAnimationFrame(function () {
+                el.scrollTop = saved;
+            });
+        }, 0);
+    });
+
+    // Select2 open also tends to reposition scroll; pin it.
+    $(document).on('select2:open select2:closing', '#addItemStockModal select', function () {
+        const el = getStockModalBodyEl();
+        if (!el) return;
+        const saved = stockModalScrollMem || el.scrollTop || 0;
+        setTimeout(function () {
+            el.scrollTop = saved;
+            requestAnimationFrame(function () {
+                el.scrollTop = saved;
+            });
+        }, 0);
+    });
+
     $(document).on('input', '.stock-label-input, .stock-batch-label-input', updateStockSaveButton);
     $('#stockRequisitionStatus').on('change', updateStockSaveButton);
 
-    $('#addItemStockModal').on('shown.bs.modal', function () {
+    $('#addItemStockModal').on('shown.bs.collapse', function () {
         lastRenderedStockQty = null;
         initStockSelect2();
-        // Same as actors modal: Bootstrap focus trap scrolls focused control into view
-        $(document).off('focusin.bs.modal');
+        // Scroll to the expanded form so user continues
+        const el = document.querySelector('#addItemStockModal');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
-    $('#addItemStockModal').on('hidden.bs.modal', resetStockForm);
+    $('#addItemStockModal').on('hidden.bs.collapse', resetStockForm);
 
     $('#addItemStockForm').on('submit', async function (e) {
         e.preventDefault();
@@ -5971,7 +6028,7 @@
         try {
             const json = await postJson(routes.stockStore, payload);
             showAlert(json.message, 'success');
-            $('#addItemStockModal').modal('hide');
+            $('#addItemStockModal').collapse('hide');
             const entries = json.entries || (json.entry ? [json.entry] : []);
             entries.forEach(entry => {
                 upsertStoreTableRow('stockTable', `tr[data-stock-entry-id="${entry.stock_entryID}"]`, buildStockRow(entry));
