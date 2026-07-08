@@ -15490,6 +15490,83 @@ class TeachersController extends Controller
     }
 
     /**
+     * Get latest previous lesson plan for the same subject (to prefill next period).
+     */
+    public function getPreviousLessonPlan(Request $request)
+    {
+        try {
+            $teacherID = Session::get("teacherID");
+            $sessionTimetableID = $request->input("session_timetableID");
+            $beforeDate = $request->input("before_date");
+
+            if (!$teacherID || !$sessionTimetableID) {
+                return response()->json([
+                    "success" => false,
+                    "error" => "Session expired or session missing",
+                ]);
+            }
+
+            $session = ClassSessionTimetable::find($sessionTimetableID);
+            if (!$session || (int) $session->teacherID !== (int) $teacherID) {
+                return response()->json([
+                    "success" => false,
+                    "error" => "Session not found or unauthorized",
+                ]);
+            }
+
+            // Prefer same session period; also allow earlier plans of the same subject for this teacher.
+            $query = LessonPlan::where("teacherID", $teacherID);
+
+            if (!empty($session->class_subjectID)) {
+                $sameSubjectSessionIds = ClassSessionTimetable::where(
+                    "class_subjectID",
+                    $session->class_subjectID,
+                )
+                    ->where("teacherID", $teacherID)
+                    ->pluck("session_timetableID");
+                $query->whereIn("session_timetableID", $sameSubjectSessionIds);
+            } else {
+                $query->where("session_timetableID", $sessionTimetableID);
+            }
+
+            if ($beforeDate) {
+                $query->whereDate("lesson_date", "<", $beforeDate);
+            }
+
+            $lessonPlan = $query
+                ->orderBy("lesson_date", "desc")
+                ->orderBy("lesson_planID", "desc")
+                ->first();
+
+            if (!$lessonPlan) {
+                return response()->json([
+                    "success" => true,
+                    "found" => false,
+                    "data" => null,
+                ]);
+            }
+
+            $data = $lessonPlan->toArray();
+            // Front-end form expects "stages"
+            $data["stages"] = $lessonPlan->lesson_stages ?? [];
+
+            return response()->json([
+                "success" => true,
+                "found" => true,
+                "data" => $data,
+            ]);
+        } catch (\Exception $e) {
+            Log::error(
+                "Error getting previous lesson plan: " . $e->getMessage(),
+            );
+            return response()->json([
+                "success" => false,
+                "error" => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Download lesson plan as PDF
      */
     public function downloadLessonPlanPDF($lessonPlanID)

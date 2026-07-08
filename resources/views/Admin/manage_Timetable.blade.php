@@ -982,6 +982,175 @@ $(function() {
         }
     }
 
+    // ===== Draft cache (same idea as Add Results marks cache) =====
+    // Saves form values so closing the modal does not lose entered data.
+    const TIMETABLE_DRAFT_KEY = 'shulexpert_timetable_create_draft_v1';
+    let timetableDraftTimer = null;
+    let restoringTimetableDraft = false;
+    let skipNextTimetableReset = false;
+
+    function collectTimetableDraft() {
+        const form = document.getElementById('createTimetableForm');
+        if (!form) return null;
+
+        const values = {};
+        $(form).find('input, select, textarea').each(function () {
+            const $el = $(this);
+            const name = $el.attr('name');
+            const id = $el.attr('id');
+            const key = name || id;
+            if (!key) return;
+            if ($el.is(':disabled')) return;
+
+            if ($el.is(':checkbox')) {
+                if (!$el.attr('name')) {
+                    values[key] = $el.is(':checked');
+                } else if ($el.is(':checked')) {
+                    if (!Array.isArray(values[key])) values[key] = [];
+                    values[key].push($el.val());
+                }
+            } else if ($el.is(':radio')) {
+                if ($el.is(':checked')) values[key] = $el.val();
+            } else if ($el.prop('multiple')) {
+                values[key] = $el.val() || [];
+            } else {
+                values[key] = $el.val();
+            }
+        });
+
+        return {
+            saved_at: Date.now(),
+            values: values,
+            visibility: {
+                examForm: $('#examTimetableForm').is(':visible'),
+                classForm: $('#classSessionTimetableForm').is(':visible'),
+                classSpecific: $('#class_specific_fields').is(':visible'),
+                schoolWide: $('#school_wide_fields').is(':visible'),
+            }
+        };
+    }
+
+    function saveTimetableDraft(showToast) {
+        try {
+            const draft = collectTimetableDraft();
+            if (!draft) return;
+            localStorage.setItem(TIMETABLE_DRAFT_KEY, JSON.stringify(draft));
+            if (showToast && typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: 'Draft saved — opens again with your data.',
+                    showConfirmButton: false,
+                    timer: 2500
+                });
+            }
+        } catch (e) {
+            console.warn('Failed to save timetable draft', e);
+        }
+    }
+
+    function clearTimetableDraft() {
+        try { localStorage.removeItem(TIMETABLE_DRAFT_KEY); } catch (e) {}
+    }
+
+    function getTimetableDraft() {
+        try {
+            const raw = localStorage.getItem(TIMETABLE_DRAFT_KEY);
+            if (!raw) return null;
+            return JSON.parse(raw);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function applyTimetableDraftValues(values) {
+        if (!values) return;
+        const form = document.getElementById('createTimetableForm');
+        if (!form) return;
+
+        Object.keys(values).forEach(function (key) {
+            const val = values[key];
+            let $els = $(form).find('[name="' + key + '"]');
+            if (!$els.length) $els = $(form).find('#' + key);
+            if (!$els.length) return;
+
+            const $el = $els.first();
+            if ($el.is(':radio')) {
+                $(form).find('[name="' + key + '"][value="' + val + '"]').prop('checked', true);
+            } else if ($el.is(':checkbox')) {
+                if (Array.isArray(val)) {
+                    $els.each(function () {
+                        $(this).prop('checked', val.indexOf($(this).val()) !== -1);
+                    });
+                } else if (typeof val === 'boolean') {
+                    $el.prop('checked', val);
+                }
+            } else {
+                $el.val(val);
+            }
+        });
+    }
+
+    function restoreTimetableDraft() {
+        const draft = getTimetableDraft();
+        if (!draft || !draft.values) return false;
+
+        restoringTimetableDraft = true;
+        try {
+            applyTimetableDraftValues(draft.values);
+
+            // Re-fire category / type changes so dependent panels show correctly
+            const category = draft.values['timetable_category_main'] || $('input[name="timetable_category_main"]:checked').val();
+            if (category) {
+                $('input[name="timetable_category_main"][value="' + category + '"]').prop('checked', true).trigger('change');
+            }
+            if (draft.values['exam_category_select']) {
+                $('#exam_category_select').val(draft.values['exam_category_select']).trigger('change');
+            }
+            if (draft.values['timetable_type']) {
+                $('#timetable_type').val(draft.values['timetable_type']).trigger('change');
+            }
+            if (draft.values['creation_method']) {
+                $('#creation_method').val(draft.values['creation_method']).trigger('change');
+            }
+            if (draft.values['test_type']) {
+                $('#test_type_select').val(draft.values['test_type']).trigger('change');
+            }
+            if (draft.values['test_scope']) {
+                $('#test_scope').val(draft.values['test_scope']).trigger('change');
+            }
+
+            // Re-apply values after dependent fields are shown
+            setTimeout(function () {
+                applyTimetableDraftValues(draft.values);
+                restoringTimetableDraft = false;
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'info',
+                        title: 'Unsaved timetable draft restored.',
+                        showConfirmButton: false,
+                        timer: 3500
+                    });
+                }
+            }, 350);
+        } catch (e) {
+            restoringTimetableDraft = false;
+            console.warn('Failed to restore timetable draft', e);
+        }
+        return true;
+    }
+
+    $(document).on('input change', '#createTimetableForm input, #createTimetableForm select, #createTimetableForm textarea', function () {
+        if (restoringTimetableDraft) return;
+        clearTimeout(timetableDraftTimer);
+        timetableDraftTimer = setTimeout(function () {
+            saveTimetableDraft(false);
+        }, 400);
+    });
+
     // Initialize Select2 for any existing supervisor dropdowns
     initSelect2('.test-supervisor-dropdown', {
         placeholder: "Select Supervisors",
@@ -994,9 +1163,19 @@ $(function() {
     
     // Open create timetable modal
     $('#createTimetableBtn').on('click', function() {
+        const hasDraft = !!getTimetableDraft();
+        skipNextTimetableReset = hasDraft;
         $('#createTimetableModal').modal('show');
         // Reload subclasses with timetables when modal opens
         loadSubclassesWithTimetables();
+
+        if (hasDraft) {
+            // Restore draft instead of forcing defaults
+            setTimeout(function () {
+                restoreTimetableDraft();
+            }, 200);
+            return;
+        }
         
         // Reset selections to default
         $('input[name="timetable_category_main"][value="exam"]').prop('checked', true).trigger('change');
@@ -3393,6 +3572,17 @@ $(function() {
 
     // Reset edit mode when modal is closed (add to existing handler)
     $('#createTimetableModal').on('hidden.bs.modal', function() {
+        // Keep draft when closing — do not wipe user's unsaved work
+        saveTimetableDraft(true);
+        if (skipNextTimetableReset) {
+            skipNextTimetableReset = false;
+            return;
+        }
+        // Only fully reset when there is no draft (fresh open next time)
+        if (getTimetableDraft()) {
+            resetEditMode();
+            return;
+        }
         resetEditMode();
         // Also reset form
         $('#createTimetableForm')[0].reset();
@@ -6816,6 +7006,7 @@ $(function() {
             success: function(response) {
                 $('#timetableProgressBar').hide();
                 submitBtn.prop('disabled', false).html(originalBtnText);
+                clearTimetableDraft();
                 $('#createTimetableModal').modal('hide');
                 Swal.fire({
                     title: 'Success!',
@@ -7241,7 +7432,11 @@ $(function() {
     });
 
     // Reset form when modal is closed
-    $('#createTimetableModal').on('hidden.bs.modal', function() {
+    $('#createTimetableModal').on('hidden.bs.modal.ttDraftKeep', function() {
+        // Second close handler: avoid wiping draft. First handler already saved it.
+        if (getTimetableDraft()) {
+            return;
+        }
         $('#createTimetableForm')[0].reset();
         $('#timetableFormErrors').hide();
         $('#class_subjectID').html('<option value="">Select Class First</option>');

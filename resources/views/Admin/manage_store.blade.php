@@ -211,11 +211,34 @@
     }
     .stock-label-row {
         margin-bottom: 8px;
+        display: flex !important;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        width: 100%;
     }
-    .stock-label-row .label-prefix {
+    .stock-label-row .input-group-prepend {
+        display: flex;
+        flex: 0 0 auto;
+        margin: 0;
+    }
+    .stock-label-row .label-prefix,
+    .stock-label-row .input-group-text {
         min-width: 90px;
         font-size: 0.85rem;
         color: #666;
+        white-space: nowrap;
+        border-right: 0;
+        display: flex;
+        align-items: center;
+    }
+    .stock-label-row > .form-control,
+    .stock-label-row .stock-label-input {
+        flex: 1 1 auto !important;
+        width: 1% !important;
+        min-width: 0 !important;
+        margin-left: 0 !important;
+        position: relative;
+        z-index: 1;
     }
     .units-search-bar .search-icon-wrap i {
         position: absolute;
@@ -527,26 +550,66 @@
         scroll-margin: 0 !important;
         scroll-margin-block: 0 !important;
     }
-    /* Sticky action bar inside Stock modal body */
+    /* Inline Add Stock expand — no sticky (was covering Save Stock button) */
+    #addItemStockModal.collapse,
+    #addItemStockModal.collapsing {
+        position: relative;
+        z-index: 2;
+    }
+    #addItemStockModal .modal-dialog {
+        margin: 0 !important;
+        max-width: none !important;
+        width: 100% !important;
+        pointer-events: auto !important;
+    }
+    #addItemStockModal .modal-content {
+        overflow: visible !important;
+        pointer-events: auto !important;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+    #addItemStockModal .modal-body {
+        overflow: visible !important;
+        max-height: none !important;
+        pointer-events: auto !important;
+    }
+    #addItemStockModal .stock-modal-scroll {
+        max-height: none;
+        overflow: visible;
+        pointer-events: auto !important;
+    }
     #addItemStockModal .stock-sticky-actions {
-        position: sticky;
-        bottom: -1px;
-        z-index: 5;
+        position: static;
+        z-index: auto;
         display: flex;
         justify-content: flex-end;
         padding: 0.75rem 0;
         background: #fff;
         border-top: 1px solid #dee2e6;
+        margin-bottom: 0.5rem;
+        pointer-events: auto;
     }
-
-    /* Inline expanded stock form: let page/browser handle scrolling */
-    #addItemStockModal .modal-body {
-        overflow: visible !important;
-        max-height: none !important;
+    #addItemStockModal .modal-footer {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+        background: #fff;
+        border-top: 1px solid #dee2e6;
+        padding: 0.75rem 1rem;
+        pointer-events: auto !important;
     }
-    #addItemStockModal .stock-modal-scroll {
-        max-height: none;
-        overflow: visible;
+    #addItemStockModal #btnSaveStock {
+        position: relative;
+        z-index: 11;
+        pointer-events: auto !important;
+        cursor: pointer;
+    }
+    #addItemStockModal #btnSaveStock:disabled {
+        cursor: not-allowed;
+        opacity: 0.65;
     }
 
     /* Override any global scrollbar-hiding styles on store scroll areas */
@@ -1640,106 +1703,104 @@
                 </div>
                 {{-- Inline (expand/collapse) Add Item in Stock form --}}
                 <div class="collapse mt-3" id="addItemStockModal">
-                    <div class="modal-dialog modal-xl" style="margin:0;max-width:none;">
-                        <div class="modal-content">
-                            <div class="modal-header bg-primary-custom text-white">
-                                <h5 class="modal-title"><i class="fa fa-warehouse"></i> Add Item in Stock</h5>
-                                <button type="button" class="close text-white" data-toggle="collapse" data-target="#addItemStockModal"><span>&times;</span></button>
-                            </div>
-                            <form id="addItemStockForm">
-                                <div class="modal-body">
-                                    <div class="stock-modal-scroll" id="addItemStockScroll">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary-custom text-white">
+                            <h5 class="modal-title"><i class="fa fa-warehouse"></i> Add Item in Stock</h5>
+                            <button type="button" class="close text-white" data-toggle="collapse" data-target="#addItemStockModal" aria-label="Close"><span>&times;</span></button>
+                        </div>
+                        <form id="addItemStockForm" novalidate>
+                            <div class="modal-body">
+                                <div class="stock-modal-scroll" id="addItemStockScroll">
+                                    <div class="form-group">
+                                        <label class="font-weight-bold">Select Item <span class="text-danger">*</span></label>
+                                        <select class="form-control stock-form-select" id="stockItemSelect" required>
+                                            <option value="">Search or select item...</option>
+                                            @foreach($items as $item)
+                                                <option value="{{ $item->itemID }}">{{ $item->item_name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
+                                    <div id="stockItemInfo" class="alert alert-light border small py-2" style="display:none;">
+                                        <strong>Measurement Type:</strong> <span id="stockMeasurementType">—</span>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="font-weight-bold">Store Method <span class="text-danger">*</span></label>
+                                        <select class="form-control" id="stockStoreMethod" required>
+                                            <option value="">Select store method...</option>
+                                            <option value="package">Package</option>
+                                            <option value="unit">Unit Measure</option>
+                                        </select>
+                                    </div>
+
+                                    <div id="stockPackageError" class="alert alert-danger py-2 small" style="display:none;"></div>
+
+                                    <div id="stockPackageSection" style="display:none;">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="font-weight-bold mb-0">Package Receipts <span class="text-danger">*</span></label>
+                                        </div>
+                                        <p class="text-muted small mb-2">Add each package type received (e.g. 50 Sets and 60 Pieces). Total items are calculated automatically from each package chain.</p>
+                                        <div id="stockPackageBatches"></div>
+                                        <div id="stockTotalItemsDashboard" class="stock-total-items-dashboard border p-3 mb-3" style="display:none;">
+                                            <div class="stock-hierarchy-title"><i class="fa fa-calculator"></i> Total Items Summary</div>
+                                            <div id="stockTotalItemsBody"></div>
+                                        </div>
+                                        <div class="stock-sticky-actions">
+                                            <button type="button" class="btn btn-sm btn-primary-custom" id="btnAddStockPackageBatch">
+                                                <i class="fa fa-plus"></i> Add Another Package
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div id="stockUnitSection" style="display:none;">
                                         <div class="form-group">
-                                            <label class="font-weight-bold">Select Item <span class="text-danger">*</span></label>
-                                            <select class="form-control stock-form-select" id="stockItemSelect" required>
-                                                <option value="">Search or select item...</option>
-                                                @foreach($items as $item)
-                                                    <option value="{{ $item->itemID }}">{{ $item->item_name }}</option>
-                                                @endforeach
+                                            <label class="font-weight-bold">Unit of Measure <span class="text-danger">*</span></label>
+                                            <select class="form-control stock-form-select" id="stockUnitSelect">
+                                                <option value="">Select unit...</option>
                                             </select>
                                         </div>
+                                    </div>
 
-                                        <div id="stockItemInfo" class="alert alert-light border small py-2" style="display:none;">
-                                            <strong>Measurement Type:</strong> <span id="stockMeasurementType">—</span>
-                                        </div>
-
+                                    <div id="stockQuantitySection" style="display:none;">
                                         <div class="form-group">
-                                            <label class="font-weight-bold">Store Method <span class="text-danger">*</span></label>
-                                            <select class="form-control" id="stockStoreMethod" required>
-                                                <option value="">Select store method...</option>
-                                                <option value="package">Package</option>
-                                                <option value="unit">Unit Measure</option>
+                                            <label class="font-weight-bold" id="stockQuantityLabel">Quantity <span class="text-danger">*</span></label>
+                                            <input type="number" class="form-control" id="stockQuantity" min="1" max="500" placeholder="How many?">
+                                            <small class="text-muted" id="stockQuantityHint"></small>
+                                        </div>
+                                    </div>
+
+                                    <div id="stockLabelsSection" style="display:none;">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <label class="font-weight-bold mb-0">Labels <span class="text-danger">*</span></label>
+                                            <label class="mb-0 small d-flex align-items-center" style="gap:8px;">
+                                                <input type="checkbox" id="stockAutoLabels" checked>
+                                                Auto label
+                                            </label>
+                                        </div>
+                                        <p class="text-muted small mb-2">Labels zimejazwa automatically (kwa idadi). Uki-hitaji kubadilisha jina, edit tu input husika.</p>
+                                        <div id="stockLabelsContainer"></div>
+                                    </div>
+
+                                    <div id="stockRequisitionSection" style="display:none;">
+                                        <div class="form-group mb-0">
+                                            <label class="font-weight-bold">Requisition Status <span class="text-danger">*</span></label>
+                                            <select class="form-control" id="stockRequisitionStatus">
+                                                <option value="">Select...</option>
+                                                <option value="can_return">Can Return — item can be returned after use (e.g. books, laptops)</option>
+                                                <option value="cant_return">Can't Return — item is consumed on use (e.g. chalk box, supplies)</option>
                                             </select>
-                                        </div>
-
-                                        <div id="stockPackageError" class="alert alert-danger py-2 small" style="display:none;"></div>
-
-                                        <div id="stockPackageSection" style="display:none;">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <label class="font-weight-bold mb-0">Package Receipts <span class="text-danger">*</span></label>
-                                            </div>
-                                            <p class="text-muted small mb-2">Add each package type received (e.g. 50 Sets and 60 Pieces). Total items are calculated automatically from each package chain.</p>
-                                            <div id="stockPackageBatches"></div>
-                                            <div id="stockTotalItemsDashboard" class="stock-total-items-dashboard border p-3 mb-3" style="display:none;">
-                                                <div class="stock-hierarchy-title"><i class="fa fa-calculator"></i> Total Items Summary</div>
-                                                <div id="stockTotalItemsBody"></div>
-                                            </div>
-                                            <div class="stock-sticky-actions">
-                                                <button type="button" class="btn btn-sm btn-primary-custom" id="btnAddStockPackageBatch">
-                                                    <i class="fa fa-plus"></i> Add Another Package
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div id="stockUnitSection" style="display:none;">
-                                            <div class="form-group">
-                                                <label class="font-weight-bold">Unit of Measure <span class="text-danger">*</span></label>
-                                                <select class="form-control stock-form-select" id="stockUnitSelect">
-                                                    <option value="">Select unit...</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div id="stockQuantitySection" style="display:none;">
-                                            <div class="form-group">
-                                                <label class="font-weight-bold" id="stockQuantityLabel">Quantity <span class="text-danger">*</span></label>
-                                                <input type="number" class="form-control" id="stockQuantity" min="1" max="500" placeholder="How many?">
-                                                <small class="text-muted" id="stockQuantityHint"></small>
-                                            </div>
-                                        </div>
-
-                                        <div id="stockLabelsSection" style="display:none;">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <label class="font-weight-bold mb-0">Labels <span class="text-danger">*</span></label>
-                                                <label class="mb-0 small d-flex align-items-center" style="gap:8px;">
-                                                    <input type="checkbox" id="stockAutoLabels" checked>
-                                                    Auto label
-                                                </label>
-                                            </div>
-                                            <p class="text-muted small mb-2">Labels zimejazwa automatically (kwa idadi). Uki-hitaji kubadilisha jina, edit tu input husika.</p>
-                                            <div id="stockLabelsContainer"></div>
-                                        </div>
-
-                                        <div id="stockRequisitionSection" style="display:none;">
-                                            <div class="form-group mb-0">
-                                                <label class="font-weight-bold">Requisition Status <span class="text-danger">*</span></label>
-                                                <select class="form-control" id="stockRequisitionStatus">
-                                                    <option value="">Select...</option>
-                                                    <option value="can_return">Can Return — item can be returned after use (e.g. books, laptops)</option>
-                                                    <option value="cant_return">Can't Return — item is consumed on use (e.g. chalk box, supplies)</option>
-                                                </select>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#addItemStockModal">Cancel</button>
-                                    <button type="submit" class="btn btn-primary-custom" id="btnSaveStock" disabled>
-                                        <i class="fa fa-save"></i> Save Stock
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#addItemStockModal">Cancel</button>
+                                <button type="submit" class="btn btn-primary-custom" id="btnSaveStock" disabled>
+                                    <i class="fa fa-save"></i> Save Stock
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
                 <div class="store-data-wrapper" data-table-id="stockTable">
@@ -5924,6 +5985,7 @@
     $('#addItemStockModal').on('shown.bs.collapse', function () {
         lastRenderedStockQty = null;
         initStockSelect2();
+        updateStockSaveButton();
         // Scroll to the expanded form so user continues
         const el = document.querySelector('#addItemStockModal');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -5931,13 +5993,33 @@
 
     $('#addItemStockModal').on('hidden.bs.collapse', resetStockForm);
 
+    // Backup: force submit even if another layer intercepts native click sometimes
+    $(document).on('click', '#btnSaveStock', function (e) {
+        if ($(this).prop('disabled')) {
+            e.preventDefault();
+            showAlert('Jaza package/quantity, labels, na Requisition Status kabla ya Save Stock.', 'warning');
+            return;
+        }
+        // Ensure form submit handler runs
+        e.preventDefault();
+        $('#addItemStockForm').trigger('submit');
+    });
+
     $('#addItemStockForm').on('submit', async function (e) {
         e.preventDefault();
+        if ($('#btnSaveStock').prop('disabled')) {
+            showAlert('Jaza package/quantity, labels, na Requisition Status kabla ya Save Stock.', 'warning');
+            return;
+        }
+        const $btn = $('#btnSaveStock');
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
         const method = $('#stockStoreMethod').val();
         const requisitionStatus = $('#stockRequisitionStatus').val();
 
         if (!selectedStockItem || !method || !requisitionStatus) {
             showAlert('Chagua item, store method, na return policy.', 'danger');
+            $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+            updateStockSaveButton();
             return;
         }
 
@@ -5968,29 +6050,41 @@
 
             if (!batches.length) {
                 showAlert('Add at least one package receipt.', 'danger');
+                $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                updateStockSaveButton();
                 return;
             }
             for (const batch of batches) {
                 if (!batch.packageID && !batch.package_specID) {
                     showAlert('Chagua package type kwa kila receipt.', 'danger');
+                    $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                    updateStockSaveButton();
                     return;
                 }
                 if (!(batch.quantity > 0) || batch.quantity > 500) {
                     showAlert('Idadi ya package lazima iwe kati ya 1 na 500.', 'danger');
+                    $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                    updateStockSaveButton();
                     return;
                 }
                 if ((batch.labels || []).length !== batch.quantity) {
                     showAlert('Idadi ya labels lazima ilingane na quantity kwa kila package receipt.', 'danger');
+                    $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                    updateStockSaveButton();
                     return;
                 }
                 if ((batch.labels || []).some(l => !l)) {
                     showAlert('Jaza label zote — hakuna label tupu.', 'danger');
+                    $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                    updateStockSaveButton();
                     return;
                 }
             }
             const allLabels = collectAllStockLabels();
             if (allLabels.length !== new Set(allLabels).size) {
                 showAlert('Labels zinazofanana haziruhusiwi — kila label iwe ya kipekee.', 'danger');
+                $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                updateStockSaveButton();
                 return;
             }
             payload.batches = batches;
@@ -6002,22 +6096,32 @@
             });
             if (!$('#stockUnitSelect').val()) {
                 showAlert('Chagua unit of measure.', 'danger');
+                $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                updateStockSaveButton();
                 return;
             }
             if (!(qty > 0) || qty > 500) {
                 showAlert('Idadi lazima iwe kati ya 1 na 500.', 'danger');
+                $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                updateStockSaveButton();
                 return;
             }
             if (labels.length !== qty) {
                 showAlert('Idadi ya labels lazima ilingane na quantity.', 'danger');
+                $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                updateStockSaveButton();
                 return;
             }
             if (labels.some(l => !l)) {
                 showAlert('Jaza label zote — hakuna label tupu.', 'danger');
+                $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                updateStockSaveButton();
                 return;
             }
             if (labels.length !== new Set(labels).size) {
                 showAlert('Labels zinazofanana haziruhusiwi.', 'danger');
+                $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+                updateStockSaveButton();
                 return;
             }
             payload.unitID = $('#stockUnitSelect').val();
@@ -6036,6 +6140,8 @@
             });
         } catch (err) {
             showAlert(err.message, 'danger');
+            $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
+            updateStockSaveButton();
         }
     });
 

@@ -480,6 +480,146 @@
 
     // Make sure functions are globally accessible
     let currentSubjectSessions = [];
+    var currentSessionData = null;
+    // teacherSignaturePad is declared later near signature helpers.
+    // Draft helpers reference it safely.
+
+    // ===== Draft cache (same idea as Add Results marks cache) =====
+    const LESSON_PLAN_DRAFT_PREFIX = 'shulexpert_lesson_plan_draft_v1_';
+    let lessonPlanDraftTimer = null;
+    let restoringLessonPlanDraft = false;
+
+    function getLessonPlanDraftKey(sessionId, date) {
+        const sid = sessionId || (typeof currentSessionData !== 'undefined' && currentSessionData && currentSessionData.sessionTimetableID) || '0';
+        const d = date || $('#lesson_date_hidden').val() || 'new';
+        return LESSON_PLAN_DRAFT_PREFIX + sid + '_' + d;
+    }
+
+    function collectLessonPlanDraftFields() {
+        const stages = [];
+        $('#lessonStagesTable tr').each(function () {
+            stages.push({
+                stage: $(this).find('td:first').text().trim(),
+                time: $(this).find('.stage-time').val() || '',
+                teaching_activities: $(this).find('.stage-teaching').val() || '',
+                learning_activities: $(this).find('.stage-learning').val() || '',
+                assessment_criteria: $(this).find('.stage-assessment').val() || ''
+            });
+        });
+        const sigPad = (typeof teacherSignaturePad !== 'undefined') ? teacherSignaturePad : null;
+        return {
+            main_competence: $('#main_competence').val() || '',
+            specific_competence: $('#specific_competence').val() || '',
+            main_activity: $('#main_activity').val() || '',
+            specific_activity: $('#specific_activity').val() || '',
+            teaching_learning_resources: $('#teaching_learning_resources').val() || '',
+            references: $('#references').val() || '',
+            remarks: $('#remarks').val() || '',
+            reflection: $('#reflection').val() || '',
+            evaluation: $('#evaluation').val() || '',
+            stages: stages,
+            teacher_signature: (sigPad && !sigPad.isEmpty())
+                ? sigPad.toDataURL()
+                : ($('#teacher_signature').val() || '')
+        };
+    }
+
+    function saveLessonPlanDraft(showToast) {
+        if (!$('#main_competence').length) return;
+        try {
+            const key = getLessonPlanDraftKey();
+            const draft = {
+                saved_at: Date.now(),
+                session_timetableID: (typeof currentSessionData !== 'undefined' && currentSessionData)
+                    ? currentSessionData.sessionTimetableID
+                    : null,
+                lesson_date: $('#lesson_date_hidden').val(),
+                fields: collectLessonPlanDraftFields()
+            };
+            localStorage.setItem(key, JSON.stringify(draft));
+            if (showToast && typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: 'Draft saved — opens again with your data.',
+                    showConfirmButton: false,
+                    timer: 2500
+                });
+            }
+        } catch (e) {
+            console.warn('Failed to save lesson plan draft', e);
+        }
+    }
+
+    function getLessonPlanDraft(sessionId, date) {
+        try {
+            const raw = localStorage.getItem(getLessonPlanDraftKey(sessionId, date));
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function clearLessonPlanDraft(sessionId, date) {
+        try {
+            localStorage.removeItem(getLessonPlanDraftKey(sessionId, date));
+        } catch (e) {}
+    }
+
+    function applyLessonPlanFields(fields) {
+        if (!fields) return;
+        if (fields.main_competence != null) $('#main_competence').val(fields.main_competence);
+        if (fields.specific_competence != null) $('#specific_competence').val(fields.specific_competence);
+        if (fields.main_activity != null) $('#main_activity').val(fields.main_activity);
+        if (fields.specific_activity != null) $('#specific_activity').val(fields.specific_activity);
+        if (fields.teaching_learning_resources != null || fields.teaching_aids != null) {
+            $('#teaching_learning_resources').val(fields.teaching_learning_resources || fields.teaching_aids || '');
+        }
+        if (fields.references != null) $('#references').val(fields.references);
+        if (fields.remarks != null) $('#remarks').val(fields.remarks);
+        if (fields.reflection != null) $('#reflection').val(fields.reflection);
+        if (fields.evaluation != null) $('#evaluation').val(fields.evaluation);
+
+        const stages = fields.stages || fields.lesson_stages || [];
+        if (Array.isArray(stages) && stages.length) {
+            stages.forEach(function (stage, index) {
+                const rows = $('#lessonStagesTable tr');
+                if (rows.length > index) {
+                    const row = $(rows[index]);
+                    if (stage.time) row.find('.stage-time').val(stage.time);
+                    if (stage.teaching_activities || stage.teaching) {
+                        row.find('.stage-teaching').val(stage.teaching_activities || stage.teaching);
+                    }
+                    if (stage.learning_activities || stage.learning) {
+                        row.find('.stage-learning').val(stage.learning_activities || stage.learning);
+                    }
+                    if (stage.assessment_criteria || stage.assessment) {
+                        row.find('.stage-assessment').val(stage.assessment_criteria || stage.assessment);
+                    }
+                }
+            });
+        }
+    }
+
+    function scheduleLessonPlanDraftSave() {
+        if (restoringLessonPlanDraft) return;
+        clearTimeout(lessonPlanDraftTimer);
+        lessonPlanDraftTimer = setTimeout(function () {
+            saveLessonPlanDraft(false);
+        }, 400);
+    }
+
+    $(document).on('input change', '#createNewForm textarea, #createNewForm input', function () {
+        scheduleLessonPlanDraftSave();
+    });
+
+    $('#lessonPlanModal').on('hidden.bs.modal', function () {
+        if ($('#main_competence').length) {
+            saveLessonPlanDraft(true);
+        }
+    });
+
     function loadSessionsBySubject() {
         const subjectID = $('#subjectSelector').val();
         console.log('Loading sessions for subjectID:', subjectID);
@@ -1415,6 +1555,38 @@
 
         $('#createNewForm').html(html);
 
+        // Priority:
+        // 1) Local draft (if user closed modal without saving)
+        // 2) Previous saved lesson plan for same subject (autofill next period)
+        // 3) Values already on attendanceData (e.g. "Use existing")
+        restoringLessonPlanDraft = true;
+        const sessionId = currentSessionData && currentSessionData.sessionTimetableID;
+        const draft = getLessonPlanDraft(sessionId, date);
+
+        function finishRestore(sourceLabel) {
+            restoringLessonPlanDraft = false;
+            if (sourceLabel && typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: sourceLabel,
+                    showConfirmButton: false,
+                    timer: 3500
+                });
+            }
+            // Initialize signature pad after a short delay to ensure canvas is rendered
+            setTimeout(function () {
+                initializeSignaturePad();
+            }, 100);
+        }
+
+        if (draft && draft.fields) {
+            applyLessonPlanFields(draft.fields);
+            finishRestore('Unsaved lesson plan draft restored.');
+            return;
+        }
+
         // Populate fields from attendanceData if available (for using existing lesson plan)
         if (attendanceData.main_competence) {
             $('#main_competence').val(attendanceData.main_competence);
@@ -1465,10 +1637,32 @@
             });
         }
 
-        // Initialize signature pad after a short delay to ensure canvas is rendered
-        setTimeout(function () {
-            initializeSignaturePad();
-        }, 100);
+        // If form is still empty, autofill from previous period of same subject
+        const hasContent = !!($('#main_competence').val() || $('#specific_competence').val() || $('#main_activity').val());
+        if (!hasContent && sessionId) {
+            $.ajax({
+                url: '{{ route("teacher.get_previous_lesson_plan") }}',
+                method: 'GET',
+                data: {
+                    session_timetableID: sessionId,
+                    before_date: date
+                },
+                success: function (resp) {
+                    if (resp && resp.success && resp.found && resp.data) {
+                        applyLessonPlanFields(resp.data);
+                        finishRestore('Previous lesson plan for this subject loaded — edit and save.');
+                    } else {
+                        finishRestore(null);
+                    }
+                },
+                error: function () {
+                    finishRestore(null);
+                }
+            });
+            return;
+        }
+
+        finishRestore(null);
     }
 
     function saveLessonPlan() {
@@ -1516,6 +1710,10 @@
             data: formData,
             success: function (response) {
                 if (response.success) {
+                    clearLessonPlanDraft(
+                        formData.session_timetableID,
+                        formData.lesson_date
+                    );
                     Swal.fire({
                         title: 'Success!',
                         text: response.message,

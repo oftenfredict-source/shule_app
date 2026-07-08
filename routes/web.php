@@ -1111,6 +1111,10 @@ Route::get("teacher/lesson-plan/get", [
     TeachersController::class,
     "getLessonPlan",
 ])->name("teacher.get_lesson_plan");
+Route::get("teacher/lesson-plan/previous", [
+    TeachersController::class,
+    "getPreviousLessonPlan",
+])->name("teacher.get_previous_lesson_plan");
 Route::get("teacher/lesson-plan/check-exists", [
     TeachersController::class,
     "checkLessonPlanExists",
