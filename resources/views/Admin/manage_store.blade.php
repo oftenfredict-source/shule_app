@@ -508,10 +508,13 @@
 
     /* Store modals — scroll inside body; scrollbar inaonekana */
     .store-modal .modal-dialog {
+        /* Make dialog a fixed-height container so modal-body can scroll */
+        height: calc(100vh - 1rem);
         max-height: calc(100vh - 1rem);
         margin: 0.5rem auto;
     }
     .store-modal .modal-content {
+        height: 100%;
         max-height: calc(100vh - 1rem);
         display: flex;
         flex-direction: column;
@@ -563,7 +566,9 @@
         padding-right: 0 !important;
     }
     .store-modal.modal {
-        overflow: hidden !important;
+        /* Keep Bootstrap default vertical scrolling enabled on modal container */
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
     }
 
     .store-checkbox-toolbar {
