@@ -1393,11 +1393,8 @@
     }
 
     $(document).ready(function () {
-        $('#tsRecordsDateFilter').val('{{ date("Y-m-d") }}');
-
-        loadTsSeenEventIds();
-        loadFingerprintDevices();
-
+        // Bind all UI handlers FIRST so a failure in optional initialisation
+        // (e.g. loading fingerprint devices) can never leave buttons dead.
         $('#tsLiveDeviceSelect').on('change', function () {
             tsLiveStopped = false;
             startTsLivePolling();
@@ -1465,7 +1462,18 @@
         $('#tsSendSmsBtn').on('click', sendTsAttendanceSms);
         $('#tsSaveWorkTime').on('click', saveTsWorkTime);
 
-        updateTsReportFilterVisibility();
+        // Non-critical initialisation — guarded so any runtime error here does
+        // not stop the handlers above from working.
+        try {
+            $('#tsRecordsDateFilter').val('{{ date("Y-m-d") }}');
+            updateTsReportFilterVisibility();
+            loadTsSeenEventIds();
+            loadFingerprintDevices();
+        } catch (initErr) {
+            if (window.console && console.error) {
+                console.error('TS attendance init error:', initErr);
+            }
+        }
     });
 })();
 </script>
