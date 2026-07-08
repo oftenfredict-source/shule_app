@@ -506,21 +506,27 @@
         padding: 0.75rem 1rem;
     }
 
-    /* Store modals — ONE scroll container only (modal-body). Dual scroll was causing jump. */
+    /* Store modals — scroll only in .modal-body (form wraps body+footer, so form must flex too) */
     .store-modal .modal-dialog {
-        height: calc(100vh - 1.5rem);
         max-height: calc(100vh - 1.5rem);
         margin: 0.75rem auto;
-        display: flex;
-        align-items: stretch;
     }
     .store-modal .modal-content {
+        max-height: calc(100vh - 1.5rem);
         display: flex;
         flex-direction: column;
+        overflow: hidden;
         width: 100%;
-        height: 100%;
+    }
+    /* Critical: forms wrap header/body/footer — without this, modal-body cannot shrink/scroll */
+    .store-modal .modal-content > form {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
         max-height: 100%;
         overflow: hidden;
+        margin: 0;
     }
     .store-modal .modal-header,
     .store-modal .modal-footer {
@@ -529,7 +535,9 @@
     .store-modal .modal-body {
         flex: 1 1 auto;
         min-height: 0;
-        overflow-y: auto !important;
+        /* Concrete max-height so scrollbar ALWAYS works even if flex fails */
+        max-height: calc(100vh - 220px);
+        overflow-y: scroll !important;
         overflow-x: hidden !important;
         -webkit-overflow-scrolling: touch;
         overflow-anchor: none;
@@ -576,8 +584,9 @@
         padding-right: 0 !important;
     }
     .store-modal.modal {
-        /* Outer modal must NOT scroll — only .modal-body scrolls */
-        overflow: hidden !important;
+        /* Fallback: allow outer modal to scroll if body still overflows on tiny screens */
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
     }
 
     .store-checkbox-toolbar {
