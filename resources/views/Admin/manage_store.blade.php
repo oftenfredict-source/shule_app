@@ -450,19 +450,19 @@
         flex: 1 1 auto;
         min-height: 0;
         max-height: calc(100vh - 14rem);
-        /* Use auto + stable gutter to keep scrollbar visible */
-        overflow-y: auto;
+        /* Force always-visible scrollbar */
+        overflow-y: scroll;
         overflow-x: hidden;
         overscroll-behavior: contain;
         overflow-anchor: none;
         -webkit-overflow-scrolling: touch;
         scrollbar-gutter: stable both-edges;
-        scrollbar-width: thin;
+        scrollbar-width: auto;
         scrollbar-color: #b0b0b0 #f0f0f0;
         padding-right: 2px;
     }
     #inventoryActorsModal .store-actors-tab-scroll::-webkit-scrollbar {
-        width: 10px;
+        width: 12px;
     }
     #inventoryActorsModal .store-actors-tab-scroll::-webkit-scrollbar-track {
         background: #f0f0f0;
@@ -523,19 +523,19 @@
         flex-shrink: 0;
     }
     .store-modal .modal-body {
-        /* Use auto + stable gutter to keep scrollbar visible */
-        overflow-y: auto;
+        /* Force always-visible scrollbar */
+        overflow-y: scroll;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
         flex: 1 1 auto;
         min-height: 0;
         overscroll-behavior: contain;
         scrollbar-gutter: stable both-edges;
-        scrollbar-width: thin;
+        scrollbar-width: auto;
         scrollbar-color: #b0b0b0 #f0f0f0;
     }
     .store-modal .modal-body::-webkit-scrollbar {
-        width: 10px;
+        width: 12px;
     }
     .store-modal .modal-body::-webkit-scrollbar-track {
         background: #f0f0f0;
