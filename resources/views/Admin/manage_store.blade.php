@@ -5828,6 +5828,40 @@
         }
     });
 
+    // Guard: some browsers/plugins jump scrollTop back to 0 after DOM rebuild/focus changes.
+    // If user was mid-scroll inside stock modal and it suddenly jumps to top, restore last position.
+    let stockModalScrollMem = 0;
+    let stockModalUserScrollTimer = null;
+    let stockModalUserScrolling = false;
+
+    $(document).on('wheel touchstart pointerdown', '#addItemStockModal .modal-body', function () {
+        const el = getStockModalBodyEl();
+        if (!el) return;
+        stockModalUserScrolling = true;
+        stockModalScrollMem = el.scrollTop || 0;
+        clearTimeout(stockModalUserScrollTimer);
+        stockModalUserScrollTimer = setTimeout(function () {
+            stockModalUserScrolling = false;
+        }, 350);
+    });
+
+    $(document).on('scroll', '#addItemStockModal .modal-body', function () {
+        if (!stockModalUserScrolling) {
+            stockModalScrollMem = this.scrollTop || 0;
+            return;
+        }
+        const top = this.scrollTop || 0;
+        if (top === 0 && stockModalScrollMem > 40) {
+            const restore = stockModalScrollMem;
+            this.scrollTop = restore;
+            requestAnimationFrame(() => {
+                this.scrollTop = restore;
+            });
+            return;
+        }
+        stockModalScrollMem = top;
+    });
+
     $(document).on('input', '.stock-label-input, .stock-batch-label-input', updateStockSaveButton);
     $('#stockRequisitionStatus').on('change', updateStockSaveButton);
 
