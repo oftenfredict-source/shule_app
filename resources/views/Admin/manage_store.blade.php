@@ -5358,66 +5358,102 @@
         $('#btnSaveStock').prop('disabled', !(unitOk && qtyOk && labelsOk));
     }
 
-    function renderStockLabels(count, $container, specOrPrefix, isPackage) {
-        $container.empty();
-        if (!count || count < 1) {
-            updateStockSaveButton();
-            return;
-        }
+    function getStockModalBodyEl() {
+        return document.querySelector('#addItemStockModal .modal-body');
+    }
 
-        const prefix = isPackage
-            ? (specOrPrefix?.package_name || 'Package')
-            : (specOrPrefix || 'Unit');
-
-        let onePackageBreakdown = '';
-        if (isPackage && specOrPrefix) {
-            const parts = getPackageBreakdownTotals(specOrPrefix, 1).slice(1).map(row =>
-                formatStockQty(row.qty) + ' ' + row.name
-            );
-            if (parts.length) {
-                onePackageBreakdown = parts.join(', ');
+    /** Keep modal scroll position while DOM (labels/hierarchy/select2) rebuilds. */
+    function withStockModalScrollPreserved(fn) {
+        const el = getStockModalBodyEl();
+        const savedTop = el ? el.scrollTop : 0;
+        let result;
+        try {
+            result = fn();
+        } finally {
+            if (el) {
+                el.scrollTop = savedTop;
+                requestAnimationFrame(function () {
+                    el.scrollTop = savedTop;
+                });
             }
         }
+        return result;
+    }
 
-        for (let i = 1; i <= count; i++) {
-            $container.append(`
-                <div class="mb-2">
-                    <div class="stock-label-row input-group">
-                        <div class="input-group-prepend">
-                            <span class="input-group-text label-prefix">${escapeHtml(prefix)} ${i}</span>
-                        </div>
-                        <input type="text" class="form-control stock-label-input stock-batch-label-input" placeholder="Enter label (e.g. ${escapeHtml(prefix)}-${String(i).padStart(2, '0')})" required>
-                    </div>
-                    ${onePackageBreakdown ? `<div class="stock-label-breakdown">Contains: ${escapeHtml(onePackageBreakdown)}</div>` : ''}
-                </div>
-            `);
+    function blurStockModalActiveControl() {
+        const el = document.activeElement;
+        if (!el) return;
+        if (!$(el).closest('#addItemStockModal .modal-body').length) return;
+        if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA'
+            || el.classList.contains('select2-search__field')) {
+            el.blur();
         }
-        updateStockSaveButton();
+    }
+
+    function renderStockLabels(count, $container, specOrPrefix, isPackage) {
+        withStockModalScrollPreserved(function () {
+            $container.empty();
+            if (!count || count < 1) {
+                updateStockSaveButton();
+                return;
+            }
+
+            const prefix = isPackage
+                ? (specOrPrefix?.package_name || 'Package')
+                : (specOrPrefix || 'Unit');
+
+            let onePackageBreakdown = '';
+            if (isPackage && specOrPrefix) {
+                const parts = getPackageBreakdownTotals(specOrPrefix, 1).slice(1).map(row =>
+                    formatStockQty(row.qty) + ' ' + row.name
+                );
+                if (parts.length) {
+                    onePackageBreakdown = parts.join(', ');
+                }
+            }
+
+            for (let i = 1; i <= count; i++) {
+                $container.append(`
+                    <div class="mb-2">
+                        <div class="stock-label-row input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text label-prefix">${escapeHtml(prefix)} ${i}</span>
+                            </div>
+                            <input type="text" class="form-control stock-label-input stock-batch-label-input" placeholder="Enter label (e.g. ${escapeHtml(prefix)}-${String(i).padStart(2, '0')})" required>
+                        </div>
+                        ${onePackageBreakdown ? `<div class="stock-label-breakdown">Contains: ${escapeHtml(onePackageBreakdown)}</div>` : ''}
+                    </div>
+                `);
+            }
+            updateStockSaveButton();
+        });
     }
 
     function renderUnitStockLabels(count) {
-        const prefix = $('#stockUnitSelect option:selected').text() || 'Unit';
-        const $container = $('#stockLabelsContainer');
-        $container.empty();
-        if (!count || count < 1) {
-            $('#stockLabelsSection, #stockRequisitionSection').hide();
-            updateStockSaveButton();
-            return;
-        }
-        for (let i = 1; i <= count; i++) {
-            $container.append(`
-                <div class="mb-2">
-                    <div class="stock-label-row input-group">
-                        <div class="input-group-prepend">
-                            <span class="input-group-text label-prefix">${escapeHtml(prefix)} ${i}</span>
+        withStockModalScrollPreserved(function () {
+            const prefix = $('#stockUnitSelect option:selected').text() || 'Unit';
+            const $container = $('#stockLabelsContainer');
+            $container.empty();
+            if (!count || count < 1) {
+                $('#stockLabelsSection, #stockRequisitionSection').hide();
+                updateStockSaveButton();
+                return;
+            }
+            for (let i = 1; i <= count; i++) {
+                $container.append(`
+                    <div class="mb-2">
+                        <div class="stock-label-row input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text label-prefix">${escapeHtml(prefix)} ${i}</span>
+                            </div>
+                            <input type="text" class="form-control stock-label-input" placeholder="Enter label (e.g. ${escapeHtml(prefix)}-${String(i).padStart(2, '0')})" required>
                         </div>
-                        <input type="text" class="form-control stock-label-input" placeholder="Enter label (e.g. ${escapeHtml(prefix)}-${String(i).padStart(2, '0')})" required>
                     </div>
-                </div>
-            `);
-        }
-        $('#stockLabelsSection, #stockRequisitionSection').show();
-        updateStockSaveButton();
+                `);
+            }
+            $('#stockLabelsSection, #stockRequisitionSection').show();
+            updateStockSaveButton();
+        });
     }
 
     function onStockItemChange() {
@@ -5460,40 +5496,42 @@
 
     function addStockPackageBatch() {
         if (!selectedStockItem) return;
-        const batchId = ++stockBatchCounter;
-        const batchNo = $('#stockPackageBatches .stock-batch-card').length + 1;
-        const html = `
-            <div class="stock-batch-card border p-3 mb-3" data-batch-id="${batchId}">
-                <div class="stock-batch-card-head">
-                    <span class="font-weight-bold text-primary-custom stock-batch-title">Package Receipt #${batchNo}</span>
-                    <button type="button" class="btn btn-sm btn-outline-danger btn-remove-stock-batch" ${batchNo === 1 ? 'style="display:none;"' : ''}>
-                        <i class="fa fa-times"></i> Remove
-                    </button>
+        withStockModalScrollPreserved(function () {
+            const batchId = ++stockBatchCounter;
+            const batchNo = $('#stockPackageBatches .stock-batch-card').length + 1;
+            const html = `
+                <div class="stock-batch-card border p-3 mb-3" data-batch-id="${batchId}">
+                    <div class="stock-batch-card-head">
+                        <span class="font-weight-bold text-primary-custom stock-batch-title">Package Receipt #${batchNo}</span>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-remove-stock-batch" ${batchNo === 1 ? 'style="display:none;"' : ''}>
+                            <i class="fa fa-times"></i> Remove
+                        </button>
+                    </div>
+                    <div class="form-group mb-2">
+                        <label class="font-weight-bold">Package <span class="text-danger">*</span></label>
+                        <select class="form-control stock-batch-package-select" data-batch-id="${batchId}">
+                            ${buildStockPackageSelectOptions()}
+                        </select>
+                    </div>
+                    <div class="stock-batch-hierarchy border p-2 mb-2" style="display:none;background:#fff;"></div>
+                    <div class="form-group mb-2 stock-batch-qty-wrap" style="display:none;">
+                        <label class="font-weight-bold">Number of Packages <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control stock-batch-qty" data-batch-id="${batchId}" min="1" max="500" placeholder="How many?">
+                        <small class="text-muted">Enter how many of this package type you are receiving.</small>
+                    </div>
+                    <div class="stock-batch-labels-section" style="display:none;">
+                        <label class="font-weight-bold d-block">Labels <span class="text-danger">*</span></label>
+                        <p class="text-muted small mb-2">Enter a unique label for each package received.</p>
+                        <div class="stock-batch-labels"></div>
+                    </div>
                 </div>
-                <div class="form-group mb-2">
-                    <label class="font-weight-bold">Package <span class="text-danger">*</span></label>
-                    <select class="form-control stock-batch-package-select" data-batch-id="${batchId}">
-                        ${buildStockPackageSelectOptions()}
-                    </select>
-                </div>
-                <div class="stock-batch-hierarchy border p-2 mb-2" style="display:none;background:#fff;"></div>
-                <div class="form-group mb-2 stock-batch-qty-wrap" style="display:none;">
-                    <label class="font-weight-bold">Number of Packages <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control stock-batch-qty" data-batch-id="${batchId}" min="1" max="500" placeholder="How many?">
-                    <small class="text-muted">Enter how many of this package type you are receiving.</small>
-                </div>
-                <div class="stock-batch-labels-section" style="display:none;">
-                    <label class="font-weight-bold d-block">Labels <span class="text-danger">*</span></label>
-                    <p class="text-muted small mb-2">Enter a unique label for each package received.</p>
-                    <div class="stock-batch-labels"></div>
-                </div>
-            </div>
-        `;
-        $('#stockPackageBatches').append(html);
-        initStockBatchPackageSelect($(`#stockPackageBatches .stock-batch-card[data-batch-id="${batchId}"] .stock-batch-package-select`));
-        renumberStockPackageBatches();
-        updateStockTotalItemsDashboard();
-        updateStockSaveButton();
+            `;
+            $('#stockPackageBatches').append(html);
+            initStockBatchPackageSelect($(`#stockPackageBatches .stock-batch-card[data-batch-id="${batchId}"] .stock-batch-package-select`));
+            renumberStockPackageBatches();
+            updateStockTotalItemsDashboard();
+            updateStockSaveButton();
+        });
     }
 
     function onStockMethodChange() {
@@ -5570,32 +5608,34 @@
     }
 
     function renderStockBatchHierarchy($card, spec, topQty) {
-        const $box = $card.find('.stock-batch-hierarchy').empty();
-        if (!spec) {
-            $box.hide();
-            return;
-        }
-
-        let html = '<div class="stock-hierarchy-title"><i class="fa fa-sitemap"></i> Package structure</div>';
-        (spec.levels || []).forEach((level, index) => {
-            if (index < (spec.levels.length - 1)) {
-                const next = spec.levels[index + 1];
-                html += `<div class="stock-hierarchy-line">${escapeHtml(level.package_name)} has <strong>${formatStockQty(next.quantity)}</strong> ${escapeHtml(next.package_name)}</div>`;
-            } else {
-                const items = level.content_quantity != null ? level.content_quantity : level.quantity;
-                html += `<div class="stock-hierarchy-line">${escapeHtml(level.package_name)} has <strong>${formatStockQty(items)}</strong> ${escapeHtml(level.unit_name || 'item')}</div>`;
+        withStockModalScrollPreserved(function () {
+            const $box = $card.find('.stock-batch-hierarchy').empty();
+            if (!spec) {
+                $box.hide();
+                return;
             }
-        });
 
-        if (topQty > 0) {
-            html += '<div class="stock-hierarchy-title mt-2">Totals for ' + formatStockQty(topQty) + ' ' + escapeHtml(spec.package_name) + '(s)</div>';
-            const breakdown = getPackageBreakdownTotals(spec, topQty);
-            breakdown.forEach(row => {
-                html += `<div class="stock-hierarchy-line"><strong>${formatStockQty(row.qty)}</strong> ${escapeHtml(row.name)}</div>`;
+            let html = '<div class="stock-hierarchy-title"><i class="fa fa-sitemap"></i> Package structure</div>';
+            (spec.levels || []).forEach((level, index) => {
+                if (index < (spec.levels.length - 1)) {
+                    const next = spec.levels[index + 1];
+                    html += `<div class="stock-hierarchy-line">${escapeHtml(level.package_name)} has <strong>${formatStockQty(next.quantity)}</strong> ${escapeHtml(next.package_name)}</div>`;
+                } else {
+                    const items = level.content_quantity != null ? level.content_quantity : level.quantity;
+                    html += `<div class="stock-hierarchy-line">${escapeHtml(level.package_name)} has <strong>${formatStockQty(items)}</strong> ${escapeHtml(level.unit_name || 'item')}</div>`;
+                }
             });
-        }
 
-        $box.html(html).show();
+            if (topQty > 0) {
+                html += '<div class="stock-hierarchy-title mt-2">Totals for ' + formatStockQty(topQty) + ' ' + escapeHtml(spec.package_name) + '(s)</div>';
+                const breakdown = getPackageBreakdownTotals(spec, topQty);
+                breakdown.forEach(row => {
+                    html += `<div class="stock-hierarchy-line"><strong>${formatStockQty(row.qty)}</strong> ${escapeHtml(row.name)}</div>`;
+                });
+            }
+
+            $box.html(html).show();
+        });
     }
 
     function getItemsPerPackage(spec) {
@@ -5607,86 +5647,92 @@
     }
 
     function updateStockTotalItemsDashboard() {
-        const $dashboard = $('#stockTotalItemsDashboard');
-        const $body = $('#stockTotalItemsBody').empty();
-        const batches = collectStockBatchRows();
+        withStockModalScrollPreserved(function () {
+            const $dashboard = $('#stockTotalItemsDashboard');
+            const $body = $('#stockTotalItemsBody').empty();
+            const batches = collectStockBatchRows();
 
-        if (!batches.length || $('#stockStoreMethod').val() !== 'package') {
-            $dashboard.hide();
-            return;
-        }
+            if (!batches.length || $('#stockStoreMethod').val() !== 'package') {
+                $dashboard.hide();
+                return;
+            }
 
-        let grandTotal = 0;
-        let hasAny = false;
-        let rowsHtml = '';
+            let grandTotal = 0;
+            let hasAny = false;
+            let rowsHtml = '';
 
-        batches.forEach($card => {
-            const spec = getStockBatchSpec($card);
-            const qty = parseInt($card.find('.stock-batch-qty').val(), 10);
-            if (!spec || !(qty > 0)) return;
+            batches.forEach($card => {
+                const spec = getStockBatchSpec($card);
+                const qty = parseInt($card.find('.stock-batch-qty').val(), 10);
+                if (!spec || !(qty > 0)) return;
 
-            hasAny = true;
-            const itemsEach = getItemsPerPackage(spec);
-            const batchTotal = itemsEach * qty;
-            grandTotal += batchTotal;
-            const leafName = spec.leaf_unit_name || 'item';
+                hasAny = true;
+                const itemsEach = getItemsPerPackage(spec);
+                const batchTotal = itemsEach * qty;
+                grandTotal += batchTotal;
+                const leafName = spec.leaf_unit_name || 'item';
 
+                rowsHtml += `
+                    <div class="stock-total-items-row">
+                        <span>${formatStockQty(qty)} × ${escapeHtml(spec.package_name)}</span>
+                        <span><strong>${formatStockQty(batchTotal)}</strong> ${escapeHtml(leafName)}</span>
+                    </div>
+                `;
+            });
+
+            if (!hasAny) {
+                $dashboard.hide();
+                return;
+            }
+
+            const leafName = batches.map(getStockBatchSpec).find(Boolean)?.leaf_unit_name || 'item';
             rowsHtml += `
                 <div class="stock-total-items-row">
-                    <span>${formatStockQty(qty)} × ${escapeHtml(spec.package_name)}</span>
-                    <span><strong>${formatStockQty(batchTotal)}</strong> ${escapeHtml(leafName)}</span>
+                    <span>Total Items</span>
+                    <span>${formatStockQty(grandTotal)} ${escapeHtml(leafName)}</span>
                 </div>
             `;
+
+            $body.html(rowsHtml);
+            $dashboard.show();
         });
-
-        if (!hasAny) {
-            $dashboard.hide();
-            return;
-        }
-
-        const leafName = batches.map(getStockBatchSpec).find(Boolean)?.leaf_unit_name || 'item';
-        rowsHtml += `
-            <div class="stock-total-items-row">
-                <span>Total Items</span>
-                <span>${formatStockQty(grandTotal)} ${escapeHtml(leafName)}</span>
-            </div>
-        `;
-
-        $body.html(rowsHtml);
-        $dashboard.show();
     }
 
     function onStockBatchPackageChange($card) {
-        const spec = getStockBatchSpec($card);
-        $card.find('.stock-batch-qty-wrap, .stock-batch-labels-section').hide();
-        $card.find('.stock-batch-qty').val('');
-        $card.find('.stock-batch-labels').empty();
-        renderStockBatchHierarchy($card, spec, 0);
+        withStockModalScrollPreserved(function () {
+            const spec = getStockBatchSpec($card);
+            $card.find('.stock-batch-qty-wrap, .stock-batch-labels-section').hide();
+            $card.find('.stock-batch-qty').val('');
+            $card.find('.stock-batch-labels').empty();
+            renderStockBatchHierarchy($card, spec, 0);
 
-        if (spec) {
-            $card.find('.stock-batch-qty-wrap').show();
-        }
-        updateStockTotalItemsDashboard();
-        updateStockSaveButton();
+            if (spec) {
+                $card.find('.stock-batch-qty-wrap').show();
+            }
+            updateStockTotalItemsDashboard();
+            updateStockSaveButton();
+        });
     }
 
     function onStockBatchQtyChange($card) {
-        const spec = getStockBatchSpec($card);
-        const qty = parseInt($card.find('.stock-batch-qty').val(), 10);
-        const $labelsSection = $card.find('.stock-batch-labels-section');
-        const $labels = $card.find('.stock-batch-labels');
+        withStockModalScrollPreserved(function () {
+            const spec = getStockBatchSpec($card);
+            const qty = parseInt($card.find('.stock-batch-qty').val(), 10);
+            const $labelsSection = $card.find('.stock-batch-labels-section');
+            const $labels = $card.find('.stock-batch-labels');
 
-        renderStockBatchHierarchy($card, spec, qty > 0 ? qty : 0);
+            renderStockBatchHierarchy($card, spec, qty > 0 ? qty : 0);
 
-        if (spec && qty > 0 && qty <= 500) {
-            $labelsSection.show();
-            renderStockLabels(qty, $labels, spec, true);
-        } else {
-            $labelsSection.hide();
-            $labels.empty();
-        }
-        updateStockTotalItemsDashboard();
-        updateStockSaveButton();
+            if (spec && qty > 0 && qty <= 500) {
+                $labelsSection.show();
+                renderStockLabels(qty, $labels, spec, true);
+            } else {
+                $labelsSection.hide();
+                $labels.empty();
+            }
+            updateStockTotalItemsDashboard();
+            updateStockSaveButton();
+        });
     }
 
     function getStockablePackages(item) {
@@ -5720,52 +5766,63 @@
     $(document).on('change', '.stock-batch-package-select', function () {
         onStockBatchPackageChange($(this).closest('.stock-batch-card'));
     });
-    $(document).on('input', '.stock-batch-qty', function () {
-        onStockBatchQtyChange($(this).closest('.stock-batch-card'));
-    });
     $(document).on('click', '.btn-remove-stock-batch', function () {
         $(this).closest('.stock-batch-card').remove();
-        renumberStockPackageBatches();
-        updateStockTotalItemsDashboard();
-        updateStockSaveButton();
+        withStockModalScrollPreserved(function () {
+            renumberStockPackageBatches();
+            updateStockTotalItemsDashboard();
+            updateStockSaveButton();
+        });
     });
 
     var stockQtyLabelTimer = null;
     var lastRenderedStockQty = null;
+    var stockBatchQtyTimers = {};
 
     $('#stockQuantity').on('input', function () {
         const qty = parseInt($(this).val(), 10);
-        const $body = $('#addItemStockModal .modal-body');
-        const savedScroll = $body.scrollTop();
 
         clearTimeout(stockQtyLabelTimer);
         stockQtyLabelTimer = setTimeout(function () {
-            if (qty > 0 && qty <= 500) {
-                if (lastRenderedStockQty !== qty) {
-                    renderUnitStockLabels(qty);
-                    lastRenderedStockQty = qty;
+            withStockModalScrollPreserved(function () {
+                if (qty > 0 && qty <= 500) {
+                    if (lastRenderedStockQty !== qty) {
+                        renderUnitStockLabels(qty);
+                        lastRenderedStockQty = qty;
+                    }
+                } else {
+                    $('#stockLabelsSection, #stockRequisitionSection').hide();
+                    $('#stockLabelsContainer').empty();
+                    lastRenderedStockQty = null;
                 }
-            } else {
-                $('#stockLabelsSection, #stockRequisitionSection').hide();
-                $('#stockLabelsContainer').empty();
-                lastRenderedStockQty = null;
-            }
-            updateStockSaveButton();
-            // Keep user's scroll position (avoid jump after DOM rebuild)
-            $body.scrollTop(savedScroll);
+                updateStockSaveButton();
+            });
         }, 180);
 
         updateStockSaveButton();
     });
 
+    // Debounce package qty → labels rebuild so typing does not jump scroll every keystroke
+    $(document).on('input', '.stock-batch-qty', function () {
+        const $card = $(this).closest('.stock-batch-card');
+        const batchId = $card.data('batch-id') || '0';
+        clearTimeout(stockBatchQtyTimers[batchId]);
+        stockBatchQtyTimers[batchId] = setTimeout(function () {
+            onStockBatchQtyChange($card);
+        }, 180);
+        updateStockSaveButton();
+    });
+
     // When user starts scrolling the stock modal, blur focused number/select so
-    // the browser does not force scroll back to keep Quantity in view.
-    $(document).on('wheel touchstart', '#addItemStockModal .modal-body, #addItemModal .modal-body, #editItemModal .modal-body', function () {
+    // the browser does not force scroll back to keep the focused field in view.
+    $(document).on('wheel touchstart pointerdown', '#addItemStockModal .modal-body, #addItemModal .modal-body, #editItemModal .modal-body', function (e) {
+        // Don't steal focus from Select2 search while picking an option
+        if ($(e.target).closest('.select2-container, .select2-dropdown').length) return;
+        blurStockModalActiveControl();
         var el = document.activeElement;
         if (!el) return;
-        if (el.id === 'stockQuantity' || el.classList.contains('stock-batch-qty') || el.tagName === 'INPUT' || el.tagName === 'SELECT') {
-            // Only blur form controls inside this modal body
-            if ($(el).closest('.modal-body').length) {
+        if ($(el).closest('#addItemModal .modal-body, #editItemModal .modal-body').length) {
+            if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
                 el.blur();
             }
         }
@@ -5777,6 +5834,8 @@
     $('#addItemStockModal').on('shown.bs.modal', function () {
         lastRenderedStockQty = null;
         initStockSelect2();
+        // Same as actors modal: Bootstrap focus trap scrolls focused control into view
+        $(document).off('focusin.bs.modal');
     });
 
     $('#addItemStockModal').on('hidden.bs.modal', resetStockForm);
