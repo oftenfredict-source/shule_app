@@ -532,6 +532,8 @@
         -webkit-overflow-scrolling: touch;
         flex: 1 1 auto;
         min-height: 0;
+        /* Prevent scroll jumping when dynamic fields are added/removed */
+        overflow-anchor: none;
         overscroll-behavior: auto;
         /* Ensure body has a scrollable height */
         max-height: calc(100vh - 210px);
