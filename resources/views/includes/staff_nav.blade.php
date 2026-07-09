@@ -370,6 +370,13 @@
                             <li><a href="{{ route('manage_store') }}" class="nav-link"><i class="fa fa-archive"></i> Inventory</a></li>
                             @endif
 
+                            @php
+                                $staffHasBlackBookAccess = app(\App\Services\BlackBookAccessService::class)->currentUserHasManageAccess((int) Session::get('schoolID'));
+                            @endphp
+                            @if($staffHasBlackBookAccess && Session::get('user_type') === 'Staff')
+                            <li><a href="{{ route('manage_black_book') }}" class="nav-link"><i class="fa fa-book"></i> Black Book</a></li>
+                            @endif
+
                             <li class="dropdown-nav-item">
                                 <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse"
                                     data-target="#staffFeedback" aria-expanded="false">

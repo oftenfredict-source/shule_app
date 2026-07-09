@@ -38,6 +38,7 @@ use App\Http\Controllers\AccountantReportController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\IncomeCategoryController;
 use App\Http\Controllers\StoreController;
+use App\Http\Controllers\BlackBookController;
 use App\Http\Controllers\StorePortalController;
 use App\Http\Controllers\SponsorController;
 use App\Http\Controllers\GoalManagementController;
@@ -2093,6 +2094,32 @@ Route::get("store/inventory-actors", [StoreController::class, "listInventoryActo
 Route::post("store/inventory-actors", [StoreController::class, "storeInventoryActor"])->name("store.inventory_actors.store");
 Route::post("store/inventory-actors/{actorID}/update", [StoreController::class, "updateInventoryActor"])->name("store.inventory_actors.update");
 Route::post("store/inventory-actors/{actorID}/delete", [StoreController::class, "deleteInventoryActor"])->name("store.inventory_actors.delete");
+
+// Black Book / Discipline
+Route::get("manage_black_book", [BlackBookController::class, "manageBlackBook"])->name("manage_black_book");
+Route::get("black_book/report-student", [BlackBookController::class, "reportStudentPage"])->name("black_book.report_student");
+Route::get("black_book/dashboard-stats", [BlackBookController::class, "dashboardStats"])->name("black_book.dashboard_stats");
+Route::get("black_book/problem-categories", [BlackBookController::class, "listProblemCategories"])->name("black_book.problem_categories.index");
+Route::post("black_book/problem-categories", [BlackBookController::class, "storeProblemCategory"])->name("black_book.problem_categories.store");
+Route::post("black_book/problem-categories/{categoryID}/update", [BlackBookController::class, "updateProblemCategory"])->name("black_book.problem_categories.update");
+Route::post("black_book/problem-categories/{categoryID}/delete", [BlackBookController::class, "deleteProblemCategory"])->name("black_book.problem_categories.delete");
+Route::get("black_book/punishment-categories", [BlackBookController::class, "listPunishmentCategories"])->name("black_book.punishment_categories.index");
+Route::post("black_book/punishment-categories", [BlackBookController::class, "storePunishmentCategory"])->name("black_book.punishment_categories.store");
+Route::post("black_book/punishment-categories/{punishmentCategoryID}/update", [BlackBookController::class, "updatePunishmentCategory"])->name("black_book.punishment_categories.update");
+Route::post("black_book/punishment-categories/{punishmentCategoryID}/delete", [BlackBookController::class, "deletePunishmentCategory"])->name("black_book.punishment_categories.delete");
+Route::get("black_book/students/search", [BlackBookController::class, "searchStudents"])->name("black_book.students.search");
+Route::post("black_book/reports", [BlackBookController::class, "storeReport"])->name("black_book.reports.store");
+Route::get("black_book/reports", [BlackBookController::class, "listReports"])->name("black_book.reports.index");
+Route::post("black_book/reports/{reportID}/view", [BlackBookController::class, "markViewed"])->name("black_book.reports.view");
+Route::post("black_book/reports/{reportID}/resolve", [BlackBookController::class, "resolveReport"])->name("black_book.reports.resolve");
+Route::post("black_book/reports/{reportID}/end-monitoring", [BlackBookController::class, "endMonitoring"])->name("black_book.reports.end_monitoring");
+Route::get("black_book/student-summary", [BlackBookController::class, "studentReportSummary"])->name("black_book.student_summary");
+Route::get("black_book/report-analytics", [BlackBookController::class, "reportAnalytics"])->name("black_book.report_analytics");
+Route::get("black_book/export-pdf", [BlackBookController::class, "exportPdf"])->name("black_book.export_pdf");
+Route::get("black_book/actors", [BlackBookController::class, "listBlackBookActors"])->name("black_book.actors.index");
+Route::post("black_book/actors", [BlackBookController::class, "storeBlackBookActor"])->name("black_book.actors.store");
+Route::post("black_book/actors/{actorID}/update", [BlackBookController::class, "updateBlackBookActor"])->name("black_book.actors.update");
+Route::post("black_book/actors/{actorID}/delete", [BlackBookController::class, "deleteBlackBookActor"])->name("black_book.actors.delete");
 
 Route::get("teacher/store-requisitions", [StorePortalController::class, "teacherPortal"])->name("teacher.store_requisitions");
 Route::post("teacher/store-requisitions", [StorePortalController::class, "teacherStoreRequest"])->name("teacher.store_requisitions.store");

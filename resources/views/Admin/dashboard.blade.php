@@ -391,6 +391,18 @@
                         </a>
                     </div>
                     @endforeach
+                    <div class="col">
+                        <div class="p-4 bg-white border text-center h-100 position-relative">
+                            <i class="bi bi-journal-text fs-3 text-danger mb-2"></i>
+                            <div class="fw-bold text-dark small dropdown">
+                                <a href="#" class="text-dark text-decoration-none dropdown-toggle" data-toggle="dropdown">Black Book</a>
+                                <div class="dropdown-menu">
+                                    <a class="dropdown-item" href="{{ route('black_book.report_student') }}">Report Student</a>
+                                    <a class="dropdown-item" href="{{ route('manage_black_book') }}">Black Book Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

@@ -550,6 +550,14 @@
                             <li><a href="{{ route('teacher.character_assessment') }}" class="nav-link"><i class="fa fa-shield"></i> Character Assessment</a></li>
                         @endif
 
+                        <li><a href="{{ route('black_book.report_student') }}" class="nav-link"><i class="fa fa-exclamation-triangle"></i> Report Student</a></li>
+                        @php
+                            $teacherHasBlackBookAccess = app(\App\Services\BlackBookAccessService::class)->currentUserHasManageAccess((int) Session::get('schoolID'));
+                        @endphp
+                        @if($teacherHasBlackBookAccess && Session::get('user_type') === 'Teacher')
+                        <li><a href="{{ route('manage_black_book') }}" class="nav-link"><i class="fa fa-book"></i> Black Book</a></li>
+                        @endif
+
                         <li><a href="{{ route('teacher.duty_book') }}" class="nav-link"><i class="fa fa-book"></i> Duty Book</a></li>
 
                         <li><a href="{{ route('teacher.store_requisitions') }}" class="nav-link"><i class="fa fa-clipboard"></i> Item Requisition</a></li>

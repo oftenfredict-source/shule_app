@@ -593,6 +593,17 @@
                             </ul>
                         </li>
 
+                        <!-- Black Book -->
+                        <li class="dropdown-nav-item">
+                            <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#blackBookMenu" aria-expanded="false">
+                                <i class="fa fa-book"></i> Black Book <i class="fa fa-chevron-down float-right"></i>
+                            </a>
+                            <ul id="blackBookMenu" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
+                                <li><a href="{{ route('black_book.report_student') }}" class="nav-link"><i class="fa fa-exclamation-triangle"></i> Report Student</a></li>
+                                <li><a href="{{ route('manage_black_book') }}" class="nav-link"><i class="fa fa-list-alt"></i> Black Book Details</a></li>
+                            </ul>
+                        </li>
+
                         <!-- Attendance -->
                         <li class="dropdown-nav-item">
                             <a href="#" class="nav-link dropdown-toggle" data-toggle="collapse" data-target="#attendanceMenu" aria-expanded="false">

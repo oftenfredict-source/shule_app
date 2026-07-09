@@ -17043,7 +17043,7 @@ class TeachersController extends Controller
     public function adminLogbook()
     {
         $schoolID = Session::get("schoolID");
-        if (!Session::has("user_id") || Session::get("user_type") !== "Admin") {
+        if (Session::get("user_type") !== "Admin" || !$schoolID) {
             return redirect()
                 ->route("login")
                 ->with("error", "Unauthorized access");
