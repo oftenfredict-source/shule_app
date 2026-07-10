@@ -1206,7 +1206,7 @@
                                 ? '<span class="badge bg-info">Early</span>'
                                 : (day.status === 'Present (Off Day)'
                                     ? '<span class="badge bg-secondary">Present (Off Day)</span>'
-                                    : '<span class="badge bg-success">Present</span>')));
+                                    : '<span class="badge bg-success">Present</span>'))));
                     html += '<tr' + rowClass + '>' +
                         '<td>' + day.date_label + '</td>' +
                         '<td>' + (day.check_in_time ? formatAmPm(day.check_in_time) : '-') + '</td>' +
