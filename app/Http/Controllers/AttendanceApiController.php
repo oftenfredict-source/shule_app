@@ -1093,7 +1093,9 @@ class AttendanceApiController extends Controller
             $schoolID = (int) $schoolID;
             $dateFilter = $request->input('date');
             $page = max(1, (int) $request->input('page', 1));
-            $perPage = 50;
+            $perPageInput = $request->input('per_page', 50);
+            $loadAll = $perPageInput === 'all' || $perPageInput === '-1';
+            $perPage = $loadAll ? PHP_INT_MAX : min(5000, max(1, (int) $perPageInput));
 
             $permissionMap = [];
             if ($dateFilter) {
@@ -1189,17 +1191,17 @@ class AttendanceApiController extends Controller
             })->values();
 
             $total = $sorted->count();
-            $paged = $sorted->slice(($page - 1) * $perPage, $perPage)->values();
+            $paged = $loadAll ? $sorted : $sorted->slice(($page - 1) * $perPage, $perPage)->values();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Teacher and staff fingerprint attendance records from local database',
                 'data' => $paged->toArray(),
                 'pagination' => [
-                    'current_page' => $page,
-                    'per_page' => $perPage,
+                    'current_page' => $loadAll ? 1 : $page,
+                    'per_page' => $loadAll ? $total : $perPage,
                     'total' => $total,
-                    'last_page' => (int) ceil($total / $perPage) ?: 1,
+                    'last_page' => $loadAll ? 1 : ((int) ceil($total / $perPage) ?: 1),
                 ],
             ], 200);
         } catch (\Exception $e) {

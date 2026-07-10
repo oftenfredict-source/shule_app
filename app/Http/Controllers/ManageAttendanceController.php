@@ -2243,84 +2243,31 @@ class ManageAttendanceController extends Controller
         ]);
 
         try {
-            $range = $this->resolveTeacherStaffReportDateRange($request);
-            $schoolID = (int) $schoolID;
-            $filterType = $request->input('filter_type');
-            $workingDayCounts = $this->resolveReportWorkingDayCounts(
-                $workingDaysService,
-                $schoolID,
-                $filterType,
-                $range
-            );
-            $workingDates = $workingDayCounts['working_dates'];
-            $workTime = TeacherStaffWorkTimeSetting::forSchool($schoolID);
-            $people = $this->getTeacherStaffReportPeople($schoolID, $request->input('person_type'));
-            $attendanceMap = $this->loadTeacherStaffAttendanceMap(
-                $schoolID,
-                $request->input('person_type'),
-                $range['start']->toDateString(),
-                $range['end']->toDateString()
-            );
-            $permissionDatesMap = app(TeacherStaffPermissionAttendanceService::class)
-                ->loadApprovedPermissionDatesMap(
-                    $schoolID,
-                    $range['start']->toDateString(),
-                    $range['end']->toDateString(),
-                    $request->input('person_type')
-                );
+            $payload = $this->collectTeacherStaffReportPayload($request, $workingDaysService);
+            $workingDayCounts = $payload['workingDayCounts'];
+            $workTime = $payload['workTime'];
+            $range = $payload['range'];
 
-            $rows = [];
-            foreach ($people as $person) {
-                $personKey = $person['person_type'] . '_' . $person['person_id'];
-                $personAttendance = $attendanceMap[$personKey] ?? [];
-                $permittedDates = $permissionDatesMap[$personKey] ?? [];
-                $stats = $this->calculatePersonAttendanceStats(
-                    $personAttendance,
-                    $workingDates,
-                    $workTime->work_start_time,
-                    $permittedDates
-                );
-
-                $rows[] = [
-                    'person_type' => $person['person_type'],
-                    'person_id' => $person['person_id'],
-                    'name' => $person['name'],
-                    'role_label' => $person['role_label'],
-                    'employee_number' => $person['employee_number'],
-                    'phone_number' => $person['phone_number'],
-                    'image_url' => $person['image_url'],
-                    'present_days' => $stats['present_days'],
-                    'absent_days' => $stats['absent_days'],
-                    'permitted_days' => $stats['permitted_days'],
-                    'total_working_days' => $workingDayCounts['display_working_days'],
-                    'complete_working_days' => $workingDayCounts['elapsed_working_days'],
-                    'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
-                    'late_days' => $stats['late_days'],
-                    'early_days' => $stats['early_days'],
-                ];
-            }
-
-            usort($rows, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
-
-            return response()->json([
+            $response = [
                 'success' => true,
-                'title' => $this->buildTeacherStaffReportTitle(
-                    $request->input('person_type'),
-                    $request->input('filter_type'),
-                    $range
-                ),
+                'title' => $payload['title'],
                 'filter_type' => $request->input('filter_type'),
                 'person_type' => $request->input('person_type'),
                 'period_label' => $range['label'],
-                'period_incomplete' => $range['incomplete'],
                 'period_incomplete' => $range['incomplete'],
                 'total_working_days' => $workingDayCounts['display_working_days'],
                 'complete_working_days' => $workingDayCounts['elapsed_working_days'],
                 'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
                 'work_start_time' => substr((string) $workTime->work_start_time, 0, 5),
                 'work_end_time' => substr((string) $workTime->work_end_time, 0, 5),
-                'data' => $rows,
-            ]);
+                'data' => $payload['rows'],
+            ];
+
+            if ($request->input('filter_type') === 'day' && ! empty($payload['day_summary'])) {
+                $response['day_summary'] = $payload['day_summary'];
+            }
+
+            return response()->json($response);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
@@ -2347,81 +2294,34 @@ class ManageAttendanceController extends Controller
         ]);
 
         try {
-            $schoolID = (int) $schoolID;
-            $range = $this->resolveTeacherStaffReportDateRange($request);
-            $filterType = $request->input('filter_type');
-            $workingDayCounts = $this->resolveReportWorkingDayCounts(
+            $payload = $this->collectTeacherStaffReportPayload(
+                $request,
                 $workingDaysService,
-                $schoolID,
-                $filterType,
-                $range
-            );
-            $workingDates = $workingDayCounts['working_dates'];
-            $workTime = TeacherStaffWorkTimeSetting::forSchool($schoolID);
-            $person = $this->getSingleTeacherStaffPerson(
-                $schoolID,
-                $request->input('person_type'),
-                (int) $request->input('person_id')
+                (int) $request->input('person_id'),
+                $request->input('person_type')
             );
 
-            if (!$person) {
+            if (empty($payload['detailed'])) {
                 return response()->json(['success' => false, 'message' => 'Person not found.'], 404);
             }
 
-            $personKey = $person['person_type'] . '_' . $person['person_id'];
-            $attendanceMap = $this->loadTeacherStaffAttendanceMap(
-                $schoolID,
-                $person['person_type'],
-                $range['start']->toDateString(),
-                $range['end']->toDateString()
-            );
-            $personAttendance = $attendanceMap[$personKey] ?? [];
-            $permissionDatesMap = app(TeacherStaffPermissionAttendanceService::class)
-                ->loadApprovedPermissionDatesMap(
-                    $schoolID,
-                    $range['start']->toDateString(),
-                    $range['end']->toDateString(),
-                    $person['person_type']
-                );
-            $permittedDates = $permissionDatesMap[$personKey] ?? [];
-            $stats = $this->calculatePersonAttendanceStats(
-                $personAttendance,
-                $workingDates,
-                $workTime->work_start_time,
-                $permittedDates
-            );
-            $daily = $this->buildPersonDailyAttendanceRecords(
-                $personAttendance,
-                $workingDates,
-                $range['start'],
-                $range['end'],
-                $workTime->work_start_time,
-                $permittedDates
-            );
+            $detail = $payload['detailed'][0];
+            $range = $payload['range'];
+            $workingDayCounts = $payload['workingDayCounts'];
+            $workTime = $payload['workTime'];
 
             return response()->json([
                 'success' => true,
-                'person' => $person,
-                'title' => $this->buildTeacherStaffReportTitle(
-                    $person['person_type'],
-                    $request->input('filter_type'),
-                    $range
-                ),
-                'statistics' => [
-                    'present_days' => $stats['present_days'],
-                    'absent_days' => $stats['absent_days'],
-                    'permitted_days' => $stats['permitted_days'],
-                    'total_working_days' => $workingDayCounts['display_working_days'],
-                    'complete_working_days' => $workingDayCounts['elapsed_working_days'],
-                    'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
-                    'late_days' => $stats['late_days'],
-                    'early_days' => $stats['early_days'],
-                ],
+                'person' => $detail['person'],
+                'title' => $payload['title'],
+                'filter_type' => $request->input('filter_type'),
+                'statistics' => $detail['statistics'],
                 'work_start_time' => substr((string) $workTime->work_start_time, 0, 5),
                 'work_end_time' => substr((string) $workTime->work_end_time, 0, 5),
                 'period_incomplete' => $range['incomplete'],
                 'period_label' => $range['label'],
-                'daily_records' => $daily,
+                'daily_records' => $detail['daily_records'],
+                'day_summary' => $payload['day_summary'] ?? null,
             ]);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
@@ -2570,6 +2470,8 @@ class ManageAttendanceController extends Controller
             'working_dates' => $workingDates,
             'display_working_days' => $displayWorkingDays,
             'elapsed_working_days' => $elapsedWorkingDays,
+            'is_working_day' => $filterType === 'day' ? ($elapsedWorkingDays > 0) : null,
+            'report_date' => $filterType === 'day' ? $range['start']->toDateString() : null,
         ];
     }
 
@@ -3043,6 +2945,152 @@ class ManageAttendanceController extends Controller
     }
 
     /**
+     * Single-day report: check-in only = Present (check-out not required).
+     *
+     * @param array{check_in_time: ?string, check_out_time: ?string}|null $record
+     * @return array{
+     *     present_days: int,
+     *     absent_days: int,
+     *     permitted_days: int,
+     *     late_days: int,
+     *     early_days: int,
+     *     day_status: string,
+     *     check_in_time: ?string,
+     *     check_out_time: ?string
+     * }
+     */
+    private function calculateTeacherStaffSingleDayStats(
+        string $reportDate,
+        bool $isWorkingDay,
+        ?array $record,
+        bool $isPermitted,
+        string $workStartTime
+    ): array {
+        $checkIn = $record['check_in_time'] ?? null;
+        $checkOut = $record['check_out_time'] ?? null;
+
+        if ($isPermitted) {
+            return [
+                'present_days' => 0,
+                'absent_days' => 0,
+                'permitted_days' => 1,
+                'late_days' => 0,
+                'early_days' => 0,
+                'day_status' => 'Permitted',
+                'check_in_time' => null,
+                'check_out_time' => null,
+            ];
+        }
+
+        if (! empty($checkIn)) {
+            $punctuality = $this->classifyCheckInPunctuality($checkIn, $reportDate, $workStartTime);
+            $dayStatus = match ($punctuality) {
+                'late' => 'Late',
+                'early' => 'Early',
+                default => 'Present',
+            };
+
+            return [
+                'present_days' => 1,
+                'absent_days' => 0,
+                'permitted_days' => 0,
+                'late_days' => $punctuality === 'late' ? 1 : 0,
+                'early_days' => $punctuality === 'early' ? 1 : 0,
+                'day_status' => $dayStatus,
+                'check_in_time' => $checkIn,
+                'check_out_time' => $checkOut,
+            ];
+        }
+
+        if ($isWorkingDay) {
+            return [
+                'present_days' => 0,
+                'absent_days' => 1,
+                'permitted_days' => 0,
+                'late_days' => 0,
+                'early_days' => 0,
+                'day_status' => 'Absent',
+                'check_in_time' => null,
+                'check_out_time' => null,
+            ];
+        }
+
+        return [
+            'present_days' => 0,
+            'absent_days' => 0,
+            'permitted_days' => 0,
+            'late_days' => 0,
+            'early_days' => 0,
+            'day_status' => 'Off Day',
+            'check_in_time' => null,
+            'check_out_time' => null,
+        ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<string, mixed>
+     */
+    private function buildTeacherStaffDaySummary(array $rows, string $reportDate, bool $isWorkingDay): array
+    {
+        $summary = [
+            'date' => $reportDate,
+            'date_label' => Carbon::parse($reportDate)->format('l, j F Y'),
+            'is_working_day' => $isWorkingDay,
+            'total_people' => count($rows),
+            'present_count' => 0,
+            'on_time_count' => 0,
+            'absent_count' => 0,
+            'permitted_count' => 0,
+            'late_count' => 0,
+            'early_count' => 0,
+            'teachers_present' => 0,
+            'staff_present' => 0,
+            'late_people' => [],
+            'early_people' => [],
+        ];
+
+        foreach ($rows as $row) {
+            $status = (string) ($row['day_status'] ?? '');
+            $personEntry = [
+                'name' => (string) ($row['name'] ?? ''),
+                'person_type' => (string) ($row['person_type'] ?? ''),
+                'check_in_time' => ! empty($row['check_in_time'])
+                    ? substr((string) $row['check_in_time'], 11, 8)
+                    : null,
+            ];
+
+            if (in_array($status, ['Present', 'Late', 'Early'], true)) {
+                $summary['present_count']++;
+                if ($status === 'Present') {
+                    $summary['on_time_count']++;
+                } elseif ($status === 'Late') {
+                    $summary['late_count']++;
+                    $summary['late_people'][] = $personEntry;
+                } elseif ($status === 'Early') {
+                    $summary['early_count']++;
+                    $summary['early_people'][] = $personEntry;
+                }
+
+                if (($row['person_type'] ?? '') === 'staff') {
+                    $summary['staff_present']++;
+                } else {
+                    $summary['teachers_present']++;
+                }
+            } elseif ($status === 'Absent') {
+                $summary['absent_count']++;
+            } elseif ($status === 'Permitted') {
+                $summary['permitted_count']++;
+            }
+        }
+
+        usort($summary['late_people'], fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+        usort($summary['early_people'], fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        return $summary;
+    }
+
+    /**
      * @param array<string, array{check_in_time: ?string, check_out_time: ?string}> $personAttendance
      * @param array<int, string> $workingDates
      */
@@ -3382,17 +3430,36 @@ class ManageAttendanceController extends Controller
 
         $rows = [];
         $detailed = [];
+        $isDayReport = $filterType === 'day';
+        $reportDate = $isDayReport ? $range['start']->toDateString() : null;
+        $isWorkingDay = $isDayReport && (bool) ($workingDayCounts['is_working_day'] ?? false);
+        $permittedDateSetHelper = static function (array $permittedDates, string $date): bool {
+            return in_array($date, $permittedDates, true);
+        };
 
         foreach ($people as $person) {
             $personKey = $person['person_type'] . '_' . $person['person_id'];
             $personAttendance = $attendanceMap[$personKey] ?? [];
             $permittedDates = $permissionDatesMap[$personKey] ?? [];
-            $stats = $this->calculatePersonAttendanceStats(
-                $personAttendance,
-                $workingDates,
-                $workTime->work_start_time,
-                $permittedDates
-            );
+
+            if ($isDayReport && $reportDate) {
+                $dayRecord = $personAttendance[$reportDate] ?? null;
+                $stats = $this->calculateTeacherStaffSingleDayStats(
+                    $reportDate,
+                    $isWorkingDay,
+                    $dayRecord,
+                    $permittedDateSetHelper($permittedDates, $reportDate),
+                    (string) $workTime->work_start_time
+                );
+            } else {
+                $stats = $this->calculatePersonAttendanceStats(
+                    $personAttendance,
+                    $workingDates,
+                    $workTime->work_start_time,
+                    $permittedDates
+                );
+            }
+
             $daily = $this->buildPersonDailyAttendanceRecords(
                 $personAttendance,
                 $workingDates,
@@ -3413,6 +3480,12 @@ class ManageAttendanceController extends Controller
                 'early_days' => $stats['early_days'],
             ];
 
+            if ($isDayReport) {
+                $rowStats['day_status'] = $stats['day_status'] ?? null;
+                $rowStats['check_in_time'] = $stats['check_in_time'] ?? null;
+                $rowStats['check_out_time'] = $stats['check_out_time'] ?? null;
+            }
+
             $rows[] = array_merge($person, $rowStats);
             $detailed[] = [
                 'person' => $person,
@@ -3425,14 +3498,20 @@ class ManageAttendanceController extends Controller
         usort($detailed, fn ($a, $b) => strcasecmp($a['person']['name'], $b['person']['name']));
 
         $titlePersonType = $onlyPersonType ?? $request->input('person_type');
+        $daySummary = null;
+        if ($isDayReport && $reportDate) {
+            $daySummary = $this->buildTeacherStaffDaySummary($rows, $reportDate, $isWorkingDay);
+        }
 
         return [
             'title' => $this->buildTeacherStaffReportTitle($titlePersonType, $filterType, $range),
+            'filter_type' => $filterType,
             'range' => $range,
             'workingDayCounts' => $workingDayCounts,
             'workTime' => $workTime,
             'rows' => $rows,
             'detailed' => $detailed,
+            'day_summary' => $daySummary,
         ];
     }
 

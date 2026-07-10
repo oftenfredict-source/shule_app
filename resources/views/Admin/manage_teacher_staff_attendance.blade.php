@@ -74,8 +74,14 @@
     .ts-detail-stat h5 { margin: 0; font-weight: 700; }
     .ts-detail-stat.late h5 { color: #dc3545; }
     #tsReportTable thead th { background-color: var(--primary-color) !important; color: #fff !important; white-space: nowrap; }
-    #tsReportTable_wrapper .dataTables_filter input { margin-left: 8px; }
+    #tsLiveTable thead th,
+    #tsRecordsTable thead th { background-color: var(--primary-color) !important; color: #fff !important; white-space: nowrap; }
+    #tsReportTable_wrapper .dataTables_filter input,
+    #tsLiveTable_wrapper .dataTables_filter input,
+    #tsRecordsTable_wrapper .dataTables_filter input { margin-left: 8px; }
     #tsReportDetailDailyTable thead th { background-color: #f8f9fa; white-space: nowrap; }
+    .dataTables_wrapper .dataTables_length select,
+    .dataTables_wrapper .dataTables_filter input { border-radius: 0; }
     .ts-toast-container {
         position: fixed;
         top: 16px;
@@ -656,6 +662,8 @@
     }
 
     function renderTsLiveEmpty(date, meta) {
+        destroyTsAttendanceDataTable('#tsLiveTable');
+        tsLiveDataTable = null;
         meta = meta || {};
         var msg = meta.deviceFailed
             ? 'Device haipatikani. Hakuna rekodi za leo kwenye database bado.'
@@ -667,60 +675,144 @@
         );
     }
 
+    function tsDataTableLanguage() {
+        return {
+            search: 'Tafuta:',
+            lengthMenu: 'Onyesha _MENU_',
+            info: 'Inaonyesha _START_ hadi _END_ kati ya _TOTAL_',
+            infoEmpty: 'Hakuna rekodi',
+            infoFiltered: '(kuchujwa kutoka _MAX_)',
+            zeroRecords: 'Hakuna rekodi zinazolingana',
+            emptyTable: 'Hakuna data kwenye jedwali',
+            paginate: { first: 'Kwanza', last: 'Mwisho', next: 'Ijayo', previous: 'Iliyopita' }
+        };
+    }
+
+    function destroyTsAttendanceDataTable(selector) {
+        if (!$.fn.DataTable) return;
+        if ($.fn.DataTable.isDataTable(selector)) {
+            try { $(selector).DataTable().destroy(); } catch (e) {}
+        }
+    }
+
+    function tsDataTableDrawRowNumbers(api) {
+        api.column(0, { page: 'current' }).nodes().each(function (cell, i) {
+            cell.innerHTML = i + 1 + api.page.info().start;
+        });
+    }
+
+    function initTsAttendanceDataTable(selector) {
+        if (!$(selector).length || !$.fn.DataTable) return null;
+        return $(selector).DataTable({
+            order: [[2, 'asc']],
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Zote']],
+            autoWidth: false,
+            responsive: true,
+            language: tsDataTableLanguage(),
+            columnDefs: [
+                { orderable: false, targets: [0] },
+                { className: 'align-middle', targets: '_all' }
+            ],
+            drawCallback: function () {
+                tsDataTableDrawRowNumbers(this.api());
+            }
+        });
+    }
+
+    function buildTsAttendanceRowHtml(rec, index) {
+        var checkIn = formatTimeOnly(rec.check_in_time || '');
+        var checkOut = formatTimeOnly(rec.check_out_time || '');
+        var hasCheckOut = !!(rec.check_out_time || checkOut);
+        var isPermitted = rec.status === 'Permitted' || rec.attendance_status === 'Permitted';
+        var status = isPermitted
+            ? '<span class="badge bg-purple" style="background-color:#6f42c1;">Permitted</span>'
+            : ((hasCheckOut || rec.status === 'Complete' || rec.status === 1 || rec.status === '1')
+            ? '<span class="badge bg-success">Complete</span>'
+            : '<span class="badge bg-info">Check In Only</span>');
+        var newBadge = rec.is_new ? '<span class="badge bg-success">New</span>' : '-';
+        var persistedNote = rec.persisted === false ? ' <small class="text-muted">(live)</small>' : '';
+
+        return '<tr' + (rec.is_new ? ' class="table-success"' : '') + '>' +
+            '<td>' + (index + 1) + '</td>' +
+            '<td>' + personTypeBadge(rec.person_type) + '</td>' +
+            '<td>' + escapeHtml(rec.user_name || 'N/A') + persistedNote + '</td>' +
+            '<td>' + escapeHtml(rec.role_label || '-') + '</td>' +
+            '<td>' + escapeHtml(rec.employee_number || '-') + '</td>' +
+            '<td>' + escapeHtml(rec.fingerprint_id || rec.enroll_id || '-') + '</td>' +
+            '<td>' + (checkIn || '-') + '</td>' +
+            '<td>' + (checkOut || '-') + '</td>' +
+            '<td>' + status + '</td>' +
+            '<td>' + escapeHtml(rec.device_ip || '-') + '</td>' +
+            '<td>' + newBadge + '</td></tr>';
+    }
+
+    var tsLiveDataTable = null;
+    var tsRecordsDataTable = null;
+
     function renderTsAttendanceTable(records, date, meta, container) {
         meta = meta || {};
         container = container || '#tsLiveTableArea';
+        var isLive = container === '#tsLiveTableArea';
+        var tableId = isLive ? 'tsLiveTable' : 'tsRecordsTable';
+        var selector = '#' + tableId;
+
         if (!records || !records.length) {
-            if (container === '#tsLiveTableArea') {
+            if (isLive) {
                 renderTsLiveEmpty(date, meta);
             } else {
+                destroyTsAttendanceDataTable(selector);
+                tsRecordsDataTable = null;
                 $(container).html('<div class="alert alert-info mb-0">No teacher attendance records found.</div>');
             }
             return;
         }
 
-        var html = '<div class="table-responsive"><table class="table table-striped table-hover table-sm mb-0">' +
-            '<thead class="bg-primary-custom text-white"><tr>' +
-            '<th>#</th><th>Type</th><th>Name</th><th>Role</th><th>Emp. No</th><th>Fingerprint ID</th>' +
-            '<th>Check In</th><th>Check Out</th><th>Status</th><th>Device IP</th><th>New</th>' +
-            '</tr></thead><tbody>';
+        var savedSearch = '';
+        var savedPageLen = 25;
+        var savedPage = 0;
+        if (isLive && tsLiveDataTable && $.fn.DataTable.isDataTable(selector)) {
+            savedSearch = tsLiveDataTable.search();
+            savedPageLen = tsLiveDataTable.page.len();
+            savedPage = tsLiveDataTable.page();
+        } else if (!isLive && tsRecordsDataTable && $.fn.DataTable.isDataTable(selector)) {
+            savedSearch = tsRecordsDataTable.search();
+            savedPageLen = tsRecordsDataTable.page.len();
+            savedPage = tsRecordsDataTable.page();
+        }
 
+        destroyTsAttendanceDataTable(selector);
+
+        var bodyHtml = '';
         records.forEach(function (rec, index) {
-            var checkIn = formatTimeOnly(rec.check_in_time || '');
-            var checkOut = formatTimeOnly(rec.check_out_time || '');
-            var hasCheckOut = !!(rec.check_out_time || checkOut);
-            var isPermitted = rec.status === 'Permitted' || rec.attendance_status === 'Permitted';
-            var status = isPermitted
-                ? '<span class="badge bg-purple" style="background-color:#6f42c1;">Permitted</span>'
-                : ((hasCheckOut || rec.status === 'Complete' || rec.status === 1 || rec.status === '1')
-                ? '<span class="badge bg-success">Complete</span>'
-                : '<span class="badge bg-info">Check In Only</span>');
-            var newBadge = rec.is_new ? '<span class="badge bg-success">New</span>' : '-';
-            var persistedNote = rec.persisted === false ? ' <small class="text-muted">(live)</small>' : '';
-
-            html += '<tr' + (rec.is_new ? ' class="table-success"' : '') + '>' +
-                '<td>' + (index + 1) + '</td>' +
-                '<td>' + personTypeBadge(rec.person_type) + '</td>' +
-                '<td>' + (rec.user_name || 'N/A') + persistedNote + '</td>' +
-                '<td>' + (rec.role_label || '-') + '</td>' +
-                '<td>' + (rec.employee_number || '-') + '</td>' +
-                '<td>' + (rec.fingerprint_id || rec.enroll_id || '-') + '</td>' +
-                '<td>' + (checkIn || '-') + '</td>' +
-                '<td>' + (checkOut || '-') + '</td>' +
-                '<td>' + status + '</td>' +
-                '<td>' + (rec.device_ip || '-') + '</td>' +
-                '<td>' + newBadge + '</td></tr>';
+            bodyHtml += buildTsAttendanceRowHtml(rec, index);
         });
 
-        html += '</tbody></table></div>';
-        html += '<div class="mt-2 small text-muted">Date: ' + date + ' &bullet; Records: ' + records.length;
-        if (meta.source && container !== '#tsLiveTableArea') html += ' &bullet; ' + meta.source;
+        var html = '<div class="table-responsive"><table id="' + tableId + '" class="table table-striped table-hover table-sm mb-0 w-100">' +
+            '<thead><tr>' +
+            '<th>#</th><th>Type</th><th>Name</th><th>Role</th><th>Emp. No</th><th>Fingerprint ID</th>' +
+            '<th>Check In</th><th>Check Out</th><th>Status</th><th>Device IP</th><th>New</th>' +
+            '</tr></thead><tbody>' + bodyHtml + '</tbody></table></div>';
+        html += '<div class="mt-2 small text-muted" id="' + tableId + 'Meta">Date: ' + date + ' &bullet; Records: ' + records.length;
+        if (meta.source && !isLive) html += ' &bullet; ' + meta.source;
         html += '</div>';
 
         $(container).html(html);
-        if (container === '#tsLiveTableArea') {
+
+        var dt = initTsAttendanceDataTable(selector);
+        if (isLive) {
+            tsLiveDataTable = dt;
             tsLiveHasData = true;
             setLastUpdateLabel();
+        } else {
+            tsRecordsDataTable = dt;
+        }
+
+        if (dt && savedSearch) {
+            dt.search(savedSearch).draw(false);
+        }
+        if (dt) {
+            dt.page.len(savedPageLen).page(savedPage).draw(false);
         }
     }
 
@@ -858,17 +950,18 @@
         }, LIVE_DB_POLL_MS);
     }
 
-    function loadTsSavedRecords(page) {
-        page = page || 1;
+    function loadTsSavedRecords() {
         var dateFilter = $('#tsRecordsDateFilter').val();
         var container = '#tsRecordsContent';
 
+        destroyTsAttendanceDataTable('#tsRecordsTable');
+        tsRecordsDataTable = null;
         $(container).html('<div class="text-center py-4"><div class="spinner-border text-primary-custom"></div><p class="mt-2 mb-0">Loading records...</p></div>');
 
         $.ajax({
             url: '{{ route("attendance.teacher_staff_fingerprint") }}',
             type: 'GET',
-            data: { page: page, date: dateFilter },
+            data: { page: 1, per_page: 'all', date: dateFilter },
             dataType: 'json',
             success: function (data) {
                 if (!data.success) {
@@ -902,20 +995,6 @@
                 });
 
                 renderTsAttendanceTable(mapped, dateFilter || '{{ date("Y-m-d") }}', { source: 'Database' }, '#tsRecordsContent');
-
-                var pagination = data.pagination;
-                if (pagination && pagination.last_page > 1) {
-                    var pagHtml = '<div class="mt-3 d-flex justify-content-center gap-2">';
-                    if (pagination.current_page > 1) {
-                        pagHtml += '<button class="btn btn-sm btn-outline-secondary" onclick="window.tsLoadRecordsPage(' + (pagination.current_page - 1) + ')">Prev</button>';
-                    }
-                    pagHtml += '<span class="align-self-center small">Page ' + pagination.current_page + ' / ' + pagination.last_page + '</span>';
-                    if (pagination.current_page < pagination.last_page) {
-                        pagHtml += '<button class="btn btn-sm btn-outline-secondary" onclick="window.tsLoadRecordsPage(' + (pagination.current_page + 1) + ')">Next</button>';
-                    }
-                    pagHtml += '</div>';
-                    $(container).append(pagHtml);
-                }
             },
             error: function () {
                 $(container).html('<div class="alert alert-danger mb-0">Error loading saved records.</div>');
@@ -949,9 +1028,28 @@
         }
     }
 
-    function initTsReportDataTable(showCompleteCol) {
+    function initTsReportDataTable(showCompleteCol, isDayReport) {
         destroyTsReportDataTable();
         if (!$('#tsReportTable').length) return;
+
+        if (isDayReport) {
+            tsReportDataTable = $('#tsReportTable').DataTable({
+                order: [[2, 'asc']],
+                pageLength: 25,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Zote']],
+                autoWidth: false,
+                responsive: true,
+                language: tsDataTableLanguage(),
+                columnDefs: [
+                    { orderable: false, targets: [0, 1, 10] },
+                    { className: 'text-center align-middle', targets: [0, 3, 4, 5, 6, 7, 8, 9, 10] }
+                ],
+                drawCallback: function () {
+                    tsDataTableDrawRowNumbers(this.api());
+                }
+            });
+            return;
+        }
 
         var actionCol = showCompleteCol ? 10 : 9;
         var centerCols = showCompleteCol ? [0, 3, 4, 5, 6, 7, 8, 9, 10] : [0, 3, 4, 5, 6, 7, 8, 9];
@@ -959,28 +1057,17 @@
         tsReportDataTable = $('#tsReportTable').DataTable({
             order: [[2, 'asc']],
             pageLength: 25,
-            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Zote']],
             autoWidth: false,
             responsive: true,
-            language: {
-                search: 'Search:',
-                lengthMenu: 'Show _MENU_ entries',
-                info: 'Showing _START_ to _END_ of _TOTAL_ records',
-                infoEmpty: 'No records found',
-                infoFiltered: '(filtered from _MAX_ total)',
-                zeroRecords: 'No matching records found',
-                emptyTable: 'No attendance report data'
-            },
+            language: tsDataTableLanguage(),
             columnDefs: [
                 { orderable: false, targets: [0, 1, actionCol] },
                 { className: 'text-center align-middle', targets: centerCols },
                 { className: 'align-middle', targets: '_all' }
             ],
             drawCallback: function () {
-                var api = this.api();
-                api.column(0, { page: 'current' }).nodes().each(function (cell, i) {
-                    cell.innerHTML = i + 1 + api.page.info().start;
-                });
+                tsDataTableDrawRowNumbers(this.api());
             }
         });
     }
@@ -992,15 +1079,10 @@
         tsReportDetailDataTable = $('#tsReportDetailDailyTable').DataTable({
             order: [[0, 'desc']],
             pageLength: 10,
-            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'Zote']],
             autoWidth: false,
             responsive: true,
-            language: {
-                search: 'Search date:',
-                lengthMenu: 'Show _MENU_ days',
-                info: 'Showing _START_ to _END_ of _TOTAL_ days',
-                zeroRecords: 'No matching days found'
-            },
+            language: tsDataTableLanguage(),
             columnDefs: [
                 { className: 'text-center', targets: [1, 2, 3] }
             ]
@@ -1068,18 +1150,65 @@
                 var metaHtml = '<div class="ts-report-title text-center mb-2">' + (res.title || 'ATTENDANCE REPORT') + '</div>';
                 metaHtml += '<div class="card border-0 shadow-sm mb-3"><div class="card-body py-2 px-3">';
                 metaHtml += '<div class="row text-center small g-2">';
-                metaHtml += '<div class="col-md-3"><strong>Working Days (Month)</strong><br><span class="text-primary-custom fs-5">' + res.total_working_days + '</span></div>';
-                if (res.period_incomplete && res.complete_working_days !== undefined) {
-                    metaHtml += '<div class="col-md-3"><strong>Complete W/days</strong><br><span class="fs-5 text-warning">' + res.complete_working_days + '</span><br><small class="text-muted">Siku za kazi zilizopita</small></div>';
-                }
-                metaHtml += '<div class="col-md-3"><strong>Official Time</strong><br>' + formatAmPm(res.work_start_time) + ' – ' + formatAmPm(res.work_end_time) + '</div>';
-                metaHtml += '<div class="col-md-3"><strong>Period</strong><br>' + (res.period_incomplete ? '<span class="text-warning">In progress</span>' : 'Complete') + '</div>';
-                metaHtml += '</div>';
-                if (res.period_incomplete) {
+
+                if (res.filter_type === 'day' && res.day_summary) {
+                    var ds = res.day_summary;
+                    metaHtml += '<div class="col-md-3"><strong>Tarehe</strong><br><span class="text-primary-custom fw-bold">' + escapeHtml(ds.date_label || ds.date || '') + '</span></div>';
+                    metaHtml += '<div class="col-md-3"><strong>Wamehudhuria</strong><br><span class="text-success fs-4 fw-bold">' + (ds.present_count || 0) + '</span> / ' + (ds.total_people || 0) + '</div>';
+                    metaHtml += '<div class="col-md-3"><strong>Walio Chelewa</strong><br><span class="text-danger fs-4 fw-bold">' + (ds.late_count || 0) + '</span></div>';
+                    metaHtml += '<div class="col-md-3"><strong>Walio Wahi</strong><br><span class="text-info fs-4 fw-bold">' + (ds.early_count || 0) + '</span></div>';
+                    metaHtml += '</div><div class="row text-center small g-2 mt-2 pt-2 border-top">';
+                    metaHtml += '<div class="col"><strong>Walikosa</strong><br><span class="text-danger fs-5">' + (ds.absent_count || 0) + '</span></div>';
+                    metaHtml += '<div class="col"><strong>Walio na Ruhusa</strong><br><span style="color:#6f42c1;" class="fs-5">' + (ds.permitted_count || 0) + '</span></div>';
+                    metaHtml += '<div class="col"><strong>Wakati Sahihi</strong><br><span class="text-success fs-5">' + (ds.on_time_count || 0) + '</span></div>';
+                    metaHtml += '<div class="col"><strong>Siku ya Kazi</strong><br>' + (ds.is_working_day ? '<span class="text-success">Ndiyo</span>' : '<span class="text-muted">Hapana</span>') + '</div>';
+                    metaHtml += '</div>';
+                    if ((ds.teachers_present || 0) > 0 || (ds.staff_present || 0) > 0) {
+                        metaHtml += '<div class="row text-center small g-2 mt-2 pt-2 border-top">';
+                        metaHtml += '<div class="col"><strong>Walimu Waliopo</strong><br>' + (ds.teachers_present || 0) + '</div>';
+                        metaHtml += '<div class="col"><strong>Staff Waliopo</strong><br>' + (ds.staff_present || 0) + '</div>';
+                        metaHtml += '</div>';
+                    }
+                    if ((ds.late_people && ds.late_people.length) || (ds.early_people && ds.early_people.length)) {
+                        metaHtml += '<div class="row g-2 mt-2 pt-2 border-top text-start small">';
+                        if (ds.late_people && ds.late_people.length) {
+                            metaHtml += '<div class="col-md-6"><strong class="text-danger"><i class="bi bi-clock-history"></i> Walio Chelewa (' + ds.late_people.length + ')</strong><ul class="mb-0 ps-3 mt-1">';
+                            ds.late_people.forEach(function (p) {
+                                var typeLbl = p.person_type === 'staff' ? 'Staff' : 'Mwalimu';
+                                var timeLbl = p.check_in_time ? formatAmPm(p.check_in_time) : '';
+                                metaHtml += '<li>' + escapeHtml(p.name) + ' <span class="text-muted">(' + typeLbl + (timeLbl ? ', ' + timeLbl : '') + ')</span></li>';
+                            });
+                            metaHtml += '</ul></div>';
+                        }
+                        if (ds.early_people && ds.early_people.length) {
+                            metaHtml += '<div class="col-md-6"><strong class="text-info"><i class="bi bi-sunrise"></i> Walio Wahi (' + ds.early_people.length + ')</strong><ul class="mb-0 ps-3 mt-1">';
+                            ds.early_people.forEach(function (p) {
+                                var typeLbl = p.person_type === 'staff' ? 'Staff' : 'Mwalimu';
+                                var timeLbl = p.check_in_time ? formatAmPm(p.check_in_time) : '';
+                                metaHtml += '<li>' + escapeHtml(p.name) + ' <span class="text-muted">(' + typeLbl + (timeLbl ? ', ' + timeLbl : '') + ')</span></li>';
+                            });
+                            metaHtml += '</ul></div>';
+                        }
+                        metaHtml += '</div>';
+                    }
                     metaHtml += '<p class="small text-muted mb-0 mt-2 text-center"><i class="bi bi-info-circle"></i> ' +
-                        '<strong>Present</strong> = siku ulizoweka kidole. ' +
-                        '<strong>Permitted</strong> = siku za kazi ulizo na ruksa iliyoidhinishwa. ' +
-                        '<strong>Absent</strong> = siku za kazi zilizopita bila kidole wala ruksa.</p>';
+                        '<strong>Present</strong> = ameweka kidole (check-in tu inatosha). ' +
+                        '<strong>Walio Chelewa</strong> = wameingia baada ya muda rasmi. ' +
+                        '<strong>Walio Wahi</strong> = wameingia kabla ya muda rasmi.</p>';
+                } else {
+                    metaHtml += '<div class="col-md-3"><strong>Working Days (Month)</strong><br><span class="text-primary-custom fs-5">' + res.total_working_days + '</span></div>';
+                    if (res.period_incomplete && res.complete_working_days !== undefined) {
+                        metaHtml += '<div class="col-md-3"><strong>Complete W/days</strong><br><span class="fs-5 text-warning">' + res.complete_working_days + '</span><br><small class="text-muted">Siku za kazi zilizopita</small></div>';
+                    }
+                    metaHtml += '<div class="col-md-3"><strong>Official Time</strong><br>' + formatAmPm(res.work_start_time) + ' – ' + formatAmPm(res.work_end_time) + '</div>';
+                    metaHtml += '<div class="col-md-3"><strong>Period</strong><br>' + (res.period_incomplete ? '<span class="text-warning">In progress</span>' : 'Complete') + '</div>';
+                    metaHtml += '</div>';
+                    if (res.period_incomplete) {
+                        metaHtml += '<p class="small text-muted mb-0 mt-2 text-center"><i class="bi bi-info-circle"></i> ' +
+                            '<strong>Present</strong> = siku ulizoweka kidole. ' +
+                            '<strong>Permitted</strong> = siku za kazi ulizo na ruksa iliyoidhinishwa. ' +
+                            '<strong>Absent</strong> = siku za kazi zilizopita bila kidole wala ruksa.</p>';
+                    }
                 }
                 metaHtml += '</div></div>';
                 $meta.html(metaHtml);
@@ -1090,11 +1219,16 @@
                     return;
                 }
 
-                var showCompleteCol = !!res.period_incomplete;
+                var isDayReport = res.filter_type === 'day';
+                var showCompleteCol = !!res.period_incomplete && !isDayReport;
                 var html = '<div class="table-responsive"><table id="tsReportTable" class="table table-striped table-hover table-sm mb-0 w-100">' +
                     '<thead><tr>' +
-                    '<th>#</th><th>Photo</th><th>Name</th><th>Present</th><th>Permitted</th><th>Absent</th>' +
-                    '<th>Working Days</th>';
+                    '<th>#</th><th>Photo</th><th>Name</th>';
+                if (isDayReport) {
+                    html += '<th>Hali</th><th>Ingia</th><th>Toka</th><th>Walio Chelewa</th><th>Walio Wahi</th>';
+                } else {
+                    html += '<th>Present</th><th>Permitted</th><th>Absent</th><th>Working Days</th>';
+                }
                 if (showCompleteCol) {
                     html += '<th>Complete W/days</th>';
                 }
@@ -1105,14 +1239,45 @@
                     var typeBadge = row.person_type === 'staff'
                         ? '<span class="badge bg-info ms-1">Staff</span>'
                         : '<span class="badge bg-primary ms-1">Teacher</span>';
-                    html += '<tr>' +
+                    var statusBadge = '';
+                    if (isDayReport) {
+                        var st = row.day_status || 'Absent';
+                        var stLabel = {
+                            'Present': 'Alikuwepo',
+                            'Late': 'Amechelewa',
+                            'Early': 'Amewahi',
+                            'Absent': 'Hayupo',
+                            'Permitted': 'Ruhusa',
+                            'Off Day': 'Sio Siku ya Kazi'
+                        }[st] || st;
+                        var badgeClass = 'bg-secondary';
+                        if (st === 'Present') badgeClass = 'bg-success';
+                        else if (st === 'Late') badgeClass = 'bg-danger';
+                        else if (st === 'Early') badgeClass = 'bg-info';
+                        else if (st === 'Absent') badgeClass = 'bg-danger';
+                        else if (st === 'Permitted') badgeClass = 'bg-purple';
+                        else if (st === 'Off Day') badgeClass = 'bg-secondary';
+                        var badgeStyle = st === 'Permitted' ? ' style="background-color:#6f42c1;"' : '';
+                        statusBadge = '<span class="badge ' + badgeClass + '"' + badgeStyle + '>' + escapeHtml(stLabel) + '</span>';
+                    }
+                    html += '<tr' + (isDayReport && row.day_status === 'Late' ? ' class="ts-row-late"' : (isDayReport && ['Present', 'Early'].indexOf(row.day_status) >= 0 ? ' class="table-success"' : '')) + '>' +
                         '<td>' + (i + 1) + '</td>' +
                         '<td><img src="' + row.image_url + '" class="ts-person-img" alt=""></td>' +
-                        '<td>' + escapeHtml(row.name) + typeBadge + '</td>' +
-                        '<td><span class="badge bg-success">' + row.present_days + '</span></td>' +
-                        '<td><span class="badge" style="background-color:#6f42c1;">' + (row.permitted_days || 0) + '</span></td>' +
-                        '<td><span class="badge bg-danger">' + row.absent_days + '</span></td>' +
-                        '<td>' + row.total_working_days + '</td>';
+                        '<td>' + escapeHtml(row.name) + typeBadge + '</td>';
+                    if (isDayReport) {
+                        var isLate = row.day_status === 'Late';
+                        var isEarly = row.day_status === 'Early';
+                        html += '<td>' + statusBadge + '</td>' +
+                            '<td>' + (row.check_in_time ? formatAmPm(row.check_in_time) : '-') + '</td>' +
+                            '<td>' + (row.check_out_time ? formatAmPm(row.check_out_time) : '-') + '</td>' +
+                            '<td class="text-center">' + (isLate ? '<span class="badge bg-danger">Ndiyo</span>' : '<span class="text-muted">—</span>') + '</td>' +
+                            '<td class="text-center">' + (isEarly ? '<span class="badge bg-info">Ndiyo</span>' : '<span class="text-muted">—</span>') + '</td>';
+                    } else {
+                        html += '<td><span class="badge bg-success">' + row.present_days + '</span></td>' +
+                            '<td><span class="badge" style="background-color:#6f42c1;">' + (row.permitted_days || 0) + '</span></td>' +
+                            '<td><span class="badge bg-danger">' + row.absent_days + '</span></td>' +
+                            '<td>' + row.total_working_days + '</td>';
+                    }
                     if (showCompleteCol) {
                         html += '<td><span class="badge bg-warning text-dark">' + (row.complete_working_days || row.elapsed_working_days || 0) + '</span></td>';
                     }
@@ -1135,7 +1300,7 @@
 
                 html += '</tbody></table></div>';
                 $content.html(html);
-                initTsReportDataTable(showCompleteCol);
+                initTsReportDataTable(showCompleteCol, isDayReport);
                 $('#tsDownloadAllReportPdf').prop('disabled', false);
             },
             error: function (xhr) {
@@ -1440,7 +1605,7 @@
         });
 
         $('#tsRefreshRecords').on('click', function () {
-            loadTsSavedRecords(1);
+            loadTsSavedRecords();
         });
 
         $('#tsAttendanceTabs a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
@@ -1452,7 +1617,7 @@
                 stopTsLivePolling(false);
             }
             if (targetId === 'ts-records-tab') {
-                loadTsSavedRecords(1);
+                loadTsSavedRecords();
             }
             if (targetId === 'ts-report-tab') {
                 updateTsReportFilterVisibility();
