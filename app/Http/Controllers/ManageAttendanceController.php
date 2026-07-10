@@ -3198,6 +3198,8 @@ class ManageAttendanceController extends Controller
             $data = [
                 'school' => $school,
                 'title' => $payload['title'],
+                'filter_type' => $payload['filter_type'],
+                'day_summary' => $payload['day_summary'],
                 'period_label' => $payload['range']['label'],
                 'period_incomplete' => $payload['range']['incomplete'],
                 'total_working_days' => $payload['workingDayCounts']['display_working_days'],

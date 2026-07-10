@@ -35,6 +35,16 @@
         .sig-line { border-top: 1.5px solid #940000; width: 160px; margin: 0 auto; display: block; }
         .sig-label { font-size: 8.5px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase; }
         .watermark { position: fixed; top: 45%; left: 5%; width: 100%; text-align: center; opacity: 0.05; transform: rotate(-45deg); font-size: 100px; font-weight: bold; color: #000; z-index: 1000; text-transform: uppercase; }
+        .people-list-box { margin-bottom: 12px; border: 1px solid #eee; border-radius: 4px; page-break-inside: avoid; }
+        .people-list-title { font-weight: bold; padding: 8px 10px; border-bottom: 1px solid #eee; }
+        .people-list-title.late { color: #dc3545; background: #fff5f5; }
+        .people-list-title.early { color: #0dcaf0; background: #f0f9ff; }
+        .people-list-body { padding: 8px 10px 10px 24px; margin: 0; }
+        .people-list-body li { margin-bottom: 3px; }
+        .day-stat-danger { color: #dc3545; }
+        .day-stat-info { color: #0dcaf0; }
+        .day-stat-success { color: #198754; }
+        .day-stat-purple { color: #6f42c1; }
     </style>
 </head>
 <body>
@@ -75,6 +85,33 @@
         $schoolLogoBase64  = getSmartBase64($school->school_logo ?? '');
         $schoolStampBase64 = getSmartBase64($school->school_stamp ?? '');
         $schoolSignBase64  = getSmartBase64($school->school_signature ?? '');
+        $isDayReport = ($filter_type ?? '') === 'day';
+        $daySummary = $day_summary ?? null;
+        if (!function_exists('formatTsPdfTimeAmPm')) {
+            function formatTsPdfTimeAmPm($time) {
+                if (!$time) return '';
+                $time = (string) $time;
+                if (strlen($time) > 8) {
+                    $time = substr($time, 11, 8);
+                }
+                if (strlen($time) === 5) {
+                    $time .= ':00';
+                }
+                try {
+                    return \Carbon\Carbon::createFromFormat('H:i:s', $time)->format('h:i A');
+                } catch (\Exception $e) {
+                    return $time;
+                }
+            }
+        }
+        $dayStatusLabels = [
+            'Present' => 'Alikuwepo',
+            'Late' => 'Amechelewa',
+            'Early' => 'Amewahi',
+            'Absent' => 'Hayupo',
+            'Permitted' => 'Ruhusa',
+            'Off Day' => 'Sio Siku ya Kazi',
+        ];
     @endphp
 
     <div class="header">
@@ -106,6 +143,79 @@
 
     <div class="summary-box">
         <div class="summary-title">Report Summary</div>
+        @if($isDayReport && $daySummary)
+        <table class="stats-grid">
+            <tr>
+                <td>
+                    <div class="stat-val">{{ $daySummary['date_label'] ?? ($daySummary['date'] ?? '') }}</div>
+                    <div class="stat-label">Tarehe</div>
+                </td>
+                <td>
+                    <div class="stat-val day-stat-success">{{ $daySummary['present_count'] ?? 0 }} / {{ $daySummary['total_people'] ?? 0 }}</div>
+                    <div class="stat-label">Wamehudhuria</div>
+                </td>
+                <td>
+                    <div class="stat-val day-stat-danger">{{ $daySummary['late_count'] ?? 0 }}</div>
+                    <div class="stat-label">Walio Chelewa</div>
+                </td>
+                <td>
+                    <div class="stat-val day-stat-info">{{ $daySummary['early_count'] ?? 0 }}</div>
+                    <div class="stat-label">Walio Wahi</div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="stat-val day-stat-danger">{{ $daySummary['absent_count'] ?? 0 }}</div>
+                    <div class="stat-label">Walikosa</div>
+                </td>
+                <td>
+                    <div class="stat-val day-stat-purple">{{ $daySummary['permitted_count'] ?? 0 }}</div>
+                    <div class="stat-label">Walio na Ruhusa</div>
+                </td>
+                <td>
+                    <div class="stat-val day-stat-success">{{ $daySummary['on_time_count'] ?? 0 }}</div>
+                    <div class="stat-label">Wakati Sahihi</div>
+                </td>
+                <td>
+                    <div class="stat-val">{{ !empty($daySummary['is_working_day']) ? 'Ndiyo' : 'Hapana' }}</div>
+                    <div class="stat-label">Siku ya Kazi</div>
+                </td>
+            </tr>
+        </table>
+        @if(!empty($daySummary['late_people']))
+        <div class="people-list-box">
+            <div class="people-list-title late">Walio Chelewa ({{ count($daySummary['late_people']) }})</div>
+            <ul class="people-list-body">
+                @foreach($daySummary['late_people'] as $person)
+                <li>
+                    {{ $person['name'] ?? '' }}
+                    <span style="color:#666;">
+                        ({{ ($person['person_type'] ?? '') === 'staff' ? 'Staff' : 'Mwalimu' }}{{ !empty($person['check_in_time']) ? ', ' . formatTsPdfTimeAmPm($person['check_in_time']) : '' }})
+                    </span>
+                </li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+        @if(!empty($daySummary['early_people']))
+        <div class="people-list-box">
+            <div class="people-list-title early">Walio Wahi ({{ count($daySummary['early_people']) }})</div>
+            <ul class="people-list-body">
+                @foreach($daySummary['early_people'] as $person)
+                <li>
+                    {{ $person['name'] ?? '' }}
+                    <span style="color:#666;">
+                        ({{ ($person['person_type'] ?? '') === 'staff' ? 'Staff' : 'Mwalimu' }}{{ !empty($person['check_in_time']) ? ', ' . formatTsPdfTimeAmPm($person['check_in_time']) : '' }})
+                    </span>
+                </li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+        <p style="font-size:9px; color:#666; margin-top:8px; margin-bottom:0;">
+            Present = ameweka kidole (check-in tu inatosha). Walio Chelewa = wameingia baada ya muda rasmi. Walio Wahi = wameingia kabla ya muda rasmi.
+        </p>
+        @else
         <table class="stats-grid">
             <tr>
                 <td>
@@ -133,6 +243,7 @@
             Absent = complete working days without fingerprint record in database (no scan = absent).
         </p>
         @endif
+        @endif
     </div>
 
     <table class="data-table">
@@ -140,6 +251,13 @@
             <tr>
                 <th style="width: 30px;">#</th>
                 <th>Name</th>
+                @if($isDayReport)
+                <th class="center">Hali</th>
+                <th class="center">Ingia</th>
+                <th class="center">Toka</th>
+                <th class="center">Walio Chelewa</th>
+                <th class="center">Walio Wahi</th>
+                @else
                 <th class="center">Present</th>
                 <th class="center">Permitted</th>
                 <th class="center">Absent</th>
@@ -149,6 +267,7 @@
                 @endif
                 <th class="center">Late</th>
                 <th class="center">Early</th>
+                @endif
             </tr>
         </thead>
         <tbody>
@@ -161,6 +280,19 @@
                         ({{ $row['person_type'] === 'staff' ? 'Staff' : 'Teacher' }})
                     </span>
                 </td>
+                @if($isDayReport)
+                @php
+                    $dayStatus = $row['day_status'] ?? 'Absent';
+                    $statusLabel = $dayStatusLabels[$dayStatus] ?? $dayStatus;
+                    $isLate = $dayStatus === 'Late';
+                    $isEarly = $dayStatus === 'Early';
+                @endphp
+                <td class="center">{{ $statusLabel }}</td>
+                <td class="center">{{ !empty($row['check_in_time']) ? formatTsPdfTimeAmPm($row['check_in_time']) : '-' }}</td>
+                <td class="center">{{ !empty($row['check_out_time']) ? formatTsPdfTimeAmPm($row['check_out_time']) : '-' }}</td>
+                <td class="center">{{ $isLate ? 'Ndiyo' : '—' }}</td>
+                <td class="center">{{ $isEarly ? 'Ndiyo' : '—' }}</td>
+                @else
                 <td class="center">{{ $row['present_days'] }}</td>
                 <td class="center">{{ $row['permitted_days'] ?? 0 }}</td>
                 <td class="center">{{ $row['absent_days'] }}</td>
@@ -170,6 +302,7 @@
                 @endif
                 <td class="center">{{ $row['late_days'] }}</td>
                 <td class="center">{{ $row['early_days'] }}</td>
+                @endif
             </tr>
             @endforeach
         </tbody>

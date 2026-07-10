@@ -117,6 +117,42 @@
     .ts-toast.ready .ts-toast-msg { color: #0d6efd; }
     .ts-toast.permitted .ts-toast-msg { color: #6f42c1; }
     .ts-toast.unknown .ts-toast-msg { color: #b45309; }
+    .ts-people-collapse .collapse-toggle {
+        width: 100%;
+        text-align: left;
+        padding: 10px 14px;
+        border: none;
+        background: #fff;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .ts-people-collapse .collapse-toggle:hover { background: #f8f9fa; }
+    .ts-people-collapse .collapse-toggle .chevron {
+        transition: transform 0.2s ease;
+        font-size: 12px;
+    }
+    .ts-people-collapse .collapse-toggle[aria-expanded="true"] .chevron {
+        transform: rotate(180deg);
+    }
+    .ts-people-collapse .collapse-panel {
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 8px;
+        background: #fff;
+    }
+    .ts-people-collapse .collapse-body {
+        max-height: 280px;
+        overflow-y: auto;
+        padding: 8px 14px 12px;
+        border-top: 1px solid #e9ecef;
+        background: #fafbfc;
+    }
+    .ts-people-collapse .collapse-body ul { margin-bottom: 0; padding-left: 1.2rem; }
+    .ts-people-collapse .collapse-body li { margin-bottom: 4px; }
 </style>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
@@ -1123,6 +1159,22 @@
         return params;
     }
 
+    function buildTsPeopleCollapsePanel(panelId, title, people, titleClass) {
+        if (!people || !people.length) return '';
+        var html = '<div class="collapse-panel">';
+        html += '<button type="button" class="collapse-toggle ' + (titleClass || '') + '" data-toggle="collapse" data-target="#' + panelId + '" aria-expanded="false" aria-controls="' + panelId + '">';
+        html += '<span><i class="bi bi-chevron-down chevron mr-1"></i> ' + title + ' (' + people.length + ')</span>';
+        html += '</button>';
+        html += '<div id="' + panelId + '" class="collapse"><div class="collapse-body"><ul>';
+        people.forEach(function (p) {
+            var typeLbl = p.person_type === 'staff' ? 'Staff' : 'Mwalimu';
+            var timeLbl = p.check_in_time ? formatAmPm(p.check_in_time) : '';
+            html += '<li>' + escapeHtml(p.name) + ' <span class="text-muted">(' + typeLbl + (timeLbl ? ', ' + timeLbl : '') + ')</span></li>';
+        });
+        html += '</ul></div></div></div>';
+        return html;
+    }
+
     function loadTsAttendanceReport() {
         var params = getTsReportParams();
         var $content = $('#tsReportContent');
@@ -1170,25 +1222,9 @@
                         metaHtml += '</div>';
                     }
                     if ((ds.late_people && ds.late_people.length) || (ds.early_people && ds.early_people.length)) {
-                        metaHtml += '<div class="row g-2 mt-2 pt-2 border-top text-start small">';
-                        if (ds.late_people && ds.late_people.length) {
-                            metaHtml += '<div class="col-md-6"><strong class="text-danger"><i class="bi bi-clock-history"></i> Walio Chelewa (' + ds.late_people.length + ')</strong><ul class="mb-0 ps-3 mt-1">';
-                            ds.late_people.forEach(function (p) {
-                                var typeLbl = p.person_type === 'staff' ? 'Staff' : 'Mwalimu';
-                                var timeLbl = p.check_in_time ? formatAmPm(p.check_in_time) : '';
-                                metaHtml += '<li>' + escapeHtml(p.name) + ' <span class="text-muted">(' + typeLbl + (timeLbl ? ', ' + timeLbl : '') + ')</span></li>';
-                            });
-                            metaHtml += '</ul></div>';
-                        }
-                        if (ds.early_people && ds.early_people.length) {
-                            metaHtml += '<div class="col-md-6"><strong class="text-info"><i class="bi bi-sunrise"></i> Walio Wahi (' + ds.early_people.length + ')</strong><ul class="mb-0 ps-3 mt-1">';
-                            ds.early_people.forEach(function (p) {
-                                var typeLbl = p.person_type === 'staff' ? 'Staff' : 'Mwalimu';
-                                var timeLbl = p.check_in_time ? formatAmPm(p.check_in_time) : '';
-                                metaHtml += '<li>' + escapeHtml(p.name) + ' <span class="text-muted">(' + typeLbl + (timeLbl ? ', ' + timeLbl : '') + ')</span></li>';
-                            });
-                            metaHtml += '</ul></div>';
-                        }
+                        metaHtml += '<div class="ts-people-collapse mt-2 pt-2 border-top text-start small">';
+                        metaHtml += buildTsPeopleCollapsePanel('tsLatePeopleList', '<i class="bi bi-clock-history"></i> Walio Chelewa', ds.late_people || [], 'text-danger');
+                        metaHtml += buildTsPeopleCollapsePanel('tsEarlyPeopleList', '<i class="bi bi-sunrise"></i> Walio Wahi', ds.early_people || [], 'text-info');
                         metaHtml += '</div>';
                     }
                     metaHtml += '<p class="small text-muted mb-0 mt-2 text-center"><i class="bi bi-info-circle"></i> ' +
