@@ -30,8 +30,10 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 
-    <!-- jQuery (Must be loaded before other scripts that depend on it) -->
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script>
+        window.$ = window.jQuery;
+    </script>
 
     <style>
 /* Badilisha rangi ya background ya sidebar */

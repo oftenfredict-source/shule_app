@@ -35,12 +35,6 @@
         .sig-line { border-top: 1.5px solid #940000; width: 160px; margin: 0 auto; display: block; }
         .sig-label { font-size: 8.5px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase; }
         .watermark { position: fixed; top: 45%; left: 5%; width: 100%; text-align: center; opacity: 0.05; transform: rotate(-45deg); font-size: 100px; font-weight: bold; color: #000; z-index: 1000; text-transform: uppercase; }
-        .people-list-box { margin-bottom: 12px; border: 1px solid #eee; border-radius: 4px; page-break-inside: avoid; }
-        .people-list-title { font-weight: bold; padding: 8px 10px; border-bottom: 1px solid #eee; }
-        .people-list-title.late { color: #dc3545; background: #fff5f5; }
-        .people-list-title.early { color: #0dcaf0; background: #f0f9ff; }
-        .people-list-body { padding: 8px 10px 10px 24px; margin: 0; }
-        .people-list-body li { margin-bottom: 3px; }
         .day-stat-danger { color: #dc3545; }
         .day-stat-info { color: #0dcaf0; }
         .day-stat-success { color: #198754; }
@@ -182,36 +176,6 @@
                 </td>
             </tr>
         </table>
-        @if(!empty($daySummary['late_people']))
-        <div class="people-list-box">
-            <div class="people-list-title late">Walio Chelewa ({{ count($daySummary['late_people']) }})</div>
-            <ul class="people-list-body">
-                @foreach($daySummary['late_people'] as $person)
-                <li>
-                    {{ $person['name'] ?? '' }}
-                    <span style="color:#666;">
-                        ({{ ($person['person_type'] ?? '') === 'staff' ? 'Staff' : 'Mwalimu' }}{{ !empty($person['check_in_time']) ? ', ' . formatTsPdfTimeAmPm($person['check_in_time']) : '' }})
-                    </span>
-                </li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
-        @if(!empty($daySummary['early_people']))
-        <div class="people-list-box">
-            <div class="people-list-title early">Walio Wahi ({{ count($daySummary['early_people']) }})</div>
-            <ul class="people-list-body">
-                @foreach($daySummary['early_people'] as $person)
-                <li>
-                    {{ $person['name'] ?? '' }}
-                    <span style="color:#666;">
-                        ({{ ($person['person_type'] ?? '') === 'staff' ? 'Staff' : 'Mwalimu' }}{{ !empty($person['check_in_time']) ? ', ' . formatTsPdfTimeAmPm($person['check_in_time']) : '' }})
-                    </span>
-                </li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
         <p style="font-size:9px; color:#666; margin-top:8px; margin-bottom:0;">
             Present = ameweka kidole (check-in tu inatosha). Walio Chelewa = wameingia baada ya muda rasmi. Walio Wahi = wameingia kabla ya muda rasmi.
         </p>

@@ -3450,7 +3450,15 @@
 <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap4.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-(function () {
+(function ($) {
+    if (typeof $ !== 'function') {
+        console.error('Manage Store: jQuery is required but was not found.');
+        return;
+    }
+    if (window.jQuery && window.$ !== window.jQuery) {
+        window.$ = window.jQuery;
+    }
+
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     const routes = {
         unitsByType: (id) => `{{ url('store/measurement-types') }}/${id}/units`,
@@ -9794,5 +9802,5 @@
             initItemFormSelect2($(this).find('.item-form-select'));
         });
     });
-})();
+})(window.jQuery);
 </script>
