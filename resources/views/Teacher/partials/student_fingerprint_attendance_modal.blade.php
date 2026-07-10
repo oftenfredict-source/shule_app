@@ -239,6 +239,16 @@
         return params;
     }
 
+    function tcSfStatusBadge(r) {
+        var s = r.attendance_status || r.status || '';
+        if (s === 'Permission') return '<span class="badge bg-warning text-dark">Permission</span>';
+        if (s === 'Sick') return '<span class="badge bg-secondary">Sick</span>';
+        if (s === 'Present') return '<span class="badge bg-success">Present</span>';
+        if (s === 'Absent') return '<span class="badge bg-danger">Absent</span>';
+        if (r.check_out_time || s === 'Complete') return '<span class="badge bg-success">Complete</span>';
+        return '<span class="badge bg-info">Check In Only</span>';
+    }
+
     function tcSfRenderLive(records, date) {
         if (!records.length) {
             $('#tcSfLiveArea').html('<div class="alert alert-info mb-0">No attendance for today yet.</div>');
@@ -247,7 +257,7 @@
         var tableHtml = '<div class="table-responsive"><table id="tcSfLiveTable" class="table table-sm table-striped"><thead class="bg-primary-custom text-white"><tr>' +
             '<th>#</th><th>Class</th><th>Name</th><th>Gender</th><th>Check In</th><th>Check Out</th><th>Status</th></tr></thead><tbody>';
         records.forEach(function (r, i) {
-            var st = (r.check_out_time || r.status === 'Complete') ? '<span class="badge bg-success">Complete</span>' : '<span class="badge bg-info">Check In Only</span>';
+            var st = tcSfStatusBadge(r);
             tableHtml += '<tr' + (r.is_new ? ' class="table-success"' : '') + '><td>' + (i+1) + '</td><td>' + (r.class_name||'-') + '</td><td>' + (r.user_name||'-') + '</td><td>' + tcSfFormatGender(r.gender) + '</td><td>' + tcSfFmtTime(r.check_in_time) + '</td><td>' + tcSfFmtTime(r.check_out_time) + '</td><td>' + st + '</td></tr>';
         });
         tableHtml += '</tbody></table></div>';

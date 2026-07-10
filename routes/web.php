@@ -369,6 +369,18 @@ Route::post("super-admin/fingerprint-attendance-sms-schedule", [
     SuperAdminController::class,
     "saveFingerprintAttendanceSmsSchedule",
 ])->name("superadmin.fingerprint_attendance_sms_schedule.save");
+Route::get("super-admin/parent-fingerprint-portal", [
+    SuperAdminController::class,
+    "parentFingerprintPortalSettings",
+])->name("superadmin.parent_fingerprint_portal");
+Route::get("super-admin/parent-fingerprint-portal/{schoolID}", [
+    SuperAdminController::class,
+    "getParentFingerprintPortalSettings",
+])->name("superadmin.parent_fingerprint_portal.get");
+Route::post("super-admin/parent-fingerprint-portal", [
+    SuperAdminController::class,
+    "saveParentFingerprintPortalSettings",
+])->name("superadmin.parent_fingerprint_portal.save");
 
 Route::get("super-admin/fingerprint-attendance-setup", [
     FingerprintAttendanceSetupController::class,
@@ -571,10 +583,18 @@ Route::get("parentAttendance", [
     ParentsContoller::class,
     "parentAttendance",
 ])->name("parentAttendance");
+Route::get("parentAttendance/{studentID}", [
+    ParentsContoller::class,
+    "parentStudentAttendance",
+])->name("parentStudentAttendance");
 Route::get("parentFingerprintAttendance", [
     ParentsContoller::class,
     "parentFingerprintAttendance",
 ])->name("parentFingerprintAttendance");
+Route::get("parentFingerprintAttendance/{studentID}", [
+    ParentsContoller::class,
+    "parentStudentFingerprintAttendance",
+])->name("parentStudentFingerprintAttendance");
 Route::get("parentPayments", [ParentsContoller::class, "parentPayments"])->name(
     "parentPayments",
 );

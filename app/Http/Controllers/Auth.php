@@ -1280,4 +1280,61 @@ class Auth extends Controller
             'app_url' => rtrim((string) config('app.url'), '/'),
         ];
     }
+
+    /**
+     * Mobile app (Flutter) — create a web session so WebView can load parent/teacher/admin blades.
+     * Uses the same login rules as POST /auth but without CSRF (API route).
+     */
+    public function createMobileWebSession(Request $request)
+    {
+        $request->headers->set('Accept', 'application/json');
+        $request->headers->set('X-Requested-With', 'XMLHttpRequest');
+
+        $response = $this->auth($request);
+
+        if (! $response instanceof \Illuminate\Http\JsonResponse) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unexpected login response.',
+            ], 500);
+        }
+
+        $data = $response->getData(true);
+        if (! ($data['success'] ?? false)) {
+            return $response;
+        }
+
+        if (! empty($data['redirect'])) {
+            $data['web_url'] = $data['redirect'];
+        }
+
+        $userType = strtolower((string) Session::get('user_type', ''));
+        $data['user_type'] = Session::get('user_type');
+        $data['schoolID'] = Session::get('schoolID');
+        $data['session_active'] = Session::has('userID');
+
+        if ($userType === 'parent') {
+            $data['parentID'] = Session::get('parentID');
+            $data['portal_urls'] = $this->parentPortalUrls();
+        }
+
+        return response()->json($data, $response->getStatusCode());
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function parentPortalUrls(): array
+    {
+        return [
+            'dashboard' => route('parentDashboard'),
+            'results' => route('parentResults'),
+            'attendance' => route('parentAttendance'),
+            'fingerprint_attendance' => route('parentFingerprintAttendance'),
+            'payments' => route('parentPayments'),
+            'fees_summary' => route('parentFeesSummary'),
+            'subjects' => route('parentSubjects'),
+            'permissions' => route('parent.permissions'),
+        ];
+    }
 }

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\StudentFingerprintAttendance;
 use App\Models\TeacherFingerprintAttendance;
 use App\Models\StaffFingerprintAttendance;
+use App\Services\TeacherStaffPermissionAttendanceService;
 use App\Models\Teacher;
 use App\Models\School;
 use Illuminate\Http\Request;
@@ -1094,6 +1095,12 @@ class AttendanceApiController extends Controller
             $page = max(1, (int) $request->input('page', 1));
             $perPage = 50;
 
+            $permissionMap = [];
+            if ($dateFilter) {
+                $permissionMap = app(TeacherStaffPermissionAttendanceService::class)
+                    ->loadApprovedPermissionDatesMap($schoolID, $dateFilter, $dateFilter, 'all');
+            }
+
             $teacherQuery = TeacherFingerprintAttendance::with('teacher')
                 ->whereHas('teacher', function ($q) use ($schoolID) {
                     $q->where('schoolID', $schoolID);
@@ -1113,12 +1120,17 @@ class AttendanceApiController extends Controller
 
             foreach ($teacherQuery->get() as $record) {
                 $teacher = $record->teacher;
+                $attendanceDate = $record->attendance_date->format('Y-m-d');
+                $personKey = 'teacher_' . $record->teacherID;
+                $isPermitted = $dateFilter
+                    && app(TeacherStaffPermissionAttendanceService::class)
+                        ->isPermittedOnDate($permissionMap, $personKey, $attendanceDate);
                 $formattedRecords->push([
                     'person_type' => 'teacher',
-                    'attendance_date' => $record->attendance_date->format('Y-m-d'),
-                    'check_in_time' => $record->check_in_time ? $record->check_in_time->format('Y-m-d H:i:s') : null,
-                    'check_out_time' => $record->check_out_time ? $record->check_out_time->format('Y-m-d H:i:s') : null,
-                    'status' => $record->status,
+                    'attendance_date' => $attendanceDate,
+                    'check_in_time' => $isPermitted ? null : ($record->check_in_time ? $record->check_in_time->format('Y-m-d H:i:s') : null),
+                    'check_out_time' => $isPermitted ? null : ($record->check_out_time ? $record->check_out_time->format('Y-m-d H:i:s') : null),
+                    'status' => $isPermitted ? 'Permitted' : $record->status,
                     'verify_mode' => $record->verify_mode,
                     'device_ip' => $record->device_ip,
                     'user' => [
@@ -1138,12 +1150,17 @@ class AttendanceApiController extends Controller
 
             foreach ($staffQuery->get() as $record) {
                 $staff = $record->staff;
+                $attendanceDate = $record->attendance_date->format('Y-m-d');
+                $personKey = 'staff_' . $record->staffID;
+                $isPermitted = $dateFilter
+                    && app(TeacherStaffPermissionAttendanceService::class)
+                        ->isPermittedOnDate($permissionMap, $personKey, $attendanceDate);
                 $formattedRecords->push([
                     'person_type' => 'staff',
-                    'attendance_date' => $record->attendance_date->format('Y-m-d'),
-                    'check_in_time' => $record->check_in_time ? $record->check_in_time->format('Y-m-d H:i:s') : null,
-                    'check_out_time' => $record->check_out_time ? $record->check_out_time->format('Y-m-d H:i:s') : null,
-                    'status' => $record->status,
+                    'attendance_date' => $attendanceDate,
+                    'check_in_time' => $isPermitted ? null : ($record->check_in_time ? $record->check_in_time->format('Y-m-d H:i:s') : null),
+                    'check_out_time' => $isPermitted ? null : ($record->check_out_time ? $record->check_out_time->format('Y-m-d H:i:s') : null),
+                    'status' => $isPermitted ? 'Permitted' : $record->status,
                     'verify_mode' => $record->verify_mode,
                     'device_ip' => $record->device_ip,
                     'user' => [

@@ -170,7 +170,7 @@
 </div>
 
 <!-- Statistics Row -->
-<div class="row g-4 mb-5">
+<div class="row g-4 mb-4">
     <div class="col-lg-3 col-md-6">
         <div class="stat-card">
             <div class="stat-icon"><i class="bx bx-group"></i></div>
@@ -197,6 +197,32 @@
             <div class="stat-icon"><i class="bx bx-alarm-exclamation"></i></div>
             <div class="stat-number">{{ $upcomingExams->count() }}</div>
             <div class="stat-label">Upcoming Exams</div>
+        </div>
+    </div>
+</div>
+
+<!-- Mahudhurio Quick Access -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm" style="border-top: 4px solid #940000 !important;">
+            <div class="card-body">
+                <div class="section-title mb-3" style="margin-bottom: 12px !important;"><i class="bx bx-calendar-check"></i> Mahudhurio ya Watoto</div>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="small text-uppercase fw-bold text-muted">Chagua Aina</label>
+                        <select class="form-select" id="dashboardAttendanceMode">
+                            <option value="{{ route('parentAttendance') }}">Mahudhurio ya Mfumo</option>
+                            <option value="{{ route('parentFingerprintAttendance') }}">Alama za Vidole (Fingerprint)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <p class="small text-muted mb-2">Bofya hapa chini kuona mahudhurio ya kila mtoto kwa kalenda ya mwezi.</p>
+                        <a href="{{ route('parentAttendance') }}" class="btn btn-primary">
+                            <i class="bx bx-show"></i> Angalia Mahudhurio ya Mfumo
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -335,6 +361,9 @@
             }
         });
         @endif
+    });
+    document.getElementById('dashboardAttendanceMode')?.addEventListener('change', function () {
+        if (this.value) window.location.href = this.value;
     });
 </script>
 @endpush

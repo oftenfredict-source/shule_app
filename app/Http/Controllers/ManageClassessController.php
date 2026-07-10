@@ -12,6 +12,8 @@ use App\Models\Combie;
 use App\Models\Attendance;
 use App\Models\User;
 use App\Services\ZKTecoService;
+use App\Services\StudentPermissionAttendanceService;
+use App\Services\SchoolWorkingDaysService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -2732,8 +2734,26 @@ class ManageClassessController extends Controller
                 $students = $studentQuery->get();
             }
 
+            $permissionStatusMap = [];
+            $isWorkingDayForAttendance = false;
+            $attendanceDateForPrefill = $request->get('attendance_date');
+            if ($attendanceDateForPrefill && $schoolID) {
+                $permissionStatusMap = app(StudentPermissionAttendanceService::class)
+                    ->loadApprovedStatusMap(
+                        (int) $schoolID,
+                        $attendanceDateForPrefill,
+                        $attendanceDateForPrefill
+                    );
+                $workingDates = app(SchoolWorkingDaysService::class)->getWorkingDates(
+                    (int) $schoolID,
+                    \Carbon\Carbon::parse($attendanceDateForPrefill)->startOfDay(),
+                    \Carbon\Carbon::parse($attendanceDateForPrefill)->startOfDay()
+                );
+                $isWorkingDayForAttendance = in_array($attendanceDateForPrefill, $workingDates, true);
+            }
+
             $students = $students
-                ->map(function($student) use ($schoolID, $schoolType) {
+                ->map(function ($student) use ($schoolID, $schoolType, $permissionStatusMap, $isWorkingDayForAttendance, $attendanceDateForPrefill) {
                     $oldSubclassInfo = null;
                     $studentGrade = null;
 
@@ -2797,6 +2817,19 @@ class ManageClassessController extends Controller
                     // Check if student has health issues
                     $hasHealthIssues = ($student->is_disabled ?? false) || ($student->has_epilepsy ?? false) || ($student->has_allergies ?? false);
 
+                    $attendanceStatus = $student->attendance_status ?? null;
+                    if ($isWorkingDayForAttendance && $attendanceDateForPrefill) {
+                        $permService = app(StudentPermissionAttendanceService::class);
+                        $permStatus = $permService->statusForStudentOnDate(
+                            $permissionStatusMap,
+                            (int) $student->studentID,
+                            $attendanceDateForPrefill
+                        );
+                        if ($permStatus) {
+                            $attendanceStatus = $permStatus;
+                        }
+                    }
+
                     return [
                         'studentID' => $student->studentID,
                         'admission_number' => $student->admission_number,
@@ -2828,7 +2861,7 @@ class ManageClassessController extends Controller
                         'subclass_display' => $subclassDisplay, // Format: "MainClass - Subclass"
                         'subclassID' => $subclassID, // Subclass ID for filtering
                         'has_health_issues' => $hasHealthIssues, // For statistics
-                        'attendance_status' => $student->attendance_status ?? null,
+                        'attendance_status' => $attendanceStatus,
                         'attendance_remark' => $student->attendance_remark ?? null
                     ];
                 });
@@ -4113,7 +4146,39 @@ class ManageClassessController extends Controller
             $savedCount = 0;
             $errors = [];
 
-            foreach ($attendanceData as $studentID => $data) {
+            $permissionStatusMap = app(StudentPermissionAttendanceService::class)
+                ->loadApprovedStatusMap((int) $schoolID, $attendanceDate, $attendanceDate);
+            $workingDates = app(SchoolWorkingDaysService::class)->getWorkingDates(
+                (int) $schoolID,
+                \Carbon\Carbon::parse($attendanceDate)->startOfDay(),
+                \Carbon\Carbon::parse($attendanceDate)->startOfDay()
+            );
+            $isWorkingDay = in_array($attendanceDate, $workingDates, true);
+            $permService = app(StudentPermissionAttendanceService::class);
+
+            $subclassStudentIds = Student::where('subclassID', $subclassID)
+                ->where('schoolID', $schoolID)
+                ->where('status', '!=', 'Transferred')
+                ->pluck('studentID')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            foreach ($subclassStudentIds as $studentID) {
+                $data = $attendanceData[$studentID] ?? $attendanceData[(string) $studentID] ?? [];
+                $permStatus = $isWorkingDay
+                    ? $permService->statusForStudentOnDate($permissionStatusMap, $studentID, $attendanceDate)
+                    : null;
+                $status = $permStatus ?: ($data['status'] ?? 'Present');
+                $remark = $data['remark'] ?? null;
+
+                if ($permStatus && empty($data)) {
+                    // Auto-save approved ruksa even if row was not posted in form
+                }
+
+                if (! $permStatus && empty($data)) {
+                    continue;
+                }
+
                 try {
                     // Check if attendance already exists for this date
                     $existing = Attendance::where('subclassID', $subclassID)
@@ -4123,8 +4188,8 @@ class ManageClassessController extends Controller
 
                     if ($existing) {
                         // Update existing
-                        $existing->status = $data['status'] ?? 'Present';
-                        $existing->remark = $data['remark'] ?? null;
+                        $existing->status = $status;
+                        $existing->remark = $remark;
                         $existing->teacherID = $teacherID;
                         $existing->save();
                     } else {
@@ -4135,8 +4200,8 @@ class ManageClassessController extends Controller
                             'studentID' => $studentID,
                             'teacherID' => $teacherID,
                             'attendance_date' => $attendanceDate,
-                            'status' => $data['status'] ?? 'Present',
-                            'remark' => $data['remark'] ?? null,
+                            'status' => $status,
+                            'remark' => $remark,
                         ]);
                     }
                     $savedCount++;

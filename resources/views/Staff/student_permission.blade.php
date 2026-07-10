@@ -268,9 +268,8 @@
                             <label class="font-weight-bold small">Reason Type *</label>
                             <select name="reason_type" class="form-control" required>
                                 <option value="">Select Reason</option>
-                                <option value="medical">Medical</option>
-                                <option value="family">Family</option>
-                                <option value="other">Other</option>
+                                <option value="permission">Permission</option>
+                                <option value="sick">Sick</option>
                             </select>
                         </div>
 
@@ -503,9 +502,8 @@
                             <label class="font-weight-bold small">Reason Type *</label>
                             <select name="reason_type" class="form-control" required>
                                 <option value="">Select Reason</option>
-                                <option value="medical">Medical</option>
-                                <option value="family">Family</option>
-                                <option value="other">Other</option>
+                                <option value="permission">Permission</option>
+                                <option value="sick">Sick</option>
                             </select>
                         </div>
                     </div>

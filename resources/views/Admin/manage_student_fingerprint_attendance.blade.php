@@ -267,6 +267,16 @@
         return g.charAt(0).toUpperCase() + g.slice(1);
     }
 
+    function studentFpStatusBadge(r) {
+        var s = r.attendance_status || r.status || '';
+        if (s === 'Permission') return '<span class="badge bg-warning text-dark">Permission</span>';
+        if (s === 'Sick') return '<span class="badge bg-secondary">Sick</span>';
+        if (s === 'Present') return '<span class="badge bg-success">Present</span>';
+        if (s === 'Absent') return '<span class="badge bg-danger">Absent</span>';
+        if (r.check_out_time || s === 'Complete') return '<span class="badge bg-success">Complete</span>';
+        return '<span class="badge bg-info">Check In Only</span>';
+    }
+
     function renderLiveTable(records, date) {
         if (!records.length) {
             $('#sfLiveArea').html('<div class="alert alert-info mb-0">No student attendance for today yet.</div>');
@@ -275,7 +285,7 @@
         var tableHtml = '<div class="table-responsive"><table id="sfLiveTable" class="table table-sm table-striped"><thead class="bg-primary-custom text-white"><tr>' +
             '<th>#</th><th>Class</th><th>Name</th><th>Gender</th><th>Fingerprint ID</th><th>Check In</th><th>Check Out</th><th>Status</th><th>Device</th></tr></thead><tbody>';
         records.forEach(function (r, i) {
-            var st = (r.check_out_time || r.status === 'Complete') ? '<span class="badge bg-success">Complete</span>' : '<span class="badge bg-info">Check In Only</span>';
+            var st = studentFpStatusBadge(r);
             tableHtml += '<tr' + (r.is_new ? ' class="table-success"' : '') + '><td>' + (i+1) + '</td><td>' + (r.class_name||'-') + '</td><td>' + (r.user_name||'-') + '</td><td>' + formatGender(r.gender) + '</td><td>' + (r.fingerprint_id||r.studentID||'-') + '</td><td>' + fmtTime(r.check_in_time) + '</td><td>' + fmtTime(r.check_out_time) + '</td><td>' + st + '</td><td>' + (r.device_ip||'-') + '</td></tr>';
         });
         tableHtml += '</tbody></table></div>';

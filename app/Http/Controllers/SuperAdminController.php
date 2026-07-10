@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\School;
 use App\Models\SchoolAttendanceSmsSchedule;
 use App\Models\SchoolFingerprintAttendanceSmsSchedule;
+use App\Models\ClassModel;
+use App\Services\ParentFingerprintPortalService;
 use App\Models\Teacher;
 use App\Models\OtherStaff;
 use App\Models\Watchman;
@@ -1823,6 +1825,80 @@ class SuperAdminController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Fingerprint attendance SMS schedule saved successfully.',
+        ]);
+    }
+
+    public function parentFingerprintPortalSettings()
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $schools = School::orderBy('school_name', 'asc')
+            ->get(['schoolID', 'school_name', 'school_logo', 'registration_number', 'environment']);
+
+        return view('SuperAdmin.parent_fingerprint_portal', compact('schools'));
+    }
+
+    public function getParentFingerprintPortalSettings($schoolID)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $school = School::where('schoolID', $schoolID)->first();
+        if (! $school) {
+            return response()->json(['success' => false, 'error' => 'School not found.'], 404);
+        }
+
+        $portalService = app(ParentFingerprintPortalService::class);
+        $enabledMap = $portalService->getClassEnabledMap((int) $schoolID);
+
+        $classes = ClassModel::where('schoolID', $schoolID)
+            ->orderBy('class_name')
+            ->get(['classID', 'class_name'])
+            ->map(fn ($class) => [
+                'classID' => (int) $class->classID,
+                'class_name' => $class->class_name,
+                'enabled' => $enabledMap[(int) $class->classID] ?? false,
+            ])
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'schoolID' => (int) $schoolID,
+            'school_name' => $school->school_name,
+            'classes' => $classes,
+        ]);
+    }
+
+    public function saveParentFingerprintPortalSettings(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'schoolID' => 'required|integer|exists:schools,schoolID',
+            'enabled_class_ids' => 'nullable|array',
+            'enabled_class_ids.*' => 'integer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $schoolID = (int) $request->input('schoolID');
+        $enabledClassIds = array_map('intval', (array) $request->input('enabled_class_ids', []));
+
+        app(ParentFingerprintPortalService::class)->syncSchoolClasses($schoolID, $enabledClassIds);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Parent fingerprint attendance settings saved successfully.',
         ]);
     }
 }

@@ -10,10 +10,13 @@ use App\Models\Student;
 use App\Models\StudentFingerprintAttendance;
 use App\Models\Teacher;
 use App\Models\TeacherFingerprintAttendance;
+use App\Models\TeacherStaffWorkTimeSetting;
 use App\Services\StudentAttendanceSyncService;
 use App\Services\StudentLiveEventBuffer;
 use App\Services\TeacherStaffAttendanceSyncService;
 use App\Services\TeacherStaffLiveEventBuffer;
+use App\Services\TeacherStaffPermissionAttendanceService;
+use App\Services\StudentPermissionAttendanceService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -21,7 +24,7 @@ class SchoolAgentAttendanceController extends Controller
 {
     /**
      * Local attendance-agent sends live punches (teacher + staff) here.
-     * Each punch is applied in order: 1st of the day = Sign In, 2nd = Sign Out.
+     * Server interprets punches using the check-in window (see TeacherStaffAttendanceSyncService).
      */
     public function ingestTeacherStaffLive(Request $request)
     {
@@ -69,7 +72,7 @@ class SchoolAgentAttendanceController extends Controller
         $updatedCount = 0;
 
         foreach ($normalized as $punch) {
-            $event = $this->applySingleLivePunch($peopleMap, $punch, $deviceIpTop);
+            $event = $this->applySingleLivePunch($peopleMap, $punch, $deviceIpTop, $schoolID);
             if ($event === null) {
                 continue;
             }
@@ -176,7 +179,7 @@ class SchoolAgentAttendanceController extends Controller
      * @param array{user_id:int,record_time:Carbon,type:string,device_ip:string} $punch
      * @return array<string, mixed>|null
      */
-    private function applySingleLivePunch(array $peopleMap, array $punch, string $deviceIpTop): ?array
+    private function applySingleLivePunch(array $peopleMap, array $punch, string $deviceIpTop, int $schoolID): ?array
     {
         $userId = $punch['user_id'];
         $punchTime = $punch['record_time'];
@@ -202,10 +205,10 @@ class SchoolAgentAttendanceController extends Controller
         $resolvedDeviceIp = $punch['device_ip'] !== '' ? $punch['device_ip'] : ($deviceIpTop !== '' ? $deviceIpTop : null);
 
         if ($personType === 'teacher') {
-            return $this->applyTeacherLivePunch($person, $recordDate, $punchTime, $punchFormatted, $name, $verifyMode, $resolvedDeviceIp);
+            return $this->applyTeacherLivePunch($person, $recordDate, $punchTime, $punchFormatted, $name, $verifyMode, $resolvedDeviceIp, $schoolID);
         }
 
-        return $this->applyStaffLivePunch($person, $recordDate, $punchTime, $punchFormatted, $name, $verifyMode, $resolvedDeviceIp);
+        return $this->applyStaffLivePunch($person, $recordDate, $punchTime, $punchFormatted, $name, $verifyMode, $resolvedDeviceIp, $schoolID);
     }
 
     /**
@@ -218,16 +221,48 @@ class SchoolAgentAttendanceController extends Controller
         string $punchFormatted,
         string $name,
         string $verifyMode,
-        ?string $deviceIp
+        ?string $deviceIp,
+        int $schoolID
     ): array {
+        $permissionService = app(TeacherStaffPermissionAttendanceService::class);
+        if ($permissionService->isPermittedToday($schoolID, 'teacher', (int) $person->id, $recordDate)) {
+            return $this->permittedEvent('teacher', $person, $punchFormatted, $name);
+        }
+
+        /** @var TeacherStaffAttendanceSyncService $syncService */
+        $syncService = app(TeacherStaffAttendanceSyncService::class);
+        $workStartTime = (string) TeacherStaffWorkTimeSetting::forSchool($schoolID)->work_start_time;
+
         $existing = TeacherFingerprintAttendance::where('teacherID', $person->id)
             ->whereDate('attendance_date', $recordDate)
             ->first();
 
-        $action = 'Sign In';
+        if ($existing && $existing->check_out_time) {
+            $bounds = $syncService->getCheckInWindowBounds($recordDate, $workStartTime);
+            if (Carbon::parse($existing->check_out_time)->lte($bounds['end'])) {
+                $existing->update(['check_out_time' => null, 'status' => 0]);
+                $existing->refresh();
+            }
+        }
+
+        $hasCheckIn = $existing && $existing->check_in_time;
+        $hasCheckOut = $existing && $existing->check_out_time;
+        $classification = $syncService->classifyLivePunch(
+            $punchTime,
+            $recordDate,
+            $workStartTime,
+            (bool) $hasCheckIn,
+            (bool) $hasCheckOut
+        );
+
+        if ($classification === 'ignore') {
+            return $this->skipEvent('teacher', $person, $punchFormatted, $name, (bool) $hasCheckOut);
+        }
+
+        $action = $classification === 'sign_out' ? 'Sign Out' : 'Sign In';
         $created = false;
 
-        if (!$existing || !$existing->check_in_time) {
+        if ($classification === 'sign_in') {
             TeacherFingerprintAttendance::updateOrCreate(
                 ['teacherID' => $person->id, 'attendance_date' => $recordDate],
                 [
@@ -242,7 +277,7 @@ class SchoolAgentAttendanceController extends Controller
                 ]
             );
             $created = !$existing;
-        } elseif (!$existing->check_out_time) {
+        } else {
             $checkIn = Carbon::parse($existing->check_in_time);
             if ($punchTime->lte($checkIn)) {
                 return $this->skipEvent('teacher', $person, $punchFormatted, $name, false);
@@ -254,9 +289,6 @@ class SchoolAgentAttendanceController extends Controller
                 'verify_mode' => $verifyMode,
                 'device_ip' => $deviceIp ?? $existing->device_ip,
             ]);
-            $action = 'Sign Out';
-        } else {
-            return $this->skipEvent('teacher', $person, $punchFormatted, $name, true);
         }
 
         $hasCheckOut = $action === 'Sign Out';
@@ -285,16 +317,48 @@ class SchoolAgentAttendanceController extends Controller
         string $punchFormatted,
         string $name,
         string $verifyMode,
-        ?string $deviceIp
+        ?string $deviceIp,
+        int $schoolID
     ): array {
+        $permissionService = app(TeacherStaffPermissionAttendanceService::class);
+        if ($permissionService->isPermittedToday($schoolID, 'staff', (int) $person->id, $recordDate)) {
+            return $this->permittedEvent('staff', $person, $punchFormatted, $name);
+        }
+
+        /** @var TeacherStaffAttendanceSyncService $syncService */
+        $syncService = app(TeacherStaffAttendanceSyncService::class);
+        $workStartTime = (string) TeacherStaffWorkTimeSetting::forSchool($schoolID)->work_start_time;
+
         $existing = StaffFingerprintAttendance::where('staffID', $person->id)
             ->whereDate('attendance_date', $recordDate)
             ->first();
 
-        $action = 'Sign In';
+        if ($existing && $existing->check_out_time) {
+            $bounds = $syncService->getCheckInWindowBounds($recordDate, $workStartTime);
+            if (Carbon::parse($existing->check_out_time)->lte($bounds['end'])) {
+                $existing->update(['check_out_time' => null, 'status' => 0]);
+                $existing->refresh();
+            }
+        }
+
+        $hasCheckIn = $existing && $existing->check_in_time;
+        $hasCheckOut = $existing && $existing->check_out_time;
+        $classification = $syncService->classifyLivePunch(
+            $punchTime,
+            $recordDate,
+            $workStartTime,
+            (bool) $hasCheckIn,
+            (bool) $hasCheckOut
+        );
+
+        if ($classification === 'ignore') {
+            return $this->skipEvent('staff', $person, $punchFormatted, $name, (bool) $hasCheckOut);
+        }
+
+        $action = $classification === 'sign_out' ? 'Sign Out' : 'Sign In';
         $created = false;
 
-        if (!$existing || !$existing->check_in_time) {
+        if ($classification === 'sign_in') {
             StaffFingerprintAttendance::updateOrCreate(
                 ['staffID' => $person->id, 'attendance_date' => $recordDate],
                 [
@@ -309,7 +373,7 @@ class SchoolAgentAttendanceController extends Controller
                 ]
             );
             $created = !$existing;
-        } elseif (!$existing->check_out_time) {
+        } else {
             $checkIn = Carbon::parse($existing->check_in_time);
             if ($punchTime->lte($checkIn)) {
                 return $this->skipEvent('staff', $person, $punchFormatted, $name, false);
@@ -321,9 +385,6 @@ class SchoolAgentAttendanceController extends Controller
                 'verify_mode' => $verifyMode,
                 'device_ip' => $deviceIp ?? $existing->device_ip,
             ]);
-            $action = 'Sign Out';
-        } else {
-            return $this->skipEvent('staff', $person, $punchFormatted, $name, true);
         }
 
         $hasCheckOut = $action === 'Sign Out';
@@ -339,6 +400,25 @@ class SchoolAgentAttendanceController extends Controller
             'status' => $hasCheckOut ? 'Complete' : 'Check In Only',
             'sent_to_live' => true,
             'message' => 'Sent to live system',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function permittedEvent(string $personType, $person, string $punchFormatted, string $name): array
+    {
+        return [
+            'matched' => true,
+            'created' => false,
+            'skipped' => true,
+            'person_type' => $personType,
+            'user_id' => (int) $person->id,
+            'user_name' => $name !== '' ? $name : 'N/A',
+            'record_time' => $punchFormatted,
+            'action' => 'Permitted',
+            'status' => 'Permitted',
+            'message' => 'Approved permission — counted as Permitted.',
         ];
     }
 
@@ -557,6 +637,38 @@ class SchoolAgentAttendanceController extends Controller
         $classLabel = 'N/A';
         if ($student->subclass) {
             $classLabel = trim(($student->subclass->class->class_name ?? '').' '.($student->subclass->subclass_name ?? ''));
+        }
+
+        $permissionService = app(StudentPermissionAttendanceService::class);
+        $permissionMap = $permissionService->loadApprovedStatusMap(
+            (int) $student->schoolID,
+            $recordDate,
+            $recordDate,
+            [(int) $student->studentID]
+        );
+        $permStatus = $permissionService->statusForStudentOnDate(
+            $permissionMap,
+            (int) $student->studentID,
+            $recordDate
+        );
+        if ($permStatus) {
+            $label = $permStatus === 'Sick' ? 'Sick' : 'Permission';
+
+            return [
+                'matched' => true,
+                'created' => false,
+                'skipped' => true,
+                'person_type' => 'student',
+                'user_id' => (int) $student->studentID,
+                'user_name' => $name !== '' ? $name : 'N/A',
+                'class_name' => $classLabel,
+                'subclassID' => (int) ($student->subclassID ?? 0),
+                'record_time' => $punchFormatted,
+                'action' => $label,
+                'status' => $label,
+                'attendance_status' => $label,
+                'message' => 'Approved ruksa — counted as '.$label.'.',
+            ];
         }
 
         $existing = StudentFingerprintAttendance::where('studentID', $student->studentID)

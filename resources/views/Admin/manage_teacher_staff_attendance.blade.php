@@ -102,12 +102,14 @@
         to { transform: translateY(0); opacity: 1; }
     }
     .ts-toast.signout { border-left-color: #198754; }
+    .ts-toast.permitted { border-left-color: #6f42c1; }
     .ts-toast.ready { border-left-color: #0d6efd; }
     .ts-toast.unknown { border-left-color: #fd7e14; }
     .ts-toast-title { font-weight: 700; font-size: 14px; margin: 0; }
     .ts-toast-meta { font-size: 12px; color: #666; margin-top: 3px; }
     .ts-toast-msg { font-size: 12px; font-weight: 600; margin-top: 6px; color: #1e7e45; }
     .ts-toast.ready .ts-toast-msg { color: #0d6efd; }
+    .ts-toast.permitted .ts-toast-msg { color: #6f42c1; }
     .ts-toast.unknown .ts-toast-msg { color: #b45309; }
 </style>
 
@@ -305,6 +307,12 @@
                         <div class="card-body p-4">
                             <h5 class="text-primary-custom mb-3"><i class="bi bi-clock"></i> Official Working Time</h5>
                             <p class="text-muted small">Weka muda rasmi wa kuingia na kutoka kazini. Hii inatumika kupima kuchelewa na kuwahi kwenye Report.</p>
+                            <div class="alert alert-light border small mb-3">
+                                <strong><i class="bi bi-info-circle"></i> Check-in window:</strong>
+                                Kuanzia masaa 3 kabla ya muda wa kuingia hadi masaa 2 baada ya muda wa kuingia
+                                (mfano 8:00 AM → 5:00 AM–10:00 AM), kidole chochote kinasomwa kama <strong>Sign In</strong> tu —
+                                hata mtu akiweka mara 2 au zaidi. Baada ya dirisha hilo, kidole kinasomwa kama <strong>Sign Out</strong>.
+                            </div>
                             <div class="form-group">
                                 <label>Work Start Time</label>
                                 <input type="time" id="tsWorkStartTime" class="form-control"
@@ -445,6 +453,8 @@
     function tsLiveEventMessage(item) {
         if (item.action === 'Sign In') return 'Signed in successfully.';
         if (item.action === 'Sign Out') return 'Signed out successfully.';
+        if (item.action === 'Permitted') return 'Approved permission — counted as Permitted.';
+        if (item.action === 'Ignored') return 'Duplicate punch ignored (check-in window).';
         if (item.action === 'Ready') return 'This user already signed in and signed out.';
         if (item.action === 'Unknown' || item.matched === false) {
             return item.message || 'Enroll ID not found in school teachers/staff.';
@@ -459,6 +469,7 @@
         var action = ev.action || 'Sign In';
         var type = 'signin';
         if (action === 'Sign Out') type = 'signout';
+        if (action === 'Permitted') type = 'permitted';
         if (action === 'Ready') type = 'ready';
         if (action === 'Unknown' || ev.matched === false) type = 'unknown';
 
@@ -678,9 +689,12 @@
             var checkIn = formatTimeOnly(rec.check_in_time || '');
             var checkOut = formatTimeOnly(rec.check_out_time || '');
             var hasCheckOut = !!(rec.check_out_time || checkOut);
-            var status = (hasCheckOut || rec.status === 'Complete' || rec.status === 1 || rec.status === '1')
+            var isPermitted = rec.status === 'Permitted' || rec.attendance_status === 'Permitted';
+            var status = isPermitted
+                ? '<span class="badge bg-purple" style="background-color:#6f42c1;">Permitted</span>'
+                : ((hasCheckOut || rec.status === 'Complete' || rec.status === 1 || rec.status === '1')
                 ? '<span class="badge bg-success">Complete</span>'
-                : '<span class="badge bg-info">Check In Only</span>';
+                : '<span class="badge bg-info">Check In Only</span>');
             var newBadge = rec.is_new ? '<span class="badge bg-success">New</span>' : '-';
             var persistedNote = rec.persisted === false ? ' <small class="text-muted">(live)</small>' : '';
 
@@ -939,8 +953,8 @@
         destroyTsReportDataTable();
         if (!$('#tsReportTable').length) return;
 
-        var actionCol = showCompleteCol ? 9 : 8;
-        var centerCols = showCompleteCol ? [0, 3, 4, 5, 6, 7, 8, 9] : [0, 3, 4, 5, 6, 7, 8];
+        var actionCol = showCompleteCol ? 10 : 9;
+        var centerCols = showCompleteCol ? [0, 3, 4, 5, 6, 7, 8, 9, 10] : [0, 3, 4, 5, 6, 7, 8, 9];
 
         tsReportDataTable = $('#tsReportTable').DataTable({
             order: [[2, 'asc']],
@@ -1063,8 +1077,9 @@
                 metaHtml += '</div>';
                 if (res.period_incomplete) {
                     metaHtml += '<p class="small text-muted mb-0 mt-2 text-center"><i class="bi bi-info-circle"></i> ' +
-                        '<strong>Present</strong> = siku zote ulizoweka kidole (kama Saved Records). ' +
-                        '<strong>Absent</strong> = siku za kazi zilizopita bila rekodi ya kidole kwenye database.</p>';
+                        '<strong>Present</strong> = siku ulizoweka kidole. ' +
+                        '<strong>Permitted</strong> = siku za kazi ulizo na ruksa iliyoidhinishwa. ' +
+                        '<strong>Absent</strong> = siku za kazi zilizopita bila kidole wala ruksa.</p>';
                 }
                 metaHtml += '</div></div>';
                 $meta.html(metaHtml);
@@ -1078,7 +1093,7 @@
                 var showCompleteCol = !!res.period_incomplete;
                 var html = '<div class="table-responsive"><table id="tsReportTable" class="table table-striped table-hover table-sm mb-0 w-100">' +
                     '<thead><tr>' +
-                    '<th>#</th><th>Photo</th><th>Name</th><th>Present</th><th>Absent</th>' +
+                    '<th>#</th><th>Photo</th><th>Name</th><th>Present</th><th>Permitted</th><th>Absent</th>' +
                     '<th>Working Days</th>';
                 if (showCompleteCol) {
                     html += '<th>Complete W/days</th>';
@@ -1095,6 +1110,7 @@
                         '<td><img src="' + row.image_url + '" class="ts-person-img" alt=""></td>' +
                         '<td>' + escapeHtml(row.name) + typeBadge + '</td>' +
                         '<td><span class="badge bg-success">' + row.present_days + '</span></td>' +
+                        '<td><span class="badge" style="background-color:#6f42c1;">' + (row.permitted_days || 0) + '</span></td>' +
                         '<td><span class="badge bg-danger">' + row.absent_days + '</span></td>' +
                         '<td>' + row.total_working_days + '</td>';
                     if (showCompleteCol) {
@@ -1160,6 +1176,7 @@
 
                 html += '<div class="row g-2 mb-3">';
                 html += statBox('Present', s.present_days, '');
+                html += statBox('Permitted', s.permitted_days, '');
                 html += statBox('Absent', s.absent_days, '');
                 html += statBox('Working Days', s.total_working_days, '');
                 if (res.period_incomplete) {
@@ -1179,7 +1196,9 @@
 
                 (res.daily_records || []).forEach(function (day) {
                     var rowClass = day.is_late ? ' class="ts-row-late"' : '';
-                    var statusBadge = day.status === 'Absent'
+                    var statusBadge = day.status === 'Permitted'
+                        ? '<span class="badge" style="background-color:#6f42c1;">Permitted</span>'
+                        : (day.status === 'Absent'
                         ? '<span class="badge bg-danger">Absent</span>'
                         : (day.status === 'Late'
                             ? '<span class="badge bg-danger">Late</span>'

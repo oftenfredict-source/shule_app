@@ -27,6 +27,12 @@ Route::get('/health', [ApiController::class, 'healthCheck'])->name('api.health')
 Route::post('/login', [ApiController::class, 'login'])->name('api.login');
 Route::post('/logout', [ApiController::class, 'logout'])->name('api.logout');
 
+// Flutter/mobile — open web blades (parent portal, etc.) inside WebView with session cookie
+Route::post('/mobile/web-session', [\App\Http\Controllers\Auth::class, 'createMobileWebSession'])
+    ->middleware('web')
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+    ->name('api.mobile.web_session');
+
 // School fingerprint sync agent (Admin only, token-based)
 Route::post('/school-agent/login', [\App\Http\Controllers\Auth::class, 'schoolAgentLoginApi'])->name('api.school_agent.login');
 Route::get('/school-agent/verify', [\App\Http\Controllers\Auth::class, 'schoolAgentVerifyToken'])->name('api.school_agent.verify');

@@ -25,6 +25,10 @@ use App\Models\ParentResultNotification;
 use App\Models\CaDefinition;
 use App\Models\GradeDefinition;
 use App\Models\ClassModel;
+use App\Services\SchoolWorkingDaysService;
+use App\Services\StudentPermissionAttendanceService;
+use App\Services\ParentFingerprintPortalService;
+use App\Models\StudentFingerprintAttendance;
 
 class ParentsContoller extends Controller
 {
@@ -224,7 +228,7 @@ class ParentsContoller extends Controller
 
         $normalizedUserType = strtolower($userType ?? '');
         if (!$userType || $normalizedUserType !== 'parent' || !$schoolID || !$parentID) {
-            return redirect()->route('login')->with('error', 'Unauthorized access');
+            return redirect()->route('login')->with('error', 'Umeingia kinyume na sheria');
         }
 
         $activeTab = $request->get('tab', 'request');
@@ -233,10 +237,32 @@ class ParentsContoller extends Controller
             ->where('status', 'Active')
             ->orderBy('first_name')
             ->get();
+        $studentIds = $students->pluck('studentID')->all();
         $studentNames = $students->mapWithKeys(function ($student) {
             $name = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
             return [$student->studentID => $name ?: 'N/A'];
         });
+
+        if ($studentIds === []) {
+            return view('Parent.manage_permissions', [
+                'activeTab' => $activeTab,
+                'students' => $students,
+                'studentNames' => $studentNames,
+                'pendingPermissions' => collect(),
+                'approvedPermissions' => collect(),
+                'rejectedPermissions' => collect(),
+                'unreadPendingCount' => 0,
+                'unreadApprovedCount' => 0,
+                'unreadRejectedCount' => 0,
+                'dateFrom' => $request->input('date_from'),
+                'dateTo' => $request->input('date_to'),
+                'filterType' => $request->input('filter_type', 'all'),
+                'filterMonth' => $request->input('filter_month'),
+                'filterMonthYear' => $request->input('filter_month_year', date('Y')),
+                'filterYear' => $request->input('filter_year', date('Y')),
+                'editPermission' => null,
+            ]);
+        }
 
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
@@ -245,64 +271,61 @@ class ParentsContoller extends Controller
         $filterMonthYear = $request->input('filter_month_year', date('Y'));
         $filterYear = $request->input('filter_year', date('Y'));
 
-        $query = PermissionRequest::where('schoolID', $schoolID)
-            ->where('requester_type', 'student')
-            ->where('parentID', $parentID);
+        $query = DB::table('student_permissions')
+            ->where('schoolID', $schoolID)
+            ->where('requester_type', 'parent')
+            ->where('requester_id', $parentID)
+            ->whereIn('student_id', $studentIds);
 
         if ($filterType === 'range') {
-            if ($dateFrom) $query->whereDate('start_date', '>=', $dateFrom);
-            if ($dateTo) $query->whereDate('start_date', '<=', $dateTo);
+            if ($dateFrom) {
+                $query->whereDate('start_date', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $query->whereDate('start_date', '<=', $dateTo);
+            }
         } elseif ($filterType === 'month') {
             if ($filterMonth) {
                 $query->whereMonth('start_date', $filterMonth)
-                      ->whereYear('start_date', $filterMonthYear);
+                    ->whereYear('start_date', $filterMonthYear);
             }
         } elseif ($filterType === 'year') {
-            if ($filterYear) $query->whereYear('start_date', $filterYear);
+            if ($filterYear) {
+                $query->whereYear('start_date', $filterYear);
+            }
         }
 
-        $permissions = $query->orderBy('created_at', 'desc')->get();
+        $permissions = $query->orderByDesc('created_at')->get()->map(function ($row) {
+            $row->permissionID = (int) $row->id;
+            $row->studentID = (int) $row->student_id;
+            $row->created_at = $row->created_at ? Carbon::parse($row->created_at) : null;
+
+            return $row;
+        });
 
         $pendingPermissions = $permissions->where('status', 'pending');
         $approvedPermissions = $permissions->where('status', 'approved');
         $rejectedPermissions = $permissions->where('status', 'rejected');
 
-        if (in_array($activeTab, ['pending', 'approved', 'rejected'], true)) {
-            PermissionRequest::where('schoolID', $schoolID)
-                ->where('requester_type', 'student')
-                ->where('parentID', $parentID)
-                ->where('status', $activeTab)
-                ->update(['is_read_by_requester' => true]);
-        }
-
-        $unreadPendingCount = PermissionRequest::where('schoolID', $schoolID)
-            ->where('requester_type', 'student')
-            ->where('parentID', $parentID)
-            ->where('status', 'pending')
-            ->where('is_read_by_requester', false)
-            ->count();
-        $unreadApprovedCount = PermissionRequest::where('schoolID', $schoolID)
-            ->where('requester_type', 'student')
-            ->where('parentID', $parentID)
-            ->where('status', 'approved')
-            ->where('is_read_by_requester', false)
-            ->count();
-        $unreadRejectedCount = PermissionRequest::where('schoolID', $schoolID)
-            ->where('requester_type', 'student')
-            ->where('parentID', $parentID)
-            ->where('status', 'rejected')
-            ->where('is_read_by_requester', false)
-            ->count();
+        $unreadPendingCount = 0;
+        $unreadApprovedCount = 0;
+        $unreadRejectedCount = 0;
 
         $editPermission = null;
         $editId = $request->input('edit_id');
         if ($editId && $activeTab === 'request') {
-            $editPermission = PermissionRequest::where('schoolID', $schoolID)
-                ->where('requester_type', 'student')
-                ->where('parentID', $parentID)
-                ->where('permissionID', $editId)
+            $editRow = DB::table('student_permissions')
+                ->where('schoolID', $schoolID)
+                ->where('requester_type', 'parent')
+                ->where('requester_id', $parentID)
+                ->where('id', $editId)
                 ->where('status', 'rejected')
                 ->first();
+            if ($editRow) {
+                $editRow->permissionID = (int) $editRow->id;
+                $editRow->studentID = (int) $editRow->student_id;
+                $editPermission = $editRow;
+            }
         }
 
         return view('Parent.manage_permissions', [
@@ -334,9 +357,9 @@ class ParentsContoller extends Controller
         $normalizedUserType = strtolower($userType ?? '');
         if (!$userType || $normalizedUserType !== 'parent' || !$schoolID || !$parentID) {
             if ($request->ajax() || $request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => 'Unauthorized access'], 403);
+                return response()->json(['success' => false, 'message' => 'Umeingia kinyume na sheria'], 403);
             }
-            return redirect()->route('login')->with('error', 'Unauthorized access');
+            return redirect()->route('login')->with('error', 'Umeingia kinyume na sheria');
         }
 
         $validated = $request->validate([
@@ -344,9 +367,9 @@ class ParentsContoller extends Controller
             'days_count' => 'nullable|integer',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'reason_type' => 'required|in:medical,official,professional,emergency,other',
+            'reason_type' => 'required|in:permission,sick',
             'reason_description' => 'required|string|min:5',
-            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
         $student = Student::where('schoolID', $schoolID)
@@ -355,38 +378,32 @@ class ParentsContoller extends Controller
             ->where('status', 'Active')
             ->firstOrFail();
 
-        if ($validated['reason_type'] === 'medical' && !$request->hasFile('attachment')) {
-            if ($request->ajax() || $request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => 'Medical reason requires attachment.'], 422);
-            }
-            return redirect()->back()->with('error', 'Medical reason requires attachment.')->withInput();
-        }
-
-        $attachmentPath = null;
-        if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('permission_attachments', 'public');
-        }
-
         $daysCount = $this->calculateWorkingDays($validated['start_date'], $validated['end_date']);
         if ($daysCount > 7) {
+            $message = 'Siku zimezidi kikomo. Ruksa isizidi siku 7 za kazi.';
             if ($request->ajax() || $request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => 'Days exceed limit. Use 7 days or less.'], 422);
+                return response()->json(['success' => false, 'message' => $message], 422);
             }
-            return redirect()->back()->with('error', 'Days exceed limit. Use 7 days or less.')->withInput();
+            return redirect()->back()->with('error', $message)->withInput();
         }
 
-        // Check for approval chain
+        $attachmentName = null;
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $attachmentName = time().'_'.$file->getClientOriginalName();
+            $file->move(public_path('uploads/permissions'), $attachmentName);
+        }
+
         $hasChain = DB::table('permission_approval_chains')
             ->where('schoolID', $schoolID)
             ->where('permission_type', 'student')
             ->exists();
 
-        $permissionId = $request->input('permission_id');
         $permissionData = [
             'schoolID' => $schoolID,
-            'requester_type' => 'student',
-            'studentID' => $student->studentID,
-            'parentID' => $parentID,
+            'student_id' => $student->studentID,
+            'requester_id' => $parentID,
+            'requester_type' => 'parent',
             'time_mode' => 'days',
             'days_count' => $daysCount,
             'start_date' => $validated['start_date'],
@@ -394,97 +411,93 @@ class ParentsContoller extends Controller
             'reason_type' => $validated['reason_type'],
             'reason_description' => $validated['reason_description'],
             'status' => 'pending',
-            'is_read_by_admin' => false,
-            'is_read_by_requester' => true,
-            'current_approval_order' => $hasChain ? 1 : 0
+            'hod_status' => 'pending',
+            'principal_status' => 'pending',
+            'final_status' => 'pending',
+            'current_approval_order' => $hasChain ? 1 : 0,
+            'is_chain_completed' => false,
+            'updated_at' => now(),
         ];
 
-        if ($attachmentPath) {
-            $permissionData['attachment_path'] = $attachmentPath;
+        if ($attachmentName) {
+            $permissionData['attachment'] = $attachmentName;
         }
 
-        $isResubmission = false;
+        $permissionId = $request->input('permission_id');
+        $permission = null;
+
         if ($permissionId) {
-            $permission = PermissionRequest::where('permissionID', $permissionId)
-                ->where('parentID', $parentID)
+            $existing = DB::table('student_permissions')
+                ->where('id', $permissionId)
+                ->where('schoolID', $schoolID)
+                ->where('requester_type', 'parent')
+                ->where('requester_id', $parentID)
                 ->where('status', 'rejected')
                 ->first();
-            if ($permission) {
-                // Determine if we should keep the current stage or reset
-                $resubmissionOrder = $permission->current_approval_order;
 
-                $permissionData['current_approval_order'] = $resubmissionOrder;
+            if ($existing) {
                 $permissionData['status'] = 'pending';
+                $permissionData['current_approval_order'] = $hasChain ? max(1, (int) $existing->current_approval_order) : 0;
 
-                // Capture the rejector's info BEFORE clearing the rejected log
-                $rejectionLog = DB::table('permission_approval_logs')
-                    ->where('permissionID', $permissionId)
-                    ->where('status', 'rejected')
-                    ->orderBy('created_at', 'desc')
-                    ->first();
+                DB::table('student_permissions')
+                    ->where('id', $existing->id)
+                    ->update($permissionData);
 
-                $rejectorPhone = null;
-                if ($rejectionLog) {
-                    $rejectorTeacher = \App\Models\Teacher::where('id', $rejectionLog->approver_id)->first();
-                    if ($rejectorTeacher) {
-                        $rejectorPhone = $rejectorTeacher->phone_number;
-                    } else {
-                        $rejectorStaff = \App\Models\OtherStaff::where('id', $rejectionLog->approver_id)->first();
-                        if ($rejectorStaff) {
-                            $rejectorPhone = $rejectorStaff->phone_number;
-                        }
-                    }
-                }
-
-                $permission->update($permissionData);
-
-                // Remove ONLY the rejected log
                 DB::table('permission_approval_logs')
-                    ->where('permissionID', $permissionId)
+                    ->where('permissionID', $existing->id)
+                    ->where('permission_type', 'student')
                     ->where('status', 'rejected')
                     ->delete();
 
-                $isResubmission = true;
-
-                // Notify the rejector via SMS
-                if ($rejectorPhone) {
-                    $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
-                    $smsMsg = "Ruksa uliyoikataa ya mwanafunzi {$studentName}, amerekebisha na kutuma upya ingia kwenye mfumo kukagua.";
-                    (new SmsService())->sendSms($rejectorPhone, $smsMsg);
-                }
-            } else {
-                $permission = PermissionRequest::create($permissionData);
+                $permission = DB::table('student_permissions')->where('id', $existing->id)->first();
             }
-        } else {
-            $permission = PermissionRequest::create($permissionData);
         }
 
-        if ($hasChain) {
-            // Notify first approver using unified function
-            app(\App\Http\Controllers\AdminController::class)->notifyNextApprover($permission, false);
+        if (! $permission) {
+            $permissionData['created_at'] = now();
+            $newId = DB::table('student_permissions')->insertGetId($permissionData);
+            $permission = DB::table('student_permissions')->where('id', $newId)->first();
+        }
+
+        if ($hasChain && $permission) {
+            app(\App\Http\Controllers\AdminController::class)->notifyNextApprover($permission, true);
         }
 
         $parent = ParentModel::where('parentID', $parentID)->first();
         $school = School::where('schoolID', $schoolID)->first();
-        $smsService = $this->smsService;
+        $reasonLabel = $this->parentReasonTypeLabelSw($validated['reason_type']);
 
         if ($parent && $parent->phone) {
-            $smsService->sendSms($parent->phone, 'Your permission request has been submitted to Admin. Please wait for approval.');
+            $this->smsService->sendSms(
+                $parent->phone,
+                "Ombi lako la ruksa ({$reasonLabel}) limewasilishwa. Tafadhali subiri uidhinishwe."
+            );
         }
 
         if ($school && $school->phone) {
-            $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
-            $reasonLabel = ucfirst($validated['reason_type']);
-            $schoolName = $school->school_name ?? 'School';
-            $prefix = ($school && $school->senderID) ? "" : "{$schoolName}: ";
-            $message = "{$prefix}New student permission request by {$studentName}. Reason: {$reasonLabel}. Please review.";
-            $smsService->sendSms($school->phone, $message);
+            $studentName = trim(($student->first_name ?? '').' '.($student->last_name ?? ''));
+            $schoolName = $school->school_name ?? 'Shule';
+            $prefix = ($school && $school->senderID) ? '' : "{$schoolName}: ";
+            $message = "{$prefix}Mzazi ameomba ruksa ya {$studentName}. Aina: {$reasonLabel}. Tafadhali ikague.";
+            $this->smsService->sendSms($school->phone, $message);
         }
 
+        $successMessage = 'Ombi la ruksa limewasilishwa kikamilifu.';
+
         if ($request->ajax() || $request->expectsJson()) {
-            return response()->json(['success' => true, 'message' => 'Permission request submitted successfully.']);
+            return response()->json(['success' => true, 'message' => $successMessage]);
         }
-        return redirect()->route('parent.permissions')->with('success', 'Permission request submitted successfully.');
+
+        return redirect()->route('parent.permissions', ['tab' => 'pending'])->with('success', $successMessage);
+    }
+
+    private function parentReasonTypeLabelSw(string $reasonType): string
+    {
+        return match (strtolower($reasonType)) {
+            'sick', 'medical' => 'Mgonjwa',
+            'permission', 'official', 'family', 'emergency', 'other' => 'Ruhusa',
+            default => ucfirst($reasonType),
+        };
     }
 
     public function parentResults(Request $request)
@@ -1082,11 +1095,99 @@ class ParentsContoller extends Controller
 
     public function parentAttendance(Request $request)
     {
+        $context = $this->resolveParentPortalContext();
+        if ($context instanceof \Illuminate\Http\RedirectResponse) {
+            return $context;
+        }
+
+        ['parent' => $parent, 'students' => $students, 'school' => $school, 'schoolID' => $schoolID] = $context;
+
+        $month = (int) $request->input('month', (int) date('m'));
+        $year = (int) $request->input('year', (int) date('Y'));
+        $search = trim((string) $request->input('q', ''));
+
+        $childrenOverview = [];
+        foreach ($students as $student) {
+            if ($search !== '') {
+                $haystack = strtolower(trim(
+                    ($student->first_name ?? '') . ' ' .
+                    ($student->middle_name ?? '') . ' ' .
+                    ($student->last_name ?? '') . ' ' .
+                    ($student->admission_number ?? '')
+                ));
+                if (! str_contains($haystack, strtolower($search))) {
+                    continue;
+                }
+            }
+
+            $childrenOverview[] = [
+                'student' => $student,
+                'stats' => $this->getParentChildMonthStats($student->studentID, $schoolID, $year, $month),
+            ];
+        }
+
+        return view('Parents.attendance', compact(
+            'parent',
+            'students',
+            'childrenOverview',
+            'school',
+            'month',
+            'year',
+            'search'
+        ));
+    }
+
+    public function parentStudentAttendance(Request $request, int $studentID)
+    {
+        $context = $this->resolveParentPortalContext();
+        if ($context instanceof \Illuminate\Http\RedirectResponse) {
+            return $context;
+        }
+
+        ['parent' => $parent, 'students' => $students, 'school' => $school, 'schoolID' => $schoolID] = $context;
+
+        $student = $students->firstWhere('studentID', $studentID);
+        if (! $student) {
+            return redirect()->route('parentAttendance')->with('error', 'Mwanafunzi hajapatikana.');
+        }
+
+        $month = max(1, min(12, (int) $request->input('month', (int) date('m'))));
+        $year = (int) $request->input('year', (int) date('Y'));
+        if ($year < 2000 || $year > 2100) {
+            $year = (int) date('Y');
+        }
+
+        $calendar = $this->buildParentAttendanceMonthCalendar($studentID, $schoolID, $year, $month);
+        $stats = $calendar['stats'];
+
+        $monthLabel = Carbon::create($year, $month, 1)->locale('sw')->isoFormat('MMMM Y');
+        $prevMonth = Carbon::create($year, $month, 1)->subMonth();
+        $nextMonth = Carbon::create($year, $month, 1)->addMonth();
+
+        return view('Parents.student_attendance_calendar', compact(
+            'parent',
+            'student',
+            'school',
+            'month',
+            'year',
+            'monthLabel',
+            'prevMonth',
+            'nextMonth',
+            'calendar',
+            'stats'
+        ))->with('attendanceMode', 'system');
+    }
+
+    /**
+     * @return array{parent: ParentModel, students: \Illuminate\Support\Collection, school: ?School, schoolID: int}|\Illuminate\Http\RedirectResponse
+     */
+    private function resolveParentPortalContext()
+    {
         $userType = Session::get('user_type');
         $schoolID = Session::get('schoolID');
         $parentID = Session::get('parentID');
 
-        if (!$userType || !$schoolID || !$parentID) {
+        if (! $userType || ! $schoolID || ! $parentID) {
             return redirect()->route('login')->with('error', 'Access denied');
         }
 
@@ -1097,117 +1198,496 @@ class ParentsContoller extends Controller
             ->where('schoolID', $schoolID)
             ->first();
 
-        if (!$parent) {
+        if (! $parent) {
             return redirect()->route('login')->with('error', 'Parent not found');
         }
 
         $students = Student::where('parentID', $parentID)
             ->where('schoolID', $schoolID)
+            ->where('status', '!=', 'Transferred')
             ->with(['subclass.class'])
             ->get();
 
-        $studentFilter = $request->input('student', '');
-        $yearFilter = $request->input('year', date('Y'));
-        $monthFilter = $request->input('month', date('m'));
-        $dateFilter = $request->input('date', '');
-        $searchType = $request->input('search_type', 'month');
-
         $school = School::where('schoolID', $schoolID)->first();
 
-        $years = Attendance::whereIn('studentID', $students->pluck('studentID'))
-            ->orderBy('attendance_date', 'desc')
-            ->get()
-            ->pluck('attendance_date')
-            ->map(fn ($date) => Carbon::parse($date)->format('Y'))
-            ->unique()
-            ->values()
-            ->sort()
-            ->reverse()
-            ->values();
+        return [
+            'parent' => $parent,
+            'students' => $students,
+            'school' => $school,
+            'schoolID' => (int) $schoolID,
+        ];
+    }
 
-        if ($years->isEmpty()) {
-            $years = collect([date('Y')]);
+    /**
+     * @return array{
+     *     present: int,
+     *     absent: int,
+     *     sick: int,
+     *     permission: int,
+     *     incomplete: int,
+     *     working_days: int,
+     *     attendance_rate: float
+     * }
+     */
+    private function getParentChildMonthStats(int $studentID, int $schoolID, int $year, int $month): array
+    {
+        $calendar = $this->buildParentAttendanceMonthCalendar($studentID, $schoolID, $year, $month);
+
+        return $calendar['stats'];
+    }
+
+    /**
+     * @return array{
+     *     stats: array<string, int|float>,
+     *     rows: array<int, array<int, array<string, mixed>>>,
+     *     legend: array<int, array<string, string>>
+     * }
+     */
+    private function buildParentAttendanceMonthCalendar(int $studentID, int $schoolID, int $year, int $month): array
+    {
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end = $start->copy()->endOfMonth()->startOfDay();
+        $today = Carbon::today();
+
+        $workingDaysService = app(SchoolWorkingDaysService::class);
+        $permissionService = app(StudentPermissionAttendanceService::class);
+
+        $workingDates = $workingDaysService->getWorkingDates($schoolID, $start, $end);
+        $workingDateSet = array_flip($workingDates);
+
+        $permissionMap = $permissionService->loadApprovedStatusMap(
+            $schoolID,
+            $start->toDateString(),
+            $end->toDateString(),
+            [$studentID]
+        );
+
+        $attendanceByDate = Attendance::where('studentID', $studentID)
+            ->where('schoolID', $schoolID)
+            ->whereBetween('attendance_date', [$start->toDateString(), $end->toDateString()])
+            ->get()
+            ->keyBy(fn ($row) => Carbon::parse($row->attendance_date)->toDateString());
+
+        $stats = [
+            'present' => 0,
+            'absent' => 0,
+            'sick' => 0,
+            'permission' => 0,
+            'incomplete' => 0,
+            'working_days' => count($workingDates),
+            'attendance_rate' => 0.0,
+        ];
+
+        $cells = [];
+        $cursor = $start->copy();
+        while ($cursor->lte($end)) {
+            $dateStr = $cursor->toDateString();
+            $cell = $this->resolveParentAttendanceCell(
+                $dateStr,
+                $today,
+                isset($workingDateSet[$dateStr]),
+                $attendanceByDate[$dateStr] ?? null,
+                $permissionService->statusForStudentOnDate($permissionMap, $studentID, $dateStr)
+            );
+
+            if ($cell['counts_toward_stats'] ?? false) {
+                match ($cell['status']) {
+                    'present' => $stats['present']++,
+                    'absent' => $stats['absent']++,
+                    'sick' => $stats['sick']++,
+                    'permission' => $stats['permission']++,
+                    'incomplete' => $stats['incomplete']++,
+                    default => null,
+                };
+            }
+
+            $cells[] = $cell;
+            $cursor->addDay();
         }
 
-        $childrenOverview = [];
-        foreach ($students as $student) {
-            $childData = $this->getParentChildAttendanceData(
-                $student->studentID,
-                $schoolID,
-                $searchType,
-                $yearFilter,
-                $monthFilter,
-                $dateFilter
-            );
-            $childrenOverview[] = [
-                'student' => $student,
-                'stats' => $childData['stats'],
+        $eligibleDays = $stats['present'] + $stats['absent'] + $stats['sick'] + $stats['permission'] + $stats['incomplete'];
+        if ($eligibleDays > 0) {
+            $stats['attendance_rate'] = round(($stats['present'] / $eligibleDays) * 100, 1);
+        }
+
+        $rows = array_chunk($cells, 8);
+
+        return [
+            'stats' => $stats,
+            'rows' => $rows,
+            'legend' => [
+                ['key' => 'present', 'label' => 'Alikuwepo', 'class' => 'att-cell-present', 'icon' => 'bx-check'],
+                ['key' => 'absent', 'label' => 'Alikosa', 'class' => 'att-cell-absent', 'icon' => 'bx-x'],
+                ['key' => 'permission', 'label' => 'Ruhusa', 'class' => 'att-cell-permission', 'icon' => 'bx-time-five'],
+                ['key' => 'sick', 'label' => 'Mgonjwa', 'class' => 'att-cell-sick', 'icon' => 'bx-plus-medical'],
+                ['key' => 'incomplete', 'label' => 'Haijakamilika', 'class' => 'att-cell-incomplete', 'icon' => 'bx-minus'],
+                ['key' => 'non_school', 'label' => 'Sio siku ya shule', 'class' => 'att-cell-non-school', 'icon' => 'bx-calendar-x'],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resolveParentAttendanceCell(
+        string $dateStr,
+        Carbon $today,
+        bool $isWorkingDay,
+        ?Attendance $attendance,
+        ?string $permissionStatus
+    ): array {
+        if (! $isWorkingDay) {
+            return [
+                'date' => $dateStr,
+                'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
+                'status' => 'non_school',
+                'label' => 'Sio siku ya shule',
+                'icon' => 'bx-calendar-x',
+                'css_class' => 'att-cell-non-school',
+                'counts_toward_stats' => false,
             ];
         }
 
-        $overviewData = null;
-        $dailyRecords = collect();
-        $selectedStudent = null;
-
-        if (!empty($studentFilter)) {
-            $selectedStudent = $students->firstWhere('studentID', (int) $studentFilter);
-            if ($selectedStudent) {
-                $childData = $this->getParentChildAttendanceData(
-                    $selectedStudent->studentID,
-                    $schoolID,
-                    $searchType,
-                    $yearFilter,
-                    $monthFilter,
-                    $dateFilter
-                );
-                $dailyRecords = $childData['records'];
-                $overviewData = $childData['stats'];
-            }
+        $status = null;
+        if ($permissionStatus === 'Sick') {
+            $status = 'sick';
+        } elseif ($permissionStatus === 'Excused') {
+            $status = 'permission';
+        } elseif ($attendance) {
+            $normalized = strtolower((string) $attendance->status);
+            $status = match ($normalized) {
+                'present' => 'present',
+                'absent' => 'absent',
+                'sick' => 'sick',
+                'excused', 'permission' => 'permission',
+                default => 'incomplete',
+            };
+        } elseif ($dateStr <= $today->toDateString()) {
+            $status = 'incomplete';
+        } else {
+            return [
+                'date' => $dateStr,
+                'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
+                'status' => 'future',
+                'label' => 'Bado',
+                'icon' => 'bx-minus',
+                'css_class' => 'att-cell-future',
+                'counts_toward_stats' => false,
+            ];
         }
 
-        return view('Parents.attendance', compact(
-            'parent',
-            'students',
-            'years',
-            'studentFilter',
-            'yearFilter',
-            'monthFilter',
-            'dateFilter',
-            'searchType',
-            'overviewData',
-            'dailyRecords',
-            'childrenOverview',
-            'selectedStudent',
-            'school'
-        ));
+        $map = [
+            'present' => ['label' => 'Alikuwepo', 'icon' => 'bx-check', 'css_class' => 'att-cell-present'],
+            'absent' => ['label' => 'Alikosa', 'icon' => 'bx-x', 'css_class' => 'att-cell-absent'],
+            'permission' => ['label' => 'Ruhusa', 'icon' => 'bx-time-five', 'css_class' => 'att-cell-permission'],
+            'sick' => ['label' => 'Mgonjwa', 'icon' => 'bx-plus-medical', 'css_class' => 'att-cell-sick'],
+            'incomplete' => ['label' => 'Haijakamilika', 'icon' => 'bx-minus', 'css_class' => 'att-cell-incomplete'],
+        ];
+
+        $meta = $map[$status] ?? $map['incomplete'];
+
+        return array_merge([
+            'date' => $dateStr,
+            'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
+            'status' => $status,
+            'counts_toward_stats' => true,
+        ], $meta);
+    }
+
+    private function formatParentAttendanceDateLabel(string $dateStr): string
+    {
+        return Carbon::parse($dateStr)->locale('sw')->isoFormat('dddd, D MMMM Y');
     }
 
     public function parentFingerprintAttendance(Request $request)
     {
-        $userType = Session::get('user_type');
-        $schoolID = Session::get('schoolID');
-        $parentID = Session::get('parentID');
-
-        if (!$userType || !$schoolID || !$parentID) {
-            return redirect()->route('login')->with('error', 'Access denied');
+        $context = $this->resolveParentPortalContext();
+        if ($context instanceof \Illuminate\Http\RedirectResponse) {
+            return $context;
         }
 
-        $parent = ParentModel::where('parentID', $parentID)
-            ->where('schoolID', $schoolID)
-            ->first();
+        ['parent' => $parent, 'students' => $students, 'school' => $school, 'schoolID' => $schoolID] = $context;
 
-        if (!$parent) {
-            return redirect()->route('login')->with('error', 'Parent not found');
+        $month = (int) $request->input('month', (int) date('m'));
+        $year = (int) $request->input('year', (int) date('Y'));
+        $search = trim((string) $request->input('q', ''));
+
+        $portalService = app(ParentFingerprintPortalService::class);
+
+        $childrenOverview = [];
+        foreach ($students as $student) {
+            if ($search !== '') {
+                $haystack = strtolower(trim(
+                    ($student->first_name ?? '') . ' ' .
+                    ($student->middle_name ?? '') . ' ' .
+                    ($student->last_name ?? '') . ' ' .
+                    ($student->admission_number ?? '')
+                ));
+                if (! str_contains($haystack, strtolower($search))) {
+                    continue;
+                }
+            }
+
+            $enabled = $portalService->isStudentEnabled($student);
+
+            $childrenOverview[] = [
+                'student' => $student,
+                'enabled' => $enabled,
+                'stats' => $enabled
+                    ? $this->getParentChildFingerprintMonthStats($student->studentID, $schoolID, $year, $month)
+                    : null,
+            ];
         }
 
-        $students = Student::where('parentID', $parentID)
-            ->where('schoolID', $schoolID)
-            ->with(['subclass.class'])
-            ->get();
+        return view('Parents.fingerprint_attendance', compact(
+            'parent',
+            'students',
+            'childrenOverview',
+            'school',
+            'month',
+            'year',
+            'search'
+        ));
+    }
 
-        $school = School::where('schoolID', $schoolID)->first();
+    public function parentStudentFingerprintAttendance(Request $request, int $studentID)
+    {
+        $context = $this->resolveParentPortalContext();
+        if ($context instanceof \Illuminate\Http\RedirectResponse) {
+            return $context;
+        }
 
-        return view('Parents.fingerprint_attendance', compact('parent', 'students', 'school'));
+        ['parent' => $parent, 'students' => $students, 'school' => $school, 'schoolID' => $schoolID] = $context;
+
+        $student = $students->firstWhere('studentID', $studentID);
+        if (! $student) {
+            return redirect()->route('parentFingerprintAttendance')->with('error', 'Mwanafunzi hajapatikana.');
+        }
+
+        $portalService = app(ParentFingerprintPortalService::class);
+        if (! $portalService->isStudentEnabled($student)) {
+            return redirect()->route('parentFingerprintAttendance')->with(
+                'error',
+                'Mahudhurio kwa alama za vidole hayajaruhusiwa kwa darasa la mwanafunzi huyu.'
+            );
+        }
+
+        $month = max(1, min(12, (int) $request->input('month', (int) date('m'))));
+        $year = (int) $request->input('year', (int) date('Y'));
+        if ($year < 2000 || $year > 2100) {
+            $year = (int) date('Y');
+        }
+
+        $calendar = $this->buildParentFingerprintMonthCalendar($studentID, $schoolID, $year, $month);
+        $stats = $calendar['stats'];
+        $attendanceMode = 'fingerprint';
+
+        $monthLabel = Carbon::create($year, $month, 1)->locale('sw')->isoFormat('MMMM Y');
+        $prevMonth = Carbon::create($year, $month, 1)->subMonth();
+        $nextMonth = Carbon::create($year, $month, 1)->addMonth();
+
+        return view('Parents.student_attendance_calendar', compact(
+            'parent',
+            'student',
+            'school',
+            'month',
+            'year',
+            'monthLabel',
+            'prevMonth',
+            'nextMonth',
+            'calendar',
+            'stats',
+            'attendanceMode'
+        ));
+    }
+
+    /**
+     * @return array{
+     *     present: int,
+     *     absent: int,
+     *     sick: int,
+     *     permission: int,
+     *     working_days: int,
+     *     attendance_rate: float
+     * }
+     */
+    private function getParentChildFingerprintMonthStats(int $studentID, int $schoolID, int $year, int $month): array
+    {
+        $calendar = $this->buildParentFingerprintMonthCalendar($studentID, $schoolID, $year, $month);
+
+        return $calendar['stats'];
+    }
+
+    /**
+     * @return array{
+     *     stats: array<string, int|float>,
+     *     rows: array<int, array<int, array<string, mixed>>>,
+     *     legend: array<int, array<string, string>>
+     * }
+     */
+    private function buildParentFingerprintMonthCalendar(int $studentID, int $schoolID, int $year, int $month): array
+    {
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end = $start->copy()->endOfMonth()->startOfDay();
+        $today = Carbon::today();
+
+        $workingDaysService = app(SchoolWorkingDaysService::class);
+        $permissionService = app(StudentPermissionAttendanceService::class);
+
+        $workingDates = $workingDaysService->getWorkingDates($schoolID, $start, $end);
+        $workingDateSet = array_flip($workingDates);
+
+        $permissionMap = $permissionService->loadApprovedStatusMap(
+            $schoolID,
+            $start->toDateString(),
+            $end->toDateString(),
+            [$studentID]
+        );
+
+        $fingerprintByDate = StudentFingerprintAttendance::where('studentID', $studentID)
+            ->whereBetween('attendance_date', [$start->toDateString(), $end->toDateString()])
+            ->get()
+            ->keyBy(fn ($row) => Carbon::parse($row->attendance_date)->toDateString());
+
+        $stats = [
+            'present' => 0,
+            'absent' => 0,
+            'sick' => 0,
+            'permission' => 0,
+            'working_days' => count($workingDates),
+            'attendance_rate' => 0.0,
+        ];
+
+        $cells = [];
+        $cursor = $start->copy();
+        while ($cursor->lte($end)) {
+            $dateStr = $cursor->toDateString();
+            $fpRow = $fingerprintByDate[$dateStr] ?? null;
+            $checkIn = $fpRow && $fpRow->check_in_time
+                ? Carbon::parse($fpRow->check_in_time)->toDateTimeString()
+                : null;
+
+            $cell = $this->resolveParentFingerprintCell(
+                $dateStr,
+                $today,
+                isset($workingDateSet[$dateStr]),
+                $checkIn,
+                $permissionService->statusForStudentOnDate($permissionMap, $studentID, $dateStr)
+            );
+
+            if ($cell['counts_toward_stats'] ?? false) {
+                match ($cell['status']) {
+                    'present' => $stats['present']++,
+                    'absent' => $stats['absent']++,
+                    'sick' => $stats['sick']++,
+                    'permission' => $stats['permission']++,
+                    default => null,
+                };
+            }
+
+            $cells[] = $cell;
+            $cursor->addDay();
+        }
+
+        $eligibleDays = $stats['present'] + $stats['absent'] + $stats['sick'] + $stats['permission'];
+        if ($eligibleDays > 0) {
+            $stats['attendance_rate'] = round(($stats['present'] / $eligibleDays) * 100, 1);
+        }
+
+        $rows = array_chunk($cells, 8);
+
+        return [
+            'stats' => $stats,
+            'rows' => $rows,
+            'legend' => [
+                ['key' => 'present', 'label' => 'Alikuwepo', 'class' => 'att-cell-present', 'icon' => 'bx-check'],
+                ['key' => 'absent', 'label' => 'Hayupo (hajaweka kidole)', 'class' => 'att-cell-absent', 'icon' => 'bx-x'],
+                ['key' => 'permission', 'label' => 'Ruhusa', 'class' => 'att-cell-permission', 'icon' => 'bx-time-five'],
+                ['key' => 'sick', 'label' => 'Mgonjwa', 'class' => 'att-cell-sick', 'icon' => 'bx-plus-medical'],
+                ['key' => 'non_school', 'label' => 'Sio siku ya shule', 'class' => 'att-cell-non-school', 'icon' => 'bx-calendar-x'],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resolveParentFingerprintCell(
+        string $dateStr,
+        Carbon $today,
+        bool $isWorkingDay,
+        ?string $checkInTime,
+        ?string $permissionStatus
+    ): array {
+        if (! $isWorkingDay) {
+            return [
+                'date' => $dateStr,
+                'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
+                'status' => 'non_school',
+                'label' => 'Sio siku ya shule',
+                'icon' => 'bx-calendar-x',
+                'css_class' => 'att-cell-non-school',
+                'counts_toward_stats' => false,
+            ];
+        }
+
+        if ($permissionStatus === 'Sick') {
+            return [
+                'date' => $dateStr,
+                'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
+                'status' => 'sick',
+                'label' => 'Mgonjwa',
+                'icon' => 'bx-plus-medical',
+                'css_class' => 'att-cell-sick',
+                'counts_toward_stats' => true,
+            ];
+        }
+
+        if ($permissionStatus === 'Excused') {
+            return [
+                'date' => $dateStr,
+                'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
+                'status' => 'permission',
+                'label' => 'Ruhusa',
+                'icon' => 'bx-time-five',
+                'css_class' => 'att-cell-permission',
+                'counts_toward_stats' => true,
+            ];
+        }
+
+        if (! empty($checkInTime)) {
+            return [
+                'date' => $dateStr,
+                'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
+                'status' => 'present',
+                'label' => 'Alikuwepo',
+                'icon' => 'bx-check',
+                'css_class' => 'att-cell-present',
+                'counts_toward_stats' => true,
+            ];
+        }
+
+        if ($dateStr > $today->toDateString()) {
+            return [
+                'date' => $dateStr,
+                'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
+                'status' => 'future',
+                'label' => 'Bado',
+                'icon' => 'bx-minus',
+                'css_class' => 'att-cell-future',
+                'counts_toward_stats' => false,
+            ];
+        }
+
+        return [
+            'date' => $dateStr,
+            'date_label' => $this->formatParentAttendanceDateLabel($dateStr),
+            'status' => 'absent',
+            'label' => 'Hayupo (hajaweka kidole)',
+            'icon' => 'bx-x',
+            'css_class' => 'att-cell-absent',
+            'counts_toward_stats' => true,
+        ];
     }
 
     private function getParentChildAttendanceData(

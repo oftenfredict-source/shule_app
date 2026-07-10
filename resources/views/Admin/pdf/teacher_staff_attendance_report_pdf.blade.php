@@ -141,6 +141,7 @@
                 <th style="width: 30px;">#</th>
                 <th>Name</th>
                 <th class="center">Present</th>
+                <th class="center">Permitted</th>
                 <th class="center">Absent</th>
                 <th class="center">Working Days</th>
                 @if($period_incomplete)
@@ -161,6 +162,7 @@
                     </span>
                 </td>
                 <td class="center">{{ $row['present_days'] }}</td>
+                <td class="center">{{ $row['permitted_days'] ?? 0 }}</td>
                 <td class="center">{{ $row['absent_days'] }}</td>
                 <td class="center">{{ $row['total_working_days'] }}</td>
                 @if($period_incomplete)

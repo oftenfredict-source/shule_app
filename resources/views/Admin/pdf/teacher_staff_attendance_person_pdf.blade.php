@@ -30,6 +30,7 @@
         .status-late { color: #dc3545; font-weight: bold; }
         .status-early { color: #0dcaf0; font-weight: bold; }
         .status-off { color: #6c757d; font-weight: bold; }
+        .status-permitted { color: #6f42c1; font-weight: bold; }
         .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #eee; padding-top: 5px; }
         .sig-table { width: 100%; margin-top: 30px; border-collapse: collapse; page-break-inside: avoid; }
         .sig-table td { border: none; padding: 0; vertical-align: bottom; }
@@ -143,6 +144,10 @@
                 <div class="stat-label">Present</div>
             </td>
             <td>
+                <div class="stat-val">{{ $s['permitted_days'] ?? 0 }}</div>
+                <div class="stat-label">Permitted</div>
+            </td>
+            <td>
                 <div class="stat-val">{{ $s['absent_days'] ?? 0 }}</div>
                 <div class="stat-label">Absent</div>
             </td>
@@ -187,6 +192,7 @@
             @forelse($daily_records as $day)
             @php
                 $statusClass = match($day['status'] ?? '') {
+                    'Permitted' => 'status-permitted',
                     'Absent' => 'status-absent',
                     'Late' => 'status-late',
                     'Early' => 'status-early',

@@ -153,6 +153,9 @@
                         <a href="{{ route('superadmin.fingerprint_attendance_setup.index') }}" class="btn btn-sm btn-outline-dark text-start">
                             <i class="bx bx-desktop me-2"></i> Fingerprint Attendance Setup
                         </a>
+                        <a href="{{ route('superadmin.parent_fingerprint_portal') }}" class="btn btn-sm btn-outline-dark text-start">
+                            <i class="bx bx-fingerprint me-2"></i> Parent Fingerprint Portal
+                        </a>
                     </div>
                 </div>
             </div>

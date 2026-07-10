@@ -19,6 +19,7 @@ use App\Models\TeacherStaffWorkTimeSetting;
 use App\Models\StudentWorkTimeSetting;
 use App\Services\FingerprintAttendanceSetupService;
 use App\Services\SchoolWorkingDaysService;
+use App\Services\TeacherStaffPermissionAttendanceService;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -504,21 +505,32 @@ class ManageAttendanceController extends Controller
             $range['start']->toDateString(),
             $range['end']->toDateString()
         );
+        $permissionStatusMap = app(\App\Services\StudentPermissionAttendanceService::class)
+            ->loadApprovedStatusMap(
+                $schoolID,
+                $range['start']->toDateString(),
+                $range['end']->toDateString(),
+                $studentIds
+            );
 
         $rows = [];
         foreach ($students as $student) {
             $studentKey = 'student_'.$student['student_id'];
             $studentAttendance = $attendanceMap[$studentKey] ?? [];
+            $permissionByDate = $permissionStatusMap[$studentKey] ?? [];
             $stats = $this->calculateStudentFingerprintAttendanceStats(
                 $studentAttendance,
                 $workingDates,
                 (string) $workTime->work_start_time,
-                (string) $workTime->work_end_time
+                (string) $workTime->work_end_time,
+                $permissionByDate
             );
 
             $rows[] = array_merge($student, [
                 'present_days' => $stats['present_days'],
                 'absent_days' => $stats['absent_days'],
+                'permission_days' => $stats['permission_days'],
+                'sick_days' => $stats['sick_days'],
                 'total_working_days' => $workingDayCounts['display_working_days'],
                 'complete_working_days' => $workingDayCounts['elapsed_working_days'],
                 'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
@@ -547,18 +559,27 @@ class ManageAttendanceController extends Controller
         ];
         if ($filterType === 'day') {
             $reportDate = $range['start']->toDateString();
+            $permService = app(\App\Services\StudentPermissionAttendanceService::class);
             foreach ($students as $student) {
                 $studentKey = 'student_'.$student['student_id'];
                 $dayRecord = $attendanceMap[$studentKey][$reportDate] ?? null;
-                $isPresent = $dayRecord && ! empty($dayRecord['check_in_time']);
+                $permStatus = $permService->statusForStudentOnDate(
+                    $permissionStatusMap,
+                    (int) $student['student_id'],
+                    $reportDate
+                );
+                $dayStatus = $permService->resolveFingerprintDayStatus(
+                    $dayRecord['check_in_time'] ?? null,
+                    $permStatus
+                );
                 $gender = strtolower((string) ($student['gender'] ?? ''));
-                if ($isPresent) {
+                if ($dayStatus === 'Present') {
                     if ($gender === 'male') {
                         $genderTotals['male_present']++;
                     } elseif ($gender === 'female') {
                         $genderTotals['female_present']++;
                     }
-                } else {
+                } elseif ($dayStatus === 'Absent') {
                     if ($gender === 'male') {
                         $genderTotals['male_absent']++;
                     } elseif ($gender === 'female') {
@@ -2240,15 +2261,24 @@ class ManageAttendanceController extends Controller
                 $range['start']->toDateString(),
                 $range['end']->toDateString()
             );
+            $permissionDatesMap = app(TeacherStaffPermissionAttendanceService::class)
+                ->loadApprovedPermissionDatesMap(
+                    $schoolID,
+                    $range['start']->toDateString(),
+                    $range['end']->toDateString(),
+                    $request->input('person_type')
+                );
 
             $rows = [];
             foreach ($people as $person) {
                 $personKey = $person['person_type'] . '_' . $person['person_id'];
                 $personAttendance = $attendanceMap[$personKey] ?? [];
+                $permittedDates = $permissionDatesMap[$personKey] ?? [];
                 $stats = $this->calculatePersonAttendanceStats(
                     $personAttendance,
                     $workingDates,
-                    $workTime->work_start_time
+                    $workTime->work_start_time,
+                    $permittedDates
                 );
 
                 $rows[] = [
@@ -2261,6 +2291,7 @@ class ManageAttendanceController extends Controller
                     'image_url' => $person['image_url'],
                     'present_days' => $stats['present_days'],
                     'absent_days' => $stats['absent_days'],
+                    'permitted_days' => $stats['permitted_days'],
                     'total_working_days' => $workingDayCounts['display_working_days'],
                     'complete_working_days' => $workingDayCounts['elapsed_working_days'],
                     'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
@@ -2345,17 +2376,27 @@ class ManageAttendanceController extends Controller
                 $range['end']->toDateString()
             );
             $personAttendance = $attendanceMap[$personKey] ?? [];
+            $permissionDatesMap = app(TeacherStaffPermissionAttendanceService::class)
+                ->loadApprovedPermissionDatesMap(
+                    $schoolID,
+                    $range['start']->toDateString(),
+                    $range['end']->toDateString(),
+                    $person['person_type']
+                );
+            $permittedDates = $permissionDatesMap[$personKey] ?? [];
             $stats = $this->calculatePersonAttendanceStats(
                 $personAttendance,
                 $workingDates,
-                $workTime->work_start_time
+                $workTime->work_start_time,
+                $permittedDates
             );
             $daily = $this->buildPersonDailyAttendanceRecords(
                 $personAttendance,
                 $workingDates,
                 $range['start'],
                 $range['end'],
-                $workTime->work_start_time
+                $workTime->work_start_time,
+                $permittedDates
             );
 
             return response()->json([
@@ -2369,6 +2410,7 @@ class ManageAttendanceController extends Controller
                 'statistics' => [
                     'present_days' => $stats['present_days'],
                     'absent_days' => $stats['absent_days'],
+                    'permitted_days' => $stats['permitted_days'],
                     'total_working_days' => $workingDayCounts['display_working_days'],
                     'complete_working_days' => $workingDayCounts['elapsed_working_days'],
                     'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],
@@ -2837,7 +2879,8 @@ class ManageAttendanceController extends Controller
         array $personAttendance,
         array $workingDates,
         string $workStartTime,
-        string $workEndTime
+        string $workEndTime,
+        array $permissionStatusByDate = []
     ): array {
         $workingDateSet = array_flip($workingDates);
         $now = Carbon::now();
@@ -2846,8 +2889,14 @@ class ManageAttendanceController extends Controller
         $earlyArrivalDays = 0;
         $earlyDepartureDays = 0;
         $noCheckoutDays = 0;
+        $permissionDays = 0;
+        $sickDays = 0;
 
         foreach ($personAttendance as $date => $record) {
+            if (isset($permissionStatusByDate[$date])) {
+                continue;
+            }
+
             if (empty($record['check_in_time'])) {
                 continue;
             }
@@ -2876,6 +2925,16 @@ class ManageAttendanceController extends Controller
 
         $absentDays = 0;
         foreach ($workingDates as $workDate) {
+            $permStatus = $permissionStatusByDate[$workDate] ?? null;
+            if ($permStatus === 'Excused') {
+                $permissionDays++;
+                continue;
+            }
+            if ($permStatus === 'Sick') {
+                $sickDays++;
+                continue;
+            }
+
             $record = $personAttendance[$workDate] ?? null;
             if (! $record || empty($record['check_in_time'])) {
                 $absentDays++;
@@ -2885,6 +2944,8 @@ class ManageAttendanceController extends Controller
         return [
             'present_days' => $presentDays,
             'absent_days' => $absentDays,
+            'permission_days' => $permissionDays,
+            'sick_days' => $sickDays,
             'late_days' => $lateDays,
             'early_arrival_days' => $earlyArrivalDays,
             'early_departure_days' => $earlyDepartureDays,
@@ -2923,15 +2984,25 @@ class ManageAttendanceController extends Controller
      * @param array<string, array{check_in_time: ?string, check_out_time: ?string}> $personAttendance
      * @param array<int, string> $workingDates elapsed working days in the report period
      */
-    private function calculatePersonAttendanceStats(array $personAttendance, array $workingDates, string $workStartTime): array
-    {
+    private function calculatePersonAttendanceStats(
+        array $personAttendance,
+        array $workingDates,
+        string $workStartTime,
+        array $permittedDates = []
+    ): array {
         $workingDateSet = array_flip($workingDates);
+        $permittedDateSet = array_flip($permittedDates);
         $presentDays = 0;
         $lateDays = 0;
         $earlyDays = 0;
+        $permittedDays = 0;
 
         foreach ($personAttendance as $date => $record) {
             if (empty($record['check_in_time'])) {
+                continue;
+            }
+
+            if (isset($permittedDateSet[$date])) {
                 continue;
             }
 
@@ -2951,6 +3022,11 @@ class ManageAttendanceController extends Controller
 
         $absentDays = 0;
         foreach ($workingDates as $workDate) {
+            if (isset($permittedDateSet[$workDate])) {
+                $permittedDays++;
+                continue;
+            }
+
             $record = $personAttendance[$workDate] ?? null;
             if (!$record || empty($record['check_in_time'])) {
                 $absentDays++;
@@ -2960,6 +3036,7 @@ class ManageAttendanceController extends Controller
         return [
             'present_days' => $presentDays,
             'absent_days' => $absentDays,
+            'permitted_days' => $permittedDays,
             'late_days' => $lateDays,
             'early_days' => $earlyDays,
         ];
@@ -2974,20 +3051,23 @@ class ManageAttendanceController extends Controller
         array $workingDates,
         Carbon $start,
         Carbon $end,
-        string $workStartTime
+        string $workStartTime,
+        array $permittedDates = []
     ): array {
         $workingDateSet = array_flip($workingDates);
+        $permittedDateSet = array_flip($permittedDates);
         $daily = [];
         $current = $start->copy()->startOfDay();
 
         while ($current->lte($end)) {
             $date = $current->format('Y-m-d');
             $isWorkingDay = isset($workingDateSet[$date]);
+            $isPermitted = $isWorkingDay && isset($permittedDateSet[$date]);
             $record = $personAttendance[$date] ?? null;
             $checkIn = $record['check_in_time'] ?? null;
             $checkOut = $record['check_out_time'] ?? null;
 
-            if (!$isWorkingDay && !$checkIn) {
+            if (!$isWorkingDay && !$checkIn && !$isPermitted) {
                 $current->addDay();
                 continue;
             }
@@ -2995,7 +3075,9 @@ class ManageAttendanceController extends Controller
             $status = 'Absent';
             $punctuality = null;
 
-            if ($checkIn) {
+            if ($isPermitted) {
+                $status = 'Permitted';
+            } elseif ($checkIn) {
                 $punctuality = $this->classifyCheckInPunctuality($checkIn, $date, $workStartTime);
                 if (!$isWorkingDay) {
                     $status = 'Present (Off Day)';
@@ -3011,12 +3093,13 @@ class ManageAttendanceController extends Controller
             $daily[] = [
                 'date' => $date,
                 'date_label' => $current->format('l, j M Y'),
-                'check_in_time' => $checkIn ? Carbon::parse($checkIn)->format('H:i:s') : null,
-                'check_out_time' => $checkOut ? Carbon::parse($checkOut)->format('H:i:s') : null,
+                'check_in_time' => $isPermitted ? null : ($checkIn ? Carbon::parse($checkIn)->format('H:i:s') : null),
+                'check_out_time' => $isPermitted ? null : ($checkOut ? Carbon::parse($checkOut)->format('H:i:s') : null),
                 'status' => $status,
                 'punctuality' => $punctuality,
                 'is_late' => $punctuality === 'late',
                 'is_working_day' => $isWorkingDay,
+                'is_permitted' => $isPermitted,
             ];
 
             $current->addDay();
@@ -3289,6 +3372,13 @@ class ManageAttendanceController extends Controller
             $range['start']->toDateString(),
             $range['end']->toDateString()
         );
+        $permissionDatesMap = app(TeacherStaffPermissionAttendanceService::class)
+            ->loadApprovedPermissionDatesMap(
+                $schoolID,
+                $range['start']->toDateString(),
+                $range['end']->toDateString(),
+                $listPersonType
+            );
 
         $rows = [];
         $detailed = [];
@@ -3296,22 +3386,26 @@ class ManageAttendanceController extends Controller
         foreach ($people as $person) {
             $personKey = $person['person_type'] . '_' . $person['person_id'];
             $personAttendance = $attendanceMap[$personKey] ?? [];
+            $permittedDates = $permissionDatesMap[$personKey] ?? [];
             $stats = $this->calculatePersonAttendanceStats(
                 $personAttendance,
                 $workingDates,
-                $workTime->work_start_time
+                $workTime->work_start_time,
+                $permittedDates
             );
             $daily = $this->buildPersonDailyAttendanceRecords(
                 $personAttendance,
                 $workingDates,
                 $range['start'],
                 $range['end'],
-                $workTime->work_start_time
+                $workTime->work_start_time,
+                $permittedDates
             );
 
             $rowStats = [
                 'present_days' => $stats['present_days'],
                 'absent_days' => $stats['absent_days'],
+                'permitted_days' => $stats['permitted_days'],
                 'total_working_days' => $workingDayCounts['display_working_days'],
                 'complete_working_days' => $workingDayCounts['elapsed_working_days'],
                 'elapsed_working_days' => $workingDayCounts['elapsed_working_days'],

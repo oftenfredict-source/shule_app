@@ -8,10 +8,14 @@ use App\Models\OtherStaff;
 use App\Models\StaffFingerprintAttendance;
 use App\Models\Teacher;
 use App\Models\TeacherFingerprintAttendance;
+use App\Models\TeacherStaffWorkTimeSetting;
 use Carbon\Carbon;
 
 class TeacherStaffAttendanceSyncService
 {
+    public const CHECKIN_HOURS_BEFORE_WORK = 3;
+
+    public const CHECKIN_HOURS_AFTER_WORK_START = 2;
     /**
      * @return array<int, array{type: string, model: Teacher|OtherStaff}>
      */
@@ -93,6 +97,8 @@ class TeacherStaffAttendanceSyncService
      */
     public function persistBulkSyncSkipExisting(int $schoolID, array $userDateRecords): array
     {
+        $workStartTime = (string) TeacherStaffWorkTimeSetting::forSchool($schoolID)->work_start_time;
+
         $teacherIds = Teacher::where('schoolID', $schoolID)
             ->where('status', 'Active')
             ->pluck('id');
@@ -153,15 +159,19 @@ class TeacherStaffAttendanceSyncService
                         ->first()
                     : null;
 
-                $times = $this->resolveDayCheckInOut($records, $existing);
+                $times = $this->resolveDayCheckInOut($records, $existing, $workStartTime);
 
                 if ($existing) {
                     $needsCheckout = !$existing->check_out_time && $times['check_out'];
-                    if ($needsCheckout) {
+                    $invalidCheckout = $existing->check_out_time && !$times['check_out']
+                        && Carbon::parse($existing->check_out_time)->lte(
+                            $this->getCheckInWindowBounds($recordDate, $workStartTime)['end']
+                        );
+                    if ($needsCheckout || $invalidCheckout) {
                         $existing->update([
-                            'check_in_time' => $times['check_in'],
+                            'check_in_time' => $times['check_in'] ?? $existing->check_in_time,
                             'check_out_time' => $times['check_out'],
-                            'status' => 1,
+                            'status' => $times['check_out'] ? 1 : 0,
                             'verify_mode' => $times['verify_mode'],
                             'device_ip' => $times['device_ip'] ?? $existing->device_ip,
                         ]);
@@ -201,15 +211,19 @@ class TeacherStaffAttendanceSyncService
                         ->first()
                     : null;
 
-                $times = $this->resolveDayCheckInOut($records, $existing);
+                $times = $this->resolveDayCheckInOut($records, $existing, $workStartTime);
 
                 if ($existing) {
                     $needsCheckout = !$existing->check_out_time && $times['check_out'];
-                    if ($needsCheckout) {
+                    $invalidCheckout = $existing->check_out_time && !$times['check_out']
+                        && Carbon::parse($existing->check_out_time)->lte(
+                            $this->getCheckInWindowBounds($recordDate, $workStartTime)['end']
+                        );
+                    if ($needsCheckout || $invalidCheckout) {
                         $existing->update([
-                            'check_in_time' => $times['check_in'],
+                            'check_in_time' => $times['check_in'] ?? $existing->check_in_time,
                             'check_out_time' => $times['check_out'],
-                            'status' => 1,
+                            'status' => $times['check_out'] ? 1 : 0,
                             'verify_mode' => $times['verify_mode'],
                             'device_ip' => $times['device_ip'] ?? $existing->device_ip,
                         ]);
@@ -247,13 +261,83 @@ class TeacherStaffAttendanceSyncService
     }
 
     /**
-     * First punch = check-in, second punch = check-out.
+     * @return array{start: Carbon, end: Carbon, work_start: Carbon}
+     */
+    public function getCheckInWindowBounds(string $recordDate, string $workStartTime): array
+    {
+        $workStart = Carbon::parse($recordDate . ' ' . substr($workStartTime, 0, 8));
+
+        return [
+            'start' => $workStart->copy()->subHours(self::CHECKIN_HOURS_BEFORE_WORK),
+            'end' => $workStart->copy()->addHours(self::CHECKIN_HOURS_AFTER_WORK_START),
+            'work_start' => $workStart,
+        ];
+    }
+
+    public function isInCheckInWindow(Carbon $punchTime, string $recordDate, string $workStartTime): bool
+    {
+        $bounds = $this->getCheckInWindowBounds($recordDate, $workStartTime);
+
+        return $punchTime->gte($bounds['start']) && $punchTime->lte($bounds['end']);
+    }
+
+    public function isCheckoutWindow(Carbon $punchTime, string $recordDate, string $workStartTime): bool
+    {
+        $bounds = $this->getCheckInWindowBounds($recordDate, $workStartTime);
+
+        return $punchTime->gt($bounds['end']);
+    }
+
+    /**
+     * Classify a single live punch using the check-in window (not punch order).
+     *
+     * @return 'sign_in'|'sign_out'|'ignore'
+     */
+    public function classifyLivePunch(
+        Carbon $punchTime,
+        string $recordDate,
+        string $workStartTime,
+        bool $hasCheckIn,
+        bool $hasCheckOut
+    ): string {
+        if ($hasCheckOut) {
+            return 'ignore';
+        }
+
+        if ($this->isInCheckInWindow($punchTime, $recordDate, $workStartTime)) {
+            return $hasCheckIn ? 'ignore' : 'sign_in';
+        }
+
+        $bounds = $this->getCheckInWindowBounds($recordDate, $workStartTime);
+        if ($punchTime->lt($bounds['start'])) {
+            return $hasCheckIn ? 'ignore' : 'sign_in';
+        }
+
+        if ($hasCheckIn) {
+            return 'sign_out';
+        }
+
+        return 'sign_in';
+    }
+
+    /**
+     * Check-in window: 3h before work start through 2h after work start (all punches = check-in).
+     * After that window: punches count as check-out.
      *
      * @param array<int, array<string, mixed>> $records
-     * @return array{check_in: string, check_out: string|null, verify_mode: string|null, device_ip: string|null}
+     * @return array{check_in: string|null, check_out: string|null, verify_mode: string|null, device_ip: string|null}
      */
-    public function resolveDayCheckInOut(array $records, $existing = null): array
+    public function resolveDayCheckInOut(array $records, $existing = null, string $workStartTime = '08:00:00'): array
     {
+        if (count($records) < 1) {
+            return [
+                'check_in' => null,
+                'check_out' => null,
+                'verify_mode' => null,
+                'device_ip' => null,
+            ];
+        }
+
         usort($records, function ($a, $b) {
             if ($a['time']->eq($b['time'])) {
                 return 0;
@@ -263,21 +347,53 @@ class TeacherStaffAttendanceSyncService
         });
 
         $firstRecord = $records[0];
-        $secondRecord = count($records) >= 2 ? $records[1] : null;
+        $recordDate = $firstRecord['time']->toDateString();
+        $bounds = $this->getCheckInWindowBounds($recordDate, $workStartTime);
 
-        $checkIn = $firstRecord['time']->format('Y-m-d H:i:s');
-        $checkOut = $secondRecord ? $secondRecord['time']->format('Y-m-d H:i:s') : null;
+        $checkInCandidates = [];
+        $checkOutCandidates = [];
+
+        foreach ($records as $record) {
+            $time = $record['time'];
+            if ($time->lte($bounds['end'])) {
+                $checkInCandidates[] = $record;
+                continue;
+            }
+
+            $checkOutCandidates[] = $record;
+        }
+
+        $checkIn = !empty($checkInCandidates)
+            ? $checkInCandidates[0]['time']->format('Y-m-d H:i:s')
+            : null;
+        $checkOut = !empty($checkOutCandidates)
+            ? $checkOutCandidates[count($checkOutCandidates) - 1]['time']->format('Y-m-d H:i:s')
+            : null;
 
         if ($existing) {
             if ($existing->check_in_time) {
                 $existingIn = Carbon::parse($existing->check_in_time);
-                if ($existingIn->lt($firstRecord['time'])) {
+                if ($checkIn === null || $existingIn->lt(Carbon::parse($checkIn))) {
                     $checkIn = $existingIn->format('Y-m-d H:i:s');
                 }
             }
             if (!$checkOut && $existing->check_out_time) {
-                $checkOut = $existing->check_out_time->format('Y-m-d H:i:s');
+                $existingOut = Carbon::parse($existing->check_out_time);
+                if ($existingOut->gt($bounds['end'])) {
+                    $checkOut = $existingOut->format('Y-m-d H:i:s');
+                }
             }
+        }
+
+        if ($checkOut !== null && $checkIn === null && !empty($checkOutCandidates)) {
+            $checkIn = $checkOutCandidates[0]['time']->format('Y-m-d H:i:s');
+            if (count($checkOutCandidates) === 1) {
+                $checkOut = null;
+            }
+        }
+
+        if ($checkOut !== null && Carbon::parse($checkOut)->lte($bounds['end'])) {
+            $checkOut = null;
         }
 
         return [

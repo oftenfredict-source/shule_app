@@ -201,7 +201,11 @@ class TeacherDutyController extends Controller
 
         $report = $query->first();
 
-        // System Attendance Calculation (Pre-fill data)
+        $permissionService = app(\App\Services\StudentPermissionAttendanceService::class);
+        $permissionStatusMap = $permissionService->loadApprovedStatusMap($schoolID, $date, $date);
+        $useFingerprint = $permissionService->schoolHasFingerprintAttendanceOnDate($schoolID, $date);
+
+        // System / fingerprint attendance calculation (pre-fill data)
         $classes = \App\Models\ClassModel::where('schoolID', $schoolID)->orderBy('class_name', 'asc')->get();
         $systemAttendance = [];
 
@@ -221,32 +225,21 @@ class TeacherDutyController extends Controller
                 ->where('gender', 'Female')
                 ->count();
 
-            // 1. System Attendance Stats (Only from 'attendances' table)
-            // Join with students to get gender for boy/girl breakdown
-            // Using LEFT JOIN to ensure we don't drop records if student record is somehow missing (though it shouldn't be)
-            $stats = DB::table('attendances')
-                ->leftJoin('students', 'attendances.studentID', '=', 'students.studentID')
-                ->where('attendances.schoolID', $schoolID)
-                ->whereIn('attendances.subclassID', $subclassIDs)
-                ->whereDate('attendances.attendance_date', $date)
-                ->select(
-                    DB::raw('SUM(CASE WHEN LOWER(students.gender) = "male" AND attendances.status = "Present" THEN 1 ELSE 0 END) as present_boys'),
-                    DB::raw('SUM(CASE WHEN LOWER(students.gender) = "female" AND attendances.status = "Present" THEN 1 ELSE 0 END) as present_girls'),
-                    DB::raw('SUM(CASE WHEN LOWER(students.gender) = "male" AND attendances.status = "Absent" THEN 1 ELSE 0 END) as absent_boys'),
-                    DB::raw('SUM(CASE WHEN LOWER(students.gender) = "female" AND attendances.status = "Absent" THEN 1 ELSE 0 END) as absent_girls'),
-                    DB::raw('SUM(CASE WHEN LOWER(students.gender) = "male" AND attendances.status = "Sick" THEN 1 ELSE 0 END) as sick_boys'),
-                    DB::raw('SUM(CASE WHEN LOWER(students.gender) = "female" AND attendances.status = "Sick" THEN 1 ELSE 0 END) as sick_girls'),
-                    DB::raw('SUM(CASE WHEN LOWER(students.gender) = "male" AND (attendances.status = "Excused" OR attendances.status = "Permission") THEN 1 ELSE 0 END) as perm_boys'),
-                    DB::raw('SUM(CASE WHEN LOWER(students.gender) = "female" AND (attendances.status = "Excused" OR attendances.status = "Permission") THEN 1 ELSE 0 END) as perm_girls')
-                )
-                ->first();
-
-            // Debugging log to verify data
-            \Illuminate\Support\Facades\Log::info("Duty Report System Stats for Class " . $class->classID, [
-                'subclasses' => $subclassIDs,
-                'date' => $date,
-                'stats' => $stats
-            ]);
+            if ($useFingerprint) {
+                $genderStats = $permissionService->aggregateSubclassStatsFromFingerprint(
+                    $schoolID,
+                    $subclassIDs,
+                    $date,
+                    $permissionStatusMap
+                );
+            } else {
+                $genderStats = $permissionService->aggregateSubclassStatsFromSystem(
+                    $schoolID,
+                    $subclassIDs,
+                    $date,
+                    $permissionStatusMap
+                );
+            }
 
             // New Comers (Students admitted on this date)
             $newComersBoys = \App\Models\Student::where('schoolID', $schoolID)
@@ -264,18 +257,18 @@ class TeacherDutyController extends Controller
             $systemAttendance[$class->classID] = [
                 'reg_b' => (int)$registeredBoys,
                 'reg_g' => (int)$registeredGirls,
-                'pres_b' => (int)($stats->present_boys ?? 0),
-                'pres_g' => (int)($stats->present_girls ?? 0),
-                'abs_b' => (int)($stats->absent_boys ?? 0),
-                'abs_g' => (int)($stats->absent_girls ?? 0),
-                'perm_b' => (int)($stats->perm_boys ?? 0),
-                'perm_g' => (int)($stats->perm_girls ?? 0),
+                'pres_b' => (int)($genderStats['pres_b'] ?? 0),
+                'pres_g' => (int)($genderStats['pres_g'] ?? 0),
+                'abs_b' => (int)($genderStats['abs_b'] ?? 0),
+                'abs_g' => (int)($genderStats['abs_g'] ?? 0),
+                'perm_b' => (int)($genderStats['perm_b'] ?? 0),
+                'perm_g' => (int)($genderStats['perm_g'] ?? 0),
                 'new_b' => (int)$newComersBoys,
                 'new_g' => (int)$newComersGirls,
                 'shifted_b' => 0,
                 'shifted_g' => 0,
-                'sick_b' => (int)($stats->sick_boys ?? 0),
-                'sick_g' => (int)($stats->sick_girls ?? 0),
+                'sick_b' => (int)($genderStats['sick_b'] ?? 0),
+                'sick_g' => (int)($genderStats['sick_g'] ?? 0),
             ];
     }
 
@@ -300,6 +293,7 @@ class TeacherDutyController extends Controller
                 'teacher_name' => $report->teacher ? $report->teacher->first_name . ' ' . $report->teacher->last_name : 'N/A'
             ]) : null,
             'system_attendance' => $systemAttendance,
+            'attendance_source' => $useFingerprint ? 'fingerprint' : 'system',
             'total_active_students' => $totalActiveStudents,
             'calculated_attendance_percentage' => $calculatedPercentage
         ]);

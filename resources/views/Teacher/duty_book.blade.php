@@ -473,9 +473,11 @@ $(document).ready(function() {
                 refreshTableTotals();
                 Swal.fire({
                     title: 'Synced',
-                    text: 'Attendance counts updated from latest system data.',
+                    text: response.attendance_source === 'fingerprint'
+                        ? 'Attendance counts updated from fingerprint device (with approved permission/sick).'
+                        : 'Attendance counts updated from system attendance (with approved permission/sick).',
                     icon: 'success',
-                    timer: 2000,
+                    timer: 2500,
                     showConfirmButton: false
                 });
             }

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Services\TeacherStaffAttendanceSyncService;
 use App\Services\TeacherStaffLiveEventBuffer;
+use App\Services\TeacherStaffPermissionAttendanceService;
+use App\Services\StudentPermissionAttendanceService;
 use App\Services\StudentLiveEventBuffer;
 use App\Services\ZKTecoService;
 use Illuminate\Http\Request;
@@ -1757,6 +1759,16 @@ class ZKTecoController extends Controller
             $data = array_merge($newRecords, $oldRecords);
 
             $resolvedSchoolID = $schoolID ?? (int) Session::get('schoolID');
+            if ($resolvedSchoolID > 0) {
+                $includeAllStudents = $subclassID > 0 || ($classID !== null && $classID > 0);
+                $data = $this->applyStudentPermissionToLiveRows(
+                    $resolvedSchoolID,
+                    $today,
+                    $data,
+                    $students,
+                    $includeAllStudents
+                );
+            }
             $response = [
                 'success' => true,
                 'date' => $today,
@@ -2545,6 +2557,7 @@ class ZKTecoController extends Controller
         }
 
         $data = array_merge($newRecords, $oldRecords);
+        $data = $this->applyTeacherStaffPermissionToLiveRows($schoolID, $today, $data, $teachers, $staffMembers, $personTypeFilter);
 
         return response()->json([
             'success' => true,
@@ -2557,6 +2570,186 @@ class ZKTecoController extends Controller
             'recent_events' => TeacherStaffLiveEventBuffer::all($schoolID),
             'message' => $data ? null : 'No teacher/staff attendance records found for today.',
         ]);
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, Teacher> $teachers
+     * @param \Illuminate\Support\Collection<int, OtherStaff> $staffMembers
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    /**
+     * @param \Illuminate\Support\Collection<int, Student> $students
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function applyStudentPermissionToLiveRows(
+        int $schoolID,
+        string $today,
+        array $rows,
+        $students,
+        bool $includeAllStudentsInScope
+    ): array {
+        $permissionService = app(StudentPermissionAttendanceService::class);
+        $permissionMap = $permissionService->loadApprovedStatusMap($schoolID, $today, $today);
+
+        $rowsByStudentId = [];
+        foreach ($rows as $index => $row) {
+            $studentId = (int) ($row['studentID'] ?? 0);
+            if ($studentId > 0) {
+                $rowsByStudentId[$studentId] = $index;
+            }
+        }
+
+        foreach ($rows as $index => $row) {
+            $studentId = (int) ($row['studentID'] ?? 0);
+            $permStatus = $permissionService->statusForStudentOnDate($permissionMap, $studentId, $today);
+            $dayStatus = $permissionService->resolveFingerprintDayStatus($row['check_in_time'] ?? null, $permStatus);
+            $rows[$index]['attendance_status'] = $dayStatus;
+            $rows[$index]['status'] = $dayStatus;
+        }
+
+        foreach ($students as $student) {
+            $studentId = (int) $student->studentID;
+            if (isset($rowsByStudentId[$studentId])) {
+                continue;
+            }
+
+            $permStatus = $permissionService->statusForStudentOnDate($permissionMap, $studentId, $today);
+            if ($permStatus) {
+                $dayStatus = $permissionService->resolveFingerprintDayStatus(null, $permStatus);
+            } elseif (! $includeAllStudentsInScope) {
+                continue;
+            } else {
+                $dayStatus = 'Absent';
+            }
+
+            $studentName = trim(($student->first_name ?? '').' '.($student->middle_name ?? '').' '.($student->last_name ?? ''));
+            $className = 'N/A';
+            if ($student->subclass) {
+                $mainClass = $student->subclass->class->class_name ?? '';
+                $subName = trim($student->subclass->subclass_name ?? '');
+                $className = trim($mainClass.($subName !== '' ? ' '.$subName : ''));
+            }
+
+            $rows[] = [
+                'studentID' => $studentId,
+                'user_id' => $studentId,
+                'user_name' => $studentName ?: 'N/A',
+                'enroll_id' => $studentId,
+                'fingerprint_id' => $student->fingerprint_id ?? $studentId,
+                'class_name' => $className,
+                'subclassID' => (int) ($student->subclassID ?? 0),
+                'gender' => $student->gender ?? null,
+                'attendance_date' => $today,
+                'check_in_time' => null,
+                'check_out_time' => null,
+                'status' => $dayStatus,
+                'attendance_status' => $dayStatus,
+                'verify_mode' => null,
+                'device_ip' => null,
+                'is_new' => false,
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function applyTeacherStaffPermissionToLiveRows(
+        int $schoolID,
+        string $today,
+        array $rows,
+        $teachers,
+        $staffMembers,
+        string $personTypeFilter = 'all'
+    ): array {
+        $permissionService = app(TeacherStaffPermissionAttendanceService::class);
+        $permissionMap = $permissionService->loadApprovedPermissionDatesMap(
+            $schoolID,
+            $today,
+            $today,
+            $personTypeFilter
+        );
+
+        $seenKeys = [];
+
+        foreach ($rows as $index => $row) {
+            $personKey = ($row['person_type'] ?? '') . '_' . ($row['person_id'] ?? 0);
+            $seenKeys[$personKey] = true;
+
+            if ($permissionService->isPermittedOnDate($permissionMap, $personKey, $today)) {
+                $rows[$index]['status'] = 'Permitted';
+                $rows[$index]['attendance_status'] = 'Permitted';
+            }
+        }
+
+        if ($personTypeFilter !== 'staff') {
+            foreach ($teachers as $teacher) {
+                $personKey = 'teacher_' . $teacher->id;
+                if (isset($seenKeys[$personKey])) {
+                    continue;
+                }
+                if (!$permissionService->isPermittedOnDate($permissionMap, $personKey, $today)) {
+                    continue;
+                }
+
+                $teacherName = trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? ''));
+                $rows[] = [
+                    'person_type' => 'teacher',
+                    'person_id' => $teacher->id,
+                    'user_id' => $teacher->id,
+                    'user_name' => $teacherName ?: 'N/A',
+                    'enroll_id' => $teacher->id,
+                    'fingerprint_id' => $teacher->fingerprint_id ?? $teacher->id,
+                    'role_label' => $teacher->position ?? 'Teacher',
+                    'employee_number' => $teacher->employee_number ?? null,
+                    'attendance_date' => $today,
+                    'check_in_time' => null,
+                    'check_out_time' => null,
+                    'status' => 'Permitted',
+                    'attendance_status' => 'Permitted',
+                    'verify_mode' => null,
+                    'device_ip' => null,
+                    'is_new' => false,
+                    'persisted' => true,
+                ];
+            }
+        }
+
+        if ($personTypeFilter !== 'teacher') {
+            foreach ($staffMembers as $staff) {
+                $personKey = 'staff_' . $staff->id;
+                if (isset($seenKeys[$personKey])) {
+                    continue;
+                }
+                if (!$permissionService->isPermittedOnDate($permissionMap, $personKey, $today)) {
+                    continue;
+                }
+
+                $staffName = trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? ''));
+                $rows[] = [
+                    'person_type' => 'staff',
+                    'person_id' => $staff->id,
+                    'user_id' => $staff->id,
+                    'user_name' => $staffName ?: 'N/A',
+                    'enroll_id' => $staff->fingerprint_id ?? $staff->id,
+                    'fingerprint_id' => $staff->fingerprint_id ?? $staff->id,
+                    'role_label' => $staff->position ?? 'Staff',
+                    'employee_number' => $staff->employee_number ?? null,
+                    'attendance_date' => $today,
+                    'check_in_time' => null,
+                    'check_out_time' => null,
+                    'status' => 'Permitted',
+                    'attendance_status' => 'Permitted',
+                    'verify_mode' => null,
+                    'device_ip' => null,
+                    'is_new' => false,
+                    'persisted' => true,
+                ];
+            }
+        }
+
+        return $rows;
     }
 
     private function formatTeacherLiveAttendanceRow(TeacherFingerprintAttendance $record, Teacher $teacher, string $today): array
@@ -2695,43 +2888,16 @@ class ZKTecoController extends Controller
     }
 
     /**
-     * First punch = check-in, second punch = check-out. Merges with existing DB row so check-out is never cleared.
+     * Check-in window logic via TeacherStaffAttendanceSyncService (not punch order).
      *
-     * @return array{check_in: string, check_out: string|null, verify_mode: string|null, device_ip: string|null}
+     * @return array{check_in: string|null, check_out: string|null, verify_mode: string|null, device_ip: string|null}
      */
     private function resolveTeacherDayCheckInOut(array $records, $existing = null): array
     {
-        usort($records, function ($a, $b) {
-            if ($a['time']->eq($b['time'])) {
-                return 0;
-            }
-            return $a['time']->lt($b['time']) ? -1 : 1;
-        });
+        $schoolID = (int) $this->resolveFingerprintSchoolId();
+        $workStartTime = (string) \App\Models\TeacherStaffWorkTimeSetting::forSchool($schoolID)->work_start_time;
 
-        $firstRecord = $records[0];
-        $secondRecord = count($records) >= 2 ? $records[1] : null;
-
-        $checkIn = $firstRecord['time']->format('Y-m-d H:i:s');
-        $checkOut = $secondRecord ? $secondRecord['time']->format('Y-m-d H:i:s') : null;
-
-        if ($existing) {
-            if ($existing->check_in_time) {
-                $existingIn = Carbon::parse($existing->check_in_time);
-                if ($existingIn->lt($firstRecord['time'])) {
-                    $checkIn = $existingIn->format('Y-m-d H:i:s');
-                }
-            }
-            if (!$checkOut && $existing->check_out_time) {
-                $checkOut = $existing->check_out_time->format('Y-m-d H:i:s');
-            }
-        }
-
-        return [
-            'check_in' => $checkIn,
-            'check_out' => $checkOut,
-            'verify_mode' => $firstRecord['type'] ?? 'Fingerprint',
-            'device_ip' => $firstRecord['device_ip'] ?? null,
-        ];
+        return app(TeacherStaffAttendanceSyncService::class)->resolveDayCheckInOut($records, $existing, $workStartTime);
     }
 
     private function persistTeacherStaffGroupedRecords(array $userDateRecords): array
@@ -3055,8 +3221,8 @@ class ZKTecoController extends Controller
             $teacher = $group[0]['person'];
             $times = $this->resolveTeacherDayCheckInOut($group, null);
             $teacherName = trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? ''));
-            $checkInCarbon = Carbon::parse($times['check_in']);
-            $isNew = $checkInCarbon->diffInMinutes(Carbon::now()) <= 10;
+            $checkInCarbon = $times['check_in'] ? Carbon::parse($times['check_in']) : null;
+            $isNew = $checkInCarbon && $checkInCarbon->diffInMinutes(Carbon::now()) <= 10;
 
             $records[] = [
                 'person_type' => 'teacher',
@@ -3099,11 +3265,11 @@ class ZKTecoController extends Controller
 
             /** @var OtherStaff $staff */
             $staff = $group[0]['person'];
-            $second = count($group) >= 2 ? $group[1] : null;
+            $times = $this->resolveTeacherDayCheckInOut($group, null);
             $staffName = trim(($staff->first_name ?? '') . ' ' . ($staff->middle_name ?? '') . ' ' . ($staff->last_name ?? ''));
-            $checkInTime = $group[0]['time']->format('Y-m-d H:i:s');
-            $checkOutTime = $second ? $second['time']->format('Y-m-d H:i:s') : null;
-            $isNew = $group[0]['time']->diffInMinutes(Carbon::now()) <= 10;
+            $checkInTime = $times['check_in'];
+            $checkOutTime = $times['check_out'];
+            $isNew = $checkInTime && Carbon::parse($checkInTime)->diffInMinutes(Carbon::now()) <= 10;
 
             $records[] = [
                 'person_type' => 'staff',
