@@ -619,11 +619,15 @@
                                             <li><a href="{{ route('manageExamination') }}" class="nav-link"><i
                                                         class="fa fa-pencil-square-o"></i> Examinations</a></li>
                                             @php
-                                                $staffID = Session::get('staffID');
-                                                $staffRoleIds = DB::table('role_user')->where('staff_id', $staffID)->pluck('role_id')->toArray();
-                                                $pendingPaperApprovals = \App\Models\PaperApprovalLog::whereIn('role_id', $staffRoleIds)
-                                                    ->where('status', 'pending')
-                                                    ->count();
+                                                $userID = Session::get('userID');
+                                                $staffRoleIds = $userID
+                                                    ? DB::table('role_user')->where('user_id', $userID)->pluck('role_id')->toArray()
+                                                    : [];
+                                                $pendingPaperApprovals = !empty($staffRoleIds)
+                                                    ? \App\Models\PaperApprovalLog::whereIn('role_id', $staffRoleIds)
+                                                        ->where('status', 'pending')
+                                                        ->count()
+                                                    : 0;
                                             @endphp
                                             <li>
                                                 <a href="{{ route('admin.exam_paper_approval') }}" class="nav-link">
