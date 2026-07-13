@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Hash;
 use App\Models\ParentModel;
 use App\Services\SmsService;
+use App\Services\StudentEnrollmentService;
+use App\Support\SafeErrorMessage;
 
 class StudentRegistrationController extends Controller
 {
@@ -158,7 +160,7 @@ class StudentRegistrationController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation error: ' . $e->getMessage(),
+                'message' => SafeErrorMessage::from($e, 'Please check the form and try again.'),
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
@@ -379,6 +381,13 @@ class StudentRegistrationController extends Controller
                 'registration_status' => 'Completed'
             ]);
 
+            app(StudentEnrollmentService::class)->enrollOnRegistration(
+                $student,
+                (int) $schoolID,
+                $subclass,
+                'Registered via registration wizard'
+            );
+
             // Create user account for student (Username = admission_number, Password = last_name)
             $userEmail = $admissionNumber . '@student.local';
             $emailCounter = 1;
@@ -421,7 +430,8 @@ class StudentRegistrationController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Registration failed: ' . $e->getMessage());
+            \Log::error('Student registration wizard failed: ' . $e->getMessage());
+            return back()->with('error', SafeErrorMessage::from($e, 'Registration failed. Please try again.'));
         }
     }
 
@@ -582,17 +592,19 @@ class StudentRegistrationController extends Controller
                     $phone = '255' . $phone;
                 }
                 
-                // Check if phone number exists in another school
-                $parentInOtherSchool = ParentModel::where('phone', $phone)
-                    ->where('schoolID', '!=', $schoolID)
-                    ->first();
-                
-                if ($parentInOtherSchool) {
+                // Check if phone number already exists (unique across parents)
+                $existingByPhone = ParentModel::where('phone', $phone)->first();
+                if ($existingByPhone) {
+                    $sameSchool = (int) $existingByPhone->schoolID === (int) $schoolID;
+                    $message = $sameSchool
+                        ? 'This phone number is already registered. Please search for the existing parent and select them, or use a different number.'
+                        : 'This phone number already exists in another school. Please try another number.';
+
                     return response()->json([
                         'success' => false,
-                        'message' => 'This phone number already exists in another school. Please try another number.',
+                        'message' => $message,
                         'errors' => [
-                            'parent_phone' => ['This phone number already exists in another school. Please try another number.']
+                            'parent_phone' => [$message]
                         ]
                     ], 422);
                 }
@@ -727,6 +739,18 @@ class StudentRegistrationController extends Controller
                 'sponsorship_percentage' => ($request->payment_type === 'sponsor' && $request->sponsorship_percentage) ? $request->sponsorship_percentage : 0,
             ]);
 
+            $subclass = Subclass::with('class')->find($request->subclassID);
+            if (!$subclass || (int) ($subclass->class->schoolID ?? 0) !== (int) $schoolID) {
+                throw new \RuntimeException('Invalid subclass for enrollment.');
+            }
+
+            app(StudentEnrollmentService::class)->enrollOnRegistration(
+                $student,
+                (int) $schoolID,
+                $subclass,
+                'Registered via registration form'
+            );
+
             // Create user account for the student
             // Use admission_number as email (must be unique)
             $userEmail = $admissionNumber . '@student.local';
@@ -807,9 +831,12 @@ class StudentRegistrationController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Student registration failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => SafeErrorMessage::from($e, 'Registration failed. Please check your details and try again.')
             ], 500);
         }
     }

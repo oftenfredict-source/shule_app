@@ -752,6 +752,8 @@ class StaffController extends Controller
         $permissionData = [
             'schoolID' => $schoolID,
             'student_id' => $validated['student_id'],
+            'enrollmentID' => app(\App\Services\StudentEnrollmentService::class)
+                ->bestEnrollmentID($validated['student_id'], (int) $schoolID),
             'requester_id' => $staffID,
             'requester_type' => 'staff',
             'time_mode' => $validated['time_mode'],

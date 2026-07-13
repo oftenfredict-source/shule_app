@@ -195,6 +195,8 @@ class AttendanceApiController extends Controller
                     'schoolID' => $student->schoolID,
                     'subclassID' => $student->subclassID,
                     'studentID' => $student->studentID,
+                    'enrollmentID' => app(\App\Services\StudentEnrollmentService::class)
+                        ->bestEnrollmentID($student->studentID, (int) $student->schoolID),
                     'teacherID' => null,
                     'attendance_date' => $currentDate,
                     'status' => 'Present',
@@ -404,6 +406,8 @@ class AttendanceApiController extends Controller
                             'schoolID' => $student->schoolID,
                             'subclassID' => $student->subclassID,
                             'studentID' => $student->studentID,
+                            'enrollmentID' => app(\App\Services\StudentEnrollmentService::class)
+                                ->bestEnrollmentID($student->studentID, (int) $student->schoolID),
                             'teacherID' => null,
                             'attendance_date' => $attendanceDate,
                             'status' => $status,
@@ -589,6 +593,8 @@ class AttendanceApiController extends Controller
 
                 $syncData = [
                     'studentID' => $student->studentID,
+                    'enrollmentID' => app(\App\Services\StudentEnrollmentService::class)
+                        ->bestEnrollmentID($student->studentID, (int) $student->schoolID),
                     'user_id' => $userData['id'] ?? null,
                     'user_name' => $userData['name'] ?? null,
                     'enroll_id' => $enrollId,

@@ -25,6 +25,7 @@ class StoreRequisition extends Model
         'quantity_returned',
         'recipient_type',
         'recipient_id',
+        'enrollmentID',
         'recipient_name',
         'requisition_status',
         'expected_return_date',
@@ -64,5 +65,10 @@ class StoreRequisition extends Model
     public function unit()
     {
         return $this->belongsTo(StoreUnitOfMeasure::class, 'unitID', 'unitID');
+    }
+
+    public function enrollment()
+    {
+        return $this->belongsTo(StudentEnrollment::class, 'enrollmentID', 'enrollmentID');
     }
 }

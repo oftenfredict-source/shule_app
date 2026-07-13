@@ -146,44 +146,26 @@
             font-family: 'FontAwesome' !important;
         }
 
+        /* Sidebar links: NO inner scrollbar — only outer #left-panel scrolls */
         .sidebar-links-container {
-            overflow-y: hidden !important;
-            overflow-x: hidden !important;
-            max-height: calc(100vh - 200px) !important;
+            overflow: visible !important;
+            overflow-x: visible !important;
+            overflow-y: visible !important;
+            max-height: none !important;
+            height: auto !important;
             width: 100% !important;
             scrollbar-width: none !important;
             -ms-overflow-style: none !important;
         }
 
-        .sidebar-links-container::-webkit-scrollbar {
+        .sidebar-links-container::-webkit-scrollbar,
+        .sidebar-links-container:hover::-webkit-scrollbar {
             width: 0 !important;
             display: none !important;
         }
 
         .sidebar-links-container:hover {
-            overflow-y: auto !important;
-            scrollbar-width: thin !important;
-            scrollbar-color: #cfcfcf #f0f0f0 !important;
-            -ms-overflow-style: scrollbar !important;
-        }
-
-        .sidebar-links-container:hover::-webkit-scrollbar {
-            width: 8px !important;
-            display: block !important;
-        }
-
-        .sidebar-links-container::-webkit-scrollbar-track {
-            background: #f0f0f0 !important;
-            border-radius: 4px !important;
-        }
-
-        .sidebar-links-container::-webkit-scrollbar-thumb {
-            background: #cfcfcf !important;
-            border-radius: 4px !important;
-        }
-
-        .sidebar-links-container::-webkit-scrollbar-thumb:hover {
-            background: #bdbdbd !important;
+            overflow: visible !important;
         }
 
         .sidebar-links-container ul {
@@ -894,6 +876,7 @@
                         </div>
                         @include('includes.sgpm_notifications')
                         @include('includes.goal_notifications')
+                        @include('includes.header_academic_year_selector')
                     </div>
                 </div>
 

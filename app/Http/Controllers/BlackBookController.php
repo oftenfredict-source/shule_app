@@ -113,7 +113,26 @@ class BlackBookController extends Controller
 
     private function formatStudentClass(?Student $student): string
     {
-        if (!$student || !$student->subclass) {
+        if (!$student) {
+            return '—';
+        }
+
+        $enrollment = $student->relationLoaded('currentEnrollment')
+            ? $student->currentEnrollment
+            : $student->currentEnrollment()->with(['subclass.class', 'classModel'])->first();
+
+        if ($enrollment) {
+            $class = $enrollment->classModel->class_name
+                ?? $enrollment->subclass->class->class_name
+                ?? '';
+            $sub = $enrollment->subclass->subclass_name ?? '';
+            $label = trim($class . ($sub ? ' ' . $sub : ''));
+            if ($label !== '') {
+                return $label;
+            }
+        }
+
+        if (!$student->subclass) {
             return '—';
         }
         $class = $student->subclass->class->class_name ?? '';
@@ -123,7 +142,7 @@ class BlackBookController extends Controller
 
     private function formatReport(BlackBookReport $report): array
     {
-        $report->loadMissing(['student.subclass.class', 'problemCategory', 'punishmentCategory', 'student.parent']);
+        $report->loadMissing(['student.subclass.class', 'student.currentEnrollment.subclass.class', 'student.currentEnrollment.classModel', 'problemCategory', 'punishmentCategory', 'student.parent', 'enrollment.subclass.class', 'enrollment.classModel']);
 
         $student = $report->student;
         $parent = $student?->parent;
@@ -131,9 +150,12 @@ class BlackBookController extends Controller
         return [
             'reportID' => (int) $report->reportID,
             'studentID' => (int) $report->studentID,
+            'enrollmentID' => (int) ($report->enrollmentID ?? optional($student?->currentEnrollment)->enrollmentID),
             'student_name' => $this->formatStudentName($student),
             'admission_number' => $student->admission_number ?? '—',
-            'class_name' => $this->formatStudentClass($student),
+            'class_name' => $report->enrollment
+                ? trim(($report->enrollment->classModel->class_name ?? $report->enrollment->subclass->class->class_name ?? '') . ' ' . ($report->enrollment->subclass->subclass_name ?? ''))
+                : $this->formatStudentClass($student),
             'problem_categoryID' => (int) $report->problem_categoryID,
             'problem_category' => $report->problemCategory->name ?? '—',
             'problem_weight' => (int) ($report->problemCategory->weight ?? 0),
@@ -781,13 +803,14 @@ class BlackBookController extends Controller
                     ->orWhere('admission_number', 'like', "%{$search}%")
                     ->orWhere(DB::raw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name)"), 'like', "%{$search}%");
             })
-            ->with(['subclass.class'])
+            ->with(['subclass.class', 'currentEnrollment.subclass.class', 'currentEnrollment.classModel'])
             ->limit(20)
             ->get()
             ->map(function ($student) {
                 $className = $this->formatStudentClass($student);
                 return [
                     'studentID' => $student->studentID,
+                    'enrollmentID' => optional($student->currentEnrollment)->enrollmentID,
                     'full_name' => $this->formatStudentName($student),
                     'admission_number' => $student->admission_number,
                     'class_name' => $className,
@@ -844,6 +867,8 @@ class BlackBookController extends Controller
         $report = BlackBookReport::create([
             'schoolID' => $schoolID,
             'studentID' => $student->studentID,
+            'enrollmentID' => app(\App\Services\StudentEnrollmentService::class)
+                ->bestEnrollmentID($student->studentID, (int) $schoolID),
             'problem_categoryID' => $category->categoryID,
             'description' => trim($request->description),
             'reported_by_type' => $actor['type'],

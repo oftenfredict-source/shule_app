@@ -151,47 +151,26 @@
     font-family: 'FontAwesome' !important;
 }
 
-/* Overflow scroll kwa sidebar links container - with visible scrollbar */
+/* Sidebar links: NO inner scrollbar — only outer #left-panel scrolls */
 .sidebar-links-container {
-    overflow-y: hidden !important;
-    overflow-x: hidden !important;
-    max-height: calc(100vh - 200px) !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    max-height: none !important;
+    height: auto !important;
     width: 100% !important;
-    /* Hide scrollbar until hover */
-    scrollbar-width: none !important; /* Firefox */
-    -ms-overflow-style: none !important; /* IE and Edge */
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
 }
 
-/* Custom scrollbar styling for WebKit browsers (Chrome, Safari, Opera) */
-.sidebar-links-container::-webkit-scrollbar {
+.sidebar-links-container::-webkit-scrollbar,
+.sidebar-links-container:hover::-webkit-scrollbar {
     width: 0 !important;
     display: none !important;
 }
 
 .sidebar-links-container:hover {
-    overflow-y: auto !important;
-    scrollbar-width: thin !important; /* Firefox */
-    scrollbar-color: #cfcfcf #f0f0f0 !important; /* Firefox */
-    -ms-overflow-style: scrollbar !important; /* IE and Edge */
-}
-
-.sidebar-links-container:hover::-webkit-scrollbar {
-    width: 8px !important;
-    display: block !important;
-}
-
-.sidebar-links-container::-webkit-scrollbar-track {
-    background: #f0f0f0 !important;
-    border-radius: 4px !important;
-}
-
-.sidebar-links-container::-webkit-scrollbar-thumb {
-    background: #cfcfcf !important;
-    border-radius: 4px !important;
-}
-
-.sidebar-links-container::-webkit-scrollbar-thumb:hover {
-    background: #bdbdbd !important;
+    overflow: visible !important;
 }
 
 .sidebar-links-container ul {
@@ -456,12 +435,17 @@
                 <!-- Profile -->
                 <li class="text-center mt-3 mb-2">
                     @php
-                        // Get teacher profile image dynamically
-                        $imgPath = isset($teacher) && $teacher && $teacher->image
-                            ? asset('userImages/' . $teacher->image)
-                            : (isset($teacher) && $teacher && $teacher->gender == 'Female'
-                                ? asset('images/female.png')
-                                : asset('images/male.png'));
+                        // Get teacher profile image dynamically (fallback if file missing → no 404)
+                        $defaultTeacherImg = (isset($teacher) && $teacher && ($teacher->gender ?? '') == 'Female')
+                            ? asset('images/female.png')
+                            : asset('images/male.png');
+                        $imgPath = $defaultTeacherImg;
+                        if (isset($teacher) && $teacher && !empty($teacher->image)) {
+                            $teacherImageFile = public_path('userImages/' . $teacher->image);
+                            if (is_file($teacherImageFile)) {
+                                $imgPath = asset('userImages/' . $teacher->image);
+                            }
+                        }
                     @endphp
                     @php
                         // Get teacher's role name if exists
@@ -485,7 +469,7 @@
                         }
                     @endphp
                     <div class="sidebar-profile">
-                        <img src="{{ $imgPath }}" alt="Teacher" class="profile-image">
+                        <img src="{{ $imgPath }}" alt="Teacher" class="profile-image" onerror="this.onerror=null; this.src='{{ $defaultTeacherImg }}';">
                         <div class="profile-meta text-left">
                             <div class="profile-role">User Type</div>
                             <div class="profile-name">{{ $teacherRoleName }}</div>
@@ -1401,6 +1385,8 @@
                             </a>
                             </div>
                         </div>
+
+                        @include('includes.header_academic_year_selector')
                     </div>
                 </div>
 
@@ -1408,13 +1394,18 @@
                     <div class="user-area dropdown float-right">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             @php
-                                $headerImgPath = isset($teacher) && $teacher && $teacher->image
-                                    ? asset('userImages/' . $teacher->image)
-                                    : (isset($teacher) && $teacher && $teacher->gender == 'Female'
-                                        ? asset('images/female.png')
-                                        : asset('images/male.png'));
+                                $defaultHeaderTeacherImg = (isset($teacher) && $teacher && ($teacher->gender ?? '') == 'Female')
+                                    ? asset('images/female.png')
+                                    : asset('images/male.png');
+                                $headerImgPath = $defaultHeaderTeacherImg;
+                                if (isset($teacher) && $teacher && !empty($teacher->image)) {
+                                    $headerTeacherFile = public_path('userImages/' . $teacher->image);
+                                    if (is_file($headerTeacherFile)) {
+                                        $headerImgPath = asset('userImages/' . $teacher->image);
+                                    }
+                                }
                             @endphp
-                            <img class="user-avatar rounded-circle" src="{{ $headerImgPath }}" alt="User Avatar" style="width: 40px; height: 40px; object-fit: cover;">
+                            <img class="user-avatar rounded-circle" src="{{ $headerImgPath }}" alt="User Avatar" style="width: 40px; height: 40px; object-fit: cover;" onerror="this.onerror=null; this.src='{{ $defaultHeaderTeacherImg }}';">
                         </a>
 
                         <div class="user-menu dropdown-menu">

@@ -13,6 +13,7 @@ class StudentSessionAttendance extends Model
         'schoolID',
         'session_timetableID',
         'studentID',
+        'enrollmentID',
         'teacherID',
         'attendance_date',
         'status',
@@ -37,6 +38,11 @@ class StudentSessionAttendance extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'studentID', 'studentID');
+    }
+
+    public function enrollment()
+    {
+        return $this->belongsTo(StudentEnrollment::class, 'enrollmentID', 'enrollmentID');
     }
 
     public function teacher()

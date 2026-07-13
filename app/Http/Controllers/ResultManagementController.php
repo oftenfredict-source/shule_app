@@ -2372,15 +2372,13 @@ class ResultManagementController extends Controller
      */
     private function getStudentsForSubjectAnalysis(ClassSubject $classSubject): Collection
     {
+        $schoolID = Session::get("schoolID");
         $studentsQuery = Student::where("status", "Active");
 
         if ($classSubject->subclassID) {
-            $studentsQuery->where("subclassID", $classSubject->subclassID);
+            $studentsQuery->inSubclass($classSubject->subclassID, $schoolID);
         } elseif ($classSubject->classID) {
-            $subclassIds = Subclass::where("classID", $classSubject->classID)
-                ->pluck("subclassID")
-                ->toArray();
-            $studentsQuery->whereIn("subclassID", $subclassIds);
+            $studentsQuery->inClass($classSubject->classID, $schoolID);
         }
 
         $students = $studentsQuery->get();

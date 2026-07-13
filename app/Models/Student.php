@@ -118,4 +118,44 @@ class Student extends Model
     {
         return $this->hasMany(StudentCharacterAssessment::class, 'studentID', 'studentID');
     }
+
+    public function enrollments()
+    {
+        return $this->hasMany(StudentEnrollment::class, 'studentID', 'studentID');
+    }
+
+    public function currentEnrollment()
+    {
+        return $this->hasOne(StudentEnrollment::class, 'studentID', 'studentID')
+            ->where('status', 'Active')
+            ->latestOfMany('enrollmentID');
+    }
+
+    /**
+     * Scope: students currently placed in subclass via active enrollment (fallback to students.subclassID).
+     */
+    public function scopeInSubclass($query, $subclassID, $schoolID = null)
+    {
+        $service = app(\App\Services\StudentEnrollmentService::class);
+        $ids = $service->studentIDsInSubclass((int) $subclassID, $schoolID ? (int) $schoolID : null);
+        if (!empty($ids)) {
+            return $query->whereIn('studentID', $ids);
+        }
+        return $query->where('subclassID', $subclassID);
+    }
+
+    /**
+     * Scope: students currently placed in main class via active enrollment.
+     */
+    public function scopeInClass($query, $classID, $schoolID = null)
+    {
+        $service = app(\App\Services\StudentEnrollmentService::class);
+        $ids = $service->studentIDsInClass((int) $classID, $schoolID ? (int) $schoolID : null);
+        if (!empty($ids)) {
+            return $query->whereIn('studentID', $ids);
+        }
+        return $query->whereHas('subclass', function ($q) use ($classID) {
+            $q->where('classID', $classID);
+        });
+    }
 }

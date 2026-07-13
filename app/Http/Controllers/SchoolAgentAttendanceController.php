@@ -682,6 +682,8 @@ class SchoolAgentAttendanceController extends Controller
             StudentFingerprintAttendance::updateOrCreate(
                 ['studentID' => $student->studentID, 'attendance_date' => $recordDate],
                 [
+                    'enrollmentID' => app(\App\Services\StudentEnrollmentService::class)
+                        ->bestEnrollmentID($student->studentID, (int) ($student->schoolID ?? 0) ?: null),
                     'user_id' => $student->studentID,
                     'user_name' => $name !== '' ? $name : 'N/A',
                     'enroll_id' => $student->fingerprint_id ?? $student->studentID,

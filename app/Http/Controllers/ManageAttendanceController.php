@@ -1077,17 +1077,27 @@ class ManageAttendanceController extends Controller
 
         $result = [];
         foreach ($subclasses as $subclass) {
-            // Get total students in this subclass
-            $totalStudents = DB::table('students')
-                ->where('subclassID', $subclass->subclassID)
-                ->where('schoolID', $schoolID)
-                ->where('status', '!=', 'Transferred')
-                ->count();
+            // Prefer active enrollment roster for current class placement
+            $enrolledIDs = app(\App\Services\StudentEnrollmentService::class)
+                ->studentIDsInSubclass((int) $subclass->subclassID, (int) $schoolID);
+
+            $totalStudents = !empty($enrolledIDs)
+                ? count($enrolledIDs)
+                : DB::table('students')
+                    ->where('subclassID', $subclass->subclassID)
+                    ->where('schoolID', $schoolID)
+                    ->where('status', '!=', 'Transferred')
+                    ->count();
 
             // Check if attendance was collected for this subclass in the period
             $attendanceCheckQuery = DB::table('attendances')
                 ->where('schoolID', $schoolID)
-                ->where('subclassID', $subclass->subclassID);
+                ->where(function ($q) use ($subclass, $enrolledIDs) {
+                    $q->where('subclassID', $subclass->subclassID);
+                    if (!empty($enrolledIDs)) {
+                        $q->orWhereIn('studentID', $enrolledIDs);
+                    }
+                });
 
             // Apply date filters
             if ($searchType == 'date' && $date) {
@@ -1336,19 +1346,35 @@ class ManageAttendanceController extends Controller
 
         $result = [];
         foreach ($subclasses as $subclass) {
-            // Get total students in this subclass
-            $totalStudents = DB::table('students')
-                ->where('subclassID', $subclass->subclassID)
-                ->where('schoolID', $schoolID)
-                ->where('status', '!=', 'Transferred')
-                ->count();
+            $enrolledIDs = app(\App\Services\StudentEnrollmentService::class)
+                ->studentIDsInSubclass((int) $subclass->subclassID, (int) $schoolID);
+
+            $totalStudents = !empty($enrolledIDs)
+                ? count($enrolledIDs)
+                : DB::table('students')
+                    ->where('subclassID', $subclass->subclassID)
+                    ->where('schoolID', $schoolID)
+                    ->where('status', '!=', 'Transferred')
+                    ->count();
 
             // Check if fingerprint attendance was collected for this subclass in the period
             $attendanceCheckQuery = DB::table('student_fingerprint_attendance')
                 ->join('students', 'student_fingerprint_attendance.studentID', '=', 'students.studentID')
                 ->where('students.schoolID', $schoolID)
-                ->where('students.subclassID', $subclass->subclassID)
-                ->where('students.status', '!=', 'Transferred');
+                ->where('students.status', '!=', 'Transferred')
+                ->where(function ($q) use ($subclass, $enrolledIDs) {
+                    if (!empty($enrolledIDs)) {
+                        $q->whereIn('students.studentID', $enrolledIDs)
+                            ->orWhereIn('student_fingerprint_attendance.enrollmentID', function ($sub) use ($subclass, $schoolID) {
+                                $sub->select('enrollmentID')
+                                    ->from('student_enrollments')
+                                    ->where('subclassID', $subclass->subclassID)
+                                    ->where('schoolID', $schoolID);
+                            });
+                    } else {
+                        $q->where('students.subclassID', $subclass->subclassID);
+                    }
+                });
 
             // Apply date filters
             if ($searchType == 'date' && $date) {

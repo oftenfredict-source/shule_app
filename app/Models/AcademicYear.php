@@ -19,6 +19,7 @@ class AcademicYear extends Model
         'start_date',
         'end_date',
         'status',
+        'is_current',
         'closed_at',
         'closed_by',
         'notes',
@@ -28,9 +29,9 @@ class AcademicYear extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'closed_at' => 'datetime',
+        'is_current' => 'boolean',
     ];
 
-    // Relationships
     public function school()
     {
         return $this->belongsTo(School::class, 'schoolID', 'schoolID');

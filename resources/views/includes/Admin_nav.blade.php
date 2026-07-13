@@ -225,54 +225,33 @@
     font-family: 'FontAwesome' !important;
 }
 
-/* Overflow scroll kwa sidebar links container - with visible scrollbar */
+/* Sidebar links: NO inner scrollbar — only outer #left-panel scrolls */
 .sidebar-links-container {
-    overflow-y: hidden !important;
-    overflow-x: hidden !important;
-    max-height: calc(100vh - 200px) !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    max-height: none !important;
+    height: auto !important;
     width: 100% !important;
-    /* Hide scrollbar until hover */
-    scrollbar-width: none !important; /* Firefox */
-    -ms-overflow-style: none !important; /* IE and Edge */
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
 }
 
-/* Custom scrollbar styling for WebKit browsers (Chrome, Safari, Opera) */
-.sidebar-links-container::-webkit-scrollbar {
+.sidebar-links-container::-webkit-scrollbar,
+.sidebar-links-container:hover::-webkit-scrollbar {
     width: 0 !important;
     display: none !important;
 }
 
 .sidebar-links-container:hover {
-    overflow-y: auto !important;
-    scrollbar-width: thin !important; /* Firefox */
-    scrollbar-color: #cfcfcf #f0f0f0 !important; /* Firefox */
-    -ms-overflow-style: scrollbar !important; /* IE and Edge */
-}
-
-.sidebar-links-container:hover::-webkit-scrollbar {
-    width: 8px !important;
-    display: block !important;
-}
-
-.sidebar-links-container::-webkit-scrollbar-track {
-    background: #f0f0f0 !important;
-    border-radius: 4px !important;
-}
-
-.sidebar-links-container::-webkit-scrollbar-thumb {
-    background: #cfcfcf !important;
-    border-radius: 4px !important;
-}
-
-.sidebar-links-container::-webkit-scrollbar-thumb:hover {
-    background: #bdbdbd !important;
+    overflow: visible !important;
 }
 
 .sidebar-links-container ul {
     width: 100% !important;
 }
 
-/* Ensure sidebar itself can scroll if needed */
+/* OUTER sidebar scrollbar only */
 #left-panel {
     overflow-y: auto !important;
     overflow-x: hidden !important;
@@ -342,6 +321,25 @@
     font-size: 0.85rem;
 }
 
+/*
+ * Collapsed sidebar (desktop) styles live in footer.blade.php.
+ * Mobile uses off-canvas full menu — do not force 76px here.
+ */
+@media (min-width: 992px) {
+    body.open aside#left-panel,
+    body.open aside.left-panel {
+        width: 76px !important;
+        max-width: 76px !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    body.open .right-panel,
+    body.open #right-panel {
+        margin-left: 76px !important;
+    }
+}
+
 /* Header styling */
 #header {
     background-color: #ffffff !important;
@@ -356,6 +354,34 @@
 #header .search-trigger,
 #header .btn-secondary {
     color: #2f2f2f !important;
+}
+
+#header .menutoggle,
+a#menuToggle.menutoggle {
+    background-color: whitesmoke !important;
+    color: #940000 !important;
+    border: 1px solid #e8e8e8 !important;
+    border-radius: 4px !important;
+    padding: 6px 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+}
+
+#header .menutoggle i,
+#header .menutoggle .header-icon-muted,
+a#menuToggle.menutoggle i,
+a#menuToggle.menutoggle .header-icon-muted {
+    color: #940000 !important;
+    opacity: 1 !important;
+}
+
+#header .menutoggle:hover,
+a#menuToggle.menutoggle:hover {
+    background-color: #f0f0f0 !important;
+    color: #940000 !important;
 }
 
 #header .user-avatar {
@@ -1080,6 +1106,8 @@
                             </div>
 
                         </div>
+
+                        @include('includes.header_academic_year_selector')
                     </div>
                 </div>
 
@@ -1727,6 +1755,18 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeExamPaperNotifications();
         updateVisitorNotificationCount();
         updateExamPaperNotificationCount();
+
+        // Collapsed sidebar: don't accordion-toggle; hover shows flyout actions
+        if (window.jQuery) {
+            jQuery(document).on('click', 'body.open #left-panel .dropdown-toggle', function (e) {
+                if (window.matchMedia('(max-width: 991px)').matches) {
+                    return;
+                }
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            });
+        }
 
         // Setup intervals for polling (every 30 seconds)
         setInterval(updateVisitorNotificationCount, 30000);

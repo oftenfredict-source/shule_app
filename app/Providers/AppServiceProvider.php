@@ -13,6 +13,7 @@ use App\Models\ClassSessionTimetable;
 use App\Models\Department;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Services\SelectedAcademicYearService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -334,6 +335,26 @@ class AppServiceProvider extends ServiceProvider
 
        $isHOD = $isHOD ?? false;
 
+       $headerAcademicYear = [
+           'mode' => 'none',
+           'has_a_level' => false,
+           'years' => collect(),
+           'o_level_years' => collect(),
+           'a_level_years' => collect(),
+           'selected_academic_yearID' => null,
+           'selected_o_level_academic_yearID' => null,
+           'selected_a_level_academic_yearID' => null,
+           'selected_year_ids' => [],
+       ];
+       try {
+           if ($schoolID) {
+               $headerAcademicYear = app(SelectedAcademicYearService::class)
+                   ->headerContext((int) $schoolID);
+           }
+       } catch (\Throwable $e) {
+           // Keep empty context if academic years table is unavailable
+       }
+
        $view->with([
     'role'   => $role,
     'teacherPermissions' => $teacherPermissions ?? collect(),
@@ -348,6 +369,8 @@ class AppServiceProvider extends ServiceProvider
     'locale' => $locale,
     'isHOD' => $isHOD,
     'teacherNotifications' => $teacherNotifications ?? collect(),
+    'headerAcademicYear' => $headerAcademicYear,
+    'selectedAcademicYearIDs' => $headerAcademicYear['selected_year_ids'] ?? [],
 ]);
 
     });

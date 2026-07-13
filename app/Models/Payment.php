@@ -16,6 +16,7 @@ class Payment extends Model
         'schoolID',
         'academic_yearID',
         'studentID',
+        'enrollmentID',
         'feeID',
         // 'fee_type', // REMOVED
         'control_number',
@@ -67,6 +68,11 @@ class Payment extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'studentID', 'studentID');
+    }
+
+    public function enrollment()
+    {
+        return $this->belongsTo(StudentEnrollment::class, 'enrollmentID', 'enrollmentID');
     }
 
     public function fee()

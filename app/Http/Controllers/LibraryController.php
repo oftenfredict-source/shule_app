@@ -1011,9 +1011,15 @@ class LibraryController extends Controller
                     })->exists();
 
                 if (!$exists) {
+                    $enrollmentID = null;
+                    if ($type === 'student') {
+                        $enrollmentID = app(\App\Services\StudentEnrollmentService::class)
+                            ->bestEnrollmentID($id);
+                    }
                     BookBorrow::create([
                         'bookID' => $book->bookID,
                         'studentID' => $type === 'student' ? $id : null,
+                        'enrollmentID' => $enrollmentID,
                         'teacherID' => $type === 'teacher' ? $id : null,
                         'staffID' => $type === 'staff' ? $id : null,
                         'borrow_date' => now(),
@@ -1154,24 +1160,29 @@ class LibraryController extends Controller
                           ->orWhere('admission_number', 'like', '%' . $searchTerm . '%')
                           ->orWhere(DB::raw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name)"), 'like', '%' . $searchTerm . '%');
                 })
-                ->with(['subclass.class'])
+                ->with(['subclass.class', 'currentEnrollment.subclass.class', 'currentEnrollment.classModel'])
                 ->limit(20) // Limit results
                 ->get()
                 ->map(function($student) {
+                    $enrollment = $student->currentEnrollment;
+                    $subclass = $enrollment?->subclass ?: $student->subclass;
+                    $className = $enrollment?->classModel?->class_name
+                        ?: ($subclass?->class?->class_name ?? null);
                     return [
                         'studentID' => $student->studentID,
+                        'enrollmentID' => $enrollment?->enrollmentID,
                         'first_name' => $student->first_name,
                         'middle_name' => $student->middle_name,
                         'last_name' => $student->last_name,
                         'admission_number' => $student->admission_number,
-                        'subclass' => $student->subclass ? [
-                            'subclassID' => $student->subclass->subclassID,
-                            'subclass_name' => $student->subclass->subclass_name,
-                            'class' => $student->subclass->class ? [
-                                'classID' => $student->subclass->class->classID,
-                                'class_name' => $student->subclass->class->class_name
-                            ] : null
-                        ] : null
+                        'subclass' => $subclass ? [
+                            'subclassID' => $subclass->subclassID,
+                            'subclass_name' => $subclass->subclass_name,
+                            'class' => [
+                                'classID' => $enrollment?->classID ?: $subclass->classID,
+                                'class_name' => $className,
+                            ],
+                        ] : null,
                     ];
                 });
 

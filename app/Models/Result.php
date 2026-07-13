@@ -14,6 +14,7 @@ class Result extends Model
 
     protected $fillable = [
         'studentID',
+        'enrollmentID',
         'examID',
         'subclassID',
         'class_subjectID',
@@ -34,6 +35,11 @@ class Result extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'studentID', 'studentID');
+    }
+
+    public function enrollment()
+    {
+        return $this->belongsTo(StudentEnrollment::class, 'enrollmentID', 'enrollmentID');
     }
 
     public function examination()

@@ -43,6 +43,23 @@
         box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
     }
 
+    /* Filters: no border radius */
+    #classFilter, #subclassFilter, #genderFilter, #healthFilter, #statusFilter,
+    .card .form-select, .card .form-control,
+    .select2-container--bootstrap-5 .select2-selection,
+    .select2-container--default .select2-selection--single,
+    .select2-dropdown {
+        border-radius: 0 !important;
+    }
+    .select2-container--bootstrap-5 .select2-selection--single,
+    .select2-container--default .select2-selection--single {
+        border-radius: 0 !important;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown,
+    .select2-dropdown {
+        border-radius: 0 !important;
+    }
+
     /* Academic Widget Styles */
     .academic-widget {
         transition: all 0.3s ease;
@@ -69,6 +86,85 @@
     .academic-widget[data-expanded="true"] .widget-content {
         display: block !important;
     }
+
+    /* Enrollment history widgets (student details modal) */
+    .enrollment-year-select {
+        border-radius: 0 !important;
+        border: 1px solid #ced4da;
+        width: 100%;
+    }
+    .enrollment-class-widget {
+        border: 1px solid #dee2e6;
+        border-radius: 0;
+        background: whitesmoke;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+    }
+    .enrollment-class-widget .enrollment-class-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        cursor: pointer;
+        user-select: none;
+        background: #fff;
+        border-bottom: 1px solid transparent;
+        transition: background 0.15s ease;
+    }
+    .enrollment-class-widget .enrollment-class-header:hover {
+        background: #f8f9fa;
+    }
+    .enrollment-class-widget.is-expanded .enrollment-class-header {
+        border-bottom-color: #dee2e6;
+        background: #fff;
+    }
+    .enrollment-class-widget .enrollment-class-title {
+        font-weight: 600;
+        color: #212529;
+        margin: 0;
+        font-size: 0.95rem;
+    }
+    .enrollment-class-widget .enrollment-class-meta {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    .enrollment-class-widget .enrollment-toggle-icon {
+        color: #940000;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+    }
+    .enrollment-class-widget.is-expanded .enrollment-toggle-icon {
+        transform: rotate(180deg);
+    }
+    .enrollment-class-widget .enrollment-subclasses {
+        display: none;
+        padding: 0.75rem 1rem 1rem;
+        background: whitesmoke;
+    }
+    .enrollment-class-widget.is-expanded .enrollment-subclasses {
+        display: block;
+    }
+    .enrollment-subclass-item {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 0;
+        padding: 0.75rem 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+    .enrollment-subclass-item:last-child {
+        margin-bottom: 0;
+    }
+    .enrollment-subclass-name {
+        font-weight: 600;
+        color: #212529;
+        margin-bottom: 0.25rem;
+    }
+    .enrollment-badge-active { background: #28a745; }
+    .enrollment-badge-completed { background: #6c757d; }
+    .enrollment-badge-repeated { background: #fd7e14; }
+    .enrollment-badge-graduated { background: #17a2b8; }
+    .enrollment-badge-other { background: #940000; }
     
     .widget-toggle-icon {
         transition: transform 0.3s ease;
@@ -182,84 +278,555 @@
         opacity: 0.5;
     }
 
-    /* Student Widgets */
+    /* Student list / grid layout (like manage_store) */
+    .section-title {
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #940000;
+        font-size: 1.05rem;
+        font-family: "Century Gothic", Arial, sans-serif;
+    }
+    .student-section-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .student-view-toggle .btn.active {
+        background-color: #940000;
+        border-color: #940000;
+        color: #fff;
+    }
+    .student-data-wrapper .student-grid-view { display: none; }
+    .student-data-wrapper[data-active-view="list"] .student-list-view { display: block !important; }
+    .student-data-wrapper[data-active-view="list"] .student-grid-view { display: none !important; }
+    .student-data-wrapper[data-active-view="grid"] .student-list-view { display: none !important; }
+    .student-data-wrapper[data-active-view="grid"] .student-grid-view { display: block !important; }
+
+    .student-grid-search-wrap {
+        width: 100%;
+        margin-bottom: 14px;
+    }
+    .student-grid-search-wrap .form-control {
+        width: 100%;
+        border-radius: 0 !important;
+        padding: 10px 14px;
+    }
+    .student-grid-search-wrap .form-control:focus {
+        border-color: #940000;
+        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
+    }
+
     .students-widget-grid {
         display: flex;
         flex-wrap: wrap;
-        gap: 20px;
+        margin-left: -8px;
+        margin-right: -8px;
     }
-
-    .students-widget-grid .student-widget {
-        flex: 1 1 calc(33.333% - 20px);
-        max-width: calc(33.333% - 20px);
-    }
-
-    @media (max-width: 1200px) {
-        .students-widget-grid .student-widget {
-            flex: 1 1 calc(50% - 20px);
-            max-width: calc(50% - 20px);
-        }
-    }
-
-    @media (max-width: 768px) {
-        .students-widget-grid .student-widget {
-            flex: 1 1 100%;
-            max-width: 100%;
-        }
+    .students-widget-grid > [class*="col-"] {
+        padding-left: 8px;
+        padding-right: 8px;
+        margin-bottom: 16px;
     }
 
     .student-widget {
-        width: 320px;
+        width: 100%;
         background: #ffffff;
-        border-radius: 12px;
+        border: 1px solid #dee2e6;
+        border-radius: 0;
         overflow: hidden;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         font-family: "Century Gothic", Arial, sans-serif;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
 
     .student-widget-header {
         background: #940000;
-        padding: 20px;
+        padding: 16px;
         text-align: center;
+        position: relative;
+    }
+
+    .student-widget-header .student-widget-actions-wrap {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        justify-content: flex-end;
+    }
+
+    .student-widget-header .student-action-toggle {
+        background: rgba(255,255,255,0.95);
+        border-color: rgba(255,255,255,0.5);
+        color: #940000;
+    }
+
+    .student-widget-header .student-action-dropdown.show .student-action-toggle,
+    .student-widget-header .student-action-toggle:hover {
+        background: #fff;
+        color: #940000;
+        border-color: #fff;
+    }
+
+    .student-widget-header .student-action-dropdown .dropdown-menu {
+        right: 0;
+        left: auto;
     }
 
     .student-widget-header img {
-        width: 110px;
-        height: 110px;
+        width: 90px;
+        height: 90px;
         border-radius: 50%;
-        border: 4px solid #fff;
         object-fit: cover;
+        border: 3px solid rgba(255,255,255,0.35);
+        background: #fff;
     }
 
     .student-widget-body {
-        padding: 15px;
-        text-align: center;
+        padding: 14px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
     }
 
     .student-widget-body h3 {
-        color: #940000;
-        margin-bottom: 5px;
-        font-size: 18px;
+        font-size: 1rem;
         font-weight: 700;
+        margin: 0 0 4px;
+        color: #222;
+        line-height: 1.3;
     }
 
     .student-widget-body .form {
-        font-weight: bold;
-        color: #444;
+        color: #940000;
+        font-weight: 600;
+        font-size: 0.85rem;
         margin-bottom: 10px;
     }
 
     .student-widget-body .info p {
-        margin: 6px 0;
-        font-size: 14px;
+        margin: 0 0 4px;
+        font-size: 0.84rem;
+        color: #555;
     }
 
     .student-widget-actions {
         display: flex;
-        justify-content: center;
-        gap: 8px;
         flex-wrap: wrap;
+        gap: 6px;
+        margin-top: auto;
+        padding-top: 12px;
+        border-top: 1px solid #f0f0f0;
+    }
+
+    .student-grid-empty {
+        border: 1px dashed #dee2e6;
+        padding: 2rem 1rem;
+        text-align: center;
+        color: #6c757d;
+        width: 100%;
+    }
+
+    .student-grid-sentinel {
+        width: 100%;
+        text-align: center;
+        padding: 16px 8px 8px;
+        color: #888;
+        font-size: 0.85rem;
+    }
+    .student-grid-sentinel .spinner-border {
+        width: 1.25rem;
+        height: 1.25rem;
+        border-width: 0.15em;
+        color: #940000;
+    }
+
+    .student-list-view .dataTables_wrapper .dataTables_filter input,
+    .student-list-view .dataTables_wrapper .dataTables_length select {
+        border-radius: 0 !important;
+        border: 1px solid #ced4da;
+        height: calc(1.5em + 0.75rem + 2px);
+        padding: 0.375rem 0.75rem;
+    }
+    .student-list-view .dataTables_wrapper .dataTables_filter input:focus,
+    .student-list-view .dataTables_wrapper .dataTables_length select:focus {
+        border-color: #940000;
+        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
+    }
+    .student-list-view .dataTables_wrapper .page-item.active .page-link {
+        background-color: #940000;
+        border-color: #940000;
+        color: #fff;
+    }
+    .student-list-view .dataTables_wrapper .page-link {
+        color: #940000;
+        border-radius: 0 !important;
+    }
+    .student-list-view .dataTables_wrapper .page-item.disabled .page-link {
+        color: #6c757d;
+    }
+    .student-list-view .dataTables_info,
+    .student-list-view .dataTables_length,
+    .student-list-view .dataTables_filter,
+    .student-list-view .dataTables_paginate {
+        font-size: 0.85rem;
         margin-top: 10px;
+        margin-bottom: 10px;
+        padding-top: 4px;
+    }
+    .student-list-view .dataTables_wrapper .row {
+        align-items: center;
+    }
+    .student-list-view .dataTables_filter {
+        text-align: right;
+    }
+    .student-list-view .dataTables_paginate {
+        text-align: right;
+    }
+    .student-list-view .dataTables_length label,
+    .student-list-view .dataTables_filter label {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        margin: 0;
+        flex-wrap: wrap;
+    }
+    .student-list-view .dataTables_filter label {
+        justify-content: flex-end;
+    }
+    .student-list-view .table th {
+        white-space: nowrap;
+        font-size: 0.85rem;
+    }
+    .student-list-view .table td {
+        vertical-align: middle;
+        font-size: 0.88rem;
+    }
+    .student-list-photo {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 1px solid #e0e0e0;
+    }
+    .student-list-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    /* White-smoke statistics cards */
+    .student-stat-card {
+        background: #f5f5f5;
+        border: 1px solid #ececec;
+        border-radius: 0;
+        color: #333;
+        height: 100%;
+        transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .student-stat-card h4 {
+        color: #940000;
+        font-weight: 700;
+        font-size: 1.5rem;
+    }
+    .student-stat-card small {
+        color: #666;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        font-size: 0.72rem;
+    }
+    .student-stat-card:hover {
+        border-color: #d8d8d8;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    /* Actions toggle dropdown */
+    .student-action-dropdown {
+        display: inline-block;
+        position: relative;
+    }
+    .student-action-toggle {
+        padding: 4px 12px;
+        color: #555;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        line-height: 1.2;
+        border-radius: 0;
+        cursor: pointer;
+    }
+    .student-action-toggle:hover,
+    .student-action-dropdown.show .student-action-toggle {
+        background: #f5f5f5;
+        color: #940000;
+        border-color: #ccc;
+    }
+    .student-action-dropdown .dropdown-menu {
+        min-width: 190px;
+        padding: 4px 0;
+        font-size: 0.875rem;
+        border-radius: 0;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 100%;
+        z-index: 1050;
+        background: #fff;
+        margin-top: 2px;
+    }
+    .student-action-dropdown.show > .dropdown-menu {
+        display: block;
+    }
+    .student-action-dropdown .dropdown-item {
+        padding: 8px 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #333;
+        text-decoration: none;
+        border: 0;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+    }
+    .student-action-dropdown .dropdown-item:hover {
+        background: #f5f5f5;
+        color: #940000;
+    }
+    .student-action-dropdown .dropdown-item i {
+        width: 18px;
+        text-align: center;
+    }
+    .student-action-dropdown .dropdown-item.text-danger {
+        color: #dc3545;
+    }
+    .student-action-dropdown .dropdown-item.text-danger:hover {
+        background: #fff5f5;
+        color: #b02a37;
+    }
+    .student-actions-cell {
+        width: 70px;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .student-widget .student-action-dropdown {
+        margin-top: auto;
+        align-self: flex-end;
+    }
+    .student-widget-actions-wrap {
+        margin-top: auto;
+        padding-top: 12px;
+        border-top: 1px solid #f0f0f0;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    /* Header page actions toggle */
+    .student-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: nowrap;
+    }
+    .student-page-header h4 {
+        margin: 0;
+        flex: 1;
+        min-width: 0;
+    }
+    .student-page-actions-dropdown {
+        position: relative;
+        flex-shrink: 0;
+    }
+    .student-page-actions-toggle {
+        width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        color: #940000;
+        font-size: 1.25rem;
+        cursor: pointer;
+        border-radius: 0;
+        padding: 0;
+    }
+    .student-page-actions-toggle:hover,
+    .student-page-actions-dropdown.show .student-page-actions-toggle {
+        background: #f5f5f5;
+        border-color: #940000;
+        color: #940000;
+    }
+    .student-page-actions-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 4px);
+        min-width: 210px;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        z-index: 1060;
+        padding: 4px 0;
+    }
+    .student-page-actions-dropdown.show .student-page-actions-menu {
+        display: block;
+    }
+    .student-page-actions-menu .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 16px;
+        border: 0;
+        background: transparent;
+        color: #333;
+        text-align: left;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
+    .student-page-actions-menu .dropdown-item:hover {
+        background: #f5f5f5;
+        color: #940000;
+    }
+    .student-page-actions-menu .dropdown-item i {
+        width: 18px;
+        text-align: center;
+    }
+    @media (max-width: 767.98px) {
+        .student-page-header h4 {
+            font-size: 1.15rem;
+        }
+    }
+
+    /* System modals: whitesmoke + #940000 only */
+    .modal-content {
+        border-radius: 0 !important;
+        border: 2px solid #940000 !important;
+        background: #fff;
+    }
+    .modal-header,
+    .modal .modal-header,
+    .modal-header.bg-primary-custom,
+    .modal-header.bg-warning,
+    .modal-header.bg-success,
+    .modal-header.bg-info,
+    .modal-header.bg-danger,
+    .modal-header.bg-primary {
+        background: #f5f5f5 !important;
+        color: #940000 !important;
+        border-bottom: 2px solid #940000 !important;
+        border-radius: 0 !important;
+    }
+    .modal-header .modal-title,
+    .modal-header .btn-close,
+    .modal-header .close,
+    .modal-header i {
+        color: #940000 !important;
+    }
+    .modal-header .btn-close {
+        filter: none;
+        opacity: 1 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        width: 1.5rem;
+        height: 1.5rem;
+        padding: 0.5rem;
+        z-index: 5;
+        position: relative;
+        cursor: pointer !important;
+        pointer-events: auto !important;
+    }
+    .modal-header .btn-close::before {
+        content: "×";
+        font-size: 1.75rem;
+        line-height: 1;
+        color: #940000;
+        font-weight: 700;
+    }
+    /* Hide default BS5 SVG glyph if present — use × so it works on BS4 too */
+    .modal-header .btn-close {
+        background-image: none !important;
+    }
+    .modal-header .btn-close-white {
+        filter: none !important;
+    }
+    .modal-footer {
+        background: #f5f5f5 !important;
+        border-top: 1px solid #e0e0e0 !important;
+        border-radius: 0 !important;
+    }
+    .modal .btn-primary,
+    .modal .btn-success,
+    .modal .btn-warning,
+    .modal .btn-info,
+    .modal .btn-danger:not(.btn-outline-danger) {
+        background-color: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+        border-radius: 0 !important;
+    }
+    .modal .btn-primary:hover,
+    .modal .btn-success:hover,
+    .modal .btn-warning:hover,
+    .modal .btn-info:hover {
+        background-color: #7a0000 !important;
+        border-color: #7a0000 !important;
+        color: #fff !important;
+    }
+    .modal .btn-secondary,
+    .modal .btn-outline-secondary,
+    .modal .btn-light {
+        background: #f5f5f5 !important;
+        border: 1px solid #940000 !important;
+        color: #940000 !important;
+        border-radius: 0 !important;
+    }
+    .modal .alert {
+        border-radius: 0 !important;
+        background: #f5f5f5 !important;
+        border: 1px solid #940000 !important;
+        color: #333 !important;
+    }
+    .student-swal-popup {
+        border-radius: 0 !important;
+        border: 2px solid #940000 !important;
+        font-family: "Century Gothic", Arial, sans-serif !important;
+    }
+    .student-swal-confirm,
+    .student-swal-cancel {
+        border-radius: 0 !important;
+    }
+    /* SweetAlert must sit ABOVE Bootstrap modals so "type yes" is usable */
+    .swal2-container,
+    .student-swal-container {
+        z-index: 20000 !important;
+    }
+    .move-step-badge {
+        background: #f5f5f5 !important;
+        color: #666 !important;
+        border: 1px solid #ccc;
+        border-radius: 0 !important;
+        font-weight: 600;
+        padding: 6px 10px;
+    }
+    .move-step-badge.active {
+        background: #940000 !important;
+        color: #fff !important;
+        border-color: #940000;
     }
 
     /* Manual Modal Styles (when Bootstrap JS is not loaded) */
@@ -666,27 +1233,46 @@
 <div class="container-fluid mt-4">
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body bg-light rounded">
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-                <h4 class="mb-0 text-primary-custom w-100 text-center text-md-start">
+            @php
+                $canCreate = ($user_type ?? '') == 'Admin' || ($teacherPermissions ?? collect())->contains('student_create');
+                $canUpdate = ($user_type ?? '') == 'Admin' || ($teacherPermissions ?? collect())->contains('student_update');
+                $canDelete = ($user_type ?? '') == 'Admin' || ($teacherPermissions ?? collect())->contains('student_delete');
+            @endphp
+            <div class="student-page-header">
+                <h4 class="mb-0 text-primary-custom">
                     <i class="bi bi-people-fill"></i> Manage Students
                 </h4>
-                <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-md-end w-100">
-                    @php
-                        $canCreate = ($user_type ?? '') == 'Admin' || ($teacherPermissions ?? collect())->contains('student_create');
-                        $canUpdate = ($user_type ?? '') == 'Admin' || ($teacherPermissions ?? collect())->contains('student_update');
-                        $canDelete = ($user_type ?? '') == 'Admin' || ($teacherPermissions ?? collect())->contains('student_delete');
-                    @endphp
-                    @if($canCreate)
-                    <button class="btn btn-outline-primary-custom fw-bold" id="addStudentBtn" type="button" data-bs-toggle="modal" data-bs-target="#classSelectorModal">
-                        <i class="bi bi-person-plus"></i> Register
+                <div class="student-page-actions-dropdown" id="studentPageActionsDropdown">
+                    <button type="button" class="student-page-actions-toggle" id="studentPageActionsToggle" title="Actions" aria-haspopup="true" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
                     </button>
-                    <a href="{{ route('download_student_template') }}" class="btn btn-outline-info fw-bold" target="_blank">
-                        <i class="bi bi-download"></i> Template
-                    </a>
-                    <button class="btn btn-outline-success fw-bold" id="importBtn" type="button">
-                        <i class="bi bi-file-earmark-excel"></i> Import
-                    </button>
-                    @endif
+                    <div class="student-page-actions-menu" role="menu">
+                        @if($canCreate)
+                        <button class="dropdown-item" id="addStudentBtn" type="button" role="menuitem">
+                            <i class="bi bi-person-plus" style="color:#940000;"></i> Register
+                        </button>
+                        <a href="{{ route('download_student_template') }}" class="dropdown-item" target="_blank" role="menuitem">
+                            <i class="bi bi-download" style="color:#940000;"></i> Template
+                        </a>
+                        <button class="dropdown-item" id="importBtn" type="button" role="menuitem">
+                            <i class="bi bi-file-earmark-excel" style="color:#940000;"></i> Import
+                        </button>
+                        @endif
+                        @if($canUpdate ?? false)
+                        <button class="dropdown-item" id="moveStudentsBtn" type="button" role="menuitem">
+                            <i class="bi bi-arrow-left-right" style="color:#940000;"></i> Move Students
+                        </button>
+                        <button class="dropdown-item" id="undoMoveBatchesBtn" type="button" role="menuitem">
+                            <i class="bi bi-arrow-counterclockwise" style="color:#940000;"></i> Undo Move
+                        </button>
+                        @endif
+                        <button class="dropdown-item" id="exportPdfBtn" type="button" role="menuitem" title="Export to PDF">
+                            <i class="bi bi-file-pdf" style="color:#940000;"></i> Export PDF
+                        </button>
+                        <button class="dropdown-item" id="exportExcelBtn" type="button" role="menuitem" title="Export to Excel">
+                            <i class="bi bi-file-earmark-spreadsheet" style="color:#940000;"></i> Export Excel
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -742,64 +1328,87 @@
 
             <!-- Statistics Display -->
             <div class="row g-3" id="statisticsSection">
-                <div class="col-md-2">
-                    <div class="text-center p-3 bg-primary text-white rounded">
+                <div class="col-6 col-md">
+                    <div class="student-stat-card text-center p-3">
                         <h4 class="mb-0" id="statTotalStudents">0</h4>
                         <small>Total Students</small>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <div class="text-center p-3 bg-info text-white rounded">
+                <div class="col-6 col-md">
+                    <div class="student-stat-card text-center p-3">
                         <h4 class="mb-0" id="statMaleCount">0</h4>
                         <small>Male</small>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <div class="text-center p-3 bg-danger text-white rounded">
+                <div class="col-6 col-md">
+                    <div class="student-stat-card text-center p-3">
                         <h4 class="mb-0" id="statFemaleCount">0</h4>
                         <small>Female</small>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <div class="text-center p-3 bg-success text-white rounded">
+                <div class="col-6 col-md">
+                    <div class="student-stat-card text-center p-3">
                         <h4 class="mb-0" id="statGoodHealth">0</h4>
                         <small>Good Health</small>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <div class="text-center p-3 bg-warning text-dark rounded">
+                <div class="col-6 col-md">
+                    <div class="student-stat-card text-center p-3">
                         <h4 class="mb-0" id="statBadHealth">0</h4>
                         <small>Bad Health</small>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="d-flex gap-2 h-100 align-items-end">
-                        <button class="btn btn-outline-danger btn-sm w-100" id="exportPdfBtn" title="Export to PDF">
-                            <i class="bi bi-file-pdf"></i> PDF
-                        </button>
-                        <button class="btn btn-outline-success btn-sm w-100" id="exportExcelBtn" title="Export to Excel">
-                            <i class="bi bi-file-excel"></i> Excel
-                        </button>
                     </div>
                 </div>
             </div>
                     </div>
                 </div>
 
-    <!-- Students Widgets Section -->
+    <!-- Students List / Grid Section -->
     <div class="card border-0 shadow-sm">
         <div class="card-body">
-            <!-- Search Input (Moved here) -->
-             <div class="mb-4">
-                 <div class="search-input-wrapper">
-                    <i class="bi bi-search"></i>
-                    <input type="text" class="form-control" id="studentSearchInput" placeholder="Search by Admission No, Name, Class...">
+            <div class="student-section-toolbar">
+                <div class="section-title mb-0"><i class="bi bi-people-fill"></i> Students</div>
+                <div class="btn-group btn-group-sm student-view-toggle" role="group" aria-label="View mode">
+                    <button type="button" class="btn btn-outline-secondary" data-view="list" title="List view">
+                        <i class="bi bi-list-ul"></i> <span class="d-none d-sm-inline">List</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-view="grid" title="Grid view">
+                        <i class="bi bi-grid-3x3-gap"></i> <span class="d-none d-sm-inline">Grid</span>
+                    </button>
                 </div>
             </div>
-            <div id="studentsWidgetGrid" class="students-widget-grid">
-                <div class="no-data-message">
-                    <i class="bi bi-people fs-1 text-muted"></i>
-                    <p class="text-muted mt-2">Loading students...</p>
+
+            <div class="student-data-wrapper" id="studentsDataWrapper" data-active-view="list">
+                <div class="student-list-view">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped w-100" id="studentsTable">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th width="40">#</th>
+                                    <th width="50">Photo</th>
+                                    <th>Admission</th>
+                                    <th>Full Name</th>
+                                    <th>Class</th>
+                                    <th>Gender</th>
+                                    <th>Parent</th>
+                                    <th>Fingerprint</th>
+                                    <th class="student-actions-cell">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="student-grid-view">
+                    <div class="student-grid-search-wrap">
+                        <input type="search" class="form-control" id="studentGridSearch" placeholder="Search by Admission No, Name, Class, Parent..." autocomplete="off">
+                    </div>
+                    <div id="studentsWidgetGrid" class="students-widget-grid"></div>
+                    <div id="studentGridSentinel" class="student-grid-sentinel d-none">
+                        <div class="spinner-border" role="status"></div>
+                        <div class="mt-2">Loading more students...</div>
+                    </div>
+                    <div id="studentGridEnd" class="student-grid-sentinel d-none text-muted">All students loaded</div>
                 </div>
             </div>
         </div>
@@ -814,7 +1423,7 @@
                 <h5 class="modal-title" id="addStudentModalLabel">
                     <i class="bi bi-person-plus"></i> Register New Student
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="addStudentForm" enctype="multipart/form-data">
                 @csrf
@@ -1030,7 +1639,7 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary-custom px-4">
                         <i class="bi bi-check-circle"></i> Register Student
                     </button>
@@ -1066,7 +1675,7 @@
 <div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header bg-warning text-dark">
+            <div class="modal-header">
                 <h5 class="modal-title" id="editStudentModalLabel">
                     <i class="bi bi-pencil-square"></i> Edit Student
                 </h5>
@@ -1387,6 +1996,216 @@
     </div>
 </div>
 
+<!-- Move Students Wizard Modal -->
+<div class="modal fade" id="moveStudentsModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> Move Students</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex flex-wrap mb-3" style="gap:8px;" id="moveStepIndicators">
+                    <span class="badge move-step-badge active" data-step="1">1. Level &amp; Year</span>
+                    <span class="badge move-step-badge" data-step="2">2. Select Students</span>
+                    <span class="badge move-step-badge" data-step="3">3. Confirm</span>
+                </div>
+
+                <div class="move-step" id="moveStep1">
+                    @if(!empty($hasALevel))
+                    <div class="mb-3" id="moveLevelWrap">
+                        <label class="form-label fw-bold">1. Select level</label>
+                        <div class="d-flex flex-wrap" style="gap:10px;">
+                            <button type="button" class="btn move-level-btn" data-level="o_level" style="border:1px solid #940000;border-radius:0;background:#fff;color:#940000;">
+                                O-Level
+                                <div class="small" style="font-weight:400;color:#666;">Form One – Form Four</div>
+                            </button>
+                            <button type="button" class="btn move-level-btn" data-level="a_level" style="border:1px solid #940000;border-radius:0;background:#fff;color:#940000;">
+                                A-Level
+                                <div class="small" style="font-weight:400;color:#666;">Form Five &amp; Form Six only</div>
+                            </button>
+                        </div>
+                    </div>
+                    @endif
+
+                    <div id="moveYearWrap" class="{{ !empty($hasALevel) ? 'd-none' : '' }}">
+                        <label class="form-label fw-bold">{{ !empty($hasALevel) ? '2. Select academic year' : 'Select academic year to move students into' }}</label>
+                        <select class="form-select" id="moveTargetYear" style="border-radius:0;">
+                            <option value="">-- Select Academic Year --</option>
+                        </select>
+                    </div>
+
+                    <div class="alert mt-3 mb-0" id="moveYearWarning" style="display:none; background:#f5f5f5; border:1px solid #940000; color:#333;">
+                        This action will move selected students to the next class <strong>for the selected academic year</strong>.
+                        History of previous enrollments will be kept (status Completed). Already-moved students show with a revert icon.
+                        For a custom class (not the next year class), use <strong>Move Student</strong> on one student at a time.
+                    </div>
+                </div>
+
+                <div class="move-step d-none" id="moveStep2">
+                    <div class="row g-2 mb-3 align-items-end">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Class</label>
+                            <select class="form-select" id="moveFilterClass" style="border-radius:0;">
+                                <option value="">-- All Classes --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">Subclass</label>
+                            <select class="form-select" id="moveFilterSubclass" style="border-radius:0;">
+                                <option value="">-- All Subclasses --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end">
+                            <button type="button" class="btn w-100" id="moveReloadPreviewBtn" title="Refresh" style="background:#940000;color:#fff;border-radius:0;">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap" style="gap:8px;">
+                        <div>
+                            <label class="mb-0"><input type="checkbox" id="moveSelectAll"> Select All</label>
+                            <span class="text-muted small ms-2" id="moveSelectedCount">0 selected</span>
+                        </div>
+                        <small class="text-muted">Active enrollments load automatically when you select Class / Subclass.</small>
+                    </div>
+                    <div class="table-responsive" style="max-height:420px; overflow:auto;">
+                        <table class="table table-bordered table-sm mb-0" id="movePreviewTable">
+                            <thead class="bg-light" style="position:sticky; top:0; z-index:1;">
+                                <tr>
+                                    <th width="40"></th>
+                                    <th>Admission</th>
+                                    <th>Name</th>
+                                    <th>Current Class</th>
+                                    <th>Will Go To</th>
+                                    <th>Action</th>
+                                    <th width="50"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="movePreviewBody">
+                                <tr><td colspan="7" class="text-center text-muted">Select a class to load active enrollments</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="move-step d-none" id="moveStep3">
+                    <div class="p-3 mb-3" style="background:#f5f5f5; border:1px solid #940000;">
+                        <strong>Summary</strong>
+                        <div id="moveConfirmSummary" class="mt-2"></div>
+                    </div>
+                    <div id="moveConfirmExpand" class="mb-3">
+                        <button type="button" class="btn" id="moveExpandConfirmBtn" style="background:#940000;color:#fff;border-radius:0;">
+                            Move Students
+                        </button>
+                    </div>
+                    <div id="moveConfirmBox" class="d-none p-3" style="border:1px dashed #940000; background:#fff;">
+                        <p class="mb-2 fw-bold" style="color:#940000;">Are you sure you want to perform this action?</p>
+                        <p class="small text-muted">Type <strong>yes</strong> or <strong>no</strong></p>
+                        <input type="text" class="form-control mb-2" id="moveConfirmYesNo" placeholder="yes / no" style="border-radius:0;">
+                        <div id="moveConfirmWordWrap" class="d-none">
+                            <p class="small text-muted">If yes, type the word <strong>yes</strong> again to start moving</p>
+                            <input type="text" class="form-control mb-2" id="moveConfirmWord" placeholder="Type yes" style="border-radius:0;">
+                            <button type="button" class="btn" id="moveExecuteBtn" style="background:#940000;color:#fff;border-radius:0;" disabled>
+                                Confirm &amp; Move
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary d-none" id="movePrevBtn">Back</button>
+                <button type="button" class="btn" id="moveNextBtn" style="background:#940000;color:#fff;" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Undo Move Batches Modal -->
+<div class="modal fade" id="undoMoveModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-counterclockwise"></i> Undo Student Move</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Undo restores previous active enrollments and cancels new ones created by the move.</p>
+                <div id="undoMoveBatchesList">Loading...</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Single Student Move Modal (Internal / External) -->
+<div class="modal fade" id="singleMoveStudentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> Move Student</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 mb-3" style="background:#f5f5f5; border:1px solid #940000;">
+                    <div><strong id="singleMoveStudentName">—</strong></div>
+                    <div class="small text-muted">Current class: <span id="singleMoveCurrentClass">—</span></div>
+                </div>
+
+                <label class="form-label fw-bold">Move type</label>
+                <div class="d-flex flex-wrap mb-3" style="gap:10px;">
+                    <button type="button" class="btn single-move-type-btn" data-type="internal" style="border:1px solid #940000;border-radius:0;background:#fff;color:#940000;">
+                        Internal
+                        <div class="small" style="font-weight:400;color:#666;">Within same class (subclass/stream)</div>
+                    </button>
+                    <button type="button" class="btn single-move-type-btn" data-type="external" style="border:1px solid #940000;border-radius:0;background:#fff;color:#940000;">
+                        External
+                        <div class="small" style="font-weight:400;color:#666;">Change main class (higher = Move, lower = Revert)</div>
+                    </button>
+                </div>
+
+                <div id="singleMoveDestWrap" class="d-none">
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6" id="singleMoveClassCol">
+                            <label class="form-label fw-bold">Destination class</label>
+                            <select class="form-select" id="singleMoveClass" style="border-radius:0;">
+                                <option value="">-- Select class --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Destination subclass</label>
+                            <select class="form-select" id="singleMoveSubclass" style="border-radius:0;" disabled>
+                                <option value="">-- Select subclass --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="singleMoveActionHint" class="alert mb-0" style="display:none; background:#f5f5f5; border:1px solid #940000; color:#333;"></div>
+                </div>
+
+                <div id="singleMoveConfirmPanel" class="d-none mt-3 p-3" style="border:1px dashed #940000; background:#fff;">
+                    <p class="mb-2 fw-bold" style="color:#940000;" id="singleMoveConfirmTitle">Are you sure you want to perform this action?</p>
+                    <p class="small text-muted mb-1">Type <strong>yes</strong> or <strong>no</strong></p>
+                    <input type="text" class="form-control mb-2" id="singleMoveConfirmYesNo" placeholder="yes / no" style="border-radius:0;" autocomplete="off">
+                    <div id="singleMoveConfirmWordWrap" class="d-none">
+                        <p class="small text-muted mb-1">If yes, type the word <strong>yes</strong> again to start moving</p>
+                        <input type="text" class="form-control mb-2" id="singleMoveConfirmWord" placeholder="Type yes" style="border-radius:0;" autocomplete="off">
+                        <button type="button" class="btn" id="singleMoveExecuteBtn" style="background:#940000;color:#fff;border-radius:0;" disabled>
+                            Confirm &amp; Move
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn" id="singleMoveConfirmBtn" style="background:#940000;color:#fff;border-radius:0;" disabled>Move Student</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
@@ -1445,6 +2264,572 @@
 
         let currentStatus = 'Active';
         let currentStudentsData = [];
+        let studentsTable = null;
+        let studentSearchKeepFocus = false;
+        let gridLoadingMore = false;
+        let studentsPage = 1;
+        let studentsLastPage = 1;
+        let studentsHasMore = false;
+        let studentsTotal = 0;
+        const GRID_PAGE_SIZE = 10;
+        let studentUserScrolled = false;
+
+        // System SweetAlert theme (whitesmoke + #940000)
+        if (typeof Swal !== 'undefined') {
+            window.StudentSwal = Swal.mixin({
+                confirmButtonColor: '#940000',
+                cancelButtonColor: '#6c757d',
+                customClass: {
+                    popup: 'student-swal-popup',
+                    confirmButton: 'student-swal-confirm',
+                    cancelButton: 'student-swal-cancel'
+                }
+            });
+        }
+
+        function studentIsMobile() {
+            return window.matchMedia('(max-width: 767.98px)').matches;
+        }
+
+        function studentDefaultView() {
+            return studentIsMobile() ? 'grid' : 'list';
+        }
+
+        function studentPrefKey() {
+            return 'student_view_' + (studentIsMobile() ? 'mobile' : 'desktop');
+        }
+
+        function studentUserPrefKey() {
+            return 'student_view_user_' + (studentIsMobile() ? 'mobile' : 'desktop');
+        }
+
+        function studentGetView() {
+            try {
+                if (localStorage.getItem(studentUserPrefKey()) === '1') {
+                    const saved = localStorage.getItem(studentPrefKey());
+                    if (saved === 'list' || saved === 'grid') return saved;
+                }
+            } catch (e) {}
+            return studentDefaultView();
+        }
+
+        function studentSetUserViewPref(view) {
+            try {
+                localStorage.setItem(studentPrefKey(), view);
+                localStorage.setItem(studentUserPrefKey(), '1');
+            } catch (e) {}
+        }
+
+        function setStudentView(view, userChoice) {
+            const $wrapper = $('#studentsDataWrapper');
+            $wrapper.attr('data-active-view', view);
+            $('.student-view-toggle [data-view]').removeClass('active');
+            $('.student-view-toggle [data-view="' + view + '"]').addClass('active');
+            if (userChoice) studentSetUserViewPref(view);
+
+            if (view === 'list') {
+                setTimeout(function () {
+                    try {
+                        if (studentsTable) studentsTable.columns.adjust();
+                    } catch (e) {}
+                }, 50);
+            }
+        }
+
+        function escapeHtmlStudent(text) {
+            if (text === null || text === undefined) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function studentPhotoUrl(student) {
+            let studentPhoto = student.photo;
+            if (!studentPhoto || studentPhoto === 'undefined') {
+                studentPhoto = student.gender === 'Female'
+                    ? '{{ asset("images/female.png") }}'
+                    : '{{ asset("images/male.png") }}';
+            }
+            return studentPhoto;
+        }
+
+        function studentHasHealthAlert(student) {
+            return (student.is_disabled === true || student.is_disabled == 1 || student.is_disabled === "1") ||
+                (student.has_epilepsy === true || student.has_epilepsy == 1 || student.has_epilepsy === "1") ||
+                (student.has_allergies === true || student.has_allergies == 1 || student.has_allergies === "1") ||
+                (student.has_disability === true || student.has_disability == 1 || student.has_disability === "1") ||
+                (student.has_chronic_illness === true || student.has_chronic_illness == 1 || student.has_chronic_illness === "1");
+        }
+
+        function buildStudentActionsHtml(student, status, compact) {
+            let items = '';
+
+            items += '<button type="button" class="dropdown-item view-student-btn" data-student-id="' + student.studentID + '">' +
+                '<i class="bi bi-eye text-info"></i> View Details</button>';
+
+            if (canUpdate && status === 'Active') {
+                items += '<button type="button" class="dropdown-item edit-student-btn" data-student-id="' + student.studentID + '">' +
+                    '<i class="bi bi-pencil-square text-warning"></i> Edit Student</button>';
+                items += '<button type="button" class="dropdown-item single-move-student-btn" data-student-id="' + student.studentID + '" data-student-name="' + escapeHtmlStudent(student.full_name || '') + '" data-current-class="' + escapeHtmlStudent(student.class || '') + '">' +
+                    '<i class="bi bi-arrow-left-right" style="color:#940000;"></i> Move Student</button>';
+            }
+
+            if (status === 'Active') {
+                if (!student.fingerprint_id) {
+                    items += '<a href="#" class="dropdown-item send-student-to-fingerprint-btn" data-student-id="' + student.studentID + '" data-student-name="' + escapeHtmlStudent(student.first_name || student.full_name || '') + '" data-fingerprint-id="' + (student.fingerprint_id || '') + '">' +
+                        '<i class="bi bi-fingerprint text-success"></i> Send to Fingerprint</a>';
+                } else if (!student.sent_to_device) {
+                    items += '<button type="button" class="dropdown-item register-student-to-device-btn" data-student-id="' + student.studentID + '" data-student-name="' + escapeHtmlStudent(student.first_name || student.full_name || '') + '" data-fingerprint-id="' + (student.fingerprint_id || '') + '">' +
+                        '<i class="bi bi-device-hdd text-success"></i> Register to Device</button>';
+                }
+                items += '<button type="button" class="dropdown-item generate-id-btn" data-student-id="' + student.studentID + '">' +
+                    '<i class="bi bi-card-text text-primary"></i> Generate ID Card</button>';
+            }
+
+            if (canDelete && status === 'Active') {
+                items += '<button type="button" class="dropdown-item text-danger delete-student-btn" data-student-id="' + student.studentID + '" data-student-name="' + escapeHtmlStudent(student.full_name) + '">' +
+                    '<i class="bi bi-trash"></i> Delete Student</button>';
+            }
+
+            const dropdown =
+                '<div class="dropdown student-action-dropdown">' +
+                    '<button class="btn btn-sm student-action-toggle" type="button" title="Actions" aria-haspopup="true" aria-expanded="false">' +
+                        '<i class="bi bi-three-dots-vertical"></i>' +
+                    '</button>' +
+                    '<div class="dropdown-menu dropdown-menu-right shadow-sm">' + items + '</div>' +
+                '</div>';
+
+            if (compact) {
+                return dropdown;
+            }
+
+            return '<div class="student-widget-actions-wrap">' + dropdown + '</div>';
+        }
+
+        function getStudentFilterParams(extra) {
+            const params = {
+                status: $('#statusFilter').val() || 'Active',
+                classID: $('#classFilter').val() || '',
+                subclassID: $('#subclassFilter').val() || '',
+                gender: $('#genderFilter').val() || '',
+                health: $('#healthFilter').val() || '',
+                paginate: 1,
+                per_page: GRID_PAGE_SIZE,
+                page: 1,
+                search: ($('#studentGridSearch').val() || '').trim()
+            };
+            return Object.assign(params, extra || {});
+        }
+
+        function getListFilterParams(dtData) {
+            const length = (dtData && dtData.length) ? dtData.length : 10;
+            const start = (dtData && typeof dtData.start === 'number') ? dtData.start : 0;
+            const searchVal = (dtData && dtData.search && dtData.search.value)
+                ? String(dtData.search.value).trim()
+                : '';
+            return {
+                status: $('#statusFilter').val() || 'Active',
+                classID: $('#classFilter').val() || '',
+                subclassID: $('#subclassFilter').val() || '',
+                gender: $('#genderFilter').val() || '',
+                health: $('#healthFilter').val() || '',
+                paginate: 1,
+                per_page: length,
+                page: Math.floor(start / Math.max(1, length)) + 1,
+                search: searchVal
+            };
+        }
+
+        function applyPaginationMeta(meta) {
+            studentsPage = meta.page || 1;
+            studentsLastPage = meta.last_page || 1;
+            studentsHasMore = !!meta.has_more;
+            studentsTotal = meta.total || 0;
+        }
+
+        function destroyStudentsTable() {
+            if (studentsTable && $.fn.DataTable.isDataTable('#studentsTable')) {
+                studentsTable.destroy();
+                studentsTable = null;
+            }
+            $('#studentsTableBody').empty();
+            $('#studentsListPager').remove();
+        }
+
+        function initStudentsDataTable() {
+            destroyStudentsTable();
+
+            if (!$.fn.DataTable) {
+                $('#studentsTableBody').html('<tr><td colspan="9" class="text-center text-danger">DataTables failed to load.</td></tr>');
+                return;
+            }
+
+            studentsTable = $('#studentsTable').DataTable({
+                processing: true,
+                serverSide: true,
+                searching: true,
+                ordering: false,
+                paging: true,
+                lengthChange: true,
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+                info: true,
+                autoWidth: false,
+                deferRender: true,
+                dom:
+                    "<'row align-items-center'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+                    "<'row'<'col-sm-12'tr>>" +
+                    "<'row align-items-center'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+                ajax: function (data, callback) {
+                    $.ajax({
+                        url: '{{ route("get_students_list") }}',
+                        type: 'GET',
+                        dataType: 'json',
+                        data: getListFilterParams(data),
+                        success: function (response) {
+                            const students = (response && response.success) ? (response.students || []) : [];
+                            const meta = (response && response.pagination) ? response.pagination : {};
+                            currentStudentsData = students;
+                            currentStatus = $('#statusFilter').val() || 'Active';
+                            applyPaginationMeta(meta);
+                            callback({
+                                draw: data.draw,
+                                recordsTotal: meta.total || students.length,
+                                recordsFiltered: meta.total || students.length,
+                                data: students
+                            });
+                            loadStatistics();
+                        },
+                        error: function (xhr) {
+                            let errorMessage = 'Failed to load students';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+                            currentStudentsData = [];
+                            callback({
+                                draw: data.draw,
+                                recordsTotal: 0,
+                                recordsFiltered: 0,
+                                data: []
+                            });
+                            if (typeof StudentSwal !== 'undefined') {
+                                StudentSwal.fire({ icon: 'error', title: 'Error', text: errorMessage });
+                            }
+                        }
+                    });
+                },
+                columns: [
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row, meta) {
+                            return meta.row + meta.settings._iDisplayStart + 1;
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row) {
+                            return '<img src="' + studentPhotoUrl(row) + '" alt="" class="student-list-photo">';
+                        }
+                    },
+                    {
+                        data: 'admission_number',
+                        render: function (data) {
+                            return escapeHtmlStudent(data || '-');
+                        }
+                    },
+                    {
+                        data: 'full_name',
+                        render: function (data, type, row) {
+                            const healthIcon = studentHasHealthAlert(row)
+                                ? ' <i class="bi bi-exclamation-triangle-fill" style="color:#940000;" title="Health Condition Alert"></i>'
+                                : '';
+                            return escapeHtmlStudent(data || '-') + healthIcon;
+                        }
+                    },
+                    {
+                        data: 'class',
+                        render: function (data) {
+                            return escapeHtmlStudent(data || '-');
+                        }
+                    },
+                    {
+                        data: 'gender',
+                        render: function (data) {
+                            return escapeHtmlStudent(data || '-');
+                        }
+                    },
+                    {
+                        data: 'parent_name',
+                        render: function (data) {
+                            return escapeHtmlStudent(data || '-');
+                        }
+                    },
+                    {
+                        data: 'fingerprint_id',
+                        orderable: false,
+                        render: function (data) {
+                            return data
+                                ? '<span class="badge" style="background:#f5f5f5;color:#940000;border:1px solid #940000;"><i class="bi bi-fingerprint"></i> ' + escapeHtmlStudent(data) + '</span>'
+                                : '<span class="badge" style="background:#f5f5f5;color:#666;border:1px solid #ccc;">No ID</span>';
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        className: 'student-actions-cell',
+                        render: function (data, type, row) {
+                            return buildStudentActionsHtml(row, currentStatus, true);
+                        }
+                    }
+                ],
+                language: {
+                    search: 'Search:',
+                    lengthMenu: 'Show _MENU_ entries',
+                    info: 'Showing _START_ to _END_ of _TOTAL_ students',
+                    infoEmpty: 'Showing 0 students',
+                    infoFiltered: '(filtered from _MAX_ total students)',
+                    zeroRecords: 'No matching students found',
+                    emptyTable: 'No students found matching the selected filters.',
+                    processing: '<i class="bi bi-hourglass-split"></i> Loading students...',
+                    paginate: {
+                        first: 'First',
+                        last: 'Last',
+                        next: 'Next',
+                        previous: 'Prev'
+                    }
+                },
+                drawCallback: function () {
+                    try { this.api().columns.adjust(); } catch (e) {}
+                }
+            });
+
+            // Prevent Enter in DT search from submitting any parent form / reloading page
+            $('#studentsTable_filter input')
+                .attr('autocomplete', 'off')
+                .off('keydown.studentDtEnter')
+                .on('keydown.studentDtEnter', function (e) {
+                    if (e.key === 'Enter' || e.keyCode === 13) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+                });
+        }
+
+        function reloadStudentsDataTable(resetPaging) {
+            if (studentsTable && $.fn.DataTable.isDataTable('#studentsTable')) {
+                studentsTable.ajax.reload(null, resetPaging !== false);
+            } else {
+                initStudentsDataTable();
+            }
+        }
+
+        function buildStudentGridCard(student, status) {
+            let fingerprintIdHtml = student.fingerprint_id
+                ? '<span class="badge" style="background:#f5f5f5;color:#940000;border:1px solid #940000;"><i class="bi bi-fingerprint"></i> ' + escapeHtmlStudent(student.fingerprint_id) + '</span>'
+                : '<span class="badge" style="background:#f5f5f5;color:#666;border:1px solid #ccc;"><i class="bi bi-dash"></i> No ID</span>';
+            let healthAlarmIcon = studentHasHealthAlert(student)
+                ? ' <i class="bi bi-exclamation-triangle-fill" style="color:#940000;" title="Health Condition Alert"></i>'
+                : '';
+
+            return '<div class="col-12 col-sm-6 col-xl-4">' +
+                '<div class="student-widget">' +
+                    '<div class="student-widget-header">' +
+                        buildStudentActionsHtml(student, status, false) +
+                        '<img src="' + studentPhotoUrl(student) + '" alt="' + escapeHtmlStudent(student.full_name) + '">' +
+                    '</div>' +
+                    '<div class="student-widget-body">' +
+                        '<h3>' + escapeHtmlStudent(student.full_name || '-') + healthAlarmIcon + '</h3>' +
+                        '<p class="form">' + escapeHtmlStudent(student.class || '-') + '</p>' +
+                        '<div class="info">' +
+                            '<p><strong>Admission:</strong> ' + escapeHtmlStudent(student.admission_number || '-') + '</p>' +
+                            '<p><strong>Gender:</strong> ' + escapeHtmlStudent(student.gender || '-') + '</p>' +
+                            '<p><strong>Parent:</strong> ' + escapeHtmlStudent(student.parent_name || '-') + '</p>' +
+                            '<p><strong>Fingerprint:</strong> ' + fingerprintIdHtml + '</p>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }
+
+        function renderGridFromCurrentData(append) {
+            if (!append) {
+                $('#studentsWidgetGrid').empty();
+                $('#studentGridSentinel').addClass('d-none');
+                $('#studentGridEnd').addClass('d-none');
+            }
+
+            if (!currentStudentsData.length) {
+                $('#studentsWidgetGrid').html('<div class="col-12"><div class="student-grid-empty">No students found matching the selected filters.</div></div>');
+                return;
+            }
+
+            // When appending, only render the latest page batch
+            let toRender = currentStudentsData;
+            if (append) {
+                const start = Math.max(0, currentStudentsData.length - GRID_PAGE_SIZE);
+                toRender = currentStudentsData.slice(start);
+            }
+
+            let html = '';
+            toRender.forEach(function (student) {
+                html += buildStudentGridCard(student, currentStatus);
+            });
+            $('#studentsWidgetGrid').append(html);
+
+            if (studentsHasMore) {
+                $('#studentGridEnd').addClass('d-none');
+            } else if (studentsTotal > GRID_PAGE_SIZE) {
+                $('#studentGridEnd').removeClass('d-none');
+            }
+        }
+
+        function resetAndRenderGrid() {
+            studentUserScrolled = false;
+            gridLoadingMore = false;
+            renderGridFromCurrentData(false);
+        }
+
+        function loadMoreStudentsForGrid() {
+            if ($('#studentsDataWrapper').attr('data-active-view') !== 'grid') return;
+            if (gridLoadingMore || !studentsHasMore) return;
+
+            gridLoadingMore = true;
+            $('#studentGridSentinel').removeClass('d-none');
+            const nextPage = studentsPage + 1;
+
+            $.ajax({
+                url: '{{ route("get_students_list") }}',
+                type: 'GET',
+                data: getStudentFilterParams({ page: nextPage }),
+                dataType: 'json'
+            }).done(function (response) {
+                if (!response.success) return;
+                const batch = response.students || [];
+                applyPaginationMeta(response.pagination || {});
+                if (batch.length) {
+                    currentStudentsData = currentStudentsData.concat(batch);
+                    renderGridFromCurrentData(true);
+                }
+            }).always(function () {
+                gridLoadingMore = false;
+                $('#studentGridSentinel').addClass('d-none');
+            });
+        }
+
+        function maybeLoadMoreGridOnScroll() {
+            if ($('#studentsDataWrapper').attr('data-active-view') !== 'grid') return;
+            if (!studentUserScrolled) return;
+            if (gridLoadingMore || !studentsHasMore) return;
+
+            const gridEl = document.getElementById('studentsWidgetGrid');
+            if (!gridEl) return;
+            const rect = gridEl.getBoundingClientRect();
+            if (rect.bottom < window.innerHeight + 200) {
+                loadMoreStudentsForGrid();
+            }
+        }
+
+        function renderListPager() {
+            // Native DataTables pagination is used for list view
+            $('#studentsListPager').remove();
+        }
+
+        function renderStudentsUI(students, status) {
+            currentStatus = status || currentStatus;
+            const view = $('#studentsDataWrapper').attr('data-active-view');
+            if (view === 'grid') {
+                resetAndRenderGrid();
+            } else {
+                reloadStudentsDataTable(true);
+            }
+        }
+
+        // Load students: list = full DataTables; grid = infinite cards + full-width search
+        function loadStudents(options) {
+            const opts = options || {};
+            const view = $('#studentsDataWrapper').attr('data-active-view') || 'list';
+            currentStatus = $('#statusFilter').val() || 'Active';
+
+            if (view === 'grid') {
+                loadStudentsGrid(opts);
+            } else {
+                const resetPaging = opts.resetPaging !== false && (opts.page === 1 || opts.page === undefined);
+                reloadStudentsDataTable(resetPaging);
+            }
+        }
+
+        function loadStudentsGrid(options) {
+            const opts = options || {};
+            const page = opts.page || 1;
+            const status = $('#statusFilter').val() || 'Active';
+            currentStatus = status;
+            studentUserScrolled = false;
+            gridLoadingMore = false;
+
+            $('#studentsWidgetGrid').html('<div class="col-12"><div class="student-grid-empty"><i class="bi bi-hourglass-split"></i><br>Loading students...</div></div>');
+            $('#studentGridSentinel, #studentGridEnd').addClass('d-none');
+
+            $.ajax({
+                url: '{{ route("get_students_list") }}',
+                type: 'GET',
+                data: getStudentFilterParams({ page: page }),
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        currentStudentsData = response.students || [];
+                        applyPaginationMeta(response.pagination || {
+                            page: 1,
+                            last_page: 1,
+                            has_more: false,
+                            total: currentStudentsData.length
+                        });
+                        resetAndRenderGrid();
+                        loadStatistics();
+                        if (studentSearchKeepFocus) {
+                            const $search = $('#studentGridSearch');
+                            if ($search.length) {
+                                const val = $search.val() || '';
+                                $search.trigger('focus');
+                                try {
+                                    const el = $search.get(0);
+                                    if (el && typeof el.setSelectionRange === 'function') {
+                                        el.setSelectionRange(val.length, val.length);
+                                    }
+                                } catch (e) {}
+                            }
+                            studentSearchKeepFocus = false;
+                        }
+                    } else {
+                        currentStudentsData = [];
+                        applyPaginationMeta({ page: 1, last_page: 1, has_more: false, total: 0 });
+                        resetAndRenderGrid();
+                        loadStatistics();
+                    }
+                },
+                error: function(xhr) {
+                    let errorMessage = 'Failed to load students';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    currentStudentsData = [];
+                    $('#studentsWidgetGrid').html(
+                        '<div class="col-12"><div class="student-grid-empty" style="color:#940000;">' +
+                        '<i class="bi bi-exclamation-triangle"></i><br>' + escapeHtmlStudent(errorMessage) +
+                        '<br><button class="btn btn-sm mt-2" style="background:#940000;color:#fff;border:0;" onclick="location.reload()">Refresh Page</button>' +
+                        '</div></div>'
+                    );
+                    loadStatistics();
+                }
+            });
+        }
 
         // Handle Register New Student Button Click
         $('#addStudentBtn').on('click', function(e) {
@@ -1593,6 +2978,844 @@
                         text: errorMsg,
                         confirmButtonColor: '#dc3545'
                     });
+                }
+            });
+        });
+
+        // ===================== MOVE STUDENTS WIZARD =====================
+        let moveStep = 1;
+        let movePreviewRows = [];
+        let moveLevel = {{ !empty($hasALevel) ? 'null' : "'o_level'" }};
+        const moveHasALevel = {{ !empty($hasALevel) ? 'true' : 'false' }};
+        const moveOLevelYears = @json(($oLevelAcademicYears ?? $academicYears ?? collect())->map(function ($y) {
+            return [
+                'id' => $y->academic_yearID,
+                'label' => ($y->year_name ?: (string) $y->year) . (!empty($y->is_current) ? ' (Current)' : ''),
+            ];
+        })->values());
+        const moveALevelYears = @json(($aLevelAcademicYears ?? collect())->map(function ($y) {
+            return [
+                'id' => $y->academic_yearID,
+                'label' => ($y->year_name ?: (string) $y->year) . (!empty($y->is_current) ? ' (Current)' : ''),
+            ];
+        })->values());
+        const moveAllYears = @json(($academicYears ?? collect())->map(function ($y) {
+            return [
+                'id' => $y->academic_yearID,
+                'label' => ($y->year_name ?: (string) $y->year) . (!empty($y->is_current) ? ' (Current)' : ''),
+            ];
+        })->values());
+
+        function fillMoveTargetYears(level) {
+            let years = moveAllYears;
+            if (moveHasALevel) {
+                if (level === 'a_level') {
+                    years = moveALevelYears;
+                } else if (level === 'o_level') {
+                    years = moveOLevelYears;
+                } else {
+                    years = [];
+                }
+            }
+            let html = '<option value="">-- Select Academic Year --</option>';
+            (years || []).forEach(function (y) {
+                html += '<option value="' + y.id + '">' + escapeHtmlStudent(y.label) + '</option>';
+            });
+            $('#moveTargetYear').html(html);
+            if (moveHasALevel) {
+                $('#moveYearWrap').toggleClass('d-none', !level);
+            } else {
+                $('#moveYearWrap').removeClass('d-none');
+            }
+        }
+
+        function updateMoveNextEnabled() {
+            if (moveStep === 1) {
+                const hasYear = !!$('#moveTargetYear').val();
+                const hasLevel = !moveHasALevel || !!moveLevel;
+                $('#moveNextBtn').prop('disabled', !(hasYear && hasLevel));
+                $('#moveYearWarning').toggle(hasYear && hasLevel);
+            } else if (moveStep === 2) {
+                updateMoveSelectedCount();
+            }
+        }
+
+        function highlightMoveLevel(level) {
+            moveLevel = level;
+            $('.move-level-btn').css({ background: '#fff', color: '#940000' });
+            if (level) {
+                $('.move-level-btn[data-level="' + level + '"]').css({ background: '#940000', color: '#fff' });
+            }
+            fillMoveTargetYears(level);
+            updateMoveNextEnabled();
+        }
+
+        function filterMoveClassesByLevel() {
+            let classHtml = '<option value="">-- All Classes --</option>';
+            let classes = {};
+            moveAllSubclassesCache.forEach(function (subclass) {
+                if (!subclass.classID || !subclass.class_name || classes[subclass.classID]) return;
+                const name = subclass.class_name || '';
+                const n = String(name).toLowerCase().replace(/[\s\-]+/g, '_');
+                const isA = n.indexOf('form_five') !== -1 || n.indexOf('form_5') !== -1 || n.indexOf('form_six') !== -1 || n.indexOf('form_6') !== -1
+                    || n === 'form_five' || n === 'form_5' || n === 'form_six' || n === 'form_6';
+                if (moveLevel === 'a_level' && !isA) return;
+                if (moveLevel === 'o_level' && isA) return;
+                classes[subclass.classID] = subclass.class_name;
+                classHtml += '<option value="' + subclass.classID + '">' + escapeHtmlStudent(subclass.class_name) + '</option>';
+            });
+            $('#moveFilterClass').html(classHtml);
+            fillMoveSubclasses('');
+        }
+
+        function openStudentModal(id) {
+            const $modal = $('#' + id);
+            if (!$modal.length) return;
+
+            // Static: do not close on outside click / Esc (BS4 + BS5 attrs)
+            $modal.attr({
+                'data-backdrop': 'static',
+                'data-keyboard': 'false',
+                'data-bs-backdrop': 'static',
+                'data-bs-keyboard': 'false'
+            });
+
+            // Prefer jQuery Bootstrap plugin (Admin_nav loads Bootstrap 4.6)
+            if (typeof $modal.modal === 'function') {
+                try {
+                    // Reset prior instance so static options always apply (BS4)
+                    $modal.removeData('bs.modal');
+                    $modal.modal({
+                        backdrop: 'static',
+                        keyboard: false,
+                        show: true
+                    });
+                } catch (e) {
+                    $modal.modal('show');
+                }
+                return;
+            }
+
+            // Bootstrap 5 native (no getOrCreateInstance — may be missing on older builds)
+            if (window.bootstrap && bootstrap.Modal) {
+                try {
+                    let instance = (typeof bootstrap.Modal.getInstance === 'function')
+                        ? bootstrap.Modal.getInstance($modal[0])
+                        : null;
+                    if (!instance) {
+                        instance = new bootstrap.Modal($modal[0], {
+                            backdrop: 'static',
+                            keyboard: false
+                        });
+                    }
+                    instance.show();
+                    return;
+                } catch (e) {
+                    console.warn('Native Bootstrap modal failed, using manual show', e);
+                }
+            }
+
+            // Manual fallback
+            $('body').addClass('modal-open');
+            $modal.css('display', 'block').addClass('show').attr('aria-hidden', 'false');
+            if ($('.modal-backdrop').length === 0) {
+                $('body').append('<div class="modal-backdrop fade show"></div>');
+            }
+        }
+
+        function closeStudentModal(id) {
+            hideModal(id);
+        }
+
+        function setMoveStep(step) {
+            moveStep = step;
+            $('.move-step').addClass('d-none');
+            $('#moveStep' + step).removeClass('d-none');
+            $('.move-step-badge').removeClass('active');
+            $('.move-step-badge[data-step="' + step + '"]').addClass('active');
+            $('#movePrevBtn').toggleClass('d-none', step === 1);
+            $('#moveNextBtn').toggleClass('d-none', step === 3);
+            if (step === 1) {
+                updateMoveNextEnabled();
+            } else if (step === 2) {
+                filterMoveClassesByLevel();
+                updateMoveSelectedCount();
+            } else if (step === 3) {
+                const selected = getSelectedMoveRows();
+                const yearLabel = $('#moveTargetYear option:selected').text();
+                const promoted = selected.filter(r => r.action === 'Promoted').length;
+                const graduated = selected.filter(r => r.action === 'Graduated').length;
+                $('#moveConfirmSummary').html(
+                    '<div>Target year: <strong>' + escapeHtmlStudent(yearLabel) + '</strong></div>' +
+                    '<div>Selected: <strong>' + selected.length + '</strong></div>' +
+                    '<div>Will promote: <strong>' + promoted + '</strong></div>' +
+                    '<div>Will graduate: <strong>' + graduated + '</strong></div>'
+                );
+                $('#moveConfirmBox').addClass('d-none');
+                $('#moveConfirmWordWrap').addClass('d-none');
+                $('#moveConfirmYesNo').val('');
+                $('#moveConfirmWord').val('');
+                $('#moveExecuteBtn').prop('disabled', true);
+            }
+        }
+
+        function getSelectedMoveRows() {
+            const ids = $('.move-row-check:checked').map(function () { return parseInt($(this).val(), 10); }).get();
+            return movePreviewRows.filter(function (r) {
+                if (ids.indexOf(r.enrollmentID) === -1) return false;
+                if (r.action === 'Graduated') return true;
+                return !!r.destination_subclassID;
+            });
+        }
+
+        function buildMoveDestSelect(row) {
+            const options = row.destination_options || [];
+            if (!options.length || row.action === 'Graduated') {
+                let html = escapeHtmlStudent(row.destination_class || '-');
+                if (row.note) html += '<br><small class="text-muted">' + escapeHtmlStudent(row.note) + '</small>';
+                if (row.error) html += '<br><small style="color:#940000;">' + escapeHtmlStudent(row.error) + '</small>';
+                return html;
+            }
+
+            let html = '<select class="form-control form-control-sm move-dest-select" data-enrollment-id="' + row.enrollmentID + '" style="border-radius:0;min-width:190px;">';
+            html += '<option value="">-- Select subclass --</option>';
+            options.forEach(function (opt) {
+                const selected = String(row.destination_subclassID || '') === String(opt.subclassID) ? ' selected' : '';
+                html += '<option value="' + opt.subclassID + '"' + selected + '>' + escapeHtmlStudent(opt.label || '') + '</option>';
+            });
+            html += '</select>';
+            if (row.note) {
+                html += '<small class="text-muted d-block mt-1">' + escapeHtmlStudent(row.note) + '</small>';
+            }
+            if (row.error && !row.destination_subclassID) {
+                html += '<small class="d-block mt-1" style="color:#940000;">' + escapeHtmlStudent(row.error) + '</small>';
+            }
+            return html;
+        }
+
+        function applyMoveDestinationChoice(enrollmentID, subclassID) {
+            const row = movePreviewRows.find(r => String(r.enrollmentID) === String(enrollmentID));
+            if (!row) return;
+            const opt = (row.destination_options || []).find(o => String(o.subclassID) === String(subclassID));
+            if (!subclassID || !opt) {
+                row.destination_subclassID = null;
+                row.destination_combie = null;
+                row.can_move = false;
+                row.error = 'Select destination subclass';
+            } else {
+                row.destination_subclassID = parseInt(opt.subclassID, 10);
+                row.destination_classID = parseInt(opt.classID, 10);
+                row.destination_class = opt.label;
+                row.destination_combie = opt.combie || null;
+                row.error = null;
+                row.can_move = true;
+                row.action = 'Promoted';
+            }
+
+            const $tr = $('.move-dest-select[data-enrollment-id="' + enrollmentID + '"]').closest('tr');
+            $tr.toggleClass('table-secondary', !row.destination_subclassID && row.action === 'Promoted');
+            updateMoveSelectedCount();
+        }
+
+        function updateMoveSelectedCount() {
+            const n = getSelectedMoveRows().length;
+            $('#moveSelectedCount').text(n + ' selected');
+            $('#moveNextBtn').prop('disabled', moveStep === 2 ? n === 0 : !$('#moveTargetYear').val());
+        }
+
+        let moveAllSubclassesCache = [];
+
+        function loadMoveClasses() {
+            $.ajax({
+                url: '{{ route("get_subclasses_for_school") }}',
+                type: 'GET',
+                dataType: 'json',
+                success: function (response) {
+                    moveAllSubclassesCache = (response.success && response.subclasses) ? response.subclasses : [];
+                    let classHtml = '<option value="">-- All Classes --</option>';
+                    let classes = {};
+                    moveAllSubclassesCache.forEach(function (subclass) {
+                        if (subclass.classID && subclass.class_name && !classes[subclass.classID]) {
+                            classes[subclass.classID] = subclass.class_name;
+                            classHtml += '<option value="' + subclass.classID + '">' + escapeHtmlStudent(subclass.class_name) + '</option>';
+                        }
+                    });
+                    $('#moveFilterClass').html(classHtml);
+                    $('#moveFilterSubclass').html('<option value="">-- All Subclasses --</option>');
+                    filterMoveClassesByLevel();
+                }
+            });
+        }
+
+        function fillMoveSubclasses(classID) {
+            let html = '<option value="">-- All Subclasses --</option>';
+            moveAllSubclassesCache.forEach(function (subclass) {
+                if (!classID || String(subclass.classID) === String(classID)) {
+                    const displayName = subclass.display_name || ((subclass.class_name || '') + ' ' + (subclass.subclass_name || ''));
+                    html += '<option value="' + subclass.subclassID + '">' + escapeHtmlStudent(displayName.trim()) + '</option>';
+                }
+            });
+            $('#moveFilterSubclass').html(html);
+        }
+
+        let movePreviewRequest = null;
+        function ensureMovePreviewTableHead() {
+            $('#movePreviewTable thead').html(
+                '<tr>' +
+                '<th width="40"></th>' +
+                '<th>Admission</th>' +
+                '<th>Name</th>' +
+                '<th>Current Class</th>' +
+                '<th>Will Go To</th>' +
+                '<th>Action</th>' +
+                '<th width="50"></th>' +
+                '</tr>'
+            );
+        }
+
+        function loadMovePreview() {
+            ensureMovePreviewTableHead();
+            if (!$('#moveTargetYear').val()) {
+                $('#movePreviewBody').html('<tr><td colspan="7" class="text-center text-muted">Select academic year first</td></tr>');
+                movePreviewRows = [];
+                updateMoveSelectedCount();
+                return;
+            }
+
+            $('#movePreviewBody').html('<tr><td colspan="7" class="text-center text-muted">Loading active enrollments...</td></tr>');
+            if (movePreviewRequest && movePreviewRequest.readyState !== 4) {
+                movePreviewRequest.abort();
+            }
+            movePreviewRequest = $.ajax({
+                url: '{{ route("move_students_preview") }}',
+                type: 'GET',
+                data: {
+                    academic_yearID: $('#moveTargetYear').val() || '',
+                    classID: $('#moveFilterClass').val() || '',
+                    subclassID: $('#moveFilterSubclass').val() || '',
+                    level: moveLevel || ''
+                },
+                dataType: 'json',
+                success: function (res) {
+                    movePreviewRows = res.students || [];
+                    const alreadyMoved = res.already_moved || [];
+                    if (!movePreviewRows.length && !alreadyMoved.length) {
+                        $('#movePreviewBody').html('<tr><td colspan="7" class="text-center text-muted">No active enrollments found</td></tr>');
+                        updateMoveSelectedCount();
+                        return;
+                    }
+
+                    let html = '';
+                    alreadyMoved.forEach(function (row) {
+                        html += '<tr class="table-warning">' +
+                            '<td></td>' +
+                            '<td>' + escapeHtmlStudent(row.admission_number || '-') + '</td>' +
+                            '<td>' + escapeHtmlStudent(row.full_name || '-') + '</td>' +
+                            '<td>' + escapeHtmlStudent(row.current_class || '-') + '</td>' +
+                            '<td>' + escapeHtmlStudent(row.destination_class || '-') +
+                                '<br><small class="text-muted">Already moved</small></td>' +
+                            '<td>Already moved</td>' +
+                            '<td><button type="button" class="btn btn-sm move-undo-item-btn" title="Revert / Undo this student" data-item-id="' + row.itemID + '" style="background:#940000;color:#fff;border-radius:0;padding:2px 6px;">' +
+                                '<i class="bi bi-arrow-counterclockwise"></i></button></td>' +
+                            '</tr>';
+                    });
+                    movePreviewRows.forEach(function (row) {
+                        const canSelect = row.action === 'Graduated' ||
+                            (row.destination_options && row.destination_options.length) || row.can_move;
+                        const disabled = canSelect ? '' : 'disabled';
+                        const needsPick = row.action === 'Promoted' && !row.destination_subclassID;
+                        html += '<tr class="' + (needsPick ? 'table-secondary' : '') + '" data-enrollment-id="' + row.enrollmentID + '">' +
+                            '<td><input type="checkbox" class="move-row-check" value="' + row.enrollmentID + '" ' + disabled + '></td>' +
+                            '<td>' + escapeHtmlStudent(row.admission_number || '-') + '</td>' +
+                            '<td>' + escapeHtmlStudent(row.full_name || '-') + '</td>' +
+                            '<td>' + escapeHtmlStudent(row.current_class || '-') + '</td>' +
+                            '<td>' + buildMoveDestSelect(row) + '</td>' +
+                            '<td>' + escapeHtmlStudent(row.action || '-') + '</td>' +
+                            '<td></td>' +
+                            '</tr>';
+                    });
+                    $('#movePreviewBody').html(html);
+                    $('#moveSelectAll').prop('checked', false);
+                    updateMoveSelectedCount();
+                },
+                error: function (xhr) {
+                    if (xhr.statusText === 'abort') return;
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to load';
+                    $('#movePreviewBody').html('<tr><td colspan="7" class="text-center" style="color:#940000;">' + escapeHtmlStudent(msg) + '</td></tr>');
+                }
+            });
+        }
+
+        $(document).on('change', '.move-dest-select', function () {
+            applyMoveDestinationChoice($(this).data('enrollment-id'), $(this).val());
+        });
+
+        $('#moveStudentsBtn').on('click', function () {
+            setMoveStep(1);
+            moveLevel = moveHasALevel ? null : 'o_level';
+            highlightMoveLevel(moveLevel);
+            $('#moveYearWarning').hide();
+            $('#moveNextBtn').prop('disabled', true);
+            loadMoveClasses();
+            openStudentModal('moveStudentsModal');
+        });
+
+        $(document).on('click', '.move-level-btn', function () {
+            highlightMoveLevel($(this).data('level'));
+        });
+
+        $('#moveTargetYear').on('change', function () {
+            updateMoveNextEnabled();
+        });
+
+        $('#moveNextBtn').on('click', function () {
+            if (moveStep === 1 && (!$('#moveTargetYear').val() || (moveHasALevel && !moveLevel))) return;
+            if (moveStep === 2 && getSelectedMoveRows().length === 0) return;
+            if (moveStep === 1) {
+                setMoveStep(2);
+                loadMovePreview();
+            } else if (moveStep === 2) {
+                setMoveStep(3);
+            }
+        });
+
+        $('#movePrevBtn').on('click', function () {
+            if (moveStep > 1) setMoveStep(moveStep - 1);
+        });
+
+        $('#moveReloadPreviewBtn').on('click', loadMovePreview);
+
+        $('#moveFilterClass').on('change', function () {
+            fillMoveSubclasses($(this).val());
+            loadMovePreview();
+        });
+
+        $('#moveFilterSubclass').on('change', function () {
+            loadMovePreview();
+        });
+
+        $(document).on('click', '.move-undo-item-btn', function () {
+            const itemID = $(this).data('item-id');
+            const $row = $(this).closest('tr');
+            const panelHtml = '<div class="p-2" style="border:1px dashed #940000;background:#fff;">' +
+                '<p class="mb-1 small fw-bold" style="color:#940000;">Undo this student move? Type <strong>yes</strong></p>' +
+                '<input type="text" class="form-control form-control-sm mb-2 move-undo-item-yes" placeholder="yes" style="border-radius:0;">' +
+                '<button type="button" class="btn btn-sm move-undo-item-confirm" data-item-id="' + itemID + '" style="background:#940000;color:#fff;border-radius:0;" disabled>Undo</button>' +
+                '</div>';
+            $row.find('td').last().html(panelHtml);
+        });
+
+        $(document).on('keyup change', '.move-undo-item-yes', function () {
+            const ok = (($(this).val() || '').trim().toLowerCase() === 'yes');
+            $(this).closest('td').find('.move-undo-item-confirm').prop('disabled', !ok);
+        });
+
+        $(document).on('click', '.move-undo-item-confirm', function () {
+            const itemID = $(this).data('item-id');
+            const $btn = $(this).prop('disabled', true).text('...');
+            $.ajax({
+                url: '{{ route("move_students_undo_item") }}',
+                type: 'POST',
+                data: { _token: '{{ csrf_token() }}', itemID: itemID, confirm_word: 'yes' },
+                dataType: 'json',
+                success: function (res) {
+                    if (res.success) {
+                        loadMovePreview();
+                        loadStudents({ page: 1 });
+                    } else {
+                        alert(res.message || 'Undo failed');
+                        $btn.prop('disabled', false).text('Undo');
+                    }
+                },
+                error: function (xhr) {
+                    alert((xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Undo failed');
+                    $btn.prop('disabled', false).text('Undo');
+                }
+            });
+        });
+
+        $(document).on('change', '#moveSelectAll', function () {
+            const checked = $(this).is(':checked');
+            $('.move-row-check:not(:disabled)').prop('checked', checked);
+            updateMoveSelectedCount();
+        });
+        $(document).on('change', '.move-row-check', updateMoveSelectedCount);
+
+        $('#moveExpandConfirmBtn').on('click', function () {
+            $('#moveConfirmBox').removeClass('d-none');
+        });
+
+        $('#moveConfirmYesNo').on('keyup change', function () {
+            const v = ($(this).val() || '').trim().toLowerCase();
+            if (v === 'no') {
+                $('#moveConfirmWordWrap').addClass('d-none');
+                $('#moveExecuteBtn').prop('disabled', true);
+                return;
+            }
+            if (v === 'yes') {
+                $('#moveConfirmWordWrap').removeClass('d-none');
+            } else {
+                $('#moveConfirmWordWrap').addClass('d-none');
+            }
+            validateMoveConfirmWord();
+        });
+
+        $('#moveConfirmWord').on('keyup change', validateMoveConfirmWord);
+
+        function validateMoveConfirmWord() {
+            const a = ($('#moveConfirmYesNo').val() || '').trim().toLowerCase();
+            const b = ($('#moveConfirmWord').val() || '').trim().toLowerCase();
+            $('#moveExecuteBtn').prop('disabled', !(a === 'yes' && b === 'yes'));
+        }
+
+        $('#moveExecuteBtn').on('click', function () {
+            const selected = getSelectedMoveRows();
+            if (!selected.length) return;
+            const missing = selected.filter(r => r.action === 'Promoted' && !r.destination_subclassID);
+            if (missing.length) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Select destination subclass',
+                    text: missing.length + ' selected student(s) still need a destination subclass.',
+                    confirmButtonColor: '#940000'
+                });
+                return;
+            }
+
+            const destinationSubclass = {};
+            selected.forEach(function (r) {
+                if (r.destination_subclassID) {
+                    destinationSubclass[r.enrollmentID] = r.destination_subclassID;
+                }
+            });
+
+            const $btn = $(this).prop('disabled', true).text('Moving...');
+            $.ajax({
+                url: '{{ route("move_students_execute") }}',
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    academic_yearID: $('#moveTargetYear').val(),
+                    enrollmentIDs: selected.map(r => r.enrollmentID),
+                    destination_subclass: destinationSubclass,
+                    confirm_word: 'yes'
+                },
+                dataType: 'json',
+                success: function (res) {
+                    $btn.prop('disabled', false).html('Confirm &amp; Move');
+                    if (res.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Move Completed',
+                            html: escapeHtmlStudent(res.message || 'Done') +
+                                (res.batchID ? '<br><small>Batch #' + res.batchID + ' — you can Undo from menu</small>' : ''),
+                            confirmButtonColor: '#940000'
+                        }).then(function () {
+                            closeStudentModal('moveStudentsModal');
+                            loadStudents({ page: 1 });
+                        });
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Move Failed', text: res.message || 'Failed', confirmButtonColor: '#940000' });
+                    }
+                },
+                error: function (xhr) {
+                    $btn.prop('disabled', false).html('Confirm &amp; Move');
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Move failed';
+                    Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonColor: '#940000' });
+                }
+            });
+        });
+
+        $('#undoMoveBatchesBtn').on('click', function () {
+            $('#undoMoveBatchesList').html('Loading...');
+            openStudentModal('undoMoveModal');
+            $.getJSON('{{ route("move_students_batches") }}', function (res) {
+                const batches = res.batches || [];
+                if (!batches.length) {
+                    $('#undoMoveBatchesList').html('<div class="text-muted">No move batches yet.</div>');
+                    return;
+                }
+                let html = '<div class="table-responsive"><table class="table table-bordered table-sm"><thead><tr>' +
+                    '<th>#</th><th>Year</th><th>Promoted</th><th>Graduated</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody>';
+                batches.forEach(function (b) {
+                    html += '<tr>' +
+                        '<td>' + b.batchID + '</td>' +
+                        '<td>' + escapeHtmlStudent(b.to_year) + '</td>' +
+                        '<td>' + b.moved_count + '</td>' +
+                        '<td>' + b.graduated_count + '</td>' +
+                        '<td>' + escapeHtmlStudent(b.status) + '</td>' +
+                        '<td>' + escapeHtmlStudent(b.created_at || '') + '</td>' +
+                        '<td>' + (b.can_undo
+                            ? '<button type="button" class="btn btn-sm undo-move-batch-btn" data-batch-id="' + b.batchID + '" style="background:#940000;color:#fff;border-radius:0;">Undo</button>'
+                            : '<span class="text-muted small">—</span>') + '</td>' +
+                        '</tr>';
+                });
+                html += '</tbody></table></div>';
+                $('#undoMoveBatchesList').html(html);
+            }).fail(function () {
+                $('#undoMoveBatchesList').html('<div style="color:#940000;">Failed to load batches</div>');
+            });
+        });
+
+        $(document).on('click', '.undo-move-batch-btn', function () {
+            const batchID = $(this).data('batch-id');
+            Swal.fire({
+                title: 'Undo this move?',
+                html: 'Type <strong>yes</strong> to restore students to previous enrollments.',
+                input: 'text',
+                inputPlaceholder: 'yes',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Undo',
+                allowOutsideClick: false,
+                focusConfirm: false,
+                customClass: { popup: 'student-swal-popup', container: 'student-swal-container' },
+                didOpen: function () {
+                    const input = Swal.getInput();
+                    if (input) setTimeout(function () { input.focus(); }, 50);
+                },
+                preConfirm: (value) => {
+                    if ((value || '').trim().toLowerCase() !== 'yes') {
+                        Swal.showValidationMessage('Type yes to confirm');
+                        return false;
+                    }
+                    return value;
+                }
+            }).then(function (result) {
+                if (!result.isConfirmed) return;
+                $.ajax({
+                    url: '{{ route("move_students_undo") }}',
+                    type: 'POST',
+                    data: { _token: '{{ csrf_token() }}', batchID: batchID, confirm_word: 'yes' },
+                    dataType: 'json',
+                    success: function (res) {
+                        if (res.success) {
+                            Swal.fire({ icon: 'success', title: 'Undone', text: res.message, confirmButtonColor: '#940000' });
+                            $('#undoMoveBatchesBtn').click();
+                            loadStudents({ page: 1 });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Failed', text: res.message || 'Undo failed', confirmButtonColor: '#940000' });
+                        }
+                    },
+                    error: function (xhr) {
+                        const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Undo failed';
+                        Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonColor: '#940000' });
+                    }
+                });
+            });
+        });
+
+        // ===================== SINGLE STUDENT MOVE (Internal / External) =====================
+        let singleMoveState = {
+            studentID: null,
+            type: null,
+            classes: [],
+            destinations: []
+        };
+
+        function resetSingleMoveUI() {
+            singleMoveState.type = null;
+            singleMoveState.classes = [];
+            singleMoveState.destinations = [];
+            $('.single-move-type-btn').css({ background: '#fff', color: '#940000' });
+            $('#singleMoveDestWrap').addClass('d-none');
+            $('#singleMoveClass').html('<option value="">-- Select class --</option>');
+            $('#singleMoveSubclass').html('<option value="">-- Select subclass --</option>').prop('disabled', true);
+            $('#singleMoveActionHint').hide().text('');
+            $('#singleMoveConfirmBtn').prop('disabled', true);
+        }
+
+        function highlightSingleMoveType(type) {
+            $('.single-move-type-btn').css({ background: '#fff', color: '#940000' });
+            $('.single-move-type-btn[data-type="' + type + '"]').css({ background: '#940000', color: '#fff' });
+        }
+
+        function fillSingleMoveDestinations(payload) {
+            singleMoveState.classes = payload.classes || [];
+            singleMoveState.destinations = payload.destinations || [];
+
+            if (payload.student) {
+                $('#singleMoveStudentName').text(payload.student.full_name || '—');
+                $('#singleMoveCurrentClass').text(payload.student.current_class || '—');
+            }
+
+            if (!singleMoveState.destinations.length) {
+                $('#singleMoveDestWrap').removeClass('d-none');
+                $('#singleMoveClass').html('<option value="">No destinations available</option>');
+                $('#singleMoveSubclass').html('<option value="">—</option>').prop('disabled', true);
+                $('#singleMoveActionHint').show().text('No eligible destinations for this move type.');
+                $('#singleMoveConfirmBtn').prop('disabled', true);
+                return;
+            }
+
+            $('#singleMoveDestWrap').removeClass('d-none');
+            let classHtml = '<option value="">-- Select class --</option>';
+            singleMoveState.classes.forEach(function (c) {
+                classHtml += '<option value="' + c.classID + '" data-action="' + escapeHtmlStudent(c.action || '') + '" data-action-label="' + escapeHtmlStudent(c.action_label || '') + '">' +
+                    escapeHtmlStudent(c.class_name) +
+                    (c.action === 'Reverted' ? ' (Revert)' : (c.action === 'Moved' ? ' (Move)' : '')) +
+                    '</option>';
+            });
+            $('#singleMoveClass').html(classHtml);
+            $('#singleMoveSubclass').html('<option value="">-- Select subclass --</option>').prop('disabled', true);
+            $('#singleMoveActionHint').hide().text('');
+            $('#singleMoveConfirmBtn').prop('disabled', true);
+
+            // Internal: often one class — auto-select
+            if (singleMoveState.type === 'internal' && singleMoveState.classes.length === 1) {
+                $('#singleMoveClass').val(String(singleMoveState.classes[0].classID)).trigger('change');
+            }
+        }
+
+        $(document).on('click', '.single-move-student-btn', function () {
+            singleMoveState.studentID = $(this).data('student-id');
+            resetSingleMoveUI();
+            $('#singleMoveStudentName').text($(this).data('student-name') || '—');
+            $('#singleMoveCurrentClass').text($(this).data('current-class') || '—');
+            $('#singleMoveConfirmPanel').addClass('d-none');
+            $('#singleMoveConfirmYesNo').val('');
+            $('#singleMoveConfirmWord').val('');
+            openStudentModal('singleMoveStudentModal');
+        });
+
+        $(document).on('click', '.single-move-type-btn', function () {
+            const type = $(this).data('type');
+            if (!singleMoveState.studentID) return;
+            singleMoveState.type = type;
+            highlightSingleMoveType(type);
+            $('#singleMoveDestWrap').removeClass('d-none');
+            $('#singleMoveClass').html('<option value="">Loading...</option>');
+            $('#singleMoveSubclass').prop('disabled', true);
+            $('#singleMoveConfirmBtn').prop('disabled', true);
+
+            $.ajax({
+                url: '{{ url("/move_student_options") }}/' + singleMoveState.studentID,
+                type: 'GET',
+                data: { type: type },
+                dataType: 'json',
+                success: function (res) {
+                    if (!res.success) {
+                        Swal.fire({ icon: 'error', title: 'Error', text: res.message || 'Failed to load destinations', confirmButtonColor: '#940000' });
+                        return;
+                    }
+                    fillSingleMoveDestinations(res);
+                },
+                error: function (xhr) {
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to load destinations';
+                    Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonColor: '#940000' });
+                }
+            });
+        });
+
+        $('#singleMoveClass').on('change', function () {
+            const classID = $(this).val();
+            const $opt = $(this).find('option:selected');
+            const action = $opt.data('action');
+            const actionLabel = $opt.data('action-label');
+
+            if (!classID) {
+                $('#singleMoveSubclass').html('<option value="">-- Select subclass --</option>').prop('disabled', true);
+                $('#singleMoveActionHint').hide();
+                $('#singleMoveConfirmBtn').prop('disabled', true);
+                return;
+            }
+
+            const group = singleMoveState.classes.find(c => String(c.classID) === String(classID));
+            let html = '<option value="">-- Select subclass --</option>';
+            (group ? group.subclasses : []).forEach(function (s) {
+                const subLabel = s.label || s.subclass_name || '';
+                html += '<option value="' + s.subclassID + '" data-action="' + escapeHtmlStudent(s.action || '') + '" data-label="' + escapeHtmlStudent(s.label || '') + '" data-combie="' + escapeHtmlStudent(s.combie || '') + '">' +
+                    escapeHtmlStudent(subLabel) + '</option>';
+            });
+            $('#singleMoveSubclass').html(html).prop('disabled', false);
+            $('#singleMoveConfirmBtn').prop('disabled', true);
+
+            if (action) {
+                let tip = actionLabel || action;
+                if (action === 'Reverted') {
+                    tip = 'This will REVERT the student to a previous class level.';
+                } else if (action === 'Moved') {
+                    tip = 'This will MOVE the student to another main class.';
+                } else {
+                    tip = 'This will move the student within the same class (subclass/stream).';
+                }
+                $('#singleMoveActionHint').show().text(tip);
+            }
+        });
+
+        $('#singleMoveSubclass').on('change', function () {
+            $('#singleMoveConfirmBtn').prop('disabled', !$(this).val());
+        });
+
+        $('#singleMoveConfirmBtn').on('click', function () {
+            const subclassID = $('#singleMoveSubclass').val();
+            if (!singleMoveState.studentID || !singleMoveState.type || !subclassID) return;
+
+            const destLabel = $('#singleMoveSubclass option:selected').data('label') || $('#singleMoveSubclass option:selected').text();
+            const action = $('#singleMoveSubclass option:selected').data('action') || $('#singleMoveClass option:selected').data('action') || '';
+            const title = action === 'Reverted'
+                ? 'Are you sure you want to revert this student?'
+                : 'Are you sure you want to perform this action?';
+
+            $('#singleMoveConfirmTitle').text(title);
+            $('#singleMoveConfirmPanel').removeClass('d-none');
+            $('#singleMoveConfirmWordWrap').addClass('d-none');
+            $('#singleMoveConfirmYesNo').val('').focus();
+            $('#singleMoveConfirmWord').val('');
+            $('#singleMoveExecuteBtn').prop('disabled', true).data('subclass-id', subclassID).data('dest-label', destLabel);
+            $(this).prop('disabled', true);
+        });
+
+        $('#singleMoveConfirmYesNo').on('keyup change', function () {
+            const v = ($(this).val() || '').trim().toLowerCase();
+            if (v === 'no') {
+                $('#singleMoveConfirmPanel').addClass('d-none');
+                $('#singleMoveConfirmBtn').prop('disabled', !$('#singleMoveSubclass').val());
+                return;
+            }
+            if (v === 'yes') {
+                $('#singleMoveConfirmWordWrap').removeClass('d-none');
+            } else {
+                $('#singleMoveConfirmWordWrap').addClass('d-none');
+            }
+            const b = ($('#singleMoveConfirmWord').val() || '').trim().toLowerCase();
+            $('#singleMoveExecuteBtn').prop('disabled', !(v === 'yes' && b === 'yes'));
+        });
+
+        $('#singleMoveConfirmWord').on('keyup change', function () {
+            const a = ($('#singleMoveConfirmYesNo').val() || '').trim().toLowerCase();
+            const b = ($(this).val() || '').trim().toLowerCase();
+            $('#singleMoveExecuteBtn').prop('disabled', !(a === 'yes' && b === 'yes'));
+        });
+
+        $('#singleMoveExecuteBtn').on('click', function () {
+            const subclassID = $(this).data('subclass-id') || $('#singleMoveSubclass').val();
+            if (!singleMoveState.studentID || !singleMoveState.type || !subclassID) return;
+            const $btn = $(this).prop('disabled', true).text('Moving...');
+            $.ajax({
+                url: '{{ route("move_student_single") }}',
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    studentID: singleMoveState.studentID,
+                    new_subclassID: subclassID,
+                    type: singleMoveState.type
+                },
+                dataType: 'json',
+                success: function (res) {
+                    $btn.prop('disabled', false).html('Confirm &amp; Move');
+                    if (res.success) {
+                        alert(res.message || 'Done');
+                        closeStudentModal('singleMoveStudentModal');
+                        loadStudents({ page: 1 });
+                    } else {
+                        alert(res.message || 'Move failed');
+                    }
+                },
+                error: function (xhr) {
+                    $btn.prop('disabled', false).html('Confirm &amp; Move');
+                    alert((xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Move failed');
                 }
             });
         });
@@ -1770,213 +3993,111 @@
             }
         });
 
-        // Load students with filters
-        function loadStudents() {
-            console.log('Loading students with filters');
-
-            // Get filter values
-            let status = $('#statusFilter').val() || 'Active';
-            let classID = $('#classFilter').val() || '';
-            let subclassID = $('#subclassFilter').val() || '';
-            let gender = $('#genderFilter').val() || '';
-            let health = $('#healthFilter').val() || '';
-
-            // Update currentStatus
-            currentStatus = status;
-
-            $('#studentsWidgetGrid').html('<div class="no-data-message text-center py-5"><i class="bi bi-hourglass-split" style="font-size: 3rem; color: #6c757d;"></i><p class="text-muted mt-2">Loading students...</p></div>');
-
-            $.ajax({
-                url: '{{ route("get_students_list") }}',
-                type: 'GET',
-                data: {
-                    status: status,
-                    classID: classID,
-                    subclassID: subclassID,
-                    gender: gender,
-                    health: health
-                },
-                dataType: 'json',
-                success: function(response) {
-                    console.log('Response received:', response);
-
-                    if (response.success) {
-                        if (response.students && response.students.length > 0) {
-                            currentStudentsData = response.students;
-                            renderStudentWidgets(response.students, status);
-                        } else {
-                            currentStudentsData = [];
-                            $('#studentsWidgetGrid').html('<div class="no-data-message text-center py-5"><i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i><h5 class="mt-3 text-muted">No Data Available</h5><p class="text-muted">No students found matching the selected filters.</p></div>');
-                        }
-
-                        loadStatistics();
-                    } else {
-                        $('#studentsWidgetGrid').html('<div class="no-data-message text-center py-5"><i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i><h5 class="mt-3 text-muted">No Data Available</h5><p class="text-muted">Failed to load students.</p></div>');
-                        loadStatistics();
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error loading students:', error);
-                    console.error('Response:', xhr.responseText);
-                    console.error('Status:', status);
-                    console.error('XHR:', xhr);
-
-                    let errorMessage = 'Failed to load students';
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    } else if (xhr.responseText) {
-                        try {
-                            let errorData = JSON.parse(xhr.responseText);
-                            if (errorData.message) {
-                                errorMessage = errorData.message;
-                            }
-                        } catch (e) {
-                            // If not JSON, use response text
-                            if (xhr.responseText.length < 200) {
-                                errorMessage = xhr.responseText;
-                            }
-                        }
-                    }
-
-                    let noDataHtml = '<div class="no-data-message text-center py-5">' +
-                        '<i class="bi bi-exclamation-triangle" style="font-size: 3rem; color: #dc3545;"></i>' +
-                        '<h5 class="mt-3 text-danger">Error Loading Data</h5>' +
-                        '<p class="text-muted">' + errorMessage + '</p>' +
-                        '<button class="btn btn-sm btn-primary mt-2" onclick="location.reload()">Refresh Page</button>' +
-                        '</div>';
-                    $('#studentsWidgetGrid').html(noDataHtml);
-                    
-                    // Load statistics even on error
-                    loadStatistics();
-                }
-            });
-        }
-
-        function renderStudentWidgets(students, status) {
-            let html = '';
-            // currentStudentsData = students || []; // Removed to prevent overwriting master list during search
-            students.forEach(function(student) {
-                let fingerprintIdHtml = '';
-                if (student.fingerprint_id) {
-                    fingerprintIdHtml = '<span class="badge bg-success"><i class="bi bi-fingerprint"></i> ' + student.fingerprint_id + '</span>';
-                } else {
-                    fingerprintIdHtml = '<span class="badge bg-secondary"><i class="bi bi-dash"></i> No ID</span>';
-                }
-
-                let actionsHtml = '<div class="student-widget-actions">' +
-                        '<button class="btn btn-sm btn-info view-student-btn" data-student-id="' + student.studentID + '" title="View More Details">' +
-                        '<i class="bi bi-eye"></i>' +
-                        '</button>';
-
-                if (canUpdate && status === 'Active') {
-                        actionsHtml += '<button class="btn btn-sm btn-warning edit-student-btn" data-student-id="' + student.studentID + '" title="Edit Student">' +
-                            '<i class="bi bi-pencil-square"></i>' +
-                            '</button>';
-                    }
-
-                if (status === 'Active') {
-                    if (!student.fingerprint_id) {
-                        actionsHtml += '<a href="#" class="btn btn-sm btn-success text-white send-student-to-fingerprint-btn" data-student-id="' + student.studentID + '" data-student-name="' + (student.first_name || student.full_name || '') + '" data-fingerprint-id="' + (student.fingerprint_id || '') + '" title="Send to Fingerprint Device">' +
-                            '<i class="bi bi-fingerprint"></i>' +
-                            '</a>';
-                    } else if (!student.sent_to_device) {
-                        actionsHtml += '<button class="btn btn-sm btn-success text-white register-student-to-device-btn" data-student-id="' + student.studentID + '" data-student-name="' + (student.first_name || student.full_name || '') + '" data-fingerprint-id="' + (student.fingerprint_id || '') + '" title="Register to Device">' +
-                            '<i class="bi bi-device-hdd"></i>' +
-                            '</button>';
-                    }
-                    actionsHtml += '<button class="btn btn-sm btn-primary generate-id-btn" data-student-id="' + student.studentID + '" title="Generate Student ID Card">' +
-                        '<i class="bi bi-card-text"></i>' +
-                        '</button>';
-                }
-
-                if (canDelete && status === 'Active') {
-                        actionsHtml += '<button class="btn btn-sm btn-danger delete-student-btn" data-student-id="' + student.studentID + '" data-student-name="' + student.full_name + '" title="Delete Student">' +
-                            '<i class="bi bi-trash"></i>' +
-                            '</button>';
-                    }
-
-                actionsHtml += '</div>';
-
-                let healthAlarmIcon = '';
-                let hasHealthCondition = false;
-                if ((student.is_disabled === true || student.is_disabled == 1 || student.is_disabled === "1") ||
-                    (student.has_epilepsy === true || student.has_epilepsy == 1 || student.has_epilepsy === "1") ||
-                    (student.has_allergies === true || student.has_allergies == 1 || student.has_allergies === "1") ||
-                    (student.has_disability === true || student.has_disability == 1 || student.has_disability === "1") ||
-                    (student.has_chronic_illness === true || student.has_chronic_illness == 1 || student.has_chronic_illness === "1")) {
-                    hasHealthCondition = true;
-                }
-                if (hasHealthCondition) {
-                    healthAlarmIcon = ' <i class="bi bi-exclamation-triangle-fill text-danger" title="Health Condition Alert"></i>';
-                }
-
-                let studentPhoto = student.photo;
-                if (!studentPhoto || studentPhoto === 'undefined') {
-                    studentPhoto = student.gender === 'Female' ? '{{ asset("images/female.png") }}' : '{{ asset("images/male.png") }}';
-                }
-
-                html += '<div class="student-widget">' +
-                        '<div class="student-widget-header">' +
-                            '<img src="' + studentPhoto + '" alt="' + student.full_name + '">' +
-                        '</div>' +
-                        '<div class="student-widget-body">' +
-                            '<h3>' + (student.full_name || '-') + healthAlarmIcon + '</h3>' +
-                            '<p class="form">' + (student.class || '-') + '</p>' +
-                            '<div class="info">' +
-                                '<p><strong>Admission:</strong> ' + (student.admission_number || '-') + '</p>' +
-                                '<p><strong>Gender:</strong> ' + (student.gender || '-') + '</p>' +
-                                '<p><strong>Parent:</strong> ' + (student.parent_name || '-') + '</p>' +
-                                '<p><strong>Fingerprint:</strong> ' + fingerprintIdHtml + '</p>' +
-                            '</div>' +
-                            actionsHtml +
-                        '</div>' +
-                    '</div>';
-            });
-
-            $('#studentsWidgetGrid').html(html);
-        }
-
-        // Client-side Search Implementation
-        $('#studentSearchInput').on('keyup', function() {
-            let searchTerm = $(this).val().toLowerCase().trim();
-            
-            if (searchTerm.length === 0) {
-                // If search is empty, show all students from current context (master list)
-                if (currentStudentsData.length > 0) {
-                    renderStudentWidgets(currentStudentsData, currentStatus);
-                } else {
-                     $('#studentsWidgetGrid').html('<div class="no-data-message text-center py-5"><i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i><h5 class="mt-3 text-muted">No Data Available</h5><p class="text-muted">No students found matching the selected filters.</p></div>');
-                }
-                return;
-            }
-            
-            let filteredStudents = currentStudentsData.filter(function(student) {
-                // Construct search string
-                let textToSearch = [
-                    student.full_name || '',
-                    student.admission_number || '',
-                    student.class || '',
-                    student.parent_name || '',
-                    student.fingerprint_id || '',
-                    student.gender || ''
-                ].join(' ').toLowerCase();
-                
-                return textToSearch.includes(searchTerm);
-            });
-            
-            if (filteredStudents.length > 0) {
-                renderStudentWidgets(filteredStudents, currentStatus);
-            } else {
-                 $('#studentsWidgetGrid').html('<div class="no-data-message text-center py-5"><i class="bi bi-search" style="font-size: 3rem; color: #6c757d;"></i><h5 class="mt-3 text-muted">No Matches Found</h5><p class="text-muted">No students found matching "' + $(this).val() + '"</p></div>');
+        // Grid-only full-width search
+        let gridSearchTimeout;
+        $('#studentGridSearch').on('input', function () {
+            if ($('#studentsDataWrapper').attr('data-active-view') !== 'grid') return;
+            studentSearchKeepFocus = true;
+            clearTimeout(gridSearchTimeout);
+            gridSearchTimeout = setTimeout(function () {
+                loadStudents({ page: 1 });
+            }, 350);
+        }).on('keydown', function (e) {
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                e.stopPropagation();
+                if ($('#studentsDataWrapper').attr('data-active-view') !== 'grid') return false;
+                clearTimeout(gridSearchTimeout);
+                studentSearchKeepFocus = true;
+                loadStudents({ page: 1 });
+                return false;
             }
         });
+
+        $(document).on('click', '.student-view-toggle [data-view]', function () {
+            setStudentView($(this).data('view'), true);
+            loadStudents({ page: 1, resetPaging: true });
+        });
+
+        $(window).on('scroll', function () {
+            studentUserScrolled = true;
+            maybeLoadMoreGridOnScroll();
+        });
+
+        $(window).on('resize', function () {
+            clearTimeout(window._studentResizeTimer);
+            window._studentResizeTimer = setTimeout(function () {
+                // Only auto-switch default when user has not chosen a preference for this device
+                try {
+                    if (localStorage.getItem(studentUserPrefKey()) !== '1') {
+                        setStudentView(studentDefaultView(), false);
+                    }
+                } catch (e) {}
+            }, 200);
+        });
+
+        // Initialize default view (mobile=grid, desktop=list)
+        setStudentView(studentGetView(), false);
+
+        // Actions dropdown toggle (⋮) — row actions
+        $(document).on('click', '.student-action-toggle', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const $dropdown = $(this).closest('.student-action-dropdown');
+            const wasOpen = $dropdown.hasClass('show');
+            $('.student-action-dropdown.show').removeClass('show');
+            $('#studentPageActionsDropdown').removeClass('show')
+                .find('#studentPageActionsToggle').attr('aria-expanded', 'false');
+            if (!wasOpen) {
+                $dropdown.addClass('show');
+                $(this).attr('aria-expanded', 'true');
+            } else {
+                $(this).attr('aria-expanded', 'false');
+            }
+        });
+
+        // Header page actions toggle (Manage Students ⋮)
+        $(document).on('click', '#studentPageActionsToggle', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const $dropdown = $('#studentPageActionsDropdown');
+            const wasOpen = $dropdown.hasClass('show');
+            $('.student-action-dropdown.show').removeClass('show');
+            if (!wasOpen) {
+                $dropdown.addClass('show');
+                $(this).attr('aria-expanded', 'true');
+            } else {
+                $dropdown.removeClass('show');
+                $(this).attr('aria-expanded', 'false');
+            }
+        });
+
+        $(document).on('click', function () {
+            $('.student-action-dropdown.show').removeClass('show')
+                .find('.student-action-toggle').attr('aria-expanded', 'false');
+            $('#studentPageActionsDropdown').removeClass('show')
+                .find('#studentPageActionsToggle').attr('aria-expanded', 'false');
+        });
+
+        $(document).on('click', '.student-action-dropdown .dropdown-menu, .student-page-actions-menu', function (e) {
+            e.stopPropagation();
+        });
+
+        $(document).on('click', '.student-action-dropdown .dropdown-item, .student-page-actions-menu .dropdown-item', function () {
+            $(this).closest('.student-action-dropdown, .student-page-actions-dropdown').removeClass('show')
+                .find('.student-action-toggle, #studentPageActionsToggle').attr('aria-expanded', 'false');
+        });
+
+        // Keep legacy name used by other handlers
+        function renderStudentWidgets(students, status) {
+            renderStudentsUI(students || currentStudentsData, status || currentStatus);
+        }
 
 
         // Function to load statistics
         function loadStatistics() {
             // Get status from filter
             let status = $('#statusFilter').val() || 'Active';
-            
             let classID = $('#classFilter').val() || '';
             let subclassID = $('#subclassFilter').val() || '';
             let gender = $('#genderFilter').val() || '';
@@ -2047,6 +4168,8 @@
             reloadData();
         });
 
+        // Academic year is controlled from the global header selector
+
         // Class filter
         $('#classFilter').on('change', function() {
             let classID = $(this).val();
@@ -2081,23 +4204,28 @@
                     if (response.success) {
                         let student = response.student;
                         
-                        // Create tab structure
+                        // Create tab structure (Details | Enrollment | Report)
                         let html = '<ul class="nav nav-tabs mb-3" id="studentDetailsTabs" role="tablist" style="border-radius: 0;">';
                         html += '<li class="nav-item" role="presentation">';
-                        html += '<button class="nav-link active" id="particulars-tab" data-bs-toggle="tab" data-bs-target="#particulars-pane" type="button" role="tab" aria-controls="particulars-pane" aria-selected="true">';
-                        html += '<i class="bi bi-person-vcard"></i> Student Particulars';
+                        html += '<button class="nav-link active" id="particulars-tab" data-toggle="tab" data-bs-toggle="tab" data-target="#particulars-pane" data-bs-target="#particulars-pane" type="button" role="tab" aria-controls="particulars-pane" aria-selected="true">';
+                        html += '<i class="bi bi-person-vcard"></i> Student Details';
                         html += '</button>';
                         html += '</li>';
                         html += '<li class="nav-item" role="presentation">';
-                        html += '<button class="nav-link" id="academic-tab" data-bs-toggle="tab" data-bs-target="#academic-pane" type="button" role="tab" aria-controls="academic-pane" aria-selected="false">';
-                        html += '<i class="bi bi-book"></i> Academic Details';
+                        html += '<button class="nav-link" id="enrollment-tab" data-toggle="tab" data-bs-toggle="tab" data-target="#enrollment-pane" data-bs-target="#enrollment-pane" type="button" role="tab" aria-controls="enrollment-pane" aria-selected="false">';
+                        html += '<i class="bi bi-journal-bookmark"></i> Enrollment';
+                        html += '</button>';
+                        html += '</li>';
+                        html += '<li class="nav-item" role="presentation">';
+                        html += '<button class="nav-link" id="report-tab" data-toggle="tab" data-bs-toggle="tab" data-target="#report-pane" data-bs-target="#report-pane" type="button" role="tab" aria-controls="report-pane" aria-selected="false">';
+                        html += '<i class="bi bi-file-earmark-bar-graph"></i> Report';
                         html += '</button>';
                         html += '</li>';
                         html += '</ul>';
                         
                         html += '<div class="tab-content" id="studentDetailsTabContent">';
                         
-                        // Tab 1: Student Particulars
+                        // Tab 1: Student Details
                         html += '<div class="tab-pane fade show active" id="particulars-pane" role="tabpanel" aria-labelledby="particulars-tab">';
                         html += '<div class="school-details-card" style="border-radius: 0;">';
                         html += '<div class="school-header">';
@@ -2318,96 +4446,41 @@
                         html += '</div></div>'; // Close school-details-card
                         html += '</div>'; // Close particulars-pane
                         
-                        // Tab 2: Academic Details
-                        html += '<div class="tab-pane fade" id="academic-pane" role="tabpanel" aria-labelledby="academic-tab">';
-                        html += '<div class="p-4" style="border-radius: 0;">';
-                        html += '<div class="mb-4">';
-                        html += '<label class="form-label fw-bold mb-2"><i class="bi bi-calendar"></i> Academic Year</label>';
-                        html += '<select class="form-select" id="academicYearSelector" data-student-id="' + studentID + '" style="border-radius: 0;">';
-                        html += '<option value="">Loading...</option>';
+                        // Tab 2: Enrollment
+                        html += '<div class="tab-pane fade" id="enrollment-pane" role="tabpanel" aria-labelledby="enrollment-tab">';
+                        html += '<div class="p-3 p-md-4" style="border-radius: 0;">';
+                        html += '<div class="mb-3">';
+                        html += '<label class="form-label fw-bold mb-2" for="enrollmentYearSelector"><i class="bi bi-calendar3"></i> Academic Year</label>';
+                        html += '<select class="form-control enrollment-year-select" id="enrollmentYearSelector" data-student-id="' + studentID + '">';
+                        html += '<option value="all" selected>All</option>';
                         html += '</select>';
                         html += '</div>';
-                        
-                        // Class Widget (Expandable)
-                        html += '<div class="card mb-3 academic-widget" id="classWidget" style="border-radius: 0; cursor: pointer; border: 2px solid #dee2e6;" data-expanded="false">';
-                        html += '<div class="card-header bg-primary-custom text-white d-flex justify-content-between align-items-center" style="border-radius: 0;">';
-                        html += '<div><i class="bi bi-book"></i> <strong>Class</strong></div>';
-                        html += '<i class="bi bi-chevron-down widget-toggle-icon"></i>';
-                        html += '</div>';
-                        html += '<div class="card-body widget-content" style="display: none;">';
-                        html += '<div id="classWidgetContent">';
-                        html += '<p class="text-muted text-center py-3">Select Academic Year first</p>';
+                        html += '<div id="enrollmentClassWidgets">';
+                        html += '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><p class="mt-2 mb-0">Loading enrollments...</p></div>';
                         html += '</div>';
                         html += '</div>';
+                        html += '</div>'; // Close enrollment-pane
+
+                        // Tab 3: Report (placeholder)
+                        html += '<div class="tab-pane fade" id="report-pane" role="tabpanel" aria-labelledby="report-tab">';
+                        html += '<div class="p-4 text-center text-muted" style="border-radius: 0;">';
+                        html += '<i class="bi bi-file-earmark-bar-graph" style="font-size: 2.5rem; color: #940000; opacity: 0.7;"></i>';
+                        html += '<p class="mt-3 mb-1 font-weight-bold" style="color: #495057;">Reports</p>';
+                        html += '<p class="mb-0 small">Coming soon. This section will be configured later.</p>';
                         html += '</div>';
-                        
-                        // Results Widget (Expandable)
-                        html += '<div class="card mb-3 academic-widget" id="resultsWidget" style="border-radius: 0; cursor: pointer; border: 2px solid #dee2e6;" data-expanded="false">';
-                        html += '<div class="card-header bg-info text-white d-flex justify-content-between align-items-center" style="border-radius: 0;">';
-                        html += '<div><i class="bi bi-file-earmark-text"></i> <strong>Results</strong></div>';
-                        html += '<i class="bi bi-chevron-down widget-toggle-icon"></i>';
-                        html += '</div>';
-                        html += '<div class="card-body widget-content" style="display: none;">';
-                        html += '<div id="resultsWidgetContent">';
-                        html += '<p class="text-muted text-center py-3">Select Academic Year first</p>';
-                        html += '</div>';
-                        html += '</div>';
-                        html += '</div>';
-                        
-                        // Attendance Widget (Expandable)
-                        html += '<div class="card mb-3 academic-widget" id="attendanceWidget" style="border-radius: 0; cursor: pointer; border: 2px solid #dee2e6;" data-expanded="false">';
-                        html += '<div class="card-header bg-success text-white d-flex justify-content-between align-items-center" style="border-radius: 0;">';
-                        html += '<div><i class="bi bi-calendar-check"></i> <strong>Attendance</strong></div>';
-                        html += '<i class="bi bi-chevron-down widget-toggle-icon"></i>';
-                        html += '</div>';
-                        html += '<div class="card-body widget-content" style="display: none;">';
-                        html += '<div id="attendanceWidgetContent">';
-                        html += '<p class="text-muted text-center py-3">Select Academic Year first</p>';
-                        html += '</div>';
-                        html += '</div>';
-                        html += '</div>';
-                        
-                        // Payments Widget (Expandable)
-                        html += '<div class="card mb-3 academic-widget" id="paymentsWidget" style="border-radius: 0; cursor: pointer; border: 2px solid #dee2e6;" data-expanded="false">';
-                        html += '<div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center" style="border-radius: 0;">';
-                        html += '<div><i class="bi bi-cash-coin"></i> <strong>Payments</strong></div>';
-                        html += '<i class="bi bi-chevron-down widget-toggle-icon"></i>';
-                        html += '</div>';
-                        html += '<div class="card-body widget-content" style="display: none;">';
-                        html += '<div id="paymentsWidgetContent">';
-                        html += '<p class="text-muted text-center py-3">Select Academic Year first</p>';
-                        html += '</div>';
-                        html += '</div>';
-                        html += '</div>';
-                        
-                        // Debits (Madeni) Widget (Expandable)
-                        html += '<div class="card mb-3 academic-widget" id="debitsWidget" style="border-radius: 0; cursor: pointer; border: 2px solid #dee2e6;" data-expanded="false">';
-                        html += '<div class="card-header bg-danger text-white d-flex justify-content-between align-items-center" style="border-radius: 0;">';
-                        html += '<div><i class="bi bi-exclamation-triangle"></i> <strong>Debts (Madeni)</strong></div>';
-                        html += '<i class="bi bi-chevron-down widget-toggle-icon"></i>';
-                        html += '</div>';
-                        html += '<div class="card-body widget-content" style="display: none;">';
-                        html += '<div id="debitsWidgetContent">';
-                        html += '<p class="text-muted text-center py-3">Select Academic Year first</p>';
-                        html += '</div>';
-                        html += '</div>';
-                        html += '</div>';
-                        
-                        html += '</div>'; // Close p-4
-                        html += '</div>'; // Close academic-pane
+                        html += '</div>'; // Close report-pane
                         
                         html += '</div>'; // Close tab-content
 
                         $('#studentDetailsContent').html(html);
                         showModal('viewStudentModal');
                         
-                        // Load academic years for this student (non-blocking)
                         try {
                             setTimeout(function() {
-                                loadAcademicYearsForStudent(studentID);
-                            }, 100);
+                                loadStudentEnrollmentHistory(studentID);
+                            }, 50);
                         } catch (e) {
-                            console.error('Error loading academic years:', e);
+                            console.error('Error loading enrollment history:', e);
                         }
                     }
                 },
@@ -3459,111 +5532,63 @@ Would you like to try direct registration anyway, or use the manual method?`;
 
         // Function to show modal manually
         function showModal(modalId) {
-            if (!modalId) return;
-            
-            let $modal = $('#' + modalId);
-            if ($modal.length === 0) return;
-            
-            // Try Bootstrap modal first if available
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined') {
-                try {
-                    let bsModal = new bootstrap.Modal($modal[0], {
-                        backdrop: true,
-                        keyboard: true
-                    });
-                    bsModal.show();
-                    return;
-                } catch (e) {
-                    console.log('Bootstrap modal not available, using manual show');
-                }
-            }
-            
-            // Manual show
-            $('body').addClass('modal-open');
-            $modal.removeClass('fade').css({
-                'display': 'block',
-                'z-index': 1050
-            }).addClass('show');
-            
-            // Add backdrop if it doesn't exist
-            if ($('.modal-backdrop').length === 0) {
-                $('body').append('<div class="modal-backdrop fade show" style="z-index: 1040; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.5);"></div>');
-            }
+            openStudentModal(modalId);
         }
 
         // Function to hide modal manually
         function hideModal(modalId) {
             if (!modalId) return;
-            
+
             let $modal = $('#' + modalId);
             if ($modal.length === 0) return;
-            
-            // Try Bootstrap modal first if available
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined') {
+
+            // jQuery Bootstrap 4/5 plugin
+            if (typeof $modal.modal === 'function') {
                 try {
-                    let bsModal = bootstrap.Modal.getInstance($modal[0]);
-                    if (bsModal) {
-                        bsModal.hide();
-                        return;
-                    }
-                } catch (e) {
-                    console.log('Bootstrap modal not available, using manual close');
-                }
-            }
-            
-            // Manual close
-            $modal.removeClass('show fade').css({
-                'display': 'none',
-                'z-index': ''
-            });
-            $('body').removeClass('modal-open');
-            $('.modal-backdrop').remove();
-            
-            // Remove padding from body if no other modals are open
-            if ($('.modal.show').length === 0) {
-                $('body').css('padding-right', '');
+                    $modal.modal('hide');
+                } catch (e) {}
             }
 
-            // Destroy Select2 instances in the modal to prevent conflicts
+            // Bootstrap 5 native instance (if any)
+            if (window.bootstrap && bootstrap.Modal && typeof bootstrap.Modal.getInstance === 'function') {
+                try {
+                    const bsModal = bootstrap.Modal.getInstance($modal[0]);
+                    if (bsModal) bsModal.hide();
+                } catch (e) {}
+            }
+
+            // Hard cleanup so modal never stays stuck
+            $modal.removeClass('show in').css('display', 'none').attr('aria-hidden', 'true');
+            $modal.removeAttr('aria-modal');
+            $('body').removeClass('modal-open').css({ 'padding-right': '', 'overflow': '' });
+            $('.modal-backdrop').remove();
+
             $('#' + modalId + ' select').each(function() {
-                if ($(this).hasClass('select2-hidden-accessible')) {
-                    if (typeof $(this).select2 === 'function') {
-                        $(this).select2('destroy');
-                    }
+                if ($(this).hasClass('select2-hidden-accessible') && typeof $(this).select2 === 'function') {
+                    $(this).select2('destroy');
                 }
             });
         }
 
-        // Close modal handlers for all modals
-        $(document).on('click', '.modal .btn-close, .modal .btn-secondary[data-bs-dismiss="modal"], .modal button[data-bs-dismiss="modal"], .modal-footer .btn-secondary', function(e) {
+        // Close via X / Cancel / Close (BS4 data-dismiss + BS5 data-bs-dismiss)
+        $(document).on('click', '.modal .btn-close, .modal .close, .modal [data-dismiss="modal"], .modal [data-bs-dismiss="modal"], .modal-footer .btn-secondary', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            let modal = $(this).closest('.modal');
-            if (modal.length) {
-                let modalId = modal.attr('id');
-                if (modalId) {
-                    hideModal(modalId);
-                }
-            }
+            const modalId = $(this).closest('.modal').attr('id');
+            if (modalId) hideModal(modalId);
         });
 
-        // Close modal when clicking backdrop
-        $(document).on('click', '.modal-backdrop', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            $('.modal.show').each(function() {
-                let modalId = $(this).attr('id');
-                if (modalId) {
-                    hideModal(modalId);
-                }
-            });
-        });
-        
-        // Also handle Bootstrap modal close events
+        // Allow typing inside SweetAlert while a Bootstrap modal is open (BS4 focus trap)
+        if (window.jQuery && $.fn.modal && $.fn.modal.Constructor) {
+            try {
+                $.fn.modal.Constructor.prototype.enforceFocus = function () {};
+            } catch (e) {}
+        }
+
         $(document).on('hidden.bs.modal', '.modal', function() {
-            let modalId = $(this).attr('id');
-            if (modalId) {
-                hideModal(modalId);
+            if ($('.modal.show').length === 0) {
+                $('body').removeClass('modal-open').css('padding-right', '');
+                $('.modal-backdrop').remove();
             }
         });
 
@@ -3756,6 +5781,23 @@ Would you like to try direct registration anyway, or use the manual method?`;
                 let filterText = 'Filters: ';
                 let filters = [];
                 if (status) filters.push('Status: ' + status);
+                @php
+                    $pdfAyLabels = [];
+                    if (!empty($headerAcademicYear['selected_o_level_year'])) {
+                        $y = $headerAcademicYear['selected_o_level_year'];
+                        $pdfAyLabels[] = 'O-Level: ' . ($y->year_name ?: $y->year);
+                    } elseif (!empty($headerAcademicYear['selected_year'])) {
+                        $y = $headerAcademicYear['selected_year'];
+                        $pdfAyLabels[] = $y->year_name ?: $y->year;
+                    }
+                    if (!empty($headerAcademicYear['selected_a_level_year'])) {
+                        $y = $headerAcademicYear['selected_a_level_year'];
+                        $pdfAyLabels[] = 'A-Level: ' . ($y->year_name ?: $y->year);
+                    }
+                @endphp
+                @if(!empty($pdfAyLabels))
+                filters.push('Academic Year: {{ implode(' | ', $pdfAyLabels) }}');
+                @endif
                 if (classID) {
                     let classOption = $('#classFilter option:selected').text();
                     if (classOption !== '-- All Classes --') filters.push('Class: ' + classOption);
@@ -3978,6 +6020,198 @@ Would you like to try direct registration anyway, or use the manual method?`;
             loadStudents();
             loadStatistics();
         }, 500);
+    });
+
+    // ===== Student Enrollment History (Details modal) =====
+    var studentEnrollmentHistoryCache = {
+        studentID: null,
+        years: [],
+        enrollments: []
+    };
+
+    function enrollmentStatusBadgeClass(status) {
+        var s = String(status || '').toLowerCase();
+        if (s === 'active') return 'enrollment-badge-active';
+        if (s === 'completed') return 'enrollment-badge-completed';
+        if (s === 'repeated') return 'enrollment-badge-repeated';
+        if (s === 'graduated') return 'enrollment-badge-graduated';
+        return 'enrollment-badge-other';
+    }
+
+    function escapeHtmlEnrollment(text) {
+        if (text === null || text === undefined) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function loadStudentEnrollmentHistory(studentID) {
+        if (!studentID) {
+            $('#enrollmentClassWidgets').html('<p class="text-danger text-center py-3 mb-0">Student ID missing</p>');
+            return;
+        }
+
+        studentEnrollmentHistoryCache = { studentID: studentID, years: [], enrollments: [] };
+
+        $.ajax({
+            url: '{{ route("get_student_enrollment_history", ":id") }}'.replace(':id', studentID),
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (!response.success) {
+                    $('#enrollmentClassWidgets').html('<p class="text-muted text-center py-3 mb-0">No enrollment records found</p>');
+                    return;
+                }
+
+                studentEnrollmentHistoryCache.years = response.years || [];
+                studentEnrollmentHistoryCache.enrollments = response.enrollments || [];
+
+                var $selector = $('#enrollmentYearSelector');
+                $selector.find('option:not([value="all"])').remove();
+                studentEnrollmentHistoryCache.years.forEach(function(year) {
+                    var label = escapeHtmlEnrollment(year.year_name || year.year);
+                    $selector.append(
+                        '<option value="' + year.academic_yearID + '">' + label + '</option>'
+                    );
+                });
+                $selector.val('all');
+
+                renderEnrollmentClassWidgets('all');
+            },
+            error: function(xhr) {
+                console.error('Error loading enrollment history:', xhr.responseText);
+                $('#enrollmentClassWidgets').html('<p class="text-danger text-center py-3 mb-0">Failed to load enrollments</p>');
+            }
+        });
+    }
+
+    function buildEnrollmentClassGroups(yearFilter) {
+        var enrollments = studentEnrollmentHistoryCache.enrollments || [];
+        var filtered = enrollments;
+        if (yearFilter && yearFilter !== 'all') {
+            var yearId = String(yearFilter);
+            filtered = enrollments.filter(function(e) {
+                return String(e.academic_yearID) === yearId;
+            });
+        }
+
+        var groups = {};
+        filtered.forEach(function(row) {
+            var key = String(row.academic_yearID) + '_' + String(row.classID);
+            if (!groups[key]) {
+                groups[key] = {
+                    key: key,
+                    academic_yearID: row.academic_yearID,
+                    year_name: row.year_name,
+                    classID: row.classID,
+                    class_name: row.class_name,
+                    subclasses: []
+                };
+            }
+            groups[key].subclasses.push(row);
+        });
+
+        return Object.keys(groups).map(function(k) { return groups[k]; });
+    }
+
+    function renderEnrollmentClassWidgets(yearFilter) {
+        var $container = $('#enrollmentClassWidgets');
+        if (!$container.length) return;
+
+        var groups = buildEnrollmentClassGroups(yearFilter);
+        if (!groups.length) {
+            $container.html('<p class="text-muted text-center py-4 mb-0">No enrollments for the selected academic year.</p>');
+            return;
+        }
+
+        var showYearInTitle = !yearFilter || yearFilter === 'all';
+        var html = '';
+
+        groups.forEach(function(group) {
+            var title = escapeHtmlEnrollment(group.class_name || 'Class');
+            if (showYearInTitle && group.year_name) {
+                title += ' <span class="text-muted font-weight-normal">(' + escapeHtmlEnrollment(group.year_name) + ')</span>';
+            }
+            var subclassCount = group.subclasses.length;
+            var meta = subclassCount + (subclassCount === 1 ? ' subclass' : ' subclasses');
+
+            html += '<div class="enrollment-class-widget" data-group-key="' + escapeHtmlEnrollment(group.key) + '">';
+            html += '<div class="enrollment-class-header" role="button" tabindex="0">';
+            html += '<div>';
+            html += '<p class="enrollment-class-title"><i class="bi bi-building" style="color:#940000;"></i> ' + title + '</p>';
+            html += '<div class="enrollment-class-meta">' + meta + ' · click to view</div>';
+            html += '</div>';
+            html += '<i class="bi bi-chevron-down enrollment-toggle-icon"></i>';
+            html += '</div>';
+            html += '<div class="enrollment-subclasses">';
+
+            group.subclasses.forEach(function(sub) {
+                var badgeClass = enrollmentStatusBadgeClass(sub.status);
+                var subclassLabel = escapeHtmlEnrollment(sub.subclass_name || '');
+                if (sub.combie) {
+                    // Prefer short name if API sent "Name (CODE)"
+                    var combieText = String(sub.combie).replace(/\s*\([^)]*\)\s*$/, '').trim() || sub.combie;
+                    subclassLabel += ' (' + escapeHtmlEnrollment(combieText) + ')';
+                }
+                html += '<div class="enrollment-subclass-item">';
+                html += '<div class="d-flex justify-content-between align-items-start flex-wrap" style="gap:0.5rem;">';
+                html += '<div class="enrollment-subclass-name">' + subclassLabel + '</div>';
+                html += '<span class="badge text-white ' + badgeClass + '">' + escapeHtmlEnrollment(sub.status || 'N/A') + '</span>';
+                html += '</div>';
+                html += '<div class="small text-muted mt-1">';
+                if (sub.roll_number) {
+                    html += '<span class="mr-3 me-3"><i class="bi bi-hash"></i> Roll: ' + escapeHtmlEnrollment(sub.roll_number) + '</span>';
+                }
+                if (sub.promotion_status) {
+                    html += '<span class="mr-3 me-3"><i class="bi bi-arrow-up-right"></i> ' + escapeHtmlEnrollment(sub.promotion_status) + '</span>';
+                }
+                html += '</div>';
+                if (sub.joined_date || sub.left_date) {
+                    html += '<div class="small text-muted mt-1">';
+                    if (sub.joined_date) {
+                        html += '<span class="mr-3 me-3">Joined: ' + escapeHtmlEnrollment(sub.joined_date) + '</span>';
+                    }
+                    if (sub.left_date) {
+                        html += '<span>Left: ' + escapeHtmlEnrollment(sub.left_date) + '</span>';
+                    }
+                    html += '</div>';
+                }
+                html += '</div>';
+            });
+
+            html += '</div></div>';
+        });
+
+        $container.html(html);
+    }
+
+    $(document).on('change', '#enrollmentYearSelector', function() {
+        renderEnrollmentClassWidgets($(this).val() || 'all');
+    });
+
+    $(document).on('click', '#studentDetailsTabs .nav-link', function(e) {
+        e.preventDefault();
+        var target = $(this).attr('data-bs-target') || $(this).attr('data-target');
+        if (!target) return;
+        $('#studentDetailsTabs .nav-link').removeClass('active').attr('aria-selected', 'false');
+        $(this).addClass('active').attr('aria-selected', 'true');
+        $('#studentDetailsTabContent > .tab-pane').removeClass('show active');
+        $(target).addClass('show active');
+    });
+
+    $(document).on('click', '.enrollment-class-header', function(e) {
+        e.preventDefault();
+        $(this).closest('.enrollment-class-widget').toggleClass('is-expanded');
+    });
+
+    $(document).on('keydown', '.enrollment-class-header', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            $(this).closest('.enrollment-class-widget').toggleClass('is-expanded');
+        }
     });
 
     // Function to load academic years for student

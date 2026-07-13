@@ -16,6 +16,7 @@ class Attendance extends Model
         'schoolID',
         'subclassID',
         'studentID',
+        'enrollmentID',
         'teacherID',
         'attendance_date',
         'status',
@@ -44,6 +45,11 @@ class Attendance extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'studentID', 'studentID');
+    }
+
+    public function enrollment()
+    {
+        return $this->belongsTo(StudentEnrollment::class, 'enrollmentID', 'enrollmentID');
     }
 
     public function teacher()

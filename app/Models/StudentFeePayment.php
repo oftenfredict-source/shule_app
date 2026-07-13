@@ -12,6 +12,7 @@ class StudentFeePayment extends Model
     protected $fillable = [
         'schoolID',
         'studentID',
+        'enrollmentID',
         'paymentID',
         'feeID',
         'fee_name',
@@ -35,6 +36,11 @@ class StudentFeePayment extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'studentID', 'studentID');
+    }
+
+    public function enrollment()
+    {
+        return $this->belongsTo(StudentEnrollment::class, 'enrollmentID', 'enrollmentID');
     }
 
     public function fee()

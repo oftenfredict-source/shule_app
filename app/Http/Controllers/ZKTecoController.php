@@ -2238,6 +2238,8 @@ class ZKTecoController extends Controller
                     'attendance_date' => $recordDate,
                 ],
                 [
+                    'enrollmentID' => app(\App\Services\StudentEnrollmentService::class)
+                        ->bestEnrollmentID($student->studentID, (int) ($student->schoolID ?? 0) ?: null),
                     'user_id' => $student->studentID,
                     'user_name' => $studentName ?: 'N/A',
                     'enroll_id' => $student->studentID,

@@ -7214,6 +7214,9 @@ class TeachersController extends Controller
                 $studentIdsInRequest,
             )->pluck("subclassID", "studentID");
 
+            $enrollmentMap = app(\App\Services\StudentEnrollmentService::class)
+                ->enrollmentMapForSchool((int) $schoolID);
+
             // Fetch subclass-to-class_subject mapping for resolving correct class_subjectID per student
             $classSubjectsMap = ClassSubject::where('classID', $classSubject->classID)
                 ->where('subjectID', $classSubject->subjectID)
@@ -7250,6 +7253,7 @@ class TeachersController extends Controller
 
                 $resultsToUpsert[] = [
                     "studentID" => $studentID,
+                    "enrollmentID" => $enrollmentMap[$studentID] ?? null,
                     "examID" => $request->examID,
                     "class_subjectID" => $resolvedClassSubjectID,
                     "subclassID" => $studentSubclassID,
@@ -7298,6 +7302,7 @@ class TeachersController extends Controller
                         ],
                         [
                             "subclassID" => $resultData["subclassID"],
+                            "enrollmentID" => $resultData["enrollmentID"] ?? null,
                             "marks" => $resultData["marks"],
                             "grade" => $resultData["grade"],
                             "remark" => $resultData["remark"],
@@ -7514,17 +7519,12 @@ class TeachersController extends Controller
             $classID = $classSubject->classID;
 
             if ($subclassID) {
-                $students = Student::where("subclassID", $subclassID)
+                $students = Student::inSubclass($subclassID, $schoolID)
                     ->where("status", "Active")
                     ->orderBy("admission_number")
                     ->get();
             } else {
-                $subclassIds = DB::table("subclasses")
-                    ->where("classID", $classID)
-                    ->pluck("subclassID")
-                    ->toArray();
-
-                $students = Student::whereIn("subclassID", $subclassIds)
+                $students = Student::inClass($classID, $schoolID)
                     ->where("status", "Active")
                     ->orderBy("admission_number")
                     ->get();
@@ -7845,17 +7845,12 @@ class TeachersController extends Controller
             $classID = $classSubject->classID;
 
             if ($subclassID) {
-                $students = Student::where("subclassID", $subclassID)
+                $students = Student::inSubclass($subclassID, $schoolID)
                     ->where("status", "Active")
                     ->orderBy("admission_number")
                     ->get();
             } else {
-                $subclassIds = DB::table("subclasses")
-                    ->where("classID", $classID)
-                    ->pluck("subclassID")
-                    ->toArray();
-
-                $students = Student::whereIn("subclassID", $subclassIds)
+                $students = Student::inClass($classID, $schoolID)
                     ->where("status", "Active")
                     ->orderBy("admission_number")
                     ->get();
@@ -13164,7 +13159,7 @@ class TeachersController extends Controller
                 ->exists();
 
             // Get students for this subclass
-            $students = Student::where("subclassID", $session->subclassID)
+            $students = Student::inSubclass($session->subclassID, $schoolID)
                 ->where("status", "Active")
                 ->orderBy("first_name")
                 ->orderBy("last_name")
@@ -13330,6 +13325,7 @@ class TeachersController extends Controller
 
             DB::beginTransaction();
 
+            $enrollmentService = app(\App\Services\StudentEnrollmentService::class);
             foreach ($attendanceData as $attendance) {
                 StudentSessionAttendance::updateOrCreate(
                     [
@@ -13339,6 +13335,10 @@ class TeachersController extends Controller
                     ],
                     [
                         "schoolID" => $schoolID,
+                        "enrollmentID" => $enrollmentService->bestEnrollmentID(
+                            $attendance["studentID"],
+                            (int) $schoolID
+                        ),
                         "teacherID" => $teacherID,
                         "status" => $attendance["status"],
                         "remark" => $attendance["remark"] ?? null,
@@ -13671,7 +13671,7 @@ class TeachersController extends Controller
                 ->exists();
 
             // Get students for this subclass
-            $students = Student::where("subclassID", $session->subclassID)
+            $students = Student::inSubclass($session->subclassID, $schoolID)
                 ->where("status", "Active")
                 ->orderBy("first_name")
                 ->orderBy("last_name")
@@ -13779,6 +13779,7 @@ class TeachersController extends Controller
 
             DB::beginTransaction();
 
+            $enrollmentService = app(\App\Services\StudentEnrollmentService::class);
             foreach ($attendanceData as $attendance) {
                 StudentSessionAttendance::updateOrCreate(
                     [
@@ -13788,6 +13789,10 @@ class TeachersController extends Controller
                     ],
                     [
                         "schoolID" => $schoolID,
+                        "enrollmentID" => $enrollmentService->bestEnrollmentID(
+                            $attendance["studentID"],
+                            (int) $schoolID
+                        ),
                         "teacherID" => $teacherID,
                         "status" => $attendance["status"],
                         "remark" => $attendance["remark"] ?? null,
@@ -14857,7 +14862,7 @@ class TeachersController extends Controller
             }
 
             // Get subclass students
-            $students = Student::where("subclassID", $session->subclassID)
+            $students = Student::inSubclass($session->subclassID, $schoolID)
                 ->where("status", "Active")
                 ->get();
 
@@ -15968,7 +15973,7 @@ class TeachersController extends Controller
             ];
         }
 
-        $students = Student::where("subclassID", $session->subclassID)
+        $students = Student::inSubclass($session->subclassID, $schoolID ?? Session::get("schoolID"))
             ->where("status", "Active")
             ->get();
 
@@ -17467,6 +17472,8 @@ class TeachersController extends Controller
         $permissionData = [
             "schoolID" => $schoolID,
             "student_id" => $validated["student_id"],
+            "enrollmentID" => app(\App\Services\StudentEnrollmentService::class)
+                ->bestEnrollmentID($validated["student_id"], (int) $schoolID),
             "requester_id" => $teacherID,
             "requester_type" => "teacher",
             "time_mode" => $validated["time_mode"],

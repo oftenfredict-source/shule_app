@@ -22,6 +22,7 @@ use App\Http\Controllers\TimeTableController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ManageAttendanceController;
 use App\Http\Controllers\AcademicYearsController;
+use App\Http\Controllers\SelectedAcademicYearController;
 use App\Http\Controllers\ParentsContoller;
 use App\Http\Controllers\ZKTecoPushController;
 use App\Http\Controllers\ZKTecoController;
@@ -500,26 +501,30 @@ Route::get("admin/academic-years", [
     AcademicYearsController::class,
     "index",
 ])->name("admin.academicYears");
-Route::post("admin/academic-years/close", [
+Route::post("admin/academic-years/store", [
     AcademicYearsController::class,
-    "closeYear",
-])->name("admin.academicYears.close");
-Route::post("admin/academic-years/open", [
-    AcademicYearsController::class,
-    "openNewYear",
-])->name("admin.academicYears.open");
-Route::get("admin/academic-years/terms", [
-    AcademicYearsController::class,
-    "viewTerms",
-])->name("admin.academicYears.viewTerms");
-Route::post("admin/academic-years/terms/close", [
-    AcademicYearsController::class,
-    "closeTerm",
-])->name("admin.academicYears.closeTerm");
+    "store",
+])->name("admin.academicYears.store");
 Route::get("admin/academic-years/{academicYearID}", [
     AcademicYearsController::class,
-    "viewYear",
-])->name("admin.academicYears.view");
+    "show",
+])->name("admin.academicYears.show");
+Route::post("admin/academic-years/{academicYearID}/update", [
+    AcademicYearsController::class,
+    "update",
+])->name("admin.academicYears.update");
+Route::post("admin/academic-years/{academicYearID}/delete", [
+    AcademicYearsController::class,
+    "destroy",
+])->name("admin.academicYears.delete");
+Route::get("selected-academic-year", [
+    SelectedAcademicYearController::class,
+    "show",
+])->name("selected_academic_year.show");
+Route::post("selected-academic-year", [
+    SelectedAcademicYearController::class,
+    "update",
+])->name("selected_academic_year.update");
 Route::get("admin/scheme-of-work/view/{schemeOfWorkID}", [
     AdminController::class,
     "adminViewSchemeOfWork",
@@ -1592,6 +1597,34 @@ Route::post("transfer_student", [
     ManageStudentController::class,
     "transfer_student",
 ])->name("transfer_student");
+Route::get("move_students_preview", [
+    ManageStudentController::class,
+    "move_students_preview",
+])->name("move_students_preview");
+Route::post("move_students_execute", [
+    ManageStudentController::class,
+    "move_students_execute",
+])->name("move_students_execute");
+Route::get("move_students_batches", [
+    ManageStudentController::class,
+    "move_students_batches",
+])->name("move_students_batches");
+Route::post("move_students_undo", [
+    ManageStudentController::class,
+    "move_students_undo",
+])->name("move_students_undo");
+Route::post("move_students_undo_item", [
+    ManageStudentController::class,
+    "move_students_undo_item",
+])->name("move_students_undo_item");
+Route::get("move_student_options/{studentID}", [
+    ManageStudentController::class,
+    "move_student_options",
+])->name("move_student_options");
+Route::post("move_student_single", [
+    ManageStudentController::class,
+    "move_student_single",
+])->name("move_student_single");
 Route::delete("delete_student/{studentID}", [
     ManageStudentController::class,
     "delete_student",
@@ -1600,6 +1633,12 @@ Route::post("activate_student/{studentID}", [
     ManageStudentController::class,
     "activate_student",
 ])->name("activate_student");
+
+// Student Enrollment History (view student modal)
+Route::get("get_student_enrollment_history/{studentID}", [
+    ManageStudentController::class,
+    "get_student_enrollment_history",
+])->name("get_student_enrollment_history");
 
 // Student Academic Details Routes
 Route::get("get_student_academic_years/{studentID}", [

@@ -12,6 +12,7 @@ class BlackBookReport extends Model
     protected $fillable = [
         'schoolID',
         'studentID',
+        'enrollmentID',
         'problem_categoryID',
         'description',
         'reported_by_type',
@@ -45,6 +46,11 @@ class BlackBookReport extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'studentID', 'studentID');
+    }
+
+    public function enrollment()
+    {
+        return $this->belongsTo(StudentEnrollment::class, 'enrollmentID', 'enrollmentID');
     }
 
     public function problemCategory()

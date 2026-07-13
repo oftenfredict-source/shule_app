@@ -400,6 +400,8 @@ class FeesController extends Controller
                 'schoolID' => $schoolID,
                 'academic_yearID' => $academicYearID,
                 'studentID' => $student->studentID,
+                'enrollmentID' => app(\App\Services\StudentEnrollmentService::class)
+                    ->bestEnrollmentID($student->studentID, (int) $schoolID),
                 'control_number' => $controlNumber,
                 'amount_required' => $totalRequiredAmount,
                 'amount_paid' => 0,
@@ -421,7 +423,7 @@ class FeesController extends Controller
             $newSponsorBalance = $sponsorAmountReq - ($payment->sponsor_amount_paid ?? 0);
             $newParentBalance = $parentAmountReq - ($payment->parent_amount_paid ?? 0);
 
-            $payment->update([
+            $paymentUpdate = [
                 'amount_required' => $totalRequiredAmount,
                 'balance' => $totalRequiredAmount - $payment->amount_paid,
                 'debt' => $debt,
@@ -430,7 +432,12 @@ class FeesController extends Controller
                 'sponsor_balance' => $newSponsorBalance,
                 'parent_amount_required' => $parentAmountReq,
                 'parent_balance' => $newParentBalance,
-            ]);
+            ];
+            if (empty($payment->enrollmentID)) {
+                $paymentUpdate['enrollmentID'] = app(\App\Services\StudentEnrollmentService::class)
+                    ->bestEnrollmentID($student->studentID, (int) $schoolID);
+            }
+            $payment->update($paymentUpdate);
         }
 
         // 4. Update individual fee payment tracking entries
@@ -444,6 +451,8 @@ class FeesController extends Controller
                 StudentFeePayment::create([
                     'schoolID' => $schoolID,
                     'studentID' => $student->studentID,
+                    'enrollmentID' => $payment->enrollmentID ?: app(\App\Services\StudentEnrollmentService::class)
+                        ->bestEnrollmentID($student->studentID, (int) $schoolID),
                     'paymentID' => $payment->paymentID,
                     'feeID' => $fee->feeID,
                     'fee_name' => $fee->calculated_name ?? $fee->fee_name,
@@ -454,14 +463,19 @@ class FeesController extends Controller
                     'display_order' => $fee->display_order,
                 ]);
             } else {
-                $sfp->update([
+                $sfpUpdate = [
                     'paymentID' => $payment->paymentID,
                     'fee_name' => $fee->calculated_name ?? $fee->fee_name,
                     'fee_total_amount' => $fee->calculated_amount,
                     'balance' => $fee->calculated_amount - $sfp->amount_paid,
                     'is_required' => $fee->must_start_pay,
                     'display_order' => $fee->display_order,
-                ]);
+                ];
+                if (empty($sfp->enrollmentID)) {
+                    $sfpUpdate['enrollmentID'] = $payment->enrollmentID ?: app(\App\Services\StudentEnrollmentService::class)
+                        ->bestEnrollmentID($student->studentID, (int) $schoolID);
+                }
+                $sfp->update($sfpUpdate);
             }
         }
     }
@@ -875,16 +889,28 @@ class FeesController extends Controller
                     }
                 }, 'payments.fee_payments', 'payments.academicYear', 'payments.paymentRecords']);
 
-            // Filter by class (main class)
+            // Filter by class (main class) via active enrollment
             if (!empty($classID)) {
-                $query->whereHas('subclass', function($q) use ($classID) {
-                    $q->where('classID', $classID);
-                });
+                $studentIDs = app(\App\Services\StudentEnrollmentService::class)
+                    ->studentIDsInClass((int) $classID, (int) $schoolID);
+                if (!empty($studentIDs)) {
+                    $query->whereIn('studentID', $studentIDs);
+                } else {
+                    $query->whereHas('subclass', function($q) use ($classID) {
+                        $q->where('classID', $classID);
+                    });
+                }
             }
 
-            // Filter by subclass
+            // Filter by subclass via active enrollment
             if (!empty($subclassID)) {
-                $query->where('subclassID', $subclassID);
+                $studentIDs = app(\App\Services\StudentEnrollmentService::class)
+                    ->studentIDsInSubclass((int) $subclassID, (int) $schoolID);
+                if (!empty($studentIDs)) {
+                    $query->whereIn('studentID', $studentIDs);
+                } else {
+                    $query->where('subclassID', $subclassID);
+                }
             }
 
             // Filter by sponsorship

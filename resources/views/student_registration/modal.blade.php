@@ -1802,26 +1802,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 location.reload();
                         });
             } else {
-                        // Handle validation errors
+                        // Handle validation errors — never show raw SQL/DB internals
                         let errorMessage = data.message || 'Registration failed. Please try again.';
                         let fieldErrors = {};
+
+                        const sanitizeUserError = (msg) => {
+                            if (!msg || typeof msg !== 'string') return 'Registration failed. Please check your details and try again.';
+                            if (/SQLSTATE|Integrity constraint|Connection:\s*mysql|Host:|Port:|Database:|SQL:\s*insert|Duplicate entry/i.test(msg)) {
+                                if (/parents_phone|parents/i.test(msg) && /duplicate|unique/i.test(msg)) {
+                                    return 'This phone number is already registered. Please search for the existing parent and select them, or use a different number.';
+                                }
+                                return 'Registration failed. Please check your details and try again.';
+                            }
+                            return msg;
+                        };
                         
                         if (data.errors) {
                             // Convert Laravel validation errors to object
                             fieldErrors = data.errors;
                             const errorList = Object.entries(data.errors).map(([field, messages]) => {
-                                return `<strong>${getFieldLabel(field)}:</strong> ${Array.isArray(messages) ? messages.join(', ') : messages}`;
+                                const text = Array.isArray(messages) ? messages.join(', ') : messages;
+                                return `<strong>${getFieldLabel(field)}:</strong> ${sanitizeUserError(String(text))}`;
                             }).join('<br>');
-                            errorMessage = errorList || errorMessage;
+                            errorMessage = errorList || sanitizeUserError(errorMessage);
+                        } else {
+                            errorMessage = sanitizeUserError(errorMessage);
                         }
                         
                         // Display error in SweetAlert
                         Swal.fire({
-                            title: 'Validation Error!',
+                            title: 'Registration Error',
                             html: errorMessage,
                             icon: 'error',
                             confirmButtonColor: '#f5f5f5',
-                            width: '700px',
+                            width: '560px',
                             customClass: {
                                 htmlContainer: 'text-start'
                             }

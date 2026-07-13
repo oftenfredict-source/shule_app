@@ -13,6 +13,7 @@ class StudentFingerprintAttendance extends Model
 
     protected $fillable = [
         'studentID',
+        'enrollmentID',
         'user_id',
         'user_name',
         'enroll_id',
@@ -35,5 +36,10 @@ class StudentFingerprintAttendance extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'studentID', 'studentID');
+    }
+
+    public function enrollment()
+    {
+        return $this->belongsTo(StudentEnrollment::class, 'enrollmentID', 'enrollmentID');
     }
 }

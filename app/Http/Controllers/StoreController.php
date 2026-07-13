@@ -3765,6 +3765,12 @@ class StoreController extends Controller
 
         $issuedBy = $access['actor_name'] ?? Session::get('admin_name') ?: Session::get('name') ?: 'Administrator';
 
+        $studentEnrollmentID = null;
+        if ($request->recipient_type === 'student') {
+            $studentEnrollmentID = app(\App\Services\StudentEnrollmentService::class)
+                ->bestEnrollmentID((int) $request->recipient_id, $schoolID);
+        }
+
         $planResult = $this->planValidatedTakeIssues($issues, $units);
         if (!$planResult['ok']) {
             return $this->jsonError($planResult['error'], 422);
@@ -3801,6 +3807,7 @@ class StoreController extends Controller
                     'quantity_taken' => $itemsTaken,
                     'recipient_type' => $request->recipient_type,
                     'recipient_id' => (int) $request->recipient_id,
+                    'enrollmentID' => $studentEnrollmentID,
                     'recipient_name' => $recipientName,
                     'requisition_status' => $unit->requisition_status,
                     'expected_return_date' => $unit->requisition_status === 'can_return'

@@ -1,56 +1,337 @@
 <!-- ======= Custom Footer Start ======= -->
 <style>
-  /* Reserve space for fixed footer to avoid overlapping content */
-  body { padding-bottom: 50px; }
+  /*
+   * Layout: sticky sidebar + sticky header while scrolling.
+   * Footer scrolls with page content (not fixed).
+   */
+  body {
+    padding-bottom: 0 !important;
+  }
 
+  aside.left-panel,
+  aside#left-panel {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* Below Bootstrap modal (1050) / backdrop (1040) so modals are usable */
+    z-index: 1000 !important;
+    width: 280px;
+  }
+
+  .right-panel,
+  #right-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    margin-left: 280px !important;
+    min-height: 100vh;
+    position: relative;
+    /* Do NOT set z-index here — it traps modals under the fixed sidebar */
+    z-index: auto !important;
+  }
+
+  /* Desktop only: body.open = icon-collapsed rail */
+  @media (min-width: 992px) {
+  .open aside.left-panel,
+  .open aside#left-panel,
+  body.open aside.left-panel,
+  body.open aside#left-panel {
+    width: 76px !important;
+    max-width: 76px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  body.open .right-panel,
+  body.open #right-panel,
+  .open .right-panel,
+  .open #right-panel {
+    margin-left: 76px !important;
+  }
+
+  /*
+   * Collapsed sidebar: large centered icons + fixed hover flyouts
+   * (flyouts use position:fixed via JS so overflow-y scroll cannot clip them)
+   */
+  body.open #left-panel .navbar,
+  body.open #left-panel .main-menu,
+  body.open #left-panel .navbar-nav,
+  body.open #left-panel .sidebar-links-container,
+  body.open #left-panel .sidebar-links-container > ul {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  body.open #left-panel .navbar-header {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 10px 0 !important;
+    width: 100% !important;
+  }
+
+  body.open #left-panel .admin-brand-logo,
+  body.open #left-panel .navbar-header img {
+    width: 40px !important;
+    height: 40px !important;
+    object-fit: cover !important;
+    margin: 0 auto !important;
+    display: block !important;
+  }
+
+  body.open #left-panel .sidebar-profile {
+    padding: 8px 0 !important;
+    justify-content: center !important;
+  }
+
+  body.open #left-panel .sidebar-profile .profile-meta,
+  body.open #left-panel .admin-brand-text,
+  body.open #left-panel .admin-brand-subtitle,
+  body.open #left-panel .fa-chevron-down {
+    display: none !important;
+  }
+
+  body.open #left-panel .sidebar-links-container > ul > li {
+    position: relative;
+    width: 100%;
+  }
+
+  body.open #left-panel .sidebar-links-container > ul > li > a.nav-link {
+    font-size: 0 !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    padding: 16px 0 !important;
+    margin: 2px 6px !important;
+    width: auto !important;
+    min-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap;
+    border-radius: 8px;
+    box-sizing: border-box !important;
+  }
+
+  body.open #left-panel .sidebar-links-container > ul > li > a.nav-link > i.fa:first-child,
+  body.open #left-panel .sidebar-links-container > ul > li > a.nav-link > i[class*="fa-"]:first-of-type,
+  body.open #left-panel .sidebar-links-container > ul > li > a.nav-link > i:first-child {
+    font-size: 22px !important;
+    margin: 0 !important;
+    width: 1.25em !important;
+    height: auto !important;
+    line-height: 1 !important;
+    display: inline-block !important;
+    text-align: center !important;
+    color: #940000 !important;
+    float: none !important;
+  }
+
+  body.open #left-panel .dropdown-nav-item {
+    position: relative;
+  }
+
+  body.open #left-panel .dropdown-nav-item > .submenu {
+    display: none !important;
+    position: fixed !important;
+    /* left/top set by JS — do not use !important here or flyout sticks to top */
+    left: 84px;
+    top: 0;
+    min-width: 250px;
+    max-width: 320px;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: #ffffff !important;
+    border: 1px solid #e5e5e5 !important;
+    border-left: 3px solid #940000 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18) !important;
+    z-index: 3000 !important;
+    padding: 6px 0 !important;
+    margin: 0 !important;
+    list-style: none !important;
+    border-radius: 0 6px 6px 0;
+  }
+
+  body.open #left-panel .dropdown-nav-item > .submenu.is-flyout-open,
+  body.open #left-panel .dropdown-nav-item:hover > .submenu,
+  body.open #left-panel .dropdown-nav-item:focus-within > .submenu {
+    display: block !important;
+    height: auto !important;
+  }
+
+  /* Invisible bridge so cursor can reach flyout without closing */
+  body.open #left-panel .dropdown-nav-item > .submenu::after {
+    content: "";
+    position: absolute;
+    left: -16px;
+    top: 0;
+    width: 16px;
+    height: 100%;
+  }
+
+  body.open #left-panel .dropdown-nav-item > .submenu::before {
+    content: "";
+    position: absolute;
+    left: -11px;
+    top: 18px;
+    border: 6px solid transparent;
+    border-right-color: #940000;
+  }
+
+  body.open #left-panel .dropdown-nav-item > .submenu .nav-link {
+    font-size: 13px !important;
+    color: #333 !important;
+    padding: 8px 14px !important;
+    white-space: nowrap;
+    display: block !important;
+    text-align: left !important;
+    line-height: 1.3 !important;
+  }
+
+  body.open #left-panel .dropdown-nav-item > .submenu .nav-link i {
+    font-size: 13px !important;
+    margin-right: 8px !important;
+    color: #940000 !important;
+    width: 16px;
+    text-align: center;
+    display: inline-block !important;
+  }
+
+  body.open #left-panel .dropdown-nav-item > .submenu .nav-link:hover {
+    background: rgba(148, 0, 0, 0.08) !important;
+    color: #940000 !important;
+  }
+  } /* end desktop collapsed sidebar */
+
+  /* Sidebar toggle button */
+  #header .menutoggle,
+  a#menuToggle.menutoggle,
+  .header .menutoggle {
+    background-color: whitesmoke !important;
+    color: #940000 !important;
+    border: 1px solid #e8e8e8 !important;
+    border-radius: 4px !important;
+    padding: 6px 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+  }
+
+  #header .menutoggle i,
+  #header .menutoggle .header-icon-muted,
+  a#menuToggle.menutoggle i,
+  a#menuToggle.menutoggle .header-icon-muted,
+  .header .menutoggle i {
+    color: #940000 !important;
+    opacity: 1 !important;
+  }
+
+  #header .menutoggle:hover,
+  a#menuToggle.menutoggle:hover,
+  .header .menutoggle:hover {
+    background-color: #f0f0f0 !important;
+    color: #940000 !important;
+  }
+
+  /* Sticky top header inside content area */
+  .right-panel header.header,
+  .right-panel #header,
+  header#header.header,
+  #header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1020 !important;
+    background-color: #ffffff !important;
+    flex-shrink: 0;
+  }
+
+  /* Footer: bottom of page, no red border */
   .site-footer {
-    position: fixed;
-    left: 280px; /* Start after sidebar width */
-    right: 0;
-    bottom: 0;
-    width: calc(100% - 280px); /* Full width minus sidebar */
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    float: none !important;
+    clear: both;
     background-color: #ffffff;
     color: #333;
     text-align: center;
-    border-top: 2px solid #940000;
+    border-top: none !important;
+    border: none !important;
     font-size: 13px;
-    padding: 8px 0;
-    margin: 0;
-    z-index: 1030 !important; /* Below modals but above content */
-    float: left;
-    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    padding: 12px 0;
+    margin: auto 0 0 0 !important;
+    margin-top: auto !important;
+    z-index: auto !important;
+    box-shadow: none !important;
     pointer-events: auto;
+    flex-shrink: 0;
   }
-  
-  /* Ensure modals are always above footer */
-  .modal {
-    z-index: 1050 !important; /* Bootstrap default but ensure it's higher than footer */
+
+  /* Only OUTER sidebar scrollbar (remove inner .sidebar-links-container scroll) */
+  .sidebar-links-container {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
   }
-  
+
+  .sidebar-links-container::-webkit-scrollbar {
+    width: 0 !important;
+    display: none !important;
+  }
+
+  .sidebar-links-container:hover {
+    overflow: visible !important;
+  }
+
+  /* Modals ABOVE sidebar + header */
   .modal-backdrop {
-    z-index: 1040 !important; /* Bootstrap default - below modal but above footer */
+    z-index: 2000 !important;
   }
-  
-  /* Ensure modal dialogs are above footer */
+
+  .modal {
+    z-index: 2010 !important;
+  }
+
   .modal-dialog {
-    z-index: 1050 !important;
+    z-index: 2011 !important;
   }
-  
-  /* Ensure modal content is above footer */
+
   .modal-content {
-    z-index: 1051 !important;
+    z-index: 2012 !important;
+    pointer-events: auto !important;
   }
-  
-  /* SweetAlert2 modals should also be above footer */
+
+  .modal.show {
+    display: block !important;
+    pointer-events: auto !important;
+  }
+
   .swal2-container {
-    z-index: 1055 !important;
+    z-index: 30000 !important;
   }
-  
+
   .swal2-popup {
-    z-index: 1056 !important;
+    z-index: 30001 !important;
   }
-  
-  /* Ensure widgets/charts don't overlap footer */
+
+  /* While any modal is open, don't let sidebar steal clicks */
+  body.modal-open aside.left-panel,
+  body.modal-open aside#left-panel {
+    pointer-events: none !important;
+  }
+
   canvas,
   .flot-container,
   .chart-container,
@@ -62,56 +343,143 @@
   .chart-wrapper {
     position: relative !important;
     z-index: 1 !important;
-    margin-bottom: 60px !important; /* Add space at bottom for footer */
+    margin-bottom: 1rem !important;
   }
-  
-  /* Ensure content containers have padding bottom to avoid footer overlap */
+
   .right-panel,
   .content-wrapper,
   .main-content,
   .container-fluid {
-    padding-bottom: 60px !important;
+    padding-bottom: 1rem !important;
   }
 
-  /* Ensure footer is below sidebar - sidebar should be above */
-  aside.left-panel {
-    position: relative;
-    z-index: 1000 !important;
-  }
-
-  /* Ensure right-panel content is also above footer */
-  .right-panel {
-    position: relative;
-    /* z-index: 1000; */
-  }
-
-  /* When sidebar is collapsed (open class) */
-  .open aside.left-panel {
-    width: 70px;
-  }
-
-  .open .site-footer {
-    left: 70px;
-    width: calc(100% - 70px);
-  }
-
-  /* On mobile when sidebar is collapsed/absolute */
+  /* Mobile / tablet: off-canvas full sidebar (NOT icon collapse) */
   @media (max-width: 991px) {
-    aside.left-panel {
-      z-index: 1001 !important;
-    }
-    .site-footer {
-      left: 0;
-      width: 100%;
-      z-index: 1030;
+    .right-panel,
+    #right-panel,
+    .open .right-panel,
+    .open #right-panel,
+    body.open .right-panel,
+    body.open #right-panel {
+      margin-left: 0 !important;
     }
 
-    .open .site-footer {
-      left: 70px;
-      width: calc(100% - 70px);
+    .site-footer {
+      width: 100% !important;
+    }
+
+    aside.left-panel,
+    aside#left-panel,
+    .open aside.left-panel,
+    .open aside#left-panel,
+    body.open aside.left-panel,
+    body.open aside#left-panel {
+      width: min(300px, 86vw) !important;
+      max-width: min(300px, 86vw) !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      z-index: 1050 !important;
+      transform: translateX(-105%) !important;
+      -webkit-transform: translateX(-105%) !important;
+      transition: transform 0.25s ease !important;
+      box-shadow: none !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      pointer-events: none !important;
+    }
+
+    body.open aside.left-panel,
+    body.open aside#left-panel,
+    .open aside.left-panel,
+    .open aside#left-panel {
+      transform: translateX(0) !important;
+      -webkit-transform: translateX(0) !important;
+      box-shadow: 8px 0 24px rgba(0, 0, 0, 0.2) !important;
+      pointer-events: auto !important;
+    }
+
+    /* Full labels on mobile — undo desktop icon-only rules */
+    body.open #left-panel .sidebar-links-container > ul > li > a.nav-link,
+    #left-panel .sidebar-links-container > ul > li > a.nav-link {
+      font-size: 14px !important;
+      line-height: 1.35 !important;
+      text-align: left !important;
+      justify-content: flex-start !important;
+      padding: 10px 14px !important;
+      margin: 2px 8px !important;
+      min-height: 0 !important;
+      white-space: normal !important;
+    }
+
+    body.open #left-panel .sidebar-links-container > ul > li > a.nav-link > i,
+    #left-panel .sidebar-links-container > ul > li > a.nav-link > i {
+      font-size: 16px !important;
+      width: 22px !important;
+      margin-right: 10px !important;
+      display: inline-block !important;
+    }
+
+    body.open #left-panel .fa-chevron-down,
+    #left-panel .fa-chevron-down {
+      display: inline-block !important;
+    }
+
+    body.open #left-panel .admin-brand-text,
+    body.open #left-panel .admin-brand-subtitle,
+    body.open #left-panel .sidebar-profile .profile-meta {
+      display: block !important;
+    }
+
+    body.open #left-panel .dropdown-nav-item > .submenu,
+    body.open #left-panel .dropdown-nav-item > .submenu.is-flyout-open {
+      position: static !important;
+      left: auto !important;
+      top: auto !important;
+      max-width: none !important;
+      max-height: none !important;
+      box-shadow: none !important;
+      border: none !important;
+      border-left: none !important;
+      background: transparent !important;
+      display: none !important;
+      padding-left: 12px !important;
+    }
+
+    body.open #left-panel .dropdown-nav-item > .submenu.show,
+    body.open #left-panel .dropdown-nav-item > .submenu.collapse.show {
+      display: block !important;
+    }
+
+    body.open #left-panel .dropdown-nav-item > .submenu::before,
+    body.open #left-panel .dropdown-nav-item > .submenu::after {
+      display: none !important;
+    }
+
+    /* Always expand main menu when panel is used on mobile */
+    body.open #left-panel #main-menu.collapse,
+    body.open #left-panel #main-menu {
+      display: block !important;
+      height: auto !important;
+    }
+
+    #left-panel .navbar-toggler {
+      display: none !important;
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      z-index: 1040;
+    }
+
+    body.open .sidebar-backdrop.is-visible {
+      display: block;
     }
   }
-
 
   .site-footer a {
     color: #940000;
@@ -130,13 +498,174 @@
   }
 
   @media (max-width: 576px) {
-    body { padding-bottom: 45px; }
     .site-footer {
       font-size: 12px;
       padding: 6px 5px;
     }
   }
 </style>
+
+<script>
+(function () {
+    // Move Bootstrap modals to <body> so fixed sidebar never covers them / blocks typing
+    function hoistModalToBody(modal) {
+        if (!modal || !modal.parentElement) return;
+        if (modal.parentElement === document.body) return;
+        document.body.appendChild(modal);
+    }
+
+    document.addEventListener('show.bs.modal', function (e) {
+        hoistModalToBody(e.target);
+    }, true);
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.modal').forEach(hoistModalToBody);
+        if (window.jQuery) {
+            jQuery(document).on('show.bs.modal', '.modal', function () {
+                hoistModalToBody(this);
+            });
+
+            // Desktop collapsed only: click does not accordion; hover shows flyout
+            jQuery(document).on('click', 'body.open #left-panel .dropdown-toggle', function (e) {
+                if (window.matchMedia('(max-width: 991px)').matches) {
+                    return; // mobile: allow normal Bootstrap collapse accordion
+                }
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            });
+
+            function isMobileSidebar() {
+                return window.matchMedia('(max-width: 991px)').matches;
+            }
+
+            function ensureSidebarBackdrop() {
+                if (!document.getElementById('sidebar-backdrop')) {
+                    var el = document.createElement('div');
+                    el.id = 'sidebar-backdrop';
+                    el.className = 'sidebar-backdrop';
+                    el.setAttribute('aria-hidden', 'true');
+                    document.body.appendChild(el);
+                }
+                return document.getElementById('sidebar-backdrop');
+            }
+
+            function syncMobileSidebar() {
+                var backdrop = ensureSidebarBackdrop();
+                var open = document.body.classList.contains('open');
+                var mobile = isMobileSidebar();
+
+                if (mobile) {
+                    backdrop.classList.toggle('is-visible', open);
+                    var mainMenu = document.getElementById('main-menu');
+                    if (mainMenu && open) {
+                        mainMenu.classList.add('show');
+                        mainMenu.style.display = 'block';
+                    }
+                    // Hide any sticky desktop flyouts
+                    jQuery('#left-panel .submenu.is-flyout-open').removeClass('is-flyout-open')
+                        .each(function () {
+                            this.style.removeProperty('left');
+                            this.style.removeProperty('top');
+                        });
+                } else {
+                    backdrop.classList.remove('is-visible');
+                }
+            }
+
+            // On mobile load: sidebar closed (no auto-open / no icon rail)
+            if (isMobileSidebar()) {
+                document.body.classList.remove('open');
+            }
+            ensureSidebarBackdrop();
+            syncMobileSidebar();
+
+            jQuery(document).on('click', '#menuToggle', function () {
+                setTimeout(syncMobileSidebar, 0);
+            });
+
+            jQuery(document).on('click', '#sidebar-backdrop', function () {
+                document.body.classList.remove('open');
+                syncMobileSidebar();
+            });
+
+            jQuery(document).on('click', '#left-panel .sidebar-links-container a.nav-link:not(.dropdown-toggle)', function () {
+                if (!isMobileSidebar()) return;
+                document.body.classList.remove('open');
+                syncMobileSidebar();
+            });
+
+            var resizeTimer = null;
+            jQuery(window).on('resize', function () {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function () {
+                    if (isMobileSidebar()) {
+                        // Entering/staying mobile: never keep desktop collapsed state
+                        if (document.body.classList.contains('open')) {
+                            // keep open only if user opened it; still sync backdrop
+                        }
+                    }
+                    syncMobileSidebar();
+                }, 150);
+            });
+
+            // Position flyout outside sidebar (fixed) so overflow scroll cannot clip it
+            function positionCollapsedFlyout(item) {
+                if (!document.body.classList.contains('open')) return;
+                if (isMobileSidebar()) return;
+                var sub = jQuery(item).children('.submenu').get(0);
+                if (!sub) return;
+                var rect = item.getBoundingClientRect();
+                var left = Math.round(rect.right + 8);
+                var top = Math.round(rect.top);
+                sub.style.setProperty('left', left + 'px', 'important');
+                sub.style.setProperty('top', top + 'px', 'important');
+                sub.classList.add('is-flyout-open');
+                // Keep inside viewport vertically
+                requestAnimationFrame(function () {
+                    var h = sub.offsetHeight || 0;
+                    var maxTop = Math.max(8, window.innerHeight - h - 8);
+                    if (top > maxTop) {
+                        sub.style.setProperty('top', maxTop + 'px', 'important');
+                    }
+                });
+            }
+
+            function hideCollapsedFlyout(item) {
+                var sub = jQuery(item).children('.submenu').get(0);
+                if (!sub) return;
+                sub.classList.remove('is-flyout-open');
+                sub.style.removeProperty('left');
+                sub.style.removeProperty('top');
+            }
+
+            jQuery(document)
+                .on('mouseenter', 'body.open #left-panel .dropdown-nav-item', function () {
+                    if (isMobileSidebar()) return;
+                    positionCollapsedFlyout(this);
+                })
+                .on('mouseleave', 'body.open #left-panel .dropdown-nav-item', function () {
+                    if (isMobileSidebar()) return;
+                    hideCollapsedFlyout(this);
+                });
+
+            // Reposition on scroll/resize while open
+            jQuery('#left-panel').on('scroll.collapsedFlyout', function () {
+                if (!document.body.classList.contains('open') || isMobileSidebar()) return;
+                jQuery('#left-panel .dropdown-nav-item:hover').each(function () {
+                    positionCollapsedFlyout(this);
+                });
+            });
+            jQuery(window).on('resize.collapsedFlyout', function () {
+                if (!document.body.classList.contains('open') || isMobileSidebar()) return;
+                jQuery('#left-panel .dropdown-nav-item:hover').each(function () {
+                    positionCollapsedFlyout(this);
+                });
+            });
+        }
+    });
+})();
+</script>
 
 <!-- Universal Modal Close Handler - Fixes close button issues for all modals -->
 <script>
@@ -146,58 +675,42 @@
     // Function to close modal - works with both Bootstrap 4 and 5
     function closeModal(modalElement) {
         if (!modalElement) return;
-        
-        // Try Bootstrap 5 first
-        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-            try {
-                var modalInstance = bootstrap.Modal.getInstance(modalElement);
-                if (modalInstance) {
-                    modalInstance.hide();
-                    return;
-                } else {
-                    var newModal = new bootstrap.Modal(modalElement);
-                    newModal.hide();
-                    return;
-                }
-            } catch (e) {
-                // Continue to next method
-            }
-        }
-        
-        // Try Bootstrap 4 / jQuery
-        if (typeof jQuery !== 'undefined' && jQuery.fn.modal) {
+
+        var closed = false;
+
+        // Prefer jQuery / Bootstrap 4 (Admin_nav loads BS4)
+        if (typeof jQuery !== 'undefined' && jQuery.fn && typeof jQuery.fn.modal === 'function') {
             try {
                 jQuery(modalElement).modal('hide');
-                return;
-            } catch (e) {
-                // Continue to manual fallback
-            }
+                closed = true;
+            } catch (e) {}
         }
-        
-        // Manual fallback - ensure modal closes
+
+        // Bootstrap 5 native (only if jQuery path unavailable)
+        if (!closed && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            try {
+                var modalInstance = (typeof bootstrap.Modal.getInstance === 'function')
+                    ? bootstrap.Modal.getInstance(modalElement)
+                    : null;
+                if (modalInstance && typeof modalInstance.hide === 'function') {
+                    modalInstance.hide();
+                    closed = true;
+                }
+            } catch (e) {}
+        }
+
+        // Always hard-clean so X never appears "stuck"
         try {
-            modalElement.classList.remove('show');
+            modalElement.classList.remove('show', 'in');
             modalElement.style.display = 'none';
             modalElement.setAttribute('aria-hidden', 'true');
             modalElement.removeAttribute('aria-modal');
-            
-            // Clean up body classes and styles
+
             document.body.classList.remove('modal-open');
-            var bodyStyle = window.getComputedStyle(document.body);
-            if (!bodyStyle.overflow || bodyStyle.overflow === 'hidden') {
-                document.body.style.overflow = '';
-            }
+            document.body.style.overflow = '';
             document.body.style.paddingRight = '';
-            
-            // Remove all backdrops
-            var backdrops = document.querySelectorAll('.modal-backdrop');
-            backdrops.forEach(function(backdrop) {
-                backdrop.remove();
-            });
-            
-            // Also remove any backdrop that might be a child of modal
-            var modalBackdrops = modalElement.querySelectorAll('.modal-backdrop');
-            modalBackdrops.forEach(function(backdrop) {
+
+            document.querySelectorAll('.modal-backdrop').forEach(function (backdrop) {
                 backdrop.remove();
             });
         } catch (e) {

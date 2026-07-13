@@ -7,830 +7,798 @@
 @endif
 
 <meta name="csrf-token" content="{{ csrf_token() }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap4.min.css" />
+
+@php
+    $isSecondary = $school && strcasecmp((string) $school->school_type, 'Secondary') === 0;
+@endphp
 
 <style>
-    * {
-        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+    body, .content, .card, .btn, .form-control, .form-select, .table {
+        font-family: "Century Gothic", Arial, sans-serif;
     }
-    
-    .fa, .fa:before, i.fa, [class*="fa-"]:before, [class^="fa-"]:before {
-        font-family: 'FontAwesome' !important;
+    .card, .alert, .btn, .form-control, .form-select, .modal-content {
+        border-radius: 0 !important;
     }
-    
-    body {
-        background-color: #f5f5f5;
-    }
-    
-    .content-wrapper {
-        background: white;
-        padding: 30px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        border-radius: 0;
-    }
-    
-    .header-section {
-        background: linear-gradient(135deg, #940000 0%, #b30000 100%);
-        color: white;
-        padding: 20px 0;
-        margin-bottom: 30px;
-    }
-    
-    .year-widget {
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        transition: all 0.3s ease;
-        background: white;
-    }
-    
-    .year-widget:hover {
-        box-shadow: 0 4px 12px rgba(148, 0, 0, 0.2);
-        border-color: #940000;
-    }
-    
-    .year-widget.current {
-        border-color: #940000;
-        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
-    }
-    
-    .year-widget.past {
-        border-color: #6c757d;
-        background: #f8f9fa;
-    }
-    
+    .bg-primary-custom { background-color: #940000 !important; }
+    .text-primary-custom { color: #940000 !important; }
     .btn-primary-custom {
         background-color: #940000;
         border-color: #940000;
-        color: #ffffff;
-        border-radius: 0;
+        color: #fff;
     }
-    
     .btn-primary-custom:hover {
         background-color: #b30000;
         border-color: #b30000;
-        color: #ffffff;
+        color: #fff;
     }
-    
-    .btn-secondary-custom {
-        background-color: #6c757d;
-        border-color: #6c757d;
-        color: #ffffff;
-        border-radius: 0;
+    .form-control:focus, .form-select:focus {
+        border-color: #940000;
+        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
     }
-    
-    .btn-secondary-custom:hover {
-        background-color: #5a6268;
-        border-color: #5a6268;
-        color: #ffffff;
-    }
-    
-    .year-select-wrapper {
-        margin-bottom: 30px;
-    }
-    
-    /* Progress Modal z-index - Must be above form modal */
-    #closeYearProgressModal {
-        z-index: 1060 !important;
-    }
-    
-    #closeYearProgressModal .modal-dialog {
-        z-index: 1061 !important;
-    }
-    
-    #closeYearProgressModal .modal-content {
-        z-index: 1062 !important;
-    }
-    
-    #closeYearProgressModal .modal-backdrop {
-        z-index: 1059 !important;
-        background-color: rgba(0, 0, 0, 0.5);
-    }
-    
-    /* Ensure form modal backdrop is below progress modal */
-    #closeYearModal.show ~ .modal-backdrop {
-        z-index: 1040 !important;
-    }
-    
-    /* SweetAlert2 z-index - Must be above progress modal */
-    .swal2-container {
-        z-index: 1070 !important;
-    }
-    
-    .swal2-popup {
-        z-index: 1071 !important;
-    }
-    
-    .year-badge {
-        display: inline-block;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-size: 12px;
+    .section-title {
         font-weight: 600;
+        margin-bottom: 12px;
+        color: #940000;
+        font-size: 1.05rem;
     }
-    
-    .badge-active {
-        background-color: #28a745;
-        color: white;
+    .ay-current-badge {
+        display: inline-block;
+        background: #28a745;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 3px 10px;
     }
-    
-    .badge-closed {
-        background-color: #6c757d;
-        color: white;
+    .ay-badge-muted {
+        display: inline-block;
+        background: #6c757d;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 3px 10px;
     }
-    
-    .badge-draft {
-        background-color: #ffc107;
-        color: #000;
+    .ay-swal-popup {
+        font-family: "Century Gothic", Arial, sans-serif !important;
+        border-radius: 0 !important;
     }
-    
-    /* Modal Styles */
-    .modal-custom {
-        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
-    }
-    
-    .modal-header-custom {
-        background: linear-gradient(135deg, #940000 0%, #b30000 100%);
-        color: white;
-        border-radius: 0;
-    }
-    
-    .modal-header-custom .close {
-        color: white;
-        opacity: 1;
-        text-shadow: none;
-    }
-    
-    .modal-header-custom .close:hover {
-        color: #f0f0f0;
-    }
-    
-    .checkbox-item {
-        padding: 15px;
-        border: 1px solid #e0e0e0;
-        border-radius: 5px;
-        margin-bottom: 10px;
-        transition: all 0.3s ease;
-    }
-    
-    .checkbox-item:hover {
-        background-color: #f8f9fa;
+    .ay-swal-confirm { border-radius: 0 !important; }
+    .ay-level-box { display: none; }
+    .ay-level-box.is-visible { display: block; }
+    .ay-view-toggle .btn.active {
+        background: #940000;
+        color: #fff;
         border-color: #940000;
     }
-    
-    .checkbox-item input[type="checkbox"] {
-        margin-right: 10px;
-        transform: scale(1.2);
+    .ay-data-wrapper .ay-list-view { display: none; }
+    .ay-data-wrapper .ay-grid-view { display: flex; flex-wrap: wrap; }
+    @media (min-width: 768px) {
+        .ay-data-wrapper:not([data-active-view="grid"]) .ay-list-view { display: block; }
+        .ay-data-wrapper:not([data-active-view="grid"]) .ay-grid-view { display: none; }
     }
-    
-    .checkbox-item label {
-        cursor: pointer;
-        font-weight: 500;
-        margin: 0;
+    .ay-data-wrapper[data-active-view="list"] .ay-list-view { display: block !important; }
+    .ay-data-wrapper[data-active-view="list"] .ay-grid-view { display: none !important; }
+    .ay-data-wrapper[data-active-view="grid"] .ay-list-view { display: none !important; }
+    .ay-data-wrapper[data-active-view="grid"] .ay-grid-view { display: flex !important; flex-wrap: wrap; }
+    .ay-card-item {
+        border: 1px solid #eee;
+        border-left: 4px solid #940000;
+        padding: 14px;
+        margin-bottom: 12px;
+        background: #fff;
+        height: 100%;
     }
-    
-    .checkbox-item small {
-        display: block;
-        margin-top: 5px;
-        color: #6c757d;
-        margin-left: 30px;
+    .ay-card-item .ay-card-year {
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: #333;
+        margin-bottom: 6px;
+    }
+    .ay-card-item .ay-card-meta {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 10px;
+    }
+    .ay-level-badge {
+        display: inline-block;
+        background: #fff5f5;
+        color: #940000;
+        border: 1px solid #f0d0d0;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 3px 10px;
+    }
+    .ay-grid-search-wrap {
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    .ay-grid-search-wrap .form-control {
+        width: 100%;
+    }
+    .ay-list-view .dataTables_wrapper .dataTables_filter input,
+    .ay-list-view .dataTables_wrapper .dataTables_length select {
+        border-radius: 0 !important;
+        border: 1px solid #ced4da;
+    }
+    .ay-list-view .dataTables_wrapper .dataTables_filter input:focus,
+    .ay-list-view .dataTables_wrapper .dataTables_length select:focus {
+        border-color: #940000;
+        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
+    }
+    .ay-list-view .dataTables_wrapper .page-item.active .page-link {
+        background-color: #940000;
+        border-color: #940000;
+    }
+    .ay-list-view .dataTables_wrapper .page-link {
+        color: #940000;
+        border-radius: 0 !important;
+    }
+    .ay-list-view .dataTables_info,
+    .ay-list-view .dataTables_length,
+    .ay-list-view .dataTables_filter,
+    .ay-list-view .dataTables_paginate {
+        font-size: 0.85rem;
+        margin-top: 8px;
+        margin-bottom: 8px;
+    }
+    @media (max-width: 767.98px) {
+        .ay-list-view .dataTables_wrapper .dataTables_filter,
+        .ay-list-view .dataTables_wrapper .dataTables_length {
+            text-align: left !important;
+            float: none !important;
+            width: 100%;
+        }
+        .ay-list-view .dataTables_wrapper .dataTables_filter label,
+        .ay-list-view .dataTables_wrapper .dataTables_length label {
+            width: 100%;
+            display: block;
+        }
+        .ay-list-view .dataTables_wrapper .dataTables_filter input {
+            width: 100% !important;
+            margin: 6px 0 0 0 !important;
+            display: block;
+        }
+        .ay-list-view .dataTables_wrapper .dataTables_length select {
+            width: 100% !important;
+            margin-top: 6px;
+        }
     }
 </style>
 
-<div class="header-section">
-    <div class="container-fluid">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h3><i class="fa fa-calendar-check-o"></i> Academic Years Management</h3>
-                <p class="mb-0">Manage and view academic years data</p>
-            </div>
+<div class="breadcrumbs">
+    <div class="col-sm-4">
+        <div class="page-header float-left">
+            <div class="page-title"><h1>Academic Years</h1></div>
         </div>
     </div>
 </div>
 
-<div class="container-fluid">
-    <div class="content-wrapper">
-        <!-- Year Selector -->
-        <div class="year-select-wrapper">
-            <div class="row">
-                <div class="col-md-4">
-                    <label for="yearSelect" class="form-label"><strong>Select Academic Year:</strong></label>
-                    <select class="form-control" id="yearSelect" onchange="filterYear(this.value)">
-                        <option value="current" selected>Current Year ({{ $currentYear->year_name ?: $currentYear->year }})</option>
-                        <option value="">All Years</option>
-                        @foreach($pastYears as $year)
-                            <option value="{{ $year->academic_yearID }}">
-                                {{ $year->year_name ?: $year->year }} (Closed)
-                            </option>
-                        @endforeach
-                    </select>
+<div class="content mt-3">
+    <div class="card">
+        <div class="card-header bg-primary-custom text-white d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+            <strong><i class="fa fa-calendar-check-o me-1"></i> Academic Years Management</strong>
+            <button type="button" class="btn btn-light btn-sm" data-toggle="modal" data-target="#registerYearModal">
+                <i class="fa fa-plus"></i> Register Academic Year
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:8px;">
+                <div class="section-title mb-0">Registered Academic Years</div>
+                <div class="btn-group btn-group-sm ay-view-toggle" data-wrapper="academicYearsWrapper">
+                    <button type="button" class="btn btn-outline-secondary" data-view="grid" title="Grid view"><i class="fa fa-th"></i></button>
+                    <button type="button" class="btn btn-outline-secondary" data-view="list" title="List view"><i class="fa fa-list"></i></button>
                 </div>
             </div>
-        </div>
 
-        <!-- Current Year Widget -->
-        <div class="year-widget current" id="year-current">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h4>
-                        <i class="fa fa-calendar"></i> 
-                        {{ $currentYear->year_name ?: $currentYear->year }}
-                        <span class="year-badge badge-active">Current Year</span>
-                    </h4>
-                    <p class="mb-2">
-                        <strong>Period:</strong> 
-                        {{ \Carbon\Carbon::parse($currentYear->start_date)->format('d M Y') }} - 
-                        {{ \Carbon\Carbon::parse($currentYear->end_date)->format('d M Y') }}
-                    </p>
-                    <p class="mb-0 text-muted">
-                        <small>Status: <span class="year-badge badge-active">Active</span></small>
-                    </p>
-                </div>
-                <div class="col-md-4 text-right">
-                    <a href="{{ route('admin.academicYears.viewTerms') }}" class="btn btn-info btn-lg mb-2" style="width: 100%; background-color: #17a2b8; border-color: #17a2b8; color: white;">
-                        <i class="fa fa-calendar"></i> View Terms
-                    </a>
-                    <button class="btn btn-primary-custom btn-lg mb-2" onclick="closeYear()" style="width: 100%;">
-                        <i class="fa fa-lock"></i> Close Year
-                    </button>
-                    <button class="btn btn-secondary-custom btn-lg" onclick="openNewYear()" style="width: 100%;">
-                        <i class="fa fa-plus-circle"></i> Open New Year
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Past Years Widgets -->
-        <h5 class="mt-4 mb-3" id="pastYearsHeader" style="display: none;"><i class="fa fa-history"></i> Past Academic Years</h5>
-        <div id="pastYearsContainer">
-            @foreach($pastYears as $year)
-                <div class="year-widget past" id="year-{{ $year->academic_yearID }}" style="display: none;">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h5>
-                                <i class="fa fa-calendar"></i> 
-                                {{ $year->year_name ?: $year->year }}
-                                <span class="year-badge badge-closed">Closed</span>
-                            </h5>
-                            <p class="mb-2">
-                                <strong>Period:</strong> 
-                                {{ \Carbon\Carbon::parse($year->start_date)->format('d M Y') }} - 
-                                {{ \Carbon\Carbon::parse($year->end_date)->format('d M Y') }}
-                            </p>
-                            @if($year->closed_at)
-                                <p class="mb-0 text-muted">
-                                    <small>Closed on: {{ \Carbon\Carbon::parse($year->closed_at)->format('d M Y, h:i A') }}</small>
-                                </p>
-                            @endif
-                        </div>
-                        <div class="col-md-4 text-right">
-                            <a href="{{ route('admin.academicYears.view', $year->academic_yearID) }}" class="btn btn-secondary-custom btn-lg" style="width: 100%;">
-                                <i class="fa fa-eye"></i> View
-                            </a>
-                        </div>
+            <div class="ay-data-wrapper" id="academicYearsWrapper">
+                <div class="ay-list-view">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped" id="academicYearsTable">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th width="50">#</th>
+                                    <th>Year Name</th>
+                                    @if($isSecondary)
+                                        <th>Level</th>
+                                    @endif
+                                    <th>Current</th>
+                                    <th width="160">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="academicYearsBody">
+                                @foreach($academicYears as $index => $year)
+                                    @php
+                                        $isALevel = str_contains((string) ($year->year_name ?: ''), '/');
+                                        $levelLabel = $isALevel ? 'A Level' : 'O Level';
+                                    @endphp
+                                    <tr data-id="{{ $year->academic_yearID }}">
+                                        <td>{{ $index + 1 }}</td>
+                                        <td class="font-weight-bold">{{ $year->year_name ?: $year->year }}</td>
+                                        @if($isSecondary)
+                                            <td><span class="ay-level-badge">{{ $levelLabel }}</span></td>
+                                        @endif
+                                        <td>
+                                            @if($year->is_current)
+                                                <span class="ay-current-badge">Current</span>
+                                            @else
+                                                <span class="ay-badge-muted">No</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary btn-view-year" data-id="{{ $year->academic_yearID }}" title="View">
+                                                <i class="fa fa-eye"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-year" data-id="{{ $year->academic_yearID }}" title="Edit">
+                                                <i class="fa fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-year" data-id="{{ $year->academic_yearID }}" data-name="{{ $year->year_name ?: $year->year }}" title="Delete" @if($year->is_current) disabled @endif>
+                                                <i class="fa fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            @endforeach
-        </div>
 
-        @if($pastYears->count() == 0)
-            <div class="alert alert-info text-center" id="noPastYears" style="display: none;">
-                <i class="fa fa-info-circle"></i> No past academic years found.
+                <div class="ay-grid-view row" id="academicYearsGrid">
+                    <div class="col-12 ay-grid-search-wrap">
+                        <input type="text" id="ayGridSearch" class="form-control" placeholder="Search academic year...">
+                    </div>
+                    @forelse($academicYears as $year)
+                        @php
+                            $isALevel = str_contains((string) ($year->year_name ?: ''), '/');
+                            $levelLabel = $isALevel ? 'A Level' : 'O Level';
+                            $searchText = strtolower(trim(($year->year_name ?: $year->year) . ' ' . ($isSecondary ? $levelLabel : '') . ' ' . ($year->is_current ? 'current' : '')));
+                        @endphp
+                        <div class="col-12 col-sm-6 col-lg-4 mb-3 ay-grid-item" data-search="{{ $searchText }}">
+                            <div class="ay-card-item">
+                                <div class="ay-card-year">{{ $year->year_name ?: $year->year }}</div>
+                                <div class="ay-card-meta">
+                                    @if($isSecondary)
+                                        <span class="ay-level-badge">{{ $levelLabel }}</span>
+                                        &nbsp;
+                                    @endif
+                                    @if($year->is_current)
+                                        <span class="ay-current-badge">Current</span>
+                                    @else
+                                        <span class="ay-badge-muted">No</span>
+                                    @endif
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-view-year" data-id="{{ $year->academic_yearID }}" title="View">
+                                        <i class="fa fa-eye"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-edit-year" data-id="{{ $year->academic_yearID }}" title="Edit">
+                                        <i class="fa fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-delete-year" data-id="{{ $year->academic_yearID }}" data-name="{{ $year->year_name ?: $year->year }}" title="Delete" @if($year->is_current) disabled @endif>
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="col-12 ay-grid-empty">
+                            <div class="alert alert-light border text-center text-muted mb-0">No academic years registered yet.</div>
+                        </div>
+                    @endforelse
+                    <div class="col-12 ay-grid-no-results d-none">
+                        <div class="alert alert-light border text-center text-muted mb-0">No matching academic years.</div>
+                    </div>
+                </div>
             </div>
-        @endif
+        </div>
     </div>
 </div>
 
-<!-- Close Year Progress Modal -->
-<div class="modal fade modal-custom" id="closeYearProgressModal" tabindex="-1" role="dialog" aria-labelledby="closeYearProgressModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false" style="z-index: 1060;">
-    <div class="modal-dialog modal-md" role="document" style="z-index: 1061;">
-        <div class="modal-content" style="border-radius: 0; z-index: 1062;">
-            <div class="modal-header modal-header-custom" style="background-color: #940000; color: white;">
-                <h5 class="modal-title" id="closeYearProgressModalLabel">
-                    <i class="fa fa-cog fa-spin"></i> Closing Academic Year
-                </h5>
-                <button type="button" class="close text-white" onclick="closeProgressModal()" aria-label="Close" style="opacity: 1;">
+{{-- Register Modal --}}
+<div class="modal fade" id="registerYearModal" tabindex="-1" role="dialog" aria-labelledby="registerYearModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title" id="registerYearModalLabel"><i class="fa fa-plus"></i> Register Academic Year</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body text-center" style="padding: 40px 20px;">
-                <!-- Animated Icon -->
-                <div style="margin-bottom: 30px;">
-                    <i class="fa fa-spinner fa-pulse" style="font-size: 60px; color: #940000;"></i>
-                </div>
-                
-                <!-- Progress Bar -->
-                <div class="progress" style="height: 35px; margin-bottom: 20px; border-radius: 0;">
-                    <div id="closeYearProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                         role="progressbar" 
-                         style="width: 0%; background-color: #940000; transition: width 0.3s ease;"
-                         aria-valuenow="0" 
-                         aria-valuemin="0" 
-                         aria-valuemax="100">
-                        <span id="closeYearProgressText" style="line-height: 35px; font-weight: bold; color: white; font-size: 14px;">0%</span>
-                    </div>
-                </div>
-                
-                <!-- Status Message -->
-                <div id="closeYearProgressStatus" class="text-muted" style="font-size: 16px; margin-bottom: 15px; min-height: 24px;">
-                    Initializing...
-                </div>
-                
-                <!-- Info Message -->
-                <div class="alert alert-info" style="margin-top: 20px; border-radius: 0; background-color: #e7f3ff; border-color: #b3d9ff;">
-                    <i class="fa fa-info-circle"></i> 
-                    <strong>Please wait...</strong> This process may take 1-60 minutes to complete. Do not close this window.
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Close Year Modal -->
-<div class="modal fade modal-custom" id="closeYearModal" tabindex="-1" role="dialog" aria-labelledby="closeYearModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content" style="border-radius: 0;">
-            <div class="modal-header modal-header-custom">
-                <h5 class="modal-title" id="closeYearModalLabel">
-                    <i class="fa fa-lock"></i> Close Academic Year - {{ $currentYear->year_name ?: $currentYear->year }}
-                </h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form id="closeYearForm">
+            <form id="registerYearForm">
                 <div class="modal-body">
-                    <div class="alert alert-warning">
-                        <i class="fa fa-exclamation-triangle"></i> 
-                        <strong>Warning:</strong> Closing academic year will save all current data to history. This action cannot be undone!
-                    </div>
-                    
-                    <p class="mb-3"><strong>Select modalities to perform when closing this academic year:</strong></p>
-                    
-                    <div class="checkbox-item">
-                        <label>
-                            <input type="checkbox" name="modalities[]" value="send_sms_to_parents" checked>
-                            <strong><i class="fa fa-send"></i> Send SMS to Parents</strong>
-                        </label>
-                        <small>Send SMS notifications to parents informing them about school closure dates and reopening dates.</small>
-                    </div>
-                    
-                    <div class="checkbox-item">
-                        <label>
-                            <input type="checkbox" name="modalities[]" value="promote_students" checked>
-                            <strong><i class="fa fa-arrow-up"></i> Promote/Shift Students to Next Classes</strong>
-                        </label>
-                        <small>Automatically promote students to next classes based on grade definitions. Students in final classes will be marked as graduated.</small>
-                    </div>
-                    
-                    <div class="checkbox-item">
-                        <label>
-                            <input type="checkbox" name="modalities[]" value="shift_by_grade" id="shift_by_grade_checkbox">
-                            <strong><i class="fa fa-graduation-cap"></i> Shifting Student from One Class to Another by Grade</strong>
-                        </label>
-                        <small>Check student's grade from final exam of the year and match with subclass grade range (first_grade to final_grade). If no subclass matches the grade, student will repeat (kariri darasa). If unchecked, all students will be shifted without checking grades.</small>
-                    </div>
-                    
-                    <div class="checkbox-item">
-                        <label>
-                            <input type="checkbox" name="modalities[]" value="save_scheme_of_work" checked>
-                            <strong><i class="fa fa-book"></i> Save Scheme of Work to History</strong>
-                        </label>
-                        <small>Save all scheme of works to history. Teachers will need to create new schemes or use existing ones for the new academic year.</small>
-                    </div>
-                    
-                    <div class="checkbox-item">
-                        <label>
-                            <input type="checkbox" name="modalities[]" value="lock_results_editing" checked>
-                            <strong><i class="fa fa-lock"></i> Lock Results Editing for Teachers</strong>
-                        </label>
-                        <small>Prevent teachers from editing results for this academic year after closing.</small>
-                    </div>
-                    
-                    <div class="checkbox-item">
-                        <label>
-                            <input type="checkbox" name="modalities[]" value="lock_exams_editing" checked>
-                            <strong><i class="fa fa-lock"></i> Lock Examinations Editing</strong>
-                        </label>
-                        <small>Prevent editing of examinations for this academic year after closing.</small>
-                    </div>
-                    
-                    <div class="checkbox-item">
-                        <label>
-                            <input type="checkbox" name="modalities[]" value="save_to_history" checked disabled>
-                            <strong><i class="fa fa-database"></i> Save All Data to History (Required)</strong>
-                        </label>
-                        <small>All classes, subclasses, subjects, students, results, attendance, and other data will be saved to history tables. This is mandatory and cannot be disabled.</small>
-                    </div>
-                    
-                    <hr>
-                    
-                    <div class="row mt-3">
-                        <div class="col-md-6">
-                            <label for="school_closing_date"><strong>School Closing Date:</strong></label>
-                            <input type="date" class="form-control" id="school_closing_date" name="school_closing_date" required>
+                    @if($isSecondary)
+                        <div class="form-group">
+                            <label class="font-weight-bold">Academic Level <span class="text-danger">*</span></label>
+                            <select name="level_type" id="reg_level_type" class="form-control" required>
+                                <option value="">-- Select Level --</option>
+                                <option value="O_Level">O Level</option>
+                                <option value="A_Level">A Level</option>
+                            </select>
                         </div>
-                        <div class="col-md-6">
-                            <label for="school_reopening_date"><strong>School Reopening Date:</strong></label>
-                            <input type="date" class="form-control" id="school_reopening_date" name="school_reopening_date" required>
+
+                        <div id="regOLevelBox" class="ay-level-box">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Year <span class="text-danger">*</span></label>
+                                <input type="number" name="year" id="reg_year" class="form-control" min="1990" max="2100" step="1" value="2026" placeholder="e.g. 2026">
+                                <small class="text-muted">Enter year only (e.g. 2026)</small>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="row mt-3">
-                        <div class="col-md-12">
-                            <label for="close_notes"><strong>Notes (Optional):</strong></label>
-                            <textarea class="form-control" id="close_notes" name="close_notes" rows="3" placeholder="Add any notes about closing this academic year..."></textarea>
+
+                        <div id="regALevelBox" class="ay-level-box">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Start Year <span class="text-danger">*</span></label>
+                                <input type="number" name="start_year" id="reg_start_year" class="form-control" min="1990" max="2100" step="1" value="2025" placeholder="e.g. 2025">
+                            </div>
+                            <div class="form-group">
+                                <label class="font-weight-bold">End Year <span class="text-danger">*</span></label>
+                                <input type="number" name="end_year" id="reg_end_year" class="form-control" min="1990" max="2100" step="1" value="2026" placeholder="e.g. 2026">
+                                <small class="text-muted">A-Level year will be saved as Start/End (e.g. 2025/2026)</small>
+                            </div>
                         </div>
+                    @else
+                        <div class="form-group">
+                            <label class="font-weight-bold">Year <span class="text-danger">*</span></label>
+                            <input type="number" name="year" id="reg_year" class="form-control" min="1990" max="2100" step="1" value="2026" placeholder="e.g. 2026" required>
+                            <small class="text-muted">Enter year only (e.g. 2026)</small>
+                        </div>
+                    @endif
+
+                    <div class="form-group">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="reg_is_current" name="is_current" value="1">
+                            <label class="custom-control-label" for="reg_is_current">Set as current academic year</label>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            @if($isSecondary)
+                                O-Level and A-Level can each have one current year (both may be current together).
+                            @else
+                                Only one current academic year is allowed for primary schools.
+                            @endif
+                        </small>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                        <i class="fa fa-times"></i> Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary-custom" id="confirmCloseYearBtn">
-                        <i class="fa fa-lock"></i> Confirm Close Year
-                    </button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom"><i class="fa fa-save"></i> Save</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- SweetAlert2 CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+{{-- Edit Modal --}}
+<div class="modal fade" id="editYearModal" tabindex="-1" role="dialog" aria-labelledby="editYearModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title" id="editYearModalLabel"><i class="fa fa-edit"></i> Edit Academic Year</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="editYearForm">
+                <input type="hidden" id="edit_academic_yearID" name="academic_yearID">
+                <div class="modal-body">
+                    @if($isSecondary)
+                        <div class="form-group">
+                            <label class="font-weight-bold">Academic Level <span class="text-danger">*</span></label>
+                            <select name="level_type" id="edit_level_type" class="form-control" required>
+                                <option value="">-- Select Level --</option>
+                                <option value="O_Level">O Level</option>
+                                <option value="A_Level">A Level</option>
+                            </select>
+                        </div>
 
-<!-- jQuery and Bootstrap - Load FIRST before any JavaScript code -->
+                        <div id="editOLevelBox" class="ay-level-box">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Year <span class="text-danger">*</span></label>
+                                <input type="number" name="year" id="edit_year" class="form-control" min="1990" max="2100" step="1">
+                            </div>
+                        </div>
 
+                        <div id="editALevelBox" class="ay-level-box">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Start Year <span class="text-danger">*</span></label>
+                                <input type="number" name="start_year" id="edit_start_year" class="form-control" min="1990" max="2100" step="1">
+                            </div>
+                            <div class="form-group">
+                                <label class="font-weight-bold">End Year <span class="text-danger">*</span></label>
+                                <input type="number" name="end_year" id="edit_end_year" class="form-control" min="1990" max="2100" step="1">
+                            </div>
+                        </div>
+                    @else
+                        <div class="form-group">
+                            <label class="font-weight-bold">Year <span class="text-danger">*</span></label>
+                            <input type="number" name="year" id="edit_year" class="form-control" min="1990" max="2100" step="1" required>
+                        </div>
+                    @endif
 
-<!-- SweetAlert2 JavaScript -->
+                    <div class="form-group">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="edit_is_current" name="is_current" value="1">
+                            <label class="custom-control-label" for="edit_is_current">Set as current academic year</label>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            @if($isSecondary)
+                                O-Level and A-Level can each have one current year (both may be current together).
+                            @else
+                                Only one current academic year is allowed for primary schools.
+                            @endif
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom"><i class="fa fa-save"></i> Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- View Modal --}}
+<div class="modal fade" id="viewYearModal" tabindex="-1" role="dialog" aria-labelledby="viewYearModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title" id="viewYearModalLabel"><i class="fa fa-eye"></i> Academic Year Details</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-bordered mb-0">
+                    <tr>
+                        <th width="40%">Year Name</th>
+                        <td id="view_year_name">-</td>
+                    </tr>
+                    <tr>
+                        <th>Current</th>
+                        <td id="view_is_current">-</td>
+                    </tr>
+                    @if($isSecondary)
+                    <tr>
+                        <th>Level</th>
+                        <td id="view_level_type">-</td>
+                    </tr>
+                    @endif
+                    <tr>
+                        <th>Created</th>
+                        <td id="view_created_at">-</td>
+                    </tr>
+                    <tr>
+                        <th>Updated</th>
+                        <td id="view_updated_at">-</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap4.min.js"></script>
 <script>
-// On page load, show only current year by default
-document.addEventListener('DOMContentLoaded', function() {
-    // Hide all past years by default
-    document.querySelectorAll('.year-widget.past').forEach(widget => {
-        widget.style.display = 'none';
-    });
-    
-    // Hide past years header by default
-    document.getElementById('pastYearsHeader').style.display = 'none';
-    const noPastYears = document.getElementById('noPastYears');
-    if (noPastYears) {
-        noPastYears.style.display = 'none';
-    }
-    
-    // Show current year widget
-    const currentYearWidget = document.getElementById('year-current');
-    if (currentYearWidget) {
-        currentYearWidget.style.display = 'block';
-    }
-});
+(function ($) {
+    var isSecondary = @json($isSecondary);
+    var csrfToken = $('meta[name="csrf-token"]').attr('content');
+    var routes = {
+        store: @json(route('admin.academicYears.store')),
+        show: @json(url('admin/academic-years')),
+        update: @json(url('admin/academic-years')),
+        destroy: @json(url('admin/academic-years'))
+    };
+    var ayTable = null;
+    var actionsCol = isSecondary ? 4 : 3;
 
-function filterYear(yearID) {
-    const pastYearsHeader = document.getElementById('pastYearsHeader');
-    const noPastYears = document.getElementById('noPastYears');
-    
-    if (!yearID || yearID === 'current') {
-        // Show current year only
-        document.querySelectorAll('.year-widget').forEach(widget => {
-            widget.style.display = 'none';
+    function swalOpts(extra) {
+        return Object.assign({
+            customClass: {
+                popup: 'ay-swal-popup',
+                confirmButton: 'ay-swal-confirm'
+            }
+        }, extra || {});
+    }
+
+    function initAyDataTable() {
+        if (!$.fn.DataTable) return;
+        if ($.fn.DataTable.isDataTable('#academicYearsTable')) {
+            ayTable = $('#academicYearsTable').DataTable();
+            return;
+        }
+        ayTable = $('#academicYearsTable').DataTable({
+            pageLength: 10,
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+            order: [[1, 'desc']],
+            columnDefs: [
+                { orderable: false, targets: [actionsCol] },
+                { searchable: false, targets: [0, actionsCol] }
+            ],
+            language: {
+                emptyTable: 'No academic years registered yet.',
+                search: 'Search:',
+                lengthMenu: 'Show _MENU_',
+                info: 'Showing _START_ to _END_ of _TOTAL_',
+                zeroRecords: 'No matching academic years'
+            }
         });
-        const currentYearWidget = document.getElementById('year-current');
-        if (currentYearWidget) {
-            currentYearWidget.style.display = 'block';
-        }
-        pastYearsHeader.style.display = 'none';
-        if (noPastYears) {
-            noPastYears.style.display = 'none';
-        }
-    } else if (yearID === '') {
-        // Show all years
-        document.querySelectorAll('.year-widget').forEach(widget => {
-            widget.style.display = 'block';
-        });
-        pastYearsHeader.style.display = 'block';
-        if (noPastYears) {
-            noPastYears.style.display = 'none';
-        }
-    } else {
-        // Show only selected past year
-        document.querySelectorAll('.year-widget').forEach(widget => {
-            widget.style.display = 'none';
-        });
-        const selectedWidget = document.getElementById('year-' + yearID);
-        if (selectedWidget) {
-            selectedWidget.style.display = 'block';
-            pastYearsHeader.style.display = 'block';
-        }
-        if (noPastYears) {
-            noPastYears.style.display = 'none';
+    }
+
+    function adjustAyDataTable() {
+        if (ayTable) {
+            setTimeout(function () {
+                ayTable.columns.adjust();
+            }, 50);
         }
     }
-}
 
-function closeYear() {
-    // Show modal using jQuery (should be loaded by now)
-    if (typeof jQuery !== 'undefined' && typeof jQuery.fn.modal !== 'undefined') {
-        jQuery('#closeYearModal').modal('show');
-    } else {
-        // Fallback if jQuery/Bootstrap not loaded
-        console.error('jQuery or Bootstrap not loaded. Please refresh the page.');
-        alert('Please wait for page to fully load, then try again.');
+    function filterAyGrid(term) {
+        term = (term || '').toLowerCase().trim();
+        var visible = 0;
+        $('#academicYearsGrid .ay-grid-item').each(function () {
+            var hay = ($(this).attr('data-search') || '').toLowerCase();
+            var show = !term || hay.indexOf(term) !== -1;
+            $(this).toggle(show);
+            if (show) visible++;
+        });
+        var hasItems = $('#academicYearsGrid .ay-grid-item').length > 0;
+        $('.ay-grid-no-results').toggleClass('d-none', !hasItems || visible > 0);
     }
-}
 
-function openNewYear() {
-    Swal.fire({
-        title: 'Open New Year',
-        html: 'Do you want to open a new academic year?<br><br><small>This will create a new active academic year and you can start fresh.</small>',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#940000',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, open new year',
-        cancelButtonText: 'Cancel'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Show loading
-            Swal.fire({
-                title: 'Opening New Year...',
-                text: 'Please wait while we create the new academic year.',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
+    function syncAyViewToggleButtons() {
+        $('.ay-view-toggle').each(function () {
+            var wrapperId = $(this).data('wrapper');
+            var $wrapper = $('#' + wrapperId);
+            var forced = $wrapper.attr('data-active-view');
+            var view = forced || (window.matchMedia('(min-width: 768px)').matches ? 'list' : 'grid');
+            $(this).find('[data-view]').each(function () {
+                $(this).toggleClass('active', $(this).attr('data-view') === view);
             });
+            if (view === 'list') {
+                adjustAyDataTable();
+            }
+        });
+    }
+
+    $(document).on('click', '.ay-view-toggle [data-view]', function () {
+        var view = $(this).attr('data-view');
+        var wrapperId = $(this).closest('.ay-view-toggle').data('wrapper');
+        var $wrapper = $('#' + wrapperId);
+        $wrapper.attr('data-active-view', view);
+        $(this).closest('.ay-view-toggle').find('[data-view]').removeClass('active');
+        $(this).addClass('active');
+        if (view === 'list') {
+            adjustAyDataTable();
+        }
+    });
+
+    $('#ayGridSearch').on('input', function () {
+        filterAyGrid($(this).val());
+    });
+
+    initAyDataTable();
+    syncAyViewToggleButtons();
+    $(window).on('resize', syncAyViewToggleButtons);
+
+    function toggleLevelBoxes(prefix, levelType) {
+        var oBox = $('#' + prefix + 'OLevelBox');
+        var aBox = $('#' + prefix + 'ALevelBox');
+        oBox.removeClass('is-visible');
+        aBox.removeClass('is-visible');
+        if (levelType === 'O_Level') {
+            oBox.addClass('is-visible');
+        } else if (levelType === 'A_Level') {
+            aBox.addClass('is-visible');
+        }
+    }
+
+    function collectPayload($form, isEdit) {
+        var payload = {
+            is_current: $form.find('[name="is_current"]').is(':checked') ? 1 : 0,
+            _token: csrfToken
+        };
+
+        if (isSecondary) {
+            var levelType = $form.find('[name="level_type"]').val();
+            payload.level_type = levelType;
+            if (levelType === 'O_Level') {
+                payload.year = $form.find('[name="year"]').val();
+            } else if (levelType === 'A_Level') {
+                payload.start_year = $form.find('[name="start_year"]').val();
+                payload.end_year = $form.find('[name="end_year"]').val();
+            }
+        } else {
+            payload.year = $form.find('[name="year"]').val();
+        }
+
+        return payload;
+    }
+
+    function reloadPageList() {
+        window.location.reload();
+    }
+
+    if (isSecondary) {
+        $('#reg_level_type').on('change', function () {
+            toggleLevelBoxes('reg', $(this).val());
+        });
+        $('#edit_level_type').on('change', function () {
+            toggleLevelBoxes('edit', $(this).val());
+        });
+        $('#reg_start_year').on('input', function () {
+            var start = parseInt($(this).val(), 10);
+            if (!isNaN(start)) {
+                $('#reg_end_year').val(start + 1);
+            }
+        });
+        $('#edit_start_year').on('input', function () {
+            var start = parseInt($(this).val(), 10);
+            if (!isNaN(start)) {
+                $('#edit_end_year').val(start + 1);
+            }
+        });
+    }
+
+    $('#registerYearForm').on('submit', function (e) {
+        e.preventDefault();
+        var payload = collectPayload($(this), false);
+
+        $.ajax({
+            url: routes.store,
+            method: 'POST',
+            data: payload,
+            success: function (res) {
+                $('#registerYearModal').modal('hide');
+                Swal.fire(swalOpts({
+                    icon: 'success',
+                    title: 'Saved',
+                    text: res.message || 'Academic year registered successfully.'
+                })).then(function () {
+                    reloadPageList();
+                });
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to register academic year.';
+                Swal.fire(swalOpts({ icon: 'error', title: 'Error', text: msg }));
+            }
+        });
+    });
+
+    $('#registerYearModal').on('hidden.bs.modal', function () {
+        $('#registerYearForm')[0].reset();
+        $('#reg_year').val('2026');
+        if (isSecondary) {
+            $('#reg_start_year').val('2025');
+            $('#reg_end_year').val('2026');
+            toggleLevelBoxes('reg', '');
+        }
+    });
+
+    $('#registerYearModal').on('show.bs.modal', function () {
+        $('#reg_year').val('2026');
+        if (isSecondary) {
+            $('#reg_start_year').val('2025');
+            $('#reg_end_year').val('2026');
+        }
+    });
+
+    $(document).on('click', '.btn-view-year', function () {
+        var id = $(this).data('id');
+        $.get(routes.show + '/' + id, function (res) {
+            if (!res.success) {
+                Swal.fire(swalOpts({ icon: 'error', title: 'Error', text: res.message || 'Not found' }));
+                return;
+            }
+            var y = res.year;
+            $('#view_year_name').text(y.year_name || y.year);
+            $('#view_is_current').html(y.is_current ? '<span class="ay-current-badge">Current</span>' : '<span class="ay-badge-muted">No</span>');
+            if (isSecondary) {
+                $('#view_level_type').text(y.level_type === 'A_Level' ? 'A Level' : 'O Level');
+            }
+            $('#view_created_at').text(y.created_at || '-');
+            $('#view_updated_at').text(y.updated_at || '-');
+            $('#viewYearModal').modal('show');
+        }).fail(function (xhr) {
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to load academic year.';
+            Swal.fire(swalOpts({ icon: 'error', title: 'Error', text: msg }));
+        });
+    });
+
+    $(document).on('click', '.btn-edit-year', function () {
+        var id = $(this).data('id');
+        $.get(routes.show + '/' + id, function (res) {
+            if (!res.success) {
+                Swal.fire(swalOpts({ icon: 'error', title: 'Error', text: res.message || 'Not found' }));
+                return;
+            }
+            var y = res.year;
+            $('#edit_academic_yearID').val(y.academic_yearID);
+            $('#edit_is_current').prop('checked', !!y.is_current);
+
+            if (isSecondary) {
+                $('#edit_level_type').val(y.level_type || '');
+                toggleLevelBoxes('edit', y.level_type || '');
+                if (y.level_type === 'A_Level') {
+                    $('#edit_start_year').val(y.start_year || y.year);
+                    $('#edit_end_year').val(y.end_year || '');
+                } else {
+                    $('#edit_year').val(y.year);
+                }
+            } else {
+                $('#edit_year').val(y.year);
+            }
+
+            $('#editYearModal').modal('show');
+        }).fail(function (xhr) {
+            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to load academic year.';
+            Swal.fire(swalOpts({ icon: 'error', title: 'Error', text: msg }));
+        });
+    });
+
+    $('#editYearForm').on('submit', function (e) {
+        e.preventDefault();
+        var id = $('#edit_academic_yearID').val();
+        var payload = collectPayload($(this), true);
+
+        $.ajax({
+            url: routes.update + '/' + id + '/update',
+            method: 'POST',
+            data: payload,
+            success: function (res) {
+                $('#editYearModal').modal('hide');
+                Swal.fire(swalOpts({
+                    icon: 'success',
+                    title: 'Updated',
+                    text: res.message || 'Academic year updated successfully.'
+                })).then(function () {
+                    reloadPageList();
+                });
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to update academic year.';
+                Swal.fire(swalOpts({ icon: 'error', title: 'Error', text: msg }));
+            }
+        });
+    });
+
+    $(document).on('click', '.btn-delete-year', function () {
+        var id = $(this).data('id');
+        var name = $(this).data('name');
+
+        Swal.fire(swalOpts({
+            icon: 'warning',
+            title: 'Delete Academic Year?',
+            text: 'Delete "' + name + '"? This cannot be undone.',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, delete',
+            confirmButtonColor: '#940000',
+            cancelButtonText: 'Cancel'
+        })).then(function (result) {
+            if (!result.isConfirmed) return;
 
             $.ajax({
-                url: '{{ route("admin.academicYears.open") }}',
+                url: routes.destroy + '/' + id + '/delete',
                 method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(response) {
-                    if (response.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message,
-                            confirmButtonColor: '#940000'
-                        }).then(() => {
-                            // Reload page to show new year
-                            window.location.reload();
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: response.message || 'Failed to open new academic year',
-                            confirmButtonColor: '#940000'
-                        });
-                    }
-                },
-                error: function(xhr) {
-                    let errorMessage = 'Failed to open new academic year';
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    }
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error!',
-                        text: errorMessage,
-                        confirmButtonColor: '#940000'
+                data: { _token: csrfToken },
+                success: function (res) {
+                    Swal.fire(swalOpts({
+                        icon: 'success',
+                        title: 'Deleted',
+                        text: res.message || 'Academic year deleted successfully.'
+                    })).then(function () {
+                        reloadPageList();
                     });
+                },
+                error: function (xhr) {
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to delete academic year.';
+                    Swal.fire(swalOpts({ icon: 'error', title: 'Error', text: msg }));
                 }
             });
-        }
-    });
-}
-
-// Handle Close Year Form Submission
-$(document).ready(function() {
-    $('#closeYearForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        // Close the form modal completely first - hide it completely
-        $('#closeYearModal').modal('hide');
-        $('#closeYearModal').css('display', 'none');
-        $('#closeYearModal').removeClass('show');
-        
-        // Remove any backdrop from form modal
-        $('.modal-backdrop').remove();
-        $('body').removeClass('modal-open');
-        $('body').css('padding-right', '');
-        
-        // Wait for form modal to fully close, then show progress modal
-        setTimeout(function() {
-            // Ensure form modal is completely hidden
-            $('#closeYearModal').css('display', 'none');
-            $('#closeYearModal').removeClass('show');
-            
-            // Show progress modal
-            $('#closeYearProgressModal').modal('show');
-            updateCloseYearProgress(5, 'Preparing to close academic year...');
-        }, 400);
-        
-        // Get form data
-        const formData = {
-            modalities: [],
-            school_closing_date: $('#school_closing_date').val(),
-            school_reopening_date: $('#school_reopening_date').val(),
-            close_notes: $('#close_notes').val(),
-            _token: $('meta[name="csrf-token"]').attr('content')
-        };
-        
-        // Get selected modalities
-        $('input[name="modalities[]"]:checked').each(function() {
-            formData.modalities.push($(this).val());
-        });
-        
-        // Add save_to_history as mandatory
-        if (formData.modalities.indexOf('save_to_history') === -1) {
-            formData.modalities.push('save_to_history');
-        }
-        
-        // Validate dates
-        if (!formData.school_closing_date || !formData.school_reopening_date) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: 'Please fill in both closing and reopening dates.',
-                confirmButtonColor: '#940000'
-            });
-            $('#closeYearProgressModal').modal('hide');
-            $('#closeYearModal').modal('show');
-            $('#confirmCloseYearBtn').prop('disabled', false).html('<i class="fa fa-lock"></i> Confirm Close Year');
-            return;
-        }
-        
-        // Validate at least one modality is selected
-        if (formData.modalities.length === 0) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: 'Please select at least one modality to perform.',
-                confirmButtonColor: '#940000'
-            });
-            $('#closeYearProgressModal').modal('hide');
-            $('#closeYearModal').modal('show');
-            $('#confirmCloseYearBtn').prop('disabled', false).html('<i class="fa fa-lock"></i> Confirm Close Year');
-            return;
-        }
-        
-        // Send AJAX request with extended timeout (60 minutes = 3600000 milliseconds)
-        $.ajax({
-            url: '{{ route("admin.academicYears.close") }}',
-            method: 'POST',
-            data: formData,
-            timeout: 3600000, // 60 minutes in milliseconds
-            xhr: function() {
-                var xhr = new window.XMLHttpRequest();
-                // Track upload progress
-                xhr.upload.addEventListener("progress", function(evt) {
-                    if (evt.lengthComputable) {
-                        var percentComplete = Math.min(5 + (evt.loaded / evt.total) * 5, 10);
-                        updateCloseYearProgress(percentComplete, 'Sending request...');
-                    }
-                }, false);
-                return xhr;
-            },
-            beforeSend: function() {
-                updateCloseYearProgress(10, 'Request sent, processing...');
-            },
-            success: function(response) {
-                updateCloseYearProgress(100, 'Completed successfully!');
-                if (response.success) {
-                    updateCloseYearProgress(100, 'Completed successfully!');
-                    setTimeout(function() {
-                        $('#closeYearProgressModal').modal('hide');
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: 'Academic year closed successfully!',
-                            confirmButtonColor: '#940000',
-                            confirmButtonText: 'OK'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                location.reload();
-                            }
-                        });
-                    }, 1500);
-                } else {
-                    $('#closeYearProgressModal').modal('hide');
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: response.message || 'Failed to close academic year.',
-                        confirmButtonColor: '#940000'
-                    }).then(() => {
-                        $('#closeYearModal').modal('show');
-                        $('#confirmCloseYearBtn').prop('disabled', false).html('<i class="fa fa-lock"></i> Confirm Close Year');
-                    });
-                }
-            },
-            error: function(xhr) {
-                let errorMessage = 'Failed to close academic year.';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMessage = xhr.responseJSON.message;
-                } else if (xhr.responseText) {
-                    try {
-                        const error = JSON.parse(xhr.responseText);
-                        if (error.message) {
-                            errorMessage = error.message;
-                        }
-                    } catch(e) {
-                        errorMessage = xhr.responseText.substring(0, 200);
-                    }
-                }
-                $('#closeYearProgressModal').modal('hide');
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: errorMessage,
-                    confirmButtonColor: '#940000'
-                }).then(() => {
-                    $('#closeYearModal').modal('show');
-                    $('#confirmCloseYearBtn').prop('disabled', false).html('<i class="fa fa-lock"></i> Confirm Close Year');
-                });
-            }
         });
     });
-});
-
-// Progress bar update function
-function updateCloseYearProgress(percent, status) {
-    percent = Math.min(100, Math.max(0, percent));
-    $('#closeYearProgressBar').css('width', percent + '%').attr('aria-valuenow', percent);
-    $('#closeYearProgressText').text(Math.round(percent) + '%');
-    $('#closeYearProgressStatus').text(status);
-    
-    // Simulate progress if less than 90% (to show activity)
-    if (percent < 90) {
-        // Gradually increase progress to show activity
-        setTimeout(function() {
-            var currentPercent = parseFloat($('#closeYearProgressBar').attr('aria-valuenow'));
-            if (currentPercent < 90) {
-                var increment = Math.random() * 2; // Random increment 0-2%
-                updateCloseYearProgress(currentPercent + increment, status);
-            }
-        }, 5000); // Update every 5 seconds
-    }
-}
-
-// Close progress modal and show form modal
-function closeProgressModal() {
-    // Check if SweetAlert2 is loaded
-    if (typeof Swal === 'undefined') {
-        // Fallback to regular confirm
-        if (confirm('Are you sure you want to cancel closing the academic year? The process will be interrupted.')) {
-            $('#closeYearProgressModal').modal('hide');
-            $('#closeYearProgressModal').css('display', 'none');
-            $('#closeYearProgressModal').removeClass('show');
-            $('.modal-backdrop').remove();
-            $('body').removeClass('modal-open');
-            $('body').css('padding-right', '');
-            
-            // Show form modal again
-            setTimeout(function() {
-                $('#closeYearModal').modal('show');
-                $('#confirmCloseYearBtn').prop('disabled', false).html('<i class="fa fa-lock"></i> Confirm Close Year');
-            }, 300);
-        }
-        return;
-    }
-    
-    Swal.fire({
-        title: 'Cancel Process?',
-        text: 'Are you sure you want to cancel closing the academic year? The process will be interrupted.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, cancel',
-        cancelButtonText: 'No, continue',
-        allowOutsideClick: false,
-        allowEscapeKey: true
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Hide progress modal completely
-            $('#closeYearProgressModal').modal('hide');
-            $('#closeYearProgressModal').css('display', 'none');
-            $('#closeYearProgressModal').removeClass('show');
-            $('.modal-backdrop').remove();
-            $('body').removeClass('modal-open');
-            $('body').css('padding-right', '');
-            
-            // Show form modal again
-            setTimeout(function() {
-                $('#closeYearModal').modal('show');
-                $('#confirmCloseYearBtn').prop('disabled', false).html('<i class="fa fa-lock"></i> Confirm Close Year');
-            }, 300);
-        }
-    });
-}
+})(jQuery);
 </script>
-
-@include('includes.footer')
-
