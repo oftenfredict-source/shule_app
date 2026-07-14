@@ -169,43 +169,7 @@ class ManageStudentController extends Controller
      */
     private function ensureParentLoginUser($parent): void
     {
-        if (!$parent) {
-            return;
-        }
-
-        $phone = trim((string) ($parent->phone ?? ''));
-        if ($phone === '') {
-            return;
-        }
-
-        $email = trim((string) ($parent->email ?? ''));
-        $email = $email !== '' ? $email : null;
-
-        $existing = User::where('name', $phone)->first();
-        if ($existing) {
-            return;
-        }
-
-        if ($email && User::where('email', $email)->exists()) {
-            // Parent email already belongs to another login — do not fail; use synthetic email
-            $email = null;
-        }
-        if (!$email) {
-            $digits = preg_replace('/\D+/', '', $phone) ?: ('p' . $parent->parentID);
-            $email = $digits . '@parent.local';
-            $i = 1;
-            while (User::where('email', $email)->exists()) {
-                $email = $digits . '_' . $i . '@parent.local';
-                $i++;
-            }
-        }
-
-        User::create([
-            'name' => $phone,
-            'email' => $email,
-            'password' => Hash::make($parent->first_name ?: $phone),
-            'user_type' => 'parent',
-        ]);
+        \App\Support\ParentUserAccount::ensure($parent);
     }
 
     public function save_student(Request $request)

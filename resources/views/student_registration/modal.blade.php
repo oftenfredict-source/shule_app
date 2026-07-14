@@ -1763,6 +1763,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 formData.set('subclassID', subclassID);
 
+                // Force existing parent link — must send parent_id so backend skips ParentModel::create
+                const parentIdField = document.getElementById('parentIdField');
+                const resolvedParentId = selectedParentId || (parentIdField ? parentIdField.value : '') || '';
+                if (resolvedParentId) {
+                    formData.set('parent_id', String(resolvedParentId));
+                    if (parentIdField) {
+                        parentIdField.value = String(resolvedParentId);
+                    }
+                } else {
+                    formData.delete('parent_id');
+                }
+
                 // Format parent phone to start with 255 (not +255)
                 const parentPhone = formData.get('parent_phone');
                 if (parentPhone) {

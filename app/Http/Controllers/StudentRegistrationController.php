@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\ParentModel;
 use App\Services\SmsService;
 use App\Services\StudentEnrollmentService;
+use App\Support\ParentUserAccount;
 use App\Support\SafeErrorMessage;
 
 class StudentRegistrationController extends Controller
@@ -403,19 +404,15 @@ class StudentRegistrationController extends Controller
                 'user_type' => 'student',
             ]);
 
-            // Ensure parent has user account (Username = phone, Password = last_name)
+            // Ensure parent has user account (Username = phone, Password = first_name)
             $parentID = $registration['parentID'] ?? null;
             if ($parentID) {
                 $parent = ParentModel::find($parentID);
                 if ($parent) {
-                    $existingUser = User::where('name', $parent->phone)->first();
-                    if (!$existingUser) {
-                        User::create([
-                            'name' => $parent->phone,
-                            'email' => $parent->email ?: null,
-                            'password' => Hash::make($parent->first_name),
-                            'user_type' => 'parent',
-                        ]);
+                    try {
+                        ParentUserAccount::ensure($parent);
+                    } catch (\Throwable $e) {
+                        \Log::warning('Parent login user create skipped (wizard): ' . $e->getMessage());
                     }
                 }
             }
@@ -630,20 +627,15 @@ class StudentRegistrationController extends Controller
                 ]);
                 $parentID = $parent->parentID;
                 $parentRelationship = $request->parent_relationship;
-                
-                // Create user account for new parent if doesn't exist
-                // Username = phone number, Password = last_name
-                $existingUser = User::where('name', $phone)->first();
-                if (!$existingUser) {
-                    User::create([
-                        'name' => $phone, // Username = phone number
-                        'email' => $request->parent_email ?? null,
-                        'password' => Hash::make($request->parent_first_name), // Password = first_name
-                        'user_type' => 'parent'
-                    ]);
+
+                // Login user only — never fail registration on email collision
+                try {
+                    ParentUserAccount::ensure($parent);
+                } catch (\Throwable $e) {
+                    \Log::warning('Parent login user create skipped (new parent): ' . $e->getMessage());
                 }
             } else {
-                // Using existing parent - get relationship from parent record
+                // Using existing parent — link student only; do NOT insert into parents
                 $existingParent = ParentModel::find($parentID);
                 if (!$existingParent) {
                     return response()->json([
@@ -652,17 +644,11 @@ class StudentRegistrationController extends Controller
                     ], 404);
                 }
                 $parentRelationship = $existingParent->relationship_to_student ?? 'Parent/Guardian';
-                
-                // Ensure parent has user account (if not, create one)
-                $parentPhone = $existingParent->phone;
-                $existingUser = User::where('name', $parentPhone)->first();
-                if (!$existingUser) {
-                    User::create([
-                        'name' => $parentPhone, // Username = phone number
-                        'email' => $existingParent->email ?? null,
-                        'password' => Hash::make($existingParent->first_name), // Password = first_name
-                        'user_type' => 'parent'
-                    ]);
+
+                try {
+                    ParentUserAccount::ensure($existingParent);
+                } catch (\Throwable $e) {
+                    \Log::warning('Parent login user create skipped (existing parent): ' . $e->getMessage());
                 }
             }
 
