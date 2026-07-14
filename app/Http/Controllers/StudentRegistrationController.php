@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\ParentModel;
 use App\Services\SmsService;
 use App\Services\StudentEnrollmentService;
+use App\Support\ParentPhone;
 use App\Support\ParentUserAccount;
 use App\Support\SafeErrorMessage;
 
@@ -106,10 +107,7 @@ class StudentRegistrationController extends Controller
                 ], 400);
             }
             
-            // First check if parent exists in current school
-            $parent = ParentModel::where('schoolID', $schoolID)
-                ->where('phone', $request->phone)
-                ->first();
+            $parent = ParentPhone::findInSchool((int) $schoolID, $request->phone);
 
             if ($parent) {
                 // Get image path - parent photos are stored in public/userImages/
@@ -140,9 +138,7 @@ class StudentRegistrationController extends Controller
             }
 
             // Check if phone number exists in another school
-            $parentInOtherSchool = ParentModel::where('phone', $request->phone)
-                ->where('schoolID', '!=', $schoolID)
-                ->first();
+            $parentInOtherSchool = ParentPhone::findAnywhere($request->phone, (int) $schoolID);
 
             if ($parentInOtherSchool) {
                 return response()->json([
@@ -527,15 +523,11 @@ class StudentRegistrationController extends Controller
             ];
 
             // If using existing parent, new parent fields are not required
-            // If creating new parent, parent fields are required
-            if (!$request->parent_id) {
-                $validationRules['parent_phone'] = 'required|string|max:20';
-                $validationRules['parent_relationship'] = 'required|string|max:100';
-                $validationRules['parent_first_name'] = 'required|string|max:100';
-                $validationRules['parent_last_name'] = 'required|string|max:100';
-            } else {
-                // When using existing parent, ensure parent_id is valid
+            // If creating new parent, phone is required; names validated after phone-reuse check
+            if ($request->filled('parent_id')) {
                 $validationRules['parent_id'] = 'required|exists:parents,parentID';
+            } else {
+                $validationRules['parent_phone'] = 'required|string|max:20';
             }
 
             $validated = $request->validate($validationRules);
@@ -572,84 +564,92 @@ class StudentRegistrationController extends Controller
                 $photoPath = $imageName; // Store just the filename, not full path
             }
 
-            // Get or create parent
-            $parentID = $request->parent_id;
+            // Resolve parent: existing parent_id OR same-school phone → link FK only.
+            // Never update an existing parent's phone/details during student registration.
+            $parentID = $request->filled('parent_id') ? $request->parent_id : null;
             $parentRelationship = null;
-            
-            if (!$parentID) {
-                // Create new parent - format phone number to start with 255 (not +255)
-                $phone = $request->parent_phone;
-                if ($phone) {
-                    $phone = preg_replace('/[^0-9]/', '', $phone); // Remove any non-numeric characters
-                    // Remove leading 255 if user entered it (we'll add it back)
-                    if (str_starts_with($phone, '255')) {
-                        $phone = substr($phone, 3);
-                    }
-                    // Add 255 prefix (without +)
-                    $phone = '255' . $phone;
-                }
-                
-                // Check if phone number already exists (unique across parents)
-                $existingByPhone = ParentModel::where('phone', $phone)->first();
-                if ($existingByPhone) {
-                    $sameSchool = (int) $existingByPhone->schoolID === (int) $schoolID;
-                    $message = $sameSchool
-                        ? 'This phone number is already registered. Please search for the existing parent and select them, or use a different number.'
-                        : 'This phone number already exists in another school. Please try another number.';
+            $isNewParent = false;
+            $parent = null;
 
+            if ($parentID) {
+                $parent = ParentModel::where('parentID', $parentID)
+                    ->where('schoolID', $schoolID)
+                    ->first();
+                if (!$parent) {
                     return response()->json([
                         'success' => false,
-                        'message' => $message,
-                        'errors' => [
-                            'parent_phone' => [$message]
-                        ]
-                    ], 422);
-                }
-                
-                // Create new parent - relationship is required
-                if (!$request->parent_relationship) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Parent relationship is required when creating a new parent.'
-                    ], 422);
-                }
-                
-                $parent = ParentModel::create([
-                    'schoolID' => $schoolID,
-                    'first_name' => $request->parent_first_name,
-                    'middle_name' => $request->parent_middle_name ?? null,
-                    'last_name' => $request->parent_last_name,
-                    'phone' => $phone,
-                    'relationship_to_student' => $request->parent_relationship,
-                    'occupation' => $request->parent_occupation ?? null,
-                    'address' => $request->parent_address ?? null,
-                    'email' => $request->parent_email ?? null
-                ]);
-                $parentID = $parent->parentID;
-                $parentRelationship = $request->parent_relationship;
-
-                // Login user only — never fail registration on email collision
-                try {
-                    ParentUserAccount::ensure($parent);
-                } catch (\Throwable $e) {
-                    \Log::warning('Parent login user create skipped (new parent): ' . $e->getMessage());
-                }
-            } else {
-                // Using existing parent — link student only; do NOT insert into parents
-                $existingParent = ParentModel::find($parentID);
-                if (!$existingParent) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Selected parent not found.'
+                        'message' => 'Selected parent not found in this school.'
                     ], 404);
                 }
-                $parentRelationship = $existingParent->relationship_to_student ?? 'Parent/Guardian';
+            } else {
+                // parent_id missing? Still reuse if phone already belongs to a parent in this school
+                $phone = ParentPhone::normalize($request->parent_phone);
+                $parent = $phone ? ParentPhone::findInSchool((int) $schoolID, $phone) : null;
 
-                try {
-                    ParentUserAccount::ensure($existingParent);
-                } catch (\Throwable $e) {
-                    \Log::warning('Parent login user create skipped (existing parent): ' . $e->getMessage());
+                if (!$parent && $phone) {
+                    $inOtherSchool = ParentPhone::findAnywhere($phone, (int) $schoolID);
+                    if ($inOtherSchool) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'This phone number already exists in another school. Please try another number.',
+                            'errors' => [
+                                'parent_phone' => ['This phone number already exists in another school. Please try another number.']
+                            ]
+                        ], 422);
+                    }
+
+                    if (!$request->parent_relationship) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Parent relationship is required when creating a new parent.'
+                        ], 422);
+                    }
+
+                    if (!$request->parent_first_name || !$request->parent_last_name) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Parent first and last name are required when creating a new parent.'
+                        ], 422);
+                    }
+
+                    $parent = ParentModel::create([
+                        'schoolID' => $schoolID,
+                        'first_name' => $request->parent_first_name,
+                        'middle_name' => $request->parent_middle_name ?? null,
+                        'last_name' => $request->parent_last_name,
+                        'phone' => $phone,
+                        'occupation' => $request->parent_occupation ?? null,
+                        'address' => $request->parent_address ?? null,
+                        'email' => $request->parent_email ?? null
+                    ]);
+                    $isNewParent = true;
                 }
+
+                if (!$parent) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Parent details are required. Search and use an existing parent, or enter a new parent phone.'
+                    ], 422);
+                }
+            }
+
+            $parentID = $parent->parentID;
+            $parentRelationship = $parent->relationship_to_student ?? ($request->parent_relationship ?: 'Parent/Guardian');
+
+            \Log::info('Student registration parent resolve', [
+                'schoolID' => $schoolID,
+                'parentID' => $parentID,
+                'is_new_parent' => $isNewParent,
+                'request_parent_id' => $request->parent_id,
+            ]);
+
+            // Login user only — never mutate parents.phone; never fail student on email collision
+            try {
+                ParentUserAccount::ensure($parent);
+            } catch (\Throwable $e) {
+                \Log::warning('Parent login user create skipped: ' . $e->getMessage(), [
+                    'parentID' => $parentID,
+                ]);
             }
 
             // Create student within transaction
@@ -777,8 +777,8 @@ class StudentRegistrationController extends Controller
                         );
                         $smsSent = $smsResult['success'];
                         
-                        // If parent is new, also send parent credentials
-                        if (!$request->parent_id) {
+                        // If parent is newly created, also send parent credentials
+                        if ($isNewParent) {
                             $parentLastName = $request->parent_last_name ?? $parent->last_name ?? '';
                             if ($parentLastName) {
                                 $parentSmsResult = $smsService->sendParentCredentials(

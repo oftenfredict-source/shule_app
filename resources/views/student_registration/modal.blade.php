@@ -1095,6 +1095,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('foundParentDiv').classList.remove('d-none');
                 document.getElementById('newParentDiv').classList.add('d-none');
                 
+                // Auto-confirm reuse: parent_id is already set — student will only get this FK
+                document.querySelectorAll('#newParentDiv input, #newParentDiv textarea, #newParentDiv select').forEach(field => {
+                    field.classList.remove('is-invalid');
+                    field.removeAttribute('required');
+                    // Do not submit blank new-parent fields that could confuse validation
+                    if (field.name && field.name.startsWith('parent_') && field.name !== 'parent_phone') {
+                        field.disabled = true;
+                    }
+                });
+                
                 // Reset phone validation flag
                 phoneExistsInOtherSchool = false;
             } else if (data.in_other_school) {
@@ -1157,10 +1167,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Hide the new parent form fields
         document.getElementById('newParentDiv').classList.add('d-none');
             
-            // Clear any validation errors on new parent fields
-            document.querySelectorAll('#newParentDiv input, #newParentDiv textarea').forEach(field => {
+            // Clear any validation errors on new parent fields (do not send them)
+            document.querySelectorAll('#newParentDiv input, #newParentDiv textarea, #newParentDiv select').forEach(field => {
                 field.classList.remove('is-invalid');
                 field.removeAttribute('required');
+                if (field.name && field.name.startsWith('parent_') && field.name !== 'parent_phone') {
+                    field.disabled = true;
+                }
             });
             
             // Show success message
@@ -1187,6 +1200,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('parentNotFoundWarning').classList.add('d-none');
         document.getElementById('parentIdField').value = '';
         selectedParentId = null;
+
+        document.querySelectorAll('#newParentDiv input, #newParentDiv textarea, #newParentDiv select').forEach(field => {
+            field.disabled = false;
+        });
         
         // Re-check phone if it has a value
         const phoneInput = document.getElementById('parentPhone');
@@ -1771,6 +1788,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (parentIdField) {
                         parentIdField.value = String(resolvedParentId);
                     }
+                    // Existing parent: only phone for display + parent_id — clear new-parent payload
+                    ['parent_first_name', 'parent_middle_name', 'parent_last_name', 'parent_relationship', 'parent_occupation', 'parent_address', 'parent_email'].forEach(function (key) {
+                        formData.delete(key);
+                    });
                 } else {
                     formData.delete('parent_id');
                 }
