@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Crypt;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use App\Services\SmsService;
+use App\Services\StudentEnrollmentService;
 use App\Models\OtherStaff;
 
 class LibraryController extends Controller
@@ -993,7 +994,8 @@ class LibraryController extends Controller
                 ->where('status', 'borrowed')
                 ->get();
 
-            // Create borrow records for each selected person
+            // NEW borrows: students must have Active enrollment for the header year.
+            // Returns, lost records, and loss/damage payments remain allowed for any enrollment status.
             $ids = $request->borrower_ids;
             $types = $request->borrower_types;
             $createdCount = 0;
@@ -1013,8 +1015,27 @@ class LibraryController extends Controller
                 if (!$exists) {
                     $enrollmentID = null;
                     if ($type === 'student') {
-                        $enrollmentID = app(\App\Services\StudentEnrollmentService::class)
-                            ->bestEnrollmentID($id);
+                        $enrollment = app(StudentEnrollmentService::class)
+                            ->currentEnrollment((int) $id, (int) $schoolID);
+                        if (!$enrollment || $enrollment->status !== 'Active') {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Only students with Active enrollment for the selected academic year can borrow books. Returning a book or settling a lost/damaged book is still allowed.',
+                                'error_code' => 'enrollment_not_active',
+                            ], 422);
+                        }
+
+                        $enrollmentIDs = $request->input('borrower_enrollment_ids', []);
+                        if (is_array($enrollmentIDs) && isset($enrollmentIDs[$index]) && $enrollmentIDs[$index]) {
+                            // Accept only if it matches an Active enrollment for this student/year
+                            if ((int) $enrollmentIDs[$index] === (int) $enrollment->enrollmentID) {
+                                $enrollmentID = (int) $enrollmentIDs[$index];
+                            } else {
+                                $enrollmentID = (int) $enrollment->enrollmentID;
+                            }
+                        } else {
+                            $enrollmentID = (int) $enrollment->enrollmentID;
+                        }
                     }
                     BookBorrow::create([
                         'bookID' => $book->bookID,
@@ -1053,6 +1074,10 @@ class LibraryController extends Controller
         }
     }
 
+    /**
+     * Return a borrowed book.
+     * Allowed regardless of the student's current enrollment status (Active/Completed/etc).
+     */
     public function return_book(Request $request, $borrowID)
     {
         try {
@@ -1149,10 +1174,33 @@ class LibraryController extends Controller
             }
 
             $searchTerm = trim($search);
+            $enrollmentStatus = $request->input('enrollment_status', 'Active');
+            $classID = $request->input('classID');
+            $subclassID = $request->input('subclassID');
 
-            // Search students by name or admission number
+            $enrollmentService = app(StudentEnrollmentService::class);
+            $enrollments = $enrollmentService->enrollmentsInSchool(
+                (int) $schoolID,
+                $enrollmentStatus ?: 'all',
+                $classID ? (int) $classID : null,
+                $subclassID ? (int) $subclassID : null
+            );
+
+            if ($enrollments->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'students' => [],
+                    'error_code' => 'no_enrollments',
+                    'message' => 'No enrollments found for the selected academic year / enrollment status.',
+                ]);
+            }
+
+            $enrollmentByStudent = $enrollments->keyBy('studentID');
+            $studentIDs = $enrollments->pluck('studentID')->map(fn ($id) => (int) $id)->all();
+
+            // Search among enrolled students for the selected year + status
             $students = Student::where('schoolID', $schoolID)
-                ->where('status', 'Active')
+                ->whereIn('studentID', $studentIDs)
                 ->where(function($query) use ($searchTerm) {
                     $query->where('first_name', 'like', '%' . $searchTerm . '%')
                           ->orWhere('middle_name', 'like', '%' . $searchTerm . '%')
@@ -1160,21 +1208,26 @@ class LibraryController extends Controller
                           ->orWhere('admission_number', 'like', '%' . $searchTerm . '%')
                           ->orWhere(DB::raw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name)"), 'like', '%' . $searchTerm . '%');
                 })
-                ->with(['subclass.class', 'currentEnrollment.subclass.class', 'currentEnrollment.classModel'])
-                ->limit(20) // Limit results
+                ->limit(20)
                 ->get()
-                ->map(function($student) {
-                    $enrollment = $student->currentEnrollment;
-                    $subclass = $enrollment?->subclass ?: $student->subclass;
+                ->map(function($student) use ($enrollmentByStudent) {
+                    $enrollment = $enrollmentByStudent->get($student->studentID);
+                    $subclass = $enrollment?->subclass;
                     $className = $enrollment?->classModel?->class_name
                         ?: ($subclass?->class?->class_name ?? null);
+                    $subclassName = $subclass?->subclass_name ?? '';
+                    $enrollmentStatusLabel = $enrollment?->status ?? null;
+
                     return [
                         'studentID' => $student->studentID,
                         'enrollmentID' => $enrollment?->enrollmentID,
+                        'enrollment_status' => $enrollmentStatusLabel,
                         'first_name' => $student->first_name,
                         'middle_name' => $student->middle_name,
                         'last_name' => $student->last_name,
                         'admission_number' => $student->admission_number,
+                        'name' => trim(($student->first_name ?? '') . ' ' . ($student->middle_name ?? '') . ' ' . ($student->last_name ?? '')),
+                        'class_label' => trim(($className ?? '') . ($subclassName !== '' ? ' ' . $subclassName : '')),
                         'subclass' => $subclass ? [
                             'subclassID' => $subclass->subclassID,
                             'subclass_name' => $subclass->subclass_name,
@@ -1311,6 +1364,10 @@ class LibraryController extends Controller
         }
     }
 
+    /**
+     * Record loss of a book.
+     * Allowed for any enrollment status (student may already have left / non-Active).
+     */
     public function store_book_loss(Request $request)
     {
         try {
@@ -1437,6 +1494,10 @@ class LibraryController extends Controller
         }
     }
 
+    /**
+     * Record damage of a book.
+     * Allowed for any enrollment status (student may already have left / non-Active).
+     */
     public function store_book_damage(Request $request)
     {
         try {
@@ -1575,6 +1636,10 @@ class LibraryController extends Controller
         }
     }
 
+    /**
+     * Record payment/settlement for a lost book.
+     * Allowed regardless of enrollment status.
+     */
     public function update_book_loss_payment(Request $request, $lossID)
     {
         try {
@@ -1628,6 +1693,10 @@ class LibraryController extends Controller
         }
     }
 
+    /**
+     * Record payment/settlement for a damaged book.
+     * Allowed regardless of enrollment status.
+     */
     public function update_book_damage_payment(Request $request, $damageID)
     {
         try {

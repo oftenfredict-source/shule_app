@@ -427,6 +427,7 @@
                         <div class="col-md-6">
                             <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">SMS NOTIFICATION SYSTEM</h4>
                             <p class="text-muted mb-0 small" style="font-weight: 600;">Send notifications to parents, teachers, and staff efficiently.</p>
+                            <p class="text-muted mb-0 small mt-1"><i class="fa fa-info-circle"></i> Parent recipients use <strong>Active enrollments</strong> for the academic year selected in the header.</p>
                         </div>
                         <div class="col-md-6 text-right">
                             <button class="btn shadow-sm text-white" id="toggleActionsBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 25px; transition: all 0.3s ease;">
@@ -754,6 +755,12 @@
 
         window.fetchRecipients = function(url, appendTeachers = false) {
             $.get(url, function(res) {
+                if (res.success === false || res.error_code === 'no_academic_year' || res.error_code === 'no_active_enrollments') {
+                    const msg = res.message || 'No Active enrollments for the selected academic year.';
+                    $('#modalRecipientsList').html('<tr><td colspan="5" class="text-center py-4 text-muted">' + msg + '</td></tr>');
+                    updateSelectedCount();
+                    return;
+                }
                 if (res.success) {
                     let html = '';
                     let data = res.parents || res.teachers || res.staff;
@@ -771,6 +778,8 @@
                                 </tr>
                             `;
                         });
+                    } else if (!appendTeachers) {
+                        html = '<tr><td colspan="5" class="text-center py-4 text-muted">' + (res.message || 'No recipients found for Active enrollments in the selected academic year.') + '</td></tr>';
                     }
 
                     if (appendTeachers) {
@@ -798,6 +807,12 @@
                         updateSelectedCount();
                     }
                 }
+            }).fail(function(xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.message)
+                    ? xhr.responseJSON.message
+                    : 'Failed to load recipients.';
+                $('#modalRecipientsList').html('<tr><td colspan="5" class="text-center py-4 text-muted">' + msg + '</td></tr>');
+                updateSelectedCount();
             });
         };
 
@@ -805,6 +820,11 @@
             if (!classId) return;
             $('#modalRecipientsList').html('<tr><td colspan="5" class="text-center py-4"><i class="fa fa-spinner fa-spin text-primary"></i> Loading...</td></tr>');
             $.get('{{ route("get_parents_by_class_sms") }}', { classID: classId }, function(res) {
+                if (res.success === false || res.error_code === 'no_academic_year' || res.error_code === 'no_active_enrollments') {
+                    $('#modalRecipientsList').html('<tr><td colspan="5" class="text-center py-4 text-muted">' + (res.message || 'No Active enrollments for this class.') + '</td></tr>');
+                    updateSelectedCount();
+                    return;
+                }
                 if (res.success && res.parents) {
                     let html = '';
                     res.parents.forEach(item => {
@@ -818,9 +838,15 @@
                             </tr>
                         `;
                     });
-                    $('#modalRecipientsList').html(html.length ? html : '<tr><td colspan="5" class="text-center py-4">No parents found for this class.</td></tr>');
+                    $('#modalRecipientsList').html(html.length ? html : '<tr><td colspan="5" class="text-center py-4">No parents found for Active enrollments in this class.</td></tr>');
                     updateSelectedCount();
                 }
+            }).fail(function(xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.message)
+                    ? xhr.responseJSON.message
+                    : 'Failed to load parents for this class.';
+                $('#modalRecipientsList').html('<tr><td colspan="5" class="text-center py-4 text-muted">' + msg + '</td></tr>');
+                updateSelectedCount();
             });
         };
 

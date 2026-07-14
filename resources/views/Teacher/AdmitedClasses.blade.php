@@ -49,6 +49,12 @@ use Illuminate\Support\Facades\Crypt;
                                 My Assigned Classes
                             @endif
                         </h5>
+                        <small class="d-block mt-1" style="opacity: 0.9;">
+                            <i class="bi bi-people"></i> Student counts = Active enrollments
+                            @if(!empty($academicYearLabel))
+                                ({{ $academicYearLabel }})
+                            @endif
+                        </small>
                     </div>
                 </div>
             </div>
@@ -79,7 +85,7 @@ use Illuminate\Support\Facades\Crypt;
                                                 <div class="text-center p-2 rounded border" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-color: #28a745 !important;">
                                                     <i class="bi bi-people-fill text-success d-block mb-1" style="font-size: 1.5rem;"></i>
                                                     <div class="fw-bold text-dark">{{ $mainClass['student_count'] }}</div>
-                                                    <small class="text-muted">Students</small>
+                                                    <small class="text-muted">Active enrolled</small>
                                                 </div>
                                             </div>
                                             <!-- Subclasses Count -->
@@ -175,7 +181,7 @@ use Illuminate\Support\Facades\Crypt;
                                             <div class="text-center p-2 rounded border" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border-color: #28a745 !important;">
                                                 <i class="bi bi-people-fill text-success d-block mb-1" style="font-size: 1.5rem;"></i>
                                                 <div class="fw-bold text-dark">{{ $subclass['student_count'] }}</div>
-                                                <small class="text-muted">Students</small>
+                                                <small class="text-muted">Active enrolled</small>
                                             </div>
                                         </div>
                                         <!-- Subjects Count -->

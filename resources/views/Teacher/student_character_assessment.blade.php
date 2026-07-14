@@ -337,10 +337,15 @@
                     renderStudents(response.students);
                 }
             },
-            error: function () {
+            error: function (xhr) {
                 $('#filterLoading').hide();
                 $('#studentContainer').css('opacity', '1');
-                Swal.fire('Error', 'Failed to load students', 'error');
+                currentStudents = [];
+                renderStudents([]);
+                const msg = (xhr.responseJSON && xhr.responseJSON.message)
+                    ? xhr.responseJSON.message
+                    : 'Failed to load students';
+                Swal.fire(xhr.status === 422 ? 'No Active Enrollment' : 'Error', msg, xhr.status === 422 ? 'info' : 'error');
             }
         });
     }
@@ -348,7 +353,7 @@
     function renderStudents(students) {
         let html = '';
         if (students.length === 0) {
-            html = '<div class="col-md-12 text-center py-5"><p class="text-muted font-weight-bold">No students found for this selection.</p></div>';
+            html = '<div class="col-md-12 text-center py-5"><p class="text-muted font-weight-bold">No students found for this selection.</p><p class="text-muted small">Roster uses Active enrollments for the academic year selected in the header.</p></div>';
         } else {
             students.forEach(student => {
                 const fullName = `${student.first_name} ${student.middle_name ? student.middle_name + ' ' : ''}${student.last_name}`;
@@ -357,13 +362,22 @@
                 // Laravel snake_cases relationship names in JSON
                 const assessments = student.character_assessments || student.characterAssessments || [];
                 const hasAssessments = assessments.length > 0;
+                const canAssess = student.can_assess !== false && (student.enrollment_status || 'Active') === 'Active';
+                const enrStatus = student.enrollment_status || 'Active';
+                const enrBadge = canAssess
+                    ? '<span class="badge badge-success px-2 py-1 ml-2" style="font-size: 10px; border-radius:0;">Active</span>'
+                    : `<span class="badge badge-secondary px-2 py-1 ml-2" style="font-size: 10px; border-radius:0;">${enrStatus}</span>`;
                 
                 const btnLabel = hasAssessments ? 'EDIT' : 'ASSESS';
                 const statusBadge = hasAssessments ? '<span class="badge badge-success px-2 py-1 ml-2" style="font-size: 10px; background: #28a745; border-radius:0; letter-spacing:1px;">READY</span>' : '';
+                const cardStyle = canAssess ? '' : 'opacity:0.55; background:#f5f5f5;';
+                const assessBtnAttrs = canAssess
+                    ? `onclick="toggleAssessDiv(${student.studentID})"`
+                    : 'disabled title="Not editable — enrollment is not Active for the selected academic year"';
 
                 html += `
                     <div class="col-12 student-item-col" data-name="${fullName}" data-adm="${student.admission_number}">
-                        <div class="card student-card border-0 shadow-none">
+                        <div class="card student-card border-0 shadow-none" style="${cardStyle}">
                             <div class="card-body p-4">
                                 <div class="row align-items-center">
                                     <div class="col-md-8 col-12 d-flex align-items-center mb-3 mb-md-0">
@@ -371,14 +385,15 @@
                                             <img src="${photo}" class="rounded-circle" style="width: 65px; height: 65px; object-fit: cover; border: 2px solid #940000;">
                                         </div>
                                         <div class="overflow-hidden">
-                                            <h5 class="font-weight-bold mb-1" style="color: #2f2f2f;">${fullName} ${statusBadge}</h5>
+                                            <h5 class="font-weight-bold mb-1" style="color: #2f2f2f;">${fullName} ${enrBadge} ${statusBadge}</h5>
                                             <span class="badge badge-light text-muted small px-2 font-weight-bold" style="border-radius:0;">ADMISSION: ${student.admission_number}</span>
+                                            ${canAssess ? '' : '<div class="small text-muted mt-1">Assessment locked — enrollment not Active</div>'}
                                         </div>
                                     </div>
                                     <div class="col-md-4 col-12">
                                         <div class="row no-gutters">
                                             <div class="col-6 pr-1">
-                                                <button class="btn btn-sm btn-block btn-outline-danger font-weight-bold py-3" style="border-radius:0;" onclick="toggleAssessDiv(${student.studentID})">
+                                                <button class="btn btn-sm btn-block btn-outline-danger font-weight-bold py-3" style="border-radius:0;" ${assessBtnAttrs}>
                                                     <i class="fa fa-${hasAssessments ? 'edit' : 'pencil'}"></i> ${btnLabel}
                                                 </button>
                                             </div>
@@ -393,12 +408,13 @@
                             </div>
                             <!-- Assessment Div (Expanded) -->
                             <div id="assess_div_${student.studentID}" class="assessment-dropdown p-4 p-md-5">
-                                ${renderAssessmentForm(student.studentID)}
-                                <div class="text-right mt-4 pt-3 border-top">
+                                ${canAssess ? renderAssessmentForm(student.studentID) : '<p class="text-muted mb-0">This student cannot be assessed because their enrollment is not Active for the selected academic year.</p>'}
+                                ${canAssess ? `<div class="text-right mt-4 pt-3 border-top">
                                     <button class="btn btn-danger px-5 py-2 font-weight-bold" style="border-radius:0; background:#940000;" onclick="saveSingleStudent(${student.studentID})">
                                         <i class="fa fa-save"></i> SAVE THIS STUDENT
                                     </button>
-                                </div>
+                                </div>` : ''}
+
                             </div>
                         </div>
                     </div>
@@ -493,6 +509,11 @@
 
         if (targetStudentID) {
             // Save only this student
+            const targetStudent = currentStudents.find(s => s.studentID == targetStudentID);
+            if (targetStudent && targetStudent.can_assess === false) {
+                Swal.fire('Locked', 'Only Active enrollments for the selected academic year can be assessed.', 'info');
+                return;
+            }
             if (!pendingChanges[targetStudentID]) {
                 Swal.fire('No Changes', 'Please make some ratings before saving.', 'info');
                 return;

@@ -136,6 +136,44 @@
         color: #940000;
     }
 
+    .bg-primary-custom {
+        background-color: #940000 !important;
+        color: #fff !important;
+    }
+
+    .btn-primary-custom {
+        background-color: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+    }
+
+    .btn-primary-custom:hover,
+    .btn-primary-custom:focus {
+        background-color: #7a0000 !important;
+        border-color: #7a0000 !important;
+        color: #fff !important;
+    }
+
+    #editModal .modal-header {
+        background-color: #940000 !important;
+        color: #fff !important;
+        border-bottom: none;
+    }
+
+    #editModal .modal-header .modal-title,
+    #editModal .modal-header .close,
+    #editModal .modal-header .close span {
+        color: #fff !important;
+        opacity: 1;
+        text-shadow: none;
+    }
+
+    #editModal .modal-footer .btn-primary-custom {
+        background-color: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+    }
+
     #imageUploadInput {
         display: none;
     }
@@ -168,11 +206,34 @@
                     <input type="file" id="imageUploadInput" accept="image/*">
 
                     <h2 class="profile-name">{{ trim(($teacher->first_name ?? '') . ' ' . ($teacher->middle_name ?? '') . ' ' . ($teacher->last_name ?? '')) }}</h2>
-                    <p class="profile-role">Teacher ID: {{ $teacher->employee_number ?? 'N/A' }} | {{ $teacher->qualification ?? 'N/A' }}</p>
+                    <p class="profile-role">C/N: {{ $teacher->employee_number ?? 'N/A' }} | {{ $teacher->position ?? ($teacher->qualification ?? 'Teacher') }}</p>
+
+                    @php
+                        $profilePct = (int) ($teacher->tange_completion_percent ?? 0);
+                        $profileBar = $profilePct >= 100 ? 'bg-success' : ($profilePct >= 50 ? 'bg-warning' : 'bg-danger');
+                        $retireAlert = $teacher->retirement_alert ?? null;
+                    @endphp
+                    <div class="px-4 mb-3" style="max-width:420px;margin:0 auto;">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>TANGE registration</span>
+                            <strong>{{ $profilePct }}%</strong>
+                        </div>
+                        <div class="progress" style="height:10px;">
+                            <div class="progress-bar {{ $profileBar }}" style="width:{{ $profilePct }}%"></div>
+                        </div>
+                        @if($profilePct < 100)
+                            <p class="small text-muted mt-2 mb-0">Complete missing details to reach 100%.</p>
+                        @endif
+                    </div>
+                    @if($retireAlert)
+                        <div class="alert alert-{{ $retireAlert['level'] === 'danger' ? 'danger' : 'warning' }} mx-4 py-2">
+                            <strong>HR Alert:</strong> {{ $retireAlert['message'] }}
+                        </div>
+                    @endif
 
                     <div class="d-flex justify-content-center flex-wrap">
-                        <a href="{{ route('teacher.profile.download_pdf') }}" class="btn btn-action btn-download-pdf">
-                            <i class="fa fa-file-pdf-o"></i> Download PDF
+                        <a href="{{ route('teacher.profile.download_pdf') }}" class="btn btn-action btn-download-pdf js-download-tange" data-filename="TANGE_My_Particulars">
+                            <i class="fa fa-file-pdf-o"></i> Download My TANGE
                         </a>
                         <button class="btn btn-action btn-edit-profile" data-toggle="modal" data-target="#editModal">
                             <i class="fa fa-edit"></i> Edit Profile
@@ -182,7 +243,7 @@
 
                 <div class="info-grid">
                     <div class="info-item">
-                        <div class="info-label">Gender</div>
+                        <div class="info-label">Sex</div>
                         <div class="info-value">{{ $teacher->gender ?? 'N/A' }}</div>
                     </div>
                     <div class="info-item">
@@ -194,12 +255,76 @@
                         <div class="info-value">{{ $teacher->email ?? 'N/A' }}</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Specialization</div>
+                        <div class="info-label">Check Number (C/N)</div>
+                        <div class="info-value">{{ $teacher->employee_number ?? 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">TSC Number (TSC/N)</div>
+                        <div class="info-value">{{ $teacher->tsc_number ?? 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Establishment Rank</div>
+                        <div class="info-value">{{ $teacher->establishment_rank ?? 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Salary Scale</div>
+                        <div class="info-value">{{ $teacher->salary_scale ?? 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Position of Authority</div>
+                        <div class="info-value">{{ $teacher->position ?? 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Work Station</div>
+                        <div class="info-value">{{ $teacher->work_station ?? 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Highest Education</div>
+                        <div class="info-value">{{ $teacher->qualification ?? 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Subjects Studied</div>
                         <div class="info-value">{{ $teacher->specialization ?? 'N/A' }}</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">Experience</div>
-                        <div class="info-value">{{ $teacher->experience ?? 'N/A' }}</div>
+                        <div class="info-label">Subjects Teaching</div>
+                        <div class="info-value">{{ $teacher->subjects_teaching ?? 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Age</div>
+                        <div class="info-value">{{ $teacher->age !== null ? $teacher->age . ' years' : 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Work Experience</div>
+                        <div class="info-value">{{ $teacher->years_of_experience !== null ? $teacher->years_of_experience . ' years' : ($teacher->experience ?? 'N/A') }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Date of Birth</div>
+                        <div class="info-value">{{ $teacher->date_of_birth ? \Carbon\Carbon::parse($teacher->date_of_birth)->format('d M Y') : 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Date of Employment</div>
+                        <div class="info-value">{{ $teacher->date_hired ? \Carbon\Carbon::parse($teacher->date_hired)->format('d M Y') : 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Date of Confirmation</div>
+                        <div class="info-value">{{ $teacher->date_confirmed ? \Carbon\Carbon::parse($teacher->date_confirmed)->format('d M Y') : 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Date of Current Rank</div>
+                        <div class="info-value">{{ $teacher->date_current_rank ? \Carbon\Carbon::parse($teacher->date_current_rank)->format('d M Y') : 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Date of Retirement</div>
+                        <div class="info-value">{{ $teacher->date_of_retirement ? \Carbon\Carbon::parse($teacher->date_of_retirement)->format('d M Y') : 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Place of Residence</div>
+                        <div class="info-value">{{ $teacher->address ?? 'N/A' }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">National ID</div>
+                        <div class="info-value">{{ $teacher->national_id ?? 'N/A' }}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Status</div>
@@ -208,14 +333,6 @@
                                 {{ $teacher->status ?? 'N/A' }}
                             </span>
                         </div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Date of Birth</div>
-                        <div class="info-value">{{ $teacher->date_of_birth ? \Carbon\Carbon::parse($teacher->date_of_birth)->format('Y-m-d') : 'N/A' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Date Joined</div>
-                        <div class="info-value">{{ $teacher->date_hired ? \Carbon\Carbon::parse($teacher->date_hired)->format('Y-m-d') : 'N/A' }}</div>
                     </div>
                 </div>
 
@@ -279,19 +396,34 @@
 <div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title">Edit Profile Information</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
+            <div class="modal-header" style="background-color:#940000;color:#fff;">
+                <h5 class="modal-title text-white mb-0">Edit Profile / TANGE Particulars</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close" style="color:#fff;opacity:1;">
+                    <span aria-hidden="true" style="color:#fff;">&times;</span>
                 </button>
             </div>
-            <form action="{{ route('update_teacher') }}" method="POST">
+            <form id="teacherSelfUpdateForm" action="{{ route('update_teacher') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="teacher_id" value="{{ $teacher->id }}">
-                <div class="modal-body">
-                    <div class="row">
+                <input type="hidden" name="status" value="{{ $teacher->status ?? 'Active' }}">
+                <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+                    <div class="row g-3">
+                        <div class="col-12 form-group text-center mb-3">
+                            @php
+                                $editPreviewImage = $teacher->image
+                                    ? asset('userImages/'.$teacher->image)
+                                    : (($teacher->gender ?? '') === 'Female' ? asset('images/female.png') : asset('images/male.png'));
+                            @endphp
+                            <img id="editProfileImagePreview" src="{{ $editPreviewImage }}" alt="Profile"
+                                 style="width:110px;height:110px;object-fit:cover;border-radius:50%;border:3px solid #940000;">
+                            <div class="mt-2">
+                                <label class="form-label d-block font-weight-bold">Profile Photo</label>
+                                <input type="file" class="form-control-file" name="image" id="edit_profile_image" accept="image/jpeg,image/png,image/jpg">
+                                <small class="text-muted d-block">JPG or PNG, max 2MB. Leave empty to keep current photo.</small>
+                            </div>
+                        </div>
                         <div class="col-md-4 form-group">
-                            <label>First Name</label>
+                            <label>First Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="first_name" value="{{ $teacher->first_name }}" required>
                         </div>
                         <div class="col-md-4 form-group">
@@ -299,26 +431,41 @@
                             <input type="text" class="form-control" name="middle_name" value="{{ $teacher->middle_name }}">
                         </div>
                         <div class="col-md-4 form-group">
-                            <label>Last Name</label>
+                            <label>Last Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="last_name" value="{{ $teacher->last_name }}" required>
                         </div>
-                        <div class="col-md-6 form-group">
-                            <label>Phone Number</label>
-                            <input type="text" class="form-control" name="phone_number" value="{{ $teacher->phone_number }}" required>
+                        <div class="col-md-4 form-group">
+                            <label>Sex <span class="text-danger">*</span></label>
+                            <select class="form-control" name="gender" required>
+                                <option value="Male" {{ ($teacher->gender ?? '') === 'Male' ? 'selected' : '' }}>Male</option>
+                                <option value="Female" {{ ($teacher->gender ?? '') === 'Female' ? 'selected' : '' }}>Female</option>
+                            </select>
                         </div>
-                        <div class="col-md-6 form-group">
-                            <label>Email Address</label>
-                            <input type="email" class="form-control" name="email" value="{{ $teacher->email }}">
+                        <div class="col-md-4 form-group">
+                            <label>Phone Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="phone_number" value="{{ $teacher->phone_number }}" pattern="^255\d{9}$" maxlength="12" required>
                         </div>
-                        <div class="col-md-12 form-group">
-                            <label>Address</label>
-                            <textarea class="form-control" name="address" rows="2">{{ $teacher->address }}</textarea>
+                        <div class="col-md-4 form-group">
+                            <label>Email Address <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" name="email" value="{{ $teacher->email }}" required>
                         </div>
+                        <div class="col-md-4 form-group">
+                            <label>National ID <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="national_id" value="{{ $teacher->national_id }}" required>
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label>Bank Account Number</label>
+                            <input type="text" class="form-control" name="bank_account_number" value="{{ $teacher->bank_account_number }}">
+                        </div>
+
+                        @include('partials.teacher_tange_fields', ['prefix' => 'profile_', 'teacher' => $teacher])
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary-custom text-white">Save Changes</button>
+                    <button type="submit" class="btn text-white" style="background-color:#940000;border-color:#940000;">
+                        Save Changes
+                    </button>
                 </div>
             </form>
         </div>
@@ -328,7 +475,92 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 $(document).ready(function() {
-    // Image Upload AJAX
+    function tangeYearsFromDate(dateStr) {
+        if (!dateStr) return null;
+        var d = new Date(dateStr);
+        if (isNaN(d.getTime())) return null;
+        var now = new Date();
+        var years = now.getFullYear() - d.getFullYear();
+        var m = now.getMonth() - d.getMonth();
+        if (m < 0 || (m === 0 && now.getDate() < d.getDate())) years--;
+        return years < 0 ? 0 : years;
+    }
+    function refreshTangeAutoFields() {
+        $('.tange-dob').each(function () {
+            var target = $(this).data('age-target');
+            var y = tangeYearsFromDate($(this).val());
+            if (target) $('#' + target).val(y !== null ? y + ' years' : '');
+        });
+        $('.tange-hired').each(function () {
+            var target = $(this).data('exp-target');
+            var y = tangeYearsFromDate($(this).val());
+            if (target) $('#' + target).val(y !== null ? y + ' years' : '');
+        });
+    }
+    $(document).on('change input', '.tange-dob, .tange-hired', refreshTangeAutoFields);
+    refreshTangeAutoFields();
+
+    $('#edit_profile_image').on('change', function () {
+        var file = this.files && this.files[0] ? this.files[0] : null;
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            Swal.fire('Error', 'Image must not exceed 2MB.', 'error');
+            $(this).val('');
+            return;
+        }
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            $('#editProfileImagePreview').attr('src', e.target.result);
+        };
+        reader.readAsDataURL(file);
+    });
+
+    $('#teacherSelfUpdateForm').on('submit', function(e) {
+        e.preventDefault();
+        var $form = $(this);
+        var $btn = $form.find('button[type="submit"]');
+        var original = $btn.html();
+        $btn.prop('disabled', true).html('Saving...');
+
+        var formData = new FormData($form[0]);
+
+        $.ajax({
+            url: $form.attr('action'),
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            success: function(response) {
+                $btn.prop('disabled', false).html(original);
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Updated',
+                        text: response.success,
+                        confirmButtonColor: '#940000'
+                    }).then(function() {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', response.error || 'Update failed', 'error');
+                }
+            },
+            error: function(xhr) {
+                $btn.prop('disabled', false).html(original);
+                var msg = 'Update failed';
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.error) msg = xhr.responseJSON.error;
+                    else if (xhr.responseJSON.errors) {
+                        msg = Object.values(xhr.responseJSON.errors).join('\n');
+                    }
+                }
+                Swal.fire('Error', msg, 'error');
+            }
+        });
+    });
+
+    // Image Upload AJAX (click avatar)
     $('#imageUploadInput').on('change', function() {
         const file = this.files[0];
         if (file) {
@@ -555,3 +787,5 @@ $(document).ready(function() {
     });
 });
 </script>
+
+@include('partials.tange_download_progress')

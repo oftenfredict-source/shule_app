@@ -10,6 +10,7 @@ use App\Models\SubjectElector;
 use App\Models\Student;
 use App\Models\School;
 use App\Services\SmsService;
+use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
@@ -458,15 +459,18 @@ class ManageSubjectController extends Controller
                     ], 200);
                 }
 
+                $enrollment = app(StudentEnrollmentService::class);
                 $subjects = ClassSubject::whereIn('subclassID', $subclassIDs)
                     ->with(['subject', 'subclass'])
                     ->get()
-                    ->map(function($classSubject) {
+                    ->map(function($classSubject) use ($enrollment, $schoolID) {
                         // Get election counts
                         $totalElectors = SubjectElector::where('classSubjectID', $classSubject->class_subjectID)->count();
-                        $totalStudents = Student::where('subclassID', $classSubject->subclassID)
-                            ->where('status', 'Active')
-                            ->count();
+                        $totalStudents = count($enrollment->studentIDsInSubclass(
+                            (int) $classSubject->subclassID,
+                            (int) $schoolID,
+                            'Active'
+                        ));
                         $nonElectors = $totalStudents - $totalElectors;
                         
                         // Get subclass display name
@@ -499,15 +503,18 @@ class ManageSubjectController extends Controller
                     ], 400);
                 }
 
+                $enrollment = app(StudentEnrollmentService::class);
                 $subjects = ClassSubject::where('subclassID', $subclassID)
                     ->with('subject')
                     ->get()
-                    ->map(function($classSubject) {
+                    ->map(function($classSubject) use ($enrollment, $schoolID) {
                         // Get election counts
                         $totalElectors = SubjectElector::where('classSubjectID', $classSubject->class_subjectID)->count();
-                        $totalStudents = Student::where('subclassID', $classSubject->subclassID)
-                            ->where('status', 'Active')
-                            ->count();
+                        $totalStudents = count($enrollment->studentIDsInSubclass(
+                            (int) $classSubject->subclassID,
+                            (int) $schoolID,
+                            'Active'
+                        ));
                         $nonElectors = $totalStudents - $totalElectors;
                         
                         return [
@@ -767,17 +774,20 @@ class ManageSubjectController extends Controller
                 ->orderBy('classes.class_name')
                 ->orderBy('subclasses.subclass_name')
                 ->get()
-                ->map(function($subclass) {
+                ->map(function($subclass) use ($schoolID) {
+                    $enrollment = app(StudentEnrollmentService::class);
                     // Get subjects for this subclass (show all, not just Active)
                     $subjects = ClassSubject::with(['subject', 'teacher'])
                         ->where('subclassID', $subclass->subclassID)
                         ->get()
-                        ->map(function($classSubject) {
+                        ->map(function($classSubject) use ($enrollment, $schoolID) {
                             // Get election counts
                             $totalElectors = SubjectElector::where('classSubjectID', $classSubject->class_subjectID)->count();
-                            $totalStudents = Student::where('subclassID', $classSubject->subclassID)
-                                ->where('status', 'Active')
-                                ->count();
+                            $totalStudents = count($enrollment->studentIDsInSubclass(
+                                (int) $classSubject->subclassID,
+                                (int) $schoolID,
+                                'Active'
+                            ));
                             $nonElectors = $totalStudents - $totalElectors;
                             
                             return [
@@ -1172,12 +1182,20 @@ class ManageSubjectController extends Controller
             $toAdd = array_diff($selectedStudents, $currentElectors);
             $toRemove = array_diff($currentElectors, $selectedStudents);
 
+            $enrolledIds = app(StudentEnrollmentService::class)->studentIDsInSubclass(
+                (int) $request->subclassID,
+                (int) Session::get('schoolID'),
+                'Active'
+            );
+
             // Add new electors
             foreach ($toAdd as $studentID) {
-                // Verify student belongs to this subclass
-                $student = Student::where('studentID', $studentID)
-                    ->where('subclassID', $request->subclassID)
-                    ->first();
+                // Verify Active enrollment in this subclass for header year
+                if (!in_array((int) $studentID, $enrolledIds, true)) {
+                    continue;
+                }
+
+                $student = Student::where('studentID', $studentID)->first();
 
                 if ($student) {
                     SubjectElector::create([

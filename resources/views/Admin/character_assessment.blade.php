@@ -99,9 +99,14 @@
                                     <label class="small font-weight-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">Year</label>
                                     <select id="filterYear" class="form-control" style="border-radius:0; border:1px solid #ddd; font-weight:600;">
                                         @foreach($academicYears as $ay)
-                                            <option value="{{ $ay->year_name ?? $ay->year }}">{{ $ay->year_name ?? $ay->year }}</option>
+                                            <option value="{{ $ay->year }}"
+                                                data-academic-year-id="{{ $ay->academic_yearID }}"
+                                                {{ (isset($defaultYear) && (int)$ay->year === (int)$defaultYear) || (isset($defaultAcademicYearID) && (int)$ay->academic_yearID === (int)$defaultAcademicYearID) ? 'selected' : '' }}>
+                                                {{ $ay->year_name ?? $ay->year }} @if($ay->status) ({{ $ay->status }}) @endif
+                                            </option>
                                         @endforeach
                                     </select>
+                                    <small class="text-muted">Defaults to header year. Student lists use Active enrollments for that year.</small>
                                 </div>
                                 <div class="col-md-2">
                                     <label class="small font-weight-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">Term</label>
@@ -490,12 +495,11 @@
                             <label class="form-label small font-weight-bold text-uppercase" style="color:#666;">Year</label>
                             <select class="form-control" name="year" id="ttYear" required style="border-radius: 0;">
                                 <option value="">Select Year</option>
-                                @php
-                                    $currentYear = date('Y');
-                                    $yearsToDisplay = [$currentYear - 1, $currentYear, $currentYear + 1, $currentYear + 2];
-                                @endphp
-                                @foreach($yearsToDisplay as $yearValue)
-                                    <option value="{{ $yearValue }}">{{ $yearValue }}</option>
+                                @foreach($academicYears as $ay)
+                                    <option value="{{ $ay->year }}"
+                                        {{ (isset($defaultYear) && (int)$ay->year === (int)$defaultYear) ? 'selected' : '' }}>
+                                        {{ $ay->year_name ?? $ay->year }}
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
@@ -581,7 +585,10 @@
                     <select class="form-control form-control-sm" id="filterTtYear" onchange="loadTimetables()" style="width: 150px; border-radius: 0;">
                         <option value="">All Years</option>
                         @foreach($academicYears as $ay)
-                            <option value="{{ $ay->year_name ?? $ay->year }}">{{ $ay->year_name ?? $ay->year }}</option>
+                            <option value="{{ $ay->year }}"
+                                {{ (isset($defaultYear) && (int)$ay->year === (int)$defaultYear) ? 'selected' : '' }}>
+                                {{ $ay->year_name ?? $ay->year }}
+                            </option>
                         @endforeach
                     </select>
                     <select class="form-control form-control-sm" id="filterTtTerm" onchange="loadTimetables()" style="width: 150px; border-radius: 0;">
@@ -1456,25 +1463,24 @@
 
     $(document).ready(function() {
 
-        // Term filter change -> Load Timetables
-        $('#filterTerm').on('change', function() {
-            const termID = $(this).val();
-            if(!termID) {
-                $('#filterTimetable').val("").prop('disabled', true);
-                $('#filterClass').val("").prop('disabled', true);
+        function loadReportTimetables() {
+            const termID = $('#filterTerm').val();
+            const year = $('#filterYear').val();
+            if (!termID) {
+                $('#filterTimetable').html('<option value="">-- Select Period --</option>').prop('disabled', true);
+                $('#filterClass').html('<option value="">-- Select Class --</option>').prop('disabled', true);
                 return;
             }
 
-            // Show loading state
             $('#filterTimetable').html('<option value="">Loading periods...</option>').prop('disabled', true);
-            $('#filterClass').val("").prop('disabled', true);
+            $('#filterClass').html('<option value="">-- Select Class --</option>').prop('disabled', true);
 
             $.ajax({
                 url: "{{ route('admin.character.timetables_by_term') }}",
                 type: 'GET',
-                data: { termID: termID },
+                data: { termID: termID, year: year },
                 success: function(res) {
-                    if(res.success) {
+                    if (res.success) {
                         let html = '<option value="">-- Select Period --</option>';
                         res.timetables.forEach(t => {
                             html += `<option value="${t.timetableID}">${formatDate(t.start_date)} - ${formatDate(t.end_date)}</option>`;
@@ -1483,7 +1489,15 @@
                     }
                 }
             });
+        }
+
+        // Year / Term filter change -> Load Timetables
+        $('#filterYear').on('change', function() {
+            if ($('#filterTerm').val()) {
+                loadReportTimetables();
+            }
         });
+        $('#filterTerm').on('change', loadReportTimetables);
 
         // Timetable change -> Load Classes
         $('#filterTimetable').on('change', function() {
@@ -1536,13 +1550,17 @@
                         displayReport(res);
                         $('#dashboardReportSection').fadeIn(300);
                     } else {
-                        Swal.fire('Error', res.message, 'error');
+                        Swal.fire('No Data', res.message || 'No Active enrollments for the selected academic year.', 'info');
                         $('#dashboardWelcome').show();
                     }
                 },
-                error: function() {
+                error: function(xhr) {
                     $('#reportLoading').hide();
-                    Swal.fire('Error', 'Internal Server error.', 'error');
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message)
+                        ? xhr.responseJSON.message
+                        : 'Internal Server error.';
+                    Swal.fire(xhr.status === 422 ? 'No Active Enrollment' : 'Error', msg, xhr.status === 422 ? 'info' : 'error');
+                    $('#dashboardWelcome').show();
                 }
             });
         });
@@ -1575,6 +1593,13 @@
         $('#totalClassCount').text(data.summary.total);
         if (data.studentList) {
             $('#displayedCount').text(data.studentList.length);
+        }
+
+        // Note: cohort is Active enrollments for header-selected academic year
+        if (!$('#caEnrollmentNote').length) {
+            $('#dashboardReportSection .card-header').first().append(
+                '<div id="caEnrollmentNote" class="small text-muted mt-2"><i class="fa fa-info-circle"></i> Counts and list use <strong>Active enrollments</strong> for the academic year selected in the header.</div>'
+            );
         }
 
         // 2. Pending List
@@ -1688,6 +1713,13 @@
             const fullName = `${s.first_name} ${s.last_name}`;
             const photo = s.photo ? `{{ asset('userImages/') }}/${s.photo}` : (s.gender === 'Female' ? `{{ asset('images/female.png') }}` : `{{ asset('images/male.png') }}`);
             const status = s.is_ready ? `<span class="badge badge-success px-3 py-1" style="border-radius:0;">ASSESSED</span>` : `<span class="badge badge-light text-muted border px-3 py-1" style="border-radius:0;">PENDING</span>`;
+            const enrStatus = s.enrollment_status || 'Active';
+            const enrBadge = enrStatus === 'Active'
+                ? '<span class="badge badge-success ml-1" style="border-radius:0; font-size:10px;">Active</span>'
+                : `<span class="badge badge-secondary ml-1" style="border-radius:0; font-size:10px;">${enrStatus}</span>`;
+            const classLabel = s.subclass_name
+                ? ($('#filterClass option:selected').text() + ' — ' + s.subclass_name)
+                : $('#filterClass option:selected').text();
             
             html += `
                 <tr id="row_st_${s.studentID}">
@@ -1695,12 +1727,12 @@
                         <div class="d-flex align-items-center">
                             <img src="${photo}" class="rounded-circle mr-3" style="width:35px; height:35px; border:1px solid #eee;">
                             <div>
-                                <h6 class="mb-0 font-weight-bold" style="font-size: 0.9rem;">${fullName}</h6>
+                                <h6 class="mb-0 font-weight-bold" style="font-size: 0.9rem;">${fullName} ${enrBadge}</h6>
                                 <span class="text-muted" style="font-size: 11px;">ADM: ${s.admission_number}</span>
                             </div>
                         </div>
                     </td>
-                    <td><span class="small font-weight-bold">${$('#filterClass option:selected').text()}</span></td>
+                    <td><span class="small font-weight-bold">${classLabel}</span></td>
                     <td>${status}</td>
                     <td>
                         <div class="small text-muted" style="font-style: italic;">

@@ -8,10 +8,15 @@ use App\Models\AcademicYear;
 use App\Models\Term;
 use App\Models\ClassModel;
 use App\Models\Subclass;
+use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\CharacterAssessmentTimetable;
 use App\Models\CharacterAssessmentAssignment;
+use App\Models\StudentCharacterAssessment;
+use App\Services\SelectedAcademicYearService;
+use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Session;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -37,11 +42,28 @@ class CharacterAssessmentController extends Controller
             ->orderBy('weight', 'asc')
             ->get();
 
-        $academicYears = AcademicYear::where('schoolID', $schoolID)->orderBy('academic_yearID', 'desc')->get();
+        $academicYears = AcademicYear::where('schoolID', $schoolID)
+            ->orderByDesc('year')
+            ->orderByDesc('academic_yearID')
+            ->get();
         $terms = Term::where('schoolID', $schoolID)->orderBy('termID', 'desc')->get();
         $classes = ClassModel::where('schoolID', $schoolID)->where('status', 'active')->get();
         $subclasses = Subclass::whereIn('classID', $classes->pluck('classID'))->get();
         $teachers = Teacher::where('schoolID', $schoolID)->where('status', 'active')->get();
+
+        $yearService = app(SelectedAcademicYearService::class);
+        $selectedYearIds = $yearService->selectedYearIds((int) $schoolID);
+        $defaultAcademicYearID = $selectedYearIds[0] ?? null;
+        $defaultYear = date('Y');
+        if ($defaultAcademicYearID) {
+            $headerYear = $academicYears->firstWhere('academic_yearID', $defaultAcademicYearID);
+            if ($headerYear) {
+                $defaultYear = $headerYear->year;
+            }
+        } elseif ($academicYears->isNotEmpty()) {
+            $defaultAcademicYearID = $academicYears->first()->academic_yearID;
+            $defaultYear = $academicYears->first()->year;
+        }
 
         return view('Admin.character_assessment', compact(
             'categories', 
@@ -50,8 +72,53 @@ class CharacterAssessmentController extends Controller
             'terms', 
             'classes', 
             'subclasses', 
-            'teachers'
+            'teachers',
+            'defaultAcademicYearID',
+            'defaultYear'
         ));
+    }
+
+    /**
+     * Enrollments for character assessment (header selected academic year).
+     *
+     * @return array{enrollments: Collection, student_ids: array, active_count: int, meta: array}
+     */
+    private function characterEnrollmentCohort(
+        int $schoolID,
+        int $classID,
+        $subclassID = null,
+        string $enrollmentStatus = 'Active'
+    ): array {
+        $service = app(StudentEnrollmentService::class);
+
+        if ($subclassID && $subclassID !== 'all' && $subclassID !== '') {
+            $enrollments = $service->enrollmentsInSubclass((int) $subclassID, $schoolID, $enrollmentStatus);
+        } else {
+            $enrollments = $service->enrollmentsInClass($classID, $schoolID, $enrollmentStatus);
+        }
+
+        $meta = [];
+        foreach ($enrollments as $enr) {
+            $meta[(int) $enr->studentID] = [
+                'enrollmentID' => (int) $enr->enrollmentID,
+                'enrollment_status' => $enr->status,
+                'class_name' => $enr->classModel->class_name ?? null,
+                'subclass_name' => $enr->subclass->subclass_name ?? null,
+            ];
+        }
+
+        $studentIds = $enrollments->pluck('studentID')->map(fn ($id) => (int) $id)->values()->all();
+        $activeCount = $enrollments->where('status', 'Active')->count();
+        if ($enrollmentStatus === 'Active') {
+            $activeCount = count($studentIds);
+        }
+
+        return [
+            'enrollments' => $enrollments,
+            'student_ids' => $studentIds,
+            'active_count' => $activeCount,
+            'meta' => $meta,
+        ];
     }
 
     public function store_category(Request $request)
@@ -279,30 +346,66 @@ class CharacterAssessmentController extends Controller
     {
         try {
             $subclassID = $request->subclassID;
-            $classID = $request->classID;
+            $classID = (int) $request->classID;
             $timetableID = $request->timetableID;
-            $schoolID = Session::get('schoolID');
-            
-            $query = \App\Models\Student::where('schoolID', $schoolID)->where('status', 'Active');
-            
-            if ($subclassID && $subclassID != 'all') {
-                $query->where('subclassID', $subclassID);
-            } else {
-                // Since students table doesn't have classID, we filter via subclasses
-                $query->whereHas('subclass', function($q) use ($classID) {
-                    $q->where('classID', $classID);
-                });
+            $schoolID = (int) Session::get('schoolID');
+
+            if (!$schoolID || !$classID) {
+                return response()->json(['success' => false, 'message' => 'Missing class or school.'], 400);
             }
 
-            $students = $query->with(['characterAssessments' => function($q) use ($timetableID) {
-                if ($timetableID) {
-                    $q->where('timetableID', $timetableID);
-                }
-            }])->orderBy('first_name')->get();
+            $selectedYearIds = app(SelectedAcademicYearService::class)->selectedYearIds($schoolID);
+            if (empty($selectedYearIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Select an academic year in the header before assessing students.',
+                    'error_code' => 'no_academic_year',
+                    'students' => [],
+                    'active_enrollment_count' => 0,
+                ], 422);
+            }
+
+            // All statuses: Active editable; others returned greyed-out
+            $cohort = $this->characterEnrollmentCohort(
+                $schoolID,
+                $classID,
+                $subclassID,
+                'all'
+            );
+
+            if ($cohort['active_count'] === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected academic year has no Active enrollments for this class. Assessment cannot continue.',
+                    'error_code' => 'no_active_enrollments',
+                    'students' => [],
+                    'active_enrollment_count' => 0,
+                ], 422);
+            }
+
+            $students = Student::where('schoolID', $schoolID)
+                ->whereIn('studentID', $cohort['student_ids'])
+                ->with(['characterAssessments' => function ($q) use ($timetableID) {
+                    if ($timetableID) {
+                        $q->where('timetableID', $timetableID);
+                    }
+                }])
+                ->orderBy('first_name')
+                ->get()
+                ->map(function ($student) use ($cohort) {
+                    $meta = $cohort['meta'][(int) $student->studentID] ?? null;
+                    $status = $meta['enrollment_status'] ?? 'Active';
+                    $student->enrollment_status = $status;
+                    $student->enrollmentID = $meta['enrollmentID'] ?? null;
+                    $student->can_assess = $status === 'Active';
+                    $student->subclass_name = $meta['subclass_name'] ?? null;
+                    return $student;
+                });
 
             return response()->json([
                 'success' => true,
-                'students' => $students
+                'students' => $students,
+                'active_enrollment_count' => $cohort['active_count'],
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
@@ -312,20 +415,45 @@ class CharacterAssessmentController extends Controller
     public function store_student_assessment(Request $request)
     {
         try {
-            $schoolID = Session::get('schoolID');
+            $schoolID = (int) Session::get('schoolID');
             $teacherID = Session::get('teacherID');
             
             $data = $request->assessments; // Array of {studentID, timetableID, categories: [{categoryID, choiceID, description}]}
 
+            if (!is_array($data) || empty($data)) {
+                return response()->json(['success' => false, 'message' => 'No assessment data provided.'], 400);
+            }
+
+            $enrollmentService = app(StudentEnrollmentService::class);
+            $selectedYearIds = app(SelectedAcademicYearService::class)->selectedYearIds($schoolID);
+
+            if (empty($selectedYearIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Select an academic year in the header before saving assessments.',
+                    'error_code' => 'no_academic_year',
+                ], 422);
+            }
+
             foreach ($data as $studentEntry) {
+                $studentID = (int) ($studentEntry['studentID'] ?? 0);
+                $enrollment = $enrollmentService->currentEnrollment($studentID, $schoolID);
+                if (!$enrollment || $enrollment->status !== 'Active') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Only Active enrollments for the selected academic year can be assessed.',
+                        'error_code' => 'enrollment_not_active',
+                    ], 422);
+                }
+
                 $timetable = CharacterAssessmentTimetable::find($studentEntry['timetableID']);
                 $year = $timetable ? $timetable->year : date('Y');
 
                 foreach ($studentEntry['categories'] as $cat) {
-                    \App\Models\StudentCharacterAssessment::updateOrCreate(
+                    StudentCharacterAssessment::updateOrCreate(
                         [
                             'schoolID' => $schoolID,
-                            'studentID' => $studentEntry['studentID'],
+                            'studentID' => $studentID,
                             'timetableID' => $studentEntry['timetableID'],
                             'categoryID' => $cat['categoryID'],
                         ],
@@ -351,7 +479,7 @@ class CharacterAssessmentController extends Controller
             $studentID = $request->studentID;
             $timetableID = $request->timetableID;
             
-            $history = \App\Models\StudentCharacterAssessment::where('studentID', $studentID)
+            $history = StudentCharacterAssessment::where('studentID', $studentID)
                 ->where('timetableID', $timetableID)
                 ->with(['category', 'choice'])
                 ->get();
@@ -365,11 +493,28 @@ class CharacterAssessmentController extends Controller
     public function get_timetables_by_term(Request $request)
     {
         $termID = $request->termID;
+        $year = $request->input('year');
         $schoolID = Session::get('schoolID');
-        $timetables = CharacterAssessmentTimetable::where('term', $termID)
-            ->where('schoolID', $schoolID)
-            ->orderBy('start_date', 'desc')
-            ->get();
+
+        $query = CharacterAssessmentTimetable::where('term', $termID)
+            ->where('schoolID', $schoolID);
+
+        if ($year !== null && $year !== '') {
+            $query->where('year', $year);
+        } else {
+            // Default to header academic year's calendar year when filter year omitted
+            $selectedIds = app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID);
+            if (!empty($selectedIds)) {
+                $ay = AcademicYear::where('schoolID', $schoolID)
+                    ->where('academic_yearID', $selectedIds[0])
+                    ->first();
+                if ($ay) {
+                    $query->where('year', $ay->year);
+                }
+            }
+        }
+
+        $timetables = $query->orderBy('start_date', 'desc')->get();
         return response()->json(['success' => true, 'timetables' => $timetables]);
     }
 
@@ -388,28 +533,51 @@ class CharacterAssessmentController extends Controller
     {
         try {
             $timetableID = $request->timetableID;
-            $classID = $request->classID;
-            $schoolID = Session::get('schoolID');
+            $classID = (int) $request->classID;
+            $schoolID = (int) Session::get('schoolID');
 
-            // 1. Get All Students in this class
-            $studentsQuery = \App\Models\Student::where('schoolID', $schoolID)
-                ->where('status', 'Active')
-                ->whereHas('subclass', function($q) use ($classID) {
-                    $q->where('classID', $classID);
-                });
-            
-            $allStudents = $studentsQuery->get();
+            $selectedYearIds = app(SelectedAcademicYearService::class)->selectedYearIds($schoolID);
+            if (empty($selectedYearIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Select an academic year in the header before viewing reports.',
+                    'error_code' => 'no_academic_year',
+                ], 422);
+            }
+
+            // Report stats/list use Active enrollments for selected header year
+            $cohort = $this->characterEnrollmentCohort($schoolID, $classID, null, 'Active');
+
+            if (empty($cohort['student_ids'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected academic year has no Active enrollments for this class.',
+                    'error_code' => 'no_active_enrollments',
+                    'summary' => [
+                        'total' => 0,
+                        'males' => 0,
+                        'females' => 0,
+                        'assessed' => 0,
+                        'pending' => 0,
+                    ],
+                    'studentList' => [],
+                ], 422);
+            }
+
+            $allStudents = Student::where('schoolID', $schoolID)
+                ->whereIn('studentID', $cohort['student_ids'])
+                ->orderBy('first_name')
+                ->get();
+
             $totalStudents = $allStudents->count();
             $males = $allStudents->where('gender', 'Male')->count();
             $females = $allStudents->where('gender', 'Female')->count();
 
-            // 2. Get Assessments for this timetable and class
-            $assessments = \App\Models\StudentCharacterAssessment::where('timetableID', $timetableID)
+            $assessments = StudentCharacterAssessment::where('timetableID', $timetableID)
                 ->whereIn('studentID', $allStudents->pluck('studentID'))
                 ->with(['category', 'choice'])
                 ->get();
 
-            // 3. Choice distribution by Category
             $categories = CharacterAssessmentCategory::where('schoolID', $schoolID)->where('type', 'choice')->get();
             $choices = CharacterAssessmentChoice::where('schoolID', $schoolID)->orderBy('weight', 'asc')->get();
             
@@ -449,13 +617,12 @@ class CharacterAssessmentController extends Controller
                 $statsTable[] = $tableRow;
             }
 
-            // 4. Student List with their assessments
-            $studentList = $allStudents->map(function($student) use ($assessments) {
+            $studentList = $allStudents->map(function ($student) use ($assessments, $cohort) {
                 $studentAssessments = $assessments->where('studentID', $student->studentID);
                 $isReady = $studentAssessments->count() > 0;
+                $meta = $cohort['meta'][(int) $student->studentID] ?? null;
                 
-                // Get summary of assessment (distinct choice names)
-                $summary = $studentAssessments->map(function($a) {
+                $summary = $studentAssessments->map(function ($a) {
                     return $a->choice ? $a->choice->choice_name : null;
                 })->filter()->unique()->values()->toArray();
 
@@ -467,7 +634,10 @@ class CharacterAssessmentController extends Controller
                     'gender' => $student->gender,
                     'photo' => $student->image,
                     'is_ready' => $isReady,
-                    'summary' => $summary
+                    'summary' => $summary,
+                    'enrollment_status' => $meta['enrollment_status'] ?? 'Active',
+                    'enrollmentID' => $meta['enrollmentID'] ?? null,
+                    'subclass_name' => $meta['subclass_name'] ?? null,
                 ];
             });
 
@@ -487,7 +657,8 @@ class CharacterAssessmentController extends Controller
                 'choices' => $choices->pluck('choice_name'),
                 'statsTable' => $statsTable,
                 'studentList' => $studentList,
-                'allChoices' => $choices
+                'allChoices' => $choices,
+                'active_enrollment_count' => $cohort['active_count'],
             ]);
 
         } catch (\Exception $e) {
@@ -501,7 +672,7 @@ class CharacterAssessmentController extends Controller
         ini_set('memory_limit', '2048M');
 
         try {
-            $schoolID = Session::get('schoolID');
+            $schoolID = (int) Session::get('schoolID');
             if (!$schoolID) return "Session expired";
 
             $scope = $request->scope; // 'class' or 'student'
@@ -513,35 +684,40 @@ class CharacterAssessmentController extends Controller
             if (!$timetable) return "Timetable period not found";
 
             if ($scope === 'class') {
-                $classID = $request->classID;
+                $classID = (int) $request->classID;
                 $class = ClassModel::find($classID);
                 if (!$class) return "Class not found";
-                
-                $students = \App\Models\Student::where('schoolID', $schoolID)
-                    ->where('status', 'Active')
-                    ->whereHas('subclass', function($q) use ($classID) {
-                        $q->where('classID', $classID);
-                    })
-                    ->with(['characterAssessments' => function($q) use ($timetableID) {
+
+                $cohort = $this->characterEnrollmentCohort($schoolID, $classID, null, 'Active');
+                if (empty($cohort['student_ids'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Selected academic year has no Active enrollments for this class.',
+                        'error_code' => 'no_active_enrollments',
+                    ], 422);
+                }
+
+                $students = Student::where('schoolID', $schoolID)
+                    ->whereIn('studentID', $cohort['student_ids'])
+                    ->with(['characterAssessments' => function ($q) use ($timetableID) {
                         $q->where('timetableID', $timetableID)->with(['category', 'choice']);
                     }])
+                    ->orderBy('first_name')
                     ->get();
 
-                // Prepare analytical data for PDF
                 $categories = CharacterAssessmentCategory::where('schoolID', $schoolID)->get();
                 $choices = CharacterAssessmentChoice::where('schoolID', $schoolID)->orderBy('weight')->get();
                 
-                // Calculate stats for graphs/bars
                 $stats = [];
                 foreach ($categories as $cat) {
                     $catStats = ['name' => $cat->name, 'choices' => []];
-                    $catTotal = \App\Models\StudentCharacterAssessment::where('timetableID', $timetableID)
+                    $catTotal = StudentCharacterAssessment::where('timetableID', $timetableID)
                         ->where('categoryID', $cat->categoryID)
                         ->whereIn('studentID', $students->pluck('studentID'))
                         ->count();
                     
                     foreach ($choices as $ch) {
-                        $count = \App\Models\StudentCharacterAssessment::where('timetableID', $timetableID)
+                        $count = StudentCharacterAssessment::where('timetableID', $timetableID)
                             ->where('categoryID', $cat->categoryID)
                             ->where('choiceID', $ch->choiceID)
                             ->whereIn('studentID', $students->pluck('studentID'))
@@ -564,10 +740,19 @@ class CharacterAssessmentController extends Controller
                 return $pdf->download($filename);
             } else {
                 $studentID = $request->studentID;
-                $student = \App\Models\Student::with(['subclass.class'])->find($studentID);
+                $student = Student::with(['subclass.class'])->find($studentID);
                 if (!$student) return "Student not found";
+
+                // Prefer enrollment class label for selected year
+                $enrollment = app(StudentEnrollmentService::class)->currentEnrollment((int) $studentID, $schoolID);
+                if ($enrollment) {
+                    $enrollment->loadMissing(['subclass.class']);
+                    if ($enrollment->subclass) {
+                        $student->setRelation('subclass', $enrollment->subclass);
+                    }
+                }
                 
-                $assessments = \App\Models\StudentCharacterAssessment::where('studentID', $studentID)
+                $assessments = StudentCharacterAssessment::where('studentID', $studentID)
                     ->where('timetableID', $timetableID)
                     ->with(['category', 'choice'])
                     ->get();
@@ -592,22 +777,29 @@ class CharacterAssessmentController extends Controller
     public function download_excel(Request $request)
     {
         try {
-            $schoolID = Session::get('schoolID');
+            $schoolID = (int) Session::get('schoolID');
             $timetableID = $request->timetableID;
-            $classID = $request->classID;
+            $classID = (int) $request->classID;
 
             $school = \App\Models\School::find($schoolID);
             $timetable = CharacterAssessmentTimetable::find($timetableID);
             $class = ClassModel::find($classID);
 
-            $students = \App\Models\Student::where('schoolID', $schoolID)
-                ->where('status', 'Active')
-                ->whereHas('subclass', function($q) use ($classID) {
-                    $q->where('classID', $classID);
-                })
-                ->with(['characterAssessments' => function($q) use ($timetableID) {
+            $cohort = $this->characterEnrollmentCohort($schoolID, $classID, null, 'Active');
+            if (empty($cohort['student_ids'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected academic year has no Active enrollments for this class.',
+                    'error_code' => 'no_active_enrollments',
+                ], 422);
+            }
+
+            $students = Student::where('schoolID', $schoolID)
+                ->whereIn('studentID', $cohort['student_ids'])
+                ->with(['characterAssessments' => function ($q) use ($timetableID) {
                     $q->where('timetableID', $timetableID)->with(['category', 'choice']);
                 }])
+                ->orderBy('first_name')
                 ->get();
 
             $categories = CharacterAssessmentCategory::where('schoolID', $schoolID)->get();

@@ -190,6 +190,12 @@
                 <div>
                     <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">MANAGE CLASSES & SUBCLASSES</h4>
                     <p class="text-muted mb-0 small" style="font-weight: 600;">Define institutional structure, streams, and academic grading models.</p>
+                    <p class="text-muted mb-0 small mt-1">
+                        <i class="bi bi-people"></i> Student counts = Active enrollments
+                        @if(!empty($academicYearLabel))
+                            ({{ $academicYearLabel }})
+                        @endif
+                    </p>
                 </div>
                 <button class="btn shadow-sm text-white" id="toggleClassesSettingsBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 20px;">
                     <i class="bi bi-gear-fill"></i> SETTINGS
@@ -288,7 +294,7 @@
                                     <div class="text-center p-2 bg-light rounded">
                                         <i class="bi bi-people-fill text-success d-block mb-1" style="font-size: 1.5rem;"></i>
                                         <div class="fw-bold text-dark">{{ $class['student_count'] ?? 0 }}</div>
-                                        <small class="text-muted">Students</small>
+                                        <small class="text-muted">Active enrolled</small>
                                     </div>
                                 </div>
                             </div>
@@ -1728,7 +1734,7 @@
                                 html += '</div>';
                                 html += '<div class="card-body p-3">';
                                 html += '<div class="row g-2 mb-3">';
-                                html += '<div class="col-6"><div class="text-center p-2 bg-light rounded"><i class="bi bi-people-fill text-success d-block mb-1" style="font-size:1.5rem;"></i><div class="fw-bold">' + classItem.total_students + '</div><small class="text-muted">Students</small></div></div>';
+                                html += '<div class="col-6"><div class="text-center p-2 bg-light rounded"><i class="bi bi-people-fill text-success d-block mb-1" style="font-size:1.5rem;"></i><div class="fw-bold">' + classItem.total_students + '</div><small class="text-muted">Active enrolled</small></div></div>';
                                 html += '<div class="col-6"><div class="text-center p-2 bg-light rounded"><i class="bi bi-layers-fill text-primary-custom d-block mb-1" style="font-size:1.5rem;"></i><div class="fw-bold">' + classItem.subclass_count + '</div><small class="text-muted">Subclasses</small></div></div>';
                                 html += '</div>';
                                 html += '<div class="mb-3"><div class="d-flex align-items-center justify-content-between"><span class="text-muted small"><i class="bi bi-person-badge"></i> Coordinator:</span>';
@@ -3690,7 +3696,7 @@
                             html += '<div class="text-center p-2 bg-light rounded">';
                             html += '<i class="bi bi-people-fill text-success d-block mb-1" style="font-size: 1.5rem;"></i>';
                             html += '<div class="fw-bold text-dark">' + classItem.total_students + '</div>';
-                            html += '<small class="text-muted">Students</small>';
+                            html += '<small class="text-muted">Active enrolled</small>';
                             html += '</div>';
                             html += '</div>';
                             // Subclasses

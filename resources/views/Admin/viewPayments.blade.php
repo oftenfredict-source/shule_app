@@ -356,6 +356,7 @@
                             </label>
                             <select class="form-select" id="filterYear">
                                 @php
+                                    $defaultAcademicYearID = $defaultAcademicYearID ?? null;
                                     $defaultYear = $defaultYear ?? date('Y');
                                     $availableYears = $availableYears ?? [];
                                 @endphp
@@ -365,16 +366,22 @@
                                             $yearValue = is_array($academicYear) ? $academicYear['year'] : $academicYear;
                                             $yearName = is_array($academicYear) ? ($academicYear['year_name'] ?? $academicYear['year']) : $yearValue;
                                             $status = is_array($academicYear) ? ($academicYear['status'] ?? '') : '';
-                                            $isSelected = $yearValue == $defaultYear;
+                                            $ayId = is_array($academicYear) ? ($academicYear['academic_yearID'] ?? null) : null;
+                                            $isSelected = $ayId
+                                                ? ((int) $ayId === (int) $defaultAcademicYearID)
+                                                : ($yearValue == $defaultYear);
                                         @endphp
-                                        <option value="{{ $yearValue }}" {{ $isSelected ? 'selected' : '' }}>
+                                        <option value="{{ $ayId ?: $yearValue }}"
+                                            data-year="{{ $yearValue }}"
+                                            {{ $isSelected ? 'selected' : '' }}>
                                             {{ $yearName }} @if($status) ({{ $status }}) @endif
                                         </option>
                                     @endforeach
                                 @else
-                                    <option value="{{ $defaultYear }}" selected>{{ $defaultYear }}</option>
+                                    <option value="{{ $defaultAcademicYearID ?: $defaultYear }}" selected>{{ $defaultYear }}</option>
                                 @endif
                             </select>
+                            <small class="text-muted">Defaults to header academic year. Students come from enrollments for this year.</small>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold mb-2">
@@ -394,12 +401,15 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold mb-2">
-                                <i class="bi bi-person-check"></i> Status
+                                <i class="bi bi-person-check"></i> Enrollment Status
                             </label>
                             <select class="form-select" id="filterStatus">
-                                <option value="">All Statuses</option>
-                                <option value="Active">Active</option>
-                                <option value="Graduated">Graduated</option>
+                                <option value="all">All statuses</option>
+                                <option value="Active" selected>Active</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Transferred">Transferred</option>
+                                <option value="Dropped">Dropped</option>
+                                <option value="Cancelled">Cancelled</option>
                             </select>
                         </div>
                         <div class="col-md-2 d-none">
@@ -583,6 +593,42 @@
                                 <small class="d-block mb-1 text-white-50 font-weight-bold" style="font-size: 0.75rem;">Total Outstanding</small>
                                 <h6 class="mb-0 fw-bold text-white" id="view_total_outstanding">0.00</h6>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Academic Year / Enrollment Payment History -->
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-dark">
+                            <i class="bi bi-calendar3 me-2"></i> Academic Years &amp; Enrollment Payments
+                        </span>
+                        <small class="text-muted" id="enrollmentYearsSummary">Loading…</small>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="enrollmentYearsLoading" class="text-center py-3 text-muted small">
+                            <i class="bi bi-hourglass-split"></i> Loading enrollment payment history…
+                        </div>
+                        <div class="table-responsive" id="enrollmentYearsTableWrap" style="display:none;">
+                            <table class="table table-sm table-bordered table-hover mb-0">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th>Academic Year</th>
+                                        <th>Main Class</th>
+                                        <th>Subclass</th>
+                                        <th>Enrollment</th>
+                                        <th class="text-end">Required</th>
+                                        <th class="text-end">Paid</th>
+                                        <th class="text-end">Owed</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="enrollmentYearsBody">
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="enrollmentYearsEmpty" class="text-center py-3 text-muted small" style="display:none;">
+                            No enrollment / academic year payment history found for this student.
                         </div>
                     </div>
                 </div>
@@ -1120,10 +1166,19 @@
                 currentPaymentsAjax.abort();
             }
 
-            var year = $('#filterYear').val();
+            var yearVal = $('#filterYear').val();
+            var academicYearID = '';
+            var year = '';
+            if (yearVal && String(yearVal).match(/^\d+$/) && parseInt(yearVal, 10) > 1900 && parseInt(yearVal, 10) < 3000 && !$('#filterYear option:selected').data('year')) {
+                // Legacy calendar year value
+                year = yearVal;
+            } else {
+                academicYearID = yearVal;
+                year = $('#filterYear option:selected').data('year') || '';
+            }
             var classID = $('#filterClass').val();
             var subclassID = $('#filterSubclass').val();
-            var studentStatus = $('#filterStatus').val();
+            var enrollmentStatus = $('#filterStatus').val() || 'Active';
             var paymentStatus = $('#filterPaymentStatus').val();
             var searchStudentName = $('#searchStudentName').val();
 
@@ -1140,9 +1195,11 @@
                 type: 'GET',
                 data: {
                     year: year,
+                    academic_year_id: academicYearID,
                     class_id: classID,
                     subclass_id: subclassID,
-                    student_status: studentStatus,
+                    enrollment_status: enrollmentStatus,
+                    student_status: enrollmentStatus,
                     payment_status: paymentStatus,
                     search_student_name: searchStudentName,
                     sponsorship_filter: $('#filterSponsorship').val()
@@ -1185,12 +1242,21 @@
                                     var subclass = student.subclass.subclass_name || '';
                                     studentClass = (mainClass && subclass) ? mainClass + ' ' + subclass : (subclass || mainClass || 'N/A');
                                 }
+                                var enrStatus = student.enrollment_status || '';
+                                var enrBadgeClass = 'bg-secondary';
+                                if (enrStatus === 'Active') enrBadgeClass = 'bg-success';
+                                else if (enrStatus === 'Completed') enrBadgeClass = 'bg-primary';
+                                else if (enrStatus === 'Transferred') enrBadgeClass = 'bg-info text-dark';
+                                else if (enrStatus === 'Dropped' || enrStatus === 'Cancelled') enrBadgeClass = 'bg-warning text-dark';
+                                var enrBadge = enrStatus
+                                    ? '<span class="badge ' + enrBadgeClass + ' ms-1" style="font-size:0.65rem;">' + enrStatus + '</span>'
+                                    : '';
 
                                 // Column 1: Student Details
                                 var col1 = '<div class="d-flex align-items-center">' +
                                     photoHtml +
                                     '<div>' +
-                                    '<div class="fw-bold text-dark">' + studentFullName.trim() + '</div>' +
+                                    '<div class="fw-bold text-dark">' + studentFullName.trim() + enrBadge + '</div>' +
                                     '<div class="small text-muted">' + (student.admission_number || 'No Adm') + ' | ' + studentClass + '</div>' +
                                     '<div class="small badge bg-light text-dark border">' + (item.academic_year || '') + '</div>' +
                                     '</div>' +
@@ -1224,6 +1290,11 @@
                                 var col3 = '<div class="text-end">' +
                                     '<div class="fw-bold text-danger mb-1">' + parseFloat(totals.total_balance || 0).toLocaleString() + '/=</div>' +
                                     '<span class="badge ' + statusClass + ' mb-1">' + overallStatus + '</span>';
+
+                                var priorOwed = parseFloat(item.prior_years_owed || totals.prior_years_owed || 0);
+                                if (priorOwed > 0) {
+                                    col3 += '<div class="small text-warning mt-1" title="Outstanding from previous enrollments/years"><i class="bi bi-exclamation-triangle"></i> Prev years: ' + priorOwed.toLocaleString() + '/=</div>';
+                                }
                                 
                                 // Can Start Icon
                                 if (totals.can_start_school) {
@@ -1257,7 +1328,10 @@
                                     '</tr>';
                             });
                         } else {
-                            html = '<tr><td colspan="5" class="text-center py-4 text-muted"><p class="mt-2">No payments found</p></td></tr>';
+                            var emptyMsg = response.error_code === 'no_enrollments'
+                                ? (response.message || 'No enrollments found for the selected academic year / enrollment status.')
+                                : 'No payments found';
+                            html = '<tr><td colspan="5" class="text-center py-4 text-muted"><p class="mt-2">' + emptyMsg + '</p></td></tr>';
                         }
                         
                         $('#paymentsTableBody').html(html);
@@ -1356,10 +1430,15 @@
 
         // Clear all filters
         $('#clearFiltersBtn').on('click', function() {
-            $('#filterYear').val('{{ $currentYear }}');
+            var defaultAy = '{{ $defaultAcademicYearID ?? '' }}';
+            if (defaultAy) {
+                $('#filterYear').val(defaultAy);
+            } else {
+                $('#filterYear').val($('#filterYear option:first').val());
+            }
             $('#filterClass').val('');
             $('#filterSubclass').html('<option value="">All Subclasses</option>');
-            $('#filterStatus').val('');
+            $('#filterStatus').val('Active');
             $('#filterPaymentStatus').val('');
             $('#filterSponsorship').val('');
             $('#searchStudentName').val('');
@@ -1368,15 +1447,23 @@
         
         // Export filtered PDF (Standardized AJAX Method)
         $('#exportFilteredPdfBtn').on('click', function() {
-            const year = $('#filterYear').val();
+            var yearVal = $('#filterYear').val();
+            var academicYearID = '';
+            var year = '';
+            if (yearVal && String(yearVal).match(/^\d+$/) && parseInt(yearVal, 10) > 1900 && parseInt(yearVal, 10) < 3000 && !$('#filterYear option:selected').data('year')) {
+                year = yearVal;
+            } else {
+                academicYearID = yearVal;
+                year = $('#filterYear option:selected').data('year') || '';
+            }
             const class_id = $('#filterClass').val();
             const subclass_id = $('#filterSubclass').val();
-            const student_status = $('#filterStatus').val();
+            const enrollment_status = $('#filterStatus').val() || 'Active';
             const payment_status = $('#filterPaymentStatus').val();
             const search_student_name = $('#searchStudentName').val();
 
             let url = '{{ route("admin.export_filtered_payments_pdf") }}';
-            url += `?year=${year}&class_id=${class_id}&subclass_id=${subclass_id}&student_status=${student_status}&payment_status=${payment_status}&search_student_name=${search_student_name}`;
+            url += `?year=${encodeURIComponent(year)}&academic_year_id=${encodeURIComponent(academicYearID)}&class_id=${encodeURIComponent(class_id || '')}&subclass_id=${encodeURIComponent(subclass_id || '')}&enrollment_status=${encodeURIComponent(enrollment_status)}&student_status=${encodeURIComponent(enrollment_status)}&payment_status=${encodeURIComponent(payment_status || '')}&search_student_name=${encodeURIComponent(search_student_name || '')}`;
 
             $('#pdfProgressTitle').text('Generating Payments Report');
             $('#downloadProgressModal').modal('show');
@@ -2264,9 +2351,89 @@
                 transactionsHtml = '<div class="text-center py-3 text-muted">No transactions found for this control number.</div>';
             }
             $('#allTransactionsContent').html(transactionsHtml);
+
+            // Load all academic-year / enrollment payment rows for this student
+            const studentIdForHistory = btn.data('student-id') || (payment.studentID || null);
+            loadEnrollmentPaymentHistory(studentIdForHistory);
             
             $('#viewMoreModal').modal('show');
         });
+
+        function loadEnrollmentPaymentHistory(studentID) {
+            const $loading = $('#enrollmentYearsLoading');
+            const $wrap = $('#enrollmentYearsTableWrap');
+            const $empty = $('#enrollmentYearsEmpty');
+            const $body = $('#enrollmentYearsBody');
+            const $summary = $('#enrollmentYearsSummary');
+
+            $loading.show();
+            $wrap.hide();
+            $empty.hide();
+            $body.empty();
+            $summary.text('Loading…');
+
+            if (!studentID) {
+                $loading.hide();
+                $empty.show().text('Student ID missing — cannot load enrollment history.');
+                $summary.text('');
+                return;
+            }
+
+            $.ajax({
+                url: '{{ url("student_enrollment_payments") }}/' + studentID,
+                method: 'GET',
+                success: function(res) {
+                    $loading.hide();
+                    if (!res.success || !res.years || !res.years.length) {
+                        $empty.show();
+                        $summary.text('0 years');
+                        return;
+                    }
+
+                    const fmt = (n) => parseFloat(n || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + '/=';
+                    let rows = '';
+                    res.years.forEach(function(y) {
+                        const owed = parseFloat(y.balance || 0);
+                        const statusBadge = y.enrollment_status
+                            ? '<span class="badge bg-secondary">' + y.enrollment_status + '</span>'
+                            : '<span class="text-muted">—</span>';
+                        const payBadge = owed > 0
+                            ? '<span class="badge bg-danger">Owes</span>'
+                            : (y.source === 'none'
+                                ? '<span class="badge bg-light text-dark border">No Bill</span>'
+                                : '<span class="badge bg-success">Cleared</span>');
+                        const yearBadge = (y.year_status === 'Closed')
+                            ? ' <span class="badge bg-warning text-dark">Closed</span>'
+                            : ((y.enrollment_status === 'Active') ? ' <span class="badge bg-info text-white">Current</span>' : '');
+
+                        rows += '<tr' + (owed > 0 ? ' class="table-danger"' : '') + '>';
+                        rows += '<td><strong>' + (y.year_name || 'N/A') + '</strong>' + yearBadge;
+                        if (y.enrollmentID) {
+                            rows += '<div class="small text-muted">Enr #' + y.enrollmentID + '</div>';
+                        }
+                        rows += '</td>';
+                        rows += '<td>' + (y.class_name || 'N/A') + '</td>';
+                        rows += '<td>' + (y.subclass_name || 'N/A') + '</td>';
+                        rows += '<td>' + statusBadge + '</td>';
+                        rows += '<td class="text-end">' + fmt(y.amount_required) + '</td>';
+                        rows += '<td class="text-end text-success">' + fmt(y.amount_paid) + '</td>';
+                        rows += '<td class="text-end fw-bold' + (owed > 0 ? ' text-danger' : '') + '">' + fmt(owed) + '</td>';
+                        rows += '<td>' + payBadge + ' <small class="text-muted d-block">' + (y.payment_status || '') + '</small></td>';
+                        rows += '</tr>';
+                    });
+                    $body.html(rows);
+                    $wrap.show();
+
+                    const s = res.summary || {};
+                    $summary.text((s.years_count || res.years.length) + ' year(s) · Owes ' + fmt(s.total_owed || 0) + ' across ' + (s.years_owing || 0) + ' year(s)');
+                },
+                error: function() {
+                    $loading.hide();
+                    $empty.show().text('Failed to load enrollment payment history.');
+                    $summary.text('Error');
+                }
+            });
+        }
 
 
         // Record Payment Button Click Handler

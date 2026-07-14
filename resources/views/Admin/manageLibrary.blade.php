@@ -300,7 +300,7 @@
                     <div class="row align-items-center">
                         <div class="col-md-6">
                             <h4 class="mb-1" style="color: #940000; font-weight: 800; letter-spacing: 0.5px;">LIBRARY MANAGEMENT SYSTEM</h4>
-                            <p class="text-muted mb-0 small" style="font-weight: 600;">Monitor book circulation, inventory health, and student borrowing activities.</p>
+                            <p class="text-muted mb-0 small" style="font-weight: 600;">Monitor book circulation, inventory health, and student borrowing. Student search uses enrollments for the academic year selected in the header.</p>
                         </div>
                         <div class="col-md-6 text-right">
                             <button class="btn shadow-sm text-white" id="toggleActionsBtn" style="border-radius: 0; background: #940000; border: none; font-weight: 700; padding: 10px 25px; transition: all 0.3s ease;">
@@ -697,6 +697,19 @@
                         </select>
                     </div>
                     <div class="mb-3" id="borrowerSelectionContainer" style="display: none;">
+                        <div class="mb-2" id="enrollmentStatusWrap" style="display: none;">
+                            <label class="form-label">Enrollment Status (selected year)</label>
+                            <select class="form-control" id="borrowEnrollmentStatus">
+                                <option value="Active" selected>Active (required to borrow)</option>
+                                <option value="all">All statuses (view only)</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Transferred">Transferred</option>
+                                <option value="Dropped">Dropped</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                            <small class="text-muted d-block mt-1">New borrows require Active enrollment. Returns and lost/damaged settlements are always allowed.</small>
+                            <small class="text-muted">Students are loaded from enrollments for the academic year in the header.</small>
+                        </div>
                         <label class="form-label" id="borrowerSearchLabel">Select Borrowers <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <input type="text" class="form-control" id="searchStudent" placeholder="Type to search and add...">
@@ -773,11 +786,24 @@
                         </select>
                     </div>
                     <div class="mb-3" id="lostStudentSection" style="display: none;">
+                        <div class="mb-2" id="lostEnrollmentStatusWrap" style="display: none;">
+                            <label class="form-label">Enrollment Status (selected year)</label>
+                            <select class="form-control" id="lostEnrollmentStatus">
+                                <option value="all" selected>All statuses</option>
+                                <option value="Active">Active</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Transferred">Transferred</option>
+                                <option value="Dropped">Dropped</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                            <small class="text-muted d-block mt-1">Non-Active students may still be recorded for loss and can settle payment.</small>
+                        </div>
                         <label class="form-label" id="lostSearchLabel">Search Student <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="lostStudentSearch" placeholder="Search by name or reference...">
                         <input type="hidden" id="lostStudentID">
                         <input type="hidden" id="lostTeacherID">
                         <input type="hidden" id="lostStaffID">
+                        <input type="hidden" id="lostEnrollmentID">
                         <div id="lostStudentResults" class="mt-2 shadow-sm border rounded bg-white" style="max-height: 200px; overflow-y: auto; display: none; position: relative; z-index: 100;"></div>
                     </div>
                     <div class="mb-3">
@@ -838,11 +864,24 @@
                         </select>
                     </div>
                     <div class="mb-3" id="damagedStudentSection" style="display: none;">
+                        <div class="mb-2" id="damagedEnrollmentStatusWrap" style="display: none;">
+                            <label class="form-label">Enrollment Status (selected year)</label>
+                            <select class="form-control" id="damagedEnrollmentStatus">
+                                <option value="all" selected>All statuses</option>
+                                <option value="Active">Active</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Transferred">Transferred</option>
+                                <option value="Dropped">Dropped</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                            <small class="text-muted d-block mt-1">Non-Active students may still be recorded for damage and can settle payment.</small>
+                        </div>
                         <label class="form-label" id="damagedSearchLabel">Search Student <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="damagedStudentSearch" placeholder="Search by name or reference...">
                         <input type="hidden" id="damagedStudentID">
                         <input type="hidden" id="damagedTeacherID">
                         <input type="hidden" id="damagedStaffID">
+                        <input type="hidden" id="damagedEnrollmentID">
                         <div id="damagedStudentResults" class="mt-2 shadow-sm border rounded bg-white" style="max-height: 200px; overflow-y: auto; display: none; position: relative; z-index: 100;"></div>
                     </div>
                     <div class="mb-3">
@@ -1032,6 +1071,19 @@
                     if (searchTimer) clearTimeout(searchTimer);
                     if (search.length >= 2) searchTimer = setTimeout(() => searchStudents(search), 300);
                     else $('#studentResults').hide();
+                });
+
+                $(document).on('change', '#borrowEnrollmentStatus, #lostEnrollmentStatus, #damagedEnrollmentStatus', function() {
+                    const isBorrow = $(this).attr('id') === 'borrowEnrollmentStatus';
+                    if (isBorrow) {
+                        const search = $('#searchStudent').val();
+                        if (search && search.length >= 2) searchStudents(search);
+                    } else {
+                        const prefix = $(this).attr('id').replace('EnrollmentStatus', '');
+                        const search = $(`#${prefix}StudentSearch`).val();
+                        const type = $(`#${prefix}By`).val();
+                        if (search && search.length >= 2 && type === 'student') searchStudents(search, prefix, type);
+                    }
                 });
 
                 $('#lostIsbn, #damagedIsbn').on('input', function() {
@@ -1423,36 +1475,62 @@
         function searchStudents(search, prefix = '', forcedType = null) {
             const type = forcedType || (prefix ? $(`#${prefix}By`).val() : $('#borrowerType').val());
             const url = type === 'teacher' ? '{{ route("search_teachers") }}' : (type === 'staff' ? '{{ route("search_staff") }}' : '{{ route("get_students") }}');
-            $.get(url, { search }, function(res) {
+            const params = { search };
+            if (type === 'student') {
+                const statusSel = prefix
+                    ? $(`#${prefix}EnrollmentStatus`).val()
+                    : $('#borrowEnrollmentStatus').val();
+                params.enrollment_status = statusSel || 'Active';
+            }
+            $.get(url, params, function(res) {
                 if (res.success) {
                     let html = '';
                     const items = type === 'teacher' ? res.teachers : (type === 'staff' ? res.staff : res.students);
                     if (items && items.length > 0) {
                         items.forEach(it => {
                             let name = it.name || `${it.first_name} ${it.last_name}`;
-                            html += `<div class="p-2 border-bottom" style="cursor:pointer" onclick="selectStudent(${it.studentID || it.id}, '${name.replace(/'/g, "\\'")}', '${prefix}', '${type}')">
-                                        <strong>${name}</strong>
+                            const classLabel = it.class_label ? ` · ${it.class_label}` : '';
+                            const enrBadge = (type === 'student' && it.enrollment_status)
+                                ? ` <span class="badge badge-secondary">${it.enrollment_status}</span>`
+                                : '';
+                            const enrollmentID = it.enrollmentID || '';
+                            const safeName = name.replace(/'/g, "\\'");
+                            html += `<div class="p-2 border-bottom" style="cursor:pointer" onclick="selectStudent(${it.studentID || it.id}, '${safeName}', '${prefix}', '${type}', '${enrollmentID}', '${(it.enrollment_status||'').replace(/'/g, "\\'")}')">
+                                        <strong>${name}</strong>${enrBadge}<div class="small text-muted">${it.admission_number || ''}${classLabel}</div>
                                      </div>`;
                         });
                     } else {
-                        html = '<div class="p-2 text-muted text-center small">No matches found</div>';
+                        html = '<div class="p-2 text-muted text-center small">' +
+                            (res.message || 'No matches found for this enrollment status / year') +
+                            '</div>';
                     }
                     $(`#${prefix ? prefix + 'StudentResults' : 'studentResults'}`).html(html).show();
                 }
             });
         }
 
-        function selectStudent(id, name, prefix, type) {
+        function selectStudent(id, name, prefix, type, enrollmentID = null, enrollmentStatus = '') {
             if (prefix) {
                 $(`#${prefix}StudentID, #${prefix}TeacherID, #${prefix}StaffID`).val('');
-                if (type === 'student') $(`#${prefix}StudentID`).val(id);
-                else if (type === 'teacher') $(`#${prefix}TeacherID`).val(id);
-                else $(`#${prefix}StaffID`).val(id);
+                if (type === 'student') {
+                    $(`#${prefix}StudentID`).val(id);
+                    $(`#${prefix}EnrollmentID`).val(enrollmentID || '');
+                } else if (type === 'teacher') {
+                    $(`#${prefix}TeacherID`).val(id);
+                } else {
+                    $(`#${prefix}StaffID`).val(id);
+                }
                 $(`#${prefix}StudentSearch`).val(name);
                 $(`#${prefix}StudentResults`).hide();
             } else {
                 if (!selectedBorrowers.some(b => b.id == id && b.type == type)) {
-                    selectedBorrowers.push({ id, name, type });
+                    selectedBorrowers.push({
+                        id,
+                        name,
+                        type,
+                        enrollmentID: enrollmentID || null,
+                        enrollment_status: enrollmentStatus || null
+                    });
                     renderBorrowerChips();
                 }
                 $('#searchStudent').val(''); $('#studentResults').hide();
@@ -1462,8 +1540,9 @@
         function renderBorrowerChips() {
             let html = '';
             selectedBorrowers.forEach((b, i) => {
+                const enr = b.enrollment_status ? ` · ${b.enrollment_status}` : '';
                 html += `<div class="badge badge-primary p-2 mr-1 mb-1 shadow-sm d-inline-flex align-items-center">
-                            <span class="mr-2">${b.name} (${b.type.toUpperCase()})</span>
+                            <span class="mr-2">${b.name} (${b.type.toUpperCase()}${enr})</span>
                             <i class="fa fa-times-circle cursor-pointer" onclick="removeBorrower(${i})" style="font-size: 14px;"></i>
                          </div>`;
             });
@@ -1485,6 +1564,11 @@
             $('#borrowerSearchLabel').text('Search ' + type.charAt(0).toUpperCase() + type.slice(1));
             $('#searchStudent').attr('placeholder', 'Enter ' + type + ' name...').val('');
             $('#studentResults').hide();
+            if (type === 'student') {
+                $('#enrollmentStatusWrap').show();
+            } else {
+                $('#enrollmentStatusWrap').hide();
+            }
         }
 
         function saveBorrow() {
@@ -1500,6 +1584,7 @@
                 isbn: $('#borrowISBN').val(),
                 borrower_ids: selectedBorrowers.map(b => b.id),
                 borrower_types: selectedBorrowers.map(b => b.type),
+                borrower_enrollment_ids: selectedBorrowers.map(b => b.enrollmentID || null),
                 expected_return_date: expectedReturnDate
             }, function(res) {
                 $('#saveBorrowBtn').prop('disabled', false).html('<i class="fa fa-save"></i> SAVE');
@@ -1632,8 +1717,13 @@
             if (val === 'other') $(`#${prefix}StudentSection`).slideUp();
             else $(`#${prefix}StudentSection`).slideDown();
             $(`#${prefix}SearchLabel`).text('Search ' + val.charAt(0).toUpperCase() + val.slice(1));
-            $(`#${prefix}StudentID, #${prefix}TeacherID, #${prefix}StaffID`).val('');
+            $(`#${prefix}StudentID, #${prefix}TeacherID, #${prefix}StaffID, #${prefix}EnrollmentID`).val('');
             $(`#${prefix}StudentSearch`).val('').attr('placeholder', 'Search ' + val + ' name...');
+            if (val === 'student') {
+                $(`#${prefix}EnrollmentStatusWrap`).show();
+            } else {
+                $(`#${prefix}EnrollmentStatusWrap`).hide();
+            }
         }
 
         function saveDamagedBook() {
@@ -1642,8 +1732,9 @@
             const studentID = $('#damagedStudentID').val();
             const teacherID = $('#damagedTeacherID').val();
             const staffID = $('#damagedStaffID').val();
+            const enrollmentID = $('#damagedEnrollmentID').val();
             if(!isbn) { Swal.fire('Error', 'ISBN is required', 'warning'); return; }
-            $.post('{{ route("store_book_damage") }}', { _token: '{{ csrf_token() }}', isbn, bookID: selectedBookID, damaged_by, studentID, teacherID, staffID, notes: $('#damagedReason').val() }, function(res) {
+            $.post('{{ route("store_book_damage") }}', { _token: '{{ csrf_token() }}', isbn, bookID: selectedBookID, damaged_by, studentID, teacherID, staffID, enrollmentID, notes: $('#damagedReason').val() }, function(res) {
                 if(res.success) { Swal.fire('Saved', 'Damage recorded', 'success'); $('#damagedModal').modal('hide'); loadBooks(); }
                 else Swal.fire('Error', res.message, 'error');
             });
@@ -1655,8 +1746,9 @@
             const studentID = $('#lostStudentID').val();
             const teacherID = $('#lostTeacherID').val();
             const staffID = $('#lostStaffID').val();
+            const enrollmentID = $('#lostEnrollmentID').val();
             if(!isbn) { Swal.fire('Error', 'ISBN is required', 'warning'); return; }
-            $.post('{{ route("store_book_loss") }}', { _token: '{{ csrf_token() }}', isbn, bookID: selectedBookID, lost_by, studentID, teacherID, staffID, notes: $('#lostReason').val() }, function(res) {
+            $.post('{{ route("store_book_loss") }}', { _token: '{{ csrf_token() }}', isbn, bookID: selectedBookID, lost_by, studentID, teacherID, staffID, enrollmentID, notes: $('#lostReason').val() }, function(res) {
                 if(res.success) { Swal.fire('Saved', 'Loss recorded', 'success'); $('#lostModal').modal('hide'); loadBooks(); }
                 else Swal.fire('Error', res.message, 'error');
             });

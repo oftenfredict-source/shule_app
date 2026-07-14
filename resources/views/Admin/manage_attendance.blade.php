@@ -579,6 +579,18 @@
                             </select>
                             <span class="att-filter-hint">How to search attendance</span>
                         </div>
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Enrollment Status</label>
+                            <select class="form-select" id="enrollment_status" name="enrollment_status">
+                                <option value="Active" selected>Active</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Transferred">Transferred</option>
+                                <option value="Dropped">Dropped</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="all">All enrollments</option>
+                            </select>
+                            <span class="att-filter-hint">Header academic year: <strong>{{ $academicYearLabel ?? '—' }}</strong></span>
+                        </div>
                         <div class="att-filter-item att-filter-item--medium" id="date_field" style="display: none;">
                             <label>Date</label>
                             <input type="date" class="form-control" id="date" name="date">
@@ -690,6 +702,18 @@
                                 <option value="year">By Year</option>
                             </select>
                             <span class="att-filter-hint">How to search attendance</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Enrollment Status</label>
+                            <select class="form-select" id="fingerprint_enrollment_status" name="enrollment_status">
+                                <option value="Active" selected>Active</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Transferred">Transferred</option>
+                                <option value="Dropped">Dropped</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="all">All enrollments</option>
+                            </select>
+                            <span class="att-filter-hint">Header year: <strong>{{ $academicYearLabel ?? '—' }}</strong></span>
                         </div>
                         <div class="att-filter-item att-filter-item--medium" id="fingerprint_date_field" style="display: none;">
                             <label>Date</label>
@@ -1074,8 +1098,17 @@
             },
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok && (data.error_code === 'no_academic_year' || response.status === 422)) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'No Academic Year',
+                    text: data.message || 'Select an academic year in the header before viewing attendance.',
+                    confirmButtonColor: '#940000'
+                });
+                return;
+            }
             if (data.success) {
                 currentAttendanceSearchParams = Object.fromEntries(formData.entries());
                 @if(isset($isCoordinatorView) && $isCoordinatorView && $classIDParam)
@@ -1162,8 +1195,17 @@
                 },
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok && (data.error_code === 'no_academic_year' || response.status === 422)) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'No Academic Year',
+                        text: data.message || 'Select an academic year in the header before viewing fingerprint attendance.',
+                        confirmButtonColor: '#940000'
+                    });
+                    return;
+                }
                 if (data.success) {
                     displayFingerprintAttendanceResults(data);
                 } else {
@@ -1427,6 +1469,11 @@
             
             if (classData.students && classData.students.length > 0) {
                 classData.students.forEach((student, studentIndex) => {
+                    const isActiveEnrolled = !student.enrollment_status || student.enrollment_status === 'Active';
+                    const enrBadge = student.enrollment_status
+                        ? `<span class="badge ${isActiveEnrolled ? 'bg-success' : 'bg-secondary'} ms-1">${student.enrollment_status}</span>`
+                        : '';
+                    const rowStyle = isActiveEnrolled ? '' : 'opacity:0.55;background:#f5f5f5;';
                     if (searchType === 'date') {
                         // For date view, show check in/out times
                         const checkInBadge = student.check_in_time 
@@ -1437,9 +1484,9 @@
                             : '<span class="text-muted">--</span>';
                         
                         html += `
-                            <tr>
+                            <tr style="${rowStyle}">
                                 <td>${studentIndex + 1}</td>
-                                <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}</td>
+                                <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}${enrBadge}</td>
                                 <td>${student.admission_number || 'N/A'}</td>
                                 <td>${checkInBadge}</td>
                                 <td>${checkOutBadge}</td>
@@ -1457,9 +1504,9 @@
                     } else {
                         // For month/year view, show stats
                         html += `
-                            <tr>
+                            <tr style="${rowStyle}">
                                 <td>${studentIndex + 1}</td>
-                                <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}</td>
+                                <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}${enrBadge}</td>
                                 <td>${student.admission_number || 'N/A'}</td>
                                 <td>${student.gender || 'N/A'}</td>
                                 <td><span class="badge bg-success">${student.days_present || 0}</span></td>
@@ -1478,6 +1525,8 @@
                         `;
                     }
                 });
+            } else {
+                html += '<tr><td colspan="8" class="text-center">No enrollments found for the selected academic year / status.</td></tr>';
             }
 
             html += `
@@ -2320,6 +2369,7 @@
                                             <th>#</th>
                                             <th>Student Name</th>
                                             <th>Admission No.</th>
+                                            <th>Enrollment</th>
                                             <th>Gender</th>
                                             <th>Days Present</th>
                                             <th>Days Absent</th>
@@ -2333,11 +2383,18 @@
             
             if (classData.students && classData.students.length > 0) {
                 classData.students.forEach((student, studentIndex) => {
+                    const isActiveEnrolled = !student.enrollment_status || student.enrollment_status === 'Active';
+                    const enrBadgeClass = isActiveEnrolled ? 'bg-success' : 'bg-secondary';
+                    const enr = student.enrollment_status
+                        ? `<span class="badge ${enrBadgeClass}">${student.enrollment_status}</span>${student.enrollmentID ? `<div class="small text-muted">#${student.enrollmentID}</div>` : ''}`
+                        : '<span class="text-muted">—</span>';
+                    const rowStyle = isActiveEnrolled ? '' : 'opacity:0.55;background:#f5f5f5;';
                     html += `
-                        <tr>
+                        <tr style="${rowStyle}">
                             <td>${studentIndex + 1}</td>
                             <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}</td>
                             <td>${student.admission_number || 'N/A'}</td>
+                            <td>${enr}</td>
                             <td>${student.gender || 'N/A'}</td>
                             <td><span class="badge bg-success">${student.days_present || 0}</span></td>
                             <td><span class="badge bg-danger">${student.days_absent || 0}</span></td>
@@ -2357,7 +2414,7 @@
                     `;
                 });
             } else {
-                html += '<tr><td colspan="9" class="text-center">No students found</td></tr>';
+                html += '<tr><td colspan="10" class="text-center">No enrollments found for the selected academic year / status.</td></tr>';
             }
             
             html += `
@@ -2564,7 +2621,7 @@
         const params = new URLSearchParams();
         const merged = { ...currentAttendanceSearchParams, ...extraParams };
 
-        ['search_type', 'date', 'year', 'month', 'classID', 'coordinator', 'subclassID'].forEach(key => {
+        ['search_type', 'date', 'year', 'month', 'classID', 'coordinator', 'subclassID', 'enrollment_status'].forEach(key => {
             if (merged[key]) {
                 params.append(key, merged[key]);
             }

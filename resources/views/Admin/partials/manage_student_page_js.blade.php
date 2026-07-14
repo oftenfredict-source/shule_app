@@ -358,8 +358,8 @@
                             if (!promo) {
                                 return '<span class="text-muted">-</span>';
                             }
-                            return '<span class="enrollment-status-pill ' + promotionStatusBadgeClass(promo) + '">' +
-                                escapeHtmlStudent(promo) + '</span>';
+                            return '<span class="enrollment-status-pill ' + promotionStatusBadgeClass(promo) + '" title="' + escapeHtmlStudent(promotionStatusLabel(promo)) + '">' +
+                                escapeHtmlStudent(promotionStatusLabel(promo)) + '</span>';
                         }
                     },
                     {
@@ -447,8 +447,8 @@
                 escapeHtmlStudent(enr) + '</span>';
             var promo = student.promotion_status || null;
             var promoPill = promo
-                ? '<span class="enrollment-status-pill ' + promotionStatusBadgeClass(promo) + '">' +
-                    escapeHtmlStudent(promo) + '</span>'
+                ? '<span class="enrollment-status-pill ' + promotionStatusBadgeClass(promo) + '" title="' + escapeHtmlStudent(promotionStatusLabel(promo)) + '">' +
+                    escapeHtmlStudent(promotionStatusLabel(promo)) + '</span>'
                 : '';
 
             return '<div class="col-12 col-sm-6 col-xl-4">' +
@@ -1712,12 +1712,15 @@
         $(document).on('click', '.edit-enrollment-action-btn', function () {
             const action = $(this).data('action');
             editEnrollmentState.action = action;
-            $('.edit-enrollment-action-btn').css({ background: '#fff', color: '#940000' });
+            $('.edit-enrollment-action-btn').css({ background: '#fff' });
             $(this).css({ background: '#940000', color: '#fff' });
-            const title = action === 'Dropped'
-                ? 'Mark enrollment as Dropped (expelled / stopped)?'
-                : 'Mark enrollment as Transferred (left school)?';
-            $('#editEnrollmentConfirmTitle').text(title);
+            const titles = {
+                Dropped: 'Mark enrollment as Dropped (expelled / stopped — promotion: Dropout)?',
+                Transferred: 'Mark enrollment as Transferred (left school)?',
+                Truancy: 'Mark as Truancy (Long-term absentee)?',
+                Dropout: 'Mark as Dropout (stopped schooling)?'
+            };
+            $('#editEnrollmentConfirmTitle').text(titles[action] || ('Confirm ' + action + '?'));
             $('#editEnrollmentConfirmYesNo').val('');
             $('#editEnrollmentConfirmWord').val('');
             $('#editEnrollmentConfirmWordWrap').addClass('d-none');
@@ -2271,7 +2274,7 @@
                         }
                         if (promoStatus) {
                             html += ' <span class="badge text-white ' + promotionStatusBadgeClass(promoStatus) + '" title="Promotion status for selected academic year">' +
-                                '<i class="bi bi-arrow-up-right"></i> ' + escapeHtmlStudent(promoStatus) + '</span>';
+                                '<i class="bi bi-arrow-up-right"></i> ' + escapeHtmlStudent(promotionStatusLabel(promoStatus)) + '</span>';
                         }
                         html += '</div>';
 
@@ -2287,7 +2290,7 @@
                             '</div><div class="info-item-value">' + escapeHtmlStudent(enrStatus || 'N/A') + '</div></div></div>';
                         html += '<div class="info-item"><i class="bi bi-arrow-up-right"></i><div class="info-item-content"><div class="info-item-label">Promotion Status' +
                             (enrYear ? ' <small class="text-muted">(' + escapeHtmlStudent(enrYear) + ')</small>' : '') +
-                            '</div><div class="info-item-value">' + escapeHtmlStudent(promoStatus || 'N/A') + '</div></div></div>';
+                            '</div><div class="info-item-value">' + escapeHtmlStudent(promotionStatusLabel(promoStatus) || 'N/A') + '</div></div></div>';
                         html += '<div class="info-item"><i class="bi bi-person-badge"></i><div class="info-item-content"><div class="info-item-label">Student Record Status</div><div class="info-item-value">' + escapeHtmlStudent(student.status || 'N/A') + '</div></div></div>';
                         html += '<div class="info-item"><i class="bi bi-geo-alt"></i><div class="info-item-content"><div class="info-item-label">Address</div><div class="info-item-value">' + student.address + '</div></div></div>';
 
@@ -4045,6 +4048,19 @@ Would you like to try direct registration anyway, or use the manual method?`;
         return 'enrollment-badge-other';
     }
 
+    function promotionStatusLabel(status) {
+        var labels = {
+            Pending: 'Pending',
+            Promoted: 'Promoted',
+            Repeated: 'Repeated',
+            Graduated: 'Graduated',
+            Transferred: 'Transferred',
+            Truancy: 'Truancy (Long-term absentee)',
+            Dropout: 'Dropout'
+        };
+        return labels[status] || status || '-';
+    }
+
     function promotionStatusBadgeClass(status) {
         var s = String(status || '').toLowerCase().replace(/\s+/g, '_');
         if (s === 'pending') return 'promotion-badge-pending';
@@ -4052,6 +4068,8 @@ Would you like to try direct registration anyway, or use the manual method?`;
         if (s === 'repeated') return 'promotion-badge-repeated';
         if (s === 'graduated') return 'promotion-badge-graduated';
         if (s === 'transferred') return 'promotion-badge-transferred';
+        if (s === 'truancy') return 'promotion-badge-truancy';
+        if (s === 'dropout') return 'promotion-badge-dropout';
         return 'promotion-badge-other';
     }
 
@@ -4204,7 +4222,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
             '</div>';
         if (sub.promotion_status) {
             html += '<div><i class="bi bi-arrow-up-right"></i> <strong>Promotion:</strong> ' +
-                escapeHtmlEnrollment(sub.promotion_status) + '</div>';
+                escapeHtmlEnrollment(promotionStatusLabel(sub.promotion_status)) + '</div>';
         }
         if (sub.roll_number) {
             html += '<div><i class="bi bi-hash"></i> <strong>Roll:</strong> ' +

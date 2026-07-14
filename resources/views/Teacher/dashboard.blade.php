@@ -179,6 +179,48 @@
     </div>
 </div>
 
+@if(!empty($tangeTeacher))
+    @php
+        $dashPct = (int) ($tangeTeacher->tange_completion_percent ?? 0);
+        $dashBar = $dashPct >= 100 ? 'bg-success' : ($dashPct >= 50 ? 'bg-warning' : 'bg-danger');
+        $dashRetire = $tangeTeacher->retirement_alert ?? null;
+    @endphp
+    <div class="alert {{ $dashPct >= 100 ? 'alert-success' : 'alert-warning' }} border-0 shadow-sm mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div style="flex:1;min-width:220px;">
+                <strong><i class="fa fa-id-card-o"></i> TANGE Profile Completeness: {{ $dashPct }}%</strong>
+                <div class="progress mt-2" style="height:10px;max-width:360px;">
+                    <div class="progress-bar {{ $dashBar }}" style="width:{{ $dashPct }}%"></div>
+                </div>
+                @if($dashPct < 100)
+                    <div class="small mt-2 mb-0">Your Teachers Particular (TANGE) details are incomplete. Complete them for HR / TSC reports.</div>
+                @else
+                    <div class="small mt-2 mb-0">Your TANGE profile is complete.</div>
+                @endif
+                @if($dashRetire)
+                    <div class="small text-{{ $dashRetire['level'] === 'danger' ? 'danger' : 'dark' }} mt-1">
+                        <i class="fa fa-exclamation-triangle"></i> {{ $dashRetire['message'] }}
+                    </div>
+                @endif
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                @if($dashPct < 100)
+                    <a href="{{ route('teacher.profile') }}" class="btn btn-primary-custom btn-sm">
+                        <i class="fa fa-edit"></i> Complete My Details
+                    </a>
+                @else
+                    <a href="{{ route('teacher.profile') }}" class="btn btn-outline-primary-custom btn-sm">
+                        <i class="fa fa-user"></i> View Profile
+                    </a>
+                @endif
+                <a href="{{ route('teacher.profile.download_pdf') }}" class="btn btn-outline-danger btn-sm js-download-tange" data-filename="TANGE_My_Particulars">
+                    <i class="fa fa-file-pdf-o"></i> Download My TANGE
+                </a>
+            </div>
+        </div>
+    </div>
+@endif
+
 @php
     $cards = [
         ['title' => 'Subjects Teaching', 'count' => $dashboardStats['subjects_count'] ?? 0, 'icon' => 'fa-book', 'link' => route('teacherSubjects'), 'link_label' => 'View Subjects'],
@@ -827,3 +869,4 @@ $(document).ready(function() {
 </script>
 
 @include('includes.footer')
+@include('partials.tange_download_progress')

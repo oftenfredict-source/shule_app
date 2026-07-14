@@ -20,6 +20,8 @@ use App\Models\StudentWorkTimeSetting;
 use App\Services\FingerprintAttendanceSetupService;
 use App\Services\SchoolWorkingDaysService;
 use App\Services\TeacherStaffPermissionAttendanceService;
+use App\Services\StudentEnrollmentService;
+use App\Services\SelectedAcademicYearService;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -147,7 +149,28 @@ class ManageAttendanceController extends Controller
             'school_logo' => $school->school_logo ?? null
         ];
 
-        return view('Admin.manage_attendance', compact('subclasses', 'school_details', 'isCoordinatorView', 'selectedClass', 'coordinatorSubclasses', 'classIDParam'));
+        $yearService = app(SelectedAcademicYearService::class);
+        $yearCtx = $yearService->headerContext((int) $schoolID);
+        $academicYearLabel = collect($yearCtx['selected_year_ids'] ?? [])
+            ->map(function ($id) use ($yearCtx) {
+                $y = ($yearCtx['years'] ?? collect())->firstWhere('academic_yearID', (int) $id);
+                return $y ? ($y->year_name ?? $y->year) : null;
+            })
+            ->filter()
+            ->implode(' / ');
+        if ($academicYearLabel === '') {
+            $academicYearLabel = 'Current / Active enrollments';
+        }
+
+        return view('Admin.manage_attendance', compact(
+            'subclasses',
+            'school_details',
+            'isCoordinatorView',
+            'selectedClass',
+            'coordinatorSubclasses',
+            'classIDParam',
+            'academicYearLabel'
+        ));
     }
 
     public function manageTeacherStaffAttendance(Request $request)
@@ -201,7 +224,13 @@ class ManageAttendanceController extends Controller
             'school_logo' => $school->school_logo ?? null,
         ];
 
-        $studentCount = Student::where('schoolID', $schoolID)->where('status', '!=', 'Transferred')->count();
+        $studentCount = count(
+            app(\App\Services\StudentEnrollmentService::class)
+                ->activeEnrollments((int) $schoolID)
+                ->pluck('studentID')
+                ->unique()
+                ->all()
+        );
         $workTime = StudentWorkTimeSetting::forSchool((int) $schoolID);
 
         $subclasses = Subclass::with('class')
@@ -301,14 +330,36 @@ class ManageAttendanceController extends Controller
             }
         }
 
+        $enrollmentService = app(StudentEnrollmentService::class);
+        $enrolledIds = [];
+        if ($subclassID) {
+            $enrolledIds = $enrollmentService->studentIDsInSubclass((int) $subclassID, (int) $schoolID, 'Active');
+        } elseif ($classID) {
+            $enrolledIds = $enrollmentService->studentIDsInClass((int) $classID, (int) $schoolID, 'Active');
+        } else {
+            $enrolledIds = $enrollmentService->activeEnrollments((int) $schoolID)
+                ->pluck('studentID')
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        if (empty($enrolledIds)) {
+            return response()->json([
+                'success' => true,
+                'records' => [],
+                'total' => 0,
+                'page' => $page,
+                'per_page' => $perPage,
+                'message' => 'Selected academic year has no Active enrollments for this scope.',
+                'error_code' => 'no_active_enrollments',
+            ]);
+        }
+
         $query = StudentFingerprintAttendance::with(['student.subclass.class'])
-            ->whereHas('student', function ($q) use ($schoolID, $subclassID, $classID) {
-                $q->where('schoolID', $schoolID)->where('status', '!=', 'Transferred');
-                if ($subclassID) {
-                    $q->where('subclassID', $subclassID);
-                } elseif ($classID) {
-                    $q->whereHas('subclass', fn ($sq) => $sq->where('classID', $classID));
-                }
+            ->whereIn('studentID', $enrolledIds)
+            ->whereHas('student', function ($q) use ($schoolID) {
+                $q->where('schoolID', $schoolID);
             });
 
         if ($dateFilter) {
@@ -616,17 +667,32 @@ class ManageAttendanceController extends Controller
      */
     private function getStudentReportPeople(int $schoolID, ?int $classID, ?int $subclassID): array
     {
-        $query = Student::with(['subclass.class'])
-            ->where('schoolID', $schoolID)
-            ->where('status', '!=', 'Transferred');
+        $enrollmentService = app(\App\Services\StudentEnrollmentService::class);
+        $studentIds = [];
 
         if ($subclassID) {
-            $query->where('subclassID', $subclassID);
+            $studentIds = $enrollmentService->studentIDsInSubclass((int) $subclassID, $schoolID, 'Active');
         } elseif ($classID) {
-            $query->whereHas('subclass', fn ($q) => $q->where('classID', $classID));
+            $studentIds = $enrollmentService->studentIDsInClass((int) $classID, $schoolID, 'Active');
+        } else {
+            $studentIds = $enrollmentService
+                ->activeEnrollments($schoolID)
+                ->pluck('studentID')
+                ->unique()
+                ->values()
+                ->all();
         }
 
-        return $query->get()->map(fn ($student) => $this->formatStudentReportPersonRow($student))->all();
+        if (empty($studentIds)) {
+            return [];
+        }
+
+        return Student::with(['subclass.class'])
+            ->where('schoolID', $schoolID)
+            ->whereIn('studentID', $studentIds)
+            ->get()
+            ->map(fn ($student) => $this->formatStudentReportPersonRow($student))
+            ->all();
     }
 
     private function formatStudentReportPersonRow(Student $student): array
@@ -759,6 +825,19 @@ class ManageAttendanceController extends Controller
             $week = $request->input('week');
             $day = $request->input('day');
             $studentID = $request->input('studentID');
+            $enrollmentStatus = $request->input('enrollment_status', 'Active');
+
+            $yearIds = app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID);
+            if (empty($yearIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Select an academic year in the header before viewing attendance.',
+                    'error_code' => 'no_academic_year',
+                    'attendances' => [],
+                    'stats' => [],
+                    'attendance_by_class' => [],
+                ], 422);
+            }
 
             $query = Attendance::join('students', 'attendances.studentID', '=', 'students.studentID')
                 ->join('subclasses', 'attendances.subclassID', '=', 'subclasses.subclassID')
@@ -852,7 +931,7 @@ class ManageAttendanceController extends Controller
             $stats = $this->calculateAttendanceStats($attendances, $searchType, $date, $year, $month, $week, $subclassID, $schoolID);
 
             // Get attendance by class with student details
-            $attendanceByClass = $this->getAttendanceByClass($searchType, $date, $year, $month, $week, $subclassID, $schoolID, $classID, $isCoordinatorView);
+            $attendanceByClass = $this->getAttendanceByClass($searchType, $date, $year, $month, $week, $subclassID, $schoolID, $classID, $isCoordinatorView, $enrollmentStatus);
 
             return response()->json([
                 'success' => true,
@@ -1036,11 +1115,13 @@ class ManageAttendanceController extends Controller
         ];
     }
 
-    private function getAttendanceByClass($searchType, $date = null, $year = null, $month = null, $week = null, $subclassID = null, $schoolID = null, $classID = null, $isCoordinatorView = false)
+    private function getAttendanceByClass($searchType, $date = null, $year = null, $month = null, $week = null, $subclassID = null, $schoolID = null, $classID = null, $isCoordinatorView = false, $enrollmentStatus = 'Active')
     {
         if (!in_array($searchType, ['date', 'month', 'year']) || !$schoolID) {
             return [];
         }
+
+        $enrollmentService = app(StudentEnrollmentService::class);
 
         // Get subclasses query
         $subclassesQuery = DB::table('subclasses')
@@ -1077,17 +1158,15 @@ class ManageAttendanceController extends Controller
 
         $result = [];
         foreach ($subclasses as $subclass) {
-            // Prefer active enrollment roster for current class placement
-            $enrolledIDs = app(\App\Services\StudentEnrollmentService::class)
-                ->studentIDsInSubclass((int) $subclass->subclassID, (int) $schoolID);
+            // Roster from enrollments for header academic year + enrollment status
+            $enrollmentMeta = $enrollmentService->enrollmentMetaByStudent(
+                (int) $subclass->subclassID,
+                (int) $schoolID,
+                $enrollmentStatus
+            );
+            $enrolledIDs = array_map('intval', array_keys($enrollmentMeta));
 
-            $totalStudents = !empty($enrolledIDs)
-                ? count($enrolledIDs)
-                : DB::table('students')
-                    ->where('subclassID', $subclass->subclassID)
-                    ->where('schoolID', $schoolID)
-                    ->where('status', '!=', 'Transferred')
-                    ->count();
+            $totalStudents = count($enrolledIDs);
 
             // Check if attendance was collected for this subclass in the period
             $attendanceCheckQuery = DB::table('attendances')
@@ -1142,7 +1221,12 @@ class ManageAttendanceController extends Controller
             // Get attendance stats for this subclass
             $attendanceStatsQuery = DB::table('attendances')
                 ->where('schoolID', $schoolID)
-                ->where('subclassID', $subclass->subclassID);
+                ->where(function ($q) use ($subclass, $enrolledIDs) {
+                    $q->where('subclassID', $subclass->subclassID);
+                    if (!empty($enrolledIDs)) {
+                        $q->orWhereIn('studentID', $enrolledIDs);
+                    }
+                });
 
             // Apply date filters
             if ($searchType == 'date' && $date) {
@@ -1184,12 +1268,17 @@ class ManageAttendanceController extends Controller
                 $excusedPercentage = $totalRecords > 0 ? round(($excused / $totalRecords) * 100, 2) : 0;
             }
 
-            // Get students with their attendance stats
-            $studentsQuery = DB::table('students')
-                ->leftJoin('attendances', function($join) use ($schoolID, $subclass, $searchType, $date, $year, $month, $week) {
+            // Students via enrollment roster (header year + status)
+            $studentsBase = DB::table('students')
+                ->leftJoin('attendances', function($join) use ($schoolID, $subclass, $searchType, $date, $year, $month, $enrolledIDs) {
                     $join->on('students.studentID', '=', 'attendances.studentID')
                          ->where('attendances.schoolID', $schoolID)
-                         ->where('attendances.subclassID', $subclass->subclassID);
+                         ->where(function ($q) use ($subclass, $enrolledIDs) {
+                             $q->where('attendances.subclassID', $subclass->subclassID);
+                             if (!empty($enrolledIDs)) {
+                                 $q->orWhereIn('attendances.studentID', $enrolledIDs);
+                             }
+                         });
 
                     if ($searchType == 'date' && $date) {
                         $join->whereDate('attendances.attendance_date', $date);
@@ -1200,9 +1289,16 @@ class ManageAttendanceController extends Controller
                         $join->whereYear('attendances.attendance_date', $year);
                     }
                 })
-                ->where('students.subclassID', $subclass->subclassID)
-                ->where('students.schoolID', $schoolID)
-                ->where('students.status', '!=', 'Transferred')
+                ->where('students.schoolID', $schoolID);
+
+            if (!empty($enrolledIDs)) {
+                $studentsBase->whereIn('students.studentID', $enrolledIDs);
+            } else {
+                // No enrollments for selected year/status — empty cohort (do not use students.subclassID)
+                $studentsBase->whereRaw('1 = 0');
+            }
+
+            $studentsQuery = $studentsBase
                 ->select(
                     'students.studentID',
                     'students.first_name',
@@ -1217,7 +1313,15 @@ class ManageAttendanceController extends Controller
                 )
                 ->groupBy('students.studentID', 'students.first_name', 'students.middle_name', 'students.last_name', 'students.admission_number', 'students.gender')
                 ->orderBy('students.first_name')
-                ->get();
+                ->get()
+                ->map(function ($row) use ($enrollmentMeta) {
+                    $meta = $enrollmentMeta[(int) $row->studentID] ?? null;
+                    $row->enrollmentID = $meta['enrollmentID'] ?? null;
+                    $row->enrollment_status = $meta['enrollment_status'] ?? null;
+                    $row->promotion_status = $meta['promotion_status'] ?? null;
+                    $row->academic_year = $meta['year_name'] ?? null;
+                    return $row;
+                });
 
             // Calculate display name
             $subclassName = trim($subclass->subclass_name);
@@ -1291,9 +1395,20 @@ class ManageAttendanceController extends Controller
             $classID = $request->input('classID');
             $subclassID = $request->input('subclassID');
             $isCoordinatorView = $request->input('coordinator') === 'true';
+            $enrollmentStatus = $request->input('enrollment_status', 'Active');
+
+            $yearIds = app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID);
+            if (empty($yearIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Select an academic year in the header before viewing fingerprint attendance.',
+                    'error_code' => 'no_academic_year',
+                    'attendance_by_class' => [],
+                ], 422);
+            }
 
             // Get attendance by class with student details
-            $attendanceByClass = $this->getFingerprintAttendanceByClass($searchType, $date, $year, $month, $schoolID, $classID, $subclassID, $isCoordinatorView);
+            $attendanceByClass = $this->getFingerprintAttendanceByClass($searchType, $date, $year, $month, $schoolID, $classID, $subclassID, $isCoordinatorView, $enrollmentStatus);
 
             return response()->json([
                 'success' => true,
@@ -1308,7 +1423,7 @@ class ManageAttendanceController extends Controller
         }
     }
 
-    private function getFingerprintAttendanceByClass($searchType, $date = null, $year = null, $month = null, $schoolID = null, $classID = null, $subclassID = null, $isCoordinatorView = false)
+    private function getFingerprintAttendanceByClass($searchType, $date = null, $year = null, $month = null, $schoolID = null, $classID = null, $subclassID = null, $isCoordinatorView = false, $enrollmentStatus = 'Active')
     {
         if (!in_array($searchType, ['date', 'month', 'year']) || !$schoolID) {
             return [];
@@ -1332,6 +1447,9 @@ class ManageAttendanceController extends Controller
             if ($subclassID) {
                 $subclassesQuery->where('subclasses.subclassID', $subclassID);
             }
+        } elseif ($subclassID) {
+            // Regular subclass filter (system + fingerprint)
+            $subclassesQuery->where('subclasses.subclassID', $subclassID);
         }
         
         $subclasses = $subclassesQuery->select(
@@ -1346,33 +1464,25 @@ class ManageAttendanceController extends Controller
 
         $result = [];
         foreach ($subclasses as $subclass) {
-            $enrolledIDs = app(\App\Services\StudentEnrollmentService::class)
-                ->studentIDsInSubclass((int) $subclass->subclassID, (int) $schoolID);
+            $enrollmentMeta = app(StudentEnrollmentService::class)->enrollmentMetaByStudent(
+                (int) $subclass->subclassID,
+                (int) $schoolID,
+                $enrollmentStatus
+            );
+            $enrolledIDs = array_map('intval', array_keys($enrollmentMeta));
 
-            $totalStudents = !empty($enrolledIDs)
-                ? count($enrolledIDs)
-                : DB::table('students')
-                    ->where('subclassID', $subclass->subclassID)
-                    ->where('schoolID', $schoolID)
-                    ->where('status', '!=', 'Transferred')
-                    ->count();
+            $totalStudents = count($enrolledIDs);
 
             // Check if fingerprint attendance was collected for this subclass in the period
             $attendanceCheckQuery = DB::table('student_fingerprint_attendance')
                 ->join('students', 'student_fingerprint_attendance.studentID', '=', 'students.studentID')
                 ->where('students.schoolID', $schoolID)
-                ->where('students.status', '!=', 'Transferred')
-                ->where(function ($q) use ($subclass, $enrolledIDs) {
+                ->where(function ($q) use ($subclass, $enrolledIDs, $schoolID) {
                     if (!empty($enrolledIDs)) {
-                        $q->whereIn('students.studentID', $enrolledIDs)
-                            ->orWhereIn('student_fingerprint_attendance.enrollmentID', function ($sub) use ($subclass, $schoolID) {
-                                $sub->select('enrollmentID')
-                                    ->from('student_enrollments')
-                                    ->where('subclassID', $subclass->subclassID)
-                                    ->where('schoolID', $schoolID);
-                            });
+                        $q->whereIn('students.studentID', $enrolledIDs);
                     } else {
-                        $q->where('students.subclassID', $subclass->subclassID);
+                        // No Active/selected enrollments — do not fall back to students.subclassID
+                        $q->whereRaw('1 = 0');
                     }
                 });
 
@@ -1421,9 +1531,12 @@ class ManageAttendanceController extends Controller
                              ->whereDate('student_fingerprint_attendance.attendance_date', $date);
                     })
                     ->leftJoin('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
-                    ->where('students.subclassID', $subclass->subclassID)
                     ->where('students.schoolID', $schoolID)
-                    ->where('students.status', '!=', 'Transferred')
+                    ->when(!empty($enrolledIDs), function ($q) use ($enrolledIDs) {
+                        $q->whereIn('students.studentID', $enrolledIDs);
+                    }, function ($q) {
+                        $q->whereRaw('1 = 0');
+                    })
                     ->select(
                         'students.studentID',
                         'students.first_name',
@@ -1441,7 +1554,14 @@ class ManageAttendanceController extends Controller
                     )
                     ->groupBy('students.studentID', 'students.first_name', 'students.middle_name', 'students.last_name', 'students.admission_number', 'students.gender', 'subclasses.subclass_name')
                     ->orderBy('students.first_name')
-                    ->get();
+                    ->get()
+                    ->map(function ($row) use ($enrollmentMeta) {
+                        $meta = $enrollmentMeta[(int) $row->studentID] ?? null;
+                        $row->enrollmentID = $meta['enrollmentID'] ?? null;
+                        $row->enrollment_status = $meta['enrollment_status'] ?? null;
+                        $row->academic_year = $meta['year_name'] ?? null;
+                        return $row;
+                    });
             } else {
                 // For month/year view, get aggregated stats
                 $studentsQuery = DB::table('students')
@@ -1456,9 +1576,12 @@ class ManageAttendanceController extends Controller
                         }
                     })
                     ->leftJoin('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
-                    ->where('students.subclassID', $subclass->subclassID)
                     ->where('students.schoolID', $schoolID)
-                    ->where('students.status', '!=', 'Transferred')
+                    ->when(!empty($enrolledIDs), function ($q) use ($enrolledIDs) {
+                        $q->whereIn('students.studentID', $enrolledIDs);
+                    }, function ($q) {
+                        $q->whereRaw('1 = 0');
+                    })
                     ->select(
                         'students.studentID',
                         'students.first_name',
@@ -1476,7 +1599,14 @@ class ManageAttendanceController extends Controller
                     )
                     ->groupBy('students.studentID', 'students.first_name', 'students.middle_name', 'students.last_name', 'students.admission_number', 'students.gender', 'subclasses.subclass_name')
                     ->orderBy('students.first_name')
-                    ->get();
+                    ->get()
+                    ->map(function ($row) use ($enrollmentMeta) {
+                        $meta = $enrollmentMeta[(int) $row->studentID] ?? null;
+                        $row->enrollmentID = $meta['enrollmentID'] ?? null;
+                        $row->enrollment_status = $meta['enrollment_status'] ?? null;
+                        $row->academic_year = $meta['year_name'] ?? null;
+                        return $row;
+                    });
             }
 
             // Calculate stats
@@ -1730,26 +1860,39 @@ class ManageAttendanceController extends Controller
             $year = $request->input('year');
             $term = $request->input('term');
 
-            if (!$year || !$term || !$schoolID) {
-                return response()->json(['success' => false, 'error' => 'Year, term and school ID required']);
+            if (!$term || !$schoolID) {
+                return response()->json(['success' => false, 'error' => 'Term and school ID required']);
             }
 
-            // Get exams for year and term
-            $examIDs = DB::table('examinations')
+            $yearIds = app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID);
+            if (empty($yearIds) && !$year) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Select an academic year in the header first.',
+                    'exams' => [],
+                ]);
+            }
+
+            $examQuery = DB::table('examinations')
                 ->where('schoolID', $schoolID)
-                ->where('year', $year)
-                ->where('term', $term)
-                ->pluck('examID')
-                ->toArray();
+                ->where('term', $term);
 
-            if (empty($examIDs)) {
-                return response()->json(['success' => true, 'exams' => []]);
+            if (!empty($yearIds)) {
+                $examQuery->where(function ($q) use ($yearIds, $year) {
+                    $q->whereIn('academic_yearID', $yearIds);
+                    if ($year) {
+                        $q->orWhere(function ($q2) use ($year) {
+                            $q2->whereNull('academic_yearID')->where('year', $year);
+                        });
+                    }
+                });
+            } else {
+                $examQuery->where('year', $year);
             }
 
-            $exams = DB::table('examinations')
-                ->whereIn('examID', $examIDs)
+            $exams = $examQuery
                 ->orderBy('start_date', 'desc')
-                ->select('examID', 'exam_name', 'start_date', 'end_date')
+                ->select('examID', 'exam_name', 'start_date', 'end_date', 'academic_yearID', 'year')
                 ->get();
 
             return response()->json(['success' => true, 'exams' => $exams]);
@@ -3564,6 +3707,7 @@ class ManageAttendanceController extends Controller
         $subclassID = $request->input('subclassID');
         $classID = $request->input('classID');
         $isCoordinatorView = $request->input('coordinator') === 'true';
+        $enrollmentStatus = $request->input('enrollment_status', 'Active');
 
         $attendanceByClass = $this->getAttendanceByClass(
             $searchType,
@@ -3574,7 +3718,8 @@ class ManageAttendanceController extends Controller
             $subclassID,
             $schoolID,
             $classID,
-            $isCoordinatorView
+            $isCoordinatorView,
+            $enrollmentStatus
         );
 
         $school = School::find($schoolID);

@@ -765,6 +765,10 @@ Route::get("admin/teacher/profile/download-pdf/{id}", [
     ManageTeachersController::class,
     "downloadTeacherProfilePdf",
 ])->name("admin.teacher.profile.download_pdf");
+Route::get("admin/teachers/tange/download-all", [
+    ManageTeachersController::class,
+    "downloadAllTeachersTangePdf",
+])->name("admin.teachers.tange.download_all");
 Route::post("admin/teacher/profile/update-image", [
     ManageTeachersController::class,
     "updateTeacherImage",
@@ -3463,6 +3467,10 @@ Route::get("get_payments_ajax", [
     FeesController::class,
     "get_payments_ajax",
 ])->name("get_payments_ajax");
+Route::get("student_enrollment_payments/{studentID}", [
+    FeesController::class,
+    "get_student_enrollment_payments",
+])->name("student_enrollment_payments");
 Route::post("generate_control_numbers", [
     FeesController::class,
     "generate_control_numbers",

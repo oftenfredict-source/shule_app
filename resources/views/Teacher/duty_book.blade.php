@@ -325,6 +325,9 @@ $(document).ready(function() {
             } else {
                 $('#dailyDutyForm input, #dailyDutyForm textarea').prop('readonly', false);
                 $('#dailyDutyForm input[type="number"]').css('background-color', '#fff');
+                // Attendance grid locked to Active enrollments (header year) — not editable
+                $('#attendance_table input').prop('readonly', true).css('background-color', '#f8f9fa');
+                $('#attendance_percentage').prop('readonly', true).css('background-color', '#e8f5e9');
                 $('#saveDraft, #saveAndSend, #syncFromAttendance').show();
                 $('#downloadReportPdf').hide();
             }
@@ -334,6 +337,13 @@ $(document).ready(function() {
             let report = response.report;
             let systemData = response.system_attendance;
             window.totalActiveStudentsInSchool = response.total_active_students || 0;
+
+            if (response.academic_year_label) {
+                $('#duty_enrollment_scope_note').html(
+                    '<i class="fa fa-lock mr-1" style="color: #940000;"></i> Counts from <strong>Active enrollments</strong> only' +
+                    ' (' + response.academic_year_label + ') — not editable. Use Sync to refresh.'
+                );
+            }
 
             if (report) {
                 $('#reportID').val(report.reportID);
@@ -473,9 +483,10 @@ $(document).ready(function() {
                 refreshTableTotals();
                 Swal.fire({
                     title: 'Synced',
-                    text: response.attendance_source === 'fingerprint'
-                        ? 'Attendance counts updated from fingerprint device (with approved permission/sick).'
-                        : 'Attendance counts updated from system attendance (with approved permission/sick).',
+                    text: (response.attendance_source === 'fingerprint'
+                        ? 'Counts updated from fingerprint + Active enrollments'
+                        : 'Counts updated from system attendance + Active enrollments') +
+                        (response.academic_year_label ? ' (' + response.academic_year_label + ').' : '.'),
                     icon: 'success',
                     timer: 2500,
                     showConfirmButton: false

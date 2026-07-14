@@ -85,7 +85,7 @@
         <div class="col-12 d-flex justify-content-between align-items-center">
             <div>
                 <h3 class="text-primary-custom mb-0"><i class="fa fa-check-circle"></i> Exam Paper Approval</h3>
-                <p class="text-muted mt-1">Review and approve exam papers in the approval chain.</p>
+                <p class="text-muted mt-1">Review and approve exam papers in the approval chain for the academic year selected in the header.</p>
             </div>
             @if($user_type == 'Admin')
             <div>

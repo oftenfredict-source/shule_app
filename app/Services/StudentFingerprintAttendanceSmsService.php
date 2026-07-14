@@ -201,8 +201,20 @@ class StudentFingerprintAttendanceSmsService
         $failed = 0;
 
         $studentIds = Student::where('schoolID', $schoolID)
-            ->where('status', 'Active')
+            ->whereIn(
+                'studentID',
+                app(\App\Services\StudentEnrollmentService::class)
+                    ->activeEnrollments($schoolID)
+                    ->pluck('studentID')
+                    ->unique()
+                    ->values()
+                    ->all()
+            )
             ->pluck('studentID');
+
+        if ($studentIds->isEmpty()) {
+            return ['sent' => 0, 'skipped' => 0, 'failed' => 0];
+        }
 
         foreach ($studentIds as $studentID) {
             if ($this->alreadySent($schoolID, (int) $studentID, $config->schedule, $periodKey)) {
@@ -409,18 +421,35 @@ class StudentFingerprintAttendanceSmsService
         $schedule = $this->resolveEffectiveSchedule($schoolID, $filterType);
         $periodKey = $this->periodKey($schedule, $reference);
 
+        $enrollmentService = app(\App\Services\StudentEnrollmentService::class);
         $query = Student::with(['parent', 'subclass.class'])
-            ->where('schoolID', $schoolID)
-            ->where('status', 'Active');
-
-        if ($subclassID) {
-            $query->where('subclassID', $subclassID);
-        } elseif ($classID) {
-            $query->whereHas('subclass', fn ($q) => $q->where('classID', $classID));
-        }
+            ->where('schoolID', $schoolID);
 
         if ($studentIds) {
             $query->whereIn('studentID', $studentIds);
+        } elseif ($subclassID) {
+            $enrolledIds = $enrollmentService->studentIDsInSubclass((int) $subclassID, $schoolID, 'Active');
+            if (empty($enrolledIds)) {
+                return collect();
+            }
+            $query->whereIn('studentID', $enrolledIds);
+        } elseif ($classID) {
+            $enrolledIds = $enrollmentService->studentIDsInClass((int) $classID, $schoolID, 'Active');
+            if (empty($enrolledIds)) {
+                return collect();
+            }
+            $query->whereIn('studentID', $enrolledIds);
+        } else {
+            $enrolledIds = $enrollmentService
+                ->activeEnrollments($schoolID)
+                ->pluck('studentID')
+                ->unique()
+                ->values()
+                ->all();
+            if (empty($enrolledIds)) {
+                return collect();
+            }
+            $query->whereIn('studentID', $enrolledIds);
         }
 
         return $query->orderBy('first_name')->get()->map(function (Student $student) use (

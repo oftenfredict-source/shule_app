@@ -467,6 +467,9 @@
                     <h4 class="mb-0 page-title">
                         <i class="bi bi-file-earmark-text"></i> Exam Papers Management
                     </h4>
+                    <p class="mb-0 mt-2 small" style="opacity:0.9;">
+                        Examinations and papers shown for the academic year selected in the header.
+                    </p>
                 </div>
             </div>
 
@@ -591,7 +594,7 @@
                                                 @endforeach
                                             </select>
                                             <small class="form-text text-muted">
-                                                <i class="bi bi-info-circle"></i> Only examinations with upload paper enabled are shown.
+                                                <i class="bi bi-info-circle"></i> Only examinations with upload paper enabled for the selected academic year are shown.
                                             </small>
                                         @else
                                             <select class="form-control" id="selected_exam" name="examID" required disabled>
@@ -1030,7 +1033,7 @@
                                 @endforeach
                             </select>
                             <small class="form-text text-muted">
-                                <i class="bi bi-info-circle"></i> Only examinations with upload paper enabled are shown.
+                                <i class="bi bi-info-circle"></i> Only examinations with upload paper enabled for the selected academic year are shown.
                             </small>
                         @else
                             <select class="form-control" id="modal_selected_exam" name="examID" required disabled>

@@ -1200,6 +1200,13 @@ class TeachersController extends Controller
         // Pass teacherNotifications to nav
         $teacherNotifications = $notifications;
 
+        $tangeTeacher = null;
+        if ($teacherID) {
+            $tangeTeacher = Teacher::where("id", $teacherID)
+                ->where("schoolID", Session::get("schoolID"))
+                ->first();
+        }
+
         return view(
             "Teacher.dashboard",
             compact(
@@ -1216,6 +1223,7 @@ class TeachersController extends Controller
                 "teacherNotifications",
                 "managementPermissions",
                 "isOnDuty",
+                "tangeTeacher",
             ),
         );
     }
@@ -1992,24 +2000,29 @@ class TeachersController extends Controller
         }
 
         $school = School::find($schoolID);
-        $logoPath =
-            $school && $school->logo
-                ? public_path("schoolLogos/" . $school->logo)
-                : null;
-        $teacherImgPath = $teacher->image
-            ? public_path("userImages/" . $teacher->image)
-            : null;
 
-        $data = [
-            "teacher" => $teacher,
+        $pdf = PDF::loadView("Admin.pdf.teacher_tange_pdf", [
+            "teachers" => collect([$teacher]),
             "school" => $school,
-            "logoPath" => $logoPath,
-            "teacherImgPath" => $teacherImgPath,
-        ];
+            "title" => "TANGE — Teachers Particular",
+        ]);
+        $pdf->setOptions([
+            "isRemoteEnabled" => true,
+            "isHtml5ParserEnabled" => true,
+            "chroot" => base_path(),
+        ]);
+        $pdf->setPaper("A4", "portrait");
 
-        $pdf = PDF::loadView("Admin.pdf.teacher_profile_pdf", $data);
+        $safeName = preg_replace(
+            "/[^A-Za-z0-9_\-]/",
+            "_",
+            trim(($teacher->first_name ?? "") . "_" . ($teacher->last_name ?? "")),
+        );
+        if ($safeName === "") {
+            $safeName = "Teacher";
+        }
         return $pdf->download(
-            "Teacher_Profile_" . $teacher->first_name . ".pdf",
+            "TANGE_" . $safeName . "_" . date("YmdHis") . ".pdf",
         );
     }
 
@@ -2679,33 +2692,30 @@ class TeachersController extends Controller
                     return $classSubject->subject &&
                         $classSubject->subject->status === "Active";
                 })
-                ->map(function ($classSubject) {
-                    // Get total students for this class subject
+                ->map(function ($classSubject) use ($schoolID) {
+                    // Active enrollments for header academic year
                     $subclassID = $classSubject->subclassID;
                     $classID = $classSubject->classID;
+                    $enrollmentService = app(
+                        \App\Services\StudentEnrollmentService::class,
+                    );
 
-                    $studentCount = 0;
                     if ($subclassID) {
-                        $studentCount = Student::where(
-                            "subclassID",
-                            $subclassID,
-                        )
-                            ->where("status", "Active")
-                            ->count();
+                        $studentCount = count(
+                            $enrollmentService->studentIDsInSubclass(
+                                (int) $subclassID,
+                                (int) $schoolID,
+                                "Active",
+                            ),
+                        );
                     } else {
-                        $subclassIds = DB::table("subclasses")
-                            ->where("classID", $classID)
-                            ->pluck("subclassID")
-                            ->toArray();
-
-                        if (!empty($subclassIds)) {
-                            $studentCount = Student::whereIn(
-                                "subclassID",
-                                $subclassIds,
-                            )
-                                ->where("status", "Active")
-                                ->count();
-                        }
+                        $studentCount = count(
+                            $enrollmentService->studentIDsInClass(
+                                (int) $classID,
+                                (int) $schoolID,
+                                "Active",
+                            ),
+                        );
                     }
 
                     $className = "N/A";
@@ -2833,26 +2843,32 @@ class TeachersController extends Controller
                 );
             }
 
-            // Get students based on subclass or class
+            // Active enrollments for header academic year (no students.subclassID fallback)
             $subclassID = $classSubject->subclassID;
             $classID = $classSubject->classID;
+            $enrollmentService = app(
+                \App\Services\StudentEnrollmentService::class,
+            );
 
             if ($subclassID) {
-                $students = Student::with(["subclass.class", "parent"])
-                    ->where("subclassID", $subclassID)
-                    ->where("status", "Active")
-                    ->get();
+                $studentIds = $enrollmentService->studentIDsInSubclass(
+                    (int) $subclassID,
+                    (int) $schoolID,
+                    "Active",
+                );
             } else {
-                $subclassIds = DB::table("subclasses")
-                    ->where("classID", $classID)
-                    ->pluck("subclassID")
-                    ->toArray();
-
-                $students = Student::with(["subclass.class", "parent"])
-                    ->whereIn("subclassID", $subclassIds)
-                    ->where("status", "Active")
-                    ->get();
+                $studentIds = $enrollmentService->studentIDsInClass(
+                    (int) $classID,
+                    (int) $schoolID,
+                    "Active",
+                );
             }
+
+            $students = empty($studentIds)
+                ? collect()
+                : Student::with(["subclass.class", "parent"])
+                    ->whereIn("studentID", $studentIds)
+                    ->get();
 
             $formattedStudents = $students->map(function ($student) {
                 $baseUrl = asset("");
@@ -3439,9 +3455,22 @@ class TeachersController extends Controller
 
             DB::beginTransaction();
 
+            $enrollmentService = app(
+                \App\Services\StudentEnrollmentService::class,
+            );
+            $activeDetails = $enrollmentService->activeEnrollmentDetailsByStudent(
+                (int) $schoolID,
+            );
+
             $savedCount = 0;
             foreach ($request->results as $resultData) {
-                $result = Result::where("studentID", $resultData["student_id"])
+                $studentID = (int) ($resultData["student_id"] ?? 0);
+                $activeEnr = $activeDetails[$studentID] ?? null;
+                if (!$activeEnr) {
+                    continue;
+                }
+
+                $result = Result::where("studentID", $studentID)
                     ->where("examID", $request->exam_id)
                     ->where("class_subjectID", $request->class_subject_id)
                     ->first();
@@ -3451,25 +3480,38 @@ class TeachersController extends Controller
                         "marks" => $resultData["marks"] ?? $result->marks,
                         "grade" => $resultData["grade"] ?? $result->grade,
                         "remark" => $resultData["remark"] ?? $result->remark,
+                        "enrollmentID" => $activeEnr["enrollmentID"],
+                        "subclassID" =>
+                            $activeEnr["subclassID"] ?? $result->subclassID,
                     ]);
                 } else {
-                    $student = Student::find($resultData["student_id"]);
-                    if ($student) {
-                        Result::create([
-                            "studentID" => $resultData["student_id"],
-                            "examID" => $request->exam_id,
-                            "class_subjectID" => $request->class_subject_id,
-                            "subclassID" => $student->subclassID,
-                            "marks" => $resultData["marks"] ?? null,
-                            "grade" => $resultData["grade"] ?? null,
-                            "remark" => $resultData["remark"] ?? null,
-                        ]);
-                    }
+                    Result::create([
+                        "studentID" => $studentID,
+                        "enrollmentID" => $activeEnr["enrollmentID"],
+                        "examID" => $request->exam_id,
+                        "class_subjectID" => $request->class_subject_id,
+                        "subclassID" => $activeEnr["subclassID"],
+                        "marks" => $resultData["marks"] ?? null,
+                        "grade" => $resultData["grade"] ?? null,
+                        "remark" => $resultData["remark"] ?? null,
+                    ]);
                 }
                 $savedCount++;
             }
 
             DB::commit();
+
+            if ($savedCount === 0) {
+                return response()->json(
+                    [
+                        "success" => false,
+                        "message" =>
+                            "No results saved. Only Active enrollments for the selected academic year can receive marks.",
+                        "error_code" => "no_active_enrollments",
+                    ],
+                    422,
+                );
+            }
 
             return response()->json(
                 [
@@ -3809,7 +3851,7 @@ class TeachersController extends Controller
 
             $graphData["sessions_by_day"] = $sessionsByDay;
 
-            // Graph 2: Subject performance (pass/fail rates) - for classes teacher teaches
+            // Graph 2: Subject performance (pass/fail) — Active enrollments in header year
             $classSubjects = ClassSubject::where("teacherID", $teacherID)
                 ->where("status", "Active")
                 ->with(["subject", "subclass.class"])
@@ -3817,6 +3859,12 @@ class TeachersController extends Controller
 
             $subjectPerformance = [];
             $processedSubjects = [];
+            $enrollmentService = app(
+                \App\Services\StudentEnrollmentService::class,
+            );
+            $yearIds = app(
+                \App\Services\SelectedAcademicYearService::class,
+            )->selectedYearIds((int) $schoolID);
 
             foreach ($classSubjects as $classSubject) {
                 $subjectID = $classSubject->subjectID;
@@ -3825,28 +3873,39 @@ class TeachersController extends Controller
                 if (!isset($processedSubjects[$subjectID])) {
                     $processedSubjects[$subjectID] = true;
 
-                    // Get results for this subject in classes teacher teaches
                     $subclassIDs = $classSubjects
                         ->where("subjectID", $subjectID)
                         ->pluck("subclassID")
-                        ->unique();
-                    $classSubjectIDs = $classSubjects
-                        ->where("subjectID", $subjectID)
-                        ->pluck("class_subjectID")
-                        ->unique();
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->all();
 
-                    $results = DB::table("results")
+                    $activeStudentIds = [];
+                    foreach ($subclassIDs as $subclassID) {
+                        $activeStudentIds = array_merge(
+                            $activeStudentIds,
+                            $enrollmentService->studentIDsInSubclass(
+                                (int) $subclassID,
+                                (int) $schoolID,
+                                "Active",
+                            ),
+                        );
+                    }
+                    $activeStudentIds = array_values(
+                        array_unique(array_map("intval", $activeStudentIds)),
+                    );
+
+                    if (empty($activeStudentIds)) {
+                        continue;
+                    }
+
+                    $resultsQuery = DB::table("results")
                         ->join(
                             "examinations",
                             "results.examID",
                             "=",
                             "examinations.examID",
-                        )
-                        ->join(
-                            "students",
-                            "results.studentID",
-                            "=",
-                            "students.studentID",
                         )
                         ->join(
                             "class_subjects",
@@ -3856,10 +3915,33 @@ class TeachersController extends Controller
                         )
                         ->where("class_subjects.subjectID", $subjectID)
                         ->where("examinations.schoolID", $schoolID)
-                        ->whereIn("students.subclassID", $subclassIDs)
+                        ->whereIn("results.studentID", $activeStudentIds)
                         ->where("examinations.approval_status", "Approved")
                         ->whereNotNull("results.marks")
-                        ->where("results.status", "allowed")
+                        ->where("results.status", "allowed");
+
+                    if (!empty($yearIds)) {
+                        $resultsQuery->whereIn(
+                            "examinations.academic_yearID",
+                            $yearIds,
+                        );
+                    }
+
+                    // Prefer subject rows taught by this teacher when present
+                    $classSubjectIDs = $classSubjects
+                        ->where("subjectID", $subjectID)
+                        ->pluck("class_subjectID")
+                        ->unique()
+                        ->values()
+                        ->all();
+                    if (!empty($classSubjectIDs)) {
+                        $resultsQuery->whereIn(
+                            "results.class_subjectID",
+                            $classSubjectIDs,
+                        );
+                    }
+
+                    $results = $resultsQuery
                         ->select("results.marks", "results.grade")
                         ->get();
 
@@ -4346,32 +4428,30 @@ class TeachersController extends Controller
                     $classSubject->subject->status === "Active";
             })
             ->map(function ($classSubject) {
-                // Get total students for this class subject
-                // Students who take this subject (based on subclass or class)
+                // Count Active enrollments for header academic year only
                 $subclassID = $classSubject->subclassID;
                 $classID = $classSubject->classID;
+                $schoolID = (int) Session::get("schoolID");
+                $enrollmentService = app(
+                    \App\Services\StudentEnrollmentService::class,
+                );
 
-                $studentCount = 0;
                 if ($subclassID) {
-                    // Subject is assigned to specific subclass
-                    $studentCount = Student::where("subclassID", $subclassID)
-                        ->where("status", "Active")
-                        ->count();
+                    $studentCount = count(
+                        $enrollmentService->studentIDsInSubclass(
+                            (int) $subclassID,
+                            $schoolID,
+                            "Active",
+                        ),
+                    );
                 } else {
-                    // Subject is assigned to whole class - get all students in all subclasses of this class
-                    $subclassIds = DB::table("subclasses")
-                        ->where("classID", $classID)
-                        ->pluck("subclassID")
-                        ->toArray();
-
-                    if (!empty($subclassIds)) {
-                        $studentCount = Student::whereIn(
-                            "subclassID",
-                            $subclassIds,
-                        )
-                            ->where("status", "Active")
-                            ->count();
-                    }
+                    $studentCount = count(
+                        $enrollmentService->studentIDsInClass(
+                            (int) $classID,
+                            $schoolID,
+                            "Active",
+                        ),
+                    );
                 }
 
                 $classSubject->total_students = $studentCount;
@@ -5818,73 +5898,136 @@ class TeachersController extends Controller
             }
 
             // Get exam center number for exam number generation
-            $school = School::find(Session::get("schoolID"));
+            $schoolID = (int) Session::get("schoolID");
+            $school = School::find($schoolID);
             $examCenterNo = !empty($school->exam_center_number)
                 ? $school->exam_center_number
                 : "SET-CENTER-NO";
 
-            if ($subclassID && !request()->get('all_subclasses')) {
-                $query = Student::with(["subclass.class", "parent"])
-                    ->where("subclassID", $subclassID)
-                    ->where("status", "Active")
-                    ->orderByRaw(
-                        "CASE
-                        WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1
-                        ELSE 2
-                    END ASC",
-                    )
-                    ->orderBy("first_name", "asc");
-            } else {
-                $subclassIds = DB::table("subclasses")
-                    ->where("classID", $classID)
-                    ->pluck("subclassID")
-                    ->toArray();
+            $enrollmentService = app(
+                \App\Services\StudentEnrollmentService::class,
+            );
+            $allSubclasses = (bool) request()->get("all_subclasses");
 
-                $query = Student::with(["subclass.class", "parent"])
-                    ->whereIn("subclassID", $subclassIds)
-                    ->where("status", "Active")
-                    ->orderByRaw(
-                        "CASE
-                        WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1
-                        ELSE 2
-                    END ASC",
-                    )
-                    ->orderBy("first_name", "asc");
+            if ($subclassID && !$allSubclasses) {
+                $enrollments = $enrollmentService->enrollmentsInSubclass(
+                    (int) $subclassID,
+                    $schoolID,
+                    "all",
+                );
+            } else {
+                $enrollments = $enrollmentService->enrollmentsInClass(
+                    (int) $classID,
+                    $schoolID,
+                    "all",
+                );
             }
 
             if ($isOptional) {
-                $query->whereIn("studentID", $electedStudentIds);
+                $enrollments = $enrollments
+                    ->whereIn("studentID", $electedStudentIds)
+                    ->values();
             }
 
-            $students = $query->get();
+            $activeEnrollmentCount = $enrollments
+                ->where("status", "Active")
+                ->count();
 
-            // Generate exam numbers for students
-            $allStudentsInClass = Student::join(
-                "subclasses",
-                "students.subclassID",
-                "=",
-                "subclasses.subclassID",
-            )
-                ->where("subclasses.classID", $classID)
-                ->where("students.status", "Active")
-                ->select("students.*")
-                ->orderByRaw(
-                    "CASE
-                    WHEN students.gender LIKE 'F%' OR students.gender LIKE 'K%' THEN 1
-                    ELSE 2
-                END ASC",
+            if ($activeEnrollmentCount === 0) {
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" =>
+                            "Selected academic year has no Active enrollments for this class/subject. Result entry cannot continue.",
+                        "error_code" => "no_active_enrollments",
+                        "students" => [],
+                        "active_enrollment_count" => 0,
+                        "class_subject" => $classSubject,
+                    ],
+                    422,
+                );
+            }
+
+            $enrollmentByStudent = $enrollments->keyBy("studentID");
+            $studentIds = $enrollments
+                ->pluck("studentID")
+                ->map(fn($id) => (int) $id)
+                ->all();
+
+            // Exam numbers from Active enrollments in the whole class (selected year)
+            $activeInClassIds = $enrollmentService->studentIDsInClass(
+                (int) $classID,
+                $schoolID,
+                "Active",
+            );
+            $allStudentsInClass = collect();
+            if (!empty($activeInClassIds)) {
+                $allStudentsInClass = Student::whereIn(
+                    "studentID",
+                    $activeInClassIds,
                 )
-                ->orderBy("students.first_name", "asc")
-                ->get();
+                    ->orderByRaw(
+                        "CASE
+                        WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1
+                        ELSE 2
+                    END ASC",
+                    )
+                    ->orderBy("first_name", "asc")
+                    ->get();
+            }
 
+            $examNumberByStudent = [];
             foreach ($allStudentsInClass as $index => $student) {
                 $sequence = str_pad($index + 1, 4, "0", STR_PAD_LEFT);
-                $student->examination_number = "{$examCenterNo}/{$sequence}";
+                $examNumberByStudent[(int) $student->studentID] = "{$examCenterNo}/{$sequence}";
             }
 
-            // Filter students to only those in the query result
-            $studentIds = $students->pluck("studentID")->toArray();
-            $students = $allStudentsInClass->whereIn("studentID", $studentIds);
+            $students = collect();
+            if (!empty($studentIds)) {
+                $students = Student::with(["subclass.class", "parent"])
+                    ->whereIn("studentID", $studentIds)
+                    ->orderByRaw(
+                        "CASE
+                        WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1
+                        ELSE 2
+                    END ASC",
+                    )
+                    ->orderBy("first_name", "asc")
+                    ->get()
+                    ->map(function ($student) use (
+                        $enrollmentByStudent,
+                        $examNumberByStudent,
+                    ) {
+                        $enr = $enrollmentByStudent->get($student->studentID);
+                        $status = $enr ? (string) $enr->status : null;
+                        $canEnter = $status === "Active";
+                        $student->examination_number =
+                            $examNumberByStudent[(int) $student->studentID] ??
+                            null;
+                        $student->enrollmentID = $enr
+                            ? (int) $enr->enrollmentID
+                            : null;
+                        $student->enrollment_status = $status;
+                        $student->enrollment_subclassID = $enr
+                            ? $enr->subclassID
+                            : null;
+                        $student->academic_yearID = $enr
+                            ? $enr->academic_yearID
+                            : null;
+                        $student->can_enter_result = $canEnter;
+                        // Prefer enrollment subclass for display
+                        if (
+                            $enr &&
+                            $enr->subclass &&
+                            !$student->relationLoaded("subclass")
+                        ) {
+                            $student->setRelation("subclass", $enr->subclass);
+                        } elseif ($enr && $enr->relationLoaded("subclass") && $enr->subclass) {
+                            $student->setRelation("subclass", $enr->subclass);
+                        }
+                        return $student;
+                    });
+            }
 
             \Log::info("getSubjectStudents result", [
                 "classSubjectID" => $classSubjectID,
@@ -5892,6 +6035,7 @@ class TeachersController extends Controller
                 "subclassID" => $subclassID,
                 "total_students_in_class" => $allStudentsInClass->count(),
                 "filtered_students_count" => $students->count(),
+                "active_enrollment_count" => $activeEnrollmentCount,
                 "student_ids" => $studentIds,
                 "isOptional" => $isOptional,
                 "electedStudentIds" => $electedStudentIds,
@@ -5900,8 +6044,10 @@ class TeachersController extends Controller
             return response()->json(
                 [
                     "success" => true,
-                    "students" => $students->values(), // Convert to array
+                    "students" => $students->values(),
                     "class_subject" => $classSubject,
+                    "active_enrollment_count" => $activeEnrollmentCount,
+                    "enrollment_scope" => "header_year_active_editable",
                 ],
                 200,
             );
@@ -5992,31 +6138,109 @@ class TeachersController extends Controller
 
             $subclassIds = $classSubjects->keys()->toArray();
 
-            // Get all students from all subclasses, sorted female-first then name
+            $enrollmentService = app(
+                \App\Services\StudentEnrollmentService::class,
+            );
+            $enrollments = $enrollmentService->enrollmentsInClass(
+                (int) $classID,
+                (int) $schoolID,
+                "all",
+            );
+
+            // Keep only students whose enrollment subclass has this subject mapped
+            $enrollments = $enrollments
+                ->filter(function ($enr) use ($subclassIds) {
+                    return $enr->subclassID &&
+                        in_array((int) $enr->subclassID, array_map("intval", $subclassIds), true);
+                })
+                ->values();
+
+            $activeEnrollmentCount = $enrollments
+                ->where("status", "Active")
+                ->count();
+
+            if ($activeEnrollmentCount === 0) {
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" =>
+                            "Selected academic year has no Active enrollments for this class/subject. Result entry cannot continue.",
+                        "error_code" => "no_active_enrollments",
+                        "students" => [],
+                        "class_subject_map" => [],
+                        "active_enrollment_count" => 0,
+                    ],
+                    422,
+                );
+            }
+
+            // Get all students from enrollments, sorted female-first then name
             $school = School::find($schoolID);
             $examCenterNo = !empty($school->exam_center_number)
                 ? $school->exam_center_number
                 : "SET-CENTER-NO";
 
-            $allStudents = Student::with(["subclass.class", "parent"])
-                ->whereIn("subclassID", $subclassIds)
-                ->where("status", "Active")
-                ->orderByRaw(
-                    "CASE WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1 ELSE 2 END ASC",
-                )
-                ->orderBy("first_name", "asc")
-                ->get();
+            $activeInClassIds = $enrollmentService->studentIDsInClass(
+                (int) $classID,
+                (int) $schoolID,
+                "Active",
+            );
+            $examNumberByStudent = [];
+            if (!empty($activeInClassIds)) {
+                $ordered = Student::whereIn("studentID", $activeInClassIds)
+                    ->orderByRaw(
+                        "CASE WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1 ELSE 2 END ASC",
+                    )
+                    ->orderBy("first_name", "asc")
+                    ->get(["studentID"]);
+                foreach ($ordered as $index => $row) {
+                    $sequence = str_pad($index + 1, 4, "0", STR_PAD_LEFT);
+                    $examNumberByStudent[(int) $row->studentID] = "{$examCenterNo}/{$sequence}";
+                }
+            }
 
-            // Assign examination numbers and attach per-student class_subjectID
-            foreach ($allStudents as $index => $student) {
-                $sequence = str_pad($index + 1, 4, "0", STR_PAD_LEFT);
-                $student->examination_number = "{$examCenterNo}/{$sequence}";
-                // Attach the class_subjectID that matches this student's subclass
-                $student->class_subjectID = $classSubjects->has(
-                    $student->subclassID,
-                )
-                    ? $classSubjects[$student->subclassID]->class_subjectID
-                    : null;
+            $enrollmentByStudent = $enrollments->keyBy("studentID");
+            $studentIds = $enrollments->pluck("studentID")->all();
+
+            $allStudents = collect();
+            if (!empty($studentIds)) {
+                $allStudents = Student::with(["subclass.class", "parent"])
+                    ->whereIn("studentID", $studentIds)
+                    ->orderByRaw(
+                        "CASE WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1 ELSE 2 END ASC",
+                    )
+                    ->orderBy("first_name", "asc")
+                    ->get()
+                    ->map(function ($student) use (
+                        $enrollmentByStudent,
+                        $classSubjects,
+                        $examNumberByStudent,
+                    ) {
+                        $enr = $enrollmentByStudent->get($student->studentID);
+                        $status = $enr ? (string) $enr->status : null;
+                        $enrSubclassID = $enr ? (int) $enr->subclassID : null;
+                        $student->examination_number =
+                            $examNumberByStudent[(int) $student->studentID] ??
+                            null;
+                        $student->enrollmentID = $enr
+                            ? (int) $enr->enrollmentID
+                            : null;
+                        $student->enrollment_status = $status;
+                        $student->enrollment_subclassID = $enrSubclassID;
+                        $student->academic_yearID = $enr
+                            ? $enr->academic_yearID
+                            : null;
+                        $student->can_enter_result = $status === "Active";
+                        $student->class_subjectID =
+                            $enrSubclassID &&
+                            $classSubjects->has($enrSubclassID)
+                                ? $classSubjects[$enrSubclassID]->class_subjectID
+                                : null;
+                        if ($enr && $enr->subclass) {
+                            $student->setRelation("subclass", $enr->subclass);
+                        }
+                        return $student;
+                    });
             }
 
             // Build the subclassID -> class_subjectID map for the frontend
@@ -6029,6 +6253,8 @@ class TeachersController extends Controller
                 "students" => $allStudents->values(),
                 "class_subject_map" => $map,
                 "all_subclasses" => true,
+                "active_enrollment_count" => $activeEnrollmentCount,
+                "enrollment_scope" => "header_year_active_editable",
             ]);
         } catch (\Exception $e) {
             return response()->json(
@@ -7067,6 +7293,41 @@ class TeachersController extends Controller
                     $marksByStudent[$studentID][$mark->exam_paper_questionID] =
                         $mark->marks;
                 }
+
+                // Keep marks only for Active enrollments in the header academic year
+                $enrollmentService = app(
+                    \App\Services\StudentEnrollmentService::class,
+                );
+                $activeStudentIds = [];
+                if (request()->get("all_subclasses") && $classSubject->classID) {
+                    $activeStudentIds = $enrollmentService->studentIDsInClass(
+                        (int) $classSubject->classID,
+                        (int) $schoolID,
+                        "Active",
+                    );
+                } elseif ($classSubject->subclassID) {
+                    $activeStudentIds = $enrollmentService->studentIDsInSubclass(
+                        (int) $classSubject->subclassID,
+                        (int) $schoolID,
+                        "Active",
+                    );
+                } elseif ($classSubject->classID) {
+                    $activeStudentIds = $enrollmentService->studentIDsInClass(
+                        (int) $classSubject->classID,
+                        (int) $schoolID,
+                        "Active",
+                    );
+                }
+
+                if (!empty($activeStudentIds)) {
+                    $activeFlip = array_flip($activeStudentIds);
+                    $marksByStudent = array_intersect_key(
+                        $marksByStudent,
+                        $activeFlip,
+                    );
+                } else {
+                    $marksByStudent = [];
+                }
             }
 
             return response()->json(
@@ -7209,28 +7470,50 @@ class TeachersController extends Controller
                 ->pluck("studentID")
                 ->unique()
                 ->toArray();
-            $studentsMap = Student::whereIn(
-                "studentID",
-                $studentIdsInRequest,
-            )->pluck("subclassID", "studentID");
 
-            $enrollmentMap = app(\App\Services\StudentEnrollmentService::class)
-                ->enrollmentMapForSchool((int) $schoolID);
+            $enrollmentService = app(
+                \App\Services\StudentEnrollmentService::class,
+            );
+            $activeEnrollmentDetails = $enrollmentService->activeEnrollmentDetailsByStudent(
+                (int) $schoolID,
+            );
+
+            if (empty($activeEnrollmentDetails)) {
+                return response()->json(
+                    [
+                        "error" =>
+                            "Selected academic year has no Active enrollments. Cannot save results.",
+                        "error_code" => "no_active_enrollments",
+                    ],
+                    422,
+                );
+            }
 
             // Fetch subclass-to-class_subject mapping for resolving correct class_subjectID per student
-            $classSubjectsMap = ClassSubject::where('classID', $classSubject->classID)
-                ->where('subjectID', $classSubject->subjectID)
-                ->where('status', 'Active')
-                ->pluck('class_subjectID', 'subclassID')
+            $classSubjectsMap = ClassSubject::where(
+                "classID",
+                $classSubject->classID,
+            )
+                ->where("subjectID", $classSubject->subjectID)
+                ->where("status", "Active")
+                ->pluck("class_subjectID", "subclassID")
                 ->toArray();
 
             $resultsToUpsert = [];
             $questionMarksToUpsert = [];
             $now = \Illuminate\Support\Carbon::now();
+            $skippedInactive = 0;
 
             foreach ($request->results as $resultData) {
                 $studentID = $resultData["studentID"] ?? null;
                 if (!$studentID) {
+                    continue;
+                }
+
+                $activeEnr = $activeEnrollmentDetails[(int) $studentID] ?? null;
+                if (!$activeEnr) {
+                    // Only Active enrollments for selected year may receive marks
+                    $skippedInactive++;
                     continue;
                 }
 
@@ -7245,15 +7528,19 @@ class TeachersController extends Controller
                     $remark = $remark ?: $calc["remark"];
                 }
 
-                $studentSubclassID = $studentsMap[$studentID] ?? null;
+                $studentSubclassID = $activeEnr["subclassID"] ?? null;
                 $resolvedClassSubjectID = $request->class_subjectID;
-                if ($studentSubclassID && isset($classSubjectsMap[$studentSubclassID])) {
-                    $resolvedClassSubjectID = $classSubjectsMap[$studentSubclassID];
+                if (
+                    $studentSubclassID &&
+                    isset($classSubjectsMap[$studentSubclassID])
+                ) {
+                    $resolvedClassSubjectID =
+                        $classSubjectsMap[$studentSubclassID];
                 }
 
                 $resultsToUpsert[] = [
                     "studentID" => $studentID,
-                    "enrollmentID" => $enrollmentMap[$studentID] ?? null,
+                    "enrollmentID" => $activeEnr["enrollmentID"],
                     "examID" => $request->examID,
                     "class_subjectID" => $resolvedClassSubjectID,
                     "subclassID" => $studentSubclassID,
@@ -7286,6 +7573,20 @@ class TeachersController extends Controller
                         ];
                     }
                 }
+            }
+
+            if (empty($resultsToUpsert)) {
+                return response()->json(
+                    [
+                        "error" =>
+                            $skippedInactive > 0
+                                ? "No results saved. Marks can only be entered for students with Active enrollments in the selected academic year."
+                                : "No valid results to save.",
+                        "error_code" => "no_active_enrollments",
+                        "skipped_inactive" => $skippedInactive,
+                    ],
+                    422,
+                );
             }
 
             DB::beginTransaction();
@@ -7341,6 +7642,7 @@ class TeachersController extends Controller
                         count($resultsToUpsert) .
                         " students!",
                     "count" => count($resultsToUpsert),
+                    "skipped_inactive" => $skippedInactive ?? 0,
                 ],
                 200,
             );
@@ -7514,20 +7816,46 @@ class TeachersController extends Controller
                 );
             }
 
-            // Get students for this class subject
+            // Get Active enrollments for this class subject (header year)
             $subclassID = $classSubject->subclassID;
             $classID = $classSubject->classID;
 
             if ($subclassID) {
-                $students = Student::inSubclass($subclassID, $schoolID)
-                    ->where("status", "Active")
-                    ->orderBy("admission_number")
-                    ->get();
+                $studentIds = app(
+                    \App\Services\StudentEnrollmentService::class,
+                )->studentIDsInSubclass(
+                    (int) $subclassID,
+                    (int) $schoolID,
+                    "Active",
+                );
+                $students = empty($studentIds)
+                    ? collect()
+                    : Student::where("schoolID", $schoolID)
+                        ->whereIn("studentID", $studentIds)
+                        ->orderBy("admission_number")
+                        ->get();
             } else {
-                $students = Student::inClass($classID, $schoolID)
-                    ->where("status", "Active")
-                    ->orderBy("admission_number")
-                    ->get();
+                $studentIds = app(
+                    \App\Services\StudentEnrollmentService::class,
+                )->studentIDsInClass((int) $classID, (int) $schoolID, "Active");
+                $students = empty($studentIds)
+                    ? collect()
+                    : Student::where("schoolID", $schoolID)
+                        ->whereIn("studentID", $studentIds)
+                        ->orderBy("admission_number")
+                        ->get();
+            }
+
+            if ($students->isEmpty()) {
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" =>
+                            "Selected academic year has no Active enrollments for this class/subject.",
+                        "error_code" => "no_active_enrollments",
+                    ],
+                    422,
+                );
             }
 
             // Get school type for grading
@@ -7840,20 +8168,46 @@ class TeachersController extends Controller
                 );
             }
 
-            // Get students for this class subject
+            // Get Active enrollments for this class subject (header year)
             $subclassID = $classSubject->subclassID;
             $classID = $classSubject->classID;
 
             if ($subclassID) {
-                $students = Student::inSubclass($subclassID, $schoolID)
-                    ->where("status", "Active")
-                    ->orderBy("admission_number")
-                    ->get();
+                $studentIds = app(
+                    \App\Services\StudentEnrollmentService::class,
+                )->studentIDsInSubclass(
+                    (int) $subclassID,
+                    (int) $schoolID,
+                    "Active",
+                );
+                $students = empty($studentIds)
+                    ? collect()
+                    : Student::where("schoolID", $schoolID)
+                        ->whereIn("studentID", $studentIds)
+                        ->orderBy("admission_number")
+                        ->get();
             } else {
-                $students = Student::inClass($classID, $schoolID)
-                    ->where("status", "Active")
-                    ->orderBy("admission_number")
-                    ->get();
+                $studentIds = app(
+                    \App\Services\StudentEnrollmentService::class,
+                )->studentIDsInClass((int) $classID, (int) $schoolID, "Active");
+                $students = empty($studentIds)
+                    ? collect()
+                    : Student::where("schoolID", $schoolID)
+                        ->whereIn("studentID", $studentIds)
+                        ->orderBy("admission_number")
+                        ->get();
+            }
+
+            if ($students->isEmpty()) {
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" =>
+                            "Selected academic year has no Active enrollments for this class/subject.",
+                        "error_code" => "no_active_enrollments",
+                    ],
+                    422,
+                );
             }
 
             // Get school type for grading
@@ -8311,8 +8665,21 @@ class TeachersController extends Controller
             // Save results
             DB::beginTransaction();
 
+            $enrollmentService = app(
+                \App\Services\StudentEnrollmentService::class,
+            );
+            $activeDetails = $enrollmentService->activeEnrollmentDetailsByStudent(
+                (int) $schoolID,
+            );
+
             foreach ($results as $resultData) {
-                $result = Result::where("studentID", $resultData["studentID"])
+                $studentID = (int) ($resultData["studentID"] ?? 0);
+                $activeEnr = $activeDetails[$studentID] ?? null;
+                if (!$activeEnr) {
+                    continue;
+                }
+
+                $result = Result::where("studentID", $studentID)
                     ->where("examID", $request->exam_id)
                     ->where("class_subjectID", $request->class_subject_id)
                     ->first();
@@ -8322,20 +8689,21 @@ class TeachersController extends Controller
                         "marks" => $resultData["marks"],
                         "grade" => $resultData["grade"],
                         "remark" => $resultData["remark"],
+                        "enrollmentID" => $activeEnr["enrollmentID"],
+                        "subclassID" =>
+                            $activeEnr["subclassID"] ?? $result->subclassID,
                     ]);
                 } else {
-                    $student = Student::find($resultData["studentID"]);
-                    if ($student) {
-                        Result::create([
-                            "studentID" => $resultData["studentID"],
-                            "examID" => $request->exam_id,
-                            "class_subjectID" => $request->class_subject_id,
-                            "subclassID" => $student->subclassID,
-                            "marks" => $resultData["marks"],
-                            "grade" => $resultData["grade"],
-                            "remark" => $resultData["remark"],
-                        ]);
-                    }
+                    Result::create([
+                        "studentID" => $studentID,
+                        "enrollmentID" => $activeEnr["enrollmentID"],
+                        "examID" => $request->exam_id,
+                        "class_subjectID" => $request->class_subject_id,
+                        "subclassID" => $activeEnr["subclassID"],
+                        "marks" => $resultData["marks"],
+                        "grade" => $resultData["grade"],
+                        "remark" => $resultData["remark"],
+                    ]);
                 }
                 $successCount++;
             }
@@ -9328,6 +9696,45 @@ class TeachersController extends Controller
         if ($subclassID && $subclassID !== "all") {
             $query->where("results.subclassID", $subclassID);
         }
+
+        // Restrict to Active enrollments for the header academic year
+        $enrollmentService = app(
+            \App\Services\StudentEnrollmentService::class,
+        );
+        $activeStudentIDs = [];
+        if ($subclassID && $subclassID !== "all") {
+            $activeStudentIDs = $enrollmentService->studentIDsInSubclass(
+                (int) $subclassID,
+                (int) $schoolID,
+                "Active",
+            );
+        } elseif ($mainClassID && $mainClassID !== "all") {
+            $activeStudentIDs = $enrollmentService->studentIDsInClass(
+                (int) $mainClassID,
+                (int) $schoolID,
+                "Active",
+            );
+        } else {
+            $activeStudentIDs = $enrollmentService
+                ->activeEnrollments((int) $schoolID)
+                ->pluck("studentID")
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        if (empty($activeStudentIDs)) {
+            return response()->json([
+                "success" => true,
+                "results" => [],
+                "total_count" => 0,
+                "error_code" => "no_active_enrollments",
+                "message" =>
+                    "Selected academic year has no Active enrollments for this scope.",
+            ]);
+        }
+
+        $query->whereIn("results.studentID", $activeStudentIDs);
 
         $allResults = $query->get();
 
@@ -12648,6 +13055,98 @@ class TeachersController extends Controller
     }
 
     /**
+     * Active enrollments for a session subclass (header academic year).
+     *
+     * @return array{0: ?\Illuminate\Http\JsonResponse, 1: array<int>, 2: array<int, array{enrollmentID: int, enrollment_status: string}>}
+     */
+    private function activeEnrollmentStudentsForSubclass(
+        int $schoolID,
+        int $subclassID,
+    ): array {
+        $yearIds = app(
+            \App\Services\SelectedAcademicYearService::class,
+        )->selectedYearIds($schoolID);
+
+        if (empty($yearIds)) {
+            return [
+                response()->json(
+                    [
+                        "success" => false,
+                        "error" =>
+                            "Select an academic year in the header before managing session attendance or lesson plans.",
+                        "message" =>
+                            "Select an academic year in the header before managing session attendance or lesson plans.",
+                        "error_code" => "no_academic_year",
+                        "students" => [],
+                        "can_collect" => false,
+                        "attendance_exists" => false,
+                    ],
+                    422,
+                ),
+                [],
+                [],
+            ];
+        }
+
+        $enrollments = app(
+            \App\Services\StudentEnrollmentService::class,
+        )->enrollmentsInSubclass($subclassID, $schoolID, "Active");
+
+        $ids = [];
+        $meta = [];
+        foreach ($enrollments as $enr) {
+            $sid = (int) $enr->studentID;
+            $ids[] = $sid;
+            $meta[$sid] = [
+                "enrollmentID" => (int) $enr->enrollmentID,
+                "enrollment_status" => (string) $enr->status,
+            ];
+        }
+
+        if (empty($ids)) {
+            return [
+                response()->json([
+                    "success" => true,
+                    "message" =>
+                        "Selected academic year has no Active enrollments for this class. Actions (attendance, lesson plan, results) are blocked.",
+                    "error_code" => "no_active_enrollments",
+                    "students" => [],
+                    "can_collect" => false,
+                    "attendance_exists" => false,
+                    "active_enrollment_count" => 0,
+                ]),
+                [],
+                [],
+            ];
+        }
+
+        return [null, $ids, $meta];
+    }
+
+    /**
+     * Resolve Active enrollmentID for a student in a session subclass, or null if not allowed.
+     */
+    private function activeEnrollmentIdInSubclass(
+        int $studentID,
+        int $subclassID,
+        int $schoolID,
+    ): ?int {
+        $enrollment = app(
+            \App\Services\StudentEnrollmentService::class,
+        )->currentEnrollment($studentID, $schoolID);
+
+        if (
+            !$enrollment ||
+            $enrollment->status !== "Active" ||
+            (int) $enrollment->subclassID !== (int) $subclassID
+        ) {
+            return null;
+        }
+
+        return (int) $enrollment->enrollmentID;
+    }
+
+    /**
      * Display My Sessions page for teacher
      */
     public function mySessions()
@@ -13158,9 +13657,16 @@ class TeachersController extends Controller
                 ->where("attendance_date", $attendanceDate)
                 ->exists();
 
-            // Get students for this subclass
-            $students = Student::inSubclass($session->subclassID, $schoolID)
-                ->where("status", "Active")
+            [$gate, $studentIds, $enrollmentMeta] = $this->activeEnrollmentStudentsForSubclass(
+                (int) $schoolID,
+                (int) $session->subclassID,
+            );
+            if ($gate && empty($studentIds)) {
+                return $gate;
+            }
+
+            $students = Student::where("schoolID", $schoolID)
+                ->whereIn("studentID", $studentIds)
                 ->orderBy("first_name")
                 ->orderBy("last_name")
                 ->get();
@@ -13177,6 +13683,7 @@ class TeachersController extends Controller
             $studentData = [];
             foreach ($students as $student) {
                 $existing = $existingRecords->get($student->studentID);
+                $meta = $enrollmentMeta[(int) $student->studentID] ?? null;
                 $studentData[] = [
                     "studentID" => $student->studentID,
                     "name" => trim(
@@ -13188,6 +13695,9 @@ class TeachersController extends Controller
                     ),
                     "status" => $existing ? $existing->status : "Present",
                     "remark" => $existing ? $existing->remark : null,
+                    "enrollmentID" => $meta["enrollmentID"] ?? null,
+                    "enrollment_status" => $meta["enrollment_status"] ?? "Active",
+                    "can_mark" => true,
                 ];
             }
 
@@ -13196,6 +13706,7 @@ class TeachersController extends Controller
                 "students" => $studentData,
                 "attendance_exists" => $existingAttendance,
                 "can_collect" => !$existingAttendance,
+                "active_enrollment_count" => count($studentIds),
             ]);
         } catch (\Exception $e) {
             Log::error(
@@ -13323,22 +13834,55 @@ class TeachersController extends Controller
                 );
             }
 
+            [$gate, $studentIds] = $this->activeEnrollmentStudentsForSubclass(
+                (int) $schoolID,
+                (int) $session->subclassID,
+            );
+            if ($gate && empty($studentIds)) {
+                return $gate;
+            }
+            $allowedFlip = array_flip($studentIds);
+
             DB::beginTransaction();
 
-            $enrollmentService = app(\App\Services\StudentEnrollmentService::class);
+            $enrollmentService = app(
+                \App\Services\StudentEnrollmentService::class,
+            );
             foreach ($attendanceData as $attendance) {
+                $studentID = (int) $attendance["studentID"];
+                if (!isset($allowedFlip[$studentID])) {
+                    DB::rollBack();
+                    return response()->json(
+                        [
+                            "success" => false,
+                            "error" =>
+                                "Only Active enrollments for the selected academic year can be marked. Student ID {$studentID} is not allowed.",
+                            "error_code" => "enrollment_not_active",
+                        ],
+                        422,
+                    );
+                }
+
+                $enrollmentID =
+                    $this->activeEnrollmentIdInSubclass(
+                        $studentID,
+                        (int) $session->subclassID,
+                        (int) $schoolID,
+                    ) ?:
+                    $enrollmentService->bestEnrollmentID(
+                        $studentID,
+                        (int) $schoolID,
+                    );
+
                 StudentSessionAttendance::updateOrCreate(
                     [
                         "session_timetableID" => $sessionTimetableID,
-                        "studentID" => $attendance["studentID"],
+                        "studentID" => $studentID,
                         "attendance_date" => $attendanceDate,
                     ],
                     [
                         "schoolID" => $schoolID,
-                        "enrollmentID" => $enrollmentService->bestEnrollmentID(
-                            $attendance["studentID"],
-                            (int) $schoolID
-                        ),
+                        "enrollmentID" => $enrollmentID,
                         "teacherID" => $teacherID,
                         "status" => $attendance["status"],
                         "remark" => $attendance["remark"] ?? null,
@@ -13670,9 +14214,16 @@ class TeachersController extends Controller
                 ->where("attendance_date", $attendanceDate)
                 ->exists();
 
-            // Get students for this subclass
-            $students = Student::inSubclass($session->subclassID, $schoolID)
-                ->where("status", "Active")
+            [$gate, $studentIds, $enrollmentMeta] = $this->activeEnrollmentStudentsForSubclass(
+                (int) $schoolID,
+                (int) $session->subclassID,
+            );
+            if ($gate && empty($studentIds)) {
+                return $gate;
+            }
+
+            $students = Student::where("schoolID", $schoolID)
+                ->whereIn("studentID", $studentIds)
                 ->orderBy("first_name")
                 ->orderBy("last_name")
                 ->get();
@@ -13689,6 +14240,7 @@ class TeachersController extends Controller
             $studentData = [];
             foreach ($students as $student) {
                 $existing = $existingRecords->get($student->studentID);
+                $meta = $enrollmentMeta[(int) $student->studentID] ?? null;
                 $studentData[] = [
                     "studentID" => $student->studentID,
                     "name" => trim(
@@ -13700,6 +14252,9 @@ class TeachersController extends Controller
                     ),
                     "status" => $existing ? $existing->status : "Present", // Use existing status or default
                     "remark" => $existing ? $existing->remark : null,
+                    "enrollmentID" => $meta["enrollmentID"] ?? null,
+                    "enrollment_status" => $meta["enrollment_status"] ?? "Active",
+                    "can_mark" => true,
                 ];
             }
 
@@ -13708,6 +14263,7 @@ class TeachersController extends Controller
                 "students" => $studentData,
                 "attendance_exists" => $existingAttendance,
                 "can_collect" => !$existingAttendance, // Can only collect if not already collected
+                "active_enrollment_count" => count($studentIds),
             ]);
         } catch (\Exception $e) {
             Log::error("Error getting session students: " . $e->getMessage());
@@ -13757,6 +14313,20 @@ class TeachersController extends Controller
             $attendanceData = $request->input("attendance");
             $isUpdate = $request->input("is_update", false); // Flag to allow updates
 
+            $session = ClassSessionTimetable::where(
+                "session_timetableID",
+                $sessionTimetableID,
+            )
+                ->where("teacherID", $teacherID)
+                ->first();
+
+            if (!$session) {
+                return response()->json(
+                    ["success" => false, "error" => "Session not found"],
+                    404,
+                );
+            }
+
             // Check if attendance already exists for this session and date
             $existingAttendance = StudentSessionAttendance::where(
                 "session_timetableID",
@@ -13777,22 +14347,55 @@ class TeachersController extends Controller
                 );
             }
 
+            [$gate, $studentIds] = $this->activeEnrollmentStudentsForSubclass(
+                (int) $schoolID,
+                (int) $session->subclassID,
+            );
+            if ($gate && empty($studentIds)) {
+                return $gate;
+            }
+            $allowedFlip = array_flip($studentIds);
+
             DB::beginTransaction();
 
-            $enrollmentService = app(\App\Services\StudentEnrollmentService::class);
+            $enrollmentService = app(
+                \App\Services\StudentEnrollmentService::class,
+            );
             foreach ($attendanceData as $attendance) {
+                $studentID = (int) $attendance["studentID"];
+                if (!isset($allowedFlip[$studentID])) {
+                    DB::rollBack();
+                    return response()->json(
+                        [
+                            "success" => false,
+                            "error" =>
+                                "Only Active enrollments for the selected academic year can be marked. Student ID {$studentID} is not allowed.",
+                            "error_code" => "enrollment_not_active",
+                        ],
+                        422,
+                    );
+                }
+
+                $enrollmentID =
+                    $this->activeEnrollmentIdInSubclass(
+                        $studentID,
+                        (int) $session->subclassID,
+                        (int) $schoolID,
+                    ) ?:
+                    $enrollmentService->bestEnrollmentID(
+                        $studentID,
+                        (int) $schoolID,
+                    );
+
                 StudentSessionAttendance::updateOrCreate(
                     [
                         "session_timetableID" => $sessionTimetableID,
-                        "studentID" => $attendance["studentID"],
+                        "studentID" => $studentID,
                         "attendance_date" => $attendanceDate,
                     ],
                     [
                         "schoolID" => $schoolID,
-                        "enrollmentID" => $enrollmentService->bestEnrollmentID(
-                            $attendance["studentID"],
-                            (int) $schoolID
-                        ),
+                        "enrollmentID" => $enrollmentID,
                         "teacherID" => $teacherID,
                         "status" => $attendance["status"],
                         "remark" => $attendance["remark"] ?? null,
@@ -14653,6 +15256,20 @@ class TeachersController extends Controller
             }
 
             // Get attendance records for this session and date
+            $session = ClassSessionTimetable::where(
+                "session_timetableID",
+                $sessionTimetableID,
+            )
+                ->where("teacherID", $teacherID)
+                ->first();
+
+            if (!$session) {
+                return response()->json(
+                    ["success" => false, "error" => "Session not found"],
+                    404,
+                );
+            }
+
             $attendanceRecords = StudentSessionAttendance::with(["student"])
                 ->where("session_timetableID", $sessionTimetableID)
                 ->where("attendance_date", $attendanceDate)
@@ -14660,7 +15277,20 @@ class TeachersController extends Controller
                 ->get();
 
             $data = [];
+            $enrollmentService = app(
+                \App\Services\StudentEnrollmentService::class,
+            );
             foreach ($attendanceRecords as $record) {
+                $enrollment = $enrollmentService->currentEnrollment(
+                    (int) $record->studentID,
+                    (int) $schoolID,
+                );
+                $canEdit =
+                    $enrollment &&
+                    $enrollment->status === "Active" &&
+                    (int) $enrollment->subclassID ===
+                        (int) $session->subclassID;
+
                 $data[] = [
                     "attendanceID" => $record->session_attendanceID,
                     "studentID" => $record->studentID,
@@ -14673,6 +15303,8 @@ class TeachersController extends Controller
                     ),
                     "status" => $record->status,
                     "remark" => $record->remark,
+                    "enrollment_status" => $enrollment->status ?? null,
+                    "can_edit" => $canEdit,
                 ];
             }
 
@@ -14861,9 +15493,17 @@ class TeachersController extends Controller
                 ]);
             }
 
-            // Get subclass students
-            $students = Student::inSubclass($session->subclassID, $schoolID)
-                ->where("status", "Active")
+            // Get Active enrolled students for header year
+            [$gate, $studentIds] = $this->activeEnrollmentStudentsForSubclass(
+                (int) $schoolID,
+                (int) $session->subclassID,
+            );
+            if ($gate && empty($studentIds)) {
+                return $gate;
+            }
+
+            $students = Student::where("schoolID", $schoolID)
+                ->whereIn("studentID", $studentIds)
                 ->get();
 
             // Count registered students
@@ -15043,6 +15683,26 @@ class TeachersController extends Controller
                     "success" => false,
                     "error" => "Session not found or unauthorized",
                 ]);
+            }
+
+            [$gate, $studentIds] = $this->activeEnrollmentStudentsForSubclass(
+                (int) $schoolID,
+                (int) $session->subclassID,
+            );
+            if ($gate && empty($studentIds)) {
+                return response()->json(
+                    [
+                        "success" => false,
+                        "error" =>
+                            $gate->getData(true)["error"] ??
+                            ($gate->getData(true)["message"] ??
+                                "Lesson plan cannot be created: no Active enrollments for the selected academic year."),
+                        "error_code" =>
+                            $gate->getData(true)["error_code"] ??
+                            "no_active_enrollments",
+                    ],
+                    $gate->getStatusCode() === 200 ? 422 : $gate->getStatusCode(),
+                );
             }
 
             // Get attendance stats
@@ -15861,6 +16521,34 @@ class TeachersController extends Controller
                 ]);
             }
 
+            $schoolID = (int) Session::get("schoolID");
+            $session = ClassSessionTimetable::find(
+                $lessonPlan->session_timetableID,
+            );
+            if ($session && $session->subclassID) {
+                [$gate, $studentIds] = $this->activeEnrollmentStudentsForSubclass(
+                    $schoolID,
+                    (int) $session->subclassID,
+                );
+                if ($gate && empty($studentIds)) {
+                    return response()->json(
+                        [
+                            "success" => false,
+                            "error" =>
+                                $gate->getData(true)["error"] ??
+                                ($gate->getData(true)["message"] ??
+                                    "Lesson plan cannot be edited: no Active enrollments for the selected academic year."),
+                            "error_code" =>
+                                $gate->getData(true)["error_code"] ??
+                                "no_active_enrollments",
+                        ],
+                        $gate->getStatusCode() === 200
+                            ? 422
+                            : $gate->getStatusCode(),
+                    );
+                }
+            }
+
             $validator = Validator::make($request->all(), [
                 "main_competence" => "nullable|string",
                 "specific_competence" => "nullable|string",
@@ -15973,9 +16661,17 @@ class TeachersController extends Controller
             ];
         }
 
-        $students = Student::inSubclass($session->subclassID, $schoolID ?? Session::get("schoolID"))
-            ->where("status", "Active")
-            ->get();
+        $schoolID = (int) Session::get("schoolID");
+        [, $studentIds] = $this->activeEnrollmentStudentsForSubclass(
+            $schoolID,
+            (int) $session->subclassID,
+        );
+
+        $students = empty($studentIds)
+            ? collect()
+            : Student::where("schoolID", $schoolID)
+                ->whereIn("studentID", $studentIds)
+                ->get();
 
         $registeredGirls = $students->where("gender", "Female")->count();
         $registeredBoys = $students->where("gender", "Male")->count();

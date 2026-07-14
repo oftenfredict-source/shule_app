@@ -15,6 +15,9 @@ use App\Models\ParentModel;
 use App\Models\OtherStaff;
 use App\Models\SmsLog;
 use App\Services\SmsService;
+use App\Services\SelectedAcademicYearService;
+use App\Services\StudentEnrollmentService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +33,91 @@ class SMS_InformationController extends Controller
     public function __construct()
     {
         $this->smsService = new SmsService();
+    }
+
+    /**
+     * Active enrollment student IDs for header academic year.
+     * @return array{0: ?\Illuminate\Http\JsonResponse, 1: array<int>}
+     */
+    private function activeEnrollmentStudentIds(int $schoolID, ?int $classID = null, ?int $subclassID = null): array
+    {
+        $yearIds = app(SelectedAcademicYearService::class)->selectedYearIds($schoolID);
+        if (empty($yearIds)) {
+            return [
+                response()->json([
+                    'success' => false,
+                    'message' => 'Select an academic year in the header before messaging parents.',
+                    'error_code' => 'no_academic_year',
+                    'count' => 0,
+                    'parents' => [],
+                    'students' => [],
+                ], 422),
+                [],
+            ];
+        }
+
+        $service = app(StudentEnrollmentService::class);
+        if ($subclassID) {
+            $studentIds = $service->studentIDsInSubclass($subclassID, $schoolID, 'Active');
+        } elseif ($classID) {
+            $studentIds = $service->studentIDsInClass($classID, $schoolID, 'Active');
+        } else {
+            $studentIds = $service->enrollmentsInSchool($schoolID, 'Active')
+                ->pluck('studentID')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        if (empty($studentIds)) {
+            return [
+                response()->json([
+                    'success' => true,
+                    'message' => 'Selected academic year has no Active enrollments' . ($classID ? ' for this class.' : '.'),
+                    'error_code' => 'no_active_enrollments',
+                    'count' => 0,
+                    'parents' => [],
+                    'students' => [],
+                ]),
+                [],
+            ];
+        }
+
+        return [null, $studentIds];
+    }
+
+    /**
+     * Parents of Active enrolled students (with phone), unique by parentID.
+     */
+    private function parentsForStudentIds(int $schoolID, array $studentIds, ?array $parentIDs = null): Collection
+    {
+        $query = ParentModel::where('schoolID', $schoolID)
+            ->whereNotNull('phone')
+            ->where('phone', '!=', '')
+            ->whereHas('students', function ($q) use ($studentIds) {
+                $q->whereIn('studentID', $studentIds);
+            })
+            ->select('parentID', 'first_name', 'middle_name', 'last_name', 'phone')
+            ->with(['students' => function ($q) use ($studentIds) {
+                $q->whereIn('studentID', $studentIds)
+                    ->select('studentID', 'parentID', 'first_name', 'last_name', 'admission_number');
+            }]);
+
+        if (!empty($parentIDs)) {
+            $query->whereIn('parentID', $parentIDs);
+        }
+
+        return $query->get()->unique('parentID')->values()->transform(function ($parent) {
+            $student = $parent->students->first();
+            $studentName = $student
+                ? trim($student->first_name . ' ' . ($student->last_name ?? ''))
+                : 'Student';
+            $parent->display_name = 'Parent of ' . $studentName;
+            $parent->enrollment_status = 'Active';
+            unset($parent->students);
+            return $parent;
+        });
     }
 
     public function sms_notification()
@@ -53,7 +141,7 @@ class SMS_InformationController extends Controller
     }
 
     /**
-     * Get all parents in school
+     * Get all parents in school (Active enrollments for selected academic year)
      */
     public function get_all_parents()
     {
@@ -63,33 +151,18 @@ class SMS_InformationController extends Controller
                 return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
             }
 
-            // Optimized query: Only select necessary fields and avoid eager loading
-            $parents = ParentModel::where('schoolID', $schoolID)
-                ->whereNotNull('phone')
-                ->where('phone', '!=', '')
-                ->whereHas('students', function($q) {
-                    $q->where('status', 'Active');
-                })
-                ->select('parentID', 'first_name', 'middle_name', 'last_name', 'phone')
-                ->with(['students' => function($q) {
-                    $q->where('status', 'Active')->select('studentID', 'parentID', 'first_name', 'last_name');
-                }])
-                ->get();
+            [$gate, $studentIds] = $this->activeEnrollmentStudentIds((int) $schoolID);
+            if ($gate) {
+                return $gate;
+            }
 
-            // Map parents to add student info
-            $parents->transform(function ($parent) {
-                $studentName = $parent->students->first() ? $parent->students->first()->first_name . ' ' . $parent->students->first()->last_name : 'Student';
-                $parent->display_name = 'Parent of ' . trim($studentName);
-                unset($parent->students); // Clean up payload
-                return $parent;
-            });
-
-            $count = $parents->count();
+            $parents = $this->parentsForStudentIds((int) $schoolID, $studentIds);
 
             return response()->json([
                 'success' => true,
-                'count' => $count,
-                'parents' => $parents
+                'count' => $parents->count(),
+                'parents' => $parents,
+                'active_enrollment_count' => count($studentIds),
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting all parents: ' . $e->getMessage());
@@ -98,7 +171,7 @@ class SMS_InformationController extends Controller
     }
 
     /**
-     * Get parents by class
+     * Get parents by class (Active enrollments for selected academic year)
      */
     public function get_parents_by_class(Request $request)
     {
@@ -113,39 +186,18 @@ class SMS_InformationController extends Controller
                 return response()->json(['success' => false, 'message' => 'Class ID is required'], 400);
             }
 
-            // Get all subclasses for this class
-            $subclassIDs = Subclass::where('classID', $classID)->pluck('subclassID');
+            [$gate, $studentIds] = $this->activeEnrollmentStudentIds((int) $schoolID, (int) $classID);
+            if ($gate) {
+                return $gate;
+            }
 
-            // Optimized query: Only select necessary fields and avoid eager loading
-            $parents = ParentModel::where('schoolID', $schoolID)
-                ->whereNotNull('phone')
-                ->where('phone', '!=', '')
-                ->whereHas('students', function($q) use ($subclassIDs) {
-                    $q->whereIn('subclassID', $subclassIDs)
-                      ->where('status', 'Active');
-                })
-                ->select('parentID', 'first_name', 'middle_name', 'last_name', 'phone')
-                ->with(['students' => function($q) use ($subclassIDs) {
-                    $q->whereIn('subclassID', $subclassIDs)->where('status', 'Active')->select('studentID', 'parentID', 'first_name', 'last_name');
-                }])
-                ->get()
-                ->unique('parentID');
-
-            // Map parents to add student info
-            $parents = $parents->values();
-            $parents->transform(function ($parent) {
-                $studentName = $parent->students->first() ? $parent->students->first()->first_name . ' ' . $parent->students->first()->last_name : 'Student';
-                $parent->display_name = 'Parent of ' . trim($studentName);
-                unset($parent->students); // Clean up payload
-                return $parent;
-            });
-
-            $count = $parents->count();
+            $parents = $this->parentsForStudentIds((int) $schoolID, $studentIds);
 
             return response()->json([
                 'success' => true,
-                'count' => $count,
-                'parents' => $parents
+                'count' => $parents->count(),
+                'parents' => $parents,
+                'active_enrollment_count' => count($studentIds),
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting parents by class: ' . $e->getMessage());
@@ -216,7 +268,7 @@ class SMS_InformationController extends Controller
     }
 
     /**
-     * Get parent by student
+     * Get parent by student (must have Active enrollment for selected year)
      */
     public function get_parent_by_student(Request $request)
     {
@@ -231,14 +283,31 @@ class SMS_InformationController extends Controller
                 return response()->json(['success' => false, 'message' => 'Student ID is required'], 400);
             }
 
+            [$gate, $studentIds] = $this->activeEnrollmentStudentIds((int) $schoolID);
+            if ($gate && empty($studentIds)) {
+                // Prefer explicit year/enrollment errors from gate
+                if (($gate->getData(true)['error_code'] ?? null) === 'no_academic_year') {
+                    return $gate;
+                }
+            }
+
+            $enrollment = app(StudentEnrollmentService::class)
+                ->currentEnrollment((int) $studentID, (int) $schoolID);
+            if (!$enrollment || $enrollment->status !== 'Active') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Student has no Active enrollment for the selected academic year.',
+                    'error_code' => 'enrollment_not_active',
+                ], 422);
+            }
+
             $student = Student::where('studentID', $studentID)
                 ->where('schoolID', $schoolID)
-                ->where('status', 'Active')
                 ->with('parent')
                 ->first();
 
             if (!$student || !$student->parent) {
-                return response()->json(['success' => false, 'message' => 'Active student or parent not found'], 404);
+                return response()->json(['success' => false, 'message' => 'Student or parent not found'], 404);
             }
 
             $parent = $student->parent;
@@ -249,7 +318,9 @@ class SMS_InformationController extends Controller
             return response()->json([
                 'success' => true,
                 'parent' => $parent,
-                'student' => $student
+                'student' => $student,
+                'enrollmentID' => (int) $enrollment->enrollmentID,
+                'enrollment_status' => $enrollment->status,
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting parent by student: ' . $e->getMessage());
@@ -258,7 +329,7 @@ class SMS_InformationController extends Controller
     }
 
     /**
-     * Search students for parent selection
+     * Search students for parent selection (Active enrollments for selected year)
      */
     public function search_students(Request $request)
     {
@@ -268,10 +339,15 @@ class SMS_InformationController extends Controller
                 return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
             }
 
+            [$gate, $studentIds] = $this->activeEnrollmentStudentIds((int) $schoolID);
+            if ($gate && empty($studentIds)) {
+                return $gate;
+            }
+
             $search = $request->input('search', '');
             
             $query = Student::where('schoolID', $schoolID)
-                ->where('status', 'Active')
+                ->whereIn('studentID', $studentIds)
                 ->with(['parent', 'subclass.class']);
 
             if ($search) {
@@ -283,11 +359,16 @@ class SMS_InformationController extends Controller
                 });
             }
 
-            $students = $query->limit(50)->get();
+            $students = $query->limit(50)->get()->map(function ($student) {
+                $student->enrollment_status = 'Active';
+                $student->can_message = true;
+                return $student;
+            });
 
             return response()->json([
                 'success' => true,
-                'students' => $students
+                'students' => $students,
+                'active_enrollment_count' => count($studentIds),
             ]);
         } catch (\Exception $e) {
             Log::error('Error searching students: ' . $e->getMessage());
@@ -423,28 +504,16 @@ class SMS_InformationController extends Controller
             // Get recipients based on type
             switch ($recipientType) {
                 case 'all_parents':
-                    // Get parents who have at least one active student
-                    $parentsQuery = ParentModel::where('schoolID', $schoolID)
-                        ->whereNotNull('phone')
-                        ->where('phone', '!=', '')
-                        ->whereHas('students', function($q) {
-                            $q->where('status', 'Active');
-                        })
-                        ->with(['students' => function($q) {
-                            $q->where('status', 'Active')->select('studentID', 'parentID', 'first_name', 'last_name');
-                        }]);
-                    
-                    if (!empty($selectedIds)) {
-                        $parentsQuery->whereIn('parentID', $selectedIds);
+                    [$gate, $studentIds] = $this->activeEnrollmentStudentIds((int) $schoolID);
+                    if ($gate && empty($studentIds)) {
+                        return $gate;
                     }
-
-                    $parents = $parentsQuery->get();
+                    $parents = $this->parentsForStudentIds((int) $schoolID, $studentIds, !empty($selectedIds) ? array_map('intval', $selectedIds) : null);
                     foreach ($parents as $parent) {
-                        $studentName = $parent->students->first() ? $parent->students->first()->first_name . ' ' . $parent->students->first()->last_name : 'Student';
                         $recipients[] = [
                             'type' => 'parent',
                             'phone' => $parent->phone,
-                            'name' => 'Parent of ' . trim($studentName),
+                            'name' => $parent->display_name,
                             'id' => $parent->parentID
                         ];
                     }
@@ -455,58 +524,32 @@ class SMS_InformationController extends Controller
                     if (!$classID) {
                         return response()->json(['success' => false, 'message' => 'Class ID is required'], 400);
                     }
-                    $subclassIDs = Subclass::where('classID', $classID)->pluck('subclassID');
-                    // Get parents who have at least one active student in these subclasses
-                    $parentsQuery = ParentModel::where('schoolID', $schoolID)
-                        ->whereNotNull('phone')
-                        ->where('phone', '!=', '')
-                        ->whereHas('students', function($q) use ($subclassIDs) {
-                            $q->whereIn('subclassID', $subclassIDs)
-                              ->where('status', 'Active');
-                        })
-                        ->with(['students' => function($q) use ($subclassIDs) {
-                            $q->whereIn('subclassID', $subclassIDs)->where('status', 'Active')->select('studentID', 'parentID', 'first_name', 'last_name');
-                        }]);
-                    
-                    if (!empty($selectedIds)) {
-                        $parentsQuery->whereIn('parentID', $selectedIds);
+                    [$gate, $studentIds] = $this->activeEnrollmentStudentIds((int) $schoolID, (int) $classID);
+                    if ($gate && empty($studentIds)) {
+                        return $gate;
                     }
-
-                    $parents = $parentsQuery->get()->unique('parentID');
+                    $parents = $this->parentsForStudentIds((int) $schoolID, $studentIds, !empty($selectedIds) ? array_map('intval', $selectedIds) : null);
                     foreach ($parents as $parent) {
-                        $studentName = $parent->students->first() ? $parent->students->first()->first_name . ' ' . $parent->students->first()->last_name : 'Student';
                         $recipients[] = [
                             'type' => 'parent',
                             'phone' => $parent->phone,
-                            'name' => 'Parent of ' . trim($studentName),
+                            'name' => $parent->display_name,
                             'id' => $parent->parentID
                         ];
                     }
                     break;
 
                 case 'all_parents_teachers':
-                    // Get parents
-                    $parentsQuery = ParentModel::where('schoolID', $schoolID)
-                        ->whereNotNull('phone')
-                        ->where('phone', '!=', '')
-                        ->whereHas('students', function($q) {
-                            $q->where('status', 'Active');
-                        })
-                        ->with(['students' => function($q) {
-                            $q->where('status', 'Active')->select('studentID', 'parentID', 'first_name', 'last_name');
-                        }]);
-                    
-                    if (!empty($selectedIds)) {
-                        $parentsQuery->whereIn('parentID', $selectedIds);
+                    [$gate, $studentIds] = $this->activeEnrollmentStudentIds((int) $schoolID);
+                    if ($gate && empty($studentIds)) {
+                        return $gate;
                     }
-
-                    $parents = $parentsQuery->get();
+                    $parents = $this->parentsForStudentIds((int) $schoolID, $studentIds, !empty($selectedIds) ? array_map('intval', $selectedIds) : null);
                     foreach ($parents as $parent) {
-                        $studentName = $parent->students->first() ? $parent->students->first()->first_name . ' ' . $parent->students->first()->last_name : 'Student';
                         $recipients[] = [
                             'type' => 'parent',
                             'phone' => $parent->phone,
-                            'name' => 'Parent of ' . trim($studentName),
+                            'name' => $parent->display_name,
                             'id' => $parent->parentID
                         ];
                     }
@@ -558,14 +601,29 @@ class SMS_InformationController extends Controller
                     if (!$studentID) {
                         return response()->json(['success' => false, 'message' => 'Student ID is required'], 400);
                     }
-                    // Get active student
+                    $yearIds = app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID);
+                    if (empty($yearIds)) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Select an academic year in the header before messaging parents.',
+                            'error_code' => 'no_academic_year',
+                        ], 422);
+                    }
+                    $enrollment = app(StudentEnrollmentService::class)
+                        ->currentEnrollment((int) $studentID, (int) $schoolID);
+                    if (!$enrollment || $enrollment->status !== 'Active') {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Only parents of Active enrollments for the selected academic year can be messaged.',
+                            'error_code' => 'enrollment_not_active',
+                        ], 422);
+                    }
                     $student = Student::where('studentID', $studentID)
                         ->where('schoolID', $schoolID)
-                        ->where('status', 'Active')
                         ->with('parent')
                         ->first();
                     if (!$student || !$student->parent || !$student->parent->phone) {
-                        return response()->json(['success' => false, 'message' => 'Active student or parent not found or phone number not available'], 404);
+                        return response()->json(['success' => false, 'message' => 'Student or parent not found or phone number not available'], 404);
                     }
                     $recipients[] = [
                         'type' => 'parent',

@@ -27,6 +27,7 @@ use App\Models\AcademicYear;
 use App\Services\SmsService;
 use App\Services\SelectedAcademicYearService;
 use App\Services\ExamShiftService;
+use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -98,18 +99,28 @@ class ManageExaminationController extends Controller
         $school = School::find($schoolID);
         $schoolType = $school && $school->school_type ? $school->school_type : 'Secondary';
 
-        // Get examinations with upload_paper = true for this school
-        // Include scheduled, ongoing, and awaiting_results statuses
-        $examinations = Examination::where('schoolID', $schoolID)
+        $selectedYearIds = array_values(array_filter(array_map(
+            'intval',
+            app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID)
+        )));
+
+        // Examinations for header academic year(s) only (upload_paper enabled)
+        $examinationsQuery = Examination::where('schoolID', $schoolID)
             ->where('approval_status', 'Approved')
             ->whereIn('status', ['scheduled', 'ongoing', 'awaiting_results'])
-            ->where('upload_paper', true)
+            ->where('upload_paper', true);
+
+        if (!empty($selectedYearIds)) {
+            $examinationsQuery->whereIn('academic_yearID', $selectedYearIds);
+        }
+
+        $examinations = $examinationsQuery
             ->orderBy('year', 'desc')
             ->orderBy('start_date', 'desc')
             ->get();
 
-        // Get teacher's uploaded exam papers (actual uploads/wait approval/rejected/pending in chain)
-        $myExamPapers = ExamPaper::where('teacherID', $teacherID)
+        // Teacher's uploaded exam papers for selected academic year(s)
+        $myExamPapersQuery = ExamPaper::where('teacherID', $teacherID)
             ->where(function($q) {
                 $q->where('status', '!=', 'pending')
                   ->orWhere(function($sq) {
@@ -121,6 +132,14 @@ class ManageExaminationController extends Controller
                          });
                   });
             })
+            ->whereHas('examination', function ($q) use ($schoolID, $selectedYearIds) {
+                $q->where('schoolID', $schoolID);
+                if (!empty($selectedYearIds)) {
+                    $q->whereIn('academic_yearID', $selectedYearIds);
+                }
+            });
+
+        $myExamPapers = $myExamPapersQuery
             ->with(['examination', 'classSubject.subject', 'classSubject.class', 'classSubject.subclass'])
             ->orderBy('created_at', 'desc')
             ->get()
@@ -157,8 +176,11 @@ class ManageExaminationController extends Controller
             ->where('status', 'pending')
             ->whereNull('file_path')
             ->whereNull('question_content')
-            ->whereHas('examination', function($q) use ($schoolID) {
+            ->whereHas('examination', function($q) use ($schoolID, $selectedYearIds) {
                 $q->where('schoolID', $schoolID);
+                if (!empty($selectedYearIds)) {
+                    $q->whereIn('academic_yearID', $selectedYearIds);
+                }
             })
             ->where(function($q) use ($today, $nextWeekEnd) {
                 $q->where('test_date', '>=', $today)
@@ -184,6 +206,7 @@ class ManageExaminationController extends Controller
             'pendingSlots' => $pendingSlots,
             'rejectionNotifications' => $rejectionNotifications,
             'schoolType' => $schoolType,
+            'selectedYearIds' => $selectedYearIds,
         ]);
     }
 
@@ -1780,8 +1803,18 @@ class ManageExaminationController extends Controller
             $year = $request->get('year');
             $term = $request->get('term');
 
+            $selectedYearIds = array_values(array_filter(array_map(
+                'intval',
+                app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID)
+            )));
+
             $query = Examination::where('schoolID', $schoolID);
-            if ($year) $query->where('year', $year);
+            if (!empty($selectedYearIds)) {
+                $query->whereIn('academic_yearID', $selectedYearIds);
+            }
+            if ($year) {
+                $query->where('year', $year);
+            }
             if ($term) {
                 $query->where(function($q) use ($term) {
                     $q->where('term', $term)->orWhere('term', 'all_terms');
@@ -1972,31 +2005,13 @@ class ManageExaminationController extends Controller
                 ], 404);
             }
 
-            // Get subclasses of this class
-            $subclassIds = Subclass::where('classID', $classID)->pluck('subclassID')->toArray();
-
-            $total = Student::whereIn('subclassID', $subclassIds)
-                ->where('status', 'Active')
-                ->count();
-
-            $male = Student::whereIn('subclassID', $subclassIds)
-                ->where('status', 'Active')
-                ->where('gender', 'Male')
-                ->count();
-
-            $female = Student::whereIn('subclassID', $subclassIds)
-                ->where('status', 'Active')
-                ->where('gender', 'Female')
-                ->count();
+            $counts = $this->activeEnrollmentGenderCounts((int) $classID, (int) $schoolID);
 
             return response()->json([
                 'success' => true,
                 'classID' => $classID,
-                'counts' => [
-                    'total' => $total,
-                    'male' => $male,
-                    'female' => $female,
-                ],
+                'counts' => $counts,
+                'enrollment_scope' => 'header_year_active',
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -5304,15 +5319,55 @@ class ManageExaminationController extends Controller
                 $weekFilter = "Week " . date('W');
             }
         }
-        $yearFilter = $request->input('year', date('Y'));
+        $yearFilter = $request->input('year', '');
         $termFilter = $request->input('term');
 
-        // Fetch filter options for the UI
-        $availableYears = Examination::where('schoolID', $schoolID)->distinct()->pluck('year')->sortDesc()->toArray();
-        if (empty($availableYears)) $availableYears = [date('Y')];
+        $selectedYearIds = array_values(array_filter(array_map(
+            'intval',
+            app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID)
+        )));
+
+        // Year dropdown: calendar years of exams in the header academic year(s)
+        $availableYearsQuery = Examination::where('schoolID', $schoolID);
+        if (!empty($selectedYearIds)) {
+            $availableYearsQuery->whereIn('academic_yearID', $selectedYearIds);
+        }
+        $availableYears = $availableYearsQuery->distinct()->pluck('year')->filter()->sortDesc()->values()->toArray();
+        if (empty($availableYears) && !empty($selectedYearIds)) {
+            $availableYears = AcademicYear::where('schoolID', $schoolID)
+                ->whereIn('academic_yearID', $selectedYearIds)
+                ->pluck('year')
+                ->filter()
+                ->unique()
+                ->sortDesc()
+                ->values()
+                ->toArray();
+        }
+        if (empty($availableYears)) {
+            $availableYears = Examination::where('schoolID', $schoolID)
+                ->distinct()
+                ->pluck('year')
+                ->filter()
+                ->sortDesc()
+                ->values()
+                ->toArray();
+        }
+        if (empty($availableYears)) {
+            $availableYears = [date('Y')];
+        }
+
+        // Default year to selected academic year's calendar year when not specified
+        if ($yearFilter === '' || $yearFilter === null) {
+            $yearFilter = $availableYears[0] ?? date('Y');
+        }
 
         $examQuery = Examination::where('schoolID', $schoolID);
-        if ($yearFilter) $examQuery->where('year', $yearFilter);
+        if (!empty($selectedYearIds)) {
+            $examQuery->whereIn('academic_yearID', $selectedYearIds);
+        }
+        if ($yearFilter) {
+            $examQuery->where('year', $yearFilter);
+        }
         if ($termFilter) {
             $examQuery->where(function($q) use ($termFilter) {
                 $q->where('term', $termFilter)->orWhere('term', 'all_terms');
@@ -5370,12 +5425,19 @@ class ManageExaminationController extends Controller
                 ->get();
         }
 
-        $baseQuery = function() use ($schoolID, $yearFilter, $termFilter) {
+        $baseQuery = function() use ($schoolID, $yearFilter, $termFilter, $selectedYearIds) {
             return PaperApprovalLog::with(['examPaper.teacher', 'examPaper.classSubject.subject', 'examPaper.classSubject.class', 'examPaper.classSubject.subclass', 'examPaper.examination', 'role', 'approver'])
-                ->whereHas('examPaper.examination', function ($q) use ($schoolID, $yearFilter, $termFilter) {
+                ->whereHas('examPaper.examination', function ($q) use ($schoolID, $yearFilter, $termFilter, $selectedYearIds) {
                     $q->where('schoolID', $schoolID);
-                    if ($yearFilter) $q->where('year', $yearFilter);
-                    if ($termFilter) $q->where('term', $termFilter);
+                    if (!empty($selectedYearIds)) {
+                        $q->whereIn('academic_yearID', $selectedYearIds);
+                    }
+                    if ($yearFilter) {
+                        $q->where('year', $yearFilter);
+                    }
+                    if ($termFilter) {
+                        $q->where('term', $termFilter);
+                    }
                 });
         };
 
@@ -5458,7 +5520,8 @@ class ManageExaminationController extends Controller
             'userType',
             'weekFilter',
             'available_weeks',
-            'selected_exam'
+            'selected_exam',
+            'selectedYearIds'
         ));
     }
 
@@ -6459,16 +6522,27 @@ class ManageExaminationController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $count = ExamPaperNotification::where('schoolID', $schoolID)
+        $selectedYearIds = array_values(array_filter(array_map(
+            'intval',
+            app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID)
+        )));
+
+        $countQuery = ExamPaperNotification::where('schoolID', $schoolID)
             ->where('is_read', false)
-            ->whereHas('examPaper', function($query) {
+            ->whereHas('examPaper', function($query) use ($selectedYearIds) {
                 $query->where(function($q) {
                     $q->whereNotNull('file_path')
                       ->orWhereNotNull('question_content')
                       ->orWhere('upload_type', 'create');
                 });
-            })
-            ->count();
+                if (!empty($selectedYearIds)) {
+                    $query->whereHas('examination', function ($eq) use ($selectedYearIds) {
+                        $eq->whereIn('academic_yearID', $selectedYearIds);
+                    });
+                }
+            });
+
+        $count = $countQuery->count();
 
         return response()->json(['success' => true, 'count' => $count]);
     }
@@ -6487,6 +6561,11 @@ class ManageExaminationController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
+        $selectedYearIds = array_values(array_filter(array_map(
+            'intval',
+            app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID)
+        )));
+
         $teacherHasImage = \Illuminate\Support\Facades\Schema::hasColumn('teachers', 'image');
         $teacherHasGender = \Illuminate\Support\Facades\Schema::hasColumn('teachers', 'gender');
 
@@ -6503,7 +6582,13 @@ class ManageExaminationController extends Controller
                 $query->whereNotNull('exam_papers.file_path')
                       ->orWhereNotNull('exam_papers.question_content')
                       ->orWhere('exam_papers.upload_type', 'create');
-            })
+            });
+
+        if (!empty($selectedYearIds)) {
+            $notifications->whereIn('examinations.academic_yearID', $selectedYearIds);
+        }
+
+        $notifications = $notifications
             ->orderBy('exam_paper_notifications.created_at', 'desc')
             ->limit(5);
 
@@ -6553,15 +6638,27 @@ class ManageExaminationController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $counts = DB::table('exam_paper_notifications')
+        $selectedYearIds = array_values(array_filter(array_map(
+            'intval',
+            app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID)
+        )));
+
+        $countsQuery = DB::table('exam_paper_notifications')
             ->join('exam_papers', 'exam_paper_notifications.exam_paperID', '=', 'exam_papers.exam_paperID')
+            ->join('examinations', 'exam_papers.examID', '=', 'examinations.examID')
             ->where('exam_paper_notifications.schoolID', $schoolID)
             ->where('exam_paper_notifications.is_read', 0)
             ->where(function($query) {
                 $query->whereNotNull('exam_papers.file_path')
                       ->orWhereNotNull('exam_papers.question_content')
                       ->orWhere('exam_papers.upload_type', 'create');
-            })
+            });
+
+        if (!empty($selectedYearIds)) {
+            $countsQuery->whereIn('examinations.academic_yearID', $selectedYearIds);
+        }
+
+        $counts = $countsQuery
             ->groupBy('exam_papers.examID')
             ->select('exam_papers.examID', DB::raw('COUNT(*) as count'))
             ->pluck('count', 'exam_papers.examID');
@@ -6609,14 +6706,29 @@ class ManageExaminationController extends Controller
             return response()->json(['error' => 'Access denied'], 403);
         }
 
-        $examPapers = ExamPaper::where('teacherID', $teacherID)
+        $schoolID = Session::get('schoolID');
+        $selectedYearIds = array_values(array_filter(array_map(
+            'intval',
+            app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID)
+        )));
+
+        $examPapersQuery = ExamPaper::where('teacherID', $teacherID)
             ->with([
                 'examination',
                 'classSubject.subject',
                 'classSubject.class',
                 'classSubject.subclass',
                 'approvalLogs.approver'
-            ])
+            ]);
+
+        if (!empty($selectedYearIds)) {
+            $examPapersQuery->whereHas('examination', function ($q) use ($schoolID, $selectedYearIds) {
+                $q->where('schoolID', $schoolID)
+                    ->whereIn('academic_yearID', $selectedYearIds);
+            });
+        }
+
+        $examPapers = $examPapersQuery
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($paper) {
@@ -7675,7 +7787,7 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Get counts of students per class.
+     * Get counts of Active enrollments per class (header academic year).
      */
     private function getClassCounts($classID, $schoolID)
     {
@@ -7683,14 +7795,34 @@ class ManageExaminationController extends Controller
         if (! $class) {
             return null;
         }
-        $subclassIds = Subclass::where('classID', $classID)->pluck('subclassID')->toArray();
-        $total = Student::whereIn('subclassID', $subclassIds)->where('status', 'Active')->count();
-        $male = Student::whereIn('subclassID', $subclassIds)->where('status', 'Active')->where('gender', 'Male')->count();
-        $female = Student::whereIn('subclassID', $subclassIds)->where('status', 'Active')->where('gender', 'Female')->count();
+
+        return $this->activeEnrollmentGenderCounts((int) $classID, (int) $schoolID);
+    }
+
+    /**
+     * @return array{total: int, male: int, female: int}
+     */
+    private function activeEnrollmentGenderCounts(int $classID, int $schoolID): array
+    {
+        $enrollmentService = app(StudentEnrollmentService::class);
+        $studentIDs = $enrollmentService->studentIDsInClass($classID, $schoolID, 'Active');
+
+        if ($studentIDs === []) {
+            return ['total' => 0, 'male' => 0, 'female' => 0];
+        }
+
+        $row = DB::table('students')
+            ->where('schoolID', $schoolID)
+            ->whereIn('studentID', $studentIDs)
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN LOWER(gender) IN ('female', 'f') THEN 1 ELSE 0 END) as female")
+            ->selectRaw("SUM(CASE WHEN LOWER(gender) IN ('female', 'f') THEN 0 ELSE 1 END) as male")
+            ->first();
+
         return [
-            'total' => $total,
-            'male' => $male,
-            'female' => $female,
+            'total' => (int) ($row->total ?? 0),
+            'male' => (int) ($row->male ?? 0),
+            'female' => (int) ($row->female ?? 0),
         ];
     }
 
@@ -7700,6 +7832,7 @@ class ManageExaminationController extends Controller
     private function allocateStudentsToHalls($examID, array $examHalls, $schoolID, $examCategory, $exceptClassIds = [], $includeClassIds = [])
     {
         $assignments = [];
+        $enrollmentService = app(StudentEnrollmentService::class);
 
         // Group halls by class
         $hallsByClass = [];
@@ -7720,24 +7853,40 @@ class ManageExaminationController extends Controller
                 continue;
             }
 
-            $students = Student::with('subclass')
-                ->whereHas('subclass', function ($q) use ($classID) {
-                    $q->where('classID', $classID);
-                })
-                ->where('schoolID', $schoolID)
-                ->where('status', 'Active')
-                ->orderBy('first_name')
-                ->orderBy('last_name')
-                ->get();
+            $studentIDs = $enrollmentService->studentIDsInClass(
+                (int) $classID,
+                (int) $schoolID,
+                'Active',
+            );
+            $enrollmentByStudent = $enrollmentService
+                ->enrollmentsInClass((int) $classID, (int) $schoolID, 'Active')
+                ->keyBy('studentID');
 
-            $maleQueue = $students->where('gender', 'Male')->values()->all();
-            $femaleQueue = $students->where('gender', 'Female')->values()->all();
+            $students = ! empty($studentIDs)
+                ? Student::whereIn('studentID', $studentIDs)
+                    ->where('schoolID', $schoolID)
+                    ->orderBy('first_name')
+                    ->orderBy('last_name')
+                    ->get()
+                : collect();
+
+            $maleQueue = $students->filter(function ($s) {
+                return strtolower((string) $s->gender) === 'male' || strtolower((string) $s->gender) === 'm';
+            })->values()->all();
+            $femaleQueue = $students->filter(function ($s) {
+                return strtolower((string) $s->gender) === 'female' || strtolower((string) $s->gender) === 'f';
+            })->values()->all();
 
             $maleHalls = array_values(array_filter($halls, fn($h) => $h['gender_allowed'] === 'male'));
             $femaleHalls = array_values(array_filter($halls, fn($h) => $h['gender_allowed'] === 'female'));
             $bothHalls = array_values(array_filter($halls, fn($h) => $h['gender_allowed'] === 'both'));
 
-            $assignQueue = function (&$queue, &$hallList) use (&$assignments, $examID) {
+            $resolveSubclassId = function (Student $student) use ($enrollmentByStudent) {
+                $enr = $enrollmentByStudent->get($student->studentID);
+                return $enr ? (int) $enr->subclassID : (int) $student->subclassID;
+            };
+
+            $assignQueue = function (&$queue, &$hallList) use (&$assignments, $examID, $resolveSubclassId) {
                 foreach ($hallList as &$hall) {
                     while ($hall['remaining'] > 0 && ! empty($queue)) {
                         /** @var Student $student */
@@ -7746,7 +7895,7 @@ class ManageExaminationController extends Controller
                             'examID' => $examID,
                             'exam_hallID' => $hall['exam_hallID'],
                             'studentID' => $student->studentID,
-                            'subclassID' => $student->subclassID,
+                            'subclassID' => $resolveSubclassId($student),
                             'created_at' => now(),
                             'updated_at' => now(),
                         ];
@@ -7787,7 +7936,7 @@ class ManageExaminationController extends Controller
                     'examID' => $examID,
                     'exam_hallID' => $hall['exam_hallID'],
                     'studentID' => $student->studentID,
-                    'subclassID' => $student->subclassID,
+                    'subclassID' => $resolveSubclassId($student),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
@@ -8078,16 +8227,31 @@ class ManageExaminationController extends Controller
                 $assignment->is_active = $testDate->isSameDay($today) ? 1 : 0;
                 $assignment->is_past = $testDate->lt($today) && !$testDate->isToday() ? 1 : 0;
 
-                // Student count
+                // Student count — Active enrollments for header year
+                $enrollmentService = app(StudentEnrollmentService::class);
                 $studentCount = 0;
                 if ($test->scope === 'class') {
-                    $studentCount = \App\Models\Student::whereHas('subclass', function($q) use ($test) {
-                        $q->where('classID', $test->scope_id);
-                    })->where('schoolID', $schoolID)->where('status', 'Active')->count();
+                    $studentCount = count(
+                        $enrollmentService->studentIDsInClass(
+                            (int) $test->scope_id,
+                            (int) $schoolID,
+                            'Active',
+                        ),
+                    );
                 } elseif ($test->scope === 'subclass') {
-                    $studentCount = \App\Models\Student::where('subclassID', $test->scope_id)->where('status', 'Active')->count();
+                    $studentCount = count(
+                        $enrollmentService->studentIDsInSubclass(
+                            (int) $test->scope_id,
+                            (int) $schoolID,
+                            'Active',
+                        ),
+                    );
                 } else {
-                    $studentCount = \App\Models\Student::where('schoolID', $schoolID)->where('status', 'Active')->count();
+                    $studentCount = $enrollmentService
+                        ->activeEnrollments((int) $schoolID)
+                        ->pluck('studentID')
+                        ->unique()
+                        ->count();
                 }
 
                 $assignment->students_count = $studentCount;
@@ -8212,20 +8376,46 @@ class ManageExaminationController extends Controller
         $classID = request()->input('classID');
 
         if ($exam_category === 'test') {
-            // Fetch students based on scope for Weekly/Monthly tests
-            $studentsQuery = \App\Models\Student::with(['subclass', 'subclass.class'])
-                ->where('schoolID', $schoolID)
-                ->where('status', 'Active');
+            // Fetch Active enrollments for Weekly/Monthly tests (header year)
+            $enrollmentService = app(StudentEnrollmentService::class);
+            $scope = request()->input('scope');
+            $studentIDs = [];
+            $enrollmentByStudent = collect();
 
-            if (request()->input('scope') === 'subclass') {
-                $studentsQuery->where('subclassID', $classID);
-            } elseif (request()->input('scope') === 'class') {
-                $studentsQuery->whereHas('subclass', function($q) use ($classID) {
-                    $q->where('classID', $classID);
-                });
+            if ($scope === 'subclass') {
+                $enrollmentByStudent = $enrollmentService
+                    ->enrollmentsInSubclass((int) $classID, (int) $schoolID, 'all')
+                    ->keyBy('studentID');
+                $studentIDs = $enrollmentByStudent->keys()->map(fn ($id) => (int) $id)->all();
+            } elseif ($scope === 'class') {
+                $enrollmentByStudent = $enrollmentService
+                    ->enrollmentsInClass((int) $classID, (int) $schoolID, 'all')
+                    ->keyBy('studentID');
+                $studentIDs = $enrollmentByStudent->keys()->map(fn ($id) => (int) $id)->all();
+            } else {
+                $enrollmentByStudent = $enrollmentService
+                    ->activeEnrollments((int) $schoolID)
+                    ->keyBy('studentID');
+                $studentIDs = $enrollmentByStudent->keys()->map(fn ($id) => (int) $id)->all();
             }
 
-            $studentsRaw = $studentsQuery->orderBy('first_name')->get();
+            $activeCount = $enrollmentByStudent->where('status', 'Active')->count();
+            if ($activeCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Selected academic year has no Active enrollments. Attendance cannot continue.',
+                    'error_code' => 'no_active_enrollments',
+                    'students' => [],
+                ], 422);
+            }
+
+            $studentsRaw = ! empty($studentIDs)
+                ? \App\Models\Student::with(['subclass', 'subclass.class'])
+                    ->whereIn('studentID', $studentIDs)
+                    ->where('schoolID', $schoolID)
+                    ->orderBy('first_name')
+                    ->get()
+                : collect();
 
             $attendanceStatuses = DB::table('exam_attendance')
                 ->where('examID', $examID)
@@ -8234,16 +8424,26 @@ class ManageExaminationController extends Controller
                 ->pluck('status', 'studentID')
                 ->toArray();
 
-            $students = $studentsRaw->map(function ($s) use ($attendanceStatuses) {
+            $students = $studentsRaw->map(function ($s) use ($attendanceStatuses, $enrollmentByStudent) {
+                $enr = $enrollmentByStudent->get($s->studentID);
+                $enrStatus = $enr ? (string) $enr->status : null;
+                $canEnter = $enrStatus === 'Active';
                 $status = $attendanceStatuses[$s->studentID] ?? 'Absent';
                 return [
                     'studentID' => $s->studentID,
                     'name' => trim($s->first_name.' '.$s->last_name),
                     'gender' => $s->gender,
-                    'subclass' => $s->subclass->subclass_name ?? 'N/A',
-                    'class_name' => $s->subclass->class->class_name ?? 'N/A',
+                    'subclass' => ($enr && $enr->subclass)
+                        ? ($enr->subclass->subclass_name ?? 'N/A')
+                        : ($s->subclass->subclass_name ?? 'N/A'),
+                    'class_name' => ($enr && $enr->classModel)
+                        ? ($enr->classModel->class_name ?? 'N/A')
+                        : ($s->subclass->class->class_name ?? 'N/A'),
                     'is_present' => $status === 'Present' ? 1 : 0,
                     'status' => $status,
+                    'enrollmentID' => $enr ? (int) $enr->enrollmentID : null,
+                    'enrollment_status' => $enrStatus,
+                    'can_enter_result' => $canEnter,
                 ];
             });
 
@@ -8252,7 +8452,9 @@ class ManageExaminationController extends Controller
                 'examID' => $examID,
                 'students' => $students,
                 'subjectID' => $subjectID,
-                'halls' => []
+                'halls' => [],
+                'active_enrollment_count' => $activeCount,
+                'enrollment_scope' => 'header_year_active_editable',
             ]);
         }
 
@@ -8316,25 +8518,47 @@ class ManageExaminationController extends Controller
             ->select('exam_hallID', 'hall_name', 'capacity', 'gender_allowed')
             ->get();
 
+        $activeEnrollmentMap = app(StudentEnrollmentService::class)
+            ->activeEnrollmentDetailsByStudent((int) $schoolID);
+
+        $mappedStudents = $students->map(function ($s) use ($attendanceStatuses, $activeEnrollmentMap) {
+            $status = $attendanceStatuses[$s->studentID] ?? 'Absent';
+            $activeEnr = $activeEnrollmentMap[(int) $s->studentID] ?? null;
+            $canEnter = $activeEnr !== null;
+            return [
+                'student_exam_hallID' => $s->student_exam_hallID ?? null,
+                'studentID' => $s->studentID,
+                'name' => trim($s->first_name.' '.$s->last_name),
+                'gender' => $s->gender,
+                'subclass' => $s->subclass_name,
+                'class_name' => $s->class_name,
+                'is_present' => $status === 'Present' ? 1 : 0,
+                'status' => $status,
+                'enrollmentID' => $activeEnr['enrollmentID'] ?? null,
+                'enrollment_status' => $canEnter ? 'Active' : 'Inactive',
+                'can_enter_result' => $canEnter,
+            ];
+        });
+
+        $activeCount = $mappedStudents->where('can_enter_result', true)->count();
+        if ($activeCount === 0) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Selected academic year has no Active enrollments in this hall. Attendance cannot continue.',
+                'error_code' => 'no_active_enrollments',
+                'students' => [],
+            ], 422);
+        }
+
         return response()->json([
             'success' => true,
             'examID' => $examID,
-            'students' => $students->map(function ($s) use ($attendanceStatuses) {
-                $status = $attendanceStatuses[$s->studentID] ?? 'Absent';
-                return [
-                    'student_exam_hallID' => $s->student_exam_hallID ?? null,
-                    'studentID' => $s->studentID,
-                    'name' => trim($s->first_name.' '.$s->last_name),
-                    'gender' => $s->gender,
-                    'subclass' => $s->subclass_name,
-                    'class_name' => $s->class_name,
-                    'is_present' => $status === 'Present' ? 1 : 0,
-                    'status' => $status,
-                ];
-            }),
+            'students' => $mappedStudents,
             'halls' => $hallOptions,
             'subjectID' => $assignedSubjectID,
             'exam_timetableID' => $assignment->exam_timetableID,
+            'active_enrollment_count' => $activeCount,
+            'enrollment_scope' => 'header_year_active_editable',
         ]);
     }
 

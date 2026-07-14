@@ -446,6 +446,9 @@
                     <span>Student Management</span> /
                     <strong>Identity Cards</strong>
                 </div>
+                <p class="text-muted small mb-2">
+                    Cards list <strong>Active enrollments</strong> for the academic year selected in the header.
+                </p>
 
                 <div class="controls-card">
                     <form action="{{ route('admin.student_id_cards', $encryptedClassID) }}" method="GET" id="filterForm">
@@ -490,7 +493,7 @@
 
                 @if($students->isEmpty())
                     <div class="alert alert-info">
-                        <i class="fa fa-info-circle"></i> No active students found for the selected criteria.
+                        <i class="fa fa-info-circle"></i> No Active enrollments found for the selected class/year. Change the academic year in the header or class filter.
                     </div>
                 @else
                     <div class="id-cards-grid">

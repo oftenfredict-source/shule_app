@@ -77,6 +77,16 @@
         border-color: var(--primary-color);
         border-radius: 30px !important;
     }
+    .enrollment-inactive-row {
+        background-color: #eceff1 !important;
+        opacity: 0.75;
+        color: #607d8b;
+    }
+    .enrollment-inactive-row select {
+        pointer-events: none;
+        background-color: #cfd8dc !important;
+        cursor: not-allowed !important;
+    }
 
     .btn-outline-primary:hover {
         background-color: var(--primary-color);
@@ -372,15 +382,21 @@
         `;
 
         detail.students.forEach((s, index) => {
+            const canEnter = s.can_enter_result !== false && (s.enrollment_status || 'Active') === 'Active';
+            const rowClass = canEnter ? '' : 'enrollment-inactive-row';
+            const enrBadge = canEnter
+                ? '<span class="badge badge-success ml-1">Active</span>'
+                : `<span class="badge badge-secondary ml-1">${s.enrollment_status || 'Inactive'}</span>`;
+            const disabledAttr = canEnter ? '' : 'disabled';
             html += `
-                <tr class="student-row" data-name="${s.name.toLowerCase()}">
+                <tr class="student-row ${rowClass}" data-name="${s.name.toLowerCase()}" data-can-enter="${canEnter ? 1 : 0}">
                     <td data-label="#">${index + 1}</td>
-                    <td data-label="Name" class="font-weight-bold">${s.name}</td>
+                    <td data-label="Name" class="font-weight-bold">${s.name}${enrBadge}</td>
                     <td data-label="Exam Number" class="text-center small text-muted font-monospace">${s.examination_number || '-'}</td>
                     <td data-label="Status">
                         <select class="form-control form-control-sm attendance-select" 
                                 style="border-radius: 0 !important; border: 1px solid #ddd;"
-                                onchange="updateLocalStatus(${s.studentID}, this.value)">
+                                onchange="updateLocalStatus(${s.studentID}, this.value)" ${disabledAttr}>
                             <option value="Present" ${s.status === 'Present' ? 'selected' : ''}>Present</option>
                             <option value="Absent" ${s.status === 'Absent' ? 'selected' : ''}>Absent</option>
                         </select>
@@ -418,8 +434,9 @@
         const detail = assignmentDetails.find(d => d.subjectID == currentSubjectID);
         if (detail) {
             detail.students.forEach(s => {
+                if (s.can_enter_result === false) return;
                 const row = $(`.student-row[data-name="${s.name.toLowerCase()}"]`);
-                if (row.is(':visible')) {
+                if (row.is(':visible') && row.data('can-enter') != 0) {
                     s.status = status;
                     row.find('.attendance-select').val(status);
                 }
@@ -437,11 +454,12 @@
             didOpen: () => { Swal.showLoading(); }
         });
 
+        const payloadStudents = detail.students.filter(s => s.can_enter_result !== false);
         $.post("{{ route('admin.exam_attendance.save') }}", {
             _token: "{{ csrf_token() }}",
             examID: currentAssignment.examID,
             subjectID: currentSubjectID,
-            attendance: detail.students
+            attendance: payloadStudents
         }, function(response) {
             Swal.fire('Success', 'Attendance records saved successfully!', 'success');
         }).fail(function(xhr) {

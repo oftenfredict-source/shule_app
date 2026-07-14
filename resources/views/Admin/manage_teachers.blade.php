@@ -394,7 +394,12 @@
                 </div>
                 <div class="col-md-8 teachers-content">
                     <div id="section-teachers" class="teacher-section">
-                        <div class="section-title">Teachers List</div>
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div class="section-title mb-0">Teachers List</div>
+                            <a href="{{ route('admin.teachers.tange.download_all') }}" class="btn btn-outline-danger btn-sm js-download-tange" data-filename="TANGE_All_Teachers">
+                                <i class="bi bi-file-earmark-pdf"></i> Download All Teachers TANGE
+                            </a>
+                        </div>
     <div class="card border-0 shadow-sm">
         <div class="card-body">
         <div class="table-responsive">
@@ -405,12 +410,18 @@
                         <th>Full Name</th>
                         <th>Phone</th>
                         <th>Status</th>
+                        <th>Registration Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @if(count($teachers) > 0)
                     @foreach ($teachers as $index => $teacher)
+                        @php
+                            $tangePct = (int) ($teacher->tange_completion_percent ?? 0);
+                            $barClass = $tangePct >= 100 ? 'bg-success' : ($tangePct >= 50 ? 'bg-warning' : 'bg-danger');
+                            $retireAlert = $teacher->retirement_alert ?? null;
+                        @endphp
                         <tr data-teacher-id="{{ $teacher->id }}">
                             <td>
                                 @php
@@ -422,12 +433,28 @@
                                 @endphp
                                     <img src="{{ $imgPath }}" class="rounded-circle" style="width: 50px; height: 50px; object-fit: cover; border: 3px solid #940000;" alt="Teacher">
                             </td>
-                            <td><strong>{{ $teacher->first_name }} {{ $teacher->middle_name }} {{ $teacher->last_name }}</strong></td>
+                            <td>
+                                <strong>{{ $teacher->first_name }} {{ $teacher->middle_name }} {{ $teacher->last_name }}</strong>
+                                @if($retireAlert)
+                                    <div class="small text-{{ $retireAlert['level'] === 'danger' ? 'danger' : 'warning' }} mt-1">
+                                        <i class="bi bi-exclamation-triangle"></i> {{ $retireAlert['message'] }}
+                                    </div>
+                                @endif
+                            </td>
                             <td>{{ $teacher->phone_number }}</td>
                             <td>
                                     <span class="badge {{ strtolower($teacher->status) == 'active' ? 'bg-success' : 'bg-secondary' }}">
                                     {{ $teacher->status }}
                                 </span>
+                            </td>
+                            <td style="min-width:140px;">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span class="text-muted">TANGE</span>
+                                    <strong>{{ $tangePct }}%</strong>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar {{ $barClass }}" role="progressbar" style="width: {{ $tangePct }}%;" aria-valuenow="{{ $tangePct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
                             </td>
                             <td>
                                                         <div class="actions-dropdown">
@@ -443,6 +470,11 @@
                                                                 <li>
                                                                     <a href="#" class="dropdown-item edit-teacher-btn" data-teacher-id="{{ $teacher->id }}">
                                                                         <i class="bi bi-pencil-square"></i> Edit
+                                                                    </a>
+                                                                </li>
+                                                                <li>
+                                                                    <a href="{{ route('admin.teacher.profile.download_pdf', $teacher->id) }}" class="dropdown-item js-download-tange" data-filename="TANGE_{{ preg_replace('/[^A-Za-z0-9_\-]/', '_', trim($teacher->first_name.' '.$teacher->last_name)) }}">
+                                                                        <i class="bi bi-file-earmark-pdf"></i> Download TANGE
                                                                     </a>
                                                                 </li>
                                                                 <li>
@@ -488,12 +520,23 @@
                                                 <p class="text-muted mb-0"><i class="bi bi-briefcase"></i> {{ $teacher->position ?? 'Teacher' }} • <i class="bi bi-person-badge"></i> {{ $teacher->employee_number }}</p>
                                             </div>
                                             <div class="d-flex gap-2">
-                                                <a href="{{ route('admin.teacher.profile.download_pdf', $teacher->id) }}" class="btn btn-outline-danger btn-sm">
-                                                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                                                <a href="{{ route('admin.teacher.profile.download_pdf', $teacher->id) }}" class="btn btn-outline-danger btn-sm js-download-tange" data-filename="TANGE_{{ preg_replace('/[^A-Za-z0-9_\-]/', '_', trim($teacher->first_name.' '.$teacher->last_name)) }}">
+                                                    <i class="bi bi-file-earmark-pdf"></i> Download TANGE
                                                 </a>
                                                 <button type="button" class="btn btn-primary-custom btn-sm inner-edit-teacher-btn" data-teacher-id="{{ $teacher->id }}">
                                                     <i class="bi bi-pencil-square"></i> Edit Profile
                                                 </button>
+                                            </div>
+                                        </div>
+
+                                        @php $detailPct = (int) ($teacher->tange_completion_percent ?? 0); @endphp
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between small mb-1">
+                                                <span>TANGE registration completeness</span>
+                                                <strong>{{ $detailPct }}%</strong>
+                                            </div>
+                                            <div class="progress" style="height:10px;">
+                                                <div class="progress-bar {{ $detailPct >= 100 ? 'bg-success' : ($detailPct >= 50 ? 'bg-warning' : 'bg-danger') }}" style="width:{{ $detailPct }}%"></div>
                                             </div>
                                         </div>
 
@@ -504,7 +547,7 @@
                                                     <div class="card-body">
                                                         <h6 class="text-primary-custom fw-bold mb-3 border-bottom pb-2">Personal Information</h6>
                                                         <div class="mb-2">
-                                                            <label class="text-muted small d-block">Gender</label>
+                                                            <label class="text-muted small d-block">Sex</label>
                                                             <span class="fw-medium">{{ $teacher->gender }}</span>
                                                         </div>
                                                         <div class="mb-2">
@@ -512,11 +555,15 @@
                                                             <span class="fw-medium">{{ $teacher->date_of_birth ? date('d M Y', strtotime($teacher->date_of_birth)) : 'N/A' }}</span>
                                                         </div>
                                                         <div class="mb-2">
+                                                            <label class="text-muted small d-block">Age</label>
+                                                            <span class="fw-medium">{{ $teacher->age !== null ? $teacher->age . ' years' : 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
                                                             <label class="text-muted small d-block">National ID</label>
                                                             <span class="fw-medium">{{ $teacher->national_id }}</span>
                                                         </div>
                                                         <div class="mb-0">
-                                                            <label class="text-muted small d-block">Address</label>
+                                                            <label class="text-muted small d-block">Place of Residence</label>
                                                             <span class="fw-medium">{{ $teacher->address ?? 'N/A' }}</span>
                                                         </div>
                                                     </div>
@@ -527,22 +574,66 @@
                                             <div class="col-md-6">
                                                 <div class="card h-100 border-0 shadow-sm bg-light-subtle">
                                                     <div class="card-body">
-                                                        <h6 class="text-primary-custom fw-bold mb-3 border-bottom pb-2">Professional Details</h6>
+                                                        <h6 class="text-primary-custom fw-bold mb-3 border-bottom pb-2">TANGE / Employment</h6>
                                                         <div class="mb-2">
-                                                            <label class="text-muted small d-block">Fingerprint ID</label>
-                                                            <span class="badge bg-success">{{ $teacher->fingerprint_id ?? 'Not Assigned' }}</span>
+                                                            <label class="text-muted small d-block">Check Number (C/N)</label>
+                                                            <span class="fw-medium">{{ $teacher->employee_number ?? 'N/A' }}</span>
                                                         </div>
                                                         <div class="mb-2">
-                                                            <label class="text-muted small d-block">Qualification</label>
+                                                            <label class="text-muted small d-block">TSC Number (TSC/N)</label>
+                                                            <span class="fw-medium">{{ $teacher->tsc_number ?? 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Establishment Rank</label>
+                                                            <span class="fw-medium">{{ $teacher->establishment_rank ?? 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Salary Scale</label>
+                                                            <span class="fw-medium">{{ $teacher->salary_scale ?? 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Position of Authority</label>
+                                                            <span class="fw-medium">{{ $teacher->position ?? 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Work Station</label>
+                                                            <span class="fw-medium">{{ $teacher->work_station ?? 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Date of Employment</label>
+                                                            <span class="fw-medium">{{ $teacher->date_hired ? date('d M Y', strtotime($teacher->date_hired)) : 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Work Experience</label>
+                                                            <span class="fw-medium">{{ $teacher->years_of_experience !== null ? $teacher->years_of_experience . ' years' : ($teacher->experience ?? 'N/A') }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Date of Confirmation</label>
+                                                            <span class="fw-medium">{{ $teacher->date_confirmed ? date('d M Y', strtotime($teacher->date_confirmed)) : 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Date of Current Rank</label>
+                                                            <span class="fw-medium">{{ $teacher->date_current_rank ? date('d M Y', strtotime($teacher->date_current_rank)) : 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Date of Retirement</label>
+                                                            <span class="fw-medium">{{ $teacher->date_of_retirement ? date('d M Y', strtotime($teacher->date_of_retirement)) : 'N/A' }}</span>
+                                                        </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Highest Education</label>
                                                             <span class="fw-medium">{{ $teacher->qualification ?? 'N/A' }}</span>
                                                         </div>
                                                         <div class="mb-2">
-                                                            <label class="text-muted small d-block">Specialization</label>
+                                                            <label class="text-muted small d-block">Subjects Studied</label>
                                                             <span class="fw-medium">{{ $teacher->specialization ?? 'N/A' }}</span>
                                                         </div>
+                                                        <div class="mb-2">
+                                                            <label class="text-muted small d-block">Subjects Teaching</label>
+                                                            <span class="fw-medium">{{ $teacher->subjects_teaching ?? 'N/A' }}</span>
+                                                        </div>
                                                         <div class="mb-0">
-                                                            <label class="text-muted small d-block">Date Hired</label>
-                                                            <span class="fw-medium">{{ $teacher->date_hired ? date('d M Y', strtotime($teacher->date_hired)) : 'N/A' }}</span>
+                                                            <label class="text-muted small d-block">Fingerprint ID</label>
+                                                            <span class="badge bg-success">{{ $teacher->fingerprint_id ?? 'Not Assigned' }}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -642,9 +733,9 @@
                                                 <input type="text" name="last_name" class="form-control" required>
                                             </div>
                                             <div class="col-md-4">
-                                                <label class="form-label fw-bold">Gender <span class="text-danger">*</span></label>
+                                                <label class="form-label fw-bold">Sex <span class="text-danger">*</span></label>
                                                 <select name="gender" class="form-select" required>
-                                                    <option value="">Select Gender</option>
+                                                    <option value="">Select Sex</option>
                                                     <option value="Male">Male</option>
                                                     <option value="Female">Female</option>
                                                 </select>
@@ -676,34 +767,9 @@
                                                 <label class="form-label fw-bold">National ID <span class="text-danger">*</span></label>
                                                 <input type="text" name="national_id" class="form-control" required>
                                             </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold">Employee Number <span class="text-danger">*</span></label>
-                                                <input type="text" name="employee_number" class="form-control" required>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold">Qualification</label>
-                                                <input type="text" name="qualification" class="form-control" placeholder="e.g., Bachelor's Degree">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold">Specialization</label>
-                                                <input type="text" name="specialization" class="form-control" placeholder="e.g., Mathematics">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold">Experience</label>
-                                                <input type="text" name="experience" class="form-control" placeholder="e.g., 5 years">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold">Date of Birth</label>
-                                                <input type="date" name="date_of_birth" class="form-control">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold">Date Hired</label>
-                                                <input type="date" name="date_hired" class="form-control">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label fw-bold">Position</label>
-                                                <input type="text" name="position" class="form-control" placeholder="e.g., Senior Teacher">
-                                            </div>
+
+                                            @include('partials.teacher_tange_fields', ['prefix' => ''])
+
                                             <div class="col-md-4">
                                                 <label class="form-label fw-bold">Status</label>
                                                 <select name="status" class="form-select">
@@ -711,10 +777,6 @@
                                                     <option value="On Leave">On Leave</option>
                                                     <option value="Retired">Retired</option>
                                                 </select>
-                                            </div>
-                                            <div class="col-md-12">
-                                                <label class="form-label fw-bold">Address</label>
-                                                <input type="text" name="address" class="form-control" placeholder="Full address">
                                             </div>
                                             <div class="col-md-12">
                                                 <label class="form-label fw-bold">Teacher Image</label>
@@ -1957,9 +2019,9 @@
                             <input type="text" name="last_name" id="edit_last_name" class="form-control" required>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-bold">Gender <span class="text-danger">*</span></label>
+                            <label class="form-label fw-bold">Sex <span class="text-danger">*</span></label>
                             <select name="gender" id="edit_gender" class="form-select" required>
-                                <option value="">Select Gender</option>
+                                <option value="">Select Sex</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
                             </select>
@@ -1991,34 +2053,9 @@
                             <label class="form-label fw-bold">National ID <span class="text-danger">*</span></label>
                             <input type="text" name="national_id" id="edit_national_id" class="form-control" required>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Employee Number <span class="text-danger">*</span></label>
-                            <input type="text" name="employee_number" id="edit_employee_number" class="form-control" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Qualification</label>
-                            <input type="text" name="qualification" id="edit_qualification" class="form-control" placeholder="e.g., Bachelor's Degree">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Specialization</label>
-                            <input type="text" name="specialization" id="edit_specialization" class="form-control" placeholder="e.g., Mathematics">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Experience</label>
-                            <input type="text" name="experience" id="edit_experience" class="form-control" placeholder="e.g., 5 years">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Date of Birth</label>
-                            <input type="date" name="date_of_birth" id="edit_date_of_birth" class="form-control">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Date Hired</label>
-                            <input type="date" name="date_hired" id="edit_date_hired" class="form-control">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Position</label>
-                            <input type="text" name="position" id="edit_position" class="form-control" placeholder="e.g., Senior Teacher">
-                        </div>
+
+                        @include('partials.teacher_tange_fields', ['prefix' => 'edit_'])
+
                         <div class="col-md-4">
                             <label class="form-label fw-bold">Status</label>
                             <select name="status" id="edit_status" class="form-select">
@@ -2026,10 +2063,6 @@
                                 <option value="On Leave">On Leave</option>
                                 <option value="Retired">Retired</option>
                             </select>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label fw-bold">Address</label>
-                            <input type="text" name="address" id="edit_address" class="form-control" placeholder="Full address">
                         </div>
                         <div class="col-md-12">
                             <label class="form-label fw-bold">Teacher Image</label>
@@ -2711,6 +2744,26 @@
     </div>
 </div>
 
+{{-- TANGE PDF download progress (same UX as subject analysis) --}}
+<div class="modal fade" id="tangeDownloadProgressModal" data-bs-backdrop="static" data-backdrop="static" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-4">
+                    <i class="bi bi-file-earmark-pdf" style="font-size: 3rem; color:#940000;"></i>
+                </div>
+                <h5 class="mb-4" style="color: #940000; font-weight: bold;">Generating TANGE PDF</h5>
+                <div class="progress mb-2" style="height: 12px; border-radius: 6px;">
+                    <div id="tangePdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger"
+                        role="progressbar" style="width: 0%;"></div>
+                </div>
+                <div id="tangePdfProgressPercent" class="fw-bold text-muted" style="font-size: 14px;">0%</div>
+                <p class="mt-3 text-muted small mb-0">Please wait while the Teachers Particular PDF is generated.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- DataTables JS --}}
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
@@ -2743,6 +2796,91 @@
             }
             return userPermissions.includes(permissionName);
         }
+
+        function showTangeProgressModal() {
+            var $modal = $('#tangeDownloadProgressModal');
+            $('#tangePdfProgressBar').css('width', '0%');
+            $('#tangePdfProgressPercent').text('0%');
+            // Bootstrap 4.x (project default) uses jQuery plugin API
+            $modal.modal({ backdrop: 'static', keyboard: false });
+            $modal.modal('show');
+        }
+
+        function hideTangeProgressModal() {
+            var $modal = $('#tangeDownloadProgressModal');
+            $modal.modal('hide');
+            setTimeout(function () {
+                $('#tangePdfProgressBar').css('width', '0%');
+                $('#tangePdfProgressPercent').text('0%');
+            }, 400);
+        }
+
+        function downloadTangePdf(url, filenameBase) {
+            showTangeProgressModal();
+            var progress = 0;
+            var interval = setInterval(function () {
+                if (progress < 95) {
+                    var inc = 2 + Math.random() * 5;
+                    if (progress > 50) inc = 1 + Math.random() * 2;
+                    if (progress > 80) inc = 0.5 + Math.random();
+                    progress += inc;
+                    if (progress > 95) progress = 95;
+                    $('#tangePdfProgressBar').css('width', progress + '%');
+                    $('#tangePdfProgressPercent').text(Math.round(progress) + '%');
+                }
+            }, 400);
+
+            fetch(url, { credentials: 'same-origin' })
+                .then(function (response) {
+                    if (!response.ok) throw new Error('Server error: ' + response.statusText);
+                    var cd = response.headers.get('Content-Disposition') || '';
+                    var match = cd.match(/filename="?([^"]+)"?/i);
+                    return response.blob().then(function (blob) {
+                        return { blob: blob, filename: match ? match[1] : null };
+                    });
+                })
+                .then(function (result) {
+                    clearInterval(interval);
+                    $('#tangePdfProgressBar').css('width', '100%');
+                    $('#tangePdfProgressPercent').text('100%');
+
+                    setTimeout(function () {
+                        var downloadUrl = window.URL.createObjectURL(result.blob);
+                        var a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = downloadUrl;
+                        var stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                        a.download = result.filename || ((filenameBase || 'TANGE') + '_' + stamp + '.pdf');
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(downloadUrl);
+                        document.body.removeChild(a);
+                        setTimeout(hideTangeProgressModal, 600);
+                    }, 350);
+                })
+                .catch(function (error) {
+                    clearInterval(interval);
+                    hideTangeProgressModal();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'PDF Download Failed',
+                            text: error.message || 'Unable to generate TANGE PDF.'
+                        });
+                    } else {
+                        alert('Failed to generate PDF: ' + error.message);
+                    }
+                });
+        }
+
+        $(document).on('click', '.js-download-tange', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var url = $(this).attr('href');
+            var filename = $(this).data('filename') || 'TANGE';
+            if (!url) return;
+            downloadTangePdf(url, filename);
+        });
 
         // Initialize modals
         var editTeacherModal = null;
@@ -3717,7 +3855,7 @@
                     "zeroRecords": "No matching teachers found"
                 },
                 "columnDefs": [
-                    { "orderable": false, "targets": [0, 4] }
+                    { "orderable": false, "targets": [0, 5] }
                 ]
             });
         } else {
@@ -3735,12 +3873,38 @@
                     "emptyTable": "<div class='text-center py-5'><i class='bi bi-inbox' style='font-size: 48px; color: #940000;'></i><p class='mt-3 mb-0 text-muted'>No teachers found. Click 'Add New Teacher' to get started.</p></div>"
                 },
                 "columnDefs": [
-                    { "orderable": false, "targets": [0, 4] }
+                    { "orderable": false, "targets": [0, 5] }
                 ]
             });
         }
 
-
+        // Auto age / experience from TANGE dates
+        function tangeYearsFromDate(dateStr) {
+            if (!dateStr) return null;
+            var d = new Date(dateStr);
+            if (isNaN(d.getTime())) return null;
+            var now = new Date();
+            var years = now.getFullYear() - d.getFullYear();
+            var m = now.getMonth() - d.getMonth();
+            if (m < 0 || (m === 0 && now.getDate() < d.getDate())) years--;
+            return years < 0 ? 0 : years;
+        }
+        function refreshTangeAutoFields(scope) {
+            var $root = scope ? $(scope) : $(document);
+            $root.find('.tange-dob').each(function () {
+                var target = $(this).data('age-target');
+                var y = tangeYearsFromDate($(this).val());
+                if (target) $('#' + target).val(y !== null ? y + ' years' : '');
+            });
+            $root.find('.tange-hired').each(function () {
+                var target = $(this).data('exp-target');
+                var y = tangeYearsFromDate($(this).val());
+                if (target) $('#' + target).val(y !== null ? y + ' years' : '');
+            });
+        }
+        $(document).on('change input', '.tange-dob, .tange-hired', function () {
+            refreshTangeAutoFields($(this).closest('form'));
+        });
         // Handle View Teacher Button Click
         $(document).on('click', '.view-teacher-btn', function(e) {
             e.preventDefault();
@@ -3804,15 +3968,23 @@
                     $('#edit_phone_number').val(teacher.phone_number);
                     $('#edit_national_id').val(teacher.national_id);
                     $('#edit_employee_number').val(teacher.employee_number);
+                    $('#edit_tsc_number').val(teacher.tsc_number || '');
+                    $('#edit_establishment_rank').val(teacher.establishment_rank || '');
+                    $('#edit_salary_scale').val(teacher.salary_scale || '');
                     $('#edit_qualification').val(teacher.qualification || '');
                     $('#edit_specialization').val(teacher.specialization || '');
-                    $('#edit_experience').val(teacher.experience || '');
+                    $('#edit_subjects_teaching').val(teacher.subjects_teaching || '');
                     $('#edit_date_of_birth').val(teacher.date_of_birth || '');
                     $('#edit_date_hired').val(teacher.date_hired || '');
+                    $('#edit_date_confirmed').val(teacher.date_confirmed || '');
+                    $('#edit_date_current_rank').val(teacher.date_current_rank || '');
+                    $('#edit_date_of_retirement').val(teacher.date_of_retirement || '');
                     $('#edit_position').val(teacher.position || '');
+                    $('#edit_work_station').val(teacher.work_station || '');
                     $('#edit_status').val(teacher.status || 'Active');
                     $('#edit_address').val(teacher.address || '');
                     $('#edit_bank_account_number').val(teacher.bank_account_number || '');
+                    refreshTangeAutoFields('#editTeacherForm');
 
                     // Reset phone validation
                     $('#edit_phone_number').removeClass('is-invalid is-valid');

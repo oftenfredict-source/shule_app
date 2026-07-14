@@ -568,13 +568,26 @@ class ManageParentsController extends Controller
                 ], 404);
             }
 
-            // Get parents who have students in this subclass
+            // Parents of Active enrolled students for header academic year
+            $studentIds = app(\App\Services\StudentEnrollmentService::class)
+                ->studentIDsInSubclass((int) $subclassID, (int) $schoolID, 'Active');
+
+            if (empty($studentIds)) {
+                return response()->json([
+                    'success' => true,
+                    'parents' => [],
+                    'subclass_name' => $subclass->class->class_name . ' ' . ($subclass->subclass_name ?? $subclass->stream_code),
+                    'error_code' => 'no_active_enrollments',
+                    'message' => 'Selected academic year has no Active enrollments for this class.',
+                ]);
+            }
+
             $parents = ParentModel::where('schoolID', $schoolID)
-                ->whereHas('students', function($q) use ($subclassID) {
-                    $q->where('subclassID', $subclassID);
+                ->whereHas('students', function ($q) use ($studentIds) {
+                    $q->whereIn('studentID', $studentIds);
                 })
-                ->with(['students' => function($q) use ($subclassID) {
-                    $q->where('subclassID', $subclassID);
+                ->with(['students' => function ($q) use ($studentIds) {
+                    $q->whereIn('studentID', $studentIds);
                 }])
                 ->orderBy('first_name')
                 ->orderBy('last_name')

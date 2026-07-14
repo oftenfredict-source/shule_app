@@ -10,9 +10,12 @@ use App\Models\ClassModel;
 use App\Models\OtherStaff;
 use App\Models\School;
 use App\Models\Student;
+use App\Models\StudentEnrollment;
 use App\Models\Teacher;
 use App\Services\BlackBookAccessService;
+use App\Services\SelectedAcademicYearService;
 use App\Services\SmsService;
+use App\Services\StudentEnrollmentService;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -99,6 +102,48 @@ class BlackBookController extends Controller
         ];
     }
 
+    private function enrollmentService(): StudentEnrollmentService
+    {
+        return app(StudentEnrollmentService::class);
+    }
+
+    private function selectedYearIds(?int $schoolID = null): array
+    {
+        return app(SelectedAcademicYearService::class)->selectedYearIds($schoolID ?: $this->schoolId());
+    }
+
+    /**
+     * Require header academic year; return JSON error response or null if OK.
+     */
+    private function requireSelectedYearResponse(?int $schoolID = null)
+    {
+        $ids = $this->selectedYearIds($schoolID);
+        if (!empty($ids)) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Select an academic year in the header before continuing.',
+            'error_code' => 'no_academic_year',
+            'students' => [],
+            'rows' => [],
+        ], 422);
+    }
+
+    private function formatEnrollmentClass(?StudentEnrollment $enrollment): string
+    {
+        if (!$enrollment) {
+            return '';
+        }
+        $enrollment->loadMissing(['subclass.class', 'classModel']);
+        $class = $enrollment->classModel->class_name
+            ?? $enrollment->subclass->class->class_name
+            ?? '';
+        $sub = $enrollment->subclass->subclass_name ?? '';
+        return trim($class . ($sub ? ' ' . $sub : ''));
+    }
+
     private function formatStudentName(?Student $student): string
     {
         if (!$student) {
@@ -117,19 +162,17 @@ class BlackBookController extends Controller
             return '—';
         }
 
-        $enrollment = $student->relationLoaded('currentEnrollment')
-            ? $student->currentEnrollment
-            : $student->currentEnrollment()->with(['subclass.class', 'classModel'])->first();
+        $schoolID = (int) ($student->schoolID ?: $this->schoolId());
+        $enrollment = null;
+        if ($student->relationLoaded('currentEnrollment') && $student->currentEnrollment) {
+            $enrollment = $student->currentEnrollment;
+        } else {
+            $enrollment = $this->enrollmentService()->currentEnrollment($student->studentID, $schoolID ?: null);
+        }
 
-        if ($enrollment) {
-            $class = $enrollment->classModel->class_name
-                ?? $enrollment->subclass->class->class_name
-                ?? '';
-            $sub = $enrollment->subclass->subclass_name ?? '';
-            $label = trim($class . ($sub ? ' ' . $sub : ''));
-            if ($label !== '') {
-                return $label;
-            }
+        $label = $this->formatEnrollmentClass($enrollment);
+        if ($label !== '') {
+            return $label;
         }
 
         if (!$student->subclass) {
@@ -400,7 +443,7 @@ class BlackBookController extends Controller
         $actor = $this->currentActor();
         $myReports = BlackBookReport::where('schoolID', $schoolID)
             ->where('reported_by_name', $actor['name'])
-            ->with(['student.subclass.class', 'problemCategory', 'punishmentCategory'])
+            ->with(['student.subclass.class', 'problemCategory', 'punishmentCategory', 'enrollment.subclass.class', 'enrollment.classModel'])
             ->orderByDesc('created_at')
             ->limit(100)
             ->get()
@@ -422,14 +465,24 @@ class BlackBookController extends Controller
         $monitored = (int) ($counts['monitored'] ?? 0);
         $total = $pending + $viewed + $resolved + $monitored;
 
+        $yearIds = $this->selectedYearIds($schoolID);
+
         $topStudents = BlackBookReport::query()
             ->from('black_book_reports as r')
             ->join('students as s', 's.studentID', '=', 'r.studentID')
-            ->leftJoin('subclasses as sc', 'sc.subclassID', '=', 's.subclassID')
-            ->leftJoin('classes as c', 'c.classID', '=', 'sc.classID')
+            ->leftJoin('student_enrollments as se', function ($join) use ($schoolID, $yearIds) {
+                $join->on('se.studentID', '=', 'r.studentID')
+                    ->where('se.schoolID', $schoolID)
+                    ->where('se.status', 'Active');
+                if (!empty($yearIds)) {
+                    $join->whereIn('se.academic_yearID', $yearIds);
+                }
+            })
+            ->leftJoin('classes as c', 'c.classID', '=', 'se.classID')
+            ->leftJoin('subclasses as sc', 'sc.subclassID', '=', 'se.subclassID')
             ->where('r.schoolID', $schoolID)
-            ->selectRaw('r.studentID, COUNT(*) as report_count, s.first_name, s.middle_name, s.last_name, s.admission_number, c.class_name, sc.subclass_name')
-            ->groupBy('r.studentID', 's.first_name', 's.middle_name', 's.last_name', 's.admission_number', 'c.class_name', 'sc.subclass_name')
+            ->selectRaw('r.studentID, COUNT(DISTINCT r.reportID) as report_count, s.first_name, s.middle_name, s.last_name, s.admission_number, MAX(c.class_name) as class_name, MAX(sc.subclass_name) as subclass_name')
+            ->groupBy('r.studentID', 's.first_name', 's.middle_name', 's.last_name', 's.admission_number')
             ->orderByDesc('report_count')
             ->limit(5)
             ->get();
@@ -480,7 +533,7 @@ class BlackBookController extends Controller
     private function fetchFormattedReports(int $schoolID, ?array $statuses = null, int $limit = 200): array
     {
         $query = BlackBookReport::where('schoolID', $schoolID)
-            ->with(['student.subclass.class', 'problemCategory', 'punishmentCategory', 'student.parent']);
+            ->with(['student.subclass.class', 'problemCategory', 'punishmentCategory', 'student.parent', 'enrollment.subclass.class', 'enrollment.classModel']);
 
         if ($statuses) {
             $query->whereIn('status', $statuses);
@@ -789,34 +842,71 @@ class BlackBookController extends Controller
         if (!$schoolID) {
             return $this->jsonError('Unauthorized', 403);
         }
+
+        $yearGate = $this->requireSelectedYearResponse($schoolID);
+        if ($yearGate) {
+            return $yearGate;
+        }
+
         $search = trim((string) $request->input('search', ''));
         if (strlen($search) < 2) {
             return response()->json(['success' => true, 'students' => []]);
         }
 
-        $students = Student::where('schoolID', $schoolID)
-            ->where('status', 'Active')
-            ->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('middle_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('admission_number', 'like', "%{$search}%")
-                    ->orWhere(DB::raw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name)"), 'like', "%{$search}%");
+        $yearIds = $this->selectedYearIds($schoolID);
+        $reportOnly = $request->boolean('for_report') || $request->input('purpose') === 'report';
+
+        $enrollmentQuery = StudentEnrollment::with(['student', 'classModel', 'subclass.class'])
+            ->where('schoolID', $schoolID)
+            ->whereIn('academic_yearID', $yearIds)
+            ->whereHas('student', function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('middle_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('admission_number', 'like', "%{$search}%")
+                        ->orWhere(DB::raw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name)"), 'like', "%{$search}%");
+                });
             })
-            ->with(['subclass.class', 'currentEnrollment.subclass.class', 'currentEnrollment.classModel'])
-            ->limit(20)
-            ->get()
-            ->map(function ($student) {
-                $className = $this->formatStudentClass($student);
-                return [
-                    'studentID' => $student->studentID,
-                    'enrollmentID' => optional($student->currentEnrollment)->enrollmentID,
-                    'full_name' => $this->formatStudentName($student),
-                    'admission_number' => $student->admission_number,
-                    'class_name' => $className,
-                    'display' => $this->formatStudentName($student) . ' — ' . $className . ' — Adm: ' . ($student->admission_number ?? 'N/A'),
-                ];
-            });
+            ->orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+            ->orderByDesc('enrollmentID');
+
+        if ($reportOnly) {
+            $enrollmentQuery->where('status', 'Active');
+        }
+
+        $enrollments = $enrollmentQuery->limit(40)->get()->unique('studentID')->take(20)->values();
+
+        if ($enrollments->isEmpty() && $reportOnly) {
+            return response()->json([
+                'success' => true,
+                'students' => [],
+                'message' => 'No Active enrollments matched for the selected academic year.',
+                'error_code' => 'no_active_enrollments',
+            ]);
+        }
+
+        $students = $enrollments->map(function (StudentEnrollment $enr) {
+            $student = $enr->student;
+            if (!$student) {
+                return null;
+            }
+            $className = $this->formatEnrollmentClass($enr) ?: '—';
+            $canReportStudent = $enr->status === 'Active';
+            $statusSuffix = $canReportStudent ? '' : ' [' . $enr->status . ']';
+            $name = $this->formatStudentName($student);
+
+            return [
+                'studentID' => (int) $student->studentID,
+                'enrollmentID' => (int) $enr->enrollmentID,
+                'enrollment_status' => $enr->status,
+                'can_report' => $canReportStudent,
+                'full_name' => $name,
+                'admission_number' => $student->admission_number,
+                'class_name' => $className,
+                'display' => $name . ' — ' . $className . ' — Adm: ' . ($student->admission_number ?? 'N/A') . $statusSuffix,
+            ];
+        })->filter()->values();
 
         return response()->json(['success' => true, 'students' => $students]);
     }
@@ -833,6 +923,12 @@ class BlackBookController extends Controller
         if (!$schoolID) {
             return $this->jsonError('Unauthorized', 403);
         }
+
+        $yearGate = $this->requireSelectedYearResponse($schoolID);
+        if ($yearGate) {
+            return $yearGate;
+        }
+
         $validator = Validator::make($request->all(), [
             'studentID' => 'required|integer',
             'problem_categoryID' => 'required|integer',
@@ -845,12 +941,20 @@ class BlackBookController extends Controller
 
         $student = Student::where('schoolID', $schoolID)
             ->where('studentID', $request->studentID)
-            ->where('status', 'Active')
             ->with('parent')
             ->first();
 
         if (!$student) {
             return $this->jsonError('Student not found.', 404);
+        }
+
+        $enrollment = $this->enrollmentService()->currentEnrollment((int) $student->studentID, $schoolID);
+        if (!$enrollment || $enrollment->status !== 'Active') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Active enrollments for the selected academic year can be reported.',
+                'error_code' => 'enrollment_not_active',
+            ], 422);
         }
 
         $category = BlackBookProblemCategory::where('schoolID', $schoolID)
@@ -867,8 +971,7 @@ class BlackBookController extends Controller
         $report = BlackBookReport::create([
             'schoolID' => $schoolID,
             'studentID' => $student->studentID,
-            'enrollmentID' => app(\App\Services\StudentEnrollmentService::class)
-                ->bestEnrollmentID($student->studentID, (int) $schoolID),
+            'enrollmentID' => (int) $enrollment->enrollmentID,
             'problem_categoryID' => $category->categoryID,
             'description' => trim($request->description),
             'reported_by_type' => $actor['type'],
@@ -896,7 +999,7 @@ class BlackBookController extends Controller
             'success' => true,
             'message' => $message,
             'parent_sms_sent' => $parentSmsSent,
-            'report' => $this->formatReport($report->fresh(['student.subclass.class', 'problemCategory', 'student.parent'])),
+            'report' => $this->formatReport($report->fresh(['student.subclass.class', 'problemCategory', 'student.parent', 'enrollment.subclass.class', 'enrollment.classModel'])),
         ]);
     }
 
@@ -931,7 +1034,7 @@ class BlackBookController extends Controller
         }
 
         $query = BlackBookReport::where('schoolID', $schoolID)
-            ->with(['student.subclass.class', 'problemCategory', 'punishmentCategory', 'student.parent']);
+            ->with(['student.subclass.class', 'problemCategory', 'punishmentCategory', 'student.parent', 'enrollment.subclass.class', 'enrollment.classModel']);
 
         if ($statuses) {
             $query->whereIn('status', $statuses);
@@ -1206,10 +1309,12 @@ class BlackBookController extends Controller
 
         $reports = BlackBookReport::where('schoolID', $schoolID)
             ->where('studentID', $studentID)
-            ->with(['problemCategory', 'punishmentCategory'])
+            ->with(['problemCategory', 'punishmentCategory', 'enrollment.subclass.class', 'enrollment.classModel'])
             ->orderByDesc('created_at')
             ->get()
             ->map(fn ($r) => $this->formatReport($r));
+
+        $enrollment = $this->enrollmentService()->currentEnrollment($studentID, $schoolID);
 
         return response()->json([
             'success' => true,
@@ -1219,6 +1324,8 @@ class BlackBookController extends Controller
                 'class_name' => $this->formatStudentClass($student),
                 'admission_number' => $student->admission_number,
                 'report_count' => $count,
+                'enrollment_status' => $enrollment->status ?? null,
+                'enrollmentID' => $enrollment?->enrollmentID,
             ],
             'reports' => $reports,
         ]);
@@ -1232,6 +1339,12 @@ class BlackBookController extends Controller
         }
 
         $schoolID = (int) $access['schoolID'];
+        $yearGate = $this->requireSelectedYearResponse($schoolID);
+        if ($yearGate) {
+            return $yearGate;
+        }
+
+        $yearIds = $this->selectedYearIds($schoolID);
         $type = $request->input('type', 'all');
         $studentID = $request->input('studentID');
         $classID = $request->input('classID');
@@ -1268,7 +1381,7 @@ class BlackBookController extends Controller
 
             $reports = BlackBookReport::where('schoolID', $schoolID)
                 ->where('studentID', $studentID)
-                ->with(['problemCategory', 'punishmentCategory'])
+                ->with(['problemCategory', 'punishmentCategory', 'enrollment.subclass.class', 'enrollment.classModel'])
                 ->orderByDesc('created_at')
                 ->get()
                 ->map(fn ($r) => $this->formatReport($r));
@@ -1288,19 +1401,36 @@ class BlackBookController extends Controller
 
         $query = BlackBookReport::where('black_book_reports.schoolID', $schoolID)
             ->join('students', 'students.studentID', '=', 'black_book_reports.studentID')
-            ->leftJoin('subclasses', 'subclasses.subclassID', '=', 'students.subclassID')
-            ->leftJoin('classes', 'classes.classID', '=', 'subclasses.classID')
+            ->leftJoin('student_enrollments as se', function ($join) use ($schoolID, $yearIds) {
+                $join->on('se.studentID', '=', 'students.studentID')
+                    ->where('se.schoolID', $schoolID)
+                    ->where('se.status', 'Active');
+                if (!empty($yearIds)) {
+                    $join->whereIn('se.academic_yearID', $yearIds);
+                }
+            })
+            ->leftJoin('subclasses', 'subclasses.subclassID', '=', 'se.subclassID')
+            ->leftJoin('classes', 'classes.classID', '=', 'se.classID')
             ->select(
                 'students.studentID',
                 DB::raw("CONCAT(students.first_name, ' ', COALESCE(students.middle_name, ''), ' ', students.last_name) as student_name"),
                 'students.admission_number',
                 DB::raw("CONCAT(COALESCE(classes.class_name, ''), ' ', COALESCE(subclasses.subclass_name, '')) as class_name"),
-                DB::raw('COUNT(black_book_reports.reportID) as report_count')
+                DB::raw('COUNT(DISTINCT black_book_reports.reportID) as report_count')
             )
             ->groupBy('students.studentID', 'students.first_name', 'students.middle_name', 'students.last_name', 'students.admission_number', 'classes.class_name', 'subclasses.subclass_name');
 
         if ($type === 'class' && $classID) {
-            $query->where('classes.classID', (int) $classID);
+            $cohortIds = $this->enrollmentService()->studentIDsInClass((int) $classID, $schoolID, 'Active');
+            if (empty($cohortIds)) {
+                return response()->json([
+                    'success' => true,
+                    'rows' => [],
+                    'message' => 'Selected academic year has no Active enrollments for this class.',
+                    'error_code' => 'no_active_enrollments',
+                ]);
+            }
+            $query->whereIn('students.studentID', $cohortIds);
         }
 
         $rows = $query->orderByDesc('report_count')->get();

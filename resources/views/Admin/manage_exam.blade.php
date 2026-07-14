@@ -1010,7 +1010,7 @@
                                 </tbody>
                             </table>
                         </div>
-                        <small class="text-muted d-block">Total capacity per class must not be less than total students (and per gender if gender-specific).</small>
+                        <small class="text-muted d-block">Total capacity per class must not be less than Active enrolled students for the selected academic year (and per gender if gender-specific).</small>
                         <div id="exam_halls_errors" class="alert alert-danger mt-2" style="display:none;"></div>
                     </div>
 
@@ -1375,7 +1375,7 @@
                                 </tbody>
                             </table>
                         </div>
-                        <small class="text-muted d-block">Total capacity per class must not be less than total students (and per gender if gender-specific).</small>
+                        <small class="text-muted d-block">Total capacity per class must not be less than Active enrolled students for the selected academic year (and per gender if gender-specific).</small>
                         <div id="edit_exam_halls_errors" class="alert alert-danger mt-2" style="display:none;"></div>
                     </div>
 
@@ -1735,13 +1735,13 @@ jQuery(document).ready(function($) {
                 }
                 const needTotal = totalsByClass[classId].both;
                 if (needTotal < counts.total) {
-                    checks.push(`Class ${classId}: capacity (${needTotal}) is less than total students (${counts.total}).`);
+                    checks.push(`Class ${classId}: capacity (${needTotal}) is less than Active enrolled students (${counts.total}).`);
                 }
                 if (totalsByClass[classId].male < counts.male) {
-                    checks.push(`Class ${classId}: male capacity (${totalsByClass[classId].male}) is less than male students (${counts.male}).`);
+                    checks.push(`Class ${classId}: male capacity (${totalsByClass[classId].male}) is less than male Active enrollments (${counts.male}).`);
                 }
                 if (totalsByClass[classId].female < counts.female) {
-                    checks.push(`Class ${classId}: female capacity (${totalsByClass[classId].female}) is less than female students (${counts.female}).`);
+                    checks.push(`Class ${classId}: female capacity (${totalsByClass[classId].female}) is less than female Active enrollments (${counts.female}).`);
                 }
                 resolve();
             });
@@ -6560,7 +6560,7 @@ function loadAttendanceSummary(examID) {
                                 <div>
                                     <h4 class="mb-1 fw-bold text-dark text-uppercase letter-spacing-1">${c.class_name}</h4>
                                     <div class="d-flex align-items-center">
-                                        <span class="badge badge-light border text-muted mr-2" style="font-size: 11px;">${c.student_count} Total Students</span>
+                                        <span class="badge badge-light border text-muted mr-2" style="font-size: 11px;">${c.student_count} Active enrolled</span>
                                         <span class="text-primary-custom small fw-bold"><i class="bi bi-stack mr-1"></i> ${c.subclasses.length} Subclasses</span>
                                     </div>
                                 </div>
@@ -6584,7 +6584,7 @@ function loadAttendanceSummary(examID) {
                                                 </div>
                                                 <div>
                                                     <h6 class="mb-0 fw-bold text-dark">${sc.subclass_name}</h6>
-                                                    <small class="text-muted">${sc.student_count} Registered Students</small>
+                                                    <small class="text-muted">${sc.student_count} Active enrolled</small>
                                                 </div>
                                             </div>
                                         </div>

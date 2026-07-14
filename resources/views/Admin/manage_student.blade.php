@@ -230,6 +230,8 @@
     .promotion-badge-repeated { background: #fd7e14; }
     .promotion-badge-graduated { background: #17a2b8; }
     .promotion-badge-transferred { background: #0d6efd; }
+    .promotion-badge-truancy { background: #6f42c1; }
+    .promotion-badge-dropout { background: #dc3545; }
     .promotion-badge-other { background: #940000; }
     #viewStudentModal .badge.enrollment-badge-active,
     #viewStudentModal .badge.enrollment-badge-completed,
@@ -2322,7 +2324,7 @@
     </div>
 </div>
 
-<!-- Edit Enrollment Status Modal (Dropped / Transferred = left school) -->
+<!-- Edit Enrollment Status Modal (exit + promotion reporting) -->
 <div class="modal fade" id="editEnrollmentStatusModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -2336,16 +2338,25 @@
                     <div class="small text-muted">Current class: <span id="editEnrollmentCurrentClass">—</span></div>
                 </div>
                 <p class="small text-muted mb-3">
-                    Use this only when the student leaves the school.
-                    Class/stream changes use <strong>Move Student</strong> (not Transferred).
+                    Use when the student leaves the school or stops attending.
+                    These update <strong>promotion status</strong> for reporting (government stats / student movement).
+                    Class/stream changes use <strong>Move Student</strong>.
                 </p>
                 <label class="form-label fw-bold">Choose action</label>
                 <div class="d-flex flex-wrap mb-3" style="gap:10px;">
+                    <button type="button" class="btn edit-enrollment-action-btn" data-action="Truancy" style="border:1px solid #6f42c1;border-radius:0;background:#fff;color:#6f42c1;">
+                        Truancy
+                        <div class="small" style="font-weight:400;color:#666;">Long-term absentee</div>
+                    </button>
+                    <button type="button" class="btn edit-enrollment-action-btn" data-action="Dropout" style="border:1px solid #dc3545;border-radius:0;background:#fff;color:#dc3545;">
+                        Dropout
+                        <div class="small" style="font-weight:400;color:#666;">Stopped schooling</div>
+                    </button>
                     <button type="button" class="btn edit-enrollment-action-btn" data-action="Dropped" style="border:1px solid #940000;border-radius:0;background:#fff;color:#940000;">
                         Make as Dropped
-                        <div class="small" style="font-weight:400;color:#666;">Expelled / stopped schooling</div>
+                        <div class="small" style="font-weight:400;color:#666;">Expelled / left (records as Dropout)</div>
                     </button>
-                    <button type="button" class="btn edit-enrollment-action-btn" data-action="Transferred" style="border:1px solid #940000;border-radius:0;background:#fff;color:#940000;">
+                    <button type="button" class="btn edit-enrollment-action-btn" data-action="Transferred" style="border:1px solid #0d6efd;border-radius:0;background:#fff;color:#0d6efd;">
                         Make as Transferred
                         <div class="small" style="font-weight:400;color:#666;">Left to another school</div>
                     </button>

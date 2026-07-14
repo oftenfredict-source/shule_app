@@ -31,6 +31,7 @@ use App\Models\SubjectElector;
 use App\Models\StudentEnrollment;
 use App\Services\SmsService;
 use App\Services\SelectedAcademicYearService;
+use App\Services\StudentEnrollmentService;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -2414,20 +2415,46 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Active students enrolled for a class_subject (required = whole stream; optional = electors only).
+     * Active enrollments for a class_subject in the header-selected academic year.
+     * No students.subclassID fallback.
      */
     private function getStudentsForSubjectAnalysis(ClassSubject $classSubject): Collection
     {
         $schoolID = Session::get("schoolID");
-        $studentsQuery = Student::where("status", "Active");
-
-        if ($classSubject->subclassID) {
-            $studentsQuery->inSubclass($classSubject->subclassID, $schoolID);
-        } elseif ($classSubject->classID) {
-            $studentsQuery->inClass($classSubject->classID, $schoolID);
+        if (!$schoolID) {
+            return collect();
         }
 
-        $students = $studentsQuery->get();
+        $yearIds = app(SelectedAcademicYearService::class)->selectedYearIds(
+            (int) $schoolID,
+        );
+        if (empty($yearIds)) {
+            return collect();
+        }
+
+        $enrollment = app(StudentEnrollmentService::class);
+        $ids = [];
+        if ($classSubject->subclassID) {
+            $ids = $enrollment->studentIDsInSubclass(
+                (int) $classSubject->subclassID,
+                (int) $schoolID,
+                "Active",
+            );
+        } elseif ($classSubject->classID) {
+            $ids = $enrollment->studentIDsInClass(
+                (int) $classSubject->classID,
+                (int) $schoolID,
+                "Active",
+            );
+        }
+
+        if (empty($ids)) {
+            return collect();
+        }
+
+        $students = Student::where("schoolID", $schoolID)
+            ->whereIn("studentID", $ids)
+            ->get();
 
         if (strtolower($classSubject->student_status ?? "") === "optional") {
             $electedIds = SubjectElector::where(
@@ -2726,7 +2753,15 @@ class ResultManagementController extends Controller
             return redirect()->route("login")->with("error", "Access denied");
         }
 
-        $year = $request->get("year", "");
+        $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
+        $academicYearIDs = $yearCtx["academic_year_ids"];
+        $academicYearLabel = $yearCtx["label"];
+        $hasSelectedAcademicYear = !empty($academicYearIDs);
+
+        // Year comes from header academic year (calendar year used for exam AJAX compatibility)
+        $year = $hasSelectedAcademicYear
+            ? (string) ($yearCtx["calendar_year"] ?? "")
+            : "";
         $term = $request->get("term", "");
         $examID = $request->get("examID", "");
         $classID = $request->get("classID", "");
@@ -2735,11 +2770,9 @@ class ResultManagementController extends Controller
         $aggregateBySubject = (bool) $classID && !$subclassID;
         $allSubclasses = $aggregateBySubject;
 
-        $availableYears = Examination::where("schoolID", $schoolID)
-            ->distinct()
-            ->orderBy("year", "desc")
-            ->pluck("year")
-            ->toArray();
+        $availableYears = !empty($yearCtx["calendar_years"])
+            ? $yearCtx["calendar_years"]
+            : [];
 
         $classes = ClassModel::where("schoolID", $schoolID)
             ->where("status", "Active")
@@ -2752,9 +2785,11 @@ class ResultManagementController extends Controller
             ->get();
 
         $examsQuery = Examination::where("schoolID", $schoolID);
-        if ($year) {
-            $examsQuery->where("year", $year);
-        }
+        $this->applyExaminationAcademicYearFilter(
+            $examsQuery,
+            $academicYearIDs,
+            $year ?: null,
+        );
         if ($term) {
             $examsQuery->where("term", $term);
         }
@@ -2762,7 +2797,7 @@ class ResultManagementController extends Controller
 
         $analysisData = [];
         $selectedExam = null;
-        if ($examID) {
+        if ($examID && $hasSelectedAcademicYear) {
             $selectedExam = Examination::where("examID", $examID)
                 ->where("schoolID", $schoolID)
                 ->first();
@@ -2816,6 +2851,9 @@ class ResultManagementController extends Controller
                 "subjectID",
                 "allSubclasses",
                 "user_type",
+                "academicYearLabel",
+                "academicYearIDs",
+                "hasSelectedAcademicYear",
             ),
         );
     }
@@ -2833,7 +2871,18 @@ class ResultManagementController extends Controller
             ]);
         }
 
-        $year = $request->get("year", "");
+        $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
+        $academicYearIDs = $yearCtx["academic_year_ids"];
+        if (empty($academicYearIDs)) {
+            return redirect()
+                ->back()
+                ->with(
+                    "error",
+                    "Select an academic year in the header before exporting subject analysis.",
+                );
+        }
+
+        $year = $request->get("year", "") ?: (string) ($yearCtx["calendar_year"] ?? "");
         $term = $request->get("term", "");
         $examID = $request->get("examID", "");
         $classID = $request->get("classID", "");
@@ -2886,6 +2935,7 @@ class ResultManagementController extends Controller
             "selectedExam" => $selectedExam,
             "groupedAnalysis" => $groupedAnalysis,
             "title" => "Subject Analysis - " . $selectedExam->exam_name,
+            "academicYearLabel" => $yearCtx["label"] ?? null,
         ];
 
         $pdf = PDF::loadView("Admin.pdf.subject_analysis_pdf", $data);
@@ -5272,6 +5322,143 @@ class ResultManagementController extends Controller
     }
 
     /**
+     * Students for PDF/Excel export: Active enrollments for the header academic year.
+     */
+    private function studentsForResultDownload(Request $request, $schoolID)
+    {
+        $enrollment = app(StudentEnrollmentService::class);
+        $option = $request->get("option", "all");
+        $studentID = $request->get("studentID", null);
+        $classID = $request->get("classID", null);
+        $subclassID = $request->get("subclassID", null);
+        $statusFilter = $request->get("status", "active");
+
+        $with = [
+            "subclass.class",
+            "subclass.combie",
+            "subclass.teacher",
+            "parent",
+            "oldSubclass.class",
+            "oldSubclass.teacher",
+        ];
+
+        if ($option === "single" && $studentID) {
+            return Student::where("studentID", $studentID)
+                ->where("schoolID", $schoolID)
+                ->with($with)
+                ->get();
+        }
+
+        if ($option === "class" && $classID) {
+            $ids = $enrollment->studentIDsInClass(
+                (int) $classID,
+                (int) $schoolID,
+                "Active",
+            );
+            if (empty($ids)) {
+                return collect();
+            }
+
+            return Student::where("schoolID", $schoolID)
+                ->whereIn("studentID", $ids)
+                ->with($with)
+                ->orderBy("first_name")
+                ->get();
+        }
+
+        if ($option === "subclass" && $subclassID) {
+            $ids = $enrollment->studentIDsInSubclass(
+                (int) $subclassID,
+                (int) $schoolID,
+                "Active",
+            );
+            if (empty($ids)) {
+                return collect();
+            }
+
+            return Student::where("schoolID", $schoolID)
+                ->whereIn("studentID", $ids)
+                ->with($with)
+                ->orderBy("first_name")
+                ->get();
+        }
+
+        $classFilterID = $request->get("classID", "");
+        $subclassFilterID = $request->get("subclassID", "");
+        $genderFilter = $request->get("gender", "");
+
+        $studentQuery = Student::where("schoolID", $schoolID);
+
+        if ($statusFilter === "active") {
+            if ($subclassFilterID) {
+                $ids = $enrollment->studentIDsInSubclass(
+                    (int) $subclassFilterID,
+                    (int) $schoolID,
+                    "Active",
+                );
+            } elseif ($classFilterID) {
+                $ids = $enrollment->studentIDsInClass(
+                    (int) $classFilterID,
+                    (int) $schoolID,
+                    "Active",
+                );
+            } else {
+                $ids = $enrollment
+                    ->activeEnrollments((int) $schoolID)
+                    ->pluck("studentID")
+                    ->unique()
+                    ->values()
+                    ->all();
+            }
+
+            if (empty($ids)) {
+                return collect();
+            }
+
+            $studentQuery->whereIn("studentID", $ids);
+        } elseif ($statusFilter === "history") {
+            $studentQuery->whereNotNull("old_subclassID");
+
+            if ($subclassFilterID) {
+                $studentQuery->where("subclassID", $subclassFilterID);
+            } elseif ($classFilterID) {
+                $studentQuery->where(function ($q) use ($classFilterID) {
+                    $q->whereHas("subclass", function ($sq) use ($classFilterID) {
+                        $sq->where("classID", $classFilterID);
+                    })->orWhereHas("oldSubclass", function ($sq) use (
+                        $classFilterID,
+                    ) {
+                        $sq->where("classID", $classFilterID);
+                    });
+                });
+            }
+        } else {
+            if ($subclassFilterID) {
+                $studentQuery->where("subclassID", $subclassFilterID);
+            } elseif ($classFilterID) {
+                $studentQuery->where(function ($q) use ($classFilterID) {
+                    $q->whereHas("subclass", function ($sq) use ($classFilterID) {
+                        $sq->where("classID", $classFilterID);
+                    })->orWhereHas("oldSubclass", function ($sq) use (
+                        $classFilterID,
+                    ) {
+                        $sq->where("classID", $classFilterID);
+                    });
+                });
+            }
+        }
+
+        if ($genderFilter) {
+            $studentQuery->where("gender", $genderFilter);
+        }
+
+        return $studentQuery
+            ->with($with)
+            ->orderBy("first_name")
+            ->get();
+    }
+
+    /**
      * Download results as PDF
      */
     public function downloadPdf(Request $request)
@@ -5304,105 +5491,8 @@ class ResultManagementController extends Controller
         $school = \App\Models\School::find($schoolID);
         $schoolType = $school ? $school->school_type : "Secondary";
 
-        // Get students based on option
-        $students = collect();
-        if ($option === "single" && $studentID) {
-            $students = Student::where("studentID", $studentID)
-                ->where("schoolID", $schoolID)
-                ->with([
-                    "subclass.class",
-                    "subclass.combie",
-                    "subclass.teacher",
-                    "parent",
-                    "oldSubclass.class",
-                    "oldSubclass.teacher",
-                ])
-                ->get();
-        } elseif ($option === "class" && $classID) {
-            $students = Student::where("schoolID", $schoolID)
-                ->where(function ($query) use ($classID) {
-                    $query
-                        ->whereHas("subclass", function ($q) use ($classID) {
-                            $q->where("classID", $classID);
-                        })
-                        ->orWhereHas("oldSubclass", function ($q) use (
-                            $classID,
-                        ) {
-                            $q->where("classID", $classID);
-                        });
-                })
-                ->with([
-                    "subclass.class",
-                    "subclass.combie",
-                    "subclass.teacher",
-                    "parent",
-                    "oldSubclass.class",
-                    "oldSubclass.teacher",
-                ])
-                ->orderBy("first_name")
-                ->get();
-        } elseif ($option === "subclass" && $subclassID) {
-            $students = Student::where("schoolID", $schoolID)
-                ->where("subclassID", $subclassID)
-                ->with([
-                    "subclass.class",
-                    "subclass.combie",
-                    "subclass.teacher",
-                    "parent",
-                    "oldSubclass.class",
-                    "oldSubclass.teacher",
-                ])
-                ->orderBy("first_name")
-                ->get();
-        } else {
-            // All students — respect optional class/subclass/gender filters
-            $classFilterID = $request->get("classID", "");
-            $subclassFilterID = $request->get("subclassID", "");
-            $genderFilter = $request->get("gender", "");
-
-            $studentQuery = Student::where("schoolID", $schoolID);
-
-            if ($statusFilter === "active") {
-                $studentQuery->where("status", "Active");
-            } elseif ($statusFilter === "history") {
-                $studentQuery->whereNotNull("old_subclassID");
-            }
-
-            // Filter by subclass if provided
-            if ($subclassFilterID) {
-                $studentQuery->where("subclassID", $subclassFilterID);
-                // Filter by class if provided (no subclass)
-            } elseif ($classFilterID) {
-                $studentQuery->where(function ($q) use ($classFilterID) {
-                    $q->whereHas("subclass", function ($sq) use (
-                        $classFilterID,
-                    ) {
-                        $sq->where("classID", $classFilterID);
-                    })->orWhereHas("oldSubclass", function ($sq) use (
-                        $classFilterID,
-                    ) {
-                        $sq->where("classID", $classFilterID);
-                    });
-                });
-            }
-
-            // Filter by gender if provided
-            if ($genderFilter) {
-                $studentQuery->where("gender", $genderFilter);
-            }
-
-            $students = $studentQuery
-                ->with([
-                    "subclass.class",
-                    "subclass.combie",
-                    "subclass.teacher",
-                    "parent",
-                    "oldSubclass.class",
-                    "oldSubclass.teacher",
-                ])
-                ->orderBy("first_name")
-                ->get();
-        }
+        // Get students based on option (Active enrollments for selected year)
+        $students = $this->studentsForResultDownload($request, $schoolID);
 
         // Get results data
         $resultsData = [];
@@ -6319,94 +6409,8 @@ class ResultManagementController extends Controller
         $school = \App\Models\School::find($schoolID);
         $schoolType = $school ? $school->school_type : "Secondary";
 
-        // Get students based on option (same logic as PDF)
-        $students = collect();
-        if ($option === "single" && $studentID) {
-            $students = Student::where("studentID", $studentID)
-                ->where("schoolID", $schoolID)
-                ->with([
-                    "subclass.class",
-                    "subclass.combie",
-                    "parent",
-                    "oldSubclass.class",
-                ])
-                ->get();
-        } elseif ($option === "class" && $classID) {
-            $students = Student::where("schoolID", $schoolID)
-                ->where(function ($query) use ($classID) {
-                    $query
-                        ->whereHas("subclass", function ($q) use ($classID) {
-                            $q->where("classID", $classID);
-                        })
-                        ->orWhereHas("oldSubclass", function ($q) use (
-                            $classID,
-                        ) {
-                            $q->where("classID", $classID);
-                        });
-                })
-                ->with([
-                    "subclass.class",
-                    "subclass.combie",
-                    "parent",
-                    "oldSubclass.class",
-                ])
-                ->orderBy("first_name")
-                ->get();
-        } elseif ($option === "subclass" && $subclassID) {
-            $students = Student::where("schoolID", $schoolID)
-                ->where("subclassID", $subclassID)
-                ->with([
-                    "subclass.class",
-                    "subclass.combie",
-                    "parent",
-                    "oldSubclass.class",
-                ])
-                ->orderBy("first_name")
-                ->get();
-        } else {
-            // All students — respect optional class/subclass/gender filters (same as PDF)
-            $classFilterID = $request->get("classID", "");
-            $subclassFilterID = $request->get("subclassID", "");
-            $genderFilter = $request->get("gender", "");
-
-            $studentQuery = Student::where("schoolID", $schoolID);
-
-            if ($statusFilter === "active") {
-                $studentQuery->where("status", "Active");
-            } elseif ($statusFilter === "history") {
-                $studentQuery->whereNotNull("old_subclassID");
-            }
-
-            if ($subclassFilterID) {
-                $studentQuery->where("subclassID", $subclassFilterID);
-            } elseif ($classFilterID) {
-                $studentQuery->where(function ($q) use ($classFilterID) {
-                    $q->whereHas("subclass", function ($sq) use (
-                        $classFilterID,
-                    ) {
-                        $sq->where("classID", $classFilterID);
-                    })->orWhereHas("oldSubclass", function ($sq) use (
-                        $classFilterID,
-                    ) {
-                        $sq->where("classID", $classFilterID);
-                    });
-                });
-            }
-
-            if ($genderFilter) {
-                $studentQuery->where("gender", $genderFilter);
-            }
-
-            $students = $studentQuery
-                ->with([
-                    "subclass.class",
-                    "subclass.combie",
-                    "parent",
-                    "oldSubclass.class",
-                ])
-                ->orderBy("first_name")
-                ->get();
-        }
+        // Get students based on option (Active enrollments for selected year — same as PDF)
+        $students = $this->studentsForResultDownload($request, $schoolID);
 
         // Get results data
         $resultsData = [];

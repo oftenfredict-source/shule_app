@@ -21,12 +21,16 @@ use App\Models\Payment;
 use App\Models\PaymentRecord;
 use App\Models\ParentModel;
 use App\Models\StudentFeePayment;
+use App\Models\StudentEnrollment;
 use App\Services\SmsService;
+use App\Services\StudentEnrollmentService;
+use App\Services\SelectedAcademicYearService;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
@@ -97,47 +101,149 @@ class FeesController extends Controller
     }
 
     /**
-     * Get previous year outstanding balance (debt) for a student
-     * Returns array with 'school_fee_balance' and 'other_contribution_balance'
+     * Prefer header-selected academic year for the class (O/A aware), else getCurrentAcademicYearID.
      */
-    private function getPreviousYearBalance($studentID, $schoolID)
+    private function resolveFeesAcademicYearID(int $schoolID, $classID = null): ?int
     {
-        // Get the most recent closed academic year (regardless of current year)
-        $closedAcademicYear = DB::table('academic_years')
-            ->where('schoolID', $schoolID)
-            ->where('status', 'Closed')
-            ->orderBy('year', 'desc')
-            ->first();
+        $yearService = app(SelectedAcademicYearService::class);
 
-        if (!$closedAcademicYear) {
-            // No closed academic year found, return zero balance
-            return ['school_fee_balance' => 0, 'other_contribution_balance' => 0];
+        if ($classID) {
+            $class = ClassModel::find($classID);
+            $yearId = $yearService->yearIdForClassName($class->class_name ?? null, $schoolID);
+            if ($yearId) {
+                return (int) $yearId;
+            }
         }
 
-        // Get payments from history for closed academic year
-        $previousYearPayments = DB::table('payments_history')
-            ->where('studentID', $studentID)
-            ->where('academic_yearID', $closedAcademicYear->academic_yearID)
-            ->get();
+        $selected = $yearService->selectedYearIds($schoolID);
+        if (!empty($selected)) {
+            return (int) $selected[0];
+        }
 
-        // Calculate outstanding balances (only positive balances are debts)
+        return $this->getCurrentAcademicYearID($schoolID);
+    }
+
+    /**
+     * @return array{0: ?\Illuminate\Http\JsonResponse, 1: ?int, 2: array<int>}
+     */
+    private function activeEnrollmentStudentsForClass(int $schoolID, int $classID): array
+    {
+        $yearIds = app(SelectedAcademicYearService::class)->selectedYearIds($schoolID);
+        if (empty($yearIds)) {
+            return [
+                response()->json([
+                    'success' => false,
+                    'message' => 'Select an academic year in the header before managing fee agreements or discounts.',
+                    'error_code' => 'no_academic_year',
+                    'students' => [],
+                    'agreements' => [],
+                ], 422),
+                null,
+                [],
+            ];
+        }
+
+        $academicYearID = $this->resolveFeesAcademicYearID($schoolID, $classID);
+        $enrollments = app(StudentEnrollmentService::class)
+            ->enrollmentsInClass($classID, $schoolID, 'Active');
+
+        $studentIds = $enrollments->pluck('studentID')->map(fn ($id) => (int) $id)->unique()->values()->all();
+
+        if (empty($studentIds)) {
+            return [
+                response()->json([
+                    'success' => true,
+                    'message' => 'Selected academic year has no Active enrollments for this class.',
+                    'error_code' => 'no_active_enrollments',
+                    'students' => [],
+                    'agreements' => [],
+                    'academic_year_id' => $academicYearID,
+                    'active_enrollment_count' => 0,
+                ]),
+                $academicYearID,
+                [],
+            ];
+        }
+
+        return [null, $academicYearID, $studentIds];
+    }
+
+    /**
+     * Get previous years outstanding balance (debt) for a student.
+     * Prefers live payments for prior academic years + payments_history for closed years.
+     */
+    private function getPreviousYearBalance($studentID, $schoolID, $currentAcademicYearID = null)
+    {
         $schoolFeeBalance = 0;
         $otherContributionBalance = 0;
+        $seenYearIds = [];
 
-        foreach ($previousYearPayments as $payment) {
+        // 1) Live payments from other academic years / enrollments
+        $liveQuery = Payment::where('studentID', $studentID)
+            ->where('schoolID', $schoolID);
+        if ($currentAcademicYearID) {
+            $liveQuery->where(function ($q) use ($currentAcademicYearID) {
+                $q->whereNull('academic_yearID')
+                    ->orWhere('academic_yearID', '!=', (int) $currentAcademicYearID);
+            });
+        }
+        foreach ($liveQuery->get() as $payment) {
             $balance = (float) $payment->balance;
-
-            // Only count positive balances as debt
             if ($balance > 0) {
-                // In unified system, we aggregate all balance into schoolFeeBalance
-                // unless we have a specific way to differentiate historical other fees
                 $schoolFeeBalance += $balance;
+            }
+            if ($payment->academic_yearID) {
+                $seenYearIds[] = (int) $payment->academic_yearID;
+            }
+        }
+
+        // 2) Closed-year history not already covered by live payments
+        if (Schema::hasTable('payments_history')) {
+            $historyQuery = DB::table('payments_history')
+                ->where('studentID', $studentID);
+            if (Schema::hasColumn('payments_history', 'schoolID')) {
+                $historyQuery->where('schoolID', $schoolID);
+            }
+            if ($currentAcademicYearID) {
+                $historyQuery->where('academic_yearID', '!=', (int) $currentAcademicYearID);
+            }
+            if (!empty($seenYearIds)) {
+                $historyQuery->whereNotIn('academic_yearID', array_unique($seenYearIds));
+            }
+            foreach ($historyQuery->get() as $payment) {
+                $balance = (float) $payment->balance;
+                if ($balance > 0) {
+                    $schoolFeeBalance += $balance;
+                }
+            }
+        }
+
+        // Fallback: most recent closed year only (legacy) if nothing found yet
+        if ($schoolFeeBalance <= 0 && empty($seenYearIds) && Schema::hasTable('payments_history')) {
+            $closedAcademicYear = DB::table('academic_years')
+                ->where('schoolID', $schoolID)
+                ->where('status', 'Closed')
+                ->orderBy('year', 'desc')
+                ->first();
+
+            if ($closedAcademicYear) {
+                $previousYearPayments = DB::table('payments_history')
+                    ->where('studentID', $studentID)
+                    ->where('academic_yearID', $closedAcademicYear->academic_yearID)
+                    ->get();
+
+                foreach ($previousYearPayments as $payment) {
+                    $balance = (float) $payment->balance;
+                    if ($balance > 0) {
+                        $schoolFeeBalance += $balance;
+                    }
+                }
             }
         }
 
         return [
-            'school_fee_balance' => max(0, $schoolFeeBalance), // Ensure non-negative
-            'other_contribution_balance' => max(0, $otherContributionBalance) // Ensure non-negative
+            'school_fee_balance' => max(0, $schoolFeeBalance),
+            'other_contribution_balance' => max(0, $otherContributionBalance),
         ];
     }
     public function manage_fees()
@@ -290,18 +396,20 @@ class FeesController extends Controller
      */
     private function generateBillsForClass($classID, $schoolID)
     {
-        $academicYearID = $this->getCurrentAcademicYearID($schoolID);
+        $academicYearID = $this->resolveFeesAcademicYearID((int) $schoolID, (int) $classID);
         if (!$academicYearID) return;
 
+        [, $yearId, $studentIds] = $this->activeEnrollmentStudentsForClass((int) $schoolID, (int) $classID);
+        if (empty($studentIds)) {
+            return;
+        }
+
         $students = Student::where('schoolID', $schoolID)
-            ->whereHas('subclass', function($q) use ($classID) {
-                $q->where('classID', $classID);
-            })
-            ->where('status', 'Active')
+            ->whereIn('studentID', $studentIds)
             ->get();
 
         foreach ($students as $student) {
-            $this->generateStudentBill($student, $academicYearID, $schoolID);
+            $this->generateStudentBill($student, $yearId ?: $academicYearID, $schoolID);
         }
     }
 
@@ -310,9 +418,27 @@ class FeesController extends Controller
      */
     private function generateStudentBill($student, $academicYearID, $schoolID)
     {
-        // 1. Get all active fees for student's class
+        $enrollmentService = app(StudentEnrollmentService::class);
+        $enrollmentID = $enrollmentService->bestEnrollmentIDForYear(
+            $student->studentID,
+            (int) $schoolID,
+            (int) $academicYearID
+        );
+
+        $enrollment = $enrollmentID
+            ? StudentEnrollment::with('classModel')->find($enrollmentID)
+            : null;
+
+        $classID = $enrollment->classID
+            ?? ($student->subclass->classID ?? null);
+
+        if (!$classID) {
+            return null;
+        }
+
+        // 1. Get all active fees for enrollment/main class of that academic year
         $fees = Fee::where('schoolID', $schoolID)
-            ->where('classID', $student->subclass->classID)
+            ->where('classID', $classID)
             ->where('status', 'Active')
             ->orderBy('display_order')
             ->get();
@@ -339,6 +465,7 @@ class FeesController extends Controller
                 // Check for student-specific condition/discount for this fee
                 $studentCondition = StudentFeeCondition::where('studentID', $student->studentID)
                     ->where('feeID', $fee->feeID)
+                    ->where('academic_yearID', $academicYearID)
                     ->where('status', 'Active')
                     ->first();
 
@@ -367,7 +494,11 @@ class FeesController extends Controller
             $fee->calculated_name = $fee->fee_name . $feeNameNote;
         }
 
-        $previousYearBalance = $this->getPreviousYearBalance($student->studentID, $schoolID);
+        $previousYearBalance = $this->getPreviousYearBalance(
+            $student->studentID,
+            $schoolID,
+            (int) $academicYearID
+        );
         $debt = $previousYearBalance['school_fee_balance'] + $previousYearBalance['other_contribution_balance'];
 
         $totalRequiredAmount = $totalAmount + $debt;
@@ -400,8 +531,7 @@ class FeesController extends Controller
                 'schoolID' => $schoolID,
                 'academic_yearID' => $academicYearID,
                 'studentID' => $student->studentID,
-                'enrollmentID' => app(\App\Services\StudentEnrollmentService::class)
-                    ->bestEnrollmentID($student->studentID, (int) $schoolID),
+                'enrollmentID' => $enrollmentID,
                 'control_number' => $controlNumber,
                 'amount_required' => $totalRequiredAmount,
                 'amount_paid' => 0,
@@ -419,25 +549,23 @@ class FeesController extends Controller
                 'parent_balance' => $parentAmountReq,
             ]);
         } else {
-            // Update existing bill if fees changed
-            $newSponsorBalance = $sponsorAmountReq - ($payment->sponsor_amount_paid ?? 0);
-            $newParentBalance = $parentAmountReq - ($payment->parent_amount_paid ?? 0);
-
+            // Update amounts (keep existing paid amount)
             $paymentUpdate = [
                 'amount_required' => $totalRequiredAmount,
-                'balance' => $totalRequiredAmount - $payment->amount_paid,
+                'balance' => max(0, $totalRequiredAmount - $payment->amount_paid),
                 'debt' => $debt,
                 'required_fees_amount' => $mustPayAmount,
+                'can_start_school' => ($payment->required_fees_paid >= $mustPayAmount),
                 'sponsor_amount_required' => $sponsorAmountReq,
-                'sponsor_balance' => $newSponsorBalance,
+                'sponsor_balance' => max(0, $sponsorAmountReq - $payment->sponsor_amount_paid),
                 'parent_amount_required' => $parentAmountReq,
-                'parent_balance' => $newParentBalance,
+                'parent_balance' => max(0, $parentAmountReq - $payment->parent_amount_paid),
             ];
-            if (empty($payment->enrollmentID)) {
-                $paymentUpdate['enrollmentID'] = app(\App\Services\StudentEnrollmentService::class)
-                    ->bestEnrollmentID($student->studentID, (int) $schoolID);
+            if (empty($payment->enrollmentID) && $enrollmentID) {
+                $paymentUpdate['enrollmentID'] = $enrollmentID;
             }
             $payment->update($paymentUpdate);
+            $payment->refresh();
         }
 
         // 4. Update individual fee payment tracking entries
@@ -451,8 +579,7 @@ class FeesController extends Controller
                 StudentFeePayment::create([
                     'schoolID' => $schoolID,
                     'studentID' => $student->studentID,
-                    'enrollmentID' => $payment->enrollmentID ?: app(\App\Services\StudentEnrollmentService::class)
-                        ->bestEnrollmentID($student->studentID, (int) $schoolID),
+                    'enrollmentID' => $payment->enrollmentID ?: $enrollmentID,
                     'paymentID' => $payment->paymentID,
                     'feeID' => $fee->feeID,
                     'fee_name' => $fee->calculated_name ?? $fee->fee_name,
@@ -472,12 +599,13 @@ class FeesController extends Controller
                     'display_order' => $fee->display_order,
                 ];
                 if (empty($sfp->enrollmentID)) {
-                    $sfpUpdate['enrollmentID'] = $payment->enrollmentID ?: app(\App\Services\StudentEnrollmentService::class)
-                        ->bestEnrollmentID($student->studentID, (int) $schoolID);
+                    $sfpUpdate['enrollmentID'] = $payment->enrollmentID ?: $enrollmentID;
                 }
                 $sfp->update($sfpUpdate);
             }
         }
+
+        return $payment;
     }
 
 
@@ -806,8 +934,20 @@ class FeesController extends Controller
         $currentYear = date('Y');
         $nextYear = $currentYear + 1;
 
-        // Default year: current calendar year
+        // Default academic year from header selection
+        $yearService = app(SelectedAcademicYearService::class);
+        $selectedYearIds = $yearService->selectedYearIds((int) $schoolID);
+        $defaultAcademicYearID = $selectedYearIds[0] ?? null;
         $defaultYear = $currentYear;
+        if ($defaultAcademicYearID) {
+            $headerYear = collect($availableYears)->firstWhere('academic_yearID', $defaultAcademicYearID);
+            if ($headerYear) {
+                $defaultYear = $headerYear['year'];
+            }
+        } elseif (!empty($availableYears)) {
+            $defaultAcademicYearID = $availableYears[0]['academic_yearID'] ?? null;
+            $defaultYear = $availableYears[0]['year'] ?? $currentYear;
+        }
 
         // Get all classes and subclasses for filters
         $classes = ClassModel::where('schoolID', $schoolID)
@@ -820,7 +960,143 @@ class FeesController extends Controller
             ->orderBy('subclass_name')
             ->get();
 
-        return view('Admin.viewPayments', compact('school', 'availableYears', 'defaultYear', 'currentYear', 'nextYear', 'classes', 'subclasses'));
+        return view('Admin.viewPayments', compact(
+            'school',
+            'availableYears',
+            'defaultYear',
+            'defaultAcademicYearID',
+            'currentYear',
+            'nextYear',
+            'classes',
+            'subclasses'
+        ));
+    }
+
+    /**
+     * Resolve academic year for payments filters.
+     *
+     * @return array{academicYearID: ?int, year: string|int, isClosedYear: bool}
+     */
+    private function resolvePaymentsAcademicYear(int $schoolID, Request $request): array
+    {
+        $academicYearID = $request->input('academic_year_id');
+        $year = $request->input('year', '');
+
+        $academicYear = null;
+        if (!empty($academicYearID)) {
+            $academicYear = DB::table('academic_years')
+                ->where('schoolID', $schoolID)
+                ->where('academic_yearID', $academicYearID)
+                ->first();
+        } elseif ($year !== '' && $year !== null) {
+            $academicYear = DB::table('academic_years')
+                ->where('schoolID', $schoolID)
+                ->where('year', $year)
+                ->orderByDesc('is_current')
+                ->orderByDesc('academic_yearID')
+                ->first();
+        }
+
+        if (!$academicYear) {
+            $selectedIds = app(SelectedAcademicYearService::class)->selectedYearIds($schoolID);
+            if (!empty($selectedIds)) {
+                $academicYear = DB::table('academic_years')
+                    ->where('schoolID', $schoolID)
+                    ->where('academic_yearID', $selectedIds[0])
+                    ->first();
+            }
+        }
+
+        if (!$academicYear) {
+            $academicYear = DB::table('academic_years')
+                ->where('schoolID', $schoolID)
+                ->where('status', 'Active')
+                ->orderByDesc('year')
+                ->first();
+        }
+
+        return [
+            'academicYearID' => $academicYear ? (int) $academicYear->academic_yearID : null,
+            'year' => $academicYear->year ?? ($year ?: date('Y')),
+            'isClosedYear' => $academicYear && ($academicYear->status ?? '') === 'Closed',
+        ];
+    }
+
+    /**
+     * Student IDs enrolled in a given academic year (+ optional class/subclass/status).
+     */
+    private function paymentCohortStudentIDs(
+        int $schoolID,
+        ?int $academicYearID,
+        string $enrollmentStatus = 'Active',
+        $classID = null,
+        $subclassID = null
+    ): array {
+        if (!$academicYearID) {
+            return [];
+        }
+
+        $query = StudentEnrollment::query()
+            ->where('schoolID', $schoolID)
+            ->where('academic_yearID', $academicYearID);
+
+        if ($subclassID) {
+            $query->where('subclassID', (int) $subclassID);
+        } elseif ($classID) {
+            $query->where('classID', (int) $classID);
+        }
+
+        $normalized = $enrollmentStatus === 'Graduated' ? 'Completed' : $enrollmentStatus;
+        if ($normalized !== '' && strtolower($normalized) !== 'all') {
+            $allowed = ['Active', 'Completed', 'Transferred', 'Dropped', 'Cancelled'];
+            if (in_array($normalized, $allowed, true)) {
+                $query->where('status', $normalized);
+            }
+        }
+
+        return $query
+            ->orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+            ->orderByDesc('enrollmentID')
+            ->get()
+            ->unique('studentID')
+            ->pluck('studentID')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Enrollment meta for payment list display keyed by studentID.
+     */
+    private function paymentCohortEnrollmentMeta(
+        int $schoolID,
+        ?int $academicYearID,
+        array $studentIDs
+    ): array {
+        if (!$academicYearID || empty($studentIDs)) {
+            return [];
+        }
+
+        $rows = StudentEnrollment::with(['classModel', 'subclass'])
+            ->where('schoolID', $schoolID)
+            ->where('academic_yearID', $academicYearID)
+            ->whereIn('studentID', $studentIDs)
+            ->orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+            ->orderByDesc('enrollmentID')
+            ->get()
+            ->unique('studentID');
+
+        $map = [];
+        foreach ($rows as $enr) {
+            $map[(int) $enr->studentID] = [
+                'enrollmentID' => (int) $enr->enrollmentID,
+                'enrollment_status' => $enr->status,
+                'class_name' => $enr->classModel->class_name ?? null,
+                'subclass_name' => $enr->subclass->subclass_name ?? null,
+            ];
+        }
+
+        return $map;
     }
 
     /**
@@ -840,78 +1116,64 @@ class FeesController extends Controller
             // Get filter parameters
             $classID = $request->input('class_id', '');
             $subclassID = $request->input('subclass_id', '');
-            $studentStatus = $request->input('student_status', ''); // Active or Graduated
+            $enrollmentStatus = $request->input(
+                'enrollment_status',
+                $request->input('student_status', 'Active')
+            );
+            if ($enrollmentStatus === null || $enrollmentStatus === '') {
+                $enrollmentStatus = 'all';
+            }
             $paymentStatus = $request->input('payment_status', '');
-            $year = $request->input('year', date('Y')); // This is the year value from dropdown
             $searchStudentName = $request->input('search_student_name', '');
             $sponsorshipFilter = $request->input('sponsorship_filter', ''); // 'sponsored' or 'self'
 
-            // Get academic_yearID for the selected year
-            $academicYear = DB::table('academic_years')
-                ->where('schoolID', $schoolID)
-                ->where('year', $year)
-                ->first();
+            $resolved = $this->resolvePaymentsAcademicYear((int) $schoolID, $request);
+            $academicYearID = $resolved['academicYearID'];
+            $year = $resolved['year'];
+            $isClosedYear = $resolved['isClosedYear'];
 
-            $academicYearID = $academicYear ? $academicYear->academic_yearID : null;
-            $isClosedYear = $academicYear && $academicYear->status === 'Closed';
+            $studentIDs = $this->paymentCohortStudentIDs(
+                (int) $schoolID,
+                $academicYearID,
+                (string) $enrollmentStatus,
+                $classID !== '' ? $classID : null,
+                $subclassID !== '' ? $subclassID : null
+            );
 
-            // If no academic year found for selected year, try to get active academic year
-            if (!$academicYearID) {
-                $activeAcademicYear = DB::table('academic_years')
-                    ->where('schoolID', $schoolID)
-                    ->where('status', 'Active')
-                    ->orderBy('year', 'desc')
-                    ->first();
-                if ($activeAcademicYear) {
-                    $academicYearID = $activeAcademicYear->academic_yearID;
-                    $year = $activeAcademicYear->year; // Update year to match active academic year
-                    $isClosedYear = false;
-                }
+            if (empty($studentIDs)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'statistics' => [
+                        'pending_payments' => 0,
+                        'incomplete_payments' => 0,
+                        'paid_payments' => 0,
+                        'overpaid_payments' => 0,
+                        'total_required' => 0,
+                        'total_paid' => 0,
+                        'total_balance' => 0,
+                    ],
+                    'is_closed_year' => $isClosedYear,
+                    'error_code' => 'no_enrollments',
+                    'message' => 'No enrollments found for the selected academic year / enrollment status.',
+                ]);
             }
 
-            // Build query - default to Active students only to match school expectations
-            $statusFilter = ['Active'];
-            if (!empty($studentStatus)) {
-                $statusFilter = [$studentStatus];
-            } else if ($studentStatus === 'All') {
-                $statusFilter = ['Active', 'Graduated'];
-            }
+            $enrollmentMeta = $this->paymentCohortEnrollmentMeta(
+                (int) $schoolID,
+                $academicYearID,
+                $studentIDs
+            );
 
             $query = Student::where('schoolID', $schoolID)
-                ->whereIn('status', $statusFilter)
+                ->whereIn('studentID', $studentIDs)
                 ->with(['parent', 'sponsor', 'subclass.class', 'payments' => function($q) use ($academicYearID, $year) {
                     if ($academicYearID) {
-                        // Filter by academic_yearID if academic year exists
                         $q->where('academic_yearID', $academicYearID);
                     } else {
-                        // Fallback to year filter if academic year doesn't exist
                         $q->whereYear('created_at', $year);
                     }
                 }, 'payments.fee_payments', 'payments.academicYear', 'payments.paymentRecords']);
-
-            // Filter by class (main class) via active enrollment
-            if (!empty($classID)) {
-                $studentIDs = app(\App\Services\StudentEnrollmentService::class)
-                    ->studentIDsInClass((int) $classID, (int) $schoolID);
-                if (!empty($studentIDs)) {
-                    $query->whereIn('studentID', $studentIDs);
-                } else {
-                    $query->whereHas('subclass', function($q) use ($classID) {
-                        $q->where('classID', $classID);
-                    });
-                }
-            }
-
-            // Filter by subclass via active enrollment
-            if (!empty($subclassID)) {
-                $studentIDs = app(\App\Services\StudentEnrollmentService::class)
-                    ->studentIDsInSubclass((int) $subclassID, (int) $schoolID);
-                if (!empty($studentIDs)) {
-                    $query->whereIn('studentID', $studentIDs);
-                } else {
-                    $query->where('subclassID', $subclassID);
-                }
-            }
 
             // Filter by sponsorship
             if ($sponsorshipFilter === 'sponsored') {
@@ -974,6 +1236,8 @@ class FeesController extends Controller
                     }
                 }
 
+                $enrMeta = $enrollmentMeta[(int) $student->studentID] ?? null;
+
                 $studentData = [
                     'studentID' => $student->studentID,
                     'first_name' => $student->first_name,
@@ -981,6 +1245,8 @@ class FeesController extends Controller
                     'last_name' => $student->last_name,
                     'admission_number' => $student->admission_number,
                     'status' => $student->status,
+                    'enrollment_status' => $enrMeta['enrollment_status'] ?? null,
+                    'enrollmentID' => $enrMeta['enrollmentID'] ?? null,
                     'photo' => $student->photo ? asset('userImages/' . $student->photo) : null,
                     'parent' => $student->parent ? [
                         'first_name' => $student->parent->first_name,
@@ -988,8 +1254,10 @@ class FeesController extends Controller
                         'phone' => $student->parent->phone,
                     ] : null,
                     'subclass' => [
-                        'subclass_name' => $student->subclass->subclass_name ?? 'N/A',
-                        'class_name' => $student->subclass->class->class_name ?? 'N/A',
+                        'subclass_name' => $enrMeta['subclass_name']
+                            ?? ($student->subclass->subclass_name ?? 'N/A'),
+                        'class_name' => $enrMeta['class_name']
+                            ?? ($student->subclass->class->class_name ?? 'N/A'),
                     ],
                     'sponsor' => $student->sponsor ? [
                         'sponsor_name' => $student->sponsor->sponsor_name,
@@ -1006,6 +1274,15 @@ class FeesController extends Controller
                 $requiredPaid = $payment ? $payment->required_fees_paid : 0;
                 $requiredAmount = $payment ? $payment->required_fees_amount : 0;
                 $canStartSchool = $payment ? $payment->can_start_school : false;
+
+                // Prior enrollment years still owing (excluding filtered year)
+                $priorDebtInfo = $this->getPreviousYearBalance(
+                    $student->studentID,
+                    $schoolID,
+                    $academicYearID
+                );
+                $priorYearsOwed = (float) ($priorDebtInfo['school_fee_balance'] ?? 0)
+                    + (float) ($priorDebtInfo['other_contribution_balance'] ?? 0);
 
                 // No calculation for sponsorAmount is required as sponsors do not adjust 'totalRequiredAmount'
                 $originalTotal = $totalRequired;
@@ -1024,11 +1301,13 @@ class FeesController extends Controller
                         'can_start_school' => $canStartSchool,
                         'original_total' => $originalTotal,
                         'sponsor_amount' => $sponsorAmount,
+                        'prior_years_owed' => $priorYearsOwed,
                         'overall_status' => $payment ? $payment->payment_status : 'Pending',
                     ],
                     'payment_status' => $payment ? $payment->payment_status : 'Pending',
                     'verification_status' => $verificationStatus,
                     'academic_year' => $year,
+                    'prior_years_owed' => $priorYearsOwed,
                 ];
             }
             $totalRequired = 0;
@@ -1063,6 +1342,8 @@ class FeesController extends Controller
                 'success' => true,
                 'data' => $filteredData,
                 'academic_year' => $year,
+                'academic_year_id' => $academicYearID,
+                'is_closed_year' => $isClosedYear,
                 'statistics' => [
                     'total_students' => count($filteredData),
                     'total_payments' => count($filteredData),
@@ -1081,6 +1362,190 @@ class FeesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error loading payments: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * All enrollment / academic-year payment rows for one student (View More modal).
+     */
+    public function get_student_enrollment_payments($studentID)
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+
+        if (!$userType || !$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $student = Student::where('studentID', $studentID)
+            ->where('schoolID', $schoolID)
+            ->first();
+
+        if (!$student) {
+            return response()->json(['success' => false, 'message' => 'Student not found'], 404);
+        }
+
+        try {
+            $enrollments = StudentEnrollment::with(['academicYear', 'classModel', 'subclass'])
+                ->where('studentID', $studentID)
+                ->where('schoolID', $schoolID)
+                ->orderByDesc('academic_yearID')
+                ->orderByDesc('enrollmentID')
+                ->get();
+
+            $livePayments = Payment::with('academicYear')
+                ->where('studentID', $studentID)
+                ->where('schoolID', $schoolID)
+                ->get();
+
+            $paymentsByEnrollment = $livePayments->filter(fn ($p) => !empty($p->enrollmentID))
+                ->keyBy(fn ($p) => (int) $p->enrollmentID);
+            $paymentsByYear = $livePayments->groupBy(fn ($p) => (int) ($p->academic_yearID ?? 0));
+
+            $historyByYear = collect();
+            if (Schema::hasTable('payments_history')) {
+                $hq = DB::table('payments_history')->where('studentID', $studentID);
+                if (Schema::hasColumn('payments_history', 'schoolID')) {
+                    $hq->where('schoolID', $schoolID);
+                }
+                $historyByYear = $hq->get()->groupBy(fn ($p) => (int) ($p->academic_yearID ?? 0));
+            }
+
+            $years = [];
+            $coveredYearIds = [];
+            $totalRequired = 0;
+            $totalPaid = 0;
+            $totalOwed = 0;
+
+            foreach ($enrollments as $enr) {
+                $yearId = (int) $enr->academic_yearID;
+                $coveredYearIds[] = $yearId;
+
+                $payment = $paymentsByEnrollment->get((int) $enr->enrollmentID);
+                if (!$payment) {
+                    $payment = optional($paymentsByYear->get($yearId))->first();
+                }
+
+                $source = 'none';
+                $amountRequired = 0;
+                $amountPaid = 0;
+                $balance = 0;
+                $debt = 0;
+                $paymentStatus = 'No Bill';
+                $controlNumber = null;
+                $paymentID = null;
+
+                if ($payment) {
+                    $source = 'live';
+                    $amountRequired = (float) $payment->amount_required;
+                    $amountPaid = (float) $payment->amount_paid;
+                    $balance = (float) $payment->balance;
+                    $debt = (float) ($payment->debt ?? 0);
+                    $paymentStatus = $payment->payment_status ?: 'Pending';
+                    $controlNumber = $payment->control_number;
+                    $paymentID = $payment->paymentID;
+                } elseif ($historyByYear->has($yearId)) {
+                    $hist = $historyByYear->get($yearId)->first();
+                    $source = 'history';
+                    $amountRequired = (float) ($hist->amount_required ?? 0);
+                    $amountPaid = (float) ($hist->amount_paid ?? 0);
+                    $balance = (float) ($hist->balance ?? 0);
+                    $debt = (float) ($hist->debt ?? 0);
+                    $paymentStatus = $hist->payment_status ?? 'Archived';
+                    $controlNumber = $hist->control_number ?? null;
+                }
+
+                $ay = $enr->academicYear;
+                $yearLabel = $ay
+                    ? ($ay->year_name ?? $ay->year)
+                    : ('Year #' . $yearId);
+
+                $years[] = [
+                    'enrollmentID' => (int) $enr->enrollmentID,
+                    'academic_yearID' => $yearId,
+                    'year' => $ay->year ?? null,
+                    'year_name' => $yearLabel,
+                    'year_status' => $ay->status ?? null,
+                    'class_name' => $enr->classModel->class_name ?? 'N/A',
+                    'subclass_name' => $enr->subclass->subclass_name ?? 'N/A',
+                    'enrollment_status' => $enr->status,
+                    'promotion_status' => $enr->promotion_status,
+                    'amount_required' => $amountRequired,
+                    'amount_paid' => $amountPaid,
+                    'balance' => $balance,
+                    'debt' => $debt,
+                    'payment_status' => $paymentStatus,
+                    'control_number' => $controlNumber,
+                    'paymentID' => $paymentID,
+                    'source' => $source,
+                    'owes' => $balance > 0,
+                ];
+
+                $totalRequired += $amountRequired;
+                $totalPaid += $amountPaid;
+                $totalOwed += max(0, $balance);
+            }
+
+            // Payments without matching enrollment (legacy)
+            foreach ($livePayments as $payment) {
+                $yearId = (int) ($payment->academic_yearID ?? 0);
+                if ($yearId && in_array($yearId, $coveredYearIds, true)) {
+                    continue;
+                }
+                $ay = $payment->academicYear
+                    ?: ($yearId ? DB::table('academic_years')->where('academic_yearID', $yearId)->first() : null);
+                $yearLabel = $ay
+                    ? ($ay->year_name ?? $ay->year)
+                    : 'Unknown year';
+
+                $years[] = [
+                    'enrollmentID' => $payment->enrollmentID ? (int) $payment->enrollmentID : null,
+                    'academic_yearID' => $yearId ?: null,
+                    'year' => is_object($ay) ? ($ay->year ?? null) : null,
+                    'year_name' => $yearLabel,
+                    'year_status' => is_object($ay) ? ($ay->status ?? null) : null,
+                    'class_name' => $student->subclass->class->class_name ?? 'N/A',
+                    'subclass_name' => $student->subclass->subclass_name ?? 'N/A',
+                    'enrollment_status' => null,
+                    'promotion_status' => null,
+                    'amount_required' => (float) $payment->amount_required,
+                    'amount_paid' => (float) $payment->amount_paid,
+                    'balance' => (float) $payment->balance,
+                    'debt' => (float) ($payment->debt ?? 0),
+                    'payment_status' => $payment->payment_status ?: 'Pending',
+                    'control_number' => $payment->control_number,
+                    'paymentID' => $payment->paymentID,
+                    'source' => 'live',
+                    'owes' => (float) $payment->balance > 0,
+                ];
+
+                $totalRequired += (float) $payment->amount_required;
+                $totalPaid += (float) $payment->amount_paid;
+                $totalOwed += max(0, (float) $payment->balance);
+            }
+
+            return response()->json([
+                'success' => true,
+                'student' => [
+                    'studentID' => $student->studentID,
+                    'name' => trim($student->first_name . ' ' . ($student->middle_name ? $student->middle_name . ' ' : '') . $student->last_name),
+                    'admission_number' => $student->admission_number,
+                ],
+                'years' => $years,
+                'summary' => [
+                    'total_required' => $totalRequired,
+                    'total_paid' => $totalPaid,
+                    'total_owed' => $totalOwed,
+                    'years_count' => count($years),
+                    'years_owing' => collect($years)->where('owes', true)->count(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error loading student enrollment payments: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading enrollment payment history.',
             ], 500);
         }
     }
@@ -2417,41 +2882,44 @@ class FeesController extends Controller
             // Get filter parameters (same as get_payments_ajax)
             $classID = $request->input('class_id', '');
             $subclassID = $request->input('subclass_id', '');
-            $studentStatus = $request->input('student_status', '');
+            $enrollmentStatus = $request->input(
+                'enrollment_status',
+                $request->input('student_status', 'Active')
+            );
+            if ($enrollmentStatus === null || $enrollmentStatus === '') {
+                $enrollmentStatus = 'all';
+            }
             $paymentStatus = $request->input('payment_status', '');
-            $year = $request->input('year', date('Y'));
             $searchStudentName = $request->input('search_student_name', '');
 
-            // Get academic year
-            $academicYear = DB::table('academic_years')
-                ->where('schoolID', $schoolID)
-                ->where('year', $year)
-                ->first();
+            $resolved = $this->resolvePaymentsAcademicYear((int) $schoolID, $request);
+            $academicYearID = $resolved['academicYearID'];
+            $year = $resolved['year'];
 
-            $academicYearID = $academicYear ? $academicYear->academic_yearID : null;
-            $isClosedYear = $academicYear && $academicYear->status === 'Closed';
+            $studentIDs = $this->paymentCohortStudentIDs(
+                (int) $schoolID,
+                $academicYearID,
+                (string) $enrollmentStatus,
+                $classID !== '' ? $classID : null,
+                $subclassID !== '' ? $subclassID : null
+            );
 
-            if (!$academicYearID) {
-                $activeAcademicYear = DB::table('academic_years')
-                    ->where('schoolID', $schoolID)
-                    ->where('status', 'Active')
-                    ->orderBy('year', 'desc')
-                    ->first();
-                if ($activeAcademicYear) {
-                    $academicYearID = $activeAcademicYear->academic_yearID;
-                    $year = $activeAcademicYear->year;
-                    $isClosedYear = false;
-                }
+            if (empty($studentIDs)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No enrollments found for the selected academic year / enrollment status.',
+                    'error_code' => 'no_enrollments',
+                ], 422);
             }
 
-            // Build query (same logic as get_payments_ajax)
-            $statusFilter = ['Active', 'Graduated'];
-            if (!empty($studentStatus)) {
-                $statusFilter = [$studentStatus];
-            }
+            $enrollmentMeta = $this->paymentCohortEnrollmentMeta(
+                (int) $schoolID,
+                $academicYearID,
+                $studentIDs
+            );
 
             $query = Student::where('schoolID', $schoolID)
-                ->whereIn('status', $statusFilter)
+                ->whereIn('studentID', $studentIDs)
                 ->with(['parent', 'subclass.class', 'payments' => function($q) use ($academicYearID, $year) {
                     if ($academicYearID) {
                         $q->where('academic_yearID', $academicYearID);
@@ -2459,16 +2927,6 @@ class FeesController extends Controller
                         $q->whereYear('created_at', $year);
                     }
                 }, 'payments.fee_payments', 'payments.academicYear']);
-
-            if (!empty($classID)) {
-                $query->whereHas('subclass', function($q) use ($classID) {
-                    $q->where('classID', $classID);
-                });
-            }
-
-            if (!empty($subclassID)) {
-                $query->where('subclassID', $subclassID);
-            }
 
             // Filter by student name search
             if (!empty($searchStudentName)) {
@@ -2528,19 +2986,12 @@ class FeesController extends Controller
                 // Get fee breakdown
                 $feeBreakdown = $payment ? $payment->fee_payments()->orderBy('display_order')->get() : collect();
 
-                // Format student class
-                $studentClass = 'N/A';
-                if ($student->subclass) {
-                    $mainClass = $student->subclass->class->class_name ?? '';
-                    $subclass = $student->subclass->subclass_name ?? '';
-                    if ($mainClass && $subclass) {
-                        $studentClass = $mainClass . ' ' . $subclass;
-                    } else if ($subclass) {
-                        $studentClass = $subclass;
-                    } else if ($mainClass) {
-                        $studentClass = $mainClass;
-                    }
-                }
+                $enrMeta = $enrollmentMeta[(int) $student->studentID] ?? null;
+                $mainClass = $enrMeta['class_name'] ?? ($student->subclass->class->class_name ?? '');
+                $subclassName = $enrMeta['subclass_name'] ?? ($student->subclass->subclass_name ?? '');
+                $studentClass = trim(($mainClass ? $mainClass . ' ' : '') . $subclassName) ?: 'N/A';
+                $enrollmentStatusLabel = $enrMeta['enrollment_status'] ?? $student->status;
+
                 $pdfData[] = [
                     'student' => [
                         'studentID' => $student->studentID,
@@ -2549,7 +3000,8 @@ class FeesController extends Controller
                         'last_name' => $student->last_name,
                         'admission_number' => $student->admission_number,
                         'class' => $studentClass,
-                        'status' => $student->status,
+                        'status' => $enrollmentStatusLabel,
+                        'enrollment_status' => $enrollmentStatusLabel,
                         'photo' => $student->photo ? asset('userImages/' . $student->photo) : null,
                         'sponsorship_percentage' => $student->sponsorship_percentage,
                         'sponsor_name' => $student->sponsor ? $student->sponsor->sponsor_name : null,
@@ -2576,9 +3028,6 @@ class FeesController extends Controller
             $schoolLogo = $school->school_logo ? public_path($school->school_logo) : null;
             $currentYear = $year;
 
-            // For now, generate individual PDFs and combine them
-            // Or create a new template for filtered payments list
-            // Using the same template but for multiple students
             $data = [
                 'school' => $school,
                 'students' => $pdfData,
@@ -2587,7 +3036,7 @@ class FeesController extends Controller
                 'filters' => [
                     'class' => $classID ? (ClassModel::find($classID)->class_name ?? '') : '',
                     'subclass' => $subclassID ? (Subclass::find($subclassID)->subclass_name ?? '') : '',
-                    'status' => $studentStatus,
+                    'status' => $enrollmentStatus,
                     'payment_status' => $paymentStatus,
                 ]
             ];
@@ -2706,14 +3155,26 @@ class FeesController extends Controller
      */
     public function get_class_conditions($classID)
     {
-        $schoolID = Session::get('schoolID');
+        $schoolID = (int) Session::get('schoolID');
+        $academicYearID = $this->resolveFeesAcademicYearID($schoolID, (int) $classID);
+        [, , $enrolledIds] = $this->activeEnrollmentStudentsForClass($schoolID, (int) $classID);
+
         $conditions = FeeCondition::where('schoolID', $schoolID)
             ->where('status', 'Active')
             ->whereHas('fee', function($q) use ($classID) {
                 $q->where('classID', $classID);
             })
-            ->with(['fee', 'studentConditions' => function($q) {
-                $q->select('conditionID', 'studentID');
+            ->with(['fee', 'studentConditions' => function($q) use ($academicYearID, $enrolledIds) {
+                $q->select('conditionID', 'studentID', 'academic_yearID', 'status')
+                    ->where('status', 'Active');
+                if ($academicYearID) {
+                    $q->where('academic_yearID', $academicYearID);
+                }
+                if (!empty($enrolledIds)) {
+                    $q->whereIn('studentID', $enrolledIds);
+                } else {
+                    $q->whereRaw('1 = 0');
+                }
             }])
             ->get();
             
@@ -2724,28 +3185,50 @@ class FeesController extends Controller
             
         return response()->json([
             'success' => true,
-            'conditions' => $conditions
+            'conditions' => $conditions,
+            'academic_year_id' => $academicYearID,
         ]);
     }
 
     /**
-     * Get students for condition assignment
+     * Get students for condition assignment / fee agreements (Active enrollments)
      */
     public function get_class_students($classID)
     {
-        $schoolID = Session::get('schoolID');
+        $schoolID = (int) Session::get('schoolID');
+        [$gate, $academicYearID, $studentIds] = $this->activeEnrollmentStudentsForClass($schoolID, (int) $classID);
+        if ($gate && empty($studentIds)) {
+            return $gate;
+        }
+
+        $enrollmentMeta = [];
+        foreach (app(StudentEnrollmentService::class)->enrollmentsInClass((int) $classID, $schoolID, 'Active') as $enr) {
+            $enrollmentMeta[(int) $enr->studentID] = [
+                'enrollmentID' => (int) $enr->enrollmentID,
+                'enrollment_status' => $enr->status,
+                'subclass_name' => $enr->subclass->subclass_name ?? null,
+            ];
+        }
+
         $students = Student::where('schoolID', $schoolID)
-            ->whereHas('subclass', function($q) use ($classID) {
-                $q->where('classID', $classID);
-            })
-            ->where('status', 'Active')
+            ->whereIn('studentID', $studentIds)
             ->select('studentID', 'first_name', 'middle_name', 'last_name', 'admission_number', 'sponsor_id', 'sponsorship_percentage')
             ->orderBy('first_name')
-            ->get();
+            ->get()
+            ->map(function ($student) use ($enrollmentMeta) {
+                $meta = $enrollmentMeta[(int) $student->studentID] ?? null;
+                $student->enrollmentID = $meta['enrollmentID'] ?? null;
+                $student->enrollment_status = $meta['enrollment_status'] ?? 'Active';
+                $student->subclass_name = $meta['subclass_name'] ?? null;
+                $student->can_assign = ($meta['enrollment_status'] ?? '') === 'Active';
+                return $student;
+            });
             
         return response()->json([
             'success' => true,
-            'students' => $students
+            'students' => $students,
+            'academic_year_id' => $academicYearID,
+            'active_enrollment_count' => count($studentIds),
         ]);
     }
 
@@ -2766,20 +3249,26 @@ class FeesController extends Controller
 
     public function get_existing_agreements($classID)
     {
-        $schoolID = Session::get('schoolID');
-        $academicYearID = $this->getCurrentAcademicYearID($schoolID);
+        $schoolID = (int) Session::get('schoolID');
+        [$gate, $academicYearID, $studentIds] = $this->activeEnrollmentStudentsForClass($schoolID, (int) $classID);
+        if ($gate && empty($studentIds)) {
+            return $gate;
+        }
+
+        if (!$academicYearID) {
+            $academicYearID = $this->resolveFeesAcademicYearID($schoolID, (int) $classID);
+        }
 
         $agreements = FeeAgreement::where('schoolID', $schoolID)
             ->where('academic_yearID', $academicYearID)
-            ->whereHas('student.subclass', function($q) use ($classID) {
-                $q->where('classID', $classID);
-            })
+            ->whereIn('studentID', $studentIds)
             ->where('status', 'Active')
             ->get();
 
         return response()->json([
             'success' => true,
-            'agreements' => $agreements
+            'agreements' => $agreements,
+            'academic_year_id' => $academicYearID,
         ]);
     }
 
@@ -2788,23 +3277,51 @@ class FeesController extends Controller
      */
     public function store_fee_agreements(Request $request)
     {
-        $schoolID = $request->schoolID ?: Session::get('schoolID');
-        $academicYearID = $this->getCurrentAcademicYearID($schoolID);
+        $schoolID = (int) ($request->schoolID ?: Session::get('schoolID'));
         $agreements = $request->agreements;
 
         if (empty($agreements)) {
             return response()->json(['success' => false, 'message' => 'No agreements provided'], 400);
         }
 
+        $classID = $request->input('classID');
+        if (!$classID && !empty($agreements[0]['studentID'])) {
+            $enrollment = app(StudentEnrollmentService::class)
+                ->currentEnrollment((int) $agreements[0]['studentID'], $schoolID);
+            $classID = $enrollment->classID ?? null;
+        }
+
+        $academicYearID = $this->resolveFeesAcademicYearID($schoolID, $classID ? (int) $classID : null);
+        if (!$academicYearID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Select an academic year in the header before saving fee agreements.',
+                'error_code' => 'no_academic_year',
+            ], 422);
+        }
+
+        $enrollmentService = app(StudentEnrollmentService::class);
+
         DB::beginTransaction();
         try {
             $studentIDsAffected = [];
 
             foreach ($agreements as $ag) {
+                $studentID = (int) $ag['studentID'];
+                $enrollment = $enrollmentService->currentEnrollment($studentID, $schoolID);
+                if (!$enrollment || $enrollment->status !== 'Active') {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Only Active enrollments for the selected academic year can receive fee agreements.',
+                        'error_code' => 'enrollment_not_active',
+                    ], 422);
+                }
+
                 FeeAgreement::updateOrCreate(
                     [
                         'schoolID' => $schoolID,
-                        'studentID' => $ag['studentID'],
+                        'studentID' => $studentID,
                         'feeID' => $ag['feeID'],
                         'academic_yearID' => $academicYearID,
                     ],
@@ -2814,7 +3331,7 @@ class FeesController extends Controller
                     ]
                 );
 
-                $studentIDsAffected[] = $ag['studentID'];
+                $studentIDsAffected[] = $studentID;
             }
 
             DB::commit();
@@ -2847,8 +3364,7 @@ class FeesController extends Controller
      */
     public function assign_sponsor_students(Request $request)
     {
-        $schoolID = Session::get('schoolID');
-        $academicYearID = $this->getCurrentAcademicYearID($schoolID);
+        $schoolID = (int) Session::get('schoolID');
         
         $sponsorID = $request->input('sponsorID');
         $classID = $request->input('classID');
@@ -2856,6 +3372,24 @@ class FeesController extends Controller
 
         if (!$sponsorID || !$classID) {
             return response()->json(['success' => false, 'message' => 'Missing sponsor or class context'], 400);
+        }
+
+        $academicYearID = $this->resolveFeesAcademicYearID($schoolID, (int) $classID);
+        if (!$academicYearID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Select an academic year in the header before assigning sponsors.',
+                'error_code' => 'no_academic_year',
+            ], 422);
+        }
+
+        [, , $enrolledIds] = $this->activeEnrollmentStudentsForClass($schoolID, (int) $classID);
+        if (empty($enrolledIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected academic year has no Active enrollments for this class.',
+                'error_code' => 'no_active_enrollments',
+            ], 422);
         }
 
         try {
@@ -2866,9 +3400,7 @@ class FeesController extends Controller
             
             $studentsToUnassign = Student::where('schoolID', $schoolID)
                 ->where('sponsor_id', $sponsorID)
-                ->whereHas('subclass', function($q) use ($classID) {
-                    $q->where('classID', $classID);
-                })
+                ->whereIn('studentID', $enrolledIds)
                 ->whereNotIn('studentID', $keepStudentIDs)
                 ->get();
 
@@ -2882,8 +3414,17 @@ class FeesController extends Controller
             }
 
             // 2. Assign/update the provided students
+            $enrollmentService = app(StudentEnrollmentService::class);
             foreach ($assignments as $ag) {
-                $student = Student::find($ag['studentID']);
+                $studentID = (int) $ag['studentID'];
+                if (!in_array($studentID, $enrolledIds, true)) {
+                    continue;
+                }
+                $enrollment = $enrollmentService->currentEnrollment($studentID, $schoolID);
+                if (!$enrollment || $enrollment->status !== 'Active') {
+                    continue;
+                }
+                $student = Student::find($studentID);
                 if ($student) {
                     $student->update([
                         'sponsor_id' => $sponsorID,
@@ -2914,7 +3455,7 @@ class FeesController extends Controller
      */
     public function assign_students_to_conditions(Request $request)
     {
-        $schoolID = Session::get('schoolID');
+        $schoolID = (int) Session::get('schoolID');
         $classID = $request->input('classID');
         $studentIDs = $request->input('studentIDs', []);
         $conditionIDs = $request->input('conditionIDs', []);
@@ -2923,10 +3464,20 @@ class FeesController extends Controller
             return response()->json(['success' => false, 'message' => 'Select at least one student and one condition'], 422);
         }
 
+        $academicYearID = $this->resolveFeesAcademicYearID($schoolID, $classID ? (int) $classID : null);
+        if (!$academicYearID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Select an academic year in the header before assigning fee discounts.',
+                'error_code' => 'no_academic_year',
+            ], 422);
+        }
+
+        $enrollmentService = app(StudentEnrollmentService::class);
+
         try {
             DB::beginTransaction();
             
-            $academicYearID = $this->getCurrentAcademicYearID($schoolID);
             $affectedStudentIDs = [];
 
             foreach ($conditionIDs as $conditionID) {
@@ -2934,11 +3485,22 @@ class FeesController extends Controller
                 if (!$condition) continue;
 
                 foreach ($studentIDs as $studentID) {
-                    // Check if student already has this EXACT condition active for this fee
+                    $enrollment = $enrollmentService->currentEnrollment((int) $studentID, $schoolID);
+                    if (!$enrollment || $enrollment->status !== 'Active') {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Only Active enrollments for the selected academic year can receive fee discounts.',
+                            'error_code' => 'enrollment_not_active',
+                        ], 422);
+                    }
+
+                    // Check if student already has this EXACT condition active for this fee + year
                     $alreadyAssigned = StudentFeeCondition::where([
                         'studentID' => $studentID,
                         'conditionID' => $conditionID,
                         'feeID' => $condition->feeID,
+                        'academic_yearID' => $academicYearID,
                         'status' => 'Active'
                     ])->exists();
                     
@@ -2948,10 +3510,10 @@ class FeesController extends Controller
                                 'schoolID' => $schoolID,
                                 'studentID' => $studentID,
                                 'feeID' => $condition->feeID,
+                                'academic_yearID' => $academicYearID,
                             ],
                             [
                                 'conditionID' => $conditionID,
-                                'academic_yearID' => $academicYearID,
                                 'status' => 'Active'
                             ]
                         );

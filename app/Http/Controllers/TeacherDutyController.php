@@ -6,6 +6,8 @@ use App\Models\TeacherDuty;
 use App\Models\Teacher; // Assuming Teacher model exists or is 'App\Models\Teachers'
 use App\Models\Term;
 use App\Models\AcademicYear;
+use App\Services\SelectedAcademicYearService;
+use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
@@ -202,8 +204,13 @@ class TeacherDutyController extends Controller
         $report = $query->first();
 
         $permissionService = app(\App\Services\StudentPermissionAttendanceService::class);
+        $enrollmentService = app(StudentEnrollmentService::class);
+        $yearService = app(SelectedAcademicYearService::class);
         $permissionStatusMap = $permissionService->loadApprovedStatusMap($schoolID, $date, $date);
         $useFingerprint = $permissionService->schoolHasFingerprintAttendanceOnDate($schoolID, $date);
+
+        // Duty book always uses Active enrollments for the header academic year (not editable).
+        $enrollmentStatus = 'Active';
 
         // System / fingerprint attendance calculation (pre-fill data)
         $classes = \App\Models\ClassModel::where('schoolID', $schoolID)->orderBy('class_name', 'asc')->get();
@@ -211,71 +218,69 @@ class TeacherDutyController extends Controller
 
         foreach ($classes as $class) {
             $subclassIDs = \App\Models\Subclass::where('classID', $class->classID)->pluck('subclassID')->toArray();
+            $enrolledStudentIDs = $enrollmentService->studentIDsInClass(
+                (int) $class->classID,
+                (int) $schoolID,
+                $enrollmentStatus
+            );
 
-            // Registered
-            $registeredBoys = \App\Models\Student::where('schoolID', $schoolID)
-                ->whereIn('subclassID', $subclassIDs)
-                ->where('status', '!=', 'Transferred')
-                ->where('gender', 'Male')
-                ->count();
-
-            $registeredGirls = \App\Models\Student::where('schoolID', $schoolID)
-                ->whereIn('subclassID', $subclassIDs)
-                ->where('status', '!=', 'Transferred')
-                ->where('gender', 'Female')
-                ->count();
+            $genderCounts = $this->countStudentsByGender($schoolID, $enrolledStudentIDs);
+            $registeredBoys = $genderCounts['b'];
+            $registeredGirls = $genderCounts['g'];
 
             if ($useFingerprint) {
                 $genderStats = $permissionService->aggregateSubclassStatsFromFingerprint(
                     $schoolID,
                     $subclassIDs,
                     $date,
-                    $permissionStatusMap
+                    $permissionStatusMap,
+                    $enrolledStudentIDs
                 );
             } else {
                 $genderStats = $permissionService->aggregateSubclassStatsFromSystem(
                     $schoolID,
                     $subclassIDs,
                     $date,
-                    $permissionStatusMap
+                    $permissionStatusMap,
+                    $enrolledStudentIDs
                 );
             }
 
-            // New Comers (Students admitted on this date)
-            $newComersBoys = \App\Models\Student::where('schoolID', $schoolID)
-                ->whereIn('subclassID', $subclassIDs)
-                ->whereDate('admission_date', $date)
-                ->where('gender', 'Male')
-                ->count();
-
-            $newComersGirls = \App\Models\Student::where('schoolID', $schoolID)
-                ->whereIn('subclassID', $subclassIDs)
-                ->whereDate('admission_date', $date)
-                ->where('gender', 'Female')
-                ->count();
+            // New comers: Active-enrolled students admitted on this date
+            $newComers = ['b' => 0, 'g' => 0];
+            if ($enrolledStudentIDs !== []) {
+                $newComers = $this->countStudentsByGender(
+                    $schoolID,
+                    $enrolledStudentIDs,
+                    $date
+                );
+            }
 
             $systemAttendance[$class->classID] = [
-                'reg_b' => (int)$registeredBoys,
-                'reg_g' => (int)$registeredGirls,
-                'pres_b' => (int)($genderStats['pres_b'] ?? 0),
-                'pres_g' => (int)($genderStats['pres_g'] ?? 0),
-                'abs_b' => (int)($genderStats['abs_b'] ?? 0),
-                'abs_g' => (int)($genderStats['abs_g'] ?? 0),
-                'perm_b' => (int)($genderStats['perm_b'] ?? 0),
-                'perm_g' => (int)($genderStats['perm_g'] ?? 0),
-                'new_b' => (int)$newComersBoys,
-                'new_g' => (int)$newComersGirls,
+                'reg_b' => (int) $registeredBoys,
+                'reg_g' => (int) $registeredGirls,
+                'pres_b' => (int) ($genderStats['pres_b'] ?? 0),
+                'pres_g' => (int) ($genderStats['pres_g'] ?? 0),
+                'abs_b' => (int) ($genderStats['abs_b'] ?? 0),
+                'abs_g' => (int) ($genderStats['abs_g'] ?? 0),
+                'perm_b' => (int) ($genderStats['perm_b'] ?? 0),
+                'perm_g' => (int) ($genderStats['perm_g'] ?? 0),
+                'new_b' => (int) $newComers['b'],
+                'new_g' => (int) $newComers['g'],
                 'shifted_b' => 0,
                 'shifted_g' => 0,
-                'sick_b' => (int)($genderStats['sick_b'] ?? 0),
-                'sick_g' => (int)($genderStats['sick_g'] ?? 0),
+                'sick_b' => (int) ($genderStats['sick_b'] ?? 0),
+                'sick_g' => (int) ($genderStats['sick_g'] ?? 0),
             ];
-    }
+        }
 
-        // Total active students in school for percentage calculation
-        $totalActiveStudents = \App\Models\Student::where('schoolID', $schoolID)
-            ->where('status', '!=', 'Transferred')
-            ->count();
+        // Total Active enrollments in selected academic year(s)
+        $totalActiveStudents = count(
+            $enrollmentService->activeEnrollments((int) $schoolID)
+                ->pluck('studentID')
+                ->unique()
+                ->all()
+        );
 
         // Calculate total present students for the day
         $totalPresentAcrossSchool = 0;
@@ -287,6 +292,23 @@ class TeacherDutyController extends Controller
             ? round(($totalPresentAcrossSchool / $totalActiveStudents) * 100, 2)
             : 0;
 
+        $academicYearLabel = null;
+        try {
+            $yearCtx = $yearService->headerContext((int) $schoolID);
+            $academicYearLabel = collect($yearCtx['selected_year_ids'] ?? [])
+                ->map(function ($id) use ($yearCtx) {
+                    $y = ($yearCtx['years'] ?? collect())->firstWhere('academic_yearID', (int) $id);
+                    return $y ? ($y->year_name ?? $y->year) : null;
+                })
+                ->filter()
+                ->implode(' / ');
+            if ($academicYearLabel === '') {
+                $academicYearLabel = 'Current / Active enrollments';
+            }
+        } catch (\Throwable $e) {
+            $academicYearLabel = 'Active enrollments';
+        }
+
         return response()->json([
             'success' => true,
             'report' => $report ? array_merge($report->toArray(), [
@@ -294,9 +316,40 @@ class TeacherDutyController extends Controller
             ]) : null,
             'system_attendance' => $systemAttendance,
             'attendance_source' => $useFingerprint ? 'fingerprint' : 'system',
+            'enrollment_status' => $enrollmentStatus,
+            'academic_year_label' => $academicYearLabel,
             'total_active_students' => $totalActiveStudents,
             'calculated_attendance_percentage' => $calculatedPercentage
         ]);
+    }
+
+    /**
+     * @param  array<int>  $studentIDs
+     * @return array{b: int, g: int}
+     */
+    private function countStudentsByGender(int $schoolID, array $studentIDs, ?string $admissionDate = null): array
+    {
+        if ($studentIDs === []) {
+            return ['b' => 0, 'g' => 0];
+        }
+
+        $query = DB::table('students')
+            ->where('schoolID', $schoolID)
+            ->whereIn('studentID', $studentIDs);
+
+        if ($admissionDate) {
+            $query->whereDate('admission_date', $admissionDate);
+        }
+
+        $row = $query
+            ->selectRaw("SUM(CASE WHEN LOWER(gender) IN ('female', 'f') THEN 1 ELSE 0 END) as girls")
+            ->selectRaw("SUM(CASE WHEN LOWER(gender) IN ('female', 'f') THEN 0 ELSE 1 END) as boys")
+            ->first();
+
+        return [
+            'b' => (int) ($row->boys ?? 0),
+            'g' => (int) ($row->girls ?? 0),
+        ];
     }
 
     public function saveDailyReport(Request $request)

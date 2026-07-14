@@ -138,7 +138,7 @@
                 <td class="label">Examination:</td>
                 <td>{{ $selectedExam->exam_name }}</td>
                 <td class="label">Academic Year:</td>
-                <td>{{ $selectedExam->year }}</td>
+                <td>{{ $academicYearLabel ?? $selectedExam->year }}</td>
             </tr>
             <tr>
                 <td class="label">Term:</td>

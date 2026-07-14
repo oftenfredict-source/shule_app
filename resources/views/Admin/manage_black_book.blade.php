@@ -230,6 +230,7 @@
                         <div class="input-group">
                             <input type="text" id="dashStudentSearch" class="form-control" placeholder="Search by name or admission number...">
                         </div>
+                        <small class="text-muted">Students enrolled for the academic year selected in the header (Active preferred).</small>
                         <div id="dashStudentResults" class="list-group mt-2" style="max-height:200px;overflow:auto;"></div>
                         <div id="dashStudentSummary" class="mt-3 d-none"></div>
                     </div>
@@ -1534,9 +1535,18 @@
         dashSearchTimer = setTimeout(async () => {
             const res = await api(routes.searchStudents + '?search=' + encodeURIComponent(q), 'GET', null, false);
             const box = document.getElementById('dashStudentResults');
-            box.innerHTML = (res.students || []).map(s =>
-                '<button type="button" class="list-group-item list-group-item-action dash-pick-student" data-id="' + s.studentID + '">' + s.display + '</button>'
-            ).join('');
+            if (res.success === false) {
+                box.innerHTML = '<div class="list-group-item text-muted small">' + (res.message || 'Search failed') + '</div>';
+                return;
+            }
+            box.innerHTML = (res.students || []).map(s => {
+                const locked = s.can_report === false;
+                const style = locked ? 'opacity:0.7;' : '';
+                return '<button type="button" class="list-group-item list-group-item-action dash-pick-student" style="' + style + '" data-id="' + s.studentID + '">' +
+                    escapeHtml(s.display) +
+                    (s.enrollment_status ? ' <span class="badge badge-' + (s.can_report ? 'success' : 'secondary') + '">' + escapeHtml(s.enrollment_status) + '</span>' : '') +
+                    '</button>';
+            }).join('') || '<div class="list-group-item text-muted small">No enrolled students matched for the selected year.</div>';
             box.querySelectorAll('.dash-pick-student').forEach(b => {
                 b.onclick = () => loadStudentSummary(b.getAttribute('data-id'));
             });
@@ -1585,8 +1595,11 @@
         reportSearchTimer = setTimeout(async () => {
             const res = await api(routes.searchStudents + '?search=' + encodeURIComponent(q), 'GET', null, false);
             document.getElementById('reportStudentResults').innerHTML = (res.students || []).map(s =>
-                '<button type="button" class="list-group-item list-group-item-action report-pick-student" data-id="' + s.studentID + '">' + s.display + '</button>'
-            ).join('');
+                '<button type="button" class="list-group-item list-group-item-action report-pick-student" data-id="' + s.studentID + '">' +
+                escapeHtml(s.display) +
+                (s.enrollment_status ? ' <span class="badge badge-' + (s.can_report ? 'success' : 'secondary') + '">' + escapeHtml(s.enrollment_status) + '</span>' : '') +
+                '</button>'
+            ).join('') || '<div class="list-group-item text-muted small">No enrolled students matched for the selected year.</div>';
             document.querySelectorAll('.report-pick-student').forEach(b => {
                 b.onclick = () => {
                     document.getElementById('reportStudentID').value = b.getAttribute('data-id');

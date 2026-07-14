@@ -626,6 +626,15 @@ $(document).ready(function() {
                 subclass_id: subclassID
             },
             success: function(response) {
+                if (response.error_code === 'no_active_enrollments') {
+                    $('#resultsContainer').html(
+                        '<div class="alert alert-warning text-center"><i class="bi bi-exclamation-triangle"></i> ' +
+                        (response.message || 'Selected academic year has no Active enrollments for this scope.') +
+                        '</div>'
+                    );
+                    $('#statisticsSection').hide();
+                    return;
+                }
                 if (response.success && response.results) {
                     // Store results data globally
                     currentResultsData = response.results;

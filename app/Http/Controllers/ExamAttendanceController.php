@@ -14,6 +14,7 @@ use App\Models\Student;
 use App\Models\Subclass;
 use App\Models\Teacher;
 use App\Services\SmsService;
+use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -63,12 +64,23 @@ class ExamAttendanceController extends Controller
         if (!$assignment) return response()->json(['error' => 'Assignment not found or disabled'], 404);
 
         $subjects = SchoolSubject::whereIn('subjectID', $assignment->subject_ids)->get();
+
+        $students = $this->getStudentsWithExamNumbers(
+            $assignment->examID,
+            $assignment->classID,
+            $assignment->subclassID,
+        );
+        $activeCount = $students->where('can_enter_result', true)->count();
+        if ($activeCount === 0) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Selected academic year has no Active enrollments for this class. Attendance collection cannot continue.',
+                'error_code' => 'no_active_enrollments',
+            ], 422);
+        }
         
         $details = [];
         foreach ($subjects as $subject) {
-            // Use helper for consistent sorting and exam numbers
-            $students = $this->getStudentsWithExamNumbers($assignment->examID, $assignment->classID, $assignment->subclassID);
-
             $records = ExamAttendanceRecord::where('examID', $assignment->examID)
                 ->where('subjectID', $subject->subjectID)
                 ->whereIn('studentID', $students->pluck('studentID'))
@@ -80,21 +92,27 @@ class ExamAttendanceController extends Controller
                     'studentID' => $student->studentID,
                     'name' => $student->first_name . ' ' . $student->middle_name . ' ' . $student->last_name,
                     'examination_number' => $student->examination_number,
-                    'status' => $records[$student->studentID]->status ?? 'Present'
+                    'status' => $records[$student->studentID]->status ?? 'Present',
+                    'enrollmentID' => $student->enrollmentID ?? null,
+                    'enrollment_status' => $student->enrollment_status ?? null,
+                    'can_enter_result' => (bool) ($student->can_enter_result ?? true),
                 ];
             });
 
             $details[] = [
                 'subjectID' => $subject->subjectID,
                 'subject_name' => $subject->subject_name,
-                'students' => $studentData
+                'students' => $studentData,
+                'active_enrollment_count' => $activeCount,
             ];
         }
 
         return response()->json([
             'success' => true, 
             'assignment' => $assignment,
-            'details' => $details
+            'details' => $details,
+            'active_enrollment_count' => $activeCount,
+            'enrollment_scope' => 'header_year_active_editable',
         ]);
     }
 
@@ -108,6 +126,16 @@ class ExamAttendanceController extends Controller
         // Use helper to get students with exam numbers and correct sorting
         $students = $this->getStudentsWithExamNumbers($examID, $classID, $subclassID);
 
+        $activeCount = $students->where('can_enter_result', true)->count();
+        if ($activeCount === 0) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Selected academic year has no Active enrollments for this class. Attendance collection cannot continue.',
+                'error_code' => 'no_active_enrollments',
+                'students' => [],
+            ], 422);
+        }
+
         $records = ExamAttendanceRecord::where('examID', $examID)
             ->where('subjectID', $subjectID)
             ->whereIn('studentID', $students->pluck('studentID'))
@@ -119,13 +147,18 @@ class ExamAttendanceController extends Controller
                 'studentID' => $student->studentID,
                 'name' => $student->first_name . ' ' . $student->middle_name . ' ' . $student->last_name,
                 'examination_number' => $student->examination_number,
-                'status' => $records[$student->studentID]->status ?? 'Present'
+                'status' => $records[$student->studentID]->status ?? 'Present',
+                'enrollmentID' => $student->enrollmentID ?? null,
+                'enrollment_status' => $student->enrollment_status ?? null,
+                'can_enter_result' => (bool) ($student->can_enter_result ?? true),
             ];
         });
 
         return response()->json([
             'success' => true,
-            'students' => $studentData
+            'students' => $studentData,
+            'active_enrollment_count' => $activeCount,
+            'enrollment_scope' => 'header_year_active_editable',
         ]);
     }
 
@@ -433,7 +466,13 @@ class ExamAttendanceController extends Controller
 
                 if ($subjects->isEmpty()) continue;
 
-                $studentCount = Student::where('subclassID', $subclass->subclassID)->where('status', 'Active')->count();
+                $studentCount = count(
+                    app(StudentEnrollmentService::class)->studentIDsInSubclass(
+                        (int) $subclass->subclassID,
+                        (int) $schoolID,
+                        'Active',
+                    ),
+                );
 
                 $subclassSubjectsData = $subjects->map(function($cs) use ($countsMap, $subclass, $studentCount) {
                     $present = $countsMap[$cs->subjectID][$subclass->subclassID] ?? 0;
@@ -459,10 +498,13 @@ class ExamAttendanceController extends Controller
                 $summary[] = [
                     'classID' => $class->classID,
                     'class_name' => $class->class_name,
-                    'student_count' => Student::join('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
-                        ->where('subclasses.classID', $class->classID)
-                        ->where('students.status', 'Active')
-                        ->count(),
+                    'student_count' => count(
+                        app(StudentEnrollmentService::class)->studentIDsInClass(
+                            (int) $class->classID,
+                            (int) $schoolID,
+                            'Active',
+                        ),
+                    ),
                     'subclasses' => $classSubclassesData
                 ];
             }
@@ -550,33 +592,78 @@ class ExamAttendanceController extends Controller
 
     private function getStudentsWithExamNumbers($examID, $classID, $subclassID = null)
     {
-        $exam = Examination::find($examID);
-        $school = School::find(Session::get('schoolID'));
-        
-        // Always get all students for the main class to ensure consistent sequence numbers
-        $allStudentsInClass = Student::join('subclasses', 'students.subclassID', '=', 'subclasses.subclassID')
-            ->where('subclasses.classID', $classID)
-            ->where('students.status', 'Active')
-            ->select('students.*')
+        $schoolID = (int) Session::get('schoolID');
+        $school = School::find($schoolID);
+        $enrollmentService = app(StudentEnrollmentService::class);
+
+        // Exam numbers sequence from Active enrollments in the whole class (header year)
+        $activeInClassIds = $enrollmentService->studentIDsInClass(
+            (int) $classID,
+            $schoolID,
+            'Active',
+        );
+
+        $examCenterNo = ! empty($school->exam_center_number)
+            ? $school->exam_center_number
+            : 'SET-CENTER-NO';
+
+        $examNumberByStudent = [];
+        if (! empty($activeInClassIds)) {
+            $ordered = Student::whereIn('studentID', $activeInClassIds)
+                ->orderByRaw("CASE 
+                    WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1 
+                    ELSE 2 
+                END ASC")
+                ->orderBy('first_name', 'asc')
+                ->get(['studentID']);
+            foreach ($ordered as $index => $row) {
+                $sequence = str_pad($index + 1, 4, '0', STR_PAD_LEFT);
+                $examNumberByStudent[(int) $row->studentID] = "{$examCenterNo}/{$sequence}";
+            }
+        }
+
+        // Roster: year enrollments (Active editable; others greyed)
+        if ($subclassID && $subclassID !== 'all') {
+            $enrollments = $enrollmentService->enrollmentsInSubclass(
+                (int) $subclassID,
+                $schoolID,
+                'all',
+            );
+        } else {
+            $enrollments = $enrollmentService->enrollmentsInClass(
+                (int) $classID,
+                $schoolID,
+                'all',
+            );
+        }
+
+        $enrollmentByStudent = $enrollments->keyBy('studentID');
+        $studentIds = $enrollments->pluck('studentID')->map(fn ($id) => (int) $id)->all();
+
+        if ($studentIds === []) {
+            return collect();
+        }
+
+        return Student::whereIn('studentID', $studentIds)
             ->orderByRaw("CASE 
-                WHEN students.gender LIKE 'F%' OR students.gender LIKE 'K%' THEN 1 
+                WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1 
                 ELSE 2 
             END ASC")
-            ->orderBy('students.first_name', 'asc')
-            ->get();
-            
-        $examCenterNo = !empty($school->exam_center_number) ? $school->exam_center_number : 'SET-CENTER-NO';
-        
-        foreach ($allStudentsInClass as $index => $student) {
-            $sequence = str_pad($index + 1, 4, '0', STR_PAD_LEFT);
-            $student->examination_number = "{$examCenterNo}/{$sequence}";
-        }
-        
-        // Now filter by subclass if specified
-        if ($subclassID && $subclassID !== 'all') {
-            return $allStudentsInClass->where('subclassID', $subclassID);
-        }
-        
-        return $allStudentsInClass;
+            ->orderBy('first_name', 'asc')
+            ->get()
+            ->map(function ($student) use ($enrollmentByStudent, $examNumberByStudent) {
+                $enr = $enrollmentByStudent->get($student->studentID);
+                $status = $enr ? (string) $enr->status : null;
+                $student->examination_number =
+                    $examNumberByStudent[(int) $student->studentID] ?? null;
+                $student->enrollmentID = $enr ? (int) $enr->enrollmentID : null;
+                $student->enrollment_status = $status;
+                $student->can_enter_result = $status === 'Active';
+                if ($enr && $enr->subclass) {
+                    $student->setRelation('subclass', $enr->subclass);
+                    $student->subclassID = $enr->subclassID;
+                }
+                return $student;
+            });
     }
 }

@@ -206,6 +206,7 @@
                 <div class="form-group">
                     <label class="font-weight-bold">Search Student</label>
                     <input type="text" id="studentSearchInput" class="form-control" placeholder="Type name or admission number...">
+                    <small class="text-muted d-block mt-1">Only <strong>Active enrollments</strong> for the academic year selected in the header can be reported.</small>
                     <input type="hidden" id="selectedStudentID">
                     <div id="studentSearchResults" class="list-group mt-2" style="max-height:200px;overflow:auto;"></div>
                     <div id="selectedStudentDisplay" class="mt-2 p-2 bg-light border d-none"></div>
@@ -468,10 +469,19 @@
             return;
         }
         searchTimer = setTimeout(async () => {
-            const res = await bbApi(searchUrl + '?search=' + encodeURIComponent(q), 'GET', null, false);
+            const res = await bbApi(searchUrl + '?search=' + encodeURIComponent(q) + '&for_report=1', 'GET', null, false);
             const box = document.getElementById('studentSearchResults');
-            box.innerHTML = (res.students || []).map(s =>
-                '<button type="button" class="list-group-item list-group-item-action student-result-item" data-id="' + s.studentID + '" data-display="' + s.display.replace(/"/g, '&quot;') + '">' + s.display + '</button>'
+            if (res.success === false && (res.error_code === 'no_academic_year' || res.error_code === 'no_active_enrollments')) {
+                box.innerHTML = '<div class="list-group-item text-muted small">' + (res.message || 'No Active enrollments for the selected academic year.') + '</div>';
+                return;
+            }
+            const students = (res.students || []).filter(s => s.can_report !== false);
+            if (!students.length) {
+                box.innerHTML = '<div class="list-group-item text-muted small">No Active enrolled students matched.</div>';
+                return;
+            }
+            box.innerHTML = students.map(s =>
+                '<button type="button" class="list-group-item list-group-item-action student-result-item" data-id="' + s.studentID + '" data-display="' + String(s.display || '').replace(/"/g, '&quot;') + '">' + escapeHtml(s.display) + '</button>'
             ).join('');
             box.querySelectorAll('.student-result-item').forEach(btn => {
                 btn.onclick = () => {

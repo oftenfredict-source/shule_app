@@ -74,7 +74,7 @@
 
                     <div class="card shadow-sm border-0 mb-4">
                         <div class="card-body">
-                            <div class="py-2 px-3 border-0 mb-4" style="background-color: #FFF5F5; border-left: 4px solid #940000 !important;">
+                            <div class="py-2 px-3 border-0 mb-3" style="background-color: #FFF5F5; border-left: 4px solid #940000 !important;">
                                 <div class="row align-items-center">
                                     <div class="col-md-4">
                                         <h6 class="mb-0" style="color: #2f2f2f;"><strong>Teacher on Duty:</strong> <u id="display_teacher_name" style="color: #940000;">---</u></h6>
@@ -87,6 +87,11 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <p class="small text-muted mb-2 font-weight-bold" id="duty_enrollment_scope_note">
+                                <i class="fa fa-lock mr-1" style="color: #940000;"></i>
+                                Counts from <strong>Active enrollments</strong> only (header academic year) — not editable. Use Sync to refresh.
+                            </p>
 
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered text-center" id="attendance_table">
@@ -112,33 +117,33 @@
                                         <tr class="class-row" data-class-id="{{ $cls->classID }}">
                                             <td class="bg-light font-weight-bold">{{ $cls->class_name }}</td>
                                             <!-- REGISTERED -->
-                                            <td><input type="number" class="form-control form-control-sm reg-b" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm reg-g" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm reg-t" readonly value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm reg-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm reg-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm reg-t" readonly value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- PRESENT -->
-                                            <td><input type="number" class="form-control form-control-sm pres-b" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm pres-g" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm pres-t" readonly value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm pres-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm pres-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm pres-t" readonly value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- SHIFTED -->
-                                            <td><input type="number" class="form-control form-control-sm shift-b" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm shift-g" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm shift-t" readonly value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm shift-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm shift-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm shift-t" readonly value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- NEW COMERS -->
-                                            <td><input type="number" class="form-control form-control-sm new-b" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm new-g" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm new-t" readonly value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm new-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm new-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm new-t" readonly value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- ABSENT -->
-                                            <td><input type="number" class="form-control form-control-sm abs-b" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm abs-g" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm abs-t" readonly value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm abs-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm abs-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm abs-t" readonly value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- PERMISSION -->
-                                            <td><input type="number" class="form-control form-control-sm perm-b" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm perm-g" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm perm-t" readonly value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm perm-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm perm-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm perm-t" readonly value="0" style="background-color: #f8f9fa;"></td>
                                             <!-- SICK -->
-                                            <td><input type="number" class="form-control form-control-sm sick-b" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm sick-g" value="0"></td>
-                                            <td><input type="number" class="form-control form-control-sm sick-t" readonly value="0"></td>
+                                            <td><input type="number" class="form-control form-control-sm sick-b" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm sick-g" value="0" readonly tabindex="-1" style="background-color: #f8f9fa;"></td>
+                                            <td><input type="number" class="form-control form-control-sm sick-t" readonly value="0" style="background-color: #f8f9fa;"></td>
                                         </tr>
                                         @endforeach
                                     </tbody>
@@ -162,10 +167,10 @@
                                     <div class="form-group mb-3">
                                         <label class="font-weight-bold"><i class="fa fa-calculator mr-1"></i> 1. Attendance report in percentage (%):</label>
                                         <div class="input-group input-group-sm mb-1">
-                                            <input type="number" step="0.01" name="attendance_percentage" id="attendance_percentage" class="form-control font-weight-bold" style="background-color: #e8f5e9; color: #2e7d32;">
+                                            <input type="number" step="0.01" name="attendance_percentage" id="attendance_percentage" class="form-control font-weight-bold" readonly tabindex="-1" style="background-color: #e8f5e9; color: #2e7d32;">
                                             <div class="input-group-append"><span class="input-group-text bg-success text-white">%</span></div>
                                         </div>
-                                        <small class="text-muted"><i class="fa fa-info-circle"></i> Auto-calculated based on system attendance data.</small>
+                                        <small class="text-muted"><i class="fa fa-info-circle"></i> Auto-calculated from Active enrollments + system attendance (read-only).</small>
                                     </div>
                                     <div class="form-group mb-3">
                                         <label>2. School environment:</label>

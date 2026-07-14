@@ -27,6 +27,13 @@
         color: #940000 !important;
     }
 
+    .enrollment-inactive-row {
+        background-color: #eceff1 !important;
+        opacity: 0.75;
+        color: #607d8b;
+    }
+    .enrollment-status-badge { font-size: 0.7rem; vertical-align: middle; }
+
     .border-primary-custom {
         border-color: #940000 !important;
     }
@@ -1079,7 +1086,7 @@
                                     style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
                                     <div class="card-body text-center">
                                         <h5 class="mb-0" id="statTotalStudents">0</h5>
-                                        <small class="text-muted">Total Students</small>
+                                        <small class="text-muted">Active Enrolled</small>
                                     </div>
                                 </div>
                             </div>
@@ -1114,21 +1121,25 @@
                     </div>
                 </div>
 
-                <!-- Tabs -->
+                <!-- Tabs (enrollment status for selected academic year) -->
                 <ul class="nav nav-tabs mb-3" id="studentsTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <a class="nav-link active" id="active-students-tab" data-toggle="tab" href="#active-students"
                             role="tab" aria-controls="active-students" aria-selected="true">
-                            <i class="bi bi-check-circle"></i> Active Students
+                            <i class="bi bi-check-circle"></i> Active Enrolled
                         </a>
                     </li>
                     <li class="nav-item" role="presentation">
                         <a class="nav-link" id="transferred-students-tab" data-toggle="tab" href="#transferred-students"
                             role="tab" aria-controls="transferred-students" aria-selected="false">
-                            <i class="bi bi-arrow-right-circle"></i> Transferred Students
+                            <i class="bi bi-clock-history"></i> Other Enrollments
                         </a>
                     </li>
                 </ul>
+                <p class="text-muted small mb-2">
+                    Counts and Active tab use <strong>Active enrollments</strong> for the academic year selected in the header.
+                    Other statuses (Transferred, Completed, Dropped, Cancelled) appear in the second tab.
+                </p>
 
                 <!-- Tab Content -->
                 <div class="tab-content" id="studentsTabContent">
@@ -1527,17 +1538,30 @@
                             <input type="hidden" name="schoolID" value="{{ Session::get('schoolID') }}">
 
                             <div class="row mb-3">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <div class="form-group">
                                         <label for="attendance_date">Date <span class="text-danger">*</span></label>
                                         <input type="date" class="form-control" id="attendance_date"
                                             name="attendance_date" required value="{{ date('Y-m-d') }}"
                                             max="{{ date('Y-m-d') }}">
-                                        <small class="form-text text-muted"><i class="bi bi-info-circle"></i> You can
-                                            select today or any past date</small>
+                                        <small class="form-text text-muted"><i class="bi bi-info-circle"></i> Today or past date</small>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="attendance_enrollment_status">Enrollment Status</label>
+                                        <select class="form-control" id="attendance_enrollment_status" name="enrollment_status">
+                                            <option value="Active" selected>Active</option>
+                                            <option value="Completed">Completed</option>
+                                            <option value="Transferred">Transferred</option>
+                                            <option value="Dropped">Dropped</option>
+                                            <option value="Cancelled">Cancelled</option>
+                                            <option value="all">All enrollments</option>
+                                        </select>
+                                        <small class="form-text text-muted">Uses academic year from header</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
                                     <div class="form-group">
                                         <label>Quick Actions</label>
                                         <div>
@@ -3238,7 +3262,8 @@
                         classID: classID,
                         coordinator: 'true',
                         subclassFilter: subclassFilter,
-                        genderFilter: genderFilter
+                        genderFilter: genderFilter,
+                        enrollment_status: 'all'
                     },
                     dataType: 'json',
                     success: function (response) {
@@ -3248,11 +3273,9 @@
                         console.log('Response:', response);
 
                         if (response.success && response.students) {
-                            // Update statistics from server
-                            // Filter only active students before calculating statistics
+                            // Update statistics from Active enrollments
                             var activeStudents = response.students.filter(function (s) {
-                                var status = s.status || '';
-                                return status === 'Active' || status === 'active' || status === '';
+                                return (s.enrollment_status || '') === 'Active';
                             });
 
                             // Calculate statistics from active students only
@@ -3289,9 +3312,20 @@
                 activeTbody.empty();
                 transferredTbody.empty();
 
-                // Filter only active students for export
+                if (!students || students.length === 0) {
+                    window.allStudentsForExport = [];
+                    $('#statTotalStudents').text(0);
+                    $('#statMaleStudents').text(0);
+                    $('#statFemaleStudents').text(0);
+                    $('#statHealthIssues').text(0);
+                    activeTbody.append('<tr><td colspan="10" class="text-center">No students found</td></tr>');
+                    transferredTbody.append('<tr><td colspan="10" class="text-center">No other enrollments found</td></tr>');
+                    return;
+                }
+
+                // Filter Active enrollments for export
                 var activeStudentsForExport = students.filter(function (s) {
-                    return s.status === 'Active' || s.status === 'active' || !s.status;
+                    return (s.enrollment_status || '') === 'Active';
                 });
 
                 // Store only active students data globally for export
@@ -3320,13 +3354,15 @@
                 window.allStudentsForExport = allStudentsData;
                 console.log('Active students data stored for export:', window.allStudentsForExport.length, 'students');
 
-                // Filter only active students for display (exclude Transferred, Graduated, Inactive)
+                // Filter Active enrollments for display / stats
                 var activeStudentsForDisplay = students.filter(function (s) {
-                    var status = s.status || '';
-                    return status === 'Active' || status === 'active' || status === '';
+                    return (s.enrollment_status || '') === 'Active';
+                });
+                var otherStudentsForDisplay = students.filter(function (s) {
+                    return (s.enrollment_status || '') !== 'Active';
                 });
 
-                // Update statistics with only active students
+                // Update statistics with only Active enrollments
                 if (activeStudentsForDisplay && activeStudentsForDisplay.length > 0) {
                     var activeTotal = activeStudentsForDisplay.length;
                     var activeMale = activeStudentsForDisplay.filter(function (s) { return s.gender === 'Male'; }).length;
@@ -3346,30 +3382,29 @@
                     $('#statHealthIssues').text(0);
                 }
 
-                if (activeStudentsForDisplay && activeStudentsForDisplay.length > 0) {
-                    var activeIndex = 0;
-                    var transferredIndex = 0;
-                    var schoolType = '{{ isset($school_details) ? $school_details->school_type : "Secondary" }}';
+                var activeIndex = 0;
+                var transferredIndex = 0;
+                var schoolType = '{{ isset($school_details) ? $school_details->school_type : "Secondary" }}';
 
-                    // Function to generate random color based on student name (deterministic)
-                    function getColorFromName(name) {
-                        if (!name) return '#940000';
-                        var colors = [
-                            '#940000', '#007bff', '#28a745', '#ffc107', '#dc3545',
-                            '#17a2b8', '#6f42c1', '#e83e8c', '#fd7e14', '#20c997',
-                            '#6610f2', '#6c757d', '#343a40', '#f8f9fa', '#212529',
-                            '#1abc9c', '#3498db', '#9b59b6', '#e74c3c', '#f39c12',
-                            '#16a085', '#2980b9', '#8e44ad', '#c0392b', '#d35400',
-                            '#27ae60', '#34495e', '#e67e22', '#95a5a6', '#2c3e50'
-                        ];
-                        var hash = 0;
-                        for (var i = 0; i < name.length; i++) {
-                            hash = name.charCodeAt(i) + ((hash << 5) - hash);
-                        }
-                        return colors[Math.abs(hash) % colors.length];
+                // Function to generate random color based on student name (deterministic)
+                function getColorFromName(name) {
+                    if (!name) return '#940000';
+                    var colors = [
+                        '#940000', '#007bff', '#28a745', '#ffc107', '#dc3545',
+                        '#17a2b8', '#6f42c1', '#e83e8c', '#fd7e14', '#20c997',
+                        '#6610f2', '#6c757d', '#343a40', '#f8f9fa', '#212529',
+                        '#1abc9c', '#3498db', '#9b59b6', '#e74c3c', '#f39c12',
+                        '#16a085', '#2980b9', '#8e44ad', '#c0392b', '#d35400',
+                        '#27ae60', '#34495e', '#e67e22', '#95a5a6', '#2c3e50'
+                    ];
+                    var hash = 0;
+                    for (var i = 0; i < name.length; i++) {
+                        hash = name.charCodeAt(i) + ((hash << 5) - hash);
                     }
+                    return colors[Math.abs(hash) % colors.length];
+                }
 
-                    $.each(activeStudentsForDisplay, function (index, student) {
+                $.each(students, function (index, student) {
                         var baseUrl = '{{ asset("") }}';
                         var photoUrl = '';
 
@@ -3405,11 +3440,16 @@
                         var actionButtons = '<button class="btn btn-sm btn-info view-student-btn" data-student-id="' + student.studentID + '" title="View Details"><i class="bi bi-eye"></i></button> ' +
                             '<button class="btn btn-sm btn-warning edit-student-btn" data-student-id="' + student.studentID + '" title="Edit"><i class="bi bi-pencil-square"></i></button> ';
 
-                        // Handle Transferred students
-                        if (student.status === 'Transferred') {
-                            actionButtons += '<button class="btn btn-sm btn-success activate-student-btn" data-student-id="' + student.studentID + '" title="Activate Student"><i class="bi bi-check-circle"></i></button> ';
-                            if (student.old_subclassID && student.old_subclass_info) {
-                                actionButtons += '<button class="btn btn-sm btn-secondary revert-transfer-btn" data-student-id="' + student.studentID + '" title="Revert to ' + (student.old_subclass_info.display_name || 'Previous Class') + '"><i class="bi bi-arrow-left-circle"></i></button> ';
+                        var enrollmentStatus = student.enrollment_status || '';
+                        var isActiveEnrolled = enrollmentStatus === 'Active';
+
+                        // Other enrollments tab
+                        if (!isActiveEnrolled) {
+                            if (student.status === 'Transferred') {
+                                actionButtons += '<button class="btn btn-sm btn-success activate-student-btn" data-student-id="' + student.studentID + '" title="Activate Student"><i class="bi bi-check-circle"></i></button> ';
+                                if (student.old_subclassID && student.old_subclass_info) {
+                                    actionButtons += '<button class="btn btn-sm btn-secondary revert-transfer-btn" data-student-id="' + student.studentID + '" title="Revert to ' + (student.old_subclass_info.display_name || 'Previous Class') + '"><i class="bi bi-arrow-left-circle"></i></button> ';
+                                }
                             }
                             actionButtons += '<button class="btn btn-sm btn-danger delete-student-btn" data-student-id="' + student.studentID + '" title="Delete"><i class="bi bi-trash-fill"></i></button>';
 
@@ -3444,10 +3484,12 @@
                             var previousClass = '<span class="text-muted">N/A</span>';
                             if (student.old_subclass_info) {
                                 previousClass = '<strong>' + (student.old_subclass_info.subclass_name || student.old_subclass_info.display_name || 'N/A') + '</strong>';
+                            } else if (enrollmentStatus) {
+                                previousClass = '<span class="badge badge-secondary">' + enrollmentStatus + '</span>';
                             }
 
                             var subclassIDForFilter = student.subclassID || '';
-                            var row = $('<tr>')
+                            var row = $('<tr class="enrollment-inactive-row">')
                                 .attr('data-subclass-id', subclassIDForFilter)
                                 .attr('data-admission-date', student.admission_date || '')
                                 .attr('data-has-health-issues', student.has_health_issues || false)
@@ -3466,14 +3508,14 @@
                             transferredTbody.append(row);
                             transferredIndex++;
                         } else {
-                            // Active Students
+                            // Active enrolled
                             actionButtons += '<a href="#" class="btn btn-sm btn-success text-white send-student-to-fingerprint-btn" data-student-id="' + student.studentID + '" data-student-name="' + (student.first_name || '') + '" data-fingerprint-id="' + (student.fingerprint_id || '') + '" title="Send to Fingerprint Device"><i class="bi bi-fingerprint"></i></a> ';
 
                             if (student.status !== 'Active') {
                                 actionButtons += '<button class="btn btn-sm btn-danger delete-student-btn" data-student-id="' + student.studentID + '" title="Delete"><i class="bi bi-trash-fill"></i></button>';
                             }
 
-                            var statusBadge = '<span class="badge badge-success">' + (student.status || 'Active') + '</span>';
+                            var statusBadge = '<span class="badge badge-success">' + (enrollmentStatus || student.status || 'Active') + '</span>';
 
                             var fingerprintStatus = '';
                             if (student.fingerprint_id) {
@@ -3534,11 +3576,6 @@
                         pageLength: 10,
                         order: [[3, 'asc']]
                     });
-                } else {
-                    window.allStudentsForExport = [];
-                    activeTbody.append('<tr><td colspan="10" class="text-center">No students found</td></tr>');
-                    transferredTbody.append('<tr><td colspan="10" class="text-center">No transferred students found</td></tr>');
-                }
             }
 
             // Load Students for Coordinator (all subclasses in main class)
@@ -3546,15 +3583,14 @@
                 if (!classID) return;
 
                 $.ajax({
-                    url: '{{ url("get_subclass_students") }}/0?classID=' + classID + '&coordinator=true',
+                    url: '{{ url("get_subclass_students") }}/0?classID=' + classID + '&coordinator=true&enrollment_status=all',
                     type: 'GET',
                     dataType: 'json',
                     success: function (response) {
                         if (response.success && response.students) {
-                            // Filter only active students before calculating statistics
+                            // Filter Active enrollments before calculating statistics
                             var activeStudents = response.students.filter(function (s) {
-                                var status = s.status || '';
-                                return status === 'Active' || status === 'active' || status === '';
+                                return (s.enrollment_status || '') === 'Active';
                             });
 
                             // Calculate statistics from active students only
@@ -3783,6 +3819,7 @@
                 $.ajax({
                     url: '{{ url("get_subclass_students") }}/' + subclassID,
                     type: 'GET',
+                    data: { enrollment_status: 'all' },
                     dataType: 'json',
                     success: function (response) {
                         var activeTbody = $('#activeStudentsTable tbody');
@@ -3790,14 +3827,23 @@
                         activeTbody.empty();
                         transferredTbody.empty();
 
+                        if (response.error_code === 'no_enrollments') {
+                            activeTbody.html('<tr><td colspan="10" class="text-center text-muted">' + (response.message || 'No enrollments for selected year.') + '</td></tr>');
+                            $('#statTotalStudents').text(0);
+                            $('#statMaleStudents').text(0);
+                            $('#statFemaleStudents').text(0);
+                            $('#statHealthIssues').text(0);
+                            window.allStudentsForExport = [];
+                            return;
+                        }
+
                         if (response.students && response.students.length > 0) {
-                            // Filter only active students first
+                            // Active enrollments only for stats / export
                             var activeStudents = response.students.filter(function (s) {
-                                var status = s.status || '';
-                                return status === 'Active' || status === 'active' || status === '';
+                                return (s.enrollment_status || '') === 'Active';
                             });
 
-                            // Calculate statistics from active students only
+                            // Calculate statistics from active enrollments only
                             var activeTotal = activeStudents.length;
                             var activeMale = activeStudents.filter(function (s) { return s.gender === 'Male'; }).length;
                             var activeFemale = activeStudents.filter(function (s) { return s.gender === 'Female'; }).length;
@@ -3818,7 +3864,8 @@
                                     admission_date: s.admission_date,
                                     subclassID: s.subclassID,
                                     has_health_issues: s.has_health_issues || false,
-                                    status: s.status || 'Active'
+                                    status: s.status || 'Active',
+                                    enrollment_status: s.enrollment_status || 'Active'
                                 };
                             });
 
@@ -3839,6 +3886,7 @@
                                     parent_name: s.parent_name || 'Not Assigned',
                                     address: s.address || 'N/A',
                                     status: s.status || 'Active',
+                                    enrollment_status: s.enrollment_status || 'Active',
                                     has_health_issues: s.has_health_issues || false,
                                     photo: s.photo || null
                                 };
@@ -3902,13 +3950,18 @@
                                 var actionButtons = '<button class="btn btn-sm btn-info view-student-btn" data-student-id="' + student.studentID + '" title="View Details"><i class="bi bi-eye"></i></button> ' +
                                     '<button class="btn btn-sm btn-warning edit-student-btn" data-student-id="' + student.studentID + '" title="Edit"><i class="bi bi-pencil-square"></i></button> ';
 
-                                // Only show in Transferred tab if status is explicitly "Transferred"
-                                if (student.status === 'Transferred') {
+                                var enrollmentStatus = student.enrollment_status || '';
+                                var isActiveEnrolled = enrollmentStatus === 'Active';
+
+                                // Other enrollments tab (non-Active enrollment for selected year)
+                                if (!isActiveEnrolled) {
                                     // Transferred Students
-                                    actionButtons += '<button class="btn btn-sm btn-success activate-student-btn" data-student-id="' + student.studentID + '" title="Activate Student"><i class="bi bi-check-circle"></i></button> ';
-                                    // Always show revert button if old_subclassID exists (student came from another class)
-                                    if (student.old_subclassID && student.old_subclass_info) {
-                                        actionButtons += '<button class="btn btn-sm btn-secondary revert-transfer-btn" data-student-id="' + student.studentID + '" title="Revert to ' + (student.old_subclass_info.display_name || 'Previous Class') + '"><i class="bi bi-arrow-left-circle"></i></button> ';
+                                    if (student.status === 'Transferred') {
+                                        actionButtons += '<button class="btn btn-sm btn-success activate-student-btn" data-student-id="' + student.studentID + '" title="Activate Student"><i class="bi bi-check-circle"></i></button> ';
+                                        // Always show revert button if old_subclassID exists (student came from another class)
+                                        if (student.old_subclassID && student.old_subclass_info) {
+                                            actionButtons += '<button class="btn btn-sm btn-secondary revert-transfer-btn" data-student-id="' + student.studentID + '" title="Revert to ' + (student.old_subclass_info.display_name || 'Previous Class') + '"><i class="bi bi-arrow-left-circle"></i></button> ';
+                                        }
                                     }
                                     actionButtons += '<button class="btn btn-sm btn-danger delete-student-btn" data-student-id="' + student.studentID + '" title="Delete"><i class="bi bi-trash-fill"></i></button>';
 
@@ -3948,10 +4001,13 @@
                                     var previousClass = '<span class="text-muted">N/A</span>';
                                     if (student.old_subclass_info) {
                                         previousClass = '<strong>' + (student.old_subclass_info.subclass_name || student.old_subclass_info.display_name || 'N/A') + '</strong>';
+                                    } else if (enrollmentStatus) {
+                                        previousClass = '<span class="badge badge-secondary">' + enrollmentStatus + '</span>';
                                     }
 
                                     var subclassIDForFilter = student.subclassID || '';
-                                    var row = $('<tr>')
+                                    var subclassDisplayOther = student.subclass_display || (student.class_name && student.subclass_name ? student.class_name + ' - ' + student.subclass_name : (student.subclass_name || 'N/A'));
+                                    var row = $('<tr class="enrollment-inactive-row">')
                                         .attr('data-subclass-id', subclassIDForFilter)
                                         .attr('data-admission-date', student.admission_date || '')
                                         .attr('data-has-health-issues', student.has_health_issues || false)
@@ -3961,7 +4017,7 @@
                                             '<td>' + (student.admission_number || 'N/A') + '</td>' +
                                             '<td>' + (student.first_name || '') + ' ' + (student.middle_name || '') + ' ' + (student.last_name || '') + '</td>' +
                                             '<td>' + (student.gender || 'N/A') + '</td>' +
-                                            (isCoordinatorView ? '<td>' + subclassDisplay + '</td>' : '') +
+                                            (isCoordinatorView ? '<td>' + subclassDisplayOther + '</td>' : '') +
                                             '<td>' + previousClass + '</td>' +
                                             '<td>' + gradeDisplay + '</td>' +
                                             '<td>' + (student.parent_name || 'Not Assigned') + '</td>' +
@@ -3970,8 +4026,7 @@
                                     transferredTbody.append(row);
                                     transferredIndex++;
                                 } else {
-                                    // Active Students (all students that are not "Transferred" status)
-                                    // This includes: Active, Graduated, Inactive, etc.
+                                    // Active enrolled students
                                     // Add Send to Fingerprint Device button (always show, backend will check if already has fingerprint_id)
                                     actionButtons += '<a href="#" class="btn btn-sm btn-success text-white send-student-to-fingerprint-btn" data-student-id="' + student.studentID + '" data-student-name="' + (student.first_name || '') + '" data-fingerprint-id="' + (student.fingerprint_id || '') + '" title="Send to Fingerprint Device"><i class="bi bi-fingerprint"></i></a> ';
 
@@ -3980,7 +4035,7 @@
                                         actionButtons += '<button class="btn btn-sm btn-danger delete-student-btn" data-student-id="' + student.studentID + '" title="Delete"><i class="bi bi-trash-fill"></i></button>';
                                     }
 
-                                    var statusBadge = '<span class="badge badge-success">' + (student.status || 'Active') + '</span>';
+                                    var statusBadge = '<span class="badge badge-success">' + (enrollmentStatus || student.status || 'Active') + '</span>';
 
                                     // Fingerprint Status
                                     var fingerprintStatus = '';
@@ -5607,7 +5662,11 @@
                             var schoolType = response.school_type || 'Secondary';
                             var baseUrl = '{{ asset("") }}';
 
-                            var html = '<div class="table-responsive">';
+                            var html = '';
+                            if (response.active_enrollment_count != null) {
+                                html += '<div class="mb-2 small text-muted"><i class="bi bi-info-circle"></i> Ranking uses <strong>Active enrollments</strong> only (' + response.active_enrollment_count + '). Non-Active rows are greyed.</div>';
+                            }
+                            html += '<div class="table-responsive">';
                             html += '<table class="table table-hover table-striped table-bordered">';
                             html += '<thead class="bg-primary-custom text-white">';
                             html += '<tr>';
@@ -5615,6 +5674,7 @@
                             html += '<th>Photo</th>';
                             html += '<th>Admission No.</th>';
                             html += '<th>Student Name</th>';
+                            html += '<th>Enrollment</th>';
                             html += '<th>Total Marks</th>';
                             html += '<th>Average</th>';
                             html += '<th>' + (schoolType === 'Primary' ? 'Division' : 'Grade') + '</th>';
@@ -5634,6 +5694,11 @@
                                         : baseUrl + 'images/male.png';
                                 }
                                 var fallbackPhoto = result.gender === 'Female' ? baseUrl + 'images/female.png' : baseUrl + 'images/male.png';
+                                var canEnter = result.can_enter_result !== false && (result.enrollment_status || 'Active') === 'Active';
+                                var rowClass = canEnter ? '' : 'enrollment-inactive-row';
+                                var enrBadge = canEnter
+                                    ? '<span class="badge badge-success enrollment-status-badge">Active</span>'
+                                    : '<span class="badge badge-secondary enrollment-status-badge">' + (result.enrollment_status || 'Inactive') + '</span>';
 
                                 var gradeOrDivision = '';
                                 var gradeClass = '';
@@ -5680,19 +5745,23 @@
                                     }
                                 }
 
-                                html += '<tr>';
+                                html += '<tr class="' + rowClass + '">';
                                 html += '<td>' + (index + 1) + '</td>';
                                 html += '<td>';
                                 html += '<img src="' + photoUrl + '" alt="Student Photo" class="rounded-circle" style="width: 50px; height: 50px; object-fit: cover; border: 2px solid #940000; cursor: pointer;" onerror="this.src=\'' + fallbackPhoto + '\'">';
                                 html += '</td>';
                                 html += '<td><strong>' + (result.admission_number || 'N/A') + '</strong></td>';
                                 html += '<td>' + (result.first_name || '') + ' ' + (result.middle_name || '') + ' ' + (result.last_name || '') + '</td>';
+                                html += '<td>' + enrBadge + '</td>';
                                 html += '<td><strong>' + (result.total_marks || 0) + '</strong></td>';
                                 html += '<td><strong>' + (result.average_marks ? result.average_marks.toFixed(2) : '0.00') + '</strong></td>';
                                 html += '<td><span class="badge ' + gradeClass + '" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;">' + gradeOrDivision + '</span></td>';
-                                var classPosText = (result.class_position || 'N/A');
-                                if (result.total_class_students && result.class_position) {
-                                    classPosText = result.class_position + ' out of ' + result.total_class_students;
+                                var classPosText = '—';
+                                if (canEnter && result.class_position) {
+                                    classPosText = result.class_position;
+                                    if (result.total_class_students) {
+                                        classPosText = result.class_position + ' out of ' + result.total_class_students;
+                                    }
                                 }
                                 html += '<td><strong class="text-info">' + classPosText + '</strong></td>';
                                 html += '<td>';
@@ -5721,7 +5790,8 @@
                         } else if (xhr.status === 403) {
                             errorMsg = 'Unauthorized access.';
                         }
-                        $('#resultsContent').html('<div class="alert alert-danger">' + errorMsg + '</div>');
+                        var alertClass = (xhr.status === 422) ? 'alert-warning' : 'alert-danger';
+                        $('#resultsContent').html('<div class="alert ' + alertClass + '">' + errorMsg + '</div>');
                         console.error('Error loading results:', xhr);
                     }
                 });
@@ -6723,6 +6793,17 @@
                 }
             });
 
+            $('#attendance_enrollment_status').on('change', function () {
+                if (typeof isCoordinatorView !== 'undefined' && isCoordinatorView) {
+                    var subclassSelector = $('#attendanceSubclassSelect').val();
+                    if (subclassSelector) {
+                        loadStudentsForAttendance(subclassSelector);
+                    }
+                } else {
+                    loadStudentsForAttendance();
+                }
+            });
+
             // Load Students for Attendance Collection
             // Load Subclasses for Attendance (Coordinator View)
             function loadSubclassesForAttendance() {
@@ -6782,12 +6863,14 @@
                 }
 
                 var attendanceDate = $('#attendance_date').val();
+                var enrollmentStatus = $('#attendance_enrollment_status').val() || 'Active';
 
                 $.ajax({
                     url: '{{ url("get_subclass_students") }}/' + targetSubclassID,
                     type: 'GET',
                     data: {
                         attendance_date: attendanceDate,
+                        enrollment_status: enrollmentStatus,
                         coordinator: isCoordinatorView ? 'true' : 'false',
                         classID: typeof classID !== 'undefined' ? classID : null
                     },
@@ -6804,8 +6887,9 @@
                             var studentIndex = 0;
 
                             $.each(response.students, function (index, student) {
-                                // Skip transferred students
-                                if (student.status === 'Transferred') return;
+                                // Roster already filtered by enrollment status (header year)
+                                // Skip only if student record is Transferred AND enrollment filter is Active
+                                if (enrollmentStatus === 'Active' && student.status === 'Transferred' && !student.enrollment_status) return;
 
                                 var photoUrl = '';
                                 var firstLetter = (student.first_name || 'N').charAt(0).toUpperCase();
@@ -6829,23 +6913,31 @@
                                 var remark = student.attendance_remark || '';
                                 var studentName = (student.first_name || '') + ' ' + (student.middle_name || '') + ' ' + (student.last_name || '');
                                 var admissionNo = (student.admission_number || 'N/A');
+                                var enrBadge = student.enrollment_status
+                                    ? '<span class="badge badge-secondary ml-1">' + student.enrollment_status + '</span>'
+                                    : '';
+                                var canMark = !student.enrollment_status || student.enrollment_status === 'Active';
+                                var statusDisabled = canMark ? '' : ' disabled';
 
                                 var row = '<tr>' +
                                     '<td data-label="#" class="mobile-hide">' + (studentIndex + 1) + '</td>' +
                                     '<td class="student-info-col" data-label="Student">' +
                                     '<div class="d-flex align-items-center gap-2">' +
                                     photoHtml +
-                                    '<div><strong>' + studentName + '</strong></div>' +
+                                    '<div><strong>' + studentName + '</strong> ' + enrBadge +
+                                    (student.enrollmentID ? '<div class="small text-muted">Enr #' + student.enrollmentID + '</div>' : '') +
+                                    '</div>' +
                                     '</div>' +
                                     '</td>' +
                                     '<td class="mobile-hide toggle-row-' + student.studentID + '" data-label="Adm No.">' + admissionNo + '</td>' +
                                     '<td class="action-col" data-label="Status">' +
-                                    '<select class="form-control form-control-sm attendance-status w-100" name="attendance[' + student.studentID + '][status]" data-student-id="' + student.studentID + '">' +
+                                    '<select class="form-control form-control-sm attendance-status w-100" name="attendance[' + student.studentID + '][status]" data-student-id="' + student.studentID + '"' + statusDisabled + '>' +
                                     '<option value="Present"' + (status === 'Present' ? ' selected' : '') + '>Present</option>' +
                                     '<option value="Absent"' + (status === 'Absent' ? ' selected' : '') + '>Absent</option>' +
                                     '<option value="Sick"' + (status === 'Sick' ? ' selected' : '') + '>Sick</option>' +
                                     '<option value="Excused"' + (status === 'Excused' ? ' selected' : '') + '>Permission</option>' +
                                     '</select>' +
+                                    (!canMark ? '<small class="text-muted">View only (past enrollment)</small>' : '') +
                                     '</td>' +
                                     '<td class="mobile-hide toggle-row-' + student.studentID + '" data-label="Remark">' +
                                     '<input type="text" class="form-control form-control-sm w-100" name="attendance[' + student.studentID + '][remark]" placeholder="Optional remark" value="' + remark + '">' +

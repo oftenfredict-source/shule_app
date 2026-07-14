@@ -1290,8 +1290,10 @@ class ManageStudentController extends Controller
     }
 
     /**
-     * Mark active enrollment as Dropped (expelled) or Transferred (left school).
-     * Not used for internal/external class moves within the same school.
+     * Mark active enrollment exit outcomes for school-leaving / reporting:
+     * Dropped, Dropout, Truancy, Transferred.
+     * Truancy / Dropout set enrollment status to Dropped and stamp promotion_status
+     * for government / movement reporting. Not used for internal class moves.
      */
     public function update_enrollment_exit_status(Request $request)
     {
@@ -1309,7 +1311,7 @@ class ManageStudentController extends Controller
 
         $validator = Validator::make($request->all(), [
             'studentID' => 'required|integer|exists:students,studentID',
-            'action' => 'required|in:Dropped,Transferred',
+            'action' => 'required|in:Dropped,Transferred,Truancy,Dropout',
             'confirm_word' => 'required|in:yes,YES,Yes',
             'notes' => 'nullable|string|max:500',
         ]);
@@ -1322,7 +1324,7 @@ class ManageStudentController extends Controller
             ], 422);
         }
 
-        $action = $request->input('action'); // Dropped | Transferred
+        $action = $request->input('action');
         $notes = trim((string) $request->input('notes', ''));
 
         try {
@@ -1361,44 +1363,52 @@ class ManageStudentController extends Controller
                     ], 422);
                 }
 
-                $label = $action === 'Dropped'
-                    ? 'Dropped (left / expelled)'
-                    : 'Transferred (left school)';
+                // Map action → enrollment.status + promotion_status
+                if ($action === 'Transferred') {
+                    $enrollmentStatus = 'Transferred';
+                    $promotionStatus = 'Transferred';
+                    $label = 'Transferred (left school)';
+                    $student->status = 'Transferred';
+                } elseif ($action === 'Truancy') {
+                    $enrollmentStatus = 'Dropped';
+                    $promotionStatus = 'Truancy';
+                    $label = 'Truancy (Long-term absentee)';
+                    $student->status = 'Inactive';
+                } elseif ($action === 'Dropout') {
+                    $enrollmentStatus = 'Dropped';
+                    $promotionStatus = 'Dropout';
+                    $label = 'Dropout';
+                    $student->status = 'Inactive';
+                } else {
+                    // Dropped (expelled / stopped) — keep Dropped + Dropout promotion for reporting
+                    $enrollmentStatus = 'Dropped';
+                    $promotionStatus = 'Dropout';
+                    $label = 'Dropped (left / expelled)';
+                    $student->status = 'Inactive';
+                }
 
                 $noteLine = $label . ' on ' . now()->format('Y-m-d');
                 if ($notes !== '') {
                     $noteLine .= ' — ' . $notes;
                 }
 
-                $enrollment->status = $action;
+                $enrollment->status = $enrollmentStatus;
                 $enrollment->left_date = now()->toDateString();
-                // promotion_status Transferred only when student left the school
-                $enrollment->promotion_status = $action === 'Transferred' ? 'Transferred' : 'Pending';
+                $enrollment->promotion_status = $promotionStatus;
                 $enrollment->notes = trim(($enrollment->notes ? $enrollment->notes . ' | ' : '') . $noteLine);
                 $enrollment->save();
-
-                // Keep student record status in sync with exit reason
-                if ($action === 'Transferred') {
-                    $student->status = 'Transferred';
-                } else {
-                    $student->status = 'Inactive';
-                }
                 $student->save();
 
                 return response()->json([
                     'success' => true,
-                    'message' => $action === 'Dropped'
-                        ? 'Enrollment marked as Dropped.'
-                        : 'Enrollment marked as Transferred (left school).',
+                    'message' => 'Enrollment updated: ' . $label . '.',
                     'enrollment_status' => $enrollment->status,
                     'promotion_status' => $enrollment->promotion_status,
-                    'student_record_status' => $student->status,
+                    'promotion_status_label' => StudentEnrollment::promotionStatusLabel($enrollment->promotion_status),
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('update_enrollment_exit_status failed: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-            ]);
+            Log::error('update_enrollment_exit_status failed: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update enrollment: ' . $e->getMessage(),
@@ -3542,6 +3552,7 @@ class ManageStudentController extends Controller
                 'combie' => $combieLabel,
                 'status' => $enrollment->status,
                 'promotion_status' => $enrollment->promotion_status,
+                'promotion_status_label' => StudentEnrollment::promotionStatusLabel($enrollment->promotion_status),
                 'joined_date' => $joinedDate ? $joinedDate->format('Y-m-d') : null,
                 'joined_date_display' => $joinedDate ? $joinedDate->format('d M Y') : null,
                 'left_date' => $leftDate ? $leftDate->format('Y-m-d') : null,
@@ -5141,28 +5152,19 @@ class ManageStudentController extends Controller
                 ->where('status', 'Active')
                 ->get();
 
-            $enrollmentService = app(\App\Services\StudentEnrollmentService::class);
+            $enrollmentService = app(StudentEnrollmentService::class);
             $studentIDs = $selectedSubclassID
-                ? $enrollmentService->studentIDsInSubclass((int) $selectedSubclassID, (int) $schoolID)
-                : $enrollmentService->studentIDsInClass((int) $selectedClassID, (int) $schoolID);
-
-            $query = Student::where('schoolID', $schoolID)
-                ->where('status', 'Active');
+                ? $enrollmentService->studentIDsInSubclass((int) $selectedSubclassID, (int) $schoolID, 'Active')
+                : $enrollmentService->studentIDsInClass((int) $selectedClassID, (int) $schoolID, 'Active');
 
             if (!empty($studentIDs)) {
-                $query->whereIn('studentID', $studentIDs);
-            } else {
-                // Fallback if enrollments not yet complete
-                $query->whereHas('subclass', function ($q) use ($selectedClassID) {
-                    $q->where('classID', $selectedClassID);
-                });
-                if ($selectedSubclassID) {
-                    $query->where('subclassID', $selectedSubclassID);
-                }
+                $students = Student::where('schoolID', $schoolID)
+                    ->whereIn('studentID', $studentIDs)
+                    ->with(['subclass.class', 'school', 'currentEnrollment.subclass.class', 'currentEnrollment.classModel'])
+                    ->orderBy('first_name')
+                    ->get()
+                    ->map(fn ($student) => $this->enrichStudentIdCardData($student));
             }
-
-            $students = $query->with(['subclass.class', 'school', 'currentEnrollment.subclass.class'])->get()
-                ->map(fn ($student) => $this->enrichStudentIdCardData($student));
         }
 
         return view('Admin.student_identity_card', compact(
@@ -5202,26 +5204,37 @@ class ManageStudentController extends Controller
                 : null;
             $subclassID = $request->input('subclassID');
 
-            $query = Student::where('schoolID', $schoolID)->where('status', 'Active');
-
-            if ($classID) {
-                $query->whereHas('subclass', function($q) use ($classID) {
-                    $q->where('classID', $classID);
-                });
-            }
+            $enrollmentService = app(StudentEnrollmentService::class);
+            $studentIDs = [];
 
             if ($subclassID) {
-                $query->where('subclassID', $subclassID);
+                $studentIDs = $enrollmentService->studentIDsInSubclass((int) $subclassID, (int) $schoolID, 'Active');
+            } elseif ($classID) {
+                $studentIDs = $enrollmentService->studentIDsInClass((int) $classID, (int) $schoolID, 'Active');
+            } else {
+                $studentIDs = $enrollmentService
+                    ->activeEnrollments((int) $schoolID)
+                    ->pluck('studentID')
+                    ->unique()
+                    ->values()
+                    ->all();
             }
 
-            $students = $query->with(['subclass.class', 'school'])->get()
-                ->map(fn ($student) => $this->enrichStudentIdCardData($student));
+            if (!empty($studentIDs)) {
+                $students = Student::where('schoolID', $schoolID)
+                    ->whereIn('studentID', $studentIDs)
+                    ->with(['subclass.class', 'school', 'currentEnrollment.subclass.class', 'currentEnrollment.classModel'])
+                    ->orderBy('first_name')
+                    ->get()
+                    ->map(fn ($student) => $this->enrichStudentIdCardData($student));
+            }
+
             $filename = 'All_Student_ID_Cards_' . date('Y-m-d') . '.pdf';
         } else {
             $studentID = $this->decryptRouteParam($id);
             $student = Student::where('studentID', $studentID)
                 ->where('schoolID', $schoolID)
-                ->with(['subclass.class', 'school'])
+                ->with(['subclass.class', 'school', 'currentEnrollment.subclass.class', 'currentEnrollment.classModel'])
                 ->firstOrFail();
             $students->push($this->enrichStudentIdCardData($student));
             $filename = 'ID_Card_' . str_replace(' ', '_', $student->first_name . '_' . $student->last_name) . '.pdf';
@@ -5628,7 +5641,24 @@ class ManageStudentController extends Controller
 
     private function enrichStudentIdCardData(Student $student): Student
     {
-        $mainClass = $student->subclass->class->class_name ?? 'N/A';
+        $enrollment = $student->relationLoaded('currentEnrollment')
+            ? $student->currentEnrollment
+            : null;
+
+        if (!$enrollment) {
+            try {
+                $enrollment = app(StudentEnrollmentService::class)
+                    ->currentEnrollment($student->studentID, (int) ($student->schoolID ?? 0) ?: null);
+            } catch (\Throwable $e) {
+                $enrollment = null;
+            }
+        }
+
+        $mainClass = $enrollment?->classModel?->class_name
+            ?? $enrollment?->subclass?->class?->class_name
+            ?? $student->subclass->class->class_name
+            ?? 'N/A';
+
         $student->id_card_full_name = trim(
             $student->first_name . ' ' .
             ($student->middle_name ? $student->middle_name . ' ' : '') .

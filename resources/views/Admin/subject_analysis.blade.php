@@ -41,16 +41,26 @@
 
     <div class="card analysis-card mb-4">
         <div class="card-body">
+            <div class="mb-3 text-dark font-weight-bold border-bottom pb-2">
+                <i class="fa fa-filter"></i>
+                Filtering: Active enrollments for academic year
+                <strong>{{ $academicYearLabel ?? '—' }}</strong>
+                <span class="text-muted">(from header)</span>
+            </div>
+
+            @if(empty($hasSelectedAcademicYear))
+                <div class="alert alert-warning mb-0">
+                    <i class="fa fa-exclamation-triangle"></i>
+                    Select an academic year in the header before running subject analysis.
+                    Only students with <strong>Active</strong> enrollment in that year are included.
+                </div>
+            @else
             <form method="GET" action="{{ route('admin.subject_analysis') }}">
+                <input type="hidden" name="year" id="analysis_year" value="{{ $year }}">
                 <div class="row">
                     <div class="col-md-2 mb-3">
-                        <label>Year</label>
-                        <select class="form-control" name="year" id="analysis_year">
-                            <option value="">All</option>
-                            @foreach($availableYears as $yr)
-                                <option value="{{ $yr }}" {{ $year == $yr ? 'selected' : '' }}>{{ $yr }}</option>
-                            @endforeach
-                        </select>
+                        <label>Academic Year</label>
+                        <input type="text" class="form-control" value="{{ $academicYearLabel }}" readonly>
                     </div>
                     <div class="col-md-2 mb-3">
                         <label>Term</label>
@@ -101,6 +111,7 @@
                     </div>
                 </div>
             </form>
+            @endif
         </div>
     </div>
 
@@ -133,14 +144,20 @@
         }
     </style>
 
-    @if(!$examID)
+    @if(empty($hasSelectedAcademicYear))
+        <div class="alert alert-warning text-center">
+            <i class="fa fa-exclamation-triangle"></i>
+            No academic year selected. Use the header year selector, then filter an exam.
+        </div>
+    @elseif(!$examID)
         <div class="alert alert-info text-center">
             <i class="fa fa-info-circle"></i> Select filters and click Filter to view results.
+            Cohort: Active enrollments for <strong>{{ $academicYearLabel }}</strong>.
         </div>
     @else
         @if(empty($analysisData))
             <div class="alert alert-warning text-center">
-                <i class="fa fa-exclamation-triangle"></i> No results found. Incomplete.
+                <i class="fa fa-exclamation-triangle"></i> No results found for Active enrollments in {{ $academicYearLabel }}.
             </div>
         @else
             @foreach($groupedAnalysis as $classDisplay => $subjects)
@@ -509,22 +526,24 @@ $(document).ready(function() {
     }
 
     function loadExams(year, term, selectedExam) {
-        if (!year || !term) {
+        if (!term) {
             $('#analysis_exam').html('<option value="">Select Exam</option>');
             return;
         }
         $.ajax({
             url: '{{ route("admin.get_exams_for_year_term") }}',
             method: 'GET',
-            data: { year: year, term: term },
+            data: { year: year || '', term: term },
             success: function(response) {
                 if (response.success) {
                     let options = '<option value="">Select Exam</option>';
-                    response.exams.forEach(function(exam) {
+                    (response.exams || []).forEach(function(exam) {
                         const selected = String(exam.examID) === String(selectedExam) ? 'selected' : '';
                         options += `<option value="${exam.examID}" ${selected}>${exam.exam_name}</option>`;
                     });
                     $('#analysis_exam').html(options);
+                } else {
+                    $('#analysis_exam').html('<option value="">Select Exam</option>');
                 }
             }
         });
@@ -552,13 +571,16 @@ $(document).ready(function() {
         });
     }
 
+    @if(!empty($hasSelectedAcademicYear))
     const initialClass = $('#analysis_class').val();
     const initialSubclass = '{{ $subclassID }}';
     const initialYear = $('#analysis_year').val();
     const initialTerm = $('#analysis_term').val();
     const initialExam = $('#analysis_exam').data('selected');
     const initialSubject = $('#analysis_subject').data('selected');
-    loadExams(initialYear, initialTerm, initialExam);
+    if (initialTerm) {
+        loadExams(initialYear, initialTerm, initialExam);
+    }
 
     if (initialClass) {
         loadSubclasses(initialClass, initialSubclass);
@@ -584,11 +606,12 @@ $(document).ready(function() {
         loadSubjects(classID, $(this).val(), '');
     });
 
-    $('#analysis_year, #analysis_term').on('change', function() {
+    $('#analysis_term').on('change', function() {
         loadExams($('#analysis_year').val(), $('#analysis_term').val(), '');
     });
+    @endif
 
-    @if($examID && !empty($analysisData))
+    @if(!empty($hasSelectedAcademicYear) && $examID && !empty($analysisData))
         @foreach($groupedAnalysis as $classDisplay => $subjects)
             @foreach($subjects as $subjectGroup)
                 @if(!empty($subjectGroup['question_stats']))

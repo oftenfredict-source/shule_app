@@ -210,16 +210,22 @@ $(document).ready(function() {
                     let mobileHtml = '';
                     
                     response.students.forEach((s, index) => {
+                        const canEnter = s.can_enter_result !== false && (s.enrollment_status || 'Active') === 'Active';
+                        const rowStyle = canEnter ? '' : 'background:#eceff1;opacity:0.75;';
+                        const enrBadge = canEnter
+                            ? '<span class="badge badge-success ml-1">Active</span>'
+                            : `<span class="badge badge-secondary ml-1">${s.enrollment_status || 'Inactive'}</span>`;
+                        const disabledAttr = canEnter ? '' : 'disabled';
                         // Desktop Table Row
                         tableHtml += `
-                            <tr>
+                            <tr style="${rowStyle}">
                                 <td>${index + 1}</td>
-                                <td><strong>${s.name}</strong></td>
+                                <td><strong>${s.name}</strong>${enrBadge}</td>
                                 <td>${s.gender}</td>
                                 <td>${s.class_name} - ${s.subclass}</td>
                                 <td>
-                                    <input type="hidden" name="attendance[${index}][studentID]" value="${s.studentID}">
-                                    <select name="attendance[${index}][status]" class="form-control form-control-sm border-primary status-sync" data-index="${index}">
+                                    <input type="hidden" name="attendance[${index}][studentID]" value="${s.studentID}" ${canEnter ? '' : 'disabled'}>
+                                    <select name="attendance[${index}][status]" class="form-control form-control-sm border-primary status-sync" data-index="${index}" ${disabledAttr}>
                                         <option value="Present" ${s.status === 'Present' ? 'selected' : ''}>Present</option>
                                         <option value="Absent" ${s.status === 'Absent' ? 'selected' : ''}>Absent</option>
                                     </select>
@@ -229,12 +235,12 @@ $(document).ready(function() {
 
                         // Mobile Card
                         mobileHtml += `
-                            <div class="attendance-mobile-card">
-                                <span class="student-name">${s.name}</span>
+                            <div class="attendance-mobile-card" style="${rowStyle}">
+                                <span class="student-name">${s.name}${enrBadge}</span>
                                 <div class="student-info">
                                     <i class="bi bi-gender-ambiguous"></i> ${s.gender} | ${s.class_name}
                                 </div>
-                                <div class="status-selector-mobile">
+                                <div class="status-selector-mobile" ${canEnter ? '' : 'style="pointer-events:none;opacity:0.6;"'}>
                                     <div class="status-btn-mobile ${s.status === 'Present' || !s.status ? 'active-present' : ''}" 
                                          data-status="Present" data-index="${index}">
                                         <i class="bi bi-check-circle"></i> Present
@@ -285,6 +291,17 @@ $(document).ready(function() {
                         mobileButtons.filter(`[data-status="${status}"]`).addClass(status === 'Present' ? 'active-present' : 'active-absent');
                     });
                 }
+            },
+            error: function(xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.error)
+                    ? xhr.responseJSON.error
+                    : 'Failed to load students.';
+                Swal.fire({
+                    title: xhr.status === 422 ? 'No Active Enrollment' : 'Error',
+                    text: msg,
+                    icon: xhr.status === 422 ? 'warning' : 'error',
+                    confirmButtonColor: '#940000'
+                });
             }
         });
     }

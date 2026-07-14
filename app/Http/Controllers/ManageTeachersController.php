@@ -18,9 +18,45 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 
 class ManageTeachersController extends Controller
 {
+    /**
+     * Map request TANGE fields onto teacher payload (+ auto age/experience).
+     */
+    private function tangePayloadFromRequest(Request $request): array
+    {
+        $dob = $request->input('date_of_birth') ?: null;
+        $hired = $request->input('date_hired') ?: null;
+        $experience = $request->input('experience');
+        if ($hired) {
+            try {
+                $experience = Carbon::parse($hired)->diffInYears(Carbon::now()) . ' years';
+            } catch (\Throwable $e) {
+                // keep posted experience
+            }
+        }
+
+        return [
+            'tsc_number' => $request->input('tsc_number') ?: null,
+            'establishment_rank' => $request->input('establishment_rank') ?: null,
+            'salary_scale' => $request->input('salary_scale') ?: null,
+            'qualification' => $request->input('qualification') ?: null,
+            'specialization' => $request->input('specialization') ?: null,
+            'subjects_teaching' => $request->input('subjects_teaching') ?: null,
+            'experience' => $experience ?: null,
+            'date_of_birth' => $dob,
+            'date_hired' => $hired,
+            'date_confirmed' => $request->input('date_confirmed') ?: null,
+            'date_current_rank' => $request->input('date_current_rank') ?: null,
+            'date_of_retirement' => $request->input('date_of_retirement') ?: null,
+            'address' => $request->input('address') ?: null,
+            'work_station' => $request->input('work_station') ?: null,
+            'position' => $request->input('position') ?: null,
+        ];
+    }
+
     /**
      * Determine permission category based on permission name
      * New format: category_action (e.g. examination_create, examination_update, examination_delete, examination_read_only)
@@ -692,7 +728,7 @@ class ManageTeachersController extends Controller
         );
 
         // Create teacher with id = fingerprintID and fingerprint_id = fingerprintID
-        $teacher = Teacher::create([
+        $teacher = Teacher::create(array_merge([
             'id'             => (int)$fingerprintId, // Set id equal to fingerprintID (as integer)
             'schoolID'       => $schoolID,
             'first_name'     => $request->first_name,
@@ -702,19 +738,12 @@ class ManageTeachersController extends Controller
             'gender'         => $request->gender,
             'national_id'    => $request->national_id,
             'employee_number' => $request->employee_number,
-            'qualification' => $request->qualification ?? null,
-            'specialization' => $request->specialization ?? null,
-            'experience'     => $request->experience ?? null,
-            'date_of_birth' => $request->date_of_birth ?? null,
-            'date_hired'    => $request->date_hired ?? null,
-            'address'       => $request->address ?? null,
             'email'         => $request->email,
             'phone_number'  => $request->phone_number,
             'bank_account_number' => $request->bank_account_number ?? null,
-            'position'      => $request->position ?? null,
             'status'        => $request->status ?? 'Active',
             'fingerprint_id' => $fingerprintId, // Also store in fingerprint_id column (as string)
-        ]);
+        ], $this->tangePayloadFromRequest($request)));
 
         // Create user for login with same fingerprint_id
         $user = User::create([
@@ -768,7 +797,18 @@ class ManageTeachersController extends Controller
                 return response()->json(['error' => 'Teacher not found'], 404);
             }
 
-            return response()->json(['teacher' => $teacher]);
+            $payload = $teacher->toArray();
+            foreach (['date_of_birth', 'date_hired', 'date_confirmed', 'date_current_rank', 'date_of_retirement'] as $dateField) {
+                if (!empty($payload[$dateField])) {
+                    try {
+                        $payload[$dateField] = Carbon::parse($payload[$dateField])->format('Y-m-d');
+                    } catch (\Throwable $e) {
+                        $payload[$dateField] = substr((string) $payload[$dateField], 0, 10);
+                    }
+                }
+            }
+
+            return response()->json(['teacher' => $payload]);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'An error occurred: ' . $e->getMessage()
@@ -778,16 +818,29 @@ class ManageTeachersController extends Controller
 
     public function update_teacher(Request $request)
     {
-        if (!$this->checkPermission('teacher_update')) {
+        $teacherId = $request->input('teacher_id');
+        $sessionTeacherId = Session::get('teacherID');
+        $isSelfUpdate = $sessionTeacherId && (int) $sessionTeacherId === (int) $teacherId
+            && Session::get('user_type') === 'Teacher';
+
+        if (!$isSelfUpdate && !$this->checkPermission('teacher_update')) {
             return response()->json(['error' => 'Unauthorized. You do not have permission to edit teacher details.'], 403);
         }
 
         try {
-            $teacherId = $request->input('teacher_id');
             $teacher = Teacher::find($teacherId);
 
             if (!$teacher) {
                 return response()->json(['error' => 'Teacher not found'], 404);
+            }
+
+            if ($isSelfUpdate && (int) $teacher->schoolID !== (int) Session::get('schoolID')) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+
+            // For self-update, do not allow changing employment status from profile
+            if ($isSelfUpdate && $request->filled('status') && $request->status !== $teacher->status) {
+                $request->merge(['status' => $teacher->status]);
             }
 
             // Validation rules with unique constraints ignoring current teacher
@@ -863,7 +916,7 @@ class ManageTeachersController extends Controller
             }
 
             // Update teacher
-            $teacher->update([
+            $teacher->update(array_merge([
                 'first_name'      => $request->first_name,
                 'middle_name'     => $request->middle_name ?? null,
                 'last_name'       => $request->last_name,
@@ -871,18 +924,11 @@ class ManageTeachersController extends Controller
                 'gender'          => $request->gender,
                 'national_id'     => $request->national_id,
                 'employee_number' => $request->employee_number,
-                'qualification'   => $request->qualification ?? null,
-                'specialization'  => $request->specialization ?? null,
-                'experience'      => $request->experience ?? null,
-                'date_of_birth'   => $request->date_of_birth ?? null,
-                'date_hired'      => $request->date_hired ?? null,
-                'address'         => $request->address ?? null,
                 'email'           => $request->email,
                 'phone_number'    => $request->phone_number,
                 'bank_account_number' => $request->bank_account_number ?? null,
-                'position'        => $request->position ?? null,
                 'status'          => $request->status ?? 'Active',
-            ]);
+            ], $this->tangePayloadFromRequest($request)));
 
             // Update user account if email changed
             $user = User::where('email', $oldEmail)->first();
@@ -1866,20 +1912,88 @@ class ManageTeachersController extends Controller
 
     public function downloadTeacherProfilePdf($id)
     {
-        $teacher = Teacher::find($id);
+        set_time_limit(0);
+        ini_set('memory_limit', '512M');
+
+        $schoolID = Session::get('schoolID');
+        $teacher = Teacher::where('id', $id)->where('schoolID', $schoolID)->first();
         if (!$teacher) {
             return redirect()->back()->with('error', 'Teacher not found.');
         }
 
-        $schoolID = Session::get('schoolID');
         $school = School::find($schoolID);
-        
-        $data = [
-            'teacher' => $teacher,
-            'school' => $school,
-        ];
 
-        $pdf = Pdf::loadView('Admin.pdf.teacher_profile_pdf', $data);
-        return $pdf->download('Teacher_Profile_' . $teacher->first_name . '_' . $teacher->last_name . '.pdf');
+        // Always pass a non-empty teachers collection (avoid empty shared $teachers wiping the row)
+        $pdf = Pdf::loadView('Admin.pdf.teacher_tange_pdf', [
+            'teachers' => collect([$teacher]),
+            'school' => $school,
+            'title' => 'TANGE — Teachers Particular',
+        ]);
+        $pdf->setOptions([
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'chroot' => base_path(),
+        ]);
+        $pdf->setPaper('A4', 'portrait');
+
+        $safeName = preg_replace(
+            '/[^A-Za-z0-9_\-]/',
+            '_',
+            trim(($teacher->first_name ?? '') . '_' . ($teacher->last_name ?? ''))
+        );
+        if ($safeName === '') {
+            $safeName = 'Teacher';
+        }
+        return $pdf->download('TANGE_' . $safeName . '_' . date('YmdHis') . '.pdf');
+    }
+
+    /**
+     * Download TANGE PDF for all teachers in the school.
+     */
+    public function downloadAllTeachersTangePdf()
+    {
+        set_time_limit(0);
+        ini_set('memory_limit', '1024M');
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return redirect()->back()->with('error', 'School not found.');
+        }
+
+        // Admin, or staff/teacher with teacher management permission only — not every teacher
+        $userType = Session::get('user_type');
+        if (
+            $userType !== 'Admin'
+            && !$this->checkPermission('teacher_read_only')
+            && !$this->checkPermission('teacher_update')
+        ) {
+            return redirect()->back()->with('error', 'Unauthorized.');
+        }
+
+        $teachers = Teacher::where('schoolID', $schoolID)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+
+        if ($teachers->isEmpty()) {
+            return redirect()->back()->with('error', 'No teachers found.');
+        }
+
+        $school = School::find($schoolID);
+        $pdf = Pdf::loadView('Admin.pdf.teacher_tange_pdf', [
+            'teachers' => $teachers->values(),
+            'school' => $school,
+            'title' => 'TANGE — All Teachers Particular',
+        ]);
+        $pdf->setOptions([
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'chroot' => base_path(),
+        ]);
+        $pdf->setPaper('A4', 'portrait');
+
+        return $pdf->download(
+            'TANGE_All_Teachers_' . $teachers->count() . 'p_' . date('YmdHis') . '.pdf'
+        );
     }
 }

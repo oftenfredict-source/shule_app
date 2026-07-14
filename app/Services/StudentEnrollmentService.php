@@ -58,36 +58,183 @@ class StudentEnrollmentService
 
     /**
      * Student IDs enrolled in a subclass (scoped to selected academic year when set).
+     *
+     * @param  string|null  $enrollmentStatus  Active|Completed|Transferred|Dropped|Cancelled|all|null
+     *                                         null/omit defaults to Active when useful for marking;
+     *                                         use 'all' for every status in the selected year.
      */
-    public function studentIDsInSubclass(int $subclassID, ?int $schoolID = null): array
+    public function studentIDsInSubclass(int $subclassID, ?int $schoolID = null, ?string $enrollmentStatus = 'Active'): array
     {
         $query = StudentEnrollment::query()
             ->where('subclassID', $subclassID);
-
-        $this->applySelectedYearScope($query, $schoolID);
 
         if ($schoolID) {
             $query->where('schoolID', $schoolID);
         }
 
-        return $query->pluck('studentID')->unique()->values()->all();
+        $this->applySelectedYearScope($query, $schoolID);
+        $this->applyEnrollmentStatusFilter($query, $enrollmentStatus, $schoolID);
+
+        return $query->pluck('studentID')->unique()->values()->map(fn ($id) => (int) $id)->all();
     }
 
     /**
      * Student IDs enrolled in a main class.
      */
-    public function studentIDsInClass(int $classID, ?int $schoolID = null): array
+    public function studentIDsInClass(int $classID, ?int $schoolID = null, ?string $enrollmentStatus = 'Active'): array
     {
         $query = StudentEnrollment::query()
             ->where('classID', $classID);
-
-        $this->applySelectedYearScope($query, $schoolID);
 
         if ($schoolID) {
             $query->where('schoolID', $schoolID);
         }
 
-        return $query->pluck('studentID')->unique()->values()->all();
+        $this->applySelectedYearScope($query, $schoolID);
+        $this->applyEnrollmentStatusFilter($query, $enrollmentStatus, $schoolID);
+
+        return $query->pluck('studentID')->unique()->values()->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * Enrollment rows for subclass in selected header year(s), keyed by studentID.
+     *
+     * @return \Illuminate\Support\Collection<int, StudentEnrollment>
+     */
+    public function enrollmentsInSubclass(int $subclassID, ?int $schoolID = null, ?string $enrollmentStatus = 'Active'): Collection
+    {
+        $query = StudentEnrollment::with(['academicYear', 'classModel', 'subclass', 'student'])
+            ->where('subclassID', $subclassID);
+
+        if ($schoolID) {
+            $query->where('schoolID', $schoolID);
+        }
+
+        $this->applySelectedYearScope($query, $schoolID);
+        $this->applyEnrollmentStatusFilter($query, $enrollmentStatus, $schoolID);
+
+        return $query
+            ->orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+            ->orderByDesc('enrollmentID')
+            ->get()
+            ->unique('studentID')
+            ->values();
+    }
+
+    /**
+     * Enrollment rows for a main class in selected header year(s), unique by studentID.
+     * When multiple rows per student exist, prefer Active then highest enrollmentID.
+     *
+     * @return \Illuminate\Support\Collection<int, StudentEnrollment>
+     */
+    public function enrollmentsInClass(int $classID, ?int $schoolID = null, ?string $enrollmentStatus = 'Active'): Collection
+    {
+        $query = StudentEnrollment::with(['academicYear', 'classModel', 'subclass', 'student'])
+            ->where('classID', $classID);
+
+        if ($schoolID) {
+            $query->where('schoolID', $schoolID);
+        }
+
+        $this->applySelectedYearScope($query, $schoolID);
+        $this->applyEnrollmentStatusFilter($query, $enrollmentStatus, $schoolID);
+
+        return $query
+            ->orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+            ->orderByDesc('enrollmentID')
+            ->get()
+            ->unique('studentID')
+            ->values();
+    }
+
+    /**
+     * Map studentID => Active enrollment details for selected header year(s).
+     *
+     * @return array<int, array{enrollmentID: int, subclassID: int|null, classID: int|null, academic_yearID: int|null}>
+     */
+    public function activeEnrollmentDetailsByStudent(int $schoolID): array
+    {
+        $query = StudentEnrollment::where('schoolID', $schoolID)
+            ->where('status', 'Active');
+
+        $this->applySelectedYearScope($query, $schoolID);
+
+        $map = [];
+        foreach (
+            $query->orderByDesc('enrollmentID')->get([
+                'studentID',
+                'enrollmentID',
+                'subclassID',
+                'classID',
+                'academic_yearID',
+            ]) as $row
+        ) {
+            $sid = (int) $row->studentID;
+            if (isset($map[$sid])) {
+                continue;
+            }
+            $map[$sid] = [
+                'enrollmentID' => (int) $row->enrollmentID,
+                'subclassID' => $row->subclassID !== null ? (int) $row->subclassID : null,
+                'classID' => $row->classID !== null ? (int) $row->classID : null,
+                'academic_yearID' => $row->academic_yearID !== null ? (int) $row->academic_yearID : null,
+            ];
+        }
+
+        return $map;
+    }
+
+    /**
+     * Map studentID => enrollment meta for a subclass + header year.
+     */
+    public function enrollmentMetaByStudent(int $subclassID, ?int $schoolID = null, ?string $enrollmentStatus = 'all'): array
+    {
+        $rows = $this->enrollmentsInSubclass($subclassID, $schoolID, $enrollmentStatus);
+        $map = [];
+        foreach ($rows as $enr) {
+            $map[(int) $enr->studentID] = [
+                'enrollmentID' => (int) $enr->enrollmentID,
+                'enrollment_status' => $enr->status,
+                'promotion_status' => $enr->promotion_status,
+                'academic_yearID' => (int) $enr->academic_yearID,
+                'classID' => (int) $enr->classID,
+                'subclassID' => (int) $enr->subclassID,
+                'class_name' => $enr->classModel->class_name ?? null,
+                'subclass_name' => $enr->subclass->subclass_name ?? null,
+                'year_name' => $enr->academicYear->year_name ?? ($enr->academicYear->year ?? null),
+            ];
+        }
+        return $map;
+    }
+
+    /**
+     * Enrollments for a school, optionally filtered by class/subclass and enrollment status.
+     * Scoped to header-selected academic year(s).
+     */
+    public function enrollmentsInSchool(
+        int $schoolID,
+        ?string $enrollmentStatus = 'Active',
+        ?int $classID = null,
+        ?int $subclassID = null
+    ): Collection {
+        $query = StudentEnrollment::with(['student', 'classModel', 'subclass.class', 'academicYear'])
+            ->where('schoolID', $schoolID);
+
+        $this->applySelectedYearScope($query, $schoolID);
+        $this->applyEnrollmentStatusFilter($query, $enrollmentStatus, $schoolID);
+
+        if ($subclassID) {
+            $query->where('subclassID', $subclassID);
+        } elseif ($classID) {
+            $query->where('classID', $classID);
+        }
+
+        return $query
+            ->orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+            ->orderByDesc('enrollmentID')
+            ->get()
+            ->unique('studentID')
+            ->values();
     }
 
     /**
@@ -98,18 +245,7 @@ class StudentEnrollmentService
         ?int $classID = null,
         ?int $subclassID = null
     ): Collection {
-        $query = StudentEnrollment::with(['student', 'classModel', 'subclass', 'academicYear'])
-            ->where('schoolID', $schoolID);
-
-        $this->applySelectedYearScope($query, $schoolID);
-
-        if ($subclassID) {
-            $query->where('subclassID', $subclassID);
-        } elseif ($classID) {
-            $query->where('classID', $classID);
-        }
-
-        return $query->orderBy('subclassID')->orderBy('studentID')->get();
+        return $this->enrollmentsInSchool($schoolID, 'Active', $classID, $subclassID);
     }
 
     /**
@@ -149,6 +285,28 @@ class StudentEnrollmentService
             ->pluck('enrollmentID', 'studentID')
             ->map(fn ($id) => (int) $id)
             ->all();
+    }
+
+    /**
+     * Prefer enrollment for a specific academic year; else bestEnrollmentID().
+     */
+    public function bestEnrollmentIDForYear($studentID, ?int $schoolID, ?int $academicYearID): ?int
+    {
+        if ($academicYearID) {
+            $query = StudentEnrollment::where('studentID', $studentID)
+                ->where('academic_yearID', $academicYearID)
+                ->orderByRaw("FIELD(status, 'Active', 'Completed', 'Transferred', 'Dropped', 'Cancelled')")
+                ->orderByDesc('enrollmentID');
+            if ($schoolID) {
+                $query->where('schoolID', $schoolID);
+            }
+            $enrollment = $query->first();
+            if ($enrollment) {
+                return (int) $enrollment->enrollmentID;
+            }
+        }
+
+        return $this->bestEnrollmentID($studentID, $schoolID);
     }
 
     /**
@@ -282,7 +440,8 @@ class StudentEnrollmentService
     }
 
     /**
-     * When header years are selected, scope to those years; otherwise Active only.
+     * When header years are selected, scope to those years.
+     * Status filtering is handled separately via applyEnrollmentStatusFilter.
      */
     private function applySelectedYearScope($query, ?int $schoolID = null): void
     {
@@ -295,8 +454,31 @@ class StudentEnrollmentService
 
         if (!empty($yearIDs)) {
             $query->whereIn('academic_yearID', $yearIDs);
-        } else {
+        }
+    }
+
+    private function applyEnrollmentStatusFilter($query, ?string $enrollmentStatus, ?int $schoolID = null): void
+    {
+        $yearIDs = [];
+        try {
+            $yearIDs = app(SelectedAcademicYearService::class)->selectedYearIds($schoolID ? (int) $schoolID : null);
+        } catch (\Throwable $e) {
+            $yearIDs = [];
+        }
+
+        // No header year + "all"/empty → default Active (legacy safety)
+        if (empty($yearIDs) && ($enrollmentStatus === null || $enrollmentStatus === '' || $enrollmentStatus === 'all')) {
             $query->where('status', 'Active');
+            return;
+        }
+
+        if ($enrollmentStatus === null || $enrollmentStatus === '' || $enrollmentStatus === 'all') {
+            return;
+        }
+
+        $allowed = ['Active', 'Completed', 'Transferred', 'Dropped', 'Cancelled'];
+        if (in_array($enrollmentStatus, $allowed, true)) {
+            $query->where('status', $enrollmentStatus);
         }
     }
 }

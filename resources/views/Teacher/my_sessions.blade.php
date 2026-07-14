@@ -588,11 +588,24 @@ function loadCollectTab(sessionTimetableID, date) {
             attendance_date: date
         },
         success: function(response) {
+            if (response.success === false || response.error_code === 'no_academic_year') {
+                $('#collectTabContent').html('<div class="alert alert-warning">' + (response.error || response.message || 'Select an academic year in the header.') + '</div>');
+                return;
+            }
             if (response.success) {
+                if (!response.students || response.students.length === 0) {
+                    const emptyMsg = response.error_code === 'no_active_enrollments'
+                        ? (response.message || 'No Active enrollments for this class in the selected academic year. Attendance cannot be collected.')
+                        : 'No Active enrolled students found for this session.';
+                    $('#collectTabContent').html('<div class="alert alert-info text-center">' + emptyMsg + '</div>');
+                    return;
+                }
+
                 let html = '<form id="attendanceForm">';
                 html += '<input type="hidden" name="session_timetableID" value="' + sessionTimetableID + '">';
                 html += '<input type="hidden" name="attendance_date" value="' + date + '">';
                 html += '<input type="hidden" name="is_update" value="false">';
+                html += '<div class="alert alert-light border small mb-2">Showing Active enrollments for the academic year selected in the header.</div>';
                 html += '<table id="collectAttendanceTable" class="table table-bordered table-hover" style="width:100%">';
                 html += '<thead><tr><th>Student Name</th><th>Status</th><th>Remark</th></tr></thead>';
                 html += '<tbody>';
@@ -601,23 +614,26 @@ function loadCollectTab(sessionTimetableID, date) {
                 const totalStudents = response.students.length;
                 
                 response.students.forEach(function(student) {
-                    html += '<tr>';
-                    html += '<td>' + student.name + '</td>';
+                    const canMark = student.can_mark !== false;
+                    html += '<tr class="' + (canMark ? '' : 'table-secondary text-muted') + '">';
+                    html += '<td>' + student.name + (!canMark ? ' <span class="badge badge-secondary">Inactive enrollment</span>' : '') + '</td>';
                     html += '<td>';
-                    html += '<select class="form-control form-control-sm attendance-status" name="attendance[' + student.studentID + '][status]" data-student-id="' + student.studentID + '" required>';
+                    html += '<select class="form-control form-control-sm attendance-status" name="attendance[' + student.studentID + '][status]" data-student-id="' + student.studentID + '" ' + (canMark ? 'required' : 'disabled') + '>';
                     html += '<option value="Present"' + (student.status === 'Present' ? ' selected' : '') + '>Present</option>';
                     html += '<option value="Absent"' + (student.status === 'Absent' ? ' selected' : '') + '>Absent</option>';
                     html += '<option value="Late"' + (student.status === 'Late' ? ' selected' : '') + '>Late</option>';
                     html += '<option value="Excused"' + (student.status === 'Excused' ? ' selected' : '') + '>Excused</option>';
                     html += '</select>';
-                    html += '<input type="hidden" class="student-id-input" name="attendance[' + student.studentID + '][studentID]" value="' + student.studentID + '">';
+                    if (canMark) {
+                        html += '<input type="hidden" class="student-id-input" name="attendance[' + student.studentID + '][studentID]" value="' + student.studentID + '">';
+                    }
                     html += '</td>';
-                    html += '<td><input type="text" class="form-control form-control-sm" name="attendance[' + student.studentID + '][remark]" value="' + (student.remark || '') + '" placeholder="Optional"></td>';
+                    html += '<td><input type="text" class="form-control form-control-sm" name="attendance[' + student.studentID + '][remark]" value="' + (student.remark || '') + '" placeholder="Optional" ' + (canMark ? '' : 'disabled') + '></td>';
                     html += '</tr>';
                 });
                 
                 html += '</tbody></table>';
-                html += '<button type="submit" class="btn btn-primary-custom btn-block mt-3">Save Attendance</button>';
+                html += '<button type="submit" class="btn btn-primary-custom btn-block mt-3"' + (response.can_collect === false ? ' disabled' : '') + '>Save Attendance</button>';
                 html += '</form>';
                 
                 $('#collectTabContent').html(html);
@@ -647,8 +663,9 @@ function loadCollectTab(sessionTimetableID, date) {
                 $('#collectTabContent').html('<div class="alert alert-danger">' + response.error + '</div>');
             }
         },
-        error: function() {
-            $('#collectTabContent').html('<div class="alert alert-danger">Failed to load students</div>');
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || xhr.responseJSON?.message || 'Failed to load students';
+            $('#collectTabContent').html('<div class="alert alert-danger">' + msg + '</div>');
         }
     });
 }
@@ -678,11 +695,16 @@ function loadUpdateTab(sessionTimetableID, date) {
                     const statusClass = item.status === 'Present' ? 'success' : 
                                       item.status === 'Absent' ? 'danger' : 
                                       item.status === 'Late' ? 'warning' : 'info';
-                    html += '<tr>';
-                    html += '<td>' + item.student_name + '</td>';
+                    const canEdit = item.can_edit !== false;
+                    html += '<tr class="' + (canEdit ? '' : 'table-secondary text-muted') + '">';
+                    html += '<td>' + item.student_name + (!canEdit ? ' <span class="badge badge-secondary">' + (item.enrollment_status || 'Inactive') + '</span>' : '') + '</td>';
                     html += '<td><span class="badge badge-' + statusClass + '">' + item.status + '</span></td>';
                     html += '<td>' + (item.remark || '-') + '</td>';
-                    html += '<td><button class="btn btn-sm btn-primary-custom" onclick="editAttendanceRecord(' + item.attendanceID + ', ' + item.studentID + ', \'' + item.student_name + '\', \'' + item.status + '\', \'' + (item.remark || '') + '\')"><i class="bi bi-pencil"></i> Edit</button></td>';
+                    if (canEdit) {
+                        html += '<td><button class="btn btn-sm btn-primary-custom" onclick="editAttendanceRecord(' + item.attendanceID + ', ' + item.studentID + ', \'' + String(item.student_name).replace(/'/g, "\\'") + '\', \'' + item.status + '\', \'' + String(item.remark || '').replace(/'/g, "\\'") + '\')"><i class="bi bi-pencil"></i> Edit</button></td>';
+                    } else {
+                        html += '<td><button class="btn btn-sm btn-secondary" disabled title="Only Active enrollments can be edited"><i class="bi bi-lock"></i> Locked</button></td>';
+                    }
                     html += '</tr>';
                 });
                 
@@ -705,8 +727,9 @@ function loadUpdateTab(sessionTimetableID, date) {
                 $('#updateAttendanceTableContainer').html('<div class="alert alert-danger">' + response.error + '</div>');
             }
         },
-        error: function() {
-            $('#updateAttendanceTableContainer').html('<div class="alert alert-danger">Failed to load attendance data</div>');
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || xhr.responseJSON?.message || 'Failed to load attendance data';
+            $('#updateAttendanceTableContainer').html('<div class="alert alert-danger">' + msg + '</div>');
         }
     });
 }
@@ -1020,19 +1043,52 @@ window.assignTask = function(sessionTimetableID, date, startTime, endTime) {
 };
 
 window.openLessonPlan = function(sessionTimetableID, day, startTime, endTime, subjectName, className, date) {
-    // Navigate to lesson plans page with session details as URL parameters
-    const params = new URLSearchParams({
+    // Gate: require Active enrollments for header year before opening lesson plan
+    $.get('{{ route("teacher.get_session_attendance_stats") }}', {
         session_timetableID: sessionTimetableID,
-        day: day,
-        start_time: startTime,
-        end_time: endTime,
-        subject_name: subjectName,
-        class_name: className,
-        date: date,
-        auto_open: 'true'
+        date: date
+    }).done(function(res) {
+        if (res.success === false || res.error_code === 'no_academic_year' || res.error_code === 'no_active_enrollments') {
+            Swal.fire({
+                title: 'Not allowed',
+                text: res.error || res.message || 'Select an academic year with Active enrollments before creating a lesson plan.',
+                icon: 'warning',
+                confirmButtonColor: '#940000'
+            });
+            return;
+        }
+
+        const registeredTotal = res.data?.registered_total ?? res.registered_total ?? null;
+        if (registeredTotal === 0) {
+            Swal.fire({
+                title: 'Not allowed',
+                text: 'No Active enrollments for this class in the selected academic year. Lesson plan is blocked.',
+                icon: 'warning',
+                confirmButtonColor: '#940000'
+            });
+            return;
+        }
+
+        const params = new URLSearchParams({
+            session_timetableID: sessionTimetableID,
+            day: day,
+            start_time: startTime,
+            end_time: endTime,
+            subject_name: subjectName,
+            class_name: className,
+            date: date,
+            auto_open: 'true'
+        });
+        window.location.href = '{{ route("teacher.lessonPlans") }}?' + params.toString();
+    }).fail(function(xhr) {
+        const msg = xhr.responseJSON?.error || xhr.responseJSON?.message || 'Cannot open lesson plan for this session.';
+        Swal.fire({
+            title: 'Not allowed',
+            text: msg,
+            icon: 'warning',
+            confirmButtonColor: '#940000'
+        });
     });
-    
-    window.location.href = '{{ route("teacher.lessonPlans") }}?' + params.toString();
 };
 
 // Initialize jQuery-dependent code when ready

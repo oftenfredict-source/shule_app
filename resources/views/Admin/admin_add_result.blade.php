@@ -43,6 +43,18 @@
     @keyframes gradient-pulse { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
     .loading-text { font-weight: 600; color: #940000; font-size: 1.1rem; margin-bottom: 5px; }
     .percentage-text { font-weight: bold; font-size: 1.2rem; color: #333; }
+    .enrollment-inactive-row {
+        background-color: #eceff1 !important;
+        opacity: 0.75;
+        color: #607d8b;
+    }
+    .enrollment-inactive-row input,
+    .enrollment-inactive-row button {
+        pointer-events: none;
+        background-color: #cfd8dc !important;
+        cursor: not-allowed !important;
+    }
+    .enrollment-status-badge { font-size: 0.7rem; vertical-align: middle; }
 </style>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -1531,6 +1543,96 @@ function updateStudentTotal(studentID) {
     // saved in the results table but do not have question-level breakdown yet.
 }
 
+// Active enrollment helpers (header academic year)
+function canEnterResultForStudent(student) {
+    if (student.can_enter_result === false) return false;
+    if (student.can_enter_result === true) return true;
+    return (student.enrollment_status || 'Active') === 'Active';
+}
+
+function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan) {
+    let html = '';
+    (students || []).forEach(function(student, index) {
+        const canEnter = canEnterResultForStudent(student);
+        const rowClass = canEnter ? '' : 'enrollment-inactive-row';
+        const statusBadge = canEnter
+            ? '<span class="badge badge-success enrollment-status-badge ml-1">Active</span>'
+            : `<span class="badge badge-secondary enrollment-status-badge ml-1">${student.enrollment_status || 'Inactive'}</span>`;
+        const disabledAttr = canEnter ? '' : 'disabled readonly';
+        const marksReadonly = (!canEnter || isSecondarySchool) ? 'readonly' : '';
+        const btnDisabled = canEnter ? '' : 'disabled';
+        const indexNo = student.examination_number || student.admission_number || 'N/A';
+
+        html += `
+            <tr class="${rowClass}" data-can-enter="${canEnter ? 1 : 0}" data-enrollment-id="${student.enrollmentID || ''}">
+                <td>${index + 1}</td>
+                <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}${statusBadge}</td>
+                <td>${indexNo}</td>
+                <td class="text-center questions-column-cell" style="${isSecondarySchool ? '' : 'display:none;'}">
+                    <button type="button" class="btn btn-sm btn-outline-primary toggle-question-btn" data-student="${student.studentID}" title="${canEnter ? 'Add result questions' : 'Not editable — enrollment not Active'}" ${btnDisabled}>
+                        <i class="bi bi-list-check"></i>
+                    </button>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm marks-input"
+                           name="marks[${student.studentID}]"
+                           id="marks_${student.studentID}"
+                           data-student="${student.studentID}"
+                           data-can-enter="${canEnter ? 1 : 0}"
+                           step="0.01" min="0" max="100" placeholder="${canEnter ? '0.00' : '—'}"
+                           oninput="autoCalculateGrade(${student.studentID})"
+                           ${marksReadonly} ${disabledAttr}>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm grade-input"
+                           name="grade[${student.studentID}]"
+                           id="grade_${student.studentID}"
+                           data-student="${student.studentID}"
+                           placeholder="A, B, C..." readonly ${disabledAttr}>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm remark-input"
+                           name="remark[${student.studentID}]"
+                           id="remark_${student.studentID}"
+                           data-student="${student.studentID}"
+                           placeholder="Remark" readonly ${disabledAttr}>
+                </td>
+            </tr>
+            <tr class="question-details-row questions-detail-row d-none ${rowClass}" id="question_details_${student.studentID}" data-student="${student.studentID}">
+                <td colspan="${questionColspan}">
+                    <div class="question-detail-container" data-student="${student.studentID}">
+                        <div class="text-muted small">${canEnter ? 'Select examination to load question formats.' : 'Marks locked — enrollment is not Active for this academic year.'}</div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    return html;
+}
+
+function handleNoActiveEnrollments(xhr) {
+    const payload = xhr && xhr.responseJSON ? xhr.responseJSON : {};
+    const msg = payload.error || 'Selected academic year has no Active enrollments. Result entry cannot continue.';
+    jQuery('#addEditResultsModal').modal('hide');
+    Swal.fire({
+        title: 'No Active Enrollment',
+        text: msg,
+        icon: 'warning',
+        confirmButtonColor: '#940000'
+    });
+}
+
+function reapplyEnrollmentLocks() {
+    jQuery('#resultsForm .marks-input[data-can-enter="0"]').each(function() {
+        jQuery(this).prop('disabled', true).prop('readonly', true)
+            .css({ 'background-color': '#cfd8dc', 'cursor': 'not-allowed' });
+        const sid = jQuery(this).data('student');
+        jQuery(`.grade-input[data-student="${sid}"], .remark-input[data-student="${sid}"]`)
+            .prop('disabled', true).prop('readonly', true);
+        jQuery(`.toggle-question-btn[data-student="${sid}"]`).prop('disabled', true);
+    });
+}
+
 // View Students
 function viewStudents(classSubjectID) {
     jQuery('#viewStudentsModal').modal('show');
@@ -1547,8 +1649,10 @@ function viewStudents(classSubjectID) {
                     <div class="mb-3">
                         <h6 class="text-primary-custom">
                             <i class="bi bi-book"></i> ${response.class_subject.subject ? response.class_subject.subject.subject_name : 'Subject'}
-                            <span class="badge badge-primary ml-2">${response.students.length} Students</span>
+                            <span class="badge badge-primary ml-2">${response.active_enrollment_count != null ? response.active_enrollment_count : response.students.length} Active</span>
+                            <span class="badge badge-light border ml-1">${response.students.length} total (year)</span>
                         </h6>
+                        <small class="text-muted"><i class="bi bi-info-circle"></i> Only Active enrollments for the selected academic year can receive marks.</small>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover table-striped">
@@ -1559,6 +1663,7 @@ function viewStudents(classSubjectID) {
                                     <th>Admission No.</th>
                                     <th>Name</th>
                                     <th>Class</th>
+                                    <th>Enrollment</th>
                                     <th>Gender</th>
                                     <th>Date of Birth</th>
                                 </tr>
@@ -1581,6 +1686,11 @@ function viewStudents(classSubjectID) {
                     const dob = student.date_of_birth ? new Date(student.date_of_birth).toLocaleDateString() : 'N/A';
                     const studentName = (student.first_name || '') + ' ' + (student.middle_name || '') + ' ' + (student.last_name || '');
                     const fallbackPhoto = student.gender === 'Female' ? baseUrl + 'images/female.png' : baseUrl + 'images/male.png';
+                    const canEnter = canEnterResultForStudent(student);
+                    const rowClass = canEnter ? '' : 'enrollment-inactive-row';
+                    const statusBadge = canEnter
+                        ? '<span class="badge badge-success enrollment-status-badge">Active</span>'
+                        : `<span class="badge badge-secondary enrollment-status-badge">${student.enrollment_status || 'Inactive'}</span>`;
 
                     // Add red alarm icon if student has health conditions
                     let healthAlarmIcon = '';
@@ -1591,7 +1701,7 @@ function viewStudents(classSubjectID) {
                     }
 
                     html += `
-                        <tr>
+                        <tr class="${rowClass}">
                             <td>${index + 1}</td>
                             <td>
                                 <img src="${photoUrl}"
@@ -1601,9 +1711,10 @@ function viewStudents(classSubjectID) {
                                      onclick="showStudentPhoto('${photoUrl.replace(/'/g, "\\'")}', '${studentName.replace(/'/g, "\\'")}')"
                                      onerror="this.src='${fallbackPhoto}'">
                             </td>
-                            <td><strong>${student.examination_number || 'N/A'}</strong></td>
+                            <td><strong>${student.examination_number || student.admission_number || 'N/A'}</strong></td>
                             <td>${studentName}${healthAlarmIcon}</td>
                             <td>${student.subclass ? (student.subclass.subclass_name || 'N/A') : 'N/A'}</td>
+                            <td>${statusBadge}</td>
                             <td>${student.gender || 'N/A'}</td>
                             <td>${dob}</td>
                         </tr>
@@ -1623,6 +1734,14 @@ function viewStudents(classSubjectID) {
             }, 400); // end of setTimeout
         },
         error: function(xhr) {
+            if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.error_code === 'no_active_enrollments') {
+                jQuery('#studentsModalBody').html(
+                    '<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle"></i> ' +
+                    (xhr.responseJSON.error || 'No Active enrollments for the selected academic year.') +
+                    '</div>'
+                );
+                return;
+            }
             Swal.fire({
                 title: 'Error!',
                 text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load students',
@@ -2152,50 +2271,9 @@ function editResults(classSubjectID) {
                             `;
 
                             if (studentsResponse.success && studentsResponse.students) {
-                                studentsResponse.students.forEach(function(student, index) {
-                                    html += `
-                                        <tr>
-                                            <td>${index + 1}</td>
-                                            <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}</td>
-                                            <td>${student.examination_number || 'N/A'}</td>
-                                            <td class="text-center questions-column-cell" style="${isSecondarySchool ? '' : 'display:none;'}">
-                                                <button type="button" class="btn btn-sm btn-outline-primary toggle-question-btn" data-student="${student.studentID}" title="Add result questions">
-                                                    <i class="bi bi-list-check"></i>
-                                                </button>
-                                            </td>
-                                            <td>
-                                                <input type="number" class="form-control form-control-sm marks-input"
-                                                       name="marks[${student.studentID}]"
-                                                       id="marks_${student.studentID}"
-                                                       data-student="${student.studentID}"
-                                                       step="0.01" min="0" max="100" placeholder="0.00"
-                                                       oninput="autoCalculateGrade(${student.studentID})"
-                                                       ${isSecondarySchool ? 'readonly' : ''}>
-                                            </td>
-                                            <td>
-                                                <input type="text" class="form-control form-control-sm grade-input"
-                                                       name="grade[${student.studentID}]"
-                                                       id="grade_${student.studentID}"
-                                                       data-student="${student.studentID}"
-                                                       placeholder="A, B, C..." readonly>
-                                            </td>
-                                            <td>
-                                                <input type="text" class="form-control form-control-sm remark-input"
-                                                       name="remark[${student.studentID}]"
-                                                       id="remark_${student.studentID}"
-                                                       data-student="${student.studentID}"
-                                                       placeholder="Remark" readonly>
-                                            </td>
-                                        </tr>
-                                        <tr class="question-details-row questions-detail-row d-none" id="question_details_${student.studentID}" data-student="${student.studentID}">
-                                            <td colspan="${questionColspan}">
-                                                <div class="question-detail-container" data-student="${student.studentID}">
-                                                    <div class="text-muted small">Select examination to load question formats.</div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    `;
-                                });
+                                html += buildResultStudentRowsHtml(studentsResponse.students, isSecondarySchool, questionColspan);
+                            } else {
+                                html += `<tr><td colspan="${questionColspan}" class="text-center text-muted">No enrolled students for the selected academic year.</td></tr>`;
                             }
 
                             html += `
@@ -2225,9 +2303,13 @@ function editResults(classSubjectID) {
                     });
                 },
                 error: function(xhr) {
+                    if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.error_code === 'no_active_enrollments') {
+                        handleNoActiveEnrollments(xhr);
+                        return;
+                    }
                     Swal.fire({
                         title: 'Error!',
-                        text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load examinations',
+                        text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load students',
                         icon: 'error',
                         confirmButtonColor: '#940000'
                     });
@@ -2237,7 +2319,7 @@ function editResults(classSubjectID) {
         error: function(xhr) {
             Swal.fire({
                 title: 'Error!',
-                text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load students',
+                text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load examinations',
                 icon: 'error',
                 confirmButtonColor: '#940000'
             });
@@ -2467,50 +2549,9 @@ function addResults(classSubjectID, isEdit = false) {
                     `;
 
                     if (studentsResponse.success && studentsResponse.students) {
-                        studentsResponse.students.forEach(function(student, index) {
-                            html += `
-                                <tr>
-                                    <td>${index + 1}</td>
-                                    <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}</td>
-                                    <td>${student.examination_number || 'N/A'}</td>
-                                    <td class="text-center questions-column-cell" style="${isSecondarySchool ? '' : 'display:none;'}">
-                                        <button type="button" class="btn btn-sm btn-outline-primary toggle-question-btn" data-student="${student.studentID}" title="Add result questions">
-                                            <i class="bi bi-list-check"></i>
-                                        </button>
-                                    </td>
-                                    <td>
-                                        <input type="number" class="form-control form-control-sm marks-input"
-                                               name="marks[${student.studentID}]"
-                                               id="marks_${student.studentID}"
-                                               data-student="${student.studentID}"
-                                               step="0.01" min="0" max="100" placeholder="0.00"
-                                               oninput="autoCalculateGrade(${student.studentID})"
-                                               ${isSecondarySchool ? 'readonly' : ''}>
-                                    </td>
-                                    <td>
-                                        <input type="text" class="form-control form-control-sm grade-input"
-                                               name="grade[${student.studentID}]"
-                                               id="grade_${student.studentID}"
-                                               data-student="${student.studentID}"
-                                               placeholder="A, B, C..." readonly>
-                                    </td>
-                                    <td>
-                                        <input type="text" class="form-control form-control-sm remark-input"
-                                               name="remark[${student.studentID}]"
-                                               id="remark_${student.studentID}"
-                                               data-student="${student.studentID}"
-                                               placeholder="Remark" readonly>
-                                    </td>
-                                </tr>
-                                <tr class="question-details-row questions-detail-row d-none" id="question_details_${student.studentID}" data-student="${student.studentID}">
-                                    <td colspan="${questionColspan}">
-                                        <div class="question-detail-container" data-student="${student.studentID}">
-                                            <div class="text-muted small">Select examination to load question formats.</div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `;
-                        });
+                        html += buildResultStudentRowsHtml(studentsResponse.students, isSecondarySchool, questionColspan);
+                    } else {
+                        html += `<tr><td colspan="${questionColspan}" class="text-center text-muted">No enrolled students for the selected academic year.</td></tr>`;
                     }
 
                     html += `
@@ -2540,6 +2581,10 @@ function addResults(classSubjectID, isEdit = false) {
             });
         },
         error: function(xhr) {
+            if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.error_code === 'no_active_enrollments') {
+                handleNoActiveEnrollments(xhr);
+                return;
+            }
             Swal.fire({
                 title: 'Error!',
                 text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load students',
@@ -2613,6 +2658,9 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
         // Scope each loop to the resultsForm to avoid picking up stale DOM elements
         jQuery('#resultsForm .marks-input').each(function() {
             const studentID = jQuery(this).data('student');
+            if (jQuery(this).data('can-enter') === 0 || jQuery(this).prop('disabled')) {
+                return; // Skip non-Active enrollments
+            }
             const questionMarks = examQuestionData.marksByStudent[studentID] || {};
             const optionalRanges = examQuestionData.optionalRanges || [];
             const hasAnyMarks = Object.keys(questionMarks).length > 0;
@@ -2716,6 +2764,9 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
     } else {
         // Scope each loop to the resultsForm to avoid picking up stale DOM elements
         jQuery('#resultsForm .marks-input').each(function() {
+            if (jQuery(this).data('can-enter') === 0 || jQuery(this).prop('disabled')) {
+                return; // Skip non-Active enrollments
+            }
             const studentID = jQuery(this).data('student');
             const marks = jQuery(this).val();
             const grade = jQuery(`.grade-input[data-student="${studentID}"]`).val();
@@ -2959,6 +3010,8 @@ function enableResultsForm(exam = null) {
     }
     jQuery('.question-mark-input, .toggle-question-btn').prop('disabled', false);
     jQuery('#resultsForm button[type="submit"]').prop('disabled', false);
+    // Keep non-Active enrollment rows locked
+    reapplyEnrollmentLocks();
 }
 
 // Helper function to show error message

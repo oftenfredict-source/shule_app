@@ -791,6 +791,7 @@
                         <div id="agreement_placeholder" class="text-center py-5 bg-white border border-dashed rounded">
                             <i class="bi bi-mortarboard text-muted" style="font-size: 3rem;"></i>
                             <p class="mt-3 text-muted">Select a class to view students and manage agreements.</p>
+                            <p class="small text-muted mb-0">Uses Active enrollments for the academic year selected in the header.</p>
                         </div>
 
                         <div id="agreement_results_container" class="d-none">
@@ -1043,6 +1044,7 @@
                             <div id="no_class_placeholder" class="text-center py-5 text-muted">
                                 <i class="bi bi-arrow-left-circle display-4"></i>
                                 <p class="mt-2 text-center w-100">Please select a class first to see conditions and students.</p>
+                                <p class="small text-muted mb-0">Uses Active enrollments for the academic year selected in the header.</p>
                             </div>
                         </div>
                     </div>
@@ -2593,28 +2595,40 @@
             $('#no_class_placeholder').hide();
             showOverlay("Loading...");
 
-            // Load Conditions and Students for this class
+            // Load Conditions and Students for this class (Active enrollments / header year)
             Promise.all([
                 $.get("{{ url('get_class_conditions') }}/" + classID),
                 $.get("{{ url('get_class_students') }}/" + classID)
             ]).then(([conditionsRes, studentsRes]) => {
                 hideOverlay();
+
+                if (studentsRes.success === false || studentsRes.error_code === 'no_academic_year') {
+                    Swal.fire('Academic year required', studentsRes.message || 'Select an academic year in the header.', 'warning');
+                    $('#conditions_container, #students_selection_container').hide();
+                    $('#no_class_placeholder').show();
+                    return;
+                }
                 
                 // 1. Store and Render Conditions
-                allConditionsData = conditionsRes.conditions;
+                allConditionsData = conditionsRes.conditions || [];
                 renderConditions(allConditionsData);
                 
                 // 2. Setup Students
-                allStudentsForClass = studentsRes.students;
+                allStudentsForClass = studentsRes.students || [];
                 selectedStudentIDs.clear();
                 $('#selectAllStudents').prop('checked', false);
-                renderStudents(allStudentsForClass);
+                renderStudents(allStudentsForClass, studentsRes.error_code);
                 
                 $('#conditions_container, #students_selection_container').fadeIn();
                 updateAssignmentUI();
             }).catch(err => {
                 hideOverlay();
-                Swal.fire('Error', 'Failed to load data for this class', 'error');
+                const msg = (err && err.responseJSON && err.responseJSON.message)
+                    ? err.responseJSON.message
+                    : 'Failed to load data for this class';
+                Swal.fire('Error', msg, 'error');
+                $('#conditions_container, #students_selection_container').hide();
+                $('#no_class_placeholder').show();
             });
         });
 
@@ -2651,22 +2665,26 @@
             });
         }
 
-        function renderStudents(students) {
+        function renderStudents(students, errorCode) {
             const body = $('#students_list_body');
             body.empty();
 
             if (!students || students.length === 0) {
-                body.append('<tr><td colspan="3" class="text-center py-3">No active students found in this class</td></tr>');
+                const emptyMsg = errorCode === 'no_active_enrollments'
+                    ? 'No Active enrollments for this class in the selected academic year.'
+                    : 'No Active enrollments found for this class.';
+                body.append(`<tr><td colspan="3" class="text-center py-3 text-muted">${emptyMsg}</td></tr>`);
                 return;
             }
 
             students.forEach(student => {
                 const isSelected = selectedStudentIDs.has(parseInt(student.studentID));
+                const canAssign = student.can_assign !== false;
                 body.append(`
-                    <tr>
+                    <tr class="${canAssign ? '' : 'table-secondary text-muted'}">
                         <td>
                             <div class="form-check">
-                                <input class="form-check-input student-assignment-checkbox" type="checkbox" value="${student.studentID}" ${isSelected ? 'checked' : ''} data-name="${student.first_name} ${student.last_name}">
+                                <input class="form-check-input student-assignment-checkbox" type="checkbox" value="${student.studentID}" ${isSelected ? 'checked' : ''} ${canAssign ? '' : 'disabled'} data-name="${student.first_name} ${student.last_name}">
                             </div>
                         </td>
                         <td class="small fw-bold">${student.first_name} ${student.middle_name || ''} ${student.last_name}</td>
@@ -2822,35 +2840,52 @@
             $('#agreement_target_class_name').text($(this).find('option:selected').text());
             showOverlay("Loading data...");
 
-            // Fetch students, fees and existing agreements in parallel
+            // Fetch students, fees and existing agreements (Active enrollments / header year)
             Promise.all([
                 $.get("{{ url('get_class_students') }}/" + classID),
                 $.get("{{ url('get_class_fees') }}/" + classID),
                 $.get("{{ url('get_existing_agreements') }}/" + classID)
             ]).then(([studentsRes, feesRes, agreementsRes]) => {
                 hideOverlay();
+
+                if (studentsRes.success === false || studentsRes.error_code === 'no_academic_year') {
+                    Swal.fire('Academic year required', studentsRes.message || 'Select an academic year in the header.', 'warning');
+                    $('#agreement_placeholder').removeClass('d-none');
+                    $('#agreement_results_container, #agreement_search_block, #agreement_save_actions').addClass('d-none');
+                    return;
+                }
+
                 classStudentsForAgreement = studentsRes.students || [];
                 classFeesForAgreement = feesRes.fees || [];
                 const existingAgreements = agreementsRes.agreements || [];
+                const emptyCode = studentsRes.error_code || agreementsRes.error_code || null;
                 
                 $('#agreement_student_count').text(classStudentsForAgreement.length + ' Students');
                 $('#agreement_placeholder').addClass('d-none');
                 $('#agreement_results_container').removeClass('d-none');
                 $('#agreement_search_block, #agreement_save_actions').removeClass('d-none');
                 
-                renderAgreementStudents(classStudentsForAgreement, existingAgreements);
+                renderAgreementStudents(classStudentsForAgreement, existingAgreements, emptyCode);
             }).catch(err => {
                 hideOverlay();
-                Swal.fire('Error', 'Failed to load class data', 'error');
+                const msg = (err && err.responseJSON && err.responseJSON.message)
+                    ? err.responseJSON.message
+                    : 'Failed to load class data';
+                Swal.fire('Error', msg, 'error');
+                $('#agreement_placeholder').removeClass('d-none');
+                $('#agreement_results_container, #agreement_search_block, #agreement_save_actions').addClass('d-none');
             });
         });
 
-        function renderAgreementStudents(students, existingAgreements = []) {
+        function renderAgreementStudents(students, existingAgreements = [], emptyCode = null) {
             const container = $('#agreement_students_list');
             container.empty();
 
             if (students.length === 0) {
-                container.html('<div class="alert alert-info border-0 rounded-0">No students found matching your search.</div>');
+                const emptyMsg = emptyCode === 'no_active_enrollments'
+                    ? 'No Active enrollments for this class in the selected academic year.'
+                    : 'No students found matching your search.';
+                container.html(`<div class="alert alert-info border-0 rounded-0">${emptyMsg}</div>`);
                 return;
             }
 
@@ -3019,6 +3054,7 @@
                 method: 'POST',
                 data: {
                     _token: "{{ csrf_token() }}",
+                    classID: $('#agreement_class_select').val(),
                     agreements: agreements,
                     schoolID: "{{ session('schoolID') }}"
                 },
@@ -3035,6 +3071,7 @@
                     }
                 },
                 error: function(xhr) {
+                    hideOverlay();
                     saveBtn.prop('disabled', false).html(originalText);
                     Swal.fire('Error', 'Failed to save. ' + (xhr.responseJSON?.message || ''), 'error');
                 },
@@ -3136,28 +3173,35 @@
             
             $.get("{{ url('get_class_students') }}/" + classID, function(res) {
                 hideOverlay();
+                if (res.success === false || res.error_code === 'no_academic_year') {
+                    Swal.fire('Academic year required', res.message || 'Select an academic year in the header.', 'warning');
+                    return;
+                }
                 if (res.success) {
-                    classStudentsForSponsor = res.students;
-                    renderSponsorStudents(classStudentsForSponsor, sponsorID);
+                    classStudentsForSponsor = res.students || [];
+                    renderSponsorStudents(classStudentsForSponsor, sponsorID, res.error_code);
                     $('#no_sponsor_class_placeholder').hide();
                     $('#sponsor_students_container').show();
-                    $('#saveSponsorAssignmentBtn').prop('disabled', false);
+                    $('#saveSponsorAssignmentBtn').prop('disabled', classStudentsForSponsor.length === 0);
                 } else {
                     Swal.fire('Error', 'Failed to load students', 'error');
                 }
-            }).fail(function() {
+            }).fail(function(xhr) {
                 hideOverlay();
-                Swal.fire('Error', 'Failed to load students', 'error');
+                Swal.fire('Error', xhr.responseJSON?.message || 'Failed to load students', 'error');
             });
         });
 
-        function renderSponsorStudents(students, sponsorID) {
+        function renderSponsorStudents(students, sponsorID, errorCode) {
             const container = $('#sponsor_students_list');
             container.empty();
             let assignedCount = 0;
 
             if (students.length === 0) {
-                container.html('<tr><td colspan="4" class="text-center text-muted py-3">No students found.</td></tr>');
+                const emptyMsg = errorCode === 'no_active_enrollments'
+                    ? 'No Active enrollments for this class in the selected academic year.'
+                    : 'No students found.';
+                container.html(`<tr><td colspan="4" class="text-center text-muted py-3">${emptyMsg}</td></tr>`);
             } else {
                 students.forEach(function(student) {
                     // Pre-check if assigned to THIS sponsor

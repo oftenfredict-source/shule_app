@@ -17,7 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('subclassID');
             $table->string('roll_number', 50)->nullable();
             $table->enum('status', ['Active', 'Completed', 'Transferred', 'Dropped', 'Cancelled'])->default('Active');
-            $table->enum('promotion_status', ['Pending', 'Promoted', 'Repeated', 'Graduated', 'Transferred'])->default('Pending');
+            $table->enum('promotion_status', ['Pending', 'Promoted', 'Repeated', 'Graduated', 'Transferred', 'Truancy', 'Dropout'])->default('Pending');
             $table->date('joined_date')->nullable();
             $table->date('left_date')->nullable();
             $table->text('notes')->nullable();

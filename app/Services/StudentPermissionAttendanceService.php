@@ -118,16 +118,22 @@ class StudentPermissionAttendanceService
     }
 
     /**
+     * @param  array<int>|null  $studentIDs  When set, only these students (e.g. Active enrollments); ignore subclass roster.
      * @return array<string, int> pres_b, pres_g, abs_b, abs_g, perm_b, perm_g, sick_b, sick_g
      */
     public function aggregateSubclassStatsFromFingerprint(
         int $schoolID,
         array $subclassIds,
         string $date,
-        array $permissionStatusMap
+        array $permissionStatusMap,
+        ?array $studentIDs = null
     ): array {
         $stats = $this->emptyGenderStats();
-        if ($subclassIds === []) {
+        if ($studentIDs !== null) {
+            if ($studentIDs === []) {
+                return $stats;
+            }
+        } elseif ($subclassIds === []) {
             return $stats;
         }
 
@@ -138,12 +144,19 @@ class StudentPermissionAttendanceService
         );
         $isWorkingDay = in_array($date, $workingDates, true);
 
-        $students = DB::table('students')
+        $studentsQuery = DB::table('students')
             ->where('schoolID', $schoolID)
-            ->whereIn('subclassID', $subclassIds)
-            ->where('status', '!=', 'Transferred')
-            ->select(['studentID', 'gender'])
-            ->get();
+            ->select(['studentID', 'gender']);
+
+        if ($studentIDs !== null) {
+            $studentsQuery->whereIn('studentID', $studentIDs);
+        } else {
+            $studentsQuery
+                ->whereIn('subclassID', $subclassIds)
+                ->where('status', '!=', 'Transferred');
+        }
+
+        $students = $studentsQuery->get();
 
         $fingerprints = DB::table('student_fingerprint_attendance')
             ->whereIn('studentID', $students->pluck('studentID'))
@@ -172,26 +185,38 @@ class StudentPermissionAttendanceService
     /**
      * System attendances table + approved permissions for students without rows.
      *
+     * @param  array<int>|null  $studentIDs  When set, only these students (e.g. Active enrollments).
      * @return array<string, int>
      */
     public function aggregateSubclassStatsFromSystem(
         int $schoolID,
         array $subclassIds,
         string $date,
-        array $permissionStatusMap
+        array $permissionStatusMap,
+        ?array $studentIDs = null
     ): array {
         $stats = $this->emptyGenderStats();
-        if ($subclassIds === []) {
+        if ($studentIDs !== null) {
+            if ($studentIDs === []) {
+                return $stats;
+            }
+        } elseif ($subclassIds === []) {
             return $stats;
         }
 
-        $rows = DB::table('attendances')
+        $rowsQuery = DB::table('attendances')
             ->leftJoin('students', 'attendances.studentID', '=', 'students.studentID')
             ->where('attendances.schoolID', $schoolID)
-            ->whereIn('attendances.subclassID', $subclassIds)
             ->whereDate('attendances.attendance_date', $date)
-            ->select(['students.gender', 'attendances.status', 'attendances.studentID'])
-            ->get();
+            ->select(['students.gender', 'attendances.status', 'attendances.studentID']);
+
+        if ($studentIDs !== null) {
+            $rowsQuery->whereIn('attendances.studentID', $studentIDs);
+        } else {
+            $rowsQuery->whereIn('attendances.subclassID', $subclassIds);
+        }
+
+        $rows = $rowsQuery->get();
 
         $markedStudentIds = [];
 
@@ -210,12 +235,19 @@ class StudentPermissionAttendanceService
             return $stats;
         }
 
-        $students = DB::table('students')
+        $studentsQuery = DB::table('students')
             ->where('schoolID', $schoolID)
-            ->whereIn('subclassID', $subclassIds)
-            ->where('status', '!=', 'Transferred')
-            ->select(['studentID', 'gender'])
-            ->get();
+            ->select(['studentID', 'gender']);
+
+        if ($studentIDs !== null) {
+            $studentsQuery->whereIn('studentID', $studentIDs);
+        } else {
+            $studentsQuery
+                ->whereIn('subclassID', $subclassIds)
+                ->where('status', '!=', 'Transferred');
+        }
+
+        $students = $studentsQuery->get();
 
         foreach ($students as $student) {
             if (in_array((int) $student->studentID, $markedStudentIds, true)) {
