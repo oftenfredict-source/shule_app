@@ -469,34 +469,26 @@
       width: 100% !important;
     }
 
-    /* Header: restore normal layout; full horizontal line under header */
+    /* Header: keep notifications + user side-by-side; flags go under avatar */
     #header .header-menu {
       display: block !important;
       width: 100% !important;
-    }
-
-    #header .header-menu > .col-sm-7,
-    #header .header-menu > .col-sm-5 {
-      float: none !important;
-      display: block !important;
-      max-width: 100% !important;
-      width: 100% !important;
-      padding-left: 8px !important;
-      padding-right: 8px !important;
+      overflow: hidden !important;
     }
 
     #header .header-menu > .col-sm-7 {
       float: left !important;
       width: auto !important;
-      max-width: 70% !important;
-      display: inline-block !important;
+      max-width: none !important;
+      display: block !important;
+      padding-right: 8px !important;
     }
 
     #header .header-menu > .col-sm-5 {
       float: right !important;
       width: auto !important;
-      max-width: 30% !important;
-      display: inline-block !important;
+      max-width: none !important;
+      display: block !important;
       text-align: right !important;
       border-left: none !important;
       padding-left: 8px !important;
@@ -521,12 +513,54 @@
       display: none !important;
     }
 
+    /*
+     * Profile + flag side-by-side (horizontal).
+     * Do not use body.open here — theme style.css .open = 70px icon rail + font-size:0.
+     */
+    #header .header-menu > .col-sm-5 {
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      align-items: center !important;
+      justify-content: flex-end !important;
+      gap: 8px !important;
+      float: right !important;
+      width: auto !important;
+      max-width: none !important;
+    }
+
+    #header .language-select,
+    #header #language-select {
+      clear: none !important;
+      float: none !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: flex-end !important;
+      flex-wrap: nowrap !important;
+      width: auto !important;
+      order: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border-top: none !important;
+      text-align: right !important;
+    }
+
+    #header .user-area.dropdown {
+      float: none !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      order: 0 !important;
+      margin: 0 !important;
+    }
+
+    #header .user-area .user-avatar {
+      width: 36px !important;
+      height: 36px !important;
+    }
+
+    /* Closed drawer (off-canvas). Open state = body.mobile-drawer-open only. */
     aside.left-panel,
-    aside#left-panel,
-    .open aside.left-panel,
-    .open aside#left-panel,
-    body.open aside.left-panel,
-    body.open aside#left-panel {
+    aside#left-panel {
       width: min(300px, 86vw) !important;
       max-width: min(300px, 86vw) !important;
       padding-left: 0 !important;
@@ -545,158 +579,65 @@
       background: #ffffff !important;
     }
 
-    body.open aside.left-panel,
-    body.open aside#left-panel,
-    .open aside.left-panel,
-    .open aside#left-panel {
+    body.mobile-drawer-open aside.left-panel,
+    body.mobile-drawer-open aside#left-panel {
       transform: translateX(0) !important;
       -webkit-transform: translateX(0) !important;
       box-shadow: 8px 0 24px rgba(0, 0, 0, 0.2) !important;
       pointer-events: auto !important;
       padding-top: 52px !important;
+      width: min(300px, 86vw) !important;
+      max-width: min(300px, 86vw) !important;
     }
 
-    /* Hide ShuleXpert logo / brand image inside drawer on mobile */
+    /* Kill theme .open collapse if it ever lands on mobile */
+    body.open aside.left-panel,
+    body.open aside#left-panel,
+    .open aside.left-panel,
+    .open aside#left-panel {
+      width: min(300px, 86vw) !important;
+      max-width: min(300px, 86vw) !important;
+    }
+
+    /* Logo — original size (not tiny square rail) */
     #left-panel .navbar-header,
-    body.open #left-panel .navbar-header,
-    .open #left-panel .navbar-header {
-      display: none !important;
+    body.mobile-drawer-open #left-panel .navbar-header {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 100% !important;
+      padding: 16px 14px 12px !important;
+      background: transparent !important;
+      border-bottom: 1px solid #eeeeee !important;
+      min-height: unset !important;
     }
 
     #left-panel .admin-sidebar-title,
+    body.mobile-drawer-open #left-panel .admin-sidebar-title {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      text-align: center !important;
+      width: 100% !important;
+    }
+
     #left-panel .admin-brand-logo,
     #left-panel .navbar-header img,
-    #left-panel .navbar-brand,
-    #left-panel .mobile-brand,
-    body.open #left-panel .admin-brand-logo,
-    body.open #left-panel .admin-sidebar-title {
-      display: none !important;
-    }
-
-    /* Always expand main menu when panel is used on mobile */
-    body.open #left-panel #main-menu.collapse,
-    body.open #left-panel #main-menu,
-    #left-panel #main-menu {
+    body.mobile-drawer-open #left-panel .admin-brand-logo,
+    body.mobile-drawer-open #left-panel .navbar-header img {
       display: block !important;
-      height: auto !important;
       visibility: visible !important;
-      padding: 8px 0 16px !important;
-      background: #ffffff !important;
-    }
-
-    body.open #left-panel .navbar,
-    body.open #left-panel .navbar-nav,
-    body.open #left-panel .sidebar-links-container,
-    body.open #left-panel .sidebar-links-container > ul {
+      opacity: 1 !important;
       width: 100% !important;
-      max-width: 100% !important;
-      display: block !important;
-      padding-left: 0 !important;
-      padding-right: 0 !important;
-      margin: 0 !important;
-      background: transparent !important;
-      list-style: none !important;
+      max-width: 180px !important;
+      height: auto !important;
+      max-height: 100px !important;
+      object-fit: contain !important;
+      margin: 0 auto !important;
     }
 
-    /* Full proper menu styles (override desktop icon-rail leftovers) */
-    body.open #left-panel .sidebar-links-container > ul > li,
-    #left-panel .sidebar-links-container > ul > li {
-      position: relative !important;
-      width: 100% !important;
-      display: block !important;
-    }
-
-    body.open #left-panel .sidebar-links-container > ul > li > a.nav-link,
-    #left-panel .sidebar-links-container > ul > li > a.nav-link {
-      font-size: 14px !important;
-      font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
-      font-weight: 600 !important;
-      line-height: 1.35 !important;
-      text-align: left !important;
-      color: #940000 !important;
-      padding: 12px 16px !important;
-      margin: 2px 8px !important;
-      width: auto !important;
-      min-height: 0 !important;
-      max-height: none !important;
-      white-space: normal !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: flex-start !important;
-      border-radius: 0 !important;
-      background: transparent !important;
-    }
-
-    body.open #left-panel .sidebar-links-container > ul > li > a.nav-link > i,
-    #left-panel .sidebar-links-container > ul > li > a.nav-link > i {
-      font-size: 16px !important;
-      width: 22px !important;
-      min-width: 22px !important;
-      margin-right: 10px !important;
-      margin-left: 0 !important;
-      display: inline-block !important;
-      color: #940000 !important;
-      float: none !important;
-    }
-
-    body.open #left-panel .fa-chevron-down,
-    #left-panel .fa-chevron-down {
-      display: inline-block !important;
-      font-size: 12px !important;
-      margin-left: auto !important;
-      color: #940000 !important;
-    }
-
-    body.open #left-panel .sidebar-profile,
-    #left-panel .sidebar-profile {
-      display: flex !important;
-      align-items: center !important;
-      gap: 10px !important;
-      padding: 12px 16px !important;
-      justify-content: flex-start !important;
-    }
-
-    body.open #left-panel .sidebar-profile .profile-meta,
-    body.open #left-panel .admin-brand-text,
-    body.open #left-panel .admin-brand-subtitle {
-      display: block !important;
-    }
-
-    body.open #left-panel .dropdown-nav-item > .submenu,
-    body.open #left-panel .dropdown-nav-item > .submenu.is-flyout-open {
-      position: static !important;
-      left: auto !important;
-      top: auto !important;
-      max-width: none !important;
-      max-height: none !important;
-      width: 100% !important;
-      box-shadow: none !important;
-      border: none !important;
-      border-left: none !important;
-      background: #fafafa !important;
-      display: none !important;
-      padding: 4px 8px 8px 28px !important;
-      margin: 0 !important;
-      overflow: visible !important;
-    }
-
-    body.open #left-panel .dropdown-nav-item > .submenu.show,
-    body.open #left-panel .dropdown-nav-item > .submenu.collapse.show {
-      display: block !important;
-    }
-
-    body.open #left-panel .dropdown-nav-item > .submenu .nav-link {
-      font-size: 13px !important;
-      color: #940000 !important;
-      padding: 8px 12px !important;
-      display: flex !important;
-      align-items: center !important;
-      text-align: left !important;
-      white-space: normal !important;
-    }
-
-    body.open #left-panel .dropdown-nav-item > .submenu::before,
-    body.open #left-panel .dropdown-nav-item > .submenu::after {
+    #left-panel .navbar-header > .mobile-brand,
+    body.mobile-drawer-open #left-panel .navbar-header > .mobile-brand {
       display: none !important;
     }
 
@@ -704,8 +645,210 @@
       display: none !important;
     }
 
-    /* Keep fixed app bar above drawer; drawer still usable under it */
-    body.open .mobile-app-bar {
+    body.mobile-drawer-open #left-panel #main-menu.collapse,
+    body.mobile-drawer-open #left-panel #main-menu,
+    #left-panel #main-menu {
+      display: block !important;
+      height: auto !important;
+      visibility: visible !important;
+      padding: 8px 0 20px !important;
+      background: #ffffff !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: visible !important;
+    }
+
+    body.mobile-drawer-open #left-panel .navbar,
+    body.mobile-drawer-open #left-panel .navbar-nav,
+    body.mobile-drawer-open #left-panel .sidebar-links-container,
+    body.mobile-drawer-open #left-panel .sidebar-links-container > ul {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+      display: block !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      margin: 0 !important;
+      background: transparent !important;
+      list-style: none !important;
+      box-sizing: border-box !important;
+    }
+
+    /* Full-width readable links — beat theme .open font-size:0 / max-width:60px */
+    body.mobile-drawer-open #left-panel .sidebar-links-container > ul > li,
+    body.mobile-drawer-open #left-panel .navbar-nav li,
+    #left-panel .sidebar-links-container > ul > li {
+      position: relative !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      display: block !important;
+      overflow: visible !important;
+      box-sizing: border-box !important;
+    }
+
+    body.mobile-drawer-open #left-panel .sidebar-links-container > ul > li > a.nav-link,
+    body.mobile-drawer-open #left-panel .navbar-nav li > a.nav-link,
+    body.mobile-drawer-open #left-panel .navbar-nav li > a,
+    body.mobile-drawer-open #left-panel .navbar .navbar-nav li a {
+      font-size: 14px !important;
+      font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+      font-weight: 400 !important;
+      line-height: 1.4 !important;
+      letter-spacing: normal !important;
+      text-align: left !important;
+      color: #000000 !important;
+      padding: 12px 16px !important;
+      margin: 2px 10px !important;
+      width: calc(100% - 20px) !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      min-height: 44px !important;
+      max-height: none !important;
+      white-space: normal !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: flex-start !important;
+      flex-wrap: nowrap !important;
+      gap: 10px !important;
+      border-radius: 4px !important;
+      border-left: 3px solid transparent !important;
+      background: transparent !important;
+      box-sizing: border-box !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+
+    body.mobile-drawer-open #left-panel .sidebar-links-container > ul > li > a.nav-link > i,
+    body.mobile-drawer-open #left-panel .navbar-nav li > a .menu-icon,
+    body.mobile-drawer-open #left-panel .sidebar-links-container > ul > li > a.nav-link > i.fa:first-child,
+    body.mobile-drawer-open #left-panel .sidebar-links-container > ul > li > a.nav-link > i:first-child {
+      font-size: 16px !important;
+      width: 22px !important;
+      min-width: 22px !important;
+      max-width: 22px !important;
+      height: auto !important;
+      margin: 0 !important;
+      display: inline-block !important;
+      color: #2f2f2f !important;
+      float: none !important;
+      flex: 0 0 22px !important;
+      text-align: center !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      z-index: 1 !important;
+    }
+
+    body.mobile-drawer-open #left-panel .navbar-nav a .menu-title-text,
+    body.mobile-drawer-open #left-panel .navbar-nav .menu-title {
+      font-size: 14px !important;
+      font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+      font-weight: 400 !important;
+      line-height: 1.35 !important;
+      color: #000000 !important;
+      opacity: 1 !important;
+    }
+
+    body.mobile-drawer-open #left-panel .fa-chevron-down {
+      display: inline-block !important;
+      font-size: 12px !important;
+      margin-left: auto !important;
+      color: #666666 !important;
+      flex: 0 0 auto !important;
+    }
+
+    /* Active link (mobile drawer) */
+    body.mobile-drawer-open #left-panel .nav-link.menu-active,
+    body.mobile-drawer-open #left-panel a.nav-link.menu-active,
+    body.mobile-drawer-open #left-panel .nav-link.active,
+    body.mobile-drawer-open #left-panel a.nav-link.active,
+    body.mobile-drawer-open #left-panel li.active > a,
+    body.mobile-drawer-open #left-panel li.menu-active > a,
+    body.mobile-drawer-open #left-panel .sidebar-links-container .nav-link.menu-active,
+    body.mobile-drawer-open #left-panel .submenu .nav-link.menu-active,
+    body.mobile-drawer-open #left-panel .dropdown-toggle.menu-active {
+      color: #000000 !important;
+      font-weight: 400 !important;
+      font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+      background-color: rgba(148, 0, 0, 0.1) !important;
+      border-left: 3px solid #940000 !important;
+      border-radius: 4px !important;
+    }
+
+    body.mobile-drawer-open #left-panel .nav-link.menu-active > i,
+    body.mobile-drawer-open #left-panel .nav-link.active > i,
+    body.mobile-drawer-open #left-panel .sidebar-links-container .nav-link.menu-active > i,
+    body.mobile-drawer-open #left-panel .submenu .nav-link.menu-active > i,
+    body.mobile-drawer-open #left-panel .dropdown-toggle.menu-active > i {
+      color: #940000 !important;
+    }
+
+    body.mobile-drawer-open #left-panel .sidebar-profile {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      padding: 12px 16px !important;
+      justify-content: flex-start !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    body.mobile-drawer-open #left-panel .sidebar-profile .profile-meta,
+    body.mobile-drawer-open #left-panel .admin-brand-text,
+    body.mobile-drawer-open #left-panel .admin-brand-subtitle {
+      display: block !important;
+    }
+
+    body.mobile-drawer-open #left-panel .dropdown-nav-item > .submenu,
+    body.mobile-drawer-open #left-panel .dropdown-nav-item > .submenu.is-flyout-open {
+      position: static !important;
+      left: auto !important;
+      top: auto !important;
+      right: auto !important;
+      max-width: 100% !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      max-height: none !important;
+      box-shadow: none !important;
+      border: none !important;
+      border-left: none !important;
+      background: #f7f7f7 !important;
+      display: none !important;
+      padding: 4px 8px 8px 20px !important;
+      margin: 0 !important;
+      overflow: visible !important;
+      z-index: auto !important;
+    }
+
+    body.mobile-drawer-open #left-panel .dropdown-nav-item > .submenu.show,
+    body.mobile-drawer-open #left-panel .dropdown-nav-item > .submenu.collapse.show {
+      display: block !important;
+    }
+
+    body.mobile-drawer-open #left-panel .dropdown-nav-item > .submenu .nav-link {
+      font-size: 13px !important;
+      font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+      font-weight: 400 !important;
+      color: #000000 !important;
+      padding: 8px 12px !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      display: flex !important;
+      align-items: center !important;
+      text-align: left !important;
+      white-space: normal !important;
+      box-sizing: border-box !important;
+      border-left: 3px solid transparent !important;
+      border-radius: 4px !important;
+    }
+
+    body.mobile-drawer-open #left-panel .dropdown-nav-item > .submenu::before,
+    body.mobile-drawer-open #left-panel .dropdown-nav-item > .submenu::after {
+      display: none !important;
+    }
+
+    body.mobile-drawer-open .mobile-app-bar {
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
@@ -718,7 +861,7 @@
       top: 52px;
     }
 
-    body.open .sidebar-backdrop.is-visible {
+    body.mobile-drawer-open .sidebar-backdrop.is-visible {
       display: block;
     }
   }
@@ -794,61 +937,64 @@
 
             function syncMobileSidebar() {
                 var backdrop = ensureSidebarBackdrop();
-                var open = document.body.classList.contains('open');
                 var mobile = isMobileSidebar();
 
                 if (mobile) {
+                    /* Theme .open = 70px + font-size:0 — never keep it on mobile */
+                    if (document.body.classList.contains('open')) {
+                        document.body.classList.remove('open');
+                        document.body.classList.add('mobile-drawer-open');
+                    }
+                    var open = document.body.classList.contains('mobile-drawer-open');
                     backdrop.classList.toggle('is-visible', open);
                     var mainMenu = document.getElementById('main-menu');
-                    if (mainMenu) {
-                        if (open) {
-                            mainMenu.classList.add('show');
-                            mainMenu.style.display = 'block';
-                            mainMenu.style.height = 'auto';
-                            mainMenu.style.visibility = 'visible';
-                        }
+                    if (mainMenu && open) {
+                        mainMenu.classList.add('show');
+                        mainMenu.style.display = 'block';
+                        mainMenu.style.height = 'auto';
+                        mainMenu.style.visibility = 'visible';
                     }
-                    // Hide any sticky desktop flyouts / icon-rail leftovers
                     jQuery('#left-panel .submenu.is-flyout-open').removeClass('is-flyout-open')
                         .each(function () {
                             this.style.removeProperty('left');
                             this.style.removeProperty('top');
                         });
-                    jQuery('#left-panel .navbar-header, #left-panel .admin-brand-logo, #left-panel .admin-sidebar-title').hide();
                 } else {
+                    document.body.classList.remove('mobile-drawer-open');
                     backdrop.classList.remove('is-visible');
-                    jQuery('#left-panel .navbar-header, #left-panel .admin-brand-logo, #left-panel .admin-sidebar-title').show();
                 }
             }
 
-            // On mobile load: sidebar closed (no auto-open / no icon rail)
+            // On mobile load: sidebar closed
             if (isMobileSidebar()) {
-                document.body.classList.remove('open');
+                document.body.classList.remove('open', 'mobile-drawer-open');
             }
             ensureSidebarBackdrop();
             syncMobileSidebar();
 
-            // Desktop #menuToggle: main.js already toggles body.open — only sync backdrop here
+            // Desktop #menuToggle: main.js toggles body.open — sync backdrop only
             jQuery(document).on('click', '#menuToggle', function () {
                 setTimeout(syncMobileSidebar, 0);
             });
 
-            // Mobile top-bar 3-dot control (separate from desktop menutoggle)
+            // Mobile top-bar 3-dot — use mobile-drawer-open (NOT body.open)
             jQuery(document).on('click', '#mobileSidebarToggle', function (e) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
-                document.body.classList.toggle('open');
+                if (!isMobileSidebar()) return;
+                document.body.classList.remove('open');
+                document.body.classList.toggle('mobile-drawer-open');
                 syncMobileSidebar();
             });
 
             jQuery(document).on('click', '#sidebar-backdrop', function () {
-                document.body.classList.remove('open');
+                document.body.classList.remove('open', 'mobile-drawer-open');
                 syncMobileSidebar();
             });
 
             jQuery(document).on('click', '#left-panel .sidebar-links-container a.nav-link:not(.dropdown-toggle)', function () {
                 if (!isMobileSidebar()) return;
-                document.body.classList.remove('open');
+                document.body.classList.remove('open', 'mobile-drawer-open');
                 syncMobileSidebar();
             });
 
@@ -857,10 +1003,9 @@
                 clearTimeout(resizeTimer);
                 resizeTimer = setTimeout(function () {
                     if (isMobileSidebar()) {
-                        // Entering/staying mobile: never keep desktop collapsed state
-                        if (document.body.classList.contains('open')) {
-                            // keep open only if user opened it; still sync backdrop
-                        }
+                        document.body.classList.remove('open');
+                    } else {
+                        document.body.classList.remove('mobile-drawer-open');
                     }
                     syncMobileSidebar();
                 }, 150);
@@ -932,7 +1077,8 @@
                 }
                 if (toggle && toggle.id === 'mobileSidebarToggle') {
                     e.preventDefault();
-                    document.body.classList.toggle('open');
+                    document.body.classList.remove('open');
+                    document.body.classList.toggle('mobile-drawer-open');
                 }
                 var backdrop = document.getElementById('sidebar-backdrop');
                 if (!backdrop) {
@@ -942,14 +1088,20 @@
                     document.body.appendChild(backdrop);
                 }
                 var mobile = window.matchMedia('(max-width: 991px)').matches;
-                var open = document.body.classList.contains('open');
+                var open = document.body.classList.contains('mobile-drawer-open');
                 if (mobile) {
+                    if (document.body.classList.contains('open')) {
+                        document.body.classList.remove('open');
+                        document.body.classList.add('mobile-drawer-open');
+                        open = true;
+                    }
                     backdrop.classList.toggle('is-visible', open);
                 } else {
+                    document.body.classList.remove('mobile-drawer-open');
                     backdrop.classList.remove('is-visible');
                 }
                 if (t && t.id === 'sidebar-backdrop') {
-                    document.body.classList.remove('open');
+                    document.body.classList.remove('open', 'mobile-drawer-open');
                     t.classList.remove('is-visible');
                 }
             });

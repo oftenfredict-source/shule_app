@@ -63,7 +63,7 @@
         background-color: #ffffff;
         display: block;
     }
-    body.open .mobile-app-bar {
+    body.mobile-drawer-open .mobile-app-bar {
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
@@ -83,8 +83,13 @@
     #header .header-menu > .col-sm-5 {
         float: right !important;
         width: auto !important;
-        max-width: 30% !important;
-        display: block !important;
+        max-width: none !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 8px !important;
         text-align: right !important;
         padding-left: 8px !important;
         border-left: none !important;
@@ -104,6 +109,30 @@
     #header .menutoggle,
     a#menuToggle.menutoggle {
         display: none !important;
+    }
+    /* Profile + flag horizontal */
+    #header .language-select,
+    #header #language-select {
+        clear: none !important;
+        float: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        width: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-top: none !important;
+        order: 0 !important;
+    }
+    #header .user-area.dropdown {
+        float: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        order: 0 !important;
+        margin: 0 !important;
+    }
+    #header .user-area .user-avatar {
+        width: 36px !important;
+        height: 36px !important;
     }
 
     /* Offset page under fixed mobile bar — keep footer at bottom */

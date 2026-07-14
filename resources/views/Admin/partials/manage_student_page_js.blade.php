@@ -113,8 +113,8 @@
             let studentPhoto = student.photo;
             if (!studentPhoto || studentPhoto === 'undefined') {
                 studentPhoto = student.gender === 'Female'
-                    ? '{!! json_encode(asset("images/female.png")) !!}'
-                    : '{!! json_encode(asset("images/male.png")) !!}';
+                    ? {!! json_encode(asset("images/female.png")) !!}
+                    : {!! json_encode(asset("images/male.png")) !!};
             }
             return studentPhoto;
         }
@@ -248,7 +248,7 @@
                     "<'row align-items-center'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
                 ajax: function (data, callback) {
                     $.ajax({
-                        url: '{!! json_encode(route("get_students_list")) !!}',
+                        url: {!! json_encode(route("get_students_list")) !!},
                         type: 'GET',
                         dataType: 'json',
                         data: getListFilterParams(data),
@@ -470,7 +470,7 @@
             const nextPage = studentsPage + 1;
 
             $.ajax({
-                url: '{!! json_encode(route("get_students_list")) !!}',
+                url: {!! json_encode(route("get_students_list")) !!},
                 type: 'GET',
                 data: getStudentFilterParams({ page: nextPage }),
                 dataType: 'json'
@@ -542,7 +542,7 @@
             $('#studentGridSentinel, #studentGridEnd').addClass('d-none');
 
             $.ajax({
-                url: '{!! json_encode(route("get_students_list")) !!}',
+                url: {!! json_encode(route("get_students_list")) !!},
                 type: 'GET',
                 data: getStudentFilterParams({ page: page }),
                 dataType: 'json',
@@ -691,12 +691,12 @@
         $('#importStudentsForm').on('submit', function(e) {
             e.preventDefault();
             let formData = new FormData(this);
-            formData.append('_token', '{!! json_encode(csrf_token()) !!}');
+            formData.append('_token', {!! json_encode(csrf_token()) !!});
 
             $('#importSubmitBtn').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Importing...');
 
             $.ajax({
-                url: '{!! json_encode(route("upload_students")) !!}',
+                url: {!! json_encode(route("upload_students")) !!},
                 type: 'POST',
                 data: formData,
                 processData: false,
@@ -991,7 +991,7 @@
 
         function loadMoveClasses() {
             $.ajax({
-                url: '{!! json_encode(route("get_subclasses_for_school")) !!}',
+                url: {!! json_encode(route("get_subclasses_for_school")) !!},
                 type: 'GET',
                 dataType: 'json',
                 success: function (response) {
@@ -1051,7 +1051,7 @@
                 movePreviewRequest.abort();
             }
             movePreviewRequest = $.ajax({
-                url: '{!! json_encode(route("move_students_preview")) !!}',
+                url: {!! json_encode(route("move_students_preview")) !!},
                 type: 'GET',
                 data: {
                     academic_yearID: $('#moveTargetYear').val() || '',
@@ -1178,9 +1178,9 @@
             const itemID = $(this).data('item-id');
             const $btn = $(this).prop('disabled', true).text('...');
             $.ajax({
-                url: '{!! json_encode(route("move_students_undo_item")) !!}',
+                url: {!! json_encode(route("move_students_undo_item")) !!},
                 type: 'POST',
-                data: { _token: '{!! json_encode(csrf_token()) !!}', itemID: itemID, confirm_word: 'yes' },
+                data: { _token: {!! json_encode(csrf_token()) !!}, itemID: itemID, confirm_word: 'yes' },
                 dataType: 'json',
                 success: function (res) {
                     if (res.success) {
@@ -1255,10 +1255,10 @@
 
             const $btn = $(this).prop('disabled', true).text('Moving...');
             $.ajax({
-                url: '{!! json_encode(route("move_students_execute")) !!}',
+                url: {!! json_encode(route("move_students_execute")) !!},
                 type: 'POST',
                 data: {
-                    _token: '{!! json_encode(csrf_token()) !!}',
+                    _token: {!! json_encode(csrf_token()) !!},
                     academic_yearID: $('#moveTargetYear').val(),
                     enrollmentIDs: selected.map(r => r.enrollmentID),
                     destination_subclass: destinationSubclass,
@@ -1293,7 +1293,7 @@
         $('#undoMoveBatchesBtn').on('click', function () {
             $('#undoMoveBatchesList').html('Loading...');
             openStudentModal('undoMoveModal');
-            $.getJSON('{!! json_encode(route("move_students_batches")) !!}', function (res) {
+            $.getJSON({!! json_encode(route("move_students_batches")) !!}, function (res) {
                 const batches = res.batches || [];
                 if (!batches.length) {
                     $('#undoMoveBatchesList').html('<div class="text-muted">No move batches yet.</div>');
@@ -1349,9 +1349,9 @@
             }).then(function (result) {
                 if (!result.isConfirmed) return;
                 $.ajax({
-                    url: '{!! json_encode(route("move_students_undo")) !!}',
+                    url: {!! json_encode(route("move_students_undo")) !!},
                     type: 'POST',
-                    data: { _token: '{!! json_encode(csrf_token()) !!}', batchID: batchID, confirm_word: 'yes' },
+                    data: { _token: {!! json_encode(csrf_token()) !!}, batchID: batchID, confirm_word: 'yes' },
                     dataType: 'json',
                     success: function (res) {
                         if (res.success) {
@@ -1454,7 +1454,7 @@
             $('#singleMoveConfirmBtn').prop('disabled', true);
 
             $.ajax({
-                url: '{!! json_encode(url("/move_student_options")) !!}/' + singleMoveState.studentID,
+                url: {!! json_encode(url("/move_student_options")) !!} + '/' + singleMoveState.studentID,
                 type: 'GET',
                 data: { type: type },
                 dataType: 'json',
@@ -1558,10 +1558,10 @@
             if (!singleMoveState.studentID || !singleMoveState.type || !subclassID) return;
             const $btn = $(this).prop('disabled', true).text('Moving...');
             $.ajax({
-                url: '{!! json_encode(route("move_student_single")) !!}',
+                url: {!! json_encode(route("move_student_single")) !!},
                 type: 'POST',
                 data: {
-                    _token: '{!! json_encode(csrf_token()) !!}',
+                    _token: {!! json_encode(csrf_token()) !!},
                     studentID: singleMoveState.studentID,
                     new_subclassID: subclassID,
                     type: singleMoveState.type
@@ -1626,7 +1626,7 @@
         function loadFormData(preSelectSubclassID = null) {
             // Load subclasses
             $.ajax({
-                url: '{!! json_encode(route("get_subclasses_for_school")) !!}',
+                url: {!! json_encode(route("get_subclasses_for_school")) !!},
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -1679,7 +1679,7 @@
 
             // Load parents
             $.ajax({
-                url: '{!! json_encode(route("get_parents")) !!}',
+                url: {!! json_encode(route("get_parents")) !!},
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -1717,7 +1717,7 @@
 
             // Load sponsors
             $.ajax({
-                url: '{!! json_encode(route("get_sponsors")) !!}',
+                url: {!! json_encode(route("get_sponsors")) !!},
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -1872,7 +1872,7 @@
                 .html('<i class="bi bi-hourglass-split"></i>');
 
             $.ajax({
-                url: '{!! json_encode(route("get_student_statistics")) !!}',
+                url: {!! json_encode(route("get_student_statistics")) !!},
                 type: 'GET',
                 data: {
                     status: status,
@@ -1961,7 +1961,7 @@
             let currentStudentID = studentID; // Store for use in other functions
 
             $.ajax({
-                url: '{!! json_encode(route("get_student_details", ":id")) !!}'.replace(':id', studentID),
+                url: {!! json_encode(route("get_student_details", ":id")) !!}.replace(':id', studentID),
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -2284,7 +2284,7 @@
 
             // Load student data
             $.ajax({
-                url: '{!! json_encode(route("get_student", ":id")) !!}'.replace(':id', studentID),
+                url: {!! json_encode(route("get_student", ":id")) !!}.replace(':id', studentID),
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -2401,7 +2401,7 @@
         function loadEditFormData(targetSubclassID = null, targetParentID = null) {
             // Load subclasses
             $.ajax({
-                url: '{!! json_encode(route("get_subclasses_for_school")) !!}',
+                url: {!! json_encode(route("get_subclasses_for_school")) !!},
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -2439,7 +2439,7 @@
 
             // Load parents
             $.ajax({
-                url: '{!! json_encode(route("get_parents")) !!}',
+                url: {!! json_encode(route("get_parents")) !!},
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -2478,7 +2478,7 @@
 
             // Load sponsors for edit modal
             $.ajax({
-                url: '{!! json_encode(route("get_sponsors")) !!}',
+                url: {!! json_encode(route("get_sponsors")) !!},
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -2521,12 +2521,12 @@
             // Load student details and school details
             $.when(
                 $.ajax({
-                    url: '{!! json_encode(route("get_student_details", ":id")) !!}'.replace(':id', studentID),
+                    url: {!! json_encode(route("get_student_details", ":id")) !!}.replace(':id', studentID),
                     type: 'GET',
                     dataType: 'json'
                 }),
                 $.ajax({
-                    url: '{!! json_encode(route("get_school_details")) !!}',
+                    url: {!! json_encode(route("get_school_details")) !!},
                     type: 'GET',
                     dataType: 'json'
                 })
@@ -2768,7 +2768,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
 
                             // Make AJAX call
                             $.ajax({
-                                url: '{!! json_encode(route("students.register-device", ":id")) !!}'.replace(':id', studentId),
+                                url: {!! json_encode(route("students.register-device", ":id")) !!}.replace(':id', studentId),
                                 type: 'POST',
                                 headers: {
                                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
@@ -2823,7 +2823,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
                                             }).then((syncResult) => {
                                                 if (syncResult.isConfirmed) {
                                                     // Redirect to fingerprint device settings page or call sync function
-                                                    window.location.href = '{!! json_encode(route("fingerprint_device_settings")) !!}';
+                                                    window.location.href = {!! json_encode(route("fingerprint_device_settings")) !!};
                                                 }
                                             });
                                         }
@@ -2895,7 +2895,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
             }).then((result) => {
                 if (result.isConfirmed) {
                     $.ajax({
-                        url: '{!! json_encode(route("delete_student", ":id")) !!}'.replace(':id', studentID),
+                        url: {!! json_encode(route("delete_student", ":id")) !!}.replace(':id', studentID),
                         type: 'DELETE',
                         headers: {
                             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -3021,7 +3021,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
             submitBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Registering...');
 
             $.ajax({
-                url: '{!! json_encode(route("save_student")) !!}',
+                url: {!! json_encode(route("save_student")) !!},
                 type: 'POST',
                 data: formData,
                 processData: false,
@@ -3131,7 +3131,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
             submitBtn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Updating...');
 
             $.ajax({
-                url: '{!! json_encode(route("update_student")) !!}',
+                url: {!! json_encode(route("update_student")) !!},
                 type: 'POST',
                 data: formData,
                 processData: false,
@@ -3245,7 +3245,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
             }).then((result) => {
                 if (result.isConfirmed) {
                     $.ajax({
-                        url: '{!! json_encode(route("transfer_student")) !!}',
+                        url: {!! json_encode(route("transfer_student")) !!},
                         type: 'POST',
                         data: formData,
                         headers: {
@@ -3369,7 +3369,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         // Load classes and subclasses for filters
         function loadClassesForFilter() {
             $.ajax({
-                url: '{!! json_encode(route("get_subclasses_for_school")) !!}',
+                url: {!! json_encode(route("get_subclasses_for_school")) !!},
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -3418,7 +3418,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
 
         function loadAllSubclassesForFilter() {
             $.ajax({
-                url: '{!! json_encode(route("get_subclasses_for_school")) !!}',
+                url: {!! json_encode(route("get_subclasses_for_school")) !!},
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -3451,7 +3451,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
 
         function loadSubclassesForFilter(classID) {
             $.ajax({
-                url: '{!! json_encode(route("get_subclasses_for_school")) !!}',
+                url: {!! json_encode(route("get_subclasses_for_school")) !!},
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -3694,7 +3694,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
             let gender = $('#genderFilter').val() || '';
             let health = $('#healthFilter').val() || '';
 
-            let url = '{!! json_encode(route("export_students_excel")) !!}' + '?status=' + encodeURIComponent(status) +
+            let url = {!! json_encode(route("export_students_excel")) !!} + '?status=' + encodeURIComponent(status) +
                 '\u0026classID=' + encodeURIComponent(classID) +
                 '\u0026subclassID=' + encodeURIComponent(subclassID) +
                 '\u0026gender=' + encodeURIComponent(gender) +
@@ -3818,7 +3818,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         studentEnrollmentHistoryCache = { studentID: studentID, years: [], enrollments: [] };
 
         $.ajax({
-            url: '{!! json_encode(route("get_student_enrollment_history", ":id")) !!}'.replace(':id', studentID),
+            url: {!! json_encode(route("get_student_enrollment_history", ":id")) !!}.replace(':id', studentID),
             type: 'GET',
             dataType: 'json',
             success: function(response) {
@@ -3984,7 +3984,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         }
         
         $.ajax({
-            url: '{!! json_encode(route("get_student_academic_years", ":id")) !!}'.replace(':id', studentID),
+            url: {!! json_encode(route("get_student_academic_years", ":id")) !!}.replace(':id', studentID),
             type: 'GET',
             dataType: 'json',
             success: function(response) {
@@ -4140,7 +4140,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         $('#classWidgetContent').html('<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><p class="mt-2">Loading classes...</p></div>');
         
         $.ajax({
-            url: '{!! json_encode(route("get_student_classes_for_year")) !!}',
+            url: {!! json_encode(route("get_student_classes_for_year")) !!},
             type: 'GET',
             data: {
                 student_id: studentID,
@@ -4184,7 +4184,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         $('#resultsWidgetContent').html('<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><p class="mt-2">Loading results...</p></div>');
         
         $.ajax({
-            url: '{!! json_encode(route("get_student_terms_for_year")) !!}',
+            url: {!! json_encode(route("get_student_terms_for_year")) !!},
             type: 'GET',
             data: {
                 student_id: studentID,
@@ -4256,7 +4256,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         $('#paymentsWidgetContent').html('<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><p class="mt-2">Loading payments...</p></div>');
         
         $.ajax({
-            url: '{!! json_encode(route("get_student_payments_for_year")) !!}',
+            url: {!! json_encode(route("get_student_payments_for_year")) !!},
             type: 'GET',
             data: {
                 student_id: studentID,
@@ -4321,7 +4321,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         $('#debitsWidgetContent').html('<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><p class="mt-2">Loading debts...</p></div>');
         
         $.ajax({
-            url: '{!! json_encode(route("get_student_debts_for_year")) !!}',
+            url: {!! json_encode(route("get_student_debts_for_year")) !!},
             type: 'GET',
             data: {
                 student_id: studentID,
@@ -4400,7 +4400,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         subclassesList.html('<div class="text-center py-2"><div class="spinner-border spinner-border-sm" role="status"></div></div>').slideDown();
         
         $.ajax({
-            url: '{!! json_encode(route("get_student_subclasses_for_class")) !!}',
+            url: {!! json_encode(route("get_student_subclasses_for_class")) !!},
             type: 'GET',
             data: {
                 student_id: studentID,
@@ -4504,7 +4504,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
     // Function to load exams for term
     function loadExamsForTerm(studentID, academicYearID, term, yearStatus) {
         $.ajax({
-            url: '{!! json_encode(route("get_exams_for_term")) !!}',
+            url: {!! json_encode(route("get_exams_for_term")) !!},
             type: 'GET',
             data: {
                 student_id: studentID,
@@ -4538,7 +4538,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         }
         
         $.ajax({
-            url: '{!! json_encode(route("get_student_exam_results")) !!}',
+            url: {!! json_encode(route("get_student_exam_results")) !!},
             type: 'GET',
             data: {
                 student_id: studentID,
@@ -4598,7 +4598,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         $('#resultsDisplayArea').html('<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><p class="mt-2">Loading term report...</p></div>');
         
         $.ajax({
-            url: '{!! json_encode(route("get_student_term_report")) !!}',
+            url: {!! json_encode(route("get_student_term_report")) !!},
             type: 'GET',
             data: {
                 student_id: studentID,
@@ -5067,7 +5067,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         }
         
         $.ajax({
-            url: '{!! json_encode(route("get_student_attendance")) !!}',
+            url: {!! json_encode(route("get_student_attendance")) !!},
             type: 'GET',
             data: {
                 student_id: studentID,
@@ -5099,7 +5099,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         }
         
         $.ajax({
-            url: '{!! json_encode(route("get_student_attendance")) !!}',
+            url: {!! json_encode(route("get_student_attendance")) !!},
             type: 'GET',
             data: {
                 student_id: studentID,
@@ -5140,7 +5140,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
     // Export functions (to be implemented)
     function exportResultsPDF(studentID, academicYearID, term, examID, type) {
         // Implementation for PDF export
-        window.location.href = '{!! json_encode(route("export_student_results_pdf")) !!}?student_id=' + studentID +
+        window.location.href = {!! json_encode(route("export_student_results_pdf")) !!} + '?student_id=' + studentID +
             '\u0026academic_year_id=' + academicYearID +
             '\u0026term=' + term +
             '\u0026exam_id=' + examID +
@@ -5149,7 +5149,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
     
     function exportAttendancePDF(studentID, academicYearID, fromDate, toDate, month) {
         // Implementation for PDF export
-        window.location.href = '{!! json_encode(route("export_student_attendance_pdf")) !!}?student_id=' + studentID +
+        window.location.href = {!! json_encode(route("export_student_attendance_pdf")) !!} + '?student_id=' + studentID +
             '\u0026academic_year_id=' + academicYearID +
             '\u0026from_date=' + fromDate +
             '\u0026to_date=' + toDate +
@@ -5158,7 +5158,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
     
     function exportAttendanceExcel(studentID, academicYearID, fromDate, toDate, month) {
         // Implementation for Excel export
-        window.location.href = '{!! json_encode(route("export_student_attendance_excel")) !!}?student_id=' + studentID +
+        window.location.href = {!! json_encode(route("export_student_attendance_excel")) !!} + '?student_id=' + studentID +
             '\u0026academic_year_id=' + academicYearID +
             '\u0026from_date=' + fromDate +
             '\u0026to_date=' + toDate +
@@ -5199,10 +5199,10 @@ Would you like to try direct registration anyway, or use the manual method?`;
                 $btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Sending...');
 
                 return $.ajax({
-                    url: "{!! json_encode(route('send_student_to_fingerprint')) !!}",
+                    url: {!! json_encode(route('send_student_to_fingerprint')) !!},
                     type: "POST",
                     data: {
-                        _token: "{!! json_encode(csrf_token()) !!}",
+                        _token: {!! json_encode(csrf_token()) !!},
                         student_id: studentId
                     },
                     success: function(response) {
