@@ -247,6 +247,10 @@
     display: none;
   }
 
+  .header-mobile-divider {
+    display: none;
+  }
+
   /* Sticky top header inside content area */
   .right-panel header.header,
   .right-panel #header,
@@ -442,15 +446,79 @@
       display: block;
     }
 
-    /* Offset content below fixed app bar */
+    /* Offset content below fixed app bar — do not break footer to bottom */
     .right-panel,
     #right-panel {
       padding-top: 52px !important;
+      min-height: 100vh !important;
+      min-height: 100dvh !important;
+      box-sizing: border-box !important;
     }
 
     .right-panel header.header,
     #header {
       top: 52px !important;
+    }
+
+    .site-footer {
+      position: relative !important;
+      bottom: auto !important;
+      left: auto !important;
+      right: auto !important;
+      margin-top: auto !important;
+      width: 100% !important;
+    }
+
+    /* Header: restore normal layout; full horizontal line under header */
+    #header .header-menu {
+      display: block !important;
+      width: 100% !important;
+    }
+
+    #header .header-menu > .col-sm-7,
+    #header .header-menu > .col-sm-5 {
+      float: none !important;
+      display: block !important;
+      max-width: 100% !important;
+      width: 100% !important;
+      padding-left: 8px !important;
+      padding-right: 8px !important;
+    }
+
+    #header .header-menu > .col-sm-7 {
+      float: left !important;
+      width: auto !important;
+      max-width: 70% !important;
+      display: inline-block !important;
+    }
+
+    #header .header-menu > .col-sm-5 {
+      float: right !important;
+      width: auto !important;
+      max-width: 30% !important;
+      display: inline-block !important;
+      text-align: right !important;
+      border-left: none !important;
+      padding-left: 8px !important;
+    }
+
+    #header .header-mobile-divider {
+      display: none !important;
+    }
+
+    #header.header,
+    .right-panel header.header {
+      border-bottom: 1px solid #d0d0d0 !important;
+      box-shadow: none !important;
+    }
+
+    #header .header-left {
+      display: inline-block !important;
+    }
+
+    #header .menutoggle,
+    a#menuToggle.menutoggle {
+      display: none !important;
     }
 
     aside.left-panel,
@@ -474,6 +542,7 @@
       overflow-y: auto !important;
       pointer-events: none !important;
       top: 0 !important;
+      background: #ffffff !important;
     }
 
     body.open aside.left-panel,
@@ -487,35 +556,109 @@
       padding-top: 52px !important;
     }
 
-    /* Full labels on mobile — undo desktop icon-only rules */
+    /* Hide ShuleXpert logo / brand image inside drawer on mobile */
+    #left-panel .navbar-header,
+    body.open #left-panel .navbar-header,
+    .open #left-panel .navbar-header {
+      display: none !important;
+    }
+
+    #left-panel .admin-sidebar-title,
+    #left-panel .admin-brand-logo,
+    #left-panel .navbar-header img,
+    #left-panel .navbar-brand,
+    #left-panel .mobile-brand,
+    body.open #left-panel .admin-brand-logo,
+    body.open #left-panel .admin-sidebar-title {
+      display: none !important;
+    }
+
+    /* Always expand main menu when panel is used on mobile */
+    body.open #left-panel #main-menu.collapse,
+    body.open #left-panel #main-menu,
+    #left-panel #main-menu {
+      display: block !important;
+      height: auto !important;
+      visibility: visible !important;
+      padding: 8px 0 16px !important;
+      background: #ffffff !important;
+    }
+
+    body.open #left-panel .navbar,
+    body.open #left-panel .navbar-nav,
+    body.open #left-panel .sidebar-links-container,
+    body.open #left-panel .sidebar-links-container > ul {
+      width: 100% !important;
+      max-width: 100% !important;
+      display: block !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      margin: 0 !important;
+      background: transparent !important;
+      list-style: none !important;
+    }
+
+    /* Full proper menu styles (override desktop icon-rail leftovers) */
+    body.open #left-panel .sidebar-links-container > ul > li,
+    #left-panel .sidebar-links-container > ul > li {
+      position: relative !important;
+      width: 100% !important;
+      display: block !important;
+    }
+
     body.open #left-panel .sidebar-links-container > ul > li > a.nav-link,
     #left-panel .sidebar-links-container > ul > li > a.nav-link {
       font-size: 14px !important;
+      font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+      font-weight: 600 !important;
       line-height: 1.35 !important;
       text-align: left !important;
-      justify-content: flex-start !important;
-      padding: 10px 14px !important;
+      color: #940000 !important;
+      padding: 12px 16px !important;
       margin: 2px 8px !important;
+      width: auto !important;
       min-height: 0 !important;
+      max-height: none !important;
       white-space: normal !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: flex-start !important;
+      border-radius: 0 !important;
+      background: transparent !important;
     }
 
     body.open #left-panel .sidebar-links-container > ul > li > a.nav-link > i,
     #left-panel .sidebar-links-container > ul > li > a.nav-link > i {
       font-size: 16px !important;
       width: 22px !important;
+      min-width: 22px !important;
       margin-right: 10px !important;
+      margin-left: 0 !important;
       display: inline-block !important;
+      color: #940000 !important;
+      float: none !important;
     }
 
     body.open #left-panel .fa-chevron-down,
     #left-panel .fa-chevron-down {
       display: inline-block !important;
+      font-size: 12px !important;
+      margin-left: auto !important;
+      color: #940000 !important;
     }
 
+    body.open #left-panel .sidebar-profile,
+    #left-panel .sidebar-profile {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      padding: 12px 16px !important;
+      justify-content: flex-start !important;
+    }
+
+    body.open #left-panel .sidebar-profile .profile-meta,
     body.open #left-panel .admin-brand-text,
-    body.open #left-panel .admin-brand-subtitle,
-    body.open #left-panel .sidebar-profile .profile-meta {
+    body.open #left-panel .admin-brand-subtitle {
       display: block !important;
     }
 
@@ -526,12 +669,15 @@
       top: auto !important;
       max-width: none !important;
       max-height: none !important;
+      width: 100% !important;
       box-shadow: none !important;
       border: none !important;
       border-left: none !important;
-      background: transparent !important;
+      background: #fafafa !important;
       display: none !important;
-      padding-left: 12px !important;
+      padding: 4px 8px 8px 28px !important;
+      margin: 0 !important;
+      overflow: visible !important;
     }
 
     body.open #left-panel .dropdown-nav-item > .submenu.show,
@@ -539,16 +685,19 @@
       display: block !important;
     }
 
+    body.open #left-panel .dropdown-nav-item > .submenu .nav-link {
+      font-size: 13px !important;
+      color: #940000 !important;
+      padding: 8px 12px !important;
+      display: flex !important;
+      align-items: center !important;
+      text-align: left !important;
+      white-space: normal !important;
+    }
+
     body.open #left-panel .dropdown-nav-item > .submenu::before,
     body.open #left-panel .dropdown-nav-item > .submenu::after {
       display: none !important;
-    }
-
-    /* Always expand main menu when panel is used on mobile */
-    body.open #left-panel #main-menu.collapse,
-    body.open #left-panel #main-menu {
-      display: block !important;
-      height: auto !important;
     }
 
     #left-panel .navbar-toggler {
@@ -651,18 +800,24 @@
                 if (mobile) {
                     backdrop.classList.toggle('is-visible', open);
                     var mainMenu = document.getElementById('main-menu');
-                    if (mainMenu && open) {
-                        mainMenu.classList.add('show');
-                        mainMenu.style.display = 'block';
+                    if (mainMenu) {
+                        if (open) {
+                            mainMenu.classList.add('show');
+                            mainMenu.style.display = 'block';
+                            mainMenu.style.height = 'auto';
+                            mainMenu.style.visibility = 'visible';
+                        }
                     }
-                    // Hide any sticky desktop flyouts
+                    // Hide any sticky desktop flyouts / icon-rail leftovers
                     jQuery('#left-panel .submenu.is-flyout-open').removeClass('is-flyout-open')
                         .each(function () {
                             this.style.removeProperty('left');
                             this.style.removeProperty('top');
                         });
+                    jQuery('#left-panel .navbar-header, #left-panel .admin-brand-logo, #left-panel .admin-sidebar-title').hide();
                 } else {
                     backdrop.classList.remove('is-visible');
+                    jQuery('#left-panel .navbar-header, #left-panel .admin-brand-logo, #left-panel .admin-sidebar-title').show();
                 }
             }
 

@@ -267,6 +267,7 @@
             background: #7a0000 !important;
         }
     </style>
+@include('includes.mobile_app_bar_styles')
 </head>
 
 <body>
@@ -896,6 +897,8 @@
                         @include('includes.header_academic_year_selector')
                     </div>
                 </div>
+
+                <div class="header-mobile-divider d-lg-none" aria-hidden="true"></div>
 
                 <div class="col-sm-5">
 

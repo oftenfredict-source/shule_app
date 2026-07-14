@@ -558,6 +558,7 @@ a#menuToggle.menutoggle:hover {
 }
 </style>
 
+@include('includes.mobile_app_bar_styles')
 </head>
 <body>
     {{-- Fixed mobile top bar (visible when sidebar is off-canvas) --}}
@@ -1127,6 +1128,8 @@ a#menuToggle.menutoggle:hover {
                         @include('includes.header_academic_year_selector')
                     </div>
                 </div>
+
+                <div class="header-mobile-divider d-lg-none" aria-hidden="true"></div>
 
                 <div class="col-sm-5">
                     <div class="user-area dropdown float-right">

@@ -1648,8 +1648,17 @@ class ManageStudentController extends Controller
 
         $schoolID = Session::get('schoolID');
         $hasALevel = false;
+        $academicYears = collect();
+        $oLevelAcademicYears = collect();
+        $aLevelAcademicYears = collect();
         if ($schoolID) {
             $classes = ClassModel::where('schoolID', $schoolID)->where('status', 'Active')->get();
+            $academicYears = AcademicYear::where('schoolID', $schoolID)
+                ->orderByDesc('is_current')
+                ->orderByDesc('year')
+                ->orderByDesc('academic_yearID')
+                ->get();
+            $oLevelAcademicYears = $academicYears;
             $school = School::find($schoolID);
             if ($school && ($school->school_type ?? 'Secondary') === 'Secondary') {
                 $hasALevel = $classes->contains(function ($c) {
@@ -1658,6 +1667,11 @@ class ManageStudentController extends Controller
                         || str_contains($n, 'form_five')
                         || str_contains($n, 'form_six');
                 });
+                if ($hasALevel) {
+                    $yearService = app(SelectedAcademicYearService::class);
+                    $oLevelAcademicYears = $academicYears->filter(fn ($y) => !$yearService->isALevelYear($y))->values();
+                    $aLevelAcademicYears = $academicYears->filter(fn ($y) => $yearService->isALevelYear($y))->values();
+                }
             }
         }
 
@@ -1665,12 +1679,16 @@ class ManageStudentController extends Controller
             'canCreate',
             'canUpdate',
             'canDelete',
-            'hasALevel'
+            'hasALevel',
+            'academicYears',
+            'oLevelAcademicYears',
+            'aLevelAcademicYears'
         ))->render();
 
         return response($js, 200)
             ->header('Content-Type', 'application/javascript; charset=UTF-8')
-            ->header('Cache-Control', 'private, max-age=0, must-revalidate');
+            ->header('X-Content-Type-Options', 'nosniff')
+            ->header('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
     }
 
     public function get_students(Request $request)
