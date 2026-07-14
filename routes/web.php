@@ -1476,6 +1476,10 @@ Route::get("manage_student", [
     ManageStudentController::class,
     "manage_student",
 ])->name("manage_student");
+Route::get("manage_student_page.js", [
+    ManageStudentController::class,
+    "manage_student_page_js",
+])->name("manage_student_page_js");
 Route::get("get_students_list", [
     ManageStudentController::class,
     "get_students",

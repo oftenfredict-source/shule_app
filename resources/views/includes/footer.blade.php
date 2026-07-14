@@ -209,7 +209,7 @@
   }
   } /* end desktop collapsed sidebar */
 
-  /* Sidebar toggle button */
+  /* Sidebar toggle button (desktop header) — keep visible, original theme margins OK on desktop */
   #header .menutoggle,
   a#menuToggle.menutoggle,
   .header .menutoggle {
@@ -223,11 +223,6 @@
     justify-content: center !important;
     line-height: 1 !important;
     text-decoration: none !important;
-    margin: 0 10px 0 0 !important; /* override theme -57px which hides it on mobile */
-    float: none !important;
-    height: 40px !important;
-    width: 40px !important;
-    min-width: 40px !important;
     cursor: pointer !important;
   }
 
@@ -245,6 +240,11 @@
   .header .menutoggle:hover {
     background-color: #f0f0f0 !important;
     color: #940000 !important;
+  }
+
+  /* Mobile app bar (ShuleXpert + 3 dots) — matches teachers mobile header */
+  .mobile-app-bar {
+    display: none;
   }
 
   /* Sticky top header inside content area */
@@ -374,47 +374,83 @@
       width: 100% !important;
     }
 
-    /* Force header menu toggle visible (theme hides .menutoggle on mobile) */
+    /* Hide desktop header menuToggle on mobile (use top app bar instead) */
     #header .menutoggle,
     #header a#menuToggle.menutoggle,
-    a#menuToggle.menutoggle,
-    .right-panel header.header .menutoggle,
-    .header-menu .menutoggle {
-      display: inline-flex !important;
-      visibility: visible !important;
-      opacity: 1 !important;
-      position: relative !important;
-      z-index: 1030 !important;
-      margin: 0 8px 0 0 !important;
-      float: left !important;
-      width: 40px !important;
-      height: 40px !important;
-      min-width: 40px !important;
-      background-color: whitesmoke !important;
-      color: #940000 !important;
-      border: 1px solid #e8e8e8 !important;
+    a#menuToggle.menutoggle {
+      display: none !important;
+    }
+
+    .mobile-app-bar {
+      display: flex !important;
+      align-items: center;
+      justify-content: space-between;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      z-index: 1060;
+      min-height: 52px;
+      padding: 10px 14px;
+      background: #940000;
+      border-bottom: 2px solid rgba(255,255,255,0.15);
+      box-sizing: border-box;
+    }
+
+    .mobile-app-bar .mobile-brand {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #ffffff !important;
+      font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
+      text-decoration: none !important;
+      letter-spacing: 0.5px;
+      line-height: 1;
+    }
+
+    .mobile-app-bar .mobile-brand i {
+      color: #ffffff !important;
+      font-size: 1.3rem;
+    }
+
+    .mobile-app-bar .navbar-toggler,
+    #mobileSidebarToggle {
+      border: none !important;
+      padding: 6px 4px !important;
       border-radius: 4px !important;
+      background: transparent !important;
+      color: #ffffff !important;
+      cursor: pointer !important;
+      margin-left: auto !important;
+      box-shadow: none !important;
+      outline: none !important;
+      display: flex !important;
+      flex-direction: column !important;
       align-items: center !important;
       justify-content: center !important;
-      text-decoration: none !important;
-      cursor: pointer !important;
+      gap: 4px !important;
     }
 
-    #header .menutoggle i,
-    a#menuToggle.menutoggle i {
-      color: #940000 !important;
-      font-size: 18px !important;
-      line-height: 1 !important;
-      margin: 0 !important;
+    .mobile-app-bar .nav-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background-color: #ffffff;
+      display: block;
     }
 
-    .right-panel header.header .col-sm-7 {
-      display: flex !important;
-      align-items: center !important;
-      float: left !important;
-      width: auto !important;
-      max-width: 60% !important;
-      padding-left: 4px !important;
+    /* Offset content below fixed app bar */
+    .right-panel,
+    #right-panel {
+      padding-top: 52px !important;
+    }
+
+    .right-panel header.header,
+    #header {
+      top: 52px !important;
     }
 
     aside.left-panel,
@@ -437,6 +473,7 @@
       overflow-x: hidden !important;
       overflow-y: auto !important;
       pointer-events: none !important;
+      top: 0 !important;
     }
 
     body.open aside.left-panel,
@@ -447,6 +484,7 @@
       -webkit-transform: translateX(0) !important;
       box-shadow: 8px 0 24px rgba(0, 0, 0, 0.2) !important;
       pointer-events: auto !important;
+      padding-top: 52px !important;
     }
 
     /* Full labels on mobile — undo desktop icon-only rules */
@@ -517,12 +555,18 @@
       display: none !important;
     }
 
+    /* Keep fixed app bar above drawer; drawer still usable under it */
+    body.open .mobile-app-bar {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
     .sidebar-backdrop {
       display: none;
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.45);
       z-index: 1040;
+      top: 52px;
     }
 
     body.open .sidebar-backdrop.is-visible {
@@ -629,8 +673,15 @@
             ensureSidebarBackdrop();
             syncMobileSidebar();
 
-            jQuery(document).on('click', '#menuToggle, a#menuToggle.menutoggle', function (e) {
+            // Desktop #menuToggle: main.js already toggles body.open — only sync backdrop here
+            jQuery(document).on('click', '#menuToggle', function () {
+                setTimeout(syncMobileSidebar, 0);
+            });
+
+            // Mobile top-bar 3-dot control (separate from desktop menutoggle)
+            jQuery(document).on('click', '#mobileSidebarToggle', function (e) {
                 e.preventDefault();
+                e.stopImmediatePropagation();
                 document.body.classList.toggle('open');
                 syncMobileSidebar();
             });
@@ -716,32 +767,35 @@
         } else {
             // Fallback without jQuery (if $ broken / jQuery missing)
             document.addEventListener('click', function (e) {
-                var toggle = e.target.closest ? e.target.closest('#menuToggle') : null;
-                if (!toggle && e.target && e.target.id === 'menuToggle') toggle = e.target;
-                if (!toggle && e.target && e.target.parentElement && e.target.parentElement.id === 'menuToggle') {
-                    toggle = e.target.parentElement;
+                var t = e.target;
+                var toggle = null;
+                if (t && t.closest) {
+                    toggle = t.closest('#mobileSidebarToggle') || t.closest('#menuToggle');
                 }
-                if (toggle) {
+                if (!toggle && t && (t.id === 'mobileSidebarToggle' || t.id === 'menuToggle')) {
+                    toggle = t;
+                }
+                if (toggle && toggle.id === 'mobileSidebarToggle') {
                     e.preventDefault();
                     document.body.classList.toggle('open');
-                    var backdrop = document.getElementById('sidebar-backdrop');
-                    if (!backdrop) {
-                        backdrop = document.createElement('div');
-                        backdrop.id = 'sidebar-backdrop';
-                        backdrop.className = 'sidebar-backdrop';
-                        document.body.appendChild(backdrop);
-                    }
-                    var mobile = window.matchMedia('(max-width: 991px)').matches;
-                    var open = document.body.classList.contains('open');
-                    if (mobile) {
-                        backdrop.classList.toggle('is-visible', open);
-                    } else {
-                        backdrop.classList.remove('is-visible');
-                    }
                 }
-                if (e.target && e.target.id === 'sidebar-backdrop') {
+                var backdrop = document.getElementById('sidebar-backdrop');
+                if (!backdrop) {
+                    backdrop = document.createElement('div');
+                    backdrop.id = 'sidebar-backdrop';
+                    backdrop.className = 'sidebar-backdrop';
+                    document.body.appendChild(backdrop);
+                }
+                var mobile = window.matchMedia('(max-width: 991px)').matches;
+                var open = document.body.classList.contains('open');
+                if (mobile) {
+                    backdrop.classList.toggle('is-visible', open);
+                } else {
+                    backdrop.classList.remove('is-visible');
+                }
+                if (t && t.id === 'sidebar-backdrop') {
                     document.body.classList.remove('open');
-                    e.target.classList.remove('is-visible');
+                    t.classList.remove('is-visible');
                 }
             });
         }

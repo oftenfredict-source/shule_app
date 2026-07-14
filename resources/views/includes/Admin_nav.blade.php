@@ -560,6 +560,19 @@ a#menuToggle.menutoggle:hover {
 
 </head>
 <body>
+    {{-- Fixed mobile top bar (visible when sidebar is off-canvas) --}}
+    <div class="mobile-app-bar" id="mobileAppBar" aria-label="Mobile navigation">
+        <a class="mobile-brand" href="{{ route('AdminDashboard') }}">
+            <i class="fa fa-graduation-cap"></i>
+            ShuleXpert
+        </a>
+        <button type="button" class="navbar-toggler" id="mobileSidebarToggle" aria-label="Toggle sidebar">
+            <span class="nav-dot"></span>
+            <span class="nav-dot"></span>
+            <span class="nav-dot"></span>
+        </button>
+    </div>
+
     <!-- Left Panel -->
 
   <!-- Left Panel -->
@@ -567,10 +580,14 @@ a#menuToggle.menutoggle:hover {
     <nav class="navbar navbar-expand-sm navbar-default">
 
         <div class="navbar-header">
+            <a class="mobile-brand d-md-none" href="{{ route('AdminDashboard') }}" style="display:none;">
+                <i class="fa fa-graduation-cap"></i>
+                ShuleXpert
+            </a>
             <a href="{{ route('AdminDashboard') }}" class="admin-sidebar-title" style="text-decoration:none;">
                 <img src="{{ asset('images/shuleXpert.jpg') }}" alt="ShuleXpert" class="admin-brand-logo" onerror="this.onerror=null; this.src='{{ asset('images/logo.png') }}';">
             </a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#main-menu" aria-controls="main-menu" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler d-none" type="button" aria-hidden="true" tabindex="-1">
                 <span class="nav-dot"></span>
                 <span class="nav-dot"></span>
                 <span class="nav-dot"></span>

@@ -270,6 +270,19 @@
 </head>
 
 <body>
+    {{-- Fixed mobile top bar --}}
+    <div class="mobile-app-bar" id="mobileAppBar" aria-label="Mobile navigation">
+        <a class="mobile-brand" href="{{ route('staffDashboard') }}">
+            <i class="fa fa-graduation-cap"></i>
+            ShuleXpert
+        </a>
+        <button type="button" class="navbar-toggler" id="mobileSidebarToggle" aria-label="Toggle sidebar">
+            <span class="nav-dot"></span>
+            <span class="nav-dot"></span>
+            <span class="nav-dot"></span>
+        </button>
+    </div>
+
     @php
         $sessionUserType = \Illuminate\Support\Facades\Session::get('user_type');
         if ($sessionUserType === 'Staff') {

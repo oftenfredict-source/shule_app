@@ -412,6 +412,19 @@
 </style>
 </head>
 <body>
+    {{-- Fixed mobile top bar (same UX as Admin/Staff when sidebar is off-canvas) --}}
+    <div class="mobile-app-bar" id="mobileAppBar" aria-label="Mobile navigation">
+        <a class="mobile-brand" href="{{ route('teachersDashboard') }}">
+            <i class="fa fa-graduation-cap"></i>
+            ShuleXpert
+        </a>
+        <button type="button" class="navbar-toggler" id="mobileSidebarToggle" aria-label="Toggle sidebar">
+            <span class="nav-dot"></span>
+            <span class="nav-dot"></span>
+            <span class="nav-dot"></span>
+        </button>
+    </div>
+
     <!-- Left Panel -->
 
   <!-- Left Panel -->

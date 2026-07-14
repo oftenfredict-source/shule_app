@@ -1629,6 +1629,50 @@ class ManageStudentController extends Controller
         ));
     }
 
+    /**
+     * Page JS for manage_student — served as application/javascript
+     * so HTML minifiers (e.g. Cloudflare) cannot break && operators.
+     */
+    public function manage_student_page_js()
+    {
+        $user = Session::get('user_type');
+        if (!$user) {
+            return response('// unauthorized', 403)->header('Content-Type', 'application/javascript');
+        }
+
+        $user_type = $user;
+        $teacherPermissions = $this->getTeacherPermissions();
+        $canCreate = $user_type === 'Admin' || (is_object($teacherPermissions) ? $teacherPermissions->contains('student_create') : false);
+        $canUpdate = $user_type === 'Admin' || (is_object($teacherPermissions) ? $teacherPermissions->contains('student_update') : false);
+        $canDelete = $user_type === 'Admin' || (is_object($teacherPermissions) ? $teacherPermissions->contains('student_delete') : false);
+
+        $schoolID = Session::get('schoolID');
+        $hasALevel = false;
+        if ($schoolID) {
+            $classes = ClassModel::where('schoolID', $schoolID)->where('status', 'Active')->get();
+            $school = School::find($schoolID);
+            if ($school && ($school->school_type ?? 'Secondary') === 'Secondary') {
+                $hasALevel = $classes->contains(function ($c) {
+                    $n = strtolower(preg_replace('/[\s\-]+/', '_', trim((string) $c->class_name)));
+                    return in_array($n, ['form_five', 'form_5', 'form_six', 'form_6'], true)
+                        || str_contains($n, 'form_five')
+                        || str_contains($n, 'form_six');
+                });
+            }
+        }
+
+        $js = view('Admin.partials.manage_student_page_js', compact(
+            'canCreate',
+            'canUpdate',
+            'canDelete',
+            'hasALevel'
+        ))->render();
+
+        return response($js, 200)
+            ->header('Content-Type', 'application/javascript; charset=UTF-8')
+            ->header('Cache-Control', 'private, max-age=0, must-revalidate');
+    }
+
     public function get_students(Request $request)
     {
         try {
