@@ -2246,6 +2246,10 @@
     }
 
     (function($) {
+        if (typeof $ !== 'function') {
+            console.error('jQuery is required on manage_student but was not loaded.');
+            return;
+        }
         $(document).ready(function() {
         // Safety check for Select2
         function safeInitSelect2(selector, options) {
@@ -2338,11 +2342,12 @@
 
         function escapeHtmlStudent(text) {
             if (text === null || text === undefined) return '';
+            // Concatenate entities so the HTML parser does not decode them inside <script>
             return String(text)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
+                .replace(/&/g, '&' + 'amp;')
+                .replace(/</g, '&' + 'lt;')
+                .replace(/>/g, '&' + 'gt;')
+                .replace(/"/g, '&' + 'quot;');
         }
 
         function studentPhotoUrl(student) {
@@ -3502,7 +3507,7 @@
                 },
                 dataType: 'json',
                 success: function (res) {
-                    $btn.prop('disabled', false).html('Confirm &amp; Move');
+                    $btn.prop('disabled', false).html('Confirm \u0026 Move');
                     if (res.success) {
                         Swal.fire({
                             icon: 'success',
@@ -3519,7 +3524,7 @@
                     }
                 },
                 error: function (xhr) {
-                    $btn.prop('disabled', false).html('Confirm &amp; Move');
+                    $btn.prop('disabled', false).html('Confirm \u0026 Move');
                     const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Move failed';
                     Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonColor: '#940000' });
                 }
@@ -3804,7 +3809,7 @@
                 },
                 dataType: 'json',
                 success: function (res) {
-                    $btn.prop('disabled', false).html('Confirm &amp; Move');
+                    $btn.prop('disabled', false).html('Confirm \u0026 Move');
                     if (res.success) {
                         alert(res.message || 'Done');
                         closeStudentModal('singleMoveStudentModal');
@@ -3814,7 +3819,7 @@
                     }
                 },
                 error: function (xhr) {
-                    $btn.prop('disabled', false).html('Confirm &amp; Move');
+                    $btn.prop('disabled', false).html('Confirm \u0026 Move');
                     alert((xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Move failed');
                 }
             });
@@ -6040,12 +6045,13 @@ Would you like to try direct registration anyway, or use the manual method?`;
 
     function escapeHtmlEnrollment(text) {
         if (text === null || text === undefined) return '';
+        // Concatenate entities so the HTML parser does not decode them inside <script>
         return String(text)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
+            .replace(/&/g, '&' + 'amp;')
+            .replace(/</g, '&' + 'lt;')
+            .replace(/>/g, '&' + 'gt;')
+            .replace(/"/g, '&' + 'quot;')
+            .replace(/'/g, '&#' + '039;');
     }
 
     function loadStudentEnrollmentHistory(studentID) {
