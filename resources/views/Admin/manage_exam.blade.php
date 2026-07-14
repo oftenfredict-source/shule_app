@@ -597,13 +597,18 @@
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label for="filter_year" class="form-label">
-                                    <i class="bi bi-calendar"></i> Filter by Year
+                                    <i class="bi bi-calendar"></i> Academic Year
                                 </label>
-                                <select class="form-control" id="filter_year" name="year">
-                                    <option value="">All Years</option>
-                                    @foreach($availableYears ?? [] as $year)
-                                        <option value="{{ $year }}" {{ ($yearFilter ?? '') == $year ? 'selected' : '' }}>
-                                            {{ $year }}
+                                <select class="form-control" id="filter_year" name="academic_yearID">
+                                    <option value="">All Academic Years</option>
+                                    @foreach($availableAcademicYears ?? [] as $ay)
+                                        @php
+                                            $ayLabel = $ay->year_name ?: $ay->year;
+                                            $filterIds = array_filter(array_map('intval', preg_split('/[,\s]+/', (string)($academicYearFilter ?? '')) ?: []));
+                                            $selected = in_array((int)$ay->academic_yearID, $filterIds, true);
+                                        @endphp
+                                        <option value="{{ $ay->academic_yearID }}" {{ $selected ? 'selected' : '' }}>
+                                            {{ $ayLabel }}{{ !empty($ay->is_current) ? ' (Current)' : '' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -801,6 +806,50 @@
 </div>
 
 <!-- Create Examination Modal -->
+
+<!-- Exam Shift Modal -->
+<div class="modal fade" id="examShiftModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#940000;color:#fff;">
+                <h5 class="modal-title" id="examShiftModalTitle">Shift Students</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">
+                    Select students to shift. Destination is suggested from marks / subclass grade range.
+                    You can change subclass if needed. Shift saves enrollment history (Undo available).
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="bg-light">
+                            <tr>
+                                <th width="40"><input type="checkbox" id="examShiftSelectAll"></th>
+                                <th>Student</th>
+                                <th>From</th>
+                                <th>To (subclass)</th>
+                                <th>Marks</th>
+                                <th>Grade Range</th>
+                                <th>Fit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="examShiftTableBody">
+                            <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-secondary" id="examShiftUndoBtn" disabled>Undo Last Shift</button>
+                <button type="button" class="btn" id="examShiftExecuteBtn" style="background:#940000;color:#fff;">Confirm &amp; Shift</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="createExamModal" tabindex="-1" role="dialog" aria-labelledby="createExamModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
@@ -919,8 +968,11 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="year">Year <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="year" name="year" value="{{ $currentYear }}" min="2000" max="2100" required>
+                                <label for="year">Academic Year <span class="text-danger">*</span></label>
+                                <input type="hidden" id="academic_yearID" name="academic_yearID" value="{{ $currentAcademicYearID ?? '' }}">
+                                <input type="text" class="form-control" id="year_display" value="{{ optional($currentAcademicYear ?? null)->year_name ?? optional($currentAcademicYear ?? null)->year ?? ($currentYear ?? date('Y')) }}" readonly style="background:#f5f5f5;">
+                                <input type="hidden" id="year" name="year" value="{{ $currentYear }}">
+                                <small class="text-muted">Uses the selected / current academic year from header</small>
                             </div>
                         </div>
                     </div>
@@ -1281,8 +1333,11 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label for="edit_year">Year <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="edit_year" name="year" min="2000" max="2100" required>
+                                <label for="edit_year">Academic Year <span class="text-danger">*</span></label>
+                                <input type="hidden" id="edit_academic_yearID" name="academic_yearID" value="">
+                                <input type="text" class="form-control" id="edit_year_display" value="" readonly style="background:#f5f5f5;">
+                                <input type="hidden" id="edit_year" name="year" value="{{ $currentYear }}">
+                                <small class="text-muted">Linked to academic year (header selection used for new exams)</small>
                             </div>
                         </div>
                     </div>
@@ -3208,133 +3263,178 @@ jQuery(document).ready(function($) {
         });
     });
 
-    // Auto Shift Students
+    // Shift Students (enrollment-based preview + execute + undo)
+    let examShiftState = { examID: null, students: [] };
+
+    function renderExamShiftRows(students) {
+        examShiftState.students = students || [];
+        if (!examShiftState.students.length) {
+            $('#examShiftTableBody').html('<tr><td colspan="7" class="text-center text-muted">No students with marks found for this exam.</td></tr>');
+            return;
+        }
+        let html = '';
+        examShiftState.students.forEach(function (s, idx) {
+            let opts = '';
+            (s.alternates || []).forEach(function (a) {
+                const selected = String(a.subclassID) === String(s.suggested_subclassID || '') ? 'selected' : '';
+                opts += `<option value="${a.subclassID}" data-range="${(a.grade_range || '').replace(/"/g, '&quot;')}" ${selected}>${a.label} (${a.grade_range || 'no limit'})${a.qualifies ? '' : ' — below range'}</option>`;
+            });
+            if (!opts) {
+                opts = '<option value="">No destination subclasses</option>';
+            }
+            const checked = s.checked_default ? 'checked' : '';
+            html += `<tr data-idx="${idx}">
+                <td><input type="checkbox" class="exam-shift-check" ${checked} ${s.suggested_subclassID ? '' : 'disabled'}></td>
+                <td>${s.admission_number || '-'}<br><small>${s.full_name || ''}</small></td>
+                <td>${s.from_class || '-'}</td>
+                <td><select class="form-control form-control-sm exam-shift-dest" style="border-radius:0;min-width:180px;">${opts}</select></td>
+                <td>${s.marks || 'N/A'}</td>
+                <td class="exam-shift-range">${s.grade_range || '-'}</td>
+                <td>${s.qualifies ? '<span class="badge badge-success">OK</span>' : '<span class="badge badge-warning">Override</span>'}</td>
+            </tr>`;
+        });
+        $('#examShiftTableBody').html(html);
+    }
+
+    $(document).on('change', '.exam-shift-dest', function () {
+        const range = $(this).find('option:selected').data('range') || '-';
+        $(this).closest('tr').find('.exam-shift-range').text(range);
+        $(this).closest('tr').find('.exam-shift-check').prop('disabled', !$(this).val()).prop('checked', !!$(this).val());
+    });
+
+    $('#examShiftSelectAll').on('change', function () {
+        const on = $(this).is(':checked');
+        $('.exam-shift-check:not(:disabled)').prop('checked', on);
+    });
+
     $(document).on('click', '.auto-shift-students-btn', function(e) {
         e.preventDefault();
         e.stopPropagation();
         const examID = $(this).data('exam-id');
-        const shiftingStatus = $(this).data('shifting-status');
-        const examName = $(this).closest('.card').find('h6').text() || 'this examination';
-        const statusText = shiftingStatus === 'internal' ? 'darasa moja kwenda jengine (mfano: Form One A kwenda Form One B)' : 'darasa moja kwenda jengine (mfano: Form Three kwenda Form Four)';
+        const examName = $(this).data('exam-name') || 'Examination';
+        examShiftState.examID = examID;
+        $('#examShiftModalTitle').text('Shift Students — ' + examName);
+        $('#examShiftTableBody').html('<tr><td colspan="7" class="text-center">Loading preview...</td></tr>');
+        $('#examShiftModal').modal('show');
 
-        Swal.fire({
-            title: 'Auto Shift Students?',
-            text: `Je, unataka kuhamisha wanafunzi kwa automatik kutoka ${statusText} kwa ajili ya "${examName}"? Hii itaangalia matokeo na kuhamisha wanafunzi kulingana na alama zao.`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#940000',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ndiyo, Hamisha',
-            cancelButtonText: 'Ghairi'
-        }).then((result) => {
-            if (result.isConfirmed) {
+        $.getJSON('/exam_shift_preview/' + examID, function (res) {
+            if (!res.success) {
+                $('#examShiftTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + (res.message || res.error || 'Failed') + '</td></tr>');
+                return;
+            }
+            $('#examShiftUndoBtn').prop('disabled', !res.can_undo);
+            renderExamShiftRows(res.students || []);
+        }).fail(function (xhr) {
+            const msg = (xhr.responseJSON && (xhr.responseJSON.message || xhr.responseJSON.error)) || 'Failed to load preview';
+            $('#examShiftTableBody').html('<tr><td colspan="7" class="text-center text-danger">' + msg + '</td></tr>');
+        });
+    });
+
+    $('#examShiftExecuteBtn').on('click', function () {
+        const moves = [];
+        $('#examShiftTableBody tr').each(function () {
+            const $tr = $(this);
+            const idx = $tr.data('idx');
+            if (typeof idx === 'undefined') return;
+            if (!$tr.find('.exam-shift-check').is(':checked')) return;
+            const s = examShiftState.students[idx];
+            const dest = $tr.find('.exam-shift-dest').val();
+            if (!s || !dest) return;
+            moves.push({ studentID: s.studentID, new_subclassID: parseInt(dest, 10) });
+        });
+        if (!moves.length) {
+            Swal.fire({ icon: 'warning', title: 'Select students', text: 'Select at least one student with a destination subclass.', confirmButtonColor: '#940000' });
+            return;
+        }
+
+        const $btn = $(this).prop('disabled', true).text('Shifting...');
+        $.ajax({
+            url: '/auto_shift_students/' + examShiftState.examID,
+            method: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                moves: moves
+            },
+            success: function (response) {
+                $btn.prop('disabled', false).text('Confirm & Shift');
+                $('#examShiftModal').modal('hide');
                 Swal.fire({
-                    title: 'Inahamisha Wanafunzi...',
-                    html: 'Tunahamisha wanafunzi na kutuma SMS kwa wazazi. Tafadhali subiri...',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-
-                $.ajaxSetup({
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    }
-                });
-                
-                $.ajax({
-                    url: '/auto_shift_students/' + examID,
-                    method: 'POST',
-                    data: {
-                        _token: $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function(response) {
-                        Swal.fire({
-                            title: 'Imekamilika!',
-                            text: response.success,
-                            icon: 'success',
-                            confirmButtonColor: '#940000'
-                        }).then(() => {
-                            location.reload();
-                        });
-                    },
-                    error: function(xhr) {
-                        Swal.fire({
-                            title: 'Kosa!',
-                            text: xhr.responseJSON?.error || 'Imeshindwa kuhamisha wanafunzi',
-                            icon: 'error',
-                            confirmButtonColor: '#940000'
-                        });
-                    }
+                    title: 'Done!',
+                    text: response.success || 'Students shifted.',
+                    icon: 'success',
+                    confirmButtonColor: '#940000'
+                }).then(() => location.reload());
+            },
+            error: function (xhr) {
+                $btn.prop('disabled', false).text('Confirm & Shift');
+                Swal.fire({
+                    title: 'Error!',
+                    text: xhr.responseJSON?.error || 'Shift failed',
+                    icon: 'error',
+                    confirmButtonColor: '#940000'
                 });
             }
         });
     });
 
-    // Unshift Students
+    $('#examShiftUndoBtn').on('click', function () {
+        if (!examShiftState.examID) return;
+        Swal.fire({
+            title: 'Undo Shift?',
+            text: 'This restores previous enrollments for the last exam shift batch.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#940000',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, Undo'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+            $.ajax({
+                url: '/unshift_students/' + examShiftState.examID,
+                method: 'POST',
+                data: { _token: $('meta[name="csrf-token"]').attr('content') },
+                success: function (response) {
+                    $('#examShiftModal').modal('hide');
+                    Swal.fire({ title: 'Undone', text: response.success || 'Shift undone.', icon: 'success', confirmButtonColor: '#940000' })
+                        .then(() => location.reload());
+                },
+                error: function (xhr) {
+                    Swal.fire({ title: 'Error!', text: xhr.responseJSON?.error || 'Undo failed', icon: 'error', confirmButtonColor: '#940000' });
+                }
+            });
+        });
+    });
+
+    // Unshift Students (actions menu)
     $(document).on('click', '.unshift-students-btn', function(e) {
         e.preventDefault();
         e.stopPropagation();
         const examID = $(this).data('exam-id');
-        const examName = $(this).closest('.card').find('h6').text() || 'this examination';
-
         Swal.fire({
-            title: 'Rudisha Wanafunzi?',
-            text: `Je, unataka kurudisha wanafunzi waliohamishwa kurudi darasa la zamani kwa ajili ya "${examName}"?`,
-            icon: 'question',
+            title: 'Undo Shift?',
+            text: 'Restore previous enrollments from the last exam shift batch?',
+            icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#940000',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ndiyo, Rudisha',
-            cancelButtonText: 'Ghairi'
+            confirmButtonText: 'Yes, Undo'
         }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({
-                    title: 'Inarudisha Wanafunzi...',
-                    html: 'Tunarudisha wanafunzi darasa la zamani. Tafadhali subiri...',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-
-                $.ajaxSetup({
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    }
-                });
-                
-                $.ajax({
-                    url: '/unshift_students/' + examID,
-                    method: 'POST',
-                    data: {
-                        _token: $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function(response) {
-                        Swal.fire({
-                            title: 'Imekamilika!',
-                            text: response.success,
-                            icon: 'success',
-                            confirmButtonColor: '#940000'
-                        }).then(() => {
-                            location.reload();
-                        });
-                    },
-                    error: function(xhr) {
-                        Swal.fire({
-                            title: 'Kosa!',
-                            text: xhr.responseJSON?.error || 'Imeshindwa kurudisha wanafunzi',
-                            icon: 'error',
-                            confirmButtonColor: '#940000'
-                        });
-                    }
-                });
-            }
+            if (!result.isConfirmed) return;
+            $.ajax({
+                url: '/unshift_students/' + examID,
+                method: 'POST',
+                data: { _token: $('meta[name="csrf-token"]').attr('content') },
+                success: function(response) {
+                    Swal.fire({ title: 'Undone!', text: response.success, icon: 'success', confirmButtonColor: '#940000' })
+                        .then(() => location.reload());
+                },
+                error: function(xhr) {
+                    Swal.fire({ title: 'Error!', text: xhr.responseJSON?.error || 'Undo failed', icon: 'error', confirmButtonColor: '#940000' });
+                }
+            });
         });
     });
+
 
     // Reject Exam
     $(document).on('click', '.reject-exam-btn', function(e) {
@@ -3541,7 +3641,7 @@ jQuery(document).ready(function($) {
                 page: nextPage,
                 per_page: 12,
                 search: search,
-                year: year,
+                academic_yearID: year,
                 status: status,
                 approval_status: approval,
                 exam_type: examTypeFilter
@@ -3883,6 +3983,8 @@ jQuery(document).ready(function($) {
                     $('#edit_start_date').val(exam.start_date || '');
                     $('#edit_end_date').val(exam.end_date || '');
                     $('#edit_year').val(exam.year || new Date().getFullYear());
+                    $('#edit_academic_yearID').val(exam.academic_yearID || '');
+                    $('#edit_year_display').val(exam.academic_year_name || exam.year || '');
                     $('#edit_details').val(exam.details || '');
 
                     if (exam.exam_category === 'school_exams') {

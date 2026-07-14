@@ -25,6 +25,7 @@ class Examination extends Model
         'exam_type',
         'student_shifting_status',
         'schoolID',
+        'academic_yearID',
         'year',
         'details',
         'created_by',
@@ -48,6 +49,11 @@ class Examination extends Model
     public function school()
     {
         return $this->belongsTo(School::class, 'schoolID', 'schoolID');
+    }
+
+    public function academicYear()
+    {
+        return $this->belongsTo(AcademicYear::class, 'academic_yearID', 'academic_yearID');
     }
 
     public function results()

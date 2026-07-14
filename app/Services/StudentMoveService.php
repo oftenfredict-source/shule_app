@@ -1268,7 +1268,9 @@ class StudentMoveService
             $newLabel = trim($newClassName . ' ' . ($newSubclass->subclass_name ?? ''));
 
             $action = 'Internal';
-            $promotionStatus = 'Transferred';
+            // Internal stream change is NOT school transfer — keep Pending.
+            // Transferred promotion_status = left the school.
+            $promotionStatus = 'Pending';
             if ($type === 'external') {
                 $oldRank = $this->classRank($oldClassName);
                 $newRank = $this->classRank($newClassName);

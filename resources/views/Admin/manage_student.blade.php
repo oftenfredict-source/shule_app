@@ -145,6 +145,52 @@
     .enrollment-class-widget.is-expanded .enrollment-subclasses {
         display: block;
     }
+    .enrollment-subclass-widget {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 0;
+        margin-bottom: 0.5rem;
+        overflow: hidden;
+    }
+    .enrollment-subclass-widget:last-child {
+        margin-bottom: 0;
+    }
+    .enrollment-subclass-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.7rem 0.85rem;
+        cursor: pointer;
+        user-select: none;
+        background: #fff;
+    }
+    .enrollment-subclass-header:hover {
+        background: #f8f9fa;
+    }
+    .enrollment-subclass-title {
+        font-weight: 600;
+        color: #212529;
+        margin: 0;
+        font-size: 0.9rem;
+    }
+    .enrollment-subclass-widget .enrollment-toggle-icon {
+        color: #940000;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+    }
+    .enrollment-subclass-widget.is-expanded .enrollment-toggle-icon {
+        transform: rotate(180deg);
+    }
+    .enrollment-subclass-details {
+        display: none;
+        padding: 0.65rem 0.85rem 0.85rem;
+        background: #fafafa;
+        border-top: 1px solid #eee;
+    }
+    .enrollment-subclass-widget.is-expanded .enrollment-subclass-details {
+        display: block;
+    }
     .enrollment-subclass-item {
         background: #fff;
         border: 1px solid #e9ecef;
@@ -160,11 +206,41 @@
         color: #212529;
         margin-bottom: 0.25rem;
     }
+    .enrollment-period-meta {
+        color: #555;
+        line-height: 1.55;
+        border-top: 1px dashed #e0e0e0;
+        padding-top: 0.45rem;
+        margin-top: 0.35rem;
+    }
+    .enrollment-period-meta i {
+        color: #940000;
+        margin-right: 0.25rem;
+    }
     .enrollment-badge-active { background: #28a745; }
     .enrollment-badge-completed { background: #6c757d; }
     .enrollment-badge-repeated { background: #fd7e14; }
     .enrollment-badge-graduated { background: #17a2b8; }
+    .enrollment-badge-transferred { background: #0d6efd; }
+    .enrollment-badge-dropped { background: #dc3545; }
+    .enrollment-badge-cancelled { background: #495057; }
     .enrollment-badge-other { background: #940000; }
+    .promotion-badge-pending { background: #6c757d; }
+    .promotion-badge-promoted { background: #28a745; }
+    .promotion-badge-repeated { background: #fd7e14; }
+    .promotion-badge-graduated { background: #17a2b8; }
+    .promotion-badge-transferred { background: #0d6efd; }
+    .promotion-badge-other { background: #940000; }
+    #viewStudentModal .badge.enrollment-badge-active,
+    #viewStudentModal .badge.enrollment-badge-completed,
+    #viewStudentModal .badge.enrollment-badge-repeated,
+    #viewStudentModal .badge.enrollment-badge-graduated,
+    #viewStudentModal .badge.enrollment-badge-other {
+        font-weight: 600;
+        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;
+        border-radius: 0;
+        padding: 0.45rem 0.7rem;
+    }
     
     .widget-toggle-icon {
         transition: transform 0.3s ease;
@@ -515,6 +591,30 @@
         border-radius: 50%;
         object-fit: cover;
         border: 1px solid #e0e0e0;
+    }
+    .enrollment-status-pill {
+        display: inline-block;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif;
+        border-radius: 0;
+        color: #fff !important;
+        line-height: 1.2;
+        white-space: nowrap;
+        letter-spacing: 0.02em;
+        text-transform: capitalize;
+    }
+    .student-list-view .enrollment-status-pill {
+        font-size: 0.78rem;
+        padding: 0.35rem 0.6rem;
+    }
+    .student-widget-body .enrollment-status-row {
+        margin: 0.25rem 0 0.75rem;
+    }
+    .student-widget-body .enrollment-status-pill {
+        font-size: 0.85rem;
+        padding: 0.45rem 0.85rem;
     }
     .student-list-actions {
         display: flex;
@@ -1315,15 +1415,15 @@
                     </select>
             </div>
                 <div class="col-md-2">
-                    <label class="form-label fw-bold mb-2">Status</label>
-                    <select class="form-select" id="statusFilter">
-                        <option value="Active">Active</option>
-                        <option value="Applied">Applied</option>
-                        <option value="Graduated">Graduated</option>
-                        <option value="Inactive">Inactive</option>
+                    <label class="form-label fw-bold mb-2" for="statusFilter" title="Enrollment status for the selected academic year">Enrollment Status</label>
+                    <select class="form-select" id="statusFilter" title="Enrollment status for the selected academic year">
+                        <option value="Active" selected>Active</option>
+                        <option value="Completed">Completed</option>
                         <option value="Transferred">Transferred</option>
+                        <option value="Dropped">Dropped</option>
+                        <option value="Cancelled">Cancelled</option>
                     </select>
-        </div>
+                </div>
     </div>
 
             <!-- Statistics Display -->
@@ -1388,6 +1488,8 @@
                                     <th>Admission</th>
                                     <th>Full Name</th>
                                     <th>Class</th>
+                                    <th>Enrollment Status</th>
+                                    <th>Promotion Status</th>
                                     <th>Gender</th>
                                     <th>Parent</th>
                                     <th>Fingerprint</th>
@@ -2133,6 +2235,20 @@
             <div class="modal-body">
                 <p class="text-muted small">Undo restores previous active enrollments and cancels new ones created by the move.</p>
                 <div id="undoMoveBatchesList">Loading...</div>
+                <div id="undoMoveConfirmBox" class="d-none p-3 mt-3" style="border:1px dashed #940000; background:#fff;">
+                    <p class="mb-2 fw-bold" style="color:#940000;">
+                        Undo move batch #<span id="undoMoveConfirmBatchLabel">—</span>?
+                    </p>
+                    <p class="small text-muted mb-1">This restores students to previous enrollments. Type <strong>yes</strong> or <strong>no</strong></p>
+                    <input type="text" class="form-control mb-2" id="undoMoveConfirmYesNo" placeholder="yes / no" style="border-radius:0;" autocomplete="off">
+                    <div id="undoMoveConfirmWordWrap" class="d-none">
+                        <p class="small text-muted mb-1">If yes, type the word <strong>yes</strong> again to confirm undo</p>
+                        <input type="text" class="form-control mb-2" id="undoMoveConfirmWord" placeholder="Type yes" style="border-radius:0;" autocomplete="off">
+                        <button type="button" class="btn" id="undoMoveExecuteBtn" style="background:#940000;color:#fff;border-radius:0;" disabled>
+                            Confirm &amp; Undo
+                        </button>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -2201,6 +2317,56 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn" id="singleMoveConfirmBtn" style="background:#940000;color:#fff;border-radius:0;" disabled>Move Student</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Enrollment Status Modal (Dropped / Transferred = left school) -->
+<div class="modal fade" id="editEnrollmentStatusModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-journal-x"></i> Edit Enrollment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 mb-3" style="background:#f5f5f5; border:1px solid #940000;">
+                    <div><strong id="editEnrollmentStudentName">—</strong></div>
+                    <div class="small text-muted">Current class: <span id="editEnrollmentCurrentClass">—</span></div>
+                </div>
+                <p class="small text-muted mb-3">
+                    Use this only when the student leaves the school.
+                    Class/stream changes use <strong>Move Student</strong> (not Transferred).
+                </p>
+                <label class="form-label fw-bold">Choose action</label>
+                <div class="d-flex flex-wrap mb-3" style="gap:10px;">
+                    <button type="button" class="btn edit-enrollment-action-btn" data-action="Dropped" style="border:1px solid #940000;border-radius:0;background:#fff;color:#940000;">
+                        Make as Dropped
+                        <div class="small" style="font-weight:400;color:#666;">Expelled / stopped schooling</div>
+                    </button>
+                    <button type="button" class="btn edit-enrollment-action-btn" data-action="Transferred" style="border:1px solid #940000;border-radius:0;background:#fff;color:#940000;">
+                        Make as Transferred
+                        <div class="small" style="font-weight:400;color:#666;">Left to another school</div>
+                    </button>
+                </div>
+                <div id="editEnrollmentConfirmPanel" class="d-none p-3" style="border:1px dashed #940000; background:#fff;">
+                    <p class="mb-2 fw-bold" style="color:#940000;" id="editEnrollmentConfirmTitle">Confirm?</p>
+                    <label class="form-label small mb-1">Optional note</label>
+                    <input type="text" class="form-control mb-2" id="editEnrollmentNotes" placeholder="Optional reason..." style="border-radius:0;" autocomplete="off">
+                    <p class="small text-muted mb-1">Type <strong>yes</strong> or <strong>no</strong></p>
+                    <input type="text" class="form-control mb-2" id="editEnrollmentConfirmYesNo" placeholder="yes / no" style="border-radius:0;" autocomplete="off">
+                    <div id="editEnrollmentConfirmWordWrap" class="d-none">
+                        <p class="small text-muted mb-1">If yes, type the word <strong>yes</strong> again to confirm</p>
+                        <input type="text" class="form-control mb-2" id="editEnrollmentConfirmWord" placeholder="Type yes" style="border-radius:0;" autocomplete="off">
+                        <button type="button" class="btn" id="editEnrollmentExecuteBtn" style="background:#940000;color:#fff;border-radius:0;" disabled>
+                            Confirm
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>

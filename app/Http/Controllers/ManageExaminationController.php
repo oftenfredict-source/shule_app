@@ -22,7 +22,10 @@ use App\Models\Subclass;
 use App\Models\SubjectElector;
 use App\Models\Teacher;
 use App\Models\WeeklyTestSchedule;
+use App\Models\AcademicYear;
 use App\Services\SmsService;
+use App\Services\SelectedAcademicYearService;
+use App\Services\ExamShiftService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -412,11 +415,27 @@ class ManageExaminationController extends Controller
         $this->updateExamStatusBasedOnDates();
 
         $schoolID = Session::get('schoolID');
-        $currentYear = date('Y');
+        $yearService = app(SelectedAcademicYearService::class);
+        $yearCtx = $yearService->headerContext((int) $schoolID);
+        $selectedYearIds = array_values(array_filter(array_map('intval', $yearCtx['selected_year_ids'] ?? [])));
+        $currentAcademicYear = $yearCtx['selected_year']
+            ?? $yearCtx['selected_o_level_year']
+            ?? null;
+        $currentYear = $currentAcademicYear
+            ? (int) (is_numeric($currentAcademicYear->year) ? $currentAcademicYear->year : date('Y'))
+            : (int) date('Y');
+        $currentAcademicYearID = $currentAcademicYear
+            ? (int) $currentAcademicYear->academic_yearID
+            : ($selectedYearIds[0] ?? null);
 
         // Get search parameters
         $search = request()->get('search', '');
-        $yearFilter = request()->get('year', '');
+        $yearFilter = request()->get('year', ''); // legacy calendar year
+        $academicYearFilter = request()->get('academic_yearID', '');
+        // Default filter = header selected academic years when none explicitly chosen
+        if ($academicYearFilter === '' && $yearFilter === '' && !empty($selectedYearIds)) {
+            $academicYearFilter = implode(',', $selectedYearIds);
+        }
         $statusFilter = request()->get('status', '');
         $termFilter = request()->get('term', '');
         $examCategoryFilter = request()->get('exam_category', '');
@@ -430,7 +449,10 @@ class ManageExaminationController extends Controller
             $query->where('exam_name', 'like', '%'.$search.'%');
         }
 
-        if (! empty($yearFilter)) {
+        $filterYearIds = array_values(array_filter(array_map('intval', preg_split('/[,\s]+/', (string) $academicYearFilter) ?: [])));
+        if (!empty($filterYearIds)) {
+            $query->whereIn('academic_yearID', $filterYearIds);
+        } elseif (! empty($yearFilter)) {
             $query->where('year', $yearFilter);
         }
 
@@ -636,7 +658,14 @@ class ManageExaminationController extends Controller
             ->orderBy('class_name')
             ->get();
 
-        // Get available years for filter
+        // Get available academic years for filter
+        $availableAcademicYears = AcademicYear::where('schoolID', $schoolID)
+            ->orderByDesc('is_current')
+            ->orderByDesc('year')
+            ->orderByDesc('academic_yearID')
+            ->get();
+
+        // Legacy calendar years (fallback display)
         $availableYears = Examination::where('schoolID', $schoolID)
             ->distinct('year')
             ->orderBy('year', 'desc')
@@ -650,7 +679,6 @@ class ManageExaminationController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Get closed terms for current year
         // Get closed terms for current year
         $closedTerms = DB::table('terms')
             ->where('schoolID', $schoolID)
@@ -669,7 +697,30 @@ class ManageExaminationController extends Controller
             ->orderBy('first_name')
             ->get();
 
-        return view('Admin.manage_exam', compact('examinations', 'examinationsGrouped', 'subclasses', 'classSubjects', 'classes', 'currentYear', 'availableYears', 'totalExams', 'search', 'yearFilter', 'statusFilter', 'termFilter', 'examCategoryFilter', 'roles', 'closedTerms', 'resultButtonStatus', 'teachers'));
+        return view('Admin.manage_exam', compact(
+            'examinations',
+            'examinationsGrouped',
+            'subclasses',
+            'classSubjects',
+            'classes',
+            'currentYear',
+            'currentAcademicYearID',
+            'currentAcademicYear',
+            'availableYears',
+            'availableAcademicYears',
+            'academicYearFilter',
+            'selectedYearIds',
+            'totalExams',
+            'search',
+            'yearFilter',
+            'statusFilter',
+            'termFilter',
+            'examCategoryFilter',
+            'roles',
+            'closedTerms',
+            'resultButtonStatus',
+            'teachers'
+        ));
     }
 
     public function searchExaminations(Request $request)
@@ -719,6 +770,7 @@ class ManageExaminationController extends Controller
         $perPage = $request->get('per_page', 12);
         $search = $request->get('search', '');
         $yearFilter = $request->get('year', '');
+        $academicYearFilter = $request->get('academic_yearID', '');
         $statusFilter = $request->get('status', '');
         $approvalFilter = $request->get('approval_status', '');
         $examTypeFilter = $request->get('exam_type', '');
@@ -731,8 +783,16 @@ class ManageExaminationController extends Controller
             $query->where('exam_name', 'like', '%'.$search.'%');
         }
 
-        if (! empty($yearFilter)) {
+        $filterYearIds = array_values(array_filter(array_map('intval', preg_split('/[,\s]+/', (string) $academicYearFilter) ?: [])));
+        if (!empty($filterYearIds)) {
+            $query->whereIn('academic_yearID', $filterYearIds);
+        } elseif (! empty($yearFilter)) {
             $query->where('year', $yearFilter);
+        } else {
+            $selectedIds = app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID);
+            if (!empty($selectedIds)) {
+                $query->whereIn('academic_yearID', array_map('intval', $selectedIds));
+            }
         }
 
         if (! empty($statusFilter)) {
@@ -848,7 +908,8 @@ class ManageExaminationController extends Controller
                 'end_date' => 'required|date|after_or_equal:start_date',
                 'allow_no_format' => 'nullable|boolean',
                 'allow_no_paper' => 'nullable|boolean',
-                'year' => 'required|integer|min:2000|max:2100',
+                'year' => 'nullable|integer|min:2000|max:2100',
+                'academic_yearID' => 'nullable|integer|exists:academic_years,academic_yearID',
                 'details' => 'nullable|string',
                 'student_shifting_status' => 'required_if:exam_category,school_exams|required_if:exam_category,test|in:none,internal,external',
                 'except_class_ids' => 'nullable|array',
@@ -959,17 +1020,28 @@ class ManageExaminationController extends Controller
                 ], 400);
             }
 
+            // Resolve academic year (header/current) for new exams
+            $resolvedYear = $this->resolveExaminationAcademicYear((int) $schoolID, $request->input('academic_yearID'));
+            $academicYearID = $resolvedYear['academic_yearID'];
+            $calendarYear = $resolvedYear['year'];
+
             // Prevent duplicate creation of Weekly/Monthly tests for the same school and year
             if ($request->exam_category === 'test' && in_array($request->exam_name, ['Weekly Test', 'Monthly Test'])) {
                 $existingTest = Examination::where('schoolID', $schoolID)
                     ->where('exam_category', 'test')
                     ->where('exam_name', $request->exam_name)
-                    ->where('year', $request->year)
+                    ->where(function ($q) use ($academicYearID, $calendarYear) {
+                        if ($academicYearID) {
+                            $q->where('academic_yearID', $academicYearID);
+                        } else {
+                            $q->where('year', $calendarYear);
+                        }
+                    })
                     ->exists();
 
                 if ($existingTest) {
                     return response()->json([
-                        'error' => $request->exam_name . ' already created for the year ' . $request->year . '. You can only have one "' . $request->exam_name . '" per year.',
+                        'error' => $request->exam_name . ' already created for this academic year. You can only have one "' . $request->exam_name . '" per year.',
                     ], 422);
                 }
             }
@@ -1020,7 +1092,8 @@ class ManageExaminationController extends Controller
                 'end_date' => $request->end_date,
                 'exam_type' => 'school_wide_all_subjects', // Set default for compatibility
                 'schoolID' => $schoolID,
-                'year' => $request->year,
+                'academic_yearID' => $academicYearID,
+                'year' => $calendarYear,
                 'details' => $request->details,
                 'student_shifting_status' => ($request->exam_category === 'school_exams' || $request->exam_category === 'test') ? ($request->student_shifting_status ?? 'none') : 'none',
                 'status' => $status,
@@ -1770,7 +1843,13 @@ class ManageExaminationController extends Controller
             $examData['end_date'] = $exam->end_date ? $exam->end_date->format('Y-m-d') : null;
             $examData['enter_result'] = $exam->enter_result ?? false;
             $examData['except_class_ids'] = $exam->except_class_ids ?? [];
-
+            $examData['academic_yearID'] = $exam->academic_yearID;
+            if ($exam->academic_yearID) {
+                $ay = AcademicYear::find($exam->academic_yearID);
+                $examData['academic_year_name'] = $ay ? ($ay->year_name ?: $ay->year) : null;
+            } else {
+                $examData['academic_year_name'] = $exam->year;
+            }
             // Derive include_class_ids for special exams using existing results
             $examData['include_class_ids'] = [];
             if (($exam->exam_category ?? '') === 'special_exams') {
@@ -1949,7 +2028,8 @@ class ManageExaminationController extends Controller
                 'end_date' => 'required|date|after_or_equal:start_date',
                 'allow_no_format' => 'nullable|boolean',
                 'allow_no_paper' => 'nullable|boolean',
-                'year' => 'required|integer|min:2000|max:2100',
+                'year' => 'nullable|integer|min:2000|max:2100',
+                'academic_yearID' => 'nullable|integer|exists:academic_years,academic_yearID',
                 'details' => 'nullable|string',
                 'student_shifting_status' => 'required_if:exam_category,school_exams|required_if:exam_category,test|in:none,internal,external',
                 'except_class_ids' => 'nullable|array',
@@ -2046,6 +2126,10 @@ class ManageExaminationController extends Controller
 
             DB::beginTransaction();
 
+            $resolvedYear = $this->resolveExaminationAcademicYear((int) $schoolID, $request->input('academic_yearID'));
+            $academicYearID = $resolvedYear['academic_yearID'];
+            $calendarYear = $resolvedYear['year'];
+
             // Derive exam name based on category
             $examCategory = $request->exam_category;
             $examName = $request->exam_name;
@@ -2097,7 +2181,8 @@ class ManageExaminationController extends Controller
                 'allow_no_format' => $request->has('allow_no_format') ? 1 : 0,
                 'allow_no_paper' => $request->has('allow_no_paper') ? 1 : 0,
                 'exam_type' => 'school_wide_all_subjects',
-                'year' => $request->year,
+                'academic_yearID' => $academicYearID ?? $exam->academic_yearID,
+                'year' => $calendarYear ?? $request->year,
                 'details' => $request->details,
                 'student_shifting_status' => ($examCategory === 'school_exams' || $examCategory === 'test') ? ($request->student_shifting_status ?? 'none') : 'none',
                 'status' => $status,
@@ -7166,6 +7251,49 @@ class ManageExaminationController extends Controller
     /**
      * Auto shift students based on exam results
      */
+    /**
+     * Resolve academic year for create/update examination (defaults to header selected / current).
+     */
+    private function resolveExaminationAcademicYear(int $schoolID, $requestedYearID = null): array
+    {
+        $yearService = app(SelectedAcademicYearService::class);
+        $ctx = $yearService->headerContext($schoolID);
+        $selectedIds = array_values(array_filter(array_map('intval', $ctx['selected_year_ids'] ?? [])));
+
+        $yearId = $requestedYearID ? (int) $requestedYearID : null;
+        if (!$yearId && !empty($selectedIds)) {
+            $yearId = (int) $selectedIds[0];
+        }
+
+        $year = null;
+        if ($yearId) {
+            $year = AcademicYear::where('schoolID', $schoolID)
+                ->where('academic_yearID', $yearId)
+                ->first();
+        }
+        if (!$year) {
+            $year = $ctx['selected_year']
+                ?? $ctx['selected_o_level_year']
+                ?? AcademicYear::where('schoolID', $schoolID)->where('is_current', 1)->orderByDesc('academic_yearID')->first();
+        }
+
+        $calendarYear = (int) date('Y');
+        if ($year) {
+            $calendarYear = is_numeric($year->year)
+                ? (int) $year->year
+                : (int) preg_replace('/\D.*$/', '', (string) ($year->year ?? date('Y')));
+            if ($calendarYear < 2000) {
+                $calendarYear = (int) date('Y');
+            }
+        }
+
+        return [
+            'academic_yearID' => $year ? (int) $year->academic_yearID : null,
+            'year' => $calendarYear,
+            'year_name' => $year ? ($year->year_name ?? $year->year) : null,
+        ];
+    }
+
     public function autoShiftStudents(Request $request, $examID)
     {
         // Check permission - Update action: examination_update
@@ -7201,26 +7329,32 @@ class ManageExaminationController extends Controller
                 ], 400);
             }
 
-            // Perform auto transfer
-            $transferResult = $this->autoTransferStudentsForExam($examID, $schoolID, $exam->student_shifting_status);
-            $transferredCount = $transferResult['transferred'] ?? 0;
-            $graduatedCount = $transferResult['graduated'] ?? 0;
+            $moves = $request->input('moves', []);
+            if (!is_array($moves) || empty($moves)) {
+                return response()->json([
+                    'error' => 'Please select at least one student and destination subclass.',
+                ], 422);
+            }
 
-            $successMessage = 'Student shifting completed successfully.';
-            if ($transferredCount > 0) {
-                $successMessage .= " {$transferredCount} mwanafunzi wamehamishwa darasa.";
-            }
-            if ($graduatedCount > 0) {
-                $successMessage .= " {$graduatedCount} mwanafunzi wamehitimu.";
-            }
-            if ($transferredCount === 0 && $graduatedCount === 0) {
-                $successMessage = 'Hakuna wanafunzi waliohamishwa. Hakikisha kuwa matokeo yameingizwa na wanafunzi wana darasa sahihi.';
+            $result = app(ExamShiftService::class)->execute(
+                (int) $schoolID,
+                (int) $examID,
+                $moves,
+                Session::get('userID') ?: Session::get('teacherID')
+            );
+
+            if (!($result['success'] ?? false)) {
+                return response()->json([
+                    'error' => $result['message'] ?? 'Shift failed',
+                    'failed' => $result['failed'] ?? [],
+                ], 422);
             }
 
             return response()->json([
-                'success' => $successMessage,
-                'transferred_count' => $transferredCount,
-                'graduated_count' => $graduatedCount,
+                'success' => $result['message'],
+                'transferred_count' => $result['moved_count'] ?? 0,
+                'batchID' => $result['batchID'] ?? null,
+                'failed' => $result['failed'] ?? [],
             ], 200);
 
         } catch (\Exception $e) {
@@ -7232,11 +7366,78 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Unshift students (revert to previous classes)
+     * Preview students for exam shift (checkbox + marks + destination).
      */
+    public function examShiftPreview($examID, ExamShiftService $shiftService)
+    {
+        if (! $this->hasPermission('examination_update') && ! $this->hasPermission('examination_read_only')) {
+            return response()->json(['error' => 'Permission denied'], 403);
+        }
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['error' => 'School ID not found'], 400);
+        }
+
+        $result = $shiftService->preview((int) $schoolID, (int) $examID);
+        return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
+    }
+
     /**
-     * Update exam attendance status for a student
+     * Unshift students (revert exam shift batch via enrollments)
      */
+    public function unshiftStudents(Request $request, $examID)
+    {
+        // Check permission - Update action: examination_update
+        if (! $this->hasPermission('examination_update')) {
+            return response()->json([
+                'error' => 'You do not have permission to unshift students. You need examination_update permission.',
+            ], 403);
+        }
+
+        try {
+            $schoolID = Session::get('schoolID');
+
+            if (! $schoolID) {
+                return response()->json([
+                    'error' => 'School ID not found in session.',
+                ], 400);
+            }
+
+            $exam = Examination::where('examID', $examID)
+                ->where('schoolID', $schoolID)
+                ->first();
+
+            if (! $exam) {
+                return response()->json([
+                    'error' => 'Examination not found.',
+                ], 404);
+            }
+
+            $result = app(ExamShiftService::class)->undo(
+                (int) $schoolID,
+                (int) $examID,
+                Session::get('userID') ?: Session::get('teacherID')
+            );
+
+            if (!($result['success'] ?? false)) {
+                return response()->json([
+                    'error' => $result['message'] ?? 'Undo failed',
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => $result['message'] ?? 'Exam shift undone successfully.',
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Unshift students error: '.$e->getMessage());
+            return response()->json([
+                'error' => 'An error occurred: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function updateExamAttendance(Request $request, $examID)
     {
         try {
@@ -7327,104 +7528,6 @@ class ManageExaminationController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function unshiftStudents(Request $request, $examID)
-    {
-        // Check permission - Update action: examination_update
-        if (! $this->hasPermission('examination_update')) {
-            return response()->json([
-                'error' => 'You do not have permission to unshift students. You need examination_update permission.',
-            ], 403);
-        }
-
-        try {
-            $schoolID = Session::get('schoolID');
-
-            if (! $schoolID) {
-                return response()->json([
-                    'error' => 'School ID not found in session.',
-                ], 400);
-            }
-
-            $exam = Examination::where('examID', $examID)
-                ->where('schoolID', $schoolID)
-                ->first();
-
-            if (! $exam) {
-                return response()->json([
-                    'error' => 'Examination not found.',
-                ], 404);
-            }
-
-            // Get all students who have results in this exam and have old_subclassID
-            $studentIDs = DB::table('results')
-                ->where('examID', $examID)
-                ->distinct()
-                ->pluck('studentID');
-
-            if ($studentIDs->isEmpty()) {
-                return response()->json([
-                    'error' => 'No students found for this examination.',
-                ], 404);
-            }
-
-            $unshiftedCount = 0;
-            $revertedCount = 0;
-
-            foreach ($studentIDs as $studentID) {
-                $student = Student::find($studentID);
-
-                if (! $student || $student->schoolID != $schoolID) {
-                    continue;
-                }
-
-                // Check if student has old_subclassID (was shifted)
-                if ($student->old_subclassID) {
-                    $oldSubclass = Subclass::find($student->old_subclassID);
-
-                    if ($oldSubclass && $oldSubclass->class && $oldSubclass->class->schoolID == $schoolID) {
-                        // Revert student to previous class
-                        $currentSubclassID = $student->subclassID;
-                        $student->subclassID = $student->old_subclassID;
-                        $student->old_subclassID = null;
-
-                        // If student was graduated, change back to Active
-                        if ($student->status === 'Graduated') {
-                            $student->status = 'Active';
-                            $revertedCount++;
-                        } else {
-                            $unshiftedCount++;
-                        }
-
-                        $student->save();
-                    }
-                }
-            }
-
-            $successMessage = 'Student unshifting completed successfully.';
-            if ($unshiftedCount > 0) {
-                $successMessage .= " {$unshiftedCount} mwanafunzi wamerudi darasa la zamani.";
-            }
-            if ($revertedCount > 0) {
-                $successMessage .= " {$revertedCount} mwanafunzi wamebadilishwa kutoka Graduated kwenda Active.";
-            }
-            if ($unshiftedCount === 0 && $revertedCount === 0) {
-                $successMessage = 'Hakuna wanafunzi waliorudi darasa la zamani. Hakikisha kuwa wanafunzi walihamishwa awali.';
-            }
-
-            return response()->json([
-                'success' => $successMessage,
-                'unshifted_count' => $unshiftedCount,
-                'reverted_count' => $revertedCount,
-            ], 200);
-
-        } catch (\Exception $e) {
-            Log::error('Unshift students error: '.$e->getMessage());
             return response()->json([
                 'error' => 'An error occurred: '.$e->getMessage(),
             ], 500);

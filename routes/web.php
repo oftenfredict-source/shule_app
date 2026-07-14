@@ -221,6 +221,32 @@ Route::get("/", function () {
     return view("home");
 });
 
+// Browser auto-requests /favicon.ico — serve round ShuleXpert logo
+Route::get("/favicon.ico", function () {
+    $round = public_path("images/shuleXpert-favicon.png");
+    $jpg = public_path("images/shuleXpert.jpg");
+    $png = public_path("images/logo.png");
+    if (is_file($round)) {
+        return response()->file($round, [
+            "Content-Type" => "image/png",
+            "Cache-Control" => "public, max-age=604800",
+        ]);
+    }
+    if (is_file($jpg)) {
+        return response()->file($jpg, [
+            "Content-Type" => "image/jpeg",
+            "Cache-Control" => "public, max-age=604800",
+        ]);
+    }
+    if (is_file($png)) {
+        return response()->file($png, [
+            "Content-Type" => "image/png",
+            "Cache-Control" => "public, max-age=604800",
+        ]);
+    }
+    abort(404);
+});
+
 Route::get("/sitemap.xml", [SitemapController::class, "index"]);
 
 // Pricing Route
@@ -1629,6 +1655,10 @@ Route::post("move_student_single", [
     ManageStudentController::class,
     "move_student_single",
 ])->name("move_student_single");
+Route::post("update_enrollment_exit_status", [
+    ManageStudentController::class,
+    "update_enrollment_exit_status",
+])->name("update_enrollment_exit_status");
 Route::delete("delete_student/{studentID}", [
     ManageStudentController::class,
     "delete_student",
@@ -2521,6 +2551,10 @@ Route::post("auto_shift_students/{examID}", [
     ManageExaminationController::class,
     "autoShiftStudents",
 ])->name("auto_shift_students");
+Route::get("exam_shift_preview/{examID}", [
+    ManageExaminationController::class,
+    "examShiftPreview",
+])->name("exam_shift_preview");
 Route::post("unshift_students/{examID}", [
     ManageExaminationController::class,
     "unshiftStudents",

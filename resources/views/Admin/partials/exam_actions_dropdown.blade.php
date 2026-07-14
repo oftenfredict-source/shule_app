@@ -62,11 +62,12 @@
         @if(($exam->student_shifting_status ?? 'none') !== 'none')
         <button type="button" class="dropdown-item auto-shift-students-btn"
             data-exam-id="{{ $exam->examID }}"
+            data-exam-name="{{ $exam->exam_name }}"
             data-shifting-status="{{ $exam->student_shifting_status }}">
-            <i class="bi bi-arrow-right-circle"></i> Auto Shift
+            <i class="bi bi-arrow-right-circle"></i> Shift Students
         </button>
         <button type="button" class="dropdown-item unshift-students-btn" data-exam-id="{{ $exam->examID }}">
-            <i class="bi bi-arrow-left-circle"></i> Unshift Students
+            <i class="bi bi-arrow-counterclockwise"></i> Undo Shift
         </button>
         @endif
         <button type="button" class="dropdown-item toggle-upload-paper-btn"

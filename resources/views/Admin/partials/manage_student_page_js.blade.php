@@ -155,6 +155,8 @@
                     '<i class="bi bi-pencil-square text-warning"></i> Edit Student</button>';
                 items += '<button type="button" class="dropdown-item single-move-student-btn" data-student-id="' + student.studentID + '" data-student-name="' + escapeHtmlStudent(student.full_name || '') + '" data-current-class="' + escapeHtmlStudent(student.class || '') + '">' +
                     '<i class="bi bi-arrow-left-right" style="color:#940000;"></i> Move Student</button>';
+                items += '<button type="button" class="dropdown-item edit-enrollment-status-btn" data-student-id="' + student.studentID + '" data-student-name="' + escapeHtmlStudent(student.full_name || '') + '" data-current-class="' + escapeHtmlStudent(student.class || '') + '">' +
+                    '<i class="bi bi-journal-x" style="color:#940000;"></i> Edit Enrollment</button>';
             }
 
             if (status === 'Active') {
@@ -243,7 +245,7 @@
             destroyStudentsTable();
 
             if (!$.fn.DataTable) {
-                $('#studentsTableBody').html('<tr><td colspan="9" class="text-center text-danger">DataTables failed to load.</td></tr>');
+                $('#studentsTableBody').html('<tr><td colspan="11" class="text-center text-danger">DataTables failed to load.</td></tr>');
                 return;
             }
 
@@ -340,6 +342,27 @@
                         }
                     },
                     {
+                        data: 'enrollment_status',
+                        orderable: false,
+                        render: function (data, type, row) {
+                            var enr = data || row.status || currentStatus || 'Active';
+                            return '<span class="enrollment-status-pill ' + enrollmentStatusBadgeClass(enr) + '">' +
+                                escapeHtmlStudent(enr) + '</span>';
+                        }
+                    },
+                    {
+                        data: 'promotion_status',
+                        orderable: false,
+                        render: function (data, type, row) {
+                            var promo = data || null;
+                            if (!promo) {
+                                return '<span class="text-muted">-</span>';
+                            }
+                            return '<span class="enrollment-status-pill ' + promotionStatusBadgeClass(promo) + '">' +
+                                escapeHtmlStudent(promo) + '</span>';
+                        }
+                    },
+                    {
                         data: 'gender',
                         render: function (data) {
                             return escapeHtmlStudent(data || '-');
@@ -366,7 +389,7 @@
                         searchable: false,
                         className: 'student-actions-cell',
                         render: function (data, type, row) {
-                            return buildStudentActionsHtml(row, currentStatus, true);
+                            return buildStudentActionsHtml(row, row.enrollment_status || currentStatus, true);
                         }
                     }
                 ],
@@ -419,16 +442,27 @@
             let healthAlarmIcon = studentHasHealthAlert(student)
                 ? ' <i class="bi bi-exclamation-triangle-fill" style="color:#940000;" title="Health Condition Alert"></i>'
                 : '';
+            var enr = student.enrollment_status || student.status || status || currentStatus || 'Active';
+            var enrPill = '<span class="enrollment-status-pill ' + enrollmentStatusBadgeClass(enr) + '">' +
+                escapeHtmlStudent(enr) + '</span>';
+            var promo = student.promotion_status || null;
+            var promoPill = promo
+                ? '<span class="enrollment-status-pill ' + promotionStatusBadgeClass(promo) + '">' +
+                    escapeHtmlStudent(promo) + '</span>'
+                : '';
 
             return '<div class="col-12 col-sm-6 col-xl-4">' +
                 '<div class="student-widget">' +
                     '<div class="student-widget-header">' +
-                        buildStudentActionsHtml(student, status, false) +
+                        buildStudentActionsHtml(student, enr, false) +
                         studentPhotoImgHtml(student, '', student.full_name) +
                     '</div>' +
                     '<div class="student-widget-body">' +
                         '<h3>' + escapeHtmlStudent(student.full_name || '-') + healthAlarmIcon + '</h3>' +
-                        '<p class="form">' + escapeHtmlStudent(student.class || '-') + '</p>' +
+                        '<p class="form mb-1">' + escapeHtmlStudent(student.class || '-') + '</p>' +
+                        '<div class="enrollment-status-row">' + enrPill +
+                            (promoPill ? ' ' + promoPill : '') +
+                        '</div>' +
                         '<div class="info">' +
                             '<p><strong>Admission:</strong> ' + escapeHtmlStudent(student.admission_number || '-') + '</p>' +
                             '<p><strong>Gender:</strong> ' + escapeHtmlStudent(student.gender || '-') + '</p>' +
@@ -1308,6 +1342,7 @@
         });
 
         $('#undoMoveBatchesBtn').on('click', function () {
+            resetUndoMoveConfirm();
             $('#undoMoveBatchesList').html('Loading...');
             openStudentModal('undoMoveModal');
             $.getJSON({!! json_encode(route("move_students_batches")) !!}, function (res) {
@@ -1338,52 +1373,81 @@
             });
         });
 
+        let undoMoveBatchID = null;
+
+        function resetUndoMoveConfirm() {
+            undoMoveBatchID = null;
+            $('#undoMoveConfirmBox').addClass('d-none');
+            $('#undoMoveConfirmWordWrap').addClass('d-none');
+            $('#undoMoveConfirmYesNo').val('');
+            $('#undoMoveConfirmWord').val('');
+            $('#undoMoveConfirmBatchLabel').text('—');
+            $('#undoMoveExecuteBtn').prop('disabled', true).html('Confirm \u0026 Undo');
+        }
+
+        function validateUndoMoveConfirmWord() {
+            const a = ($('#undoMoveConfirmYesNo').val() || '').trim().toLowerCase();
+            const b = ($('#undoMoveConfirmWord').val() || '').trim().toLowerCase();
+            $('#undoMoveExecuteBtn').prop('disabled', !(a === 'yes' && b === 'yes'));
+        }
+
         $(document).on('click', '.undo-move-batch-btn', function () {
-            const batchID = $(this).data('batch-id');
-            Swal.fire({
-                title: 'Undo this move?',
-                html: 'Type <strong>yes</strong> to restore students to previous enrollments.',
-                input: 'text',
-                inputPlaceholder: 'yes',
-                showCancelButton: true,
-                confirmButtonColor: '#940000',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Undo',
-                allowOutsideClick: false,
-                focusConfirm: false,
-                customClass: { popup: 'student-swal-popup', container: 'student-swal-container' },
-                didOpen: function () {
-                    const input = Swal.getInput();
-                    if (input) setTimeout(function () { input.focus(); }, 50);
+            undoMoveBatchID = $(this).data('batch-id');
+            $('#undoMoveConfirmBatchLabel').text(undoMoveBatchID);
+            $('#undoMoveConfirmYesNo').val('');
+            $('#undoMoveConfirmWord').val('');
+            $('#undoMoveConfirmWordWrap').addClass('d-none');
+            $('#undoMoveExecuteBtn').prop('disabled', true);
+            $('#undoMoveConfirmBox').removeClass('d-none');
+            setTimeout(function () {
+                $('#undoMoveConfirmYesNo').trigger('focus');
+            }, 50);
+        });
+
+        $('#undoMoveConfirmYesNo').on('keyup change', function () {
+            const v = ($(this).val() || '').trim().toLowerCase();
+            if (v === 'no') {
+                resetUndoMoveConfirm();
+                return;
+            }
+            if (v === 'yes') {
+                $('#undoMoveConfirmWordWrap').removeClass('d-none');
+            } else {
+                $('#undoMoveConfirmWordWrap').addClass('d-none');
+            }
+            validateUndoMoveConfirmWord();
+        });
+
+        $('#undoMoveConfirmWord').on('keyup change', validateUndoMoveConfirmWord);
+
+        $('#undoMoveExecuteBtn').on('click', function () {
+            if (!undoMoveBatchID) return;
+            const a = ($('#undoMoveConfirmYesNo').val() || '').trim().toLowerCase();
+            const b = ($('#undoMoveConfirmWord').val() || '').trim().toLowerCase();
+            if (a !== 'yes' || b !== 'yes') return;
+
+            const $btn = $(this).prop('disabled', true).html('Undoing...');
+            $.ajax({
+                url: {!! json_encode(route("move_students_undo")) !!},
+                type: 'POST',
+                data: { _token: {!! json_encode(csrf_token()) !!}, batchID: undoMoveBatchID, confirm_word: 'yes' },
+                dataType: 'json',
+                success: function (res) {
+                    if (res.success) {
+                        resetUndoMoveConfirm();
+                        alert(res.message || 'Move undone successfully.');
+                        $('#undoMoveBatchesBtn').click();
+                        loadStudents({ page: 1 });
+                    } else {
+                        $btn.prop('disabled', false).html('Confirm \u0026 Undo');
+                        alert(res.message || 'Undo failed');
+                    }
                 },
-                preConfirm: (value) => {
-                    if ((value || '').trim().toLowerCase() !== 'yes') {
-                        Swal.showValidationMessage('Type yes to confirm');
-                        return false;
-                    }
-                    return value;
+                error: function (xhr) {
+                    $btn.prop('disabled', false).html('Confirm \u0026 Undo');
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Undo failed';
+                    alert(msg);
                 }
-            }).then(function (result) {
-                if (!result.isConfirmed) return;
-                $.ajax({
-                    url: {!! json_encode(route("move_students_undo")) !!},
-                    type: 'POST',
-                    data: { _token: {!! json_encode(csrf_token()) !!}, batchID: batchID, confirm_word: 'yes' },
-                    dataType: 'json',
-                    success: function (res) {
-                        if (res.success) {
-                            Swal.fire({ icon: 'success', title: 'Undone', text: res.message, confirmButtonColor: '#940000' });
-                            $('#undoMoveBatchesBtn').click();
-                            loadStudents({ page: 1 });
-                        } else {
-                            Swal.fire({ icon: 'error', title: 'Failed', text: res.message || 'Undo failed', confirmButtonColor: '#940000' });
-                        }
-                    },
-                    error: function (xhr) {
-                        const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Undo failed';
-                        Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonColor: '#940000' });
-                    }
-                });
             });
         });
 
@@ -1587,16 +1651,144 @@
                 success: function (res) {
                     $btn.prop('disabled', false).html('Confirm \u0026 Move');
                     if (res.success) {
-                        alert(res.message || 'Done');
                         closeStudentModal('singleMoveStudentModal');
                         loadStudents({ page: 1 });
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Moved',
+                            text: res.message || 'Student moved successfully.',
+                            confirmButtonColor: '#940000'
+                        });
                     } else {
-                        alert(res.message || 'Move failed');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Move Failed',
+                            text: res.message || 'Move failed',
+                            confirmButtonColor: '#940000'
+                        });
                     }
                 },
                 error: function (xhr) {
                     $btn.prop('disabled', false).html('Confirm \u0026 Move');
-                    alert((xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Move failed');
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Move failed';
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: msg,
+                        confirmButtonColor: '#940000'
+                    });
+                }
+            });
+        });
+
+        // ===================== EDIT ENROLLMENT (Dropped / Transferred = left school) =====================
+        let editEnrollmentState = { studentID: null, action: null };
+
+        function resetEditEnrollmentConfirm() {
+            editEnrollmentState.action = null;
+            $('.edit-enrollment-action-btn').css({ background: '#fff', color: '#940000' });
+            $('#editEnrollmentConfirmPanel').addClass('d-none');
+            $('#editEnrollmentConfirmWordWrap').addClass('d-none');
+            $('#editEnrollmentConfirmYesNo').val('');
+            $('#editEnrollmentConfirmWord').val('');
+            $('#editEnrollmentNotes').val('');
+            $('#editEnrollmentExecuteBtn').prop('disabled', true).text('Confirm');
+        }
+
+        function validateEditEnrollmentConfirm() {
+            const a = ($('#editEnrollmentConfirmYesNo').val() || '').trim().toLowerCase();
+            const b = ($('#editEnrollmentConfirmWord').val() || '').trim().toLowerCase();
+            $('#editEnrollmentExecuteBtn').prop('disabled', !(editEnrollmentState.action && a === 'yes' && b === 'yes'));
+        }
+
+        $(document).on('click', '.edit-enrollment-status-btn', function () {
+            editEnrollmentState.studentID = $(this).data('student-id');
+            resetEditEnrollmentConfirm();
+            $('#editEnrollmentStudentName').text($(this).data('student-name') || '—');
+            $('#editEnrollmentCurrentClass').text($(this).data('current-class') || '—');
+            openStudentModal('editEnrollmentStatusModal');
+        });
+
+        $(document).on('click', '.edit-enrollment-action-btn', function () {
+            const action = $(this).data('action');
+            editEnrollmentState.action = action;
+            $('.edit-enrollment-action-btn').css({ background: '#fff', color: '#940000' });
+            $(this).css({ background: '#940000', color: '#fff' });
+            const title = action === 'Dropped'
+                ? 'Mark enrollment as Dropped (expelled / stopped)?'
+                : 'Mark enrollment as Transferred (left school)?';
+            $('#editEnrollmentConfirmTitle').text(title);
+            $('#editEnrollmentConfirmYesNo').val('');
+            $('#editEnrollmentConfirmWord').val('');
+            $('#editEnrollmentConfirmWordWrap').addClass('d-none');
+            $('#editEnrollmentExecuteBtn').prop('disabled', true);
+            $('#editEnrollmentConfirmPanel').removeClass('d-none');
+            setTimeout(function () { $('#editEnrollmentConfirmYesNo').trigger('focus'); }, 50);
+        });
+
+        $('#editEnrollmentConfirmYesNo').on('keyup change', function () {
+            const v = ($(this).val() || '').trim().toLowerCase();
+            if (v === 'no') {
+                resetEditEnrollmentConfirm();
+                return;
+            }
+            if (v === 'yes') {
+                $('#editEnrollmentConfirmWordWrap').removeClass('d-none');
+            } else {
+                $('#editEnrollmentConfirmWordWrap').addClass('d-none');
+            }
+            validateEditEnrollmentConfirm();
+        });
+
+        $('#editEnrollmentConfirmWord').on('keyup change', validateEditEnrollmentConfirm);
+
+        $('#editEnrollmentExecuteBtn').on('click', function () {
+            if (!editEnrollmentState.studentID || !editEnrollmentState.action) return;
+            const a = ($('#editEnrollmentConfirmYesNo').val() || '').trim().toLowerCase();
+            const b = ($('#editEnrollmentConfirmWord').val() || '').trim().toLowerCase();
+            if (a !== 'yes' || b !== 'yes') return;
+
+            const $btn = $(this).prop('disabled', true).text('Saving...');
+            $.ajax({
+                url: {!! json_encode(route("update_enrollment_exit_status")) !!},
+                type: 'POST',
+                data: {
+                    _token: {!! json_encode(csrf_token()) !!},
+                    studentID: editEnrollmentState.studentID,
+                    action: editEnrollmentState.action,
+                    confirm_word: 'yes',
+                    notes: ($('#editEnrollmentNotes').val() || '').trim()
+                },
+                dataType: 'json',
+                success: function (res) {
+                    $btn.prop('disabled', false).text('Confirm');
+                    if (res.success) {
+                        closeStudentModal('editEnrollmentStatusModal');
+                        loadStudents({ page: 1 });
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Updated',
+                            text: res.message || 'Enrollment updated.',
+                            confirmButtonColor: '#940000'
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Failed',
+                            text: res.message || 'Update failed',
+                            confirmButtonColor: '#940000'
+                        });
+                    }
+                },
+                error: function (xhr) {
+                    $btn.prop('disabled', false).text('Confirm');
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Update failed';
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: msg,
+                        confirmButtonColor: '#940000'
+                    });
                 }
             });
         });
@@ -2060,14 +2252,43 @@
                         html += '<small class="text-muted">Admission: ' + student.admission_number + '</small>';
                         html += '</div>';
                         html += '</div>';
-                        html += '<span class="badge bg-' + (student.status === 'Active' ? 'success' : 'secondary') + '">' + student.status + '</span>';
+
+                        // Enrollment status for header-selected academic year
+                        var enrStatus = student.enrollment_status || null;
+                        var promoStatus = student.promotion_status || null;
+                        var enrYear = student.enrollment_year_name || '';
+                        if (enrStatus) {
+                            var enrBadgeClass = enrollmentStatusBadgeClass(enrStatus);
+                            var enrLabel = escapeHtmlStudent(enrStatus);
+                            if (enrYear) {
+                                enrLabel += ' · ' + escapeHtmlStudent(enrYear);
+                            }
+                            html += '<span class="badge text-white ' + enrBadgeClass + '" title="Enrollment status for selected academic year">' +
+                                '<i class="bi bi-journal-check"></i> ' + enrLabel + '</span>';
+                        } else {
+                            html += '<span class="badge bg-' + (student.status === 'Active' ? 'success' : 'secondary') + '">' +
+                                escapeHtmlStudent(student.status || 'N/A') + '</span>';
+                        }
+                        if (promoStatus) {
+                            html += ' <span class="badge text-white ' + promotionStatusBadgeClass(promoStatus) + '" title="Promotion status for selected academic year">' +
+                                '<i class="bi bi-arrow-up-right"></i> ' + escapeHtmlStudent(promoStatus) + '</span>';
+                        }
                         html += '</div>';
 
                         html += '<div class="school-info-grid">';
                         html += '<div class="info-item"><i class="bi bi-gender-ambiguous"></i><div class="info-item-content"><div class="info-item-label">Gender</div><div class="info-item-value">' + student.gender + '</div></div></div>';
                         html += '<div class="info-item"><i class="bi bi-calendar-event"></i><div class="info-item-content"><div class="info-item-label">Date of Birth</div><div class="info-item-value">' + student.date_of_birth + '</div></div></div>';
                         html += '<div class="info-item"><i class="bi bi-calendar-check"></i><div class="info-item-content"><div class="info-item-label">Admission Date</div><div class="info-item-value">' + student.admission_date + '</div></div></div>';
-                        html += '<div class="info-item"><i class="bi bi-book"></i><div class="info-item-content"><div class="info-item-label">Class</div><div class="info-item-value">' + student.class + '</div></div></div>';
+                        html += '<div class="info-item"><i class="bi bi-book"></i><div class="info-item-content"><div class="info-item-label">Class' +
+                            (enrYear ? ' <small class="text-muted">(' + escapeHtmlStudent(enrYear) + ')</small>' : '') +
+                            '</div><div class="info-item-value">' + escapeHtmlStudent(student.class || 'N/A') + '</div></div></div>';
+                        html += '<div class="info-item"><i class="bi bi-journal-bookmark"></i><div class="info-item-content"><div class="info-item-label">Enrollment Status' +
+                            (enrYear ? ' <small class="text-muted">(' + escapeHtmlStudent(enrYear) + ')</small>' : '') +
+                            '</div><div class="info-item-value">' + escapeHtmlStudent(enrStatus || 'N/A') + '</div></div></div>';
+                        html += '<div class="info-item"><i class="bi bi-arrow-up-right"></i><div class="info-item-content"><div class="info-item-label">Promotion Status' +
+                            (enrYear ? ' <small class="text-muted">(' + escapeHtmlStudent(enrYear) + ')</small>' : '') +
+                            '</div><div class="info-item-value">' + escapeHtmlStudent(promoStatus || 'N/A') + '</div></div></div>';
+                        html += '<div class="info-item"><i class="bi bi-person-badge"></i><div class="info-item-content"><div class="info-item-label">Student Record Status</div><div class="info-item-value">' + escapeHtmlStudent(student.status || 'N/A') + '</div></div></div>';
                         html += '<div class="info-item"><i class="bi bi-geo-alt"></i><div class="info-item-content"><div class="info-item-label">Address</div><div class="info-item-value">' + student.address + '</div></div></div>';
 
                         // Health Information Section - Rebuild health conditions array
@@ -3562,7 +3783,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
                 let yPos = 22;
                 let filterText = 'Filters: ';
                 let filters = [];
-                if (status) filters.push('Status: ' + status);
+                if (status) filters.push('Enrollment Status: ' + status);
                 @php
                     $pdfAyLabels = [];
                     if (!empty($headerAcademicYear['selected_o_level_year'])) {
@@ -3812,12 +4033,26 @@ Would you like to try direct registration anyway, or use the manual method?`;
     };
 
     function enrollmentStatusBadgeClass(status) {
-        var s = String(status || '').toLowerCase();
+        var s = String(status || '').toLowerCase().replace(/\s+/g, '_');
         if (s === 'active') return 'enrollment-badge-active';
         if (s === 'completed') return 'enrollment-badge-completed';
         if (s === 'repeated') return 'enrollment-badge-repeated';
         if (s === 'graduated') return 'enrollment-badge-graduated';
+        if (s === 'transferred') return 'enrollment-badge-transferred';
+        if (s === 'dropped') return 'enrollment-badge-dropped';
+        if (s === 'cancelled') return 'enrollment-badge-cancelled';
+        if (s === 'not_enrolled' || s === 'notenrolled') return 'enrollment-badge-other';
         return 'enrollment-badge-other';
+    }
+
+    function promotionStatusBadgeClass(status) {
+        var s = String(status || '').toLowerCase().replace(/\s+/g, '_');
+        if (s === 'pending') return 'promotion-badge-pending';
+        if (s === 'promoted') return 'promotion-badge-promoted';
+        if (s === 'repeated') return 'promotion-badge-repeated';
+        if (s === 'graduated') return 'promotion-badge-graduated';
+        if (s === 'transferred') return 'promotion-badge-transferred';
+        return 'promotion-badge-other';
     }
 
     function escapeHtmlEnrollment(text) {
@@ -3856,9 +4091,25 @@ Would you like to try direct registration anyway, or use the manual method?`;
                         '<option value="' + year.academic_yearID + '">' + label + '</option>'
                     );
                 });
-                $selector.val('all');
 
-                renderEnrollmentClassWidgets('all');
+                // Default to header-selected academic year when available
+                var defaultYear = response.default_academic_yearID;
+                if (defaultYear && String(defaultYear) !== 'all' &&
+                    $selector.find('option[value="' + defaultYear + '"]').length) {
+                    $selector.val(String(defaultYear));
+                } else if (response.selected_academic_yearIDs && response.selected_academic_yearIDs.length) {
+                    var matched = null;
+                    response.selected_academic_yearIDs.forEach(function(id) {
+                        if (!matched && $selector.find('option[value="' + id + '"]').length) {
+                            matched = id;
+                        }
+                    });
+                    $selector.val(matched ? String(matched) : 'all');
+                } else {
+                    $selector.val('all');
+                }
+
+                renderEnrollmentClassWidgets($selector.val() || 'all');
             },
             error: function(xhr) {
                 console.error('Error loading enrollment history:', xhr.responseText);
@@ -3879,6 +4130,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
 
         var groups = {};
         filtered.forEach(function(row) {
+            // One main-class widget per academic year + class
             var key = String(row.academic_yearID) + '_' + String(row.classID);
             if (!groups[key]) {
                 groups[key] = {
@@ -3886,7 +4138,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
                     academic_yearID: row.academic_yearID,
                     year_name: row.year_name,
                     classID: row.classID,
-                    class_name: row.class_name,
+                    class_name: row.class_name || 'Unknown class',
                     subclasses: []
                 };
             }
@@ -3894,6 +4146,72 @@ Would you like to try direct registration anyway, or use the manual method?`;
         });
 
         return Object.keys(groups).map(function(k) { return groups[k]; });
+    }
+
+    function enrollmentDisplayLabel(row) {
+        var main = String(row.class_name || '').trim();
+        var sub = String(row.subclass_name || '').trim();
+        if (!main && !sub) return 'Unknown subclass';
+        if (!sub) return main;
+        if (!main) return sub;
+        if (sub.toLowerCase().indexOf(main.toLowerCase()) === 0) {
+            return sub;
+        }
+        return (main + ' ' + sub).trim();
+    }
+
+    function enrollmentYearSpanLabel(row) {
+        var fromYear = null;
+        var toYear = null;
+        if (row.joined_date) {
+            fromYear = String(row.joined_date).slice(0, 4);
+        } else if (row.year_name) {
+            fromYear = String(row.year_name).split(/[\/\\-]/)[0].trim() || row.year_name;
+        }
+        if (row.left_date) {
+            toYear = String(row.left_date).slice(0, 4);
+        } else if (String(row.status || '').toLowerCase() === 'active') {
+            toYear = 'Present';
+        } else if (row.year_name) {
+            toYear = String(row.year_name).split(/[\/\\-]/).pop().trim() || row.year_name;
+        }
+        if (fromYear && toYear) {
+            return 'From ' + fromYear + ' to ' + toYear;
+        }
+        if (row.year_name) {
+            return 'Academic year: ' + row.year_name;
+        }
+        return 'Academic year: N/A';
+    }
+
+    function renderEnrollmentSubclassDetails(sub) {
+        var html = '';
+        html += '<div class="enrollment-period-meta small mt-0" style="border-top:0;padding-top:0;">';
+        html += '<div><i class="bi bi-calendar-range"></i> <strong>Enrolled:</strong> ' +
+            escapeHtmlEnrollment(enrollmentYearSpanLabel(sub)) + '</div>';
+        if (sub.year_name) {
+            html += '<div><i class="bi bi-calendar3"></i> <strong>Academic year:</strong> ' +
+                escapeHtmlEnrollment(sub.year_name) + '</div>';
+        }
+        html += '<div><i class="bi bi-box-arrow-in-right"></i> <strong>Entered:</strong> ' +
+            escapeHtmlEnrollment(sub.joined_date_display || sub.joined_date || 'N/A') + '</div>';
+        html += '<div><i class="bi bi-box-arrow-right"></i> <strong>' +
+            escapeHtmlEnrollment(sub.left_date_label || 'Left') + ':</strong> ' +
+            escapeHtmlEnrollment(sub.left_date_display || sub.left_date || (String(sub.status || '').toLowerCase() === 'active' ? 'Still enrolled' : 'N/A')) +
+            '</div>';
+        html += '<div><i class="bi bi-hourglass-split"></i> <strong>Duration:</strong> ' +
+            escapeHtmlEnrollment(sub.duration_label || (sub.duration_months ? (sub.duration_months + ' months') : 'N/A')) +
+            '</div>';
+        if (sub.promotion_status) {
+            html += '<div><i class="bi bi-arrow-up-right"></i> <strong>Promotion:</strong> ' +
+                escapeHtmlEnrollment(sub.promotion_status) + '</div>';
+        }
+        if (sub.roll_number) {
+            html += '<div><i class="bi bi-hash"></i> <strong>Roll:</strong> ' +
+                escapeHtmlEnrollment(sub.roll_number) + '</div>';
+        }
+        html += '</div>';
+        return html;
     }
 
     function renderEnrollmentClassWidgets(yearFilter) {
@@ -3915,50 +4233,40 @@ Would you like to try direct registration anyway, or use the manual method?`;
                 title += ' <span class="text-muted font-weight-normal">(' + escapeHtmlEnrollment(group.year_name) + ')</span>';
             }
             var subclassCount = group.subclasses.length;
-            var meta = subclassCount + (subclassCount === 1 ? ' subclass' : ' subclasses');
+            var meta = subclassCount + (subclassCount === 1 ? ' subclass' : ' subclasses') + ' · click to view';
 
             html += '<div class="enrollment-class-widget" data-group-key="' + escapeHtmlEnrollment(group.key) + '">';
             html += '<div class="enrollment-class-header" role="button" tabindex="0">';
             html += '<div>';
             html += '<p class="enrollment-class-title"><i class="bi bi-building" style="color:#940000;"></i> ' + title + '</p>';
-            html += '<div class="enrollment-class-meta">' + meta + ' · click to view</div>';
+            html += '<div class="enrollment-class-meta">' + meta + '</div>';
             html += '</div>';
             html += '<i class="bi bi-chevron-down enrollment-toggle-icon"></i>';
             html += '</div>';
             html += '<div class="enrollment-subclasses">';
 
             group.subclasses.forEach(function(sub) {
-                var badgeClass = enrollmentStatusBadgeClass(sub.status);
-                var subclassLabel = escapeHtmlEnrollment(sub.subclass_name || '');
+                var subclassTitle = escapeHtmlEnrollment(enrollmentDisplayLabel(sub));
                 if (sub.combie) {
-                    // Prefer short name if API sent "Name (CODE)"
                     var combieText = String(sub.combie).replace(/\s*\([^)]*\)\s*$/, '').trim() || sub.combie;
-                    subclassLabel += ' (' + escapeHtmlEnrollment(combieText) + ')';
+                    subclassTitle += ' <span class="text-muted font-weight-normal">(' + escapeHtmlEnrollment(combieText) + ')</span>';
                 }
-                html += '<div class="enrollment-subclass-item">';
-                html += '<div class="d-flex justify-content-between align-items-start flex-wrap" style="gap:0.5rem;">';
-                html += '<div class="enrollment-subclass-name">' + subclassLabel + '</div>';
-                html += '<span class="badge text-white ' + badgeClass + '">' + escapeHtmlEnrollment(sub.status || 'N/A') + '</span>';
+                var badgeClass = enrollmentStatusBadgeClass(sub.status);
+
+                html += '<div class="enrollment-subclass-widget" data-enrollment-id="' + escapeHtmlEnrollment(String(sub.enrollmentID || '')) + '">';
+                html += '<div class="enrollment-subclass-header" role="button" tabindex="0">';
+                html += '<div class="d-flex align-items-center flex-wrap" style="gap:0.5rem;flex:1;min-width:0;">';
+                html += '<div style="min-width:0;">';
+                html += '<p class="enrollment-subclass-title"><i class="bi bi-mortarboard" style="color:#940000;"></i> ' + subclassTitle + '</p>';
+                html += '<div class="enrollment-class-meta">click to view details</div>';
                 html += '</div>';
-                html += '<div class="small text-muted mt-1">';
-                if (sub.roll_number) {
-                    html += '<span class="mr-3 me-3"><i class="bi bi-hash"></i> Roll: ' + escapeHtmlEnrollment(sub.roll_number) + '</span>';
-                }
-                if (sub.promotion_status) {
-                    html += '<span class="mr-3 me-3"><i class="bi bi-arrow-up-right"></i> ' + escapeHtmlEnrollment(sub.promotion_status) + '</span>';
-                }
+                html += '<span class="badge text-white ' + badgeClass + ' ml-auto ms-auto">' + escapeHtmlEnrollment(sub.status || 'N/A') + '</span>';
                 html += '</div>';
-                if (sub.joined_date || sub.left_date) {
-                    html += '<div class="small text-muted mt-1">';
-                    if (sub.joined_date) {
-                        html += '<span class="mr-3 me-3">Joined: ' + escapeHtmlEnrollment(sub.joined_date) + '</span>';
-                    }
-                    if (sub.left_date) {
-                        html += '<span>Left: ' + escapeHtmlEnrollment(sub.left_date) + '</span>';
-                    }
-                    html += '</div>';
-                }
+                html += '<i class="bi bi-chevron-down enrollment-toggle-icon"></i>';
                 html += '</div>';
+                html += '<div class="enrollment-subclass-details">';
+                html += renderEnrollmentSubclassDetails(sub);
+                html += '</div></div>';
             });
 
             html += '</div></div>';
@@ -3990,6 +4298,20 @@ Would you like to try direct registration anyway, or use the manual method?`;
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             $(this).closest('.enrollment-class-widget').toggleClass('is-expanded');
+        }
+    });
+
+    $(document).on('click', '.enrollment-subclass-header', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $(this).closest('.enrollment-subclass-widget').toggleClass('is-expanded');
+    });
+
+    $(document).on('keydown', '.enrollment-subclass-header', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).closest('.enrollment-subclass-widget').toggleClass('is-expanded');
         }
     });
 

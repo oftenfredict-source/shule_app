@@ -163,6 +163,51 @@ class ManageStudentController extends Controller
         return $schoolNumber . '/' . str_pad($sequence, 3, '0', STR_PAD_LEFT) . '/' . $currentYear;
     }
 
+    /**
+     * Ensure parent has a login user. Never fail student registration if parent email
+     * already exists — a parent can be linked to many students via parentID.
+     */
+    private function ensureParentLoginUser($parent): void
+    {
+        if (!$parent) {
+            return;
+        }
+
+        $phone = trim((string) ($parent->phone ?? ''));
+        if ($phone === '') {
+            return;
+        }
+
+        $email = trim((string) ($parent->email ?? ''));
+        $email = $email !== '' ? $email : null;
+
+        $existing = User::where('name', $phone)->first();
+        if ($existing) {
+            return;
+        }
+
+        if ($email && User::where('email', $email)->exists()) {
+            // Parent email already belongs to another login — do not fail; use synthetic email
+            $email = null;
+        }
+        if (!$email) {
+            $digits = preg_replace('/\D+/', '', $phone) ?: ('p' . $parent->parentID);
+            $email = $digits . '@parent.local';
+            $i = 1;
+            while (User::where('email', $email)->exists()) {
+                $email = $digits . '_' . $i . '@parent.local';
+                $i++;
+            }
+        }
+
+        User::create([
+            'name' => $phone,
+            'email' => $email,
+            'password' => Hash::make($parent->first_name ?: $phone),
+            'user_type' => 'parent',
+        ]);
+    }
+
     public function save_student(Request $request)
     {
         Log::info('DEBUG: save_student hit', $request->all());
@@ -412,31 +457,32 @@ class ManageStudentController extends Controller
             ]);
 
             // Send SMS to parent if parent exists
+            // Existing parentID = link only (do NOT re-create parent / fail on parent account email)
             $smsSent = false;
             if ($request->parentID) {
                 $parent = ParentModel::find($request->parentID);
                 if ($parent && $parent->phone) {
-                    // Ensure parent has user account
-                    $existingParentUser = User::where('name', $parent->phone)->first();
-                    if (!$existingParentUser) {
-                        User::create([
-                            'name' => $parent->phone,
-                            'email' => $parent->email ?: null,
-                            'password' => Hash::make($parent->first_name),
-                            'user_type' => 'parent',
+                    try {
+                        $this->ensureParentLoginUser($parent);
+
+                        $school = School::find($schoolID);
+                        $smsService = new SmsService();
+                        $studentName = $request->first_name . ' ' . ($request->middle_name ? $request->middle_name . ' ' : '') . $request->last_name;
+                        $smsResult = $smsService->sendStudentCredentials(
+                            $parent->phone,
+                            $school ? $school->school_name : 'School',
+                            $studentName,
+                            $admissionNumber,
+                            $request->first_name
+                        );
+                        $smsSent = $smsResult['success'] ?? false;
+                    } catch (\Throwable $parentSideError) {
+                        // Never block student registration when parent already exists / login user collision
+                        Log::warning('Parent login/SMS skipped after student create: ' . $parentSideError->getMessage(), [
+                            'parentID' => $parent->parentID ?? null,
+                            'studentID' => $student->studentID ?? null,
                         ]);
                     }
-
-                    $smsService = new SmsService();
-                    $studentName = $request->first_name . ' ' . ($request->middle_name ? $request->middle_name . ' ' : '') . $request->last_name;
-                    $smsResult = $smsService->sendStudentCredentials(
-                        $parent->phone,
-                        $school->school_name,
-                        $studentName,
-                        $admissionNumber,
-                        $request->first_name
-                    );
-                    $smsSent = $smsResult['success'];
                 }
             }
 
@@ -1279,6 +1325,123 @@ class ManageStudentController extends Controller
         }
     }
 
+    /**
+     * Mark active enrollment as Dropped (expelled) or Transferred (left school).
+     * Not used for internal/external class moves within the same school.
+     */
+    public function update_enrollment_exit_status(Request $request)
+    {
+        if (!$this->hasPermission('student_update')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to edit enrollment status.',
+            ], 403);
+        }
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'studentID' => 'required|integer|exists:students,studentID',
+            'action' => 'required|in:Dropped,Transferred',
+            'confirm_word' => 'required|in:yes,YES,Yes',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $action = $request->input('action'); // Dropped | Transferred
+        $notes = trim((string) $request->input('notes', ''));
+
+        try {
+            return DB::transaction(function () use ($schoolID, $request, $action, $notes) {
+                $student = Student::where('studentID', (int) $request->studentID)
+                    ->where('schoolID', $schoolID)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$student) {
+                    return response()->json(['success' => false, 'message' => 'Student not found'], 404);
+                }
+
+                $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
+                    (int) $schoolID,
+                    null,
+                    $request->input('academic_yearID', '')
+                );
+
+                $enrollmentQuery = StudentEnrollment::where('studentID', $student->studentID)
+                    ->where('schoolID', $schoolID)
+                    ->where('status', 'Active')
+                    ->orderByDesc('enrollmentID')
+                    ->lockForUpdate();
+
+                if (!empty($academicYearIDs)) {
+                    $enrollmentQuery->whereIn('academic_yearID', $academicYearIDs);
+                }
+
+                $enrollment = $enrollmentQuery->first();
+
+                if (!$enrollment) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No active enrollment found for the selected academic year.',
+                    ], 422);
+                }
+
+                $label = $action === 'Dropped'
+                    ? 'Dropped (left / expelled)'
+                    : 'Transferred (left school)';
+
+                $noteLine = $label . ' on ' . now()->format('Y-m-d');
+                if ($notes !== '') {
+                    $noteLine .= ' — ' . $notes;
+                }
+
+                $enrollment->status = $action;
+                $enrollment->left_date = now()->toDateString();
+                // promotion_status Transferred only when student left the school
+                $enrollment->promotion_status = $action === 'Transferred' ? 'Transferred' : 'Pending';
+                $enrollment->notes = trim(($enrollment->notes ? $enrollment->notes . ' | ' : '') . $noteLine);
+                $enrollment->save();
+
+                // Keep student record status in sync with exit reason
+                if ($action === 'Transferred') {
+                    $student->status = 'Transferred';
+                } else {
+                    $student->status = 'Inactive';
+                }
+                $student->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => $action === 'Dropped'
+                        ? 'Enrollment marked as Dropped.'
+                        : 'Enrollment marked as Transferred (left school).',
+                    'enrollment_status' => $enrollment->status,
+                    'promotion_status' => $enrollment->promotion_status,
+                    'student_record_status' => $student->status,
+                ]);
+            });
+        } catch (\Exception $e) {
+            Log::error('update_enrollment_exit_status failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update enrollment: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function move_students_batches(StudentMoveService $moveService)
     {
         if (!$this->hasPermission('student_update') && !$this->hasPermission('student_read_only')) {
@@ -1706,11 +1869,12 @@ class ManageStudentController extends Controller
             }
 
             // Get filter parameters
-            $status = $request->input('status', ''); // Empty means all statuses
+            $status = $request->input('status', ''); // Enrollment status (selected year)
             $classID = $request->input('classID', '');
             $subclassID = $request->input('subclassID', '');
             $gender = $request->input('gender', ''); // 'Male' or 'Female'
             $health = $request->input('health', ''); // 'good' or 'bad'
+            $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($status);
             $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
                 (int) $schoolID,
                 $classID,
@@ -1718,7 +1882,7 @@ class ManageStudentController extends Controller
             );
 
             \Log::debug('get_students filters', [
-                'status' => $status,
+                'enrollment_status' => $enrollmentStatus,
                 'page' => $request->input('page', 1),
                 'academic_yearIDs' => $academicYearIDs,
             ]);
@@ -1731,16 +1895,9 @@ class ManageStudentController extends Controller
             (int) $schoolID,
             $academicYearIDs,
             $classID,
-            $subclassID
+            $subclassID,
+            $enrollmentStatus
         );
-
-        // Filter by status (default to Active if not specified)
-        if (!empty($status) && in_array($status, ['Active', 'Applied', 'Inactive', 'Graduated', 'Transferred'])) {
-            $query->where('status', $status);
-        } else {
-            // Default to Active if no status specified
-            $query->where('status', 'Active');
-        }
 
         // Filter by gender
         if (!empty($gender) && in_array($gender, ['Male', 'Female'])) {
@@ -1853,10 +2010,11 @@ class ManageStudentController extends Controller
             $studentsCollection->pluck('studentID')->all(),
             $academicYearIDs,
             $classID,
-            $subclassID
+            $subclassID,
+            $enrollmentStatus
         );
 
-        $students = $studentsCollection->map(function($student) use ($enrollmentMap) {
+        $students = $studentsCollection->map(function($student) use ($enrollmentMap, $enrollmentStatus) {
             $studentImgPath = \App\Support\UserImageUrl::forGender(
                 $student->photo,
                 $student->gender
@@ -1867,9 +2025,13 @@ class ManageStudentController extends Controller
             $classIDValue = null;
             $subclassIDValue = $student->subclassID;
             $enrollmentID = null;
+            $rowEnrollmentStatus = $enrollmentStatus;
+            $rowPromotionStatus = null;
 
             if ($enrollment) {
                 $enrollmentID = $enrollment->enrollmentID;
+                $rowEnrollmentStatus = $enrollment->status ?: $enrollmentStatus;
+                $rowPromotionStatus = $enrollment->promotion_status ?: 'Pending';
                 $className = $enrollment->classModel->class_name
                     ?? $enrollment->subclass->class->class_name
                     ?? '';
@@ -1895,7 +2057,10 @@ class ManageStudentController extends Controller
                 'admission_date' => $student->admission_date ? $student->admission_date->format('Y-m-d') : null,
                 'address' => $student->address,
                 'photo' => $studentImgPath,
-                'status' => $student->status,
+                'status' => $rowEnrollmentStatus,
+                'enrollment_status' => $rowEnrollmentStatus,
+                'promotion_status' => $rowPromotionStatus,
+                'student_record_status' => $student->status,
                 'class' => $classLabel,
                 'parent_name' => $student->parent
                     ? $student->parent->first_name . ' ' . ($student->parent->middle_name ? $student->parent->middle_name . ' ' : '') . $student->parent->last_name
@@ -1940,16 +2105,44 @@ class ManageStudentController extends Controller
     }
 
     /**
-     * Apply academic-year enrollment filter without loading every enrollment row into PHP.
+     * Allowed student_enrollments.status values for manage_student filter.
      */
-    private function applyEnrollmentScopeToStudentsQuery($query, int $schoolID, $academicYearIDs = null, $classID = null, $subclassID = null): void
+    private function normalizeEnrollmentStatusFilter($status): string
     {
+        $allowed = ['Active', 'Completed', 'Transferred', 'Dropped', 'Cancelled'];
+        $status = is_string($status) ? trim($status) : '';
+        if ($status !== '' && in_array($status, $allowed, true)) {
+            return $status;
+        }
+        return 'Active';
+    }
+
+    /**
+     * Apply academic-year + enrollment-status filter without loading every enrollment row into PHP.
+     */
+    private function applyEnrollmentScopeToStudentsQuery(
+        $query,
+        int $schoolID,
+        $academicYearIDs = null,
+        $classID = null,
+        $subclassID = null,
+        $enrollmentStatus = 'Active'
+    ): void {
         $yearIDs = is_array($academicYearIDs)
             ? array_values(array_filter(array_map('intval', $academicYearIDs)))
             : (empty($academicYearIDs) ? [] : [(int) $academicYearIDs]);
+        $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($enrollmentStatus);
 
         if (!$this->schoolHasEnrollments($schoolID)) {
-            // Legacy schools with empty enrollments table
+            // Legacy schools with empty enrollments table — approximate via students.status
+            $legacyMap = [
+                'Active' => 'Active',
+                'Completed' => 'Graduated',
+                'Transferred' => 'Transferred',
+                'Dropped' => 'Inactive',
+                'Cancelled' => 'Inactive',
+            ];
+            $query->where('status', $legacyMap[$enrollmentStatus] ?? 'Active');
             if (!empty($classID)) {
                 $query->whereHas('subclass', function ($q) use ($classID) {
                     $q->where('classID', $classID);
@@ -1961,16 +2154,15 @@ class ManageStudentController extends Controller
             return;
         }
 
-        $query->whereExists(function ($q) use ($schoolID, $yearIDs, $classID, $subclassID) {
+        $query->whereExists(function ($q) use ($schoolID, $yearIDs, $classID, $subclassID, $enrollmentStatus) {
             $q->select(DB::raw(1))
                 ->from('student_enrollments')
                 ->whereColumn('student_enrollments.studentID', 'students.studentID')
-                ->where('student_enrollments.schoolID', $schoolID);
+                ->where('student_enrollments.schoolID', $schoolID)
+                ->where('student_enrollments.status', $enrollmentStatus);
 
             if (!empty($yearIDs)) {
                 $q->whereIn('student_enrollments.academic_yearID', $yearIDs);
-            } else {
-                $q->where('student_enrollments.status', 'Active');
             }
 
             if (!empty($subclassID)) {
@@ -1989,7 +2181,8 @@ class ManageStudentController extends Controller
         array $studentIDs,
         $academicYearIDs = null,
         $classID = null,
-        $subclassID = null
+        $subclassID = null,
+        $enrollmentStatus = 'Active'
     ) {
         $studentIDs = array_values(array_filter(array_map('intval', $studentIDs)));
         if (empty($studentIDs)) {
@@ -2004,10 +2197,11 @@ class ManageStudentController extends Controller
             ? array_values(array_filter(array_map('intval', $academicYearIDs)))
             : (empty($academicYearIDs) ? [] : [(int) $academicYearIDs]);
 
+        $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($enrollmentStatus);
+        $query->where('status', $enrollmentStatus);
+
         if (!empty($yearIDs)) {
             $query->whereIn('academic_yearID', $yearIDs);
-        } else {
-            $query->where('status', 'Active');
         }
 
         if (!empty($subclassID)) {
@@ -2111,6 +2305,7 @@ class ManageStudentController extends Controller
         $subclassID = $request->input('subclassID', '');
         $gender = $request->input('gender', '');
         $health = $request->input('health', '');
+        $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($status);
         $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
             (int) $schoolID,
             $classID,
@@ -2125,15 +2320,9 @@ class ManageStudentController extends Controller
             (int) $schoolID,
             $academicYearIDs,
             $classID,
-            $subclassID
+            $subclassID,
+            $enrollmentStatus
         );
-
-        // Apply same filters as get_students (default to Active)
-        if (!empty($status) && in_array($status, ['Active', 'Applied', 'Inactive', 'Graduated', 'Transferred'])) {
-            $query->where('status', $status);
-        } else {
-            $query->where('status', 'Active');
-        }
 
         // Filter by gender
         if (!empty($gender) && in_array($gender, ['Male', 'Female'])) {
@@ -2258,43 +2447,24 @@ class ManageStudentController extends Controller
             $subclassID = $request->input('subclassID', '');
             $gender = $request->input('gender', '');
             $health = $request->input('health', '');
+            $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($status);
             $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
                 (int) $schoolID,
                 $classID,
                 $request->input('academic_yearID', '')
             );
 
-            $enrollmentMap = $this->resolveEnrollmentMapForFilters(
-                (int) $schoolID,
-                $academicYearIDs,
-                $classID,
-                $subclassID
-            );
-
             $query = Student::with(['subclass.class', 'parent'])
                 ->where('schoolID', $schoolID);
 
-            if ($enrollmentMap->isNotEmpty()) {
-                $query->whereIn('studentID', $enrollmentMap->keys()->all());
-            } elseif ($this->schoolHasEnrollments((int) $schoolID)) {
-                $query->whereRaw('1 = 0');
-            } else {
-                if (!empty($classID)) {
-                    $query->whereHas('subclass', function ($q) use ($classID) {
-                        $q->where('classID', $classID);
-                    });
-                }
-                if (!empty($subclassID)) {
-                    $query->where('subclassID', $subclassID);
-                }
-            }
-
-            // Apply same filters as get_students
-            if (!empty($status) && in_array($status, ['Active', 'Applied', 'Inactive', 'Graduated', 'Transferred'])) {
-                $query->where('status', $status);
-            } else {
-                $query->whereIn('status', ['Active', 'Applied', 'Inactive', 'Graduated', 'Transferred']);
-            }
+            $this->applyEnrollmentScopeToStudentsQuery(
+                $query,
+                (int) $schoolID,
+                $academicYearIDs,
+                $classID,
+                $subclassID,
+                $enrollmentStatus
+            );
 
             if (!empty($gender) && in_array($gender, ['Male', 'Female'])) {
                 $query->where('gender', $gender);
@@ -2330,6 +2500,15 @@ class ManageStudentController extends Controller
                 ->orderBy('last_name')
                 ->get();
 
+            $enrollmentMap = $this->resolveEnrollmentMapForStudentIDs(
+                (int) $schoolID,
+                $students->pluck('studentID')->all(),
+                $academicYearIDs,
+                $classID,
+                $subclassID,
+                $enrollmentStatus
+            );
+
             $school = School::find($schoolID);
             if (!$school) {
                 return redirect()->back()->with('error', 'School not found');
@@ -2342,7 +2521,7 @@ class ManageStudentController extends Controller
 
             // Build filter description
             $filterDesc = [];
-            if ($status) $filterDesc[] = 'Status: ' . $status;
+            if ($status) $filterDesc[] = 'Enrollment Status: ' . $enrollmentStatus;
             $yearCtx = app(SelectedAcademicYearService::class)->headerContext((int) $schoolID);
             if (!empty($academicYearIDs)) {
                 $yearLabels = AcademicYear::whereIn('academic_yearID', $academicYearIDs)
@@ -2413,43 +2592,24 @@ class ManageStudentController extends Controller
             $subclassID = $request->input('subclassID', '');
             $gender = $request->input('gender', '');
             $health = $request->input('health', '');
+            $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($status);
             $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
                 (int) $schoolID,
                 $classID,
                 $request->input('academic_yearID', '')
             );
 
-            $enrollmentMap = $this->resolveEnrollmentMapForFilters(
-                (int) $schoolID,
-                $academicYearIDs,
-                $classID,
-                $subclassID
-            );
-
             $query = Student::with(['subclass.class', 'parent'])
                 ->where('schoolID', $schoolID);
 
-            if ($enrollmentMap->isNotEmpty()) {
-                $query->whereIn('studentID', $enrollmentMap->keys()->all());
-            } elseif ($this->schoolHasEnrollments((int) $schoolID)) {
-                $query->whereRaw('1 = 0');
-            } else {
-                if (!empty($classID)) {
-                    $query->whereHas('subclass', function ($q) use ($classID) {
-                        $q->where('classID', $classID);
-                    });
-                }
-                if (!empty($subclassID)) {
-                    $query->where('subclassID', $subclassID);
-                }
-            }
-
-            // Apply same filters as get_students
-            if (!empty($status) && in_array($status, ['Active', 'Applied', 'Inactive', 'Graduated', 'Transferred'])) {
-                $query->where('status', $status);
-            } else {
-                $query->whereIn('status', ['Active', 'Applied', 'Inactive', 'Graduated', 'Transferred']);
-            }
+            $this->applyEnrollmentScopeToStudentsQuery(
+                $query,
+                (int) $schoolID,
+                $academicYearIDs,
+                $classID,
+                $subclassID,
+                $enrollmentStatus
+            );
 
             if (!empty($gender) && in_array($gender, ['Male', 'Female'])) {
                 $query->where('gender', $gender);
@@ -2506,9 +2666,17 @@ class ManageStudentController extends Controller
                 ->orderBy('last_name')
                 ->get();
 
-            // Prepare Excel data
+            $enrollmentMap = $this->resolveEnrollmentMapForStudentIDs(
+                (int) $schoolID,
+                $students->pluck('studentID')->all(),
+                $academicYearIDs,
+                $classID,
+                $subclassID,
+                $enrollmentStatus
+            );
+
             $data = [];
-            $data[] = ['Admission Number', 'Full Name', 'Gender', 'Class', 'Subclass', 'Status', 'Health', 'Parent Name', 'Parent Phone', 'Admission Date'];
+            $data[] = ['Admission Number', 'Full Name', 'Gender', 'Class', 'Subclass', 'Enrollment Status', 'Promotion Status', 'Health', 'Parent Name', 'Parent Phone', 'Admission Date'];
 
             foreach ($students as $student) {
                 $enrollment = $enrollmentMap->get($student->studentID);
@@ -2517,11 +2685,15 @@ class ManageStudentController extends Controller
                         ?? $enrollment->subclass->class->class_name
                         ?? 'N/A';
                     $subclassName = $enrollment->subclass->subclass_name ?? 'N/A';
+                    $rowEnrollmentStatus = $enrollment->status ?: $enrollmentStatus;
+                    $rowPromotionStatus = $enrollment->promotion_status ?: 'Pending';
                 } else {
                     $className = $student->subclass && $student->subclass->class
                         ? $student->subclass->class->class_name
                         : 'N/A';
                     $subclassName = $student->subclass ? $student->subclass->subclass_name : 'N/A';
+                    $rowEnrollmentStatus = $enrollmentStatus;
+                    $rowPromotionStatus = '-';
                 }
                 $fullName = $student->first_name . ' ' . ($student->middle_name ? $student->middle_name . ' ' : '') . $student->last_name;
                 $parentName = $student->parent
@@ -2549,7 +2721,8 @@ class ManageStudentController extends Controller
                     $student->gender,
                     $className,
                     $subclassName,
-                    $student->status,
+                    $rowEnrollmentStatus,
+                    $rowPromotionStatus,
                     $healthStatus,
                     $parentName,
                     $parentPhone,
@@ -2645,6 +2818,59 @@ class ManageStudentController extends Controller
             return 'N/A';
         };
 
+        // Enrollment for header-selected academic year (not legacy students.subclass alone)
+        $yearService = app(SelectedAcademicYearService::class);
+        $yearCtx = $yearService->headerContext((int) $schoolID);
+        $selectedYearIDs = array_values(array_filter(array_map('intval', $yearCtx['selected_year_ids'] ?? [])));
+
+        $selectedEnrollment = null;
+        if (!empty($selectedYearIDs)) {
+            $selectedEnrollment = StudentEnrollment::with(['academicYear', 'classModel', 'subclass'])
+                ->where('studentID', $studentID)
+                ->where('schoolID', $schoolID)
+                ->whereIn('academic_yearID', $selectedYearIDs)
+                ->orderByRaw("CASE WHEN status = 'Active' THEN 0 ELSE 1 END")
+                ->orderByDesc('enrollmentID')
+                ->first();
+        }
+
+        $enrollmentYearName = null;
+        $enrollmentClassLabel = null;
+        $enrollmentStatus = null;
+        $promotionStatus = null;
+        $enrollmentID = null;
+        $enrollmentAcademicYearID = null;
+
+        if ($selectedEnrollment) {
+            $enrollmentID = (int) $selectedEnrollment->enrollmentID;
+            $enrollmentAcademicYearID = (int) $selectedEnrollment->academic_yearID;
+            $enrollmentStatus = $selectedEnrollment->status;
+            $promotionStatus = $selectedEnrollment->promotion_status ?: 'Pending';
+            $year = $selectedEnrollment->academicYear;
+            $enrollmentYearName = $year
+                ? ($year->year_name ?? $year->year ?? ('Year #' . $enrollmentAcademicYearID))
+                : ('Year #' . $enrollmentAcademicYearID);
+            $className = optional($selectedEnrollment->classModel)->class_name ?? '';
+            $subName = optional($selectedEnrollment->subclass)->subclass_name ?? '';
+            $enrollmentClassLabel = trim($className . ($subName !== '' ? ' ' . $subName : '')) ?: null;
+        } elseif (!empty($selectedYearIDs)) {
+            // Selected year exists but student has no enrollment row for it
+            $enrollmentStatus = 'Not Enrolled';
+            $promotionStatus = null;
+            $selectedYear = $yearCtx['selected_year']
+                ?? $yearCtx['selected_o_level_year']
+                ?? $yearCtx['selected_a_level_year']
+                ?? null;
+            if ($selectedYear) {
+                $enrollmentYearName = $selectedYear->year_name ?? $selectedYear->year ?? null;
+                $enrollmentAcademicYearID = (int) ($selectedYear->academic_yearID ?? 0) ?: null;
+            }
+        }
+
+        $legacyClass = $student->subclass && $student->subclass->class
+            ? $student->subclass->class->class_name . ' ' . $student->subclass->subclass_name
+            : 'N/A';
+
         return response()->json([
             'success' => true,
             'student' => [
@@ -2660,9 +2886,13 @@ class ManageStudentController extends Controller
                 'address' => $student->address ?? 'N/A',
                 'photo' => $studentImgPath,
                 'status' => $student->status,
-                'class' => $student->subclass && $student->subclass->class
-                    ? $student->subclass->class->class_name . ' ' . $student->subclass->subclass_name
-                    : 'N/A',
+                'class' => $enrollmentClassLabel ?: $legacyClass,
+                'enrollmentID' => $enrollmentID,
+                'enrollment_status' => $enrollmentStatus,
+                'promotion_status' => $promotionStatus,
+                'enrollment_year_name' => $enrollmentYearName,
+                'enrollment_academic_yearID' => $enrollmentAcademicYearID,
+                'selected_academic_yearIDs' => $selectedYearIDs,
                 'birth_certificate_number' => $student->birth_certificate_number ?? 'N/A',
                 'religion' => $student->religion ?? 'N/A',
                 'nationality' => $student->nationality ?? 'N/A',
@@ -3301,6 +3531,42 @@ class ManageStudentController extends Controller
                 $combieLabel = $moveService->formatCombieLabel($enrollment->subclass->combie);
             }
 
+            $joinedDate = $enrollment->joined_date
+                ? \Carbon\Carbon::parse($enrollment->joined_date)->startOfDay()
+                : ($enrollment->created_at
+                    ? \Carbon\Carbon::parse($enrollment->created_at)->startOfDay()
+                    : null);
+
+            $leftDate = $enrollment->left_date
+                ? \Carbon\Carbon::parse($enrollment->left_date)->startOfDay()
+                : null;
+
+            // Active / no left_date → duration up to today
+            $endForDuration = $leftDate ?: now()->startOfDay();
+            $durationMonths = null;
+            $durationLabel = null;
+            if ($joinedDate) {
+                // Inclusive month span (same calendar month = 1)
+                $durationMonths = max(1, (int) $joinedDate->diffInMonths($endForDuration) + 1);
+                if (!$leftDate && strcasecmp((string) $enrollment->status, 'Active') === 0) {
+                    $durationLabel = $durationMonths . ' ' . ($durationMonths === 1 ? 'month' : 'months') . ' (ongoing)';
+                } else {
+                    $durationLabel = $durationMonths . ' ' . ($durationMonths === 1 ? 'month' : 'months');
+                }
+            }
+
+            $leftLabel = 'Left';
+            $statusLower = strtolower((string) ($enrollment->status ?? ''));
+            if (in_array($statusLower, ['completed'], true)) {
+                $leftLabel = 'Completed';
+            } elseif (in_array($statusLower, ['transferred'], true)) {
+                $leftLabel = 'Transferred';
+            } elseif (in_array($statusLower, ['dropped'], true)) {
+                $leftLabel = 'Dropped';
+            } elseif (in_array($statusLower, ['cancelled'], true)) {
+                $leftLabel = 'Cancelled';
+            }
+
             $rows[] = [
                 'enrollmentID' => (int) $enrollment->enrollmentID,
                 'academic_yearID' => $yearId,
@@ -3312,8 +3578,13 @@ class ManageStudentController extends Controller
                 'combie' => $combieLabel,
                 'status' => $enrollment->status,
                 'promotion_status' => $enrollment->promotion_status,
-                'joined_date' => optional($enrollment->joined_date)->format('Y-m-d'),
-                'left_date' => optional($enrollment->left_date)->format('Y-m-d'),
+                'joined_date' => $joinedDate ? $joinedDate->format('Y-m-d') : null,
+                'joined_date_display' => $joinedDate ? $joinedDate->format('d M Y') : null,
+                'left_date' => $leftDate ? $leftDate->format('Y-m-d') : null,
+                'left_date_display' => $leftDate ? $leftDate->format('d M Y') : null,
+                'left_date_label' => $leftLabel,
+                'duration_months' => $durationMonths,
+                'duration_label' => $durationLabel,
                 'roll_number' => $enrollment->roll_number,
             ];
         }
@@ -3325,10 +3596,35 @@ class ManageStudentController extends Controller
             ->values()
             ->all();
 
+        $selectedYearIDs = [];
+        try {
+            $selectedYearIDs = array_values(array_filter(array_map(
+                'intval',
+                app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID)
+            )));
+        } catch (\Throwable $e) {
+            $selectedYearIDs = [];
+        }
+
+        // Prefer header-selected year that this student actually has enrollments in
+        $defaultYearId = 'all';
+        $enrollmentYearIds = array_map('intval', array_column($rows, 'academic_yearID'));
+        foreach ($selectedYearIDs as $sid) {
+            if (in_array((int) $sid, $enrollmentYearIds, true)) {
+                $defaultYearId = (int) $sid;
+                break;
+            }
+        }
+        if ($defaultYearId === 'all' && count($selectedYearIDs) === 1) {
+            $defaultYearId = (int) $selectedYearIDs[0];
+        }
+
         return response()->json([
             'success' => true,
             'years' => $years,
             'enrollments' => $rows,
+            'selected_academic_yearIDs' => $selectedYearIDs,
+            'default_academic_yearID' => $defaultYearId,
         ]);
     }
 
@@ -5201,15 +5497,7 @@ class ManageStudentController extends Controller
 
                     // Ensure parent has user account (Username = phone number, Password = last_name)
                     if ($parent) {
-                        $existingUser = User::where('name', $parent->phone)->first();
-                        if (!$existingUser) {
-                            User::create([
-                                'name' => $parent->phone, 
-                                'email' => $parent->email ?: null,
-                                'password' => Hash::make($parent->last_name),
-                                'user_type' => 'parent',
-                            ]);
-                        }
+                        $this->ensureParentLoginUser($parent);
                     }
                 }
 

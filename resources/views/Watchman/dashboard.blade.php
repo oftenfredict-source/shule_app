@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Watchman Dashboard</title>
+    @include('includes.site_favicon')
     <link rel="stylesheet" href="{{ asset('vendors/bootstrap/dist/css/bootstrap.min.css') }}">
     <style>
         body, .card, .btn { font-family: "Century Gothic", Arial, sans-serif; }

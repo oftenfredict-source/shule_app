@@ -12,6 +12,7 @@ class StudentMoveBatch extends Model
     protected $fillable = [
         'schoolID',
         'to_academic_yearID',
+        'examID',
         'moved_by',
         'moved_count',
         'graduated_count',
