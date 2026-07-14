@@ -111,12 +111,29 @@
 
         function studentPhotoUrl(student) {
             let studentPhoto = student.photo;
-            if (!studentPhoto || studentPhoto === 'undefined') {
-                studentPhoto = student.gender === 'Female'
-                    ? {!! json_encode(asset("images/female.png")) !!}
-                    : {!! json_encode(asset("images/male.png")) !!};
+            const femalePh = {!! json_encode(asset("images/female.png")) !!};
+            const malePh = {!! json_encode(asset("images/male.png")) !!};
+            if (!studentPhoto || studentPhoto === 'undefined' || studentPhoto === 'null') {
+                return student.gender === 'Female' ? femalePh : malePh;
             }
             return studentPhoto;
+        }
+
+        function studentPhotoFallback(student) {
+            return student && student.gender === 'Female'
+                ? {!! json_encode(asset("images/female.png")) !!}
+                : {!! json_encode(asset("images/male.png")) !!};
+        }
+
+        /** img tag that never leaves a broken src (placeholder if missing / onerror) */
+        function studentPhotoImgHtml(student, className, altText) {
+            const src = studentPhotoUrl(student);
+            const fb = studentPhotoFallback(student);
+            const cls = className ? (' class="' + className + '"') : '';
+            const alt = escapeHtmlStudent(altText || student.full_name || '');
+            // onerror: one-time swap; if src already placeholder this is a no-op
+            return '<img src="' + src + '" alt="' + alt + '"' + cls +
+                ' onerror="this.onerror=null;this.src=\'' + fb.replace(/'/g, "\\'") + '\';">';
         }
 
         function studentHasHealthAlert(student) {
@@ -298,7 +315,7 @@
                         orderable: false,
                         searchable: false,
                         render: function (data, type, row) {
-                            return '<img src="' + studentPhotoUrl(row) + '" alt="" class="student-list-photo">';
+                            return studentPhotoImgHtml(row, 'student-list-photo', '');
                         }
                     },
                     {
@@ -407,7 +424,7 @@
                 '<div class="student-widget">' +
                     '<div class="student-widget-header">' +
                         buildStudentActionsHtml(student, status, false) +
-                        '<img src="' + studentPhotoUrl(student) + '" alt="' + escapeHtmlStudent(student.full_name) + '">' +
+                        studentPhotoImgHtml(student, '', student.full_name) +
                     '</div>' +
                     '<div class="student-widget-body">' +
                         '<h3>' + escapeHtmlStudent(student.full_name || '-') + healthAlarmIcon + '</h3>' +
@@ -1995,7 +2012,7 @@
                         html += '<div class="school-header">';
                         html += '<div class="d-flex align-items-center">';
                         html += '<div class="school-logo-preview me-3">';
-                        html += '<img src="' + student.photo + '" alt="' + student.full_name + '">';
+                        html += studentPhotoImgHtml(student, '', student.full_name);
                         html += '</div>';
                         html += '<div>';
                         // Check for bad health conditions - support both boolean and integer values
@@ -2370,7 +2387,8 @@
                         // Show photo preview
                         let photoPreview = '';
                         if (student.photo) {
-                            photoPreview = '<img src="' + student.photo + '" alt="Current Photo" class="img-fluid rounded" style="max-width: 150px; max-height: 150px; border: 2px solid #e9ecef;">';
+                            photoPreview = studentPhotoImgHtml(student, 'img-fluid rounded', 'Current Photo')
+                                .replace('class="img-fluid rounded"', 'class="img-fluid rounded" style="max-width: 150px; max-height: 150px; border: 2px solid #e9ecef;"');
                         }
                         $('#editPhotoPreview').html(photoPreview);
 
@@ -2570,7 +2588,7 @@
                         '<div class="id-card-body">' +
                         '<div class="id-card-photo-section">' +
                         '<div class="id-card-photo" style="border-color: ' + cardColor + ';">' +
-                        '<img src="' + student.photo + '" alt="' + student.full_name + '">' +
+                        studentPhotoImgHtml(student, '', student.full_name) +
                         '</div>' +
                         '</div>' +
                         '<div class="id-card-details">' +

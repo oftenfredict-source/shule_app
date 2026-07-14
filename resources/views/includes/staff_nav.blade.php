@@ -322,17 +322,17 @@
                 <ul class="nav navbar-nav">
                     <li class="text-center mt-3 mb-2">
                         @php
-                            $imgPath = isset($staff) && $staff && $staff->image
-                                ? asset('userImages/' . $staff->image)
-                                : (isset($staff) && $staff && $staff->gender == 'Female'
-                                    ? asset('images/female.png')
-                                    : asset('images/male.png'));
+                        @php
+                            $imgPath = \App\Support\UserImageUrl::forGender(
+                                (isset($staff) && $staff) ? ($staff->image ?? null) : null,
+                                (isset($staff) && $staff) ? ($staff->gender ?? null) : null
+                            );
                             $staffRoleName = isset($staffProfession) && $staffProfession
                                 ? $staffProfession->name
                                 : 'Staff';
                         @endphp
                         <div class="sidebar-profile">
-                            <img src="{{ $imgPath }}" alt="Staff" class="profile-image">
+                            <img src="{{ $imgPath }}" alt="Staff" class="profile-image" onerror="this.onerror=null;this.src='{{ asset('images/male.png') }}';">
                             <div class="profile-meta text-left">
                                 <div class="profile-role">User Type</div>
                                 <div class="profile-name">{{ $staffRoleName }}</div>
@@ -906,7 +906,8 @@
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
                             aria-expanded="false">
                             <img class="user-avatar rounded-circle" src="{{ $imgPath }}" alt="User Avatar"
-                                style="width: 40px; height: 40px; object-fit: cover;">
+                                style="width: 40px; height: 40px; object-fit: cover;"
+                                onerror="this.onerror=null;this.src='{{ asset('images/male.png') }}';">
                         </a>
 
                         <div class="user-menu dropdown-menu">

@@ -1101,13 +1101,14 @@ a#menuToggle.menutoggle:hover {
                                                 $teacherName = trim(($note->first_name ?? '') . ' ' . ($note->last_name ?? ''));
                                                 $classDisplay = trim(($note->class_name ?? '') . ' ' . ($note->subclass_name ?? ''));
                                                 $teacherGender = strtolower($note->gender ?? '');
-                                                $photoUrl = !empty($note->image ?? null)
-                                                    ? asset('userImages/'.$note->image)
-                                                    : ($teacherGender === 'female' ? asset('images/female.png') : asset('images/male.png'));
+                                                $photoUrl = \App\Support\UserImageUrl::forGender(
+                                                    $note->image ?? null,
+                                                    ($teacherGender === 'female') ? 'Female' : 'Male'
+                                                );
                                                 $isUnread = isset($note->is_read) ? !((int) $note->is_read === 1) : false;
                                             @endphp
                                             <a class="dropdown-item media" href="{{ route('manageExamination') }}">
-                                                <span class="photo media-left"><img alt="avatar" src="{{ $photoUrl }}"></span>
+                                                <span class="photo media-left"><img alt="avatar" src="{{ $photoUrl }}" onerror="this.onerror=null;this.src='{{ asset('images/male.png') }}';"></span>
                                                 <span class="message media-body">
                                                     <span class="name float-left">{{ $teacherName }}</span>
                                                     @if($isUnread)
@@ -1137,12 +1138,29 @@ a#menuToggle.menutoggle:hover {
                             @php
                                 $navSchoolID = Session::get('schoolID');
                                 $navSchool = $navSchoolID ? \App\Models\School::where('schoolID', $navSchoolID)->first() : null;
-                                $navLogo = $navSchool && $navSchool->school_logo ? asset($navSchool->school_logo) : null;
                                 $navSchoolName = $navSchool ? $navSchool->school_name : 'School';
+                                $navLogo = null;
+                                if ($navSchool && !empty($navSchool->school_logo)) {
+                                    $logoRel = ltrim(str_replace('\\', '/', $navSchool->school_logo), '/');
+                                    $logoCandidates = [
+                                        public_path($logoRel),
+                                        public_path('schoolLogos/' . basename($logoRel)),
+                                        dirname(base_path()) . '/public_html/' . $logoRel,
+                                    ];
+                                    foreach ($logoCandidates as $logoPath) {
+                                        if (@is_file($logoPath)) {
+                                            $navLogo = asset($logoRel);
+                                            break;
+                                        }
+                                    }
+                                }
                             @endphp
 
                             @if($navLogo)
-                                <img class="user-avatar rounded-circle" src="{{ $navLogo }}" alt="{{ $navSchoolName }}" style="width: 40px; height: 40px; object-fit: contain; background: #fff;">
+                                <img class="user-avatar rounded-circle" src="{{ $navLogo }}" alt="{{ $navSchoolName }}" style="width: 40px; height: 40px; object-fit: contain; background: #fff;" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='inline-flex';">
+                                <span class="user-avatar rounded-circle d-none align-items-center justify-content-center" style="width: 40px; height: 40px; background: #ffffff; border: 2px solid #e0e0e0;">
+                                    <i class="fa fa-graduation-cap" aria-hidden="true" style="color: #940000;"></i>
+                                </span>
                             @else
                                 <span class="user-avatar rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: #ffffff; border: 2px solid #e0e0e0;">
                                     <i class="fa fa-graduation-cap" aria-hidden="true" style="color: #940000;"></i>

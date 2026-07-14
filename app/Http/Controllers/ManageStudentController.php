@@ -548,28 +548,8 @@ class ManageStudentController extends Controller
             return $date;
         };
 
-        // Get student photo path
-        $studentImgPath = null;
-        if ($student->photo) {
-            $filename = $student->photo;
-            $scriptPath = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) . '/userImages/' . $filename : null;
-            $localPath = public_path('userImages/' . $filename);
-            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/userImages/' . $filename : null;
-            $basePath = base_path();
-            $parentDir = dirname($basePath);
-            $publicHtmlPath = $parentDir . '/public_html/userImages/' . $filename;
-
-            // Check existence in order of likelihood for the current environment
-            if (($scriptPath && file_exists($scriptPath)) || file_exists($localPath) || ($docRootPath && file_exists($docRootPath)) || file_exists($publicHtmlPath)) {
-                $studentImgPath = asset('userImages/' . $filename);
-            }
-        }
-
-        if (!$studentImgPath) {
-            $studentImgPath = $student->gender == 'Female'
-                ? asset('images/female.png')
-                : asset('images/male.png');
-        }
+        // Get student photo path (placeholder if file missing — no 404 in browser)
+        $studentImgPath = \App\Support\UserImageUrl::forGender($student->photo, $student->gender);
 
         return response()->json([
             'success' => true,
@@ -1743,32 +1723,16 @@ class ManageStudentController extends Controller
                 'academic_yearIDs' => $academicYearIDs,
             ]);
 
-        $enrollmentMap = $this->resolveEnrollmentMapForFilters(
+        $query = Student::with(['subclass.class', 'parent'])
+            ->where('schoolID', $schoolID);
+
+        $this->applyEnrollmentScopeToStudentsQuery(
+            $query,
             (int) $schoolID,
             $academicYearIDs,
             $classID,
             $subclassID
         );
-
-        $query = Student::with(['subclass.class', 'parent'])
-            ->where('schoolID', $schoolID);
-
-        if ($enrollmentMap->isNotEmpty()) {
-            $query->whereIn('studentID', $enrollmentMap->keys()->all());
-        } elseif ($this->schoolHasEnrollments((int) $schoolID)) {
-            // Enrollments exist but none match filters
-            $query->whereRaw('1 = 0');
-        } else {
-            // Fallback only when enrollments table is empty for school
-            if (!empty($classID)) {
-                $query->whereHas('subclass', function ($q) use ($classID) {
-                    $q->where('classID', $classID);
-                });
-            }
-            if (!empty($subclassID)) {
-                $query->where('subclassID', $subclassID);
-            }
-        }
 
         // Filter by status (default to Active if not specified)
         if (!empty($status) && in_array($status, ['Active', 'Applied', 'Inactive', 'Graduated', 'Transferred'])) {
@@ -1836,17 +1800,22 @@ class ManageStudentController extends Controller
         // Search (optional, for grid/list search)
         $search = trim((string) $request->input('search', ''));
         if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->where('admission_number', 'like', '%' . $search . '%')
-                    ->orWhere('first_name', 'like', '%' . $search . '%')
-                    ->orWhere('middle_name', 'like', '%' . $search . '%')
-                    ->orWhere('last_name', 'like', '%' . $search . '%')
-                    ->orWhere('fingerprint_id', 'like', '%' . $search . '%')
-                    ->orWhereHas('parent', function ($pq) use ($search) {
-                        $pq->where('first_name', 'like', '%' . $search . '%')
-                            ->orWhere('last_name', 'like', '%' . $search . '%')
-                            ->orWhere('phone', 'like', '%' . $search . '%');
+            $like = '%' . $search . '%';
+            $query->where(function ($q) use ($like, $search) {
+                $q->where('admission_number', 'like', $like)
+                    ->orWhere('first_name', 'like', $like)
+                    ->orWhere('middle_name', 'like', $like)
+                    ->orWhere('last_name', 'like', $like)
+                    ->orWhere('fingerprint_id', 'like', $like)
+                    ->orWhereRaw("CONCAT(COALESCE(first_name,''),' ',COALESCE(middle_name,''),' ',COALESCE(last_name,'')) LIKE ?", [$like]);
+                // Parent search only when query looks useful (avoid full parent scan on every keystroke)
+                if (strlen($search) >= 3) {
+                    $q->orWhereHas('parent', function ($pq) use ($like) {
+                        $pq->where('first_name', 'like', $like)
+                            ->orWhere('last_name', 'like', $like)
+                            ->orWhere('phone', 'like', $like);
                     });
+                }
             });
         }
 
@@ -1870,32 +1839,28 @@ class ManageStudentController extends Controller
                 ->take($perPage)
                 ->get();
         } else {
-            $studentsCollection = $query->get();
+            // Cap unpaginated export-style loads to avoid timeouts
+            $studentsCollection = $query->take(2000)->get();
             $page = 1;
             $perPage = max(1, $studentsCollection->count());
         }
 
         $lastPage = (int) max(1, (int) ceil($total / max(1, $perPage)));
 
+        // Load enrollment labels only for this page (not entire school)
+        $enrollmentMap = $this->resolveEnrollmentMapForStudentIDs(
+            (int) $schoolID,
+            $studentsCollection->pluck('studentID')->all(),
+            $academicYearIDs,
+            $classID,
+            $subclassID
+        );
+
         $students = $studentsCollection->map(function($student) use ($enrollmentMap) {
-            // Construct image path - check if file exists
-            $studentImgPath = $student->gender == 'Female'
-                ? asset('images/female.png')
-                : asset('images/male.png'); // Default to placeholder
-
-            if ($student->photo && !empty(trim($student->photo))) {
-                $filename = $student->photo;
-                $basePath = base_path();
-                $parentDir = dirname($basePath);
-                $publicHtmlPath = $parentDir . '/public_html/userImages/' . $filename;
-                $docRootPath = $_SERVER['DOCUMENT_ROOT'] . '/userImages/' . $filename;
-                $localPath = public_path('userImages/' . $filename);
-
-                if (file_exists($publicHtmlPath) || file_exists($docRootPath) || file_exists($localPath)) {
-                    $studentImgPath = asset('userImages/' . $filename);
-                }
-            }
-            // If no photo, keep using placeholder (already set above)
+            $studentImgPath = \App\Support\UserImageUrl::forGender(
+                $student->photo,
+                $student->gender
+            );
 
             $enrollment = $enrollmentMap->get($student->studentID);
             $classLabel = 'N/A';
@@ -1975,8 +1940,91 @@ class ManageStudentController extends Controller
     }
 
     /**
+     * Apply academic-year enrollment filter without loading every enrollment row into PHP.
+     */
+    private function applyEnrollmentScopeToStudentsQuery($query, int $schoolID, $academicYearIDs = null, $classID = null, $subclassID = null): void
+    {
+        $yearIDs = is_array($academicYearIDs)
+            ? array_values(array_filter(array_map('intval', $academicYearIDs)))
+            : (empty($academicYearIDs) ? [] : [(int) $academicYearIDs]);
+
+        if (!$this->schoolHasEnrollments($schoolID)) {
+            // Legacy schools with empty enrollments table
+            if (!empty($classID)) {
+                $query->whereHas('subclass', function ($q) use ($classID) {
+                    $q->where('classID', $classID);
+                });
+            }
+            if (!empty($subclassID)) {
+                $query->where('subclassID', (int) $subclassID);
+            }
+            return;
+        }
+
+        $query->whereExists(function ($q) use ($schoolID, $yearIDs, $classID, $subclassID) {
+            $q->select(DB::raw(1))
+                ->from('student_enrollments')
+                ->whereColumn('student_enrollments.studentID', 'students.studentID')
+                ->where('student_enrollments.schoolID', $schoolID);
+
+            if (!empty($yearIDs)) {
+                $q->whereIn('student_enrollments.academic_yearID', $yearIDs);
+            } else {
+                $q->where('student_enrollments.status', 'Active');
+            }
+
+            if (!empty($subclassID)) {
+                $q->where('student_enrollments.subclassID', (int) $subclassID);
+            } elseif (!empty($classID)) {
+                $q->where('student_enrollments.classID', (int) $classID);
+            }
+        });
+    }
+
+    /**
+     * Enrollment rows for a small set of students (current page only).
+     */
+    private function resolveEnrollmentMapForStudentIDs(
+        int $schoolID,
+        array $studentIDs,
+        $academicYearIDs = null,
+        $classID = null,
+        $subclassID = null
+    ) {
+        $studentIDs = array_values(array_filter(array_map('intval', $studentIDs)));
+        if (empty($studentIDs)) {
+            return collect();
+        }
+
+        $query = StudentEnrollment::with(['classModel', 'subclass.class'])
+            ->where('schoolID', $schoolID)
+            ->whereIn('studentID', $studentIDs);
+
+        $yearIDs = is_array($academicYearIDs)
+            ? array_values(array_filter(array_map('intval', $academicYearIDs)))
+            : (empty($academicYearIDs) ? [] : [(int) $academicYearIDs]);
+
+        if (!empty($yearIDs)) {
+            $query->whereIn('academic_yearID', $yearIDs);
+        } else {
+            $query->where('status', 'Active');
+        }
+
+        if (!empty($subclassID)) {
+            $query->where('subclassID', (int) $subclassID);
+        } elseif (!empty($classID)) {
+            $query->where('classID', (int) $classID);
+        }
+
+        return $query->orderByDesc('enrollmentID')
+            ->get()
+            ->unique('studentID')
+            ->keyBy('studentID');
+    }
+
+    /**
      * Resolve enrollment rows keyed by studentID for manage_student filters.
-     * Always scoped to selected header academic year(s).
+     * Prefer resolveEnrollmentMapForStudentIDs / applyEnrollmentScopeToStudentsQuery for lists.
      */
     private function resolveEnrollmentMapForFilters(
         int $schoolID,
@@ -2039,7 +2087,11 @@ class ManageStudentController extends Controller
 
     private function schoolHasEnrollments(int $schoolID): bool
     {
-        return StudentEnrollment::where('schoolID', $schoolID)->exists();
+        static $cache = [];
+        if (!array_key_exists($schoolID, $cache)) {
+            $cache[$schoolID] = StudentEnrollment::where('schoolID', $schoolID)->exists();
+        }
+        return $cache[$schoolID];
     }
 
     public function get_student_statistics(Request $request)
@@ -2065,30 +2117,16 @@ class ManageStudentController extends Controller
             $request->input('academic_yearID', '')
         );
 
-        $enrollmentMap = $this->resolveEnrollmentMapForFilters(
+        $query = Student::query()
+            ->where('schoolID', $schoolID);
+
+        $this->applyEnrollmentScopeToStudentsQuery(
+            $query,
             (int) $schoolID,
             $academicYearIDs,
             $classID,
             $subclassID
         );
-
-        $query = Student::with(['subclass.class'])
-            ->where('schoolID', $schoolID);
-
-        if ($enrollmentMap->isNotEmpty()) {
-            $query->whereIn('studentID', $enrollmentMap->keys()->all());
-        } elseif ($this->schoolHasEnrollments((int) $schoolID)) {
-            $query->whereRaw('1 = 0');
-        } else {
-            if (!empty($classID)) {
-                $query->whereHas('subclass', function ($q) use ($classID) {
-                    $q->where('classID', $classID);
-                });
-            }
-            if (!empty($subclassID)) {
-                $query->where('subclassID', $subclassID);
-            }
-        }
 
         // Apply same filters as get_students (default to Active)
         if (!empty($status) && in_array($status, ['Active', 'Applied', 'Inactive', 'Graduated', 'Transferred'])) {
@@ -2589,11 +2627,7 @@ class ManageStudentController extends Controller
             ], 403);
         }
 
-        $studentImgPath = $student->photo
-            ? asset('userImages/' . $student->photo)
-            : ($student->gender == 'Female'
-                ? asset('images/female.png')
-                : asset('images/male.png'));
+        $studentImgPath = \App\Support\UserImageUrl::forGender($student->photo, $student->gender);
 
         // Helper function to safely format dates
         $formatDate = function($date) {

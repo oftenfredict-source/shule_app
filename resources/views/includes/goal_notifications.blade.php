@@ -81,9 +81,10 @@
 
                 if ($performer) {
                     $notif->performer_name = ($performer->first_name ?? '') . ' ' . ($performer->last_name ?? '');
-                    $notif->performer_image = $performer->image 
-                        ? asset('userImages/' . $performer->image) 
-                        : ($performer->gender == 'Female' ? asset('images/female.png') : asset('images/male.png'));
+                    $notif->performer_image = \App\Support\UserImageUrl::forGender(
+                        $performer->image ?? null,
+                        $performer->gender ?? null
+                    );
                 } else {
                     $notif->performer_name = "Staff";
                     $notif->performer_image = asset('images/male.png');
@@ -139,7 +140,7 @@
                 </div>
                 @foreach($adminSubtaskNotifs as $notif)
                     <a class="dropdown-item media" href="{{ route('admin.goals.show', $notif->directTask->goal_id) }}" style="padding: 12px 15px; border-bottom: 1px solid #f8f8f8; transition: background 0.2s;">
-                        <img src="{{ $notif->performer_image }}" alt="User" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 1px solid #eee;">
+                        <img src="{{ $notif->performer_image }}" alt="User" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 1px solid #eee;" onerror="this.onerror=null;this.src='{{ asset('images/male.png') }}';">
                         <div class="media-body">
                             <div class="d-flex align-items-center mb-1">
                                 <i class="fa fa-paper-plane text-primary mr-1" style="font-size: 0.7rem;"></i>
