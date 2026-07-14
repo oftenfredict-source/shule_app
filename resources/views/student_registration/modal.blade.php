@@ -517,8 +517,13 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         // Use ONLY ONE event listener to avoid stack overflow
-        const $regModal = $(registrationModal);
-        $regModal.off('shown.bs.modal').on('shown.bs.modal', resetModal);
+        if (typeof jQuery === 'function' || (window.jQuery && typeof window.jQuery === 'function')) {
+            const $jq = window.jQuery;
+            const $regModal = $jq(registrationModal);
+            $regModal.off('shown.bs.modal').on('shown.bs.modal', resetModal);
+        } else if (registrationModal.addEventListener) {
+            registrationModal.addEventListener('shown.bs.modal', resetModal);
+        }
     }
 
     // Function to populate review section with all entered data

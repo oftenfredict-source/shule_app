@@ -1163,17 +1163,29 @@
     // Export functions (to be implemented)
     function exportResultsPDF(studentID, academicYearID, term, examID, type) {
         // Implementation for PDF export
-        window.location.href = '{{ route("export_student_results_pdf") }}?student_id=' + studentID + '&academic_year_id=' + academicYearID + '&term=' + term + '&exam_id=' + examID + '&type=' + type;
+        window.location.href = '{{ route("export_student_results_pdf") }}?student_id=' + studentID +
+            '\u0026academic_year_id=' + academicYearID +
+            '\u0026term=' + term +
+            '\u0026exam_id=' + examID +
+            '\u0026type=' + type;
     }
     
     function exportAttendancePDF(studentID, academicYearID, fromDate, toDate, month) {
         // Implementation for PDF export
-        window.location.href = '{{ route("export_student_attendance_pdf") }}?student_id=' + studentID + '&academic_year_id=' + academicYearID + '&from_date=' + fromDate + '&to_date=' + toDate + '&month=' + month;
+        window.location.href = '{{ route("export_student_attendance_pdf") }}?student_id=' + studentID +
+            '\u0026academic_year_id=' + academicYearID +
+            '\u0026from_date=' + fromDate +
+            '\u0026to_date=' + toDate +
+            '\u0026month=' + month;
     }
     
     function exportAttendanceExcel(studentID, academicYearID, fromDate, toDate, month) {
         // Implementation for Excel export
-        window.location.href = '{{ route("export_student_attendance_excel") }}?student_id=' + studentID + '&academic_year_id=' + academicYearID + '&from_date=' + fromDate + '&to_date=' + toDate + '&month=' + month;
+        window.location.href = '{{ route("export_student_attendance_excel") }}?student_id=' + studentID +
+            '\u0026academic_year_id=' + academicYearID +
+            '\u0026from_date=' + fromDate +
+            '\u0026to_date=' + toDate +
+            '\u0026month=' + month;
     }
 
     window.exportAttendancePDF = exportAttendancePDF;

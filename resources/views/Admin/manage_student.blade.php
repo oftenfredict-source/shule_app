@@ -1988,7 +1988,7 @@
                 <div class="modal-footer bg-light" style="border-radius: 0;">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle"></i> Cancel</button>
                     <button type="submit" class="btn btn-success px-4" id="importSubmitBtn">
-                        <i class="bi bi-upload"></i> Upload && Import Data
+                        <i class="bi bi-upload"></i> Upload &amp; Import Data
                     </button>
                 </div>
             </form>
@@ -2342,12 +2342,9 @@
 
         function escapeHtmlStudent(text) {
             if (text === null || text === undefined) return '';
-            // Concatenate entities so the HTML parser does not decode them inside <script>
-            return String(text)
-                .replace(/&/g, '&' + 'amp;')
-                .replace(/</g, '&' + 'lt;')
-                .replace(/>/g, '&' + 'gt;')
-                .replace(/"/g, '&' + 'quot;');
+            var d = document.createElement('div');
+            d.appendChild(document.createTextNode(String(text)));
+            return d.innerHTML;
         }
 
         function studentPhotoUrl(student) {
@@ -2943,7 +2940,7 @@
                 processData: false,
                 contentType: false,
                 success: function(response) {
-                    $('#importSubmitBtn').prop('disabled', false).html('<i class="bi bi-upload"></i> Upload & Import Data');
+                    $('#importSubmitBtn').prop('disabled', false).html('<i class="bi bi-upload"></i> Upload \u0026 Import Data');
                     if (response.success) {
                         $('#importStudentsModal').modal('hide');
                         $('#importStudentsForm')[0].reset();
@@ -2972,7 +2969,7 @@
                     }
                 },
                 error: function(xhr) {
-                    $('#importSubmitBtn').prop('disabled', false).html('<i class="bi bi-upload"></i> Upload & Import Data');
+                    $('#importSubmitBtn').prop('disabled', false).html('<i class="bi bi-upload"></i> Upload \u0026 Import Data');
                     let errorMsg = 'An error occurred during import.';
                     if (xhr.responseJSON && xhr.responseJSON.message) {
                         errorMsg = xhr.responseJSON.message;
@@ -5936,10 +5933,10 @@ Would you like to try direct registration anyway, or use the manual method?`;
             let health = $('#healthFilter').val() || '';
 
             let url = '{{ route("export_students_excel") }}' + '?status=' + encodeURIComponent(status) +
-                '&classID=' + encodeURIComponent(classID) +
-                '&subclassID=' + encodeURIComponent(subclassID) +
-                '&gender=' + encodeURIComponent(gender) +
-                '&health=' + encodeURIComponent(health);
+                '\u0026classID=' + encodeURIComponent(classID) +
+                '\u0026subclassID=' + encodeURIComponent(subclassID) +
+                '\u0026gender=' + encodeURIComponent(gender) +
+                '\u0026health=' + encodeURIComponent(health);
 
             window.open(url, '_blank');
         });
@@ -6045,13 +6042,9 @@ Would you like to try direct registration anyway, or use the manual method?`;
 
     function escapeHtmlEnrollment(text) {
         if (text === null || text === undefined) return '';
-        // Concatenate entities so the HTML parser does not decode them inside <script>
-        return String(text)
-            .replace(/&/g, '&' + 'amp;')
-            .replace(/</g, '&' + 'lt;')
-            .replace(/>/g, '&' + 'gt;')
-            .replace(/"/g, '&' + 'quot;')
-            .replace(/'/g, '&#' + '039;');
+        var d = document.createElement('div');
+        d.appendChild(document.createTextNode(String(text)));
+        return d.innerHTML;
     }
 
     function loadStudentEnrollmentHistory(studentID) {
@@ -7385,17 +7378,29 @@ Would you like to try direct registration anyway, or use the manual method?`;
     // Export functions (to be implemented)
     function exportResultsPDF(studentID, academicYearID, term, examID, type) {
         // Implementation for PDF export
-        window.location.href = '{{ route("export_student_results_pdf") }}?student_id=' + studentID + '&academic_year_id=' + academicYearID + '&term=' + term + '&exam_id=' + examID + '&type=' + type;
+        window.location.href = '{{ route("export_student_results_pdf") }}?student_id=' + studentID +
+            '\u0026academic_year_id=' + academicYearID +
+            '\u0026term=' + term +
+            '\u0026exam_id=' + examID +
+            '\u0026type=' + type;
     }
     
     function exportAttendancePDF(studentID, academicYearID, fromDate, toDate, month) {
         // Implementation for PDF export
-        window.location.href = '{{ route("export_student_attendance_pdf") }}?student_id=' + studentID + '&academic_year_id=' + academicYearID + '&from_date=' + fromDate + '&to_date=' + toDate + '&month=' + month;
+        window.location.href = '{{ route("export_student_attendance_pdf") }}?student_id=' + studentID +
+            '\u0026academic_year_id=' + academicYearID +
+            '\u0026from_date=' + fromDate +
+            '\u0026to_date=' + toDate +
+            '\u0026month=' + month;
     }
     
     function exportAttendanceExcel(studentID, academicYearID, fromDate, toDate, month) {
         // Implementation for Excel export
-        window.location.href = '{{ route("export_student_attendance_excel") }}?student_id=' + studentID + '&academic_year_id=' + academicYearID + '&from_date=' + fromDate + '&to_date=' + toDate + '&month=' + month;
+        window.location.href = '{{ route("export_student_attendance_excel") }}?student_id=' + studentID +
+            '\u0026academic_year_id=' + academicYearID +
+            '\u0026from_date=' + fromDate +
+            '\u0026to_date=' + toDate +
+            '\u0026month=' + month;
     }
 
     // Handle Send Student to Fingerprint Device Button Click
@@ -7479,7 +7484,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
             }
         });
         });
-    })(jQuery);
+    })(window.jQuery || window.$);
 </script>
 
 <!-- Include Class Selector Modal -->

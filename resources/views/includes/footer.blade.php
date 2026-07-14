@@ -223,6 +223,12 @@
     justify-content: center !important;
     line-height: 1 !important;
     text-decoration: none !important;
+    margin: 0 10px 0 0 !important; /* override theme -57px which hides it on mobile */
+    float: none !important;
+    height: 40px !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    cursor: pointer !important;
   }
 
   #header .menutoggle i,
@@ -366,6 +372,49 @@
 
     .site-footer {
       width: 100% !important;
+    }
+
+    /* Force header menu toggle visible (theme hides .menutoggle on mobile) */
+    #header .menutoggle,
+    #header a#menuToggle.menutoggle,
+    a#menuToggle.menutoggle,
+    .right-panel header.header .menutoggle,
+    .header-menu .menutoggle {
+      display: inline-flex !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      position: relative !important;
+      z-index: 1030 !important;
+      margin: 0 8px 0 0 !important;
+      float: left !important;
+      width: 40px !important;
+      height: 40px !important;
+      min-width: 40px !important;
+      background-color: whitesmoke !important;
+      color: #940000 !important;
+      border: 1px solid #e8e8e8 !important;
+      border-radius: 4px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      text-decoration: none !important;
+      cursor: pointer !important;
+    }
+
+    #header .menutoggle i,
+    a#menuToggle.menutoggle i {
+      color: #940000 !important;
+      font-size: 18px !important;
+      line-height: 1 !important;
+      margin: 0 !important;
+    }
+
+    .right-panel header.header .col-sm-7 {
+      display: flex !important;
+      align-items: center !important;
+      float: left !important;
+      width: auto !important;
+      max-width: 60% !important;
+      padding-left: 4px !important;
     }
 
     aside.left-panel,
@@ -580,8 +629,10 @@
             ensureSidebarBackdrop();
             syncMobileSidebar();
 
-            jQuery(document).on('click', '#menuToggle', function () {
-                setTimeout(syncMobileSidebar, 0);
+            jQuery(document).on('click', '#menuToggle, a#menuToggle.menutoggle', function (e) {
+                e.preventDefault();
+                document.body.classList.toggle('open');
+                syncMobileSidebar();
             });
 
             jQuery(document).on('click', '#sidebar-backdrop', function () {
@@ -661,6 +712,37 @@
                 jQuery('#left-panel .dropdown-nav-item:hover').each(function () {
                     positionCollapsedFlyout(this);
                 });
+            });
+        } else {
+            // Fallback without jQuery (if $ broken / jQuery missing)
+            document.addEventListener('click', function (e) {
+                var toggle = e.target.closest ? e.target.closest('#menuToggle') : null;
+                if (!toggle && e.target && e.target.id === 'menuToggle') toggle = e.target;
+                if (!toggle && e.target && e.target.parentElement && e.target.parentElement.id === 'menuToggle') {
+                    toggle = e.target.parentElement;
+                }
+                if (toggle) {
+                    e.preventDefault();
+                    document.body.classList.toggle('open');
+                    var backdrop = document.getElementById('sidebar-backdrop');
+                    if (!backdrop) {
+                        backdrop = document.createElement('div');
+                        backdrop.id = 'sidebar-backdrop';
+                        backdrop.className = 'sidebar-backdrop';
+                        document.body.appendChild(backdrop);
+                    }
+                    var mobile = window.matchMedia('(max-width: 991px)').matches;
+                    var open = document.body.classList.contains('open');
+                    if (mobile) {
+                        backdrop.classList.toggle('is-visible', open);
+                    } else {
+                        backdrop.classList.remove('is-visible');
+                    }
+                }
+                if (e.target && e.target.id === 'sidebar-backdrop') {
+                    document.body.classList.remove('open');
+                    e.target.classList.remove('is-visible');
+                }
             });
         }
     });
