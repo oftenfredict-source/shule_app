@@ -197,8 +197,15 @@ class ResultManagementController extends Controller
 
         // Academic year always from header selection (like manageExamination) — no page year picker
         $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
-        $academicYearIDs = $yearCtx["academic_year_ids"];
+        // Expand sibling AYs (e.g. 2025/2026 id + plain 2026 id) so enrollments & exams still match
+        $academicYearIDs = $this->expandRelatedAcademicYearIds(
+            (int) $schoolID,
+            $yearCtx["academic_year_ids"],
+        );
         $yearFilter = $yearCtx["calendar_year"];
+        $calendarYears = !empty($yearCtx["calendar_years"])
+            ? $yearCtx["calendar_years"]
+            : ($yearFilter ? [(int) $yearFilter] : []);
         $academicYearLabel = $yearCtx["label"];
 
         // BROAD PERMISSION CHECK: If teacher has broad result view permissions, don't restrict to "assigned class"
@@ -1740,7 +1747,7 @@ class ResultManagementController extends Controller
             $this->applyExaminationAcademicYearFilter(
                 $examQuery,
                 $academicYearIDs,
-                $yearFilter,
+                !empty($calendarYears) ? $calendarYears : $yearFilter,
             );
             if ($termFilter) {
                 $examQuery->where("term", $termFilter);
@@ -2088,7 +2095,7 @@ class ResultManagementController extends Controller
                     $this->applyExaminationAcademicYearFilter(
                         $examsQuery,
                         $academicYearIDs,
-                        $yearFilter,
+                        !empty($calendarYears) ? $calendarYears : $yearFilter,
                     );
                     $examIDs = $examsQuery->pluck("examID")->toArray();
                     $totalResults->whereIn("examID", $examIDs);
@@ -2754,7 +2761,10 @@ class ResultManagementController extends Controller
         }
 
         $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
-        $academicYearIDs = $yearCtx["academic_year_ids"];
+        $academicYearIDs = $this->expandRelatedAcademicYearIds(
+            (int) $schoolID,
+            $yearCtx["academic_year_ids"],
+        );
         $academicYearLabel = $yearCtx["label"];
         $hasSelectedAcademicYear = !empty($academicYearIDs);
 
@@ -2872,7 +2882,10 @@ class ResultManagementController extends Controller
         }
 
         $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
-        $academicYearIDs = $yearCtx["academic_year_ids"];
+        $academicYearIDs = $this->expandRelatedAcademicYearIds(
+            (int) $schoolID,
+            $yearCtx["academic_year_ids"],
+        );
         if (empty($academicYearIDs)) {
             return redirect()
                 ->back()
@@ -7761,22 +7774,14 @@ class ResultManagementController extends Controller
                 ->get();
             foreach ($years as $y) {
                 $labels[] = $y->year_name ?? $y->year;
-                $cal = is_numeric($y->year)
-                    ? (int) $y->year
-                    : (int) preg_replace(
-                        "/\D.*$/",
-                        "",
-                        (string) ($y->year ?? date("Y")),
-                    );
-                if ($cal >= 2000) {
+                foreach ($this->extractCalendarYearsFromAcademicYear($y) as $cal) {
                     $calendarYears[] = $cal;
                 }
             }
         }
 
-        $primaryCal =
-            $calendarYears[0] ??
-            (int) date("Y");
+        $calendarYears = array_values(array_unique(array_filter($calendarYears)));
+        $primaryCal = $calendarYears[0] ?? (int) date("Y");
 
         return [
             "academic_year_ids" => $yearIds,
@@ -7785,12 +7790,85 @@ class ResultManagementController extends Controller
                 ? implode(" / ", $labels)
                 : "Year " . $primaryCal,
             "calendar_year" => $primaryCal,
-            "calendar_years" => array_values(array_unique($calendarYears)),
+            "calendar_years" => $calendarYears,
         ];
     }
 
     /**
+     * Pull every 20xx token from academic year.year + year_name (e.g. 2025/2026 → [2025, 2026]).
+     */
+    private function extractCalendarYearsFromAcademicYear($year): array
+    {
+        $blob = trim(
+            (string) ($year->year ?? "") .
+                " " .
+                (string) ($year->year_name ?? ""),
+        );
+        if ($blob === "") {
+            return [];
+        }
+
+        preg_match_all("/(20\d{2})/", $blob, $matches);
+        $found = array_map("intval", $matches[1] ?? []);
+        if (empty($found) && is_numeric($year->year ?? null)) {
+            $found[] = (int) $year->year;
+        }
+
+        return array_values(array_unique(array_filter($found, fn ($y) => $y >= 2000)));
+    }
+
+    /**
+     * Header may select AY id=15 (2025/2026) while enrollments still use sibling id=5 (2026).
+     * Expand to all school AYs that share any calendar year token with the selection.
+     */
+    private function expandRelatedAcademicYearIds(
+        int $schoolID,
+        array $yearIds,
+    ): array {
+        $yearIds = array_values(array_filter(array_map("intval", $yearIds)));
+        if (empty($yearIds)) {
+            return [];
+        }
+
+        $selected = AcademicYear::where("schoolID", $schoolID)
+            ->whereIn("academic_yearID", $yearIds)
+            ->get();
+        if ($selected->isEmpty()) {
+            return $yearIds;
+        }
+
+        $calendarYears = [];
+        foreach ($selected as $y) {
+            foreach ($this->extractCalendarYearsFromAcademicYear($y) as $cal) {
+                $calendarYears[] = $cal;
+            }
+        }
+        $calendarYears = array_values(array_unique(array_filter($calendarYears)));
+        if (empty($calendarYears)) {
+            return $yearIds;
+        }
+
+        $related = [];
+        foreach (
+            AcademicYear::where("schoolID", $schoolID)->get()
+            as $candidate
+        ) {
+            $cals = $this->extractCalendarYearsFromAcademicYear($candidate);
+            if (!empty(array_intersect($cals, $calendarYears))) {
+                $related[] = (int) $candidate->academic_yearID;
+            }
+        }
+
+        $merged = array_values(
+            array_unique(array_merge($yearIds, $related)),
+        );
+
+        return !empty($merged) ? $merged : $yearIds;
+    }
+
+    /**
      * Filter examinations by academic_yearID (preferred) with calendar-year fallback.
+     * @param int|array|null $calendarYear Single year or list of calendar years
      */
     private function applyExaminationAcademicYearFilter(
         $query,
@@ -7798,20 +7876,31 @@ class ResultManagementController extends Controller
         $calendarYear = null,
     ) {
         $yearIds = array_values(array_filter(array_map("intval", $yearIds)));
+        $calendarYears = [];
+        if (is_array($calendarYear)) {
+            $calendarYears = array_values(
+                array_filter(array_map("intval", $calendarYear)),
+            );
+        } elseif ($calendarYear) {
+            $calendarYears = [(int) $calendarYear];
+        }
+
         if (!empty($yearIds)) {
-            $query->where(function ($q) use ($yearIds, $calendarYear) {
+            $query->where(function ($q) use ($yearIds, $calendarYears) {
                 $q->whereIn("academic_yearID", $yearIds);
-                if ($calendarYear) {
-                    $q->orWhere(function ($q2) use ($calendarYear) {
-                        $q2->whereNull("academic_yearID")->where(
+                if (!empty($calendarYears)) {
+                    $q->orWhere(function ($q2) use ($calendarYears) {
+                        $q2->whereNull("academic_yearID")->whereIn(
                             "year",
-                            $calendarYear,
+                            $calendarYears,
                         );
                     });
+                    // Bridge rows that have AY set but calendar year still matches selection
+                    $q->orWhereIn("year", $calendarYears);
                 }
             });
-        } elseif ($calendarYear) {
-            $query->where("year", $calendarYear);
+        } elseif (!empty($calendarYears)) {
+            $query->whereIn("year", $calendarYears);
         }
 
         return $query;

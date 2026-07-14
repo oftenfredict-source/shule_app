@@ -5377,8 +5377,27 @@ $(document).ready(function() {
                 const newUrl = '{{ route("manageResults") }}?payload=' + encryptedPayload;
                 window.history.pushState({path: newUrl}, '', newUrl);
 
-                // Parse the response
-                const $response = $(response);
+                // Parse full HTML document safely (jQuery $(html) drops #resultsContainer on some pages)
+                let $response;
+                try {
+                    const doc = new DOMParser().parseFromString(response, 'text/html');
+                    $response = $(doc.body);
+                } catch (e) {
+                    $response = $('<div>').append($.parseHTML(response, document, true));
+                }
+                
+                // Rehydrate detailedViewData from response scripts (jQuery .html() does not run them)
+                window.detailedViewData = null;
+                $response.find('script').addBack('script').each(function () {
+                    const text = this.textContent || this.innerText || '';
+                    if (text.indexOf('window.detailedViewData') === -1) return;
+                    try {
+                        // eslint-disable-next-line no-eval
+                        eval(text);
+                    } catch (err) {
+                        console.warn('Could not restore detailedViewData from filter response', err);
+                    }
+                });
                 
                 // Extract and update results container
                 const $newResultsContainer = $response.find('#resultsContainer');
@@ -9625,9 +9644,24 @@ $(document).ready(function() {
 
     // Top Button: Send SMS All
     $(document).on('click', '#sendSmsAll', function() {
-        const students = window.detailedViewData.allStudents || [];
-        const examName = window.detailedViewData.examName || 'Examination';
-        const className = window.detailedViewData.className || 'Class';
+        const data = window.detailedViewData || {};
+        const students = data.allStudents || [];
+        const examName = data.examName || 'Examination';
+        const className = data.className || 'Class';
+
+        if (!students.length) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'No Students',
+                    text: 'Open a class/exam detailed view first, then try Send SMS again.',
+                    confirmButtonColor: '#940000'
+                });
+            } else {
+                alert('Open a class/exam detailed view first, then try Send SMS again.');
+            }
+            return;
+        }
         
         openSmsModal(`${examName} - ${className}`, students, {
             examID: $('#examID').val(),
@@ -9671,7 +9705,22 @@ $(document).ready(function() {
     $(document).on('click', '.btn-send-all-sms', function() {
         const week = $(this).data('week');
         const examID = $(this).data('exam-id');
-        const students = window.detailedViewData.allStudents || [];
+        const data = window.detailedViewData || {};
+        const students = data.allStudents || [];
+
+        if (!students.length) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'No Students',
+                    text: 'Student data for SMS is not loaded. Refresh the page and open the detailed view again.',
+                    confirmButtonColor: '#940000'
+                });
+            } else {
+                alert('Student data for SMS is not loaded. Refresh and try again.');
+            }
+            return;
+        }
         
         openSmsModal(`All Subjects - Week ${week}`, students, {
             week: week,

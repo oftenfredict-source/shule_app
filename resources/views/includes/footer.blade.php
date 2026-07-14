@@ -469,29 +469,76 @@
       width: 100% !important;
     }
 
-    /* Header: keep notifications + user side-by-side; flags go under avatar */
+    /* Header: years/icons scroll left; avatar+flag stay fixed right (no overlap) */
     #header .header-menu {
-      display: block !important;
+      display: flex !important;
+      flex-wrap: nowrap !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 6px !important;
       width: 100% !important;
-      overflow: hidden !important;
+      overflow: visible !important;
     }
 
     #header .header-menu > .col-sm-7 {
-      float: left !important;
+      float: none !important;
+      flex: 1 1 auto !important;
       width: auto !important;
-      max-width: none !important;
+      min-width: 0 !important;
+      max-width: calc(100% - 72px) !important;
       display: block !important;
-      padding-right: 8px !important;
+      padding-right: 4px !important;
     }
 
     #header .header-menu > .col-sm-5 {
-      float: right !important;
+      float: none !important;
+      flex: 0 0 auto !important;
       width: auto !important;
       max-width: none !important;
-      display: block !important;
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      align-items: center !important;
+      justify-content: flex-end !important;
+      gap: 8px !important;
       text-align: right !important;
       border-left: none !important;
-      padding-left: 8px !important;
+      padding-left: 4px !important;
+      margin-left: auto !important;
+    }
+
+    #header .header-left {
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      align-items: center !important;
+      gap: 4px !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      overflow-x: auto !important;
+      overflow-y: hidden !important;
+      -webkit-overflow-scrolling: touch;
+      white-space: nowrap !important;
+      scrollbar-width: none;
+    }
+
+    #header .header-left::-webkit-scrollbar {
+      display: none;
+    }
+
+    #header .dropdown.for-message {
+      display: none !important;
+    }
+
+    #header .header-academic-year {
+      flex: 0 0 auto !important;
+      margin-left: 4px !important;
+      gap: 4px !important;
+    }
+
+    #header .header-academic-year select {
+      min-width: 0 !important;
+      max-width: 102px !important;
     }
 
     #header .header-mobile-divider {
@@ -561,6 +608,10 @@
     /* Closed drawer (off-canvas). Open state = body.mobile-drawer-open only. */
     aside.left-panel,
     aside#left-panel {
+      display: block !important;
+      position: fixed !important;
+      left: 0 !important;
+      top: 0 !important;
       width: min(300px, 86vw) !important;
       max-width: min(300px, 86vw) !important;
       padding-left: 0 !important;
@@ -575,7 +626,6 @@
       overflow-x: hidden !important;
       overflow-y: auto !important;
       pointer-events: none !important;
-      top: 0 !important;
       background: #ffffff !important;
     }
 
@@ -978,14 +1028,22 @@
             });
 
             // Mobile top-bar 3-dot — use mobile-drawer-open (NOT body.open)
-            jQuery(document).on('click', '#mobileSidebarToggle', function (e) {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                if (!isMobileSidebar()) return;
-                document.body.classList.remove('open');
-                document.body.classList.toggle('mobile-drawer-open');
-                syncMobileSidebar();
-            });
+            // Skip if teacher/staff nav already bound a dedicated handler (avoids double-toggle)
+            if (!window.__sxTeacherMobileToggleBound) {
+                jQuery(document).on('click', '#mobileSidebarToggle', function (e) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    if (!isMobileSidebar()) return;
+                    document.body.classList.remove('open');
+                    document.body.classList.toggle('mobile-drawer-open');
+                    syncMobileSidebar();
+                });
+            } else {
+                // Keep backdrop / main-menu sync in sync when teacher handler toggles class
+                jQuery(document).on('click', '#mobileSidebarToggle', function () {
+                    setTimeout(syncMobileSidebar, 0);
+                });
+            }
 
             jQuery(document).on('click', '#sidebar-backdrop', function () {
                 document.body.classList.remove('open', 'mobile-drawer-open');

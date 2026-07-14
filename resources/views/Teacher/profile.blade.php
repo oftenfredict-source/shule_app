@@ -788,4 +788,5 @@ $(document).ready(function() {
 });
 </script>
 
+@include('includes.footer')
 @include('partials.tange_download_progress')

@@ -67,21 +67,28 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
-    /* Header: restore normal mobile floats; full horizontal line under header only */
+    /* Header: flex row — years/icons scroll; avatar never overlaps */
     #header .header-menu {
-        display: block !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 6px !important;
         width: 100% !important;
-        overflow: hidden !important;
+        overflow: visible !important;
     }
     #header .header-menu > .col-sm-7 {
-        float: left !important;
+        float: none !important;
+        flex: 1 1 auto !important;
         width: auto !important;
-        max-width: 70% !important;
+        min-width: 0 !important;
+        max-width: calc(100% - 72px) !important;
         display: block !important;
-        padding-right: 8px !important;
+        padding-right: 4px !important;
     }
     #header .header-menu > .col-sm-5 {
-        float: right !important;
+        float: none !important;
+        flex: 0 0 auto !important;
         width: auto !important;
         max-width: none !important;
         display: flex !important;
@@ -91,8 +98,9 @@
         justify-content: flex-end !important;
         gap: 8px !important;
         text-align: right !important;
-        padding-left: 8px !important;
+        padding-left: 4px !important;
         border-left: none !important;
+        margin-left: auto !important;
     }
     #header .header-mobile-divider {
         display: none !important;
@@ -104,7 +112,27 @@
         box-shadow: none !important;
     }
     #header .header-left {
-        display: inline-block !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 4px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap !important;
+        scrollbar-width: none;
+    }
+    #header .header-left::-webkit-scrollbar {
+        display: none;
+    }
+    #header .header-left > .dropdown {
+        flex: 0 0 auto !important;
+    }
+    #header .dropdown.for-message {
+        display: none !important;
     }
     #header .menutoggle,
     a#menuToggle.menutoggle {
@@ -133,6 +161,73 @@
     #header .user-area .user-avatar {
         width: 36px !important;
         height: 36px !important;
+    }
+    #header .header-academic-year {
+        flex: 0 0 auto !important;
+        margin-left: 4px !important;
+        gap: 4px !important;
+    }
+    #header .header-academic-year select {
+        min-width: 0 !important;
+        max-width: 102px !important;
+        width: auto !important;
+        flex-shrink: 1 !important;
+    }
+
+    /* Off-canvas drawer (works even if footer styles are missing on some teacher pages) */
+    .right-panel,
+    #right-panel {
+        margin-left: 0 !important;
+    }
+    aside.left-panel,
+    aside#left-panel {
+        display: block !important;
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: min(300px, 86vw) !important;
+        max-width: min(300px, 86vw) !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        z-index: 1050 !important;
+        transform: translateX(-105%) !important;
+        -webkit-transform: translateX(-105%) !important;
+        transition: transform 0.25s ease !important;
+        pointer-events: none !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        background: #ffffff !important;
+    }
+    body.mobile-drawer-open aside.left-panel,
+    body.mobile-drawer-open aside#left-panel {
+        transform: translateX(0) !important;
+        -webkit-transform: translateX(0) !important;
+        pointer-events: auto !important;
+        box-shadow: 8px 0 24px rgba(0, 0, 0, 0.2) !important;
+        padding-top: 52px !important;
+    }
+    body.mobile-drawer-open #left-panel #main-menu.collapse,
+    body.mobile-drawer-open #left-panel #main-menu {
+        display: block !important;
+        height: auto !important;
+        visibility: visible !important;
+        overflow: visible !important;
+    }
+    #left-panel .navbar-toggler {
+        display: none !important;
+    }
+    .sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        top: 52px;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 1040;
+    }
+    body.mobile-drawer-open .sidebar-backdrop.is-visible {
+        display: block;
     }
 
     /* Offset page under fixed mobile bar — keep footer at bottom */

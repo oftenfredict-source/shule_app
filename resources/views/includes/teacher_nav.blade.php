@@ -405,9 +405,6 @@
         padding-right: 25px;
     }
 }
-
-    }
-}
 </style>
 @include('includes.mobile_app_bar_styles')
 </head>
@@ -424,10 +421,75 @@
             <span class="nav-dot"></span>
         </button>
     </div>
+    <script>
+    (function () {
+        if (window.__sxTeacherMobileToggleBound) return;
+        window.__sxTeacherMobileToggleBound = true;
+
+        function ensureBackdrop() {
+            var el = document.getElementById('sidebar-backdrop');
+            if (el) return el;
+            el = document.createElement('div');
+            el.id = 'sidebar-backdrop';
+            el.className = 'sidebar-backdrop';
+            el.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(el);
+            el.addEventListener('click', function () {
+                document.body.classList.remove('open', 'mobile-drawer-open');
+                el.classList.remove('is-visible');
+            });
+            return el;
+        }
+
+        function syncDrawer() {
+            var mobile = window.matchMedia('(max-width: 991px)').matches;
+            var backdrop = ensureBackdrop();
+            if (!mobile) {
+                document.body.classList.remove('mobile-drawer-open');
+                backdrop.classList.remove('is-visible');
+                return;
+            }
+            var open = document.body.classList.contains('mobile-drawer-open');
+            backdrop.classList.toggle('is-visible', open);
+            var mainMenu = document.getElementById('main-menu');
+            if (mainMenu && open) {
+                mainMenu.classList.add('show');
+                mainMenu.style.display = 'block';
+                mainMenu.style.height = 'auto';
+                mainMenu.style.visibility = 'visible';
+            }
+        }
+
+        function onToggle(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!window.matchMedia('(max-width: 991px)').matches) return;
+            document.body.classList.remove('open');
+            document.body.classList.toggle('mobile-drawer-open');
+            syncDrawer();
+        }
+
+        function bind() {
+            var btn = document.getElementById('mobileSidebarToggle');
+            if (!btn || btn.dataset.sxBound === '1') return;
+            btn.dataset.sxBound = '1';
+            btn.addEventListener('click', onToggle);
+            if (window.matchMedia('(max-width: 991px)').matches) {
+                document.body.classList.remove('open', 'mobile-drawer-open');
+            }
+            ensureBackdrop();
+            syncDrawer();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bind);
+        } else {
+            bind();
+        }
+    })();
+    </script>
 
     <!-- Left Panel -->
-
-  <!-- Left Panel -->
 <aside id="left-panel" class="left-panel">
     <nav class="navbar navbar-expand-sm navbar-default">
 
@@ -436,7 +498,8 @@
                 <i class="fa fa-graduation-cap"></i>
                 ShuleXpert
             </a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#main-menu" aria-controls="main-menu" aria-expanded="false" aria-label="Toggle navigation">
+            {{-- Mobile drawer uses #mobileSidebarToggle only (same as Admin) --}}
+            <button class="navbar-toggler d-none" type="button" aria-hidden="true" tabindex="-1">
                 <span class="nav-dot"></span>
                 <span class="nav-dot"></span>
                 <span class="nav-dot"></span>
@@ -1354,50 +1417,6 @@
 
                         @include('includes.sgpm_notifications')
                         @include('includes.goal_notifications')
-
-                        <div class="dropdown for-message">
-                            <button class="btn btn-secondary dropdown-toggle position-relative" type="button"
-                                id="message"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <!-- <i class="ti-email header-icon-muted"></i> -->
-                                <!-- <span class="count bg-primary">9</span> -->
-                            </button>
-                            <div class="dropdown-menu" aria-labelledby="message">
-                                <p class="red">You have 4 Mails</p>
-                                <a class="dropdown-item media bg-flat-color-1" href="#">
-                                <span class="photo media-left"><img alt="avatar" src="{{ asset('images/avatar/1.jpg') }}"></span>
-                                <span class="message media-body">
-                                    <span class="name float-left">Jonathan Smith</span>
-                                    <span class="time float-right">Just now</span>
-                                        <p>Hello, this is an example msg</p>
-                                </span>
-                            </a>
-                                <a class="dropdown-item media bg-flat-color-4" href="#">
-                                <span class="photo media-left"><img alt="avatar" src="{{ asset('images/avatar/2.jpg') }}"></span>
-                                <span class="message media-body">
-                                    <span class="name float-left">Jack Sanders</span>
-                                    <span class="time float-right">5 minutes ago</span>
-                                        <p>Lorem ipsum dolor sit amet, consectetur</p>
-                                </span>
-                            </a>
-                                <a class="dropdown-item media bg-flat-color-5" href="#">
-                                <span class="photo media-left"><img alt="avatar" src="{{ asset('images/avatar/3.jpg') }}"></span>
-                                <span class="message media-body">
-                                    <span class="name float-left">Cheryl Wheeler</span>
-                                    <span class="time float-right">10 minutes ago</span>
-                                        <p>Hello, this is an example msg</p>
-                                </span>
-                            </a>
-                                <a class="dropdown-item media bg-flat-color-3" href="#">
-                                <span class="photo media-left"><img alt="avatar" src="{{ asset('images/avatar/4.jpg') }}"></span>
-                                <span class="message media-body">
-                                    <span class="name float-left">Rachel Santos</span>
-                                    <span class="time float-right">15 minutes ago</span>
-                                        <p>Lorem ipsum dolor sit amet, consectetur</p>
-                                </span>
-                            </a>
-                            </div>
-                        </div>
 
                         @include('includes.header_academic_year_selector')
                     </div>

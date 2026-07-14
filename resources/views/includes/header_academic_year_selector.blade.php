@@ -79,13 +79,21 @@
         box-shadow: 0 0 0 2px rgba(148, 0, 0, 0.15);
     }
     @media (max-width: 991px) {
+        #header .header-left {
+            flex-wrap: nowrap !important;
+            white-space: nowrap;
+        }
         .header-academic-year {
-            margin-left: 8px;
-            gap: 8px;
+            margin-left: 4px !important;
+            gap: 4px !important;
+            flex: 0 0 auto !important;
         }
         .header-academic-year select {
-            min-width: 88px;
+            min-width: 0 !important;
+            max-width: 102px !important;
+            width: auto !important;
             font-size: 11px;
+            flex-shrink: 1 !important;
         }
         .header-academic-year .ay-label {
             display: none;
