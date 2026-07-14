@@ -321,7 +321,6 @@
                 <ul class="nav navbar-nav">
                     <li class="text-center mt-3 mb-2">
                         @php
-                        @php
                             $imgPath = \App\Support\UserImageUrl::forGender(
                                 (isset($staff) && $staff) ? ($staff->image ?? null) : null,
                                 (isset($staff) && $staff) ? ($staff->gender ?? null) : null

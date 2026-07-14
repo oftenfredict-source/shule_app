@@ -35,6 +35,24 @@
         color: #940000 !important;
     }
 
+    .enrollment-status-pill {
+        display: inline-block;
+        padding: 0.25rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #fff !important;
+        letter-spacing: 0.02em;
+    }
+    .enrollment-badge-active { background: #28a745 !important; }
+    .enrollment-badge-completed { background: #6c757d !important; }
+    .enrollment-badge-repeated { background: #fd7e14 !important; }
+    .enrollment-badge-graduated { background: #17a2b8 !important; }
+    .enrollment-badge-transferred { background: #0d6efd !important; }
+    .enrollment-badge-dropped { background: #dc3545 !important; }
+    .enrollment-badge-cancelled { background: #495057 !important; }
+    .enrollment-badge-other { background: #940000 !important; }
+
     /* Border assignments */
     .border, .border-bottom, .border-top, .border-right, .border-left, .card, .table-bordered th, .table-bordered td, .form-control, .form-select {
         border-color: rgba(148, 0, 0, 0.2) !important;
@@ -418,12 +436,12 @@
                             @if(isset($filteringDescription))
                                 {!! $filteringDescription !!}
                             @else
-                                <i class="bi bi-funnel"></i> Filtering: All active results for current year
+                                <i class="bi bi-funnel"></i> Filtering: Results for academic year <strong>{{ $academicYearLabel ?? ($filters['year'] ?? date('Y')) }}</strong> (from header)
                             @endif
                             
                             @php
                                 $schoolID = Session::get('schoolID');
-                                $currentYear = date('Y');
+                                $currentYear = $filters['year'] ?? date('Y');
                                 $currentTerm = $filters['term'] ?? 'first_term'; // Use $filters['term'] if available, otherwise default
                                 
                                 $reportDef = \App\Models\TermReportDefinition::where('schoolID', $schoolID)
@@ -465,18 +483,16 @@
                                 </select>
                             </div>
 
-                            <!-- Year Filter -->
+                            <!-- Academic Year (from header — not pickable here) -->
                             <div class="col-md-2 mb-3">
-                                <label for="year" class="form-label">
-                                    <i class="bi bi-calendar"></i> Year
+                                <label class="form-label">
+                                    <i class="bi bi-calendar"></i> Academic Year
                                 </label>
-                                <select class="form-control" id="year" name="year">
-                                    @foreach($availableYears as $year)
-                                        <option value="{{ $year }}" {{ ($filters['year'] ?? date('Y')) == $year ? 'selected' : '' }}>
-                                            {{ $year }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <input type="text" class="form-control" value="{{ $academicYearLabel ?? ($filters['year'] ?? date('Y')) }}" readonly
+                                    style="background-color: #e9ecef; cursor: not-allowed;" title="Change academic year from the header selector">
+                                <input type="hidden" id="year" name="year" value="{{ $filters['year'] ?? date('Y') }}">
+                                <input type="hidden" id="academic_yearID" name="academic_yearID" value="{{ $filters['academic_yearID'] ?? '' }}">
+                                <small class="text-muted"><i class="bi bi-lock"></i> From header</small>
                             </div>
 
                             <!-- Type Filter -->
@@ -490,15 +506,19 @@
                                 </select>
                             </div>
 
-                            <!-- Status Filter -->
+                            <!-- Enrollment Status Filter -->
                             <div class="col-md-2 mb-3">
                                 <label for="status" class="form-label">
                                     <i class="bi bi-person-check"></i> Student Status
                                 </label>
                                 <select class="form-control" id="status" name="status">
-                                    <option value="active" {{ ($filters['status'] ?? 'active') == 'active' ? 'selected' : '' }}>Active (Currently Studying)</option>
-                                    <option value="all" {{ ($filters['status'] ?? '') == 'all' ? 'selected' : '' }}>All Students</option>
-                                    <option value="history" {{ ($filters['status'] ?? '') == 'history' ? 'selected' : '' }}>History (Transferred)</option>
+                                    @php $st = $filters['status'] ?? 'Active'; @endphp
+                                    <option value="Active" {{ $st == 'Active' || $st == 'active' ? 'selected' : '' }}>Active</option>
+                                    <option value="Completed" {{ $st == 'Completed' ? 'selected' : '' }}>Completed</option>
+                                    <option value="Transferred" {{ $st == 'Transferred' || $st == 'history' ? 'selected' : '' }}>Transferred</option>
+                                    <option value="Dropped" {{ $st == 'Dropped' ? 'selected' : '' }}>Dropped</option>
+                                    <option value="Cancelled" {{ $st == 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
+                                    <option value="all" {{ $st == 'all' ? 'selected' : '' }}>All enrollments</option>
                                 </select>
                             </div>
 
@@ -803,7 +823,7 @@
                             @if($filters['term'])
                                 - {{ ucfirst(str_replace('_', ' ', $filters['term'])) }}
                             @endif
-                            - {{ $filters['year'] ?? date('Y') }}
+                            - {{ $academicYearLabel ?? ($filters['year'] ?? date('Y')) }}
                         </h5>
 
                         @if(count($resultsData) > 0)
@@ -813,6 +833,8 @@
                                         <tr>
                                             <th>#</th>
                                             <th>Student Name</th>
+                                            <th>Enrollment</th>
+                                            <th>Status</th>
                                             <th>Class</th>
                                             @if($schoolType === 'Primary')
                                                 <th>Grade</th>
@@ -828,6 +850,9 @@
                                             @if(isset($resultsData[$student->studentID]))
                                                 @php
                                                     $result = $resultsData[$student->studentID];
+                                                    $enrStatus = $student->enrollment_status ?? null;
+                                                    $enrBadge = strtolower((string) ($enrStatus ?: 'other'));
+                                                    $enrBadgeClass = 'enrollment-badge-' . (in_array($enrBadge, ['active','completed','repeated','graduated','transferred','dropped','cancelled'], true) ? $enrBadge : 'other');
                                                 @endphp
                                                 <tr class="student-row" data-student-name="{{ strtolower($student->first_name . ' ' . ($student->middle_name ?? '') . ' ' . $student->last_name) }}" data-admission="{{ strtolower($student->admission_number ?? '') }}" data-student-id="{{ $student->studentID }}" data-main-class="@if($student->subclass && $student->subclass->class){{ $student->subclass->class->class_name }}@elseif($student->oldSubclass && $student->oldSubclass->class){{ $student->oldSubclass->class->class_name }}@else N/A @endif">
                                                     <td>{{ $index + 1 }}</td>
@@ -835,6 +860,20 @@
                                                         {{ $student->first_name }} 
                                                         {{ $student->middle_name ?? '' }} 
                                                         {{ $student->last_name }}
+                                                    </td>
+                                                    <td>
+                                                        @if(!empty($student->result_enrollmentID))
+                                                            <span class="badge badge-light border text-dark">#{{ $student->result_enrollmentID }}</span>
+                                                        @else
+                                                            <span class="text-muted">—</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if($enrStatus)
+                                                            <span class="enrollment-status-pill {{ $enrBadgeClass }}">{{ $enrStatus }}</span>
+                                                        @else
+                                                            <span class="text-muted">—</span>
+                                                        @endif
                                                     </td>
                                                     <td>
                                                         @if($student->subclass && $student->subclass->class)
@@ -2384,6 +2423,8 @@
                                                             <th>Position</th>
                                                             <th>Student Number</th>
                                                             <th>Student Name</th>
+                                                            <th>Enrollment</th>
+                                                            <th>Status</th>
                                                             <th>Class</th>
                                                             @if($schoolType === 'Primary')
                                                                 <th>Grade</th>
@@ -2395,13 +2436,33 @@
                                                     </thead>
                                                     <tbody>
                                                         @foreach($examStudents as $examStudent)
-                                                            <tr class="student-row" data-student-name="{{ strtolower($examStudent['student']->first_name . ' ' . ($examStudent['student']->middle_name ?? '') . ' ' . $examStudent['student']->last_name) }}" data-admission="{{ strtolower($examStudent['student']->admission_number ?? '') }}" data-student-id="{{ $examStudent['student']->studentID }}">
+                                                            @php
+                                                                $st = $examStudent['student'];
+                                                                $enrStatus = $st->enrollment_status ?? null;
+                                                                $enrBadge = strtolower((string) ($enrStatus ?: 'other'));
+                                                                $enrBadgeClass = 'enrollment-badge-' . (in_array($enrBadge, ['active','completed','repeated','graduated','transferred','dropped','cancelled'], true) ? $enrBadge : 'other');
+                                                            @endphp
+                                                            <tr class="student-row" data-student-name="{{ strtolower($st->first_name . ' ' . ($st->middle_name ?? '') . ' ' . $st->last_name) }}" data-admission="{{ strtolower($st->admission_number ?? '') }}" data-student-id="{{ $st->studentID }}">
                                                                 <td><span class="badge badge-success">{{ $examStudent['position'] ?? 'N/A' }}</span></td>
-                                                                <td>{{ $examStudent['student']->admission_number ?? 'N/A' }}</td>
+                                                                <td>{{ $st->admission_number ?? 'N/A' }}</td>
                                                                 <td>
-                                                                    {{ $examStudent['student']->first_name }} 
-                                                                    {{ $examStudent['student']->middle_name ?? '' }} 
-                                                                    {{ $examStudent['student']->last_name }}
+                                                                    {{ $st->first_name }} 
+                                                                    {{ $st->middle_name ?? '' }} 
+                                                                    {{ $st->last_name }}
+                                                                </td>
+                                                                <td>
+                                                                    @if(!empty($st->result_enrollmentID))
+                                                                        <span class="badge badge-light border text-dark">#{{ $st->result_enrollmentID }}</span>
+                                                                    @else
+                                                                        <span class="text-muted">—</span>
+                                                                    @endif
+                                                                </td>
+                                                                <td>
+                                                                    @if($enrStatus)
+                                                                        <span class="enrollment-status-pill {{ $enrBadgeClass }}">{{ $enrStatus }}</span>
+                                                                    @else
+                                                                        <span class="text-muted">—</span>
+                                                                    @endif
                                                                 </td>
                                                                 <td>{{ $examStudent['class_name'] ?? 'N/A' }}</td>
                                                                 @if($schoolType === 'Primary')
@@ -2410,7 +2471,7 @@
                                                                     <td><span class="badge badge-warning">{{ $examStudent['division'] ?? 'N/A' }}</span></td>
                                                                 @endif
                                                                 <td>
-                                                                    <button class="btn btn-sm btn-primary view-student-details" data-student-id="{{ $examStudent['student']->studentID }}" data-exam-id="{{ $filters['examID'] }}" title="View More Details">
+                                                                    <button class="btn btn-sm btn-primary view-student-details" data-student-id="{{ $st->studentID }}" data-exam-id="{{ $filters['examID'] }}" title="View More Details">
                                                                         <i class="bi bi-eye"></i> View More
                                                                     </button>
                                                                 </td>
@@ -5561,7 +5622,7 @@ $(document).ready(function() {
         let examID = $('#examID').val() || '';
         let classID = $('#class').val() || '';
         let subclassID = $('#subclass').val() || '';
-        let status = $('#status').val() || 'active';
+        let status = $('#status').val() || 'Active';
         
         @if(isset($isTeacherView) && $isTeacherView)
             classID = $('#lockedClassID').val() || '';
@@ -5840,7 +5901,7 @@ $(document).ready(function() {
             term: $('#term').val(),
             year: $('#year').val(),
             type: $('#type').val() || 'exam',
-            status: $('#status').val() || 'active',
+            status: $('#status').val() || 'Active',
             examID: examID || $('#examID').val() || '',
             _btn: $btn
         };
@@ -5880,7 +5941,7 @@ $(document).ready(function() {
             term: $('#term').val(),
             year: $('#year').val(),
             type: 'report',
-            status: $('#status').val() || 'active',
+            status: $('#status').val() || 'Active',
             examID: $('#examID').val() || '',
             _btn: $btn
         };
@@ -6499,7 +6560,7 @@ $(document).ready(function() {
             term: $('#term').val(),
             year: $('#year').val(),
             type: $('#type').val() || 'exam',
-            status: $('#status').val() || 'active',
+            status: $('#status').val() || 'Active',
             examID: $('#examID').val() || '',
             classID:    classVal,
             subclassID: subclassVal,
@@ -7118,7 +7179,7 @@ $(document).ready(function() {
             term: $('#term').val(),
             year: $('#year').val(),
             type: $('#type').val() || 'exam',
-            status: $('#status').val() || 'active',
+            status: $('#status').val() || 'Active',
             examID: $('#examID').val() || '',
             classID:    classVal,
             subclassID: subclassVal,

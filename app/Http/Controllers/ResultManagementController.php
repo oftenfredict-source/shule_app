@@ -28,7 +28,9 @@ use App\Models\ParentModel;
 use App\Models\TeacherResultAssignment;
 use App\Models\School;
 use App\Models\SubjectElector;
+use App\Models\StudentEnrollment;
 use App\Services\SmsService;
+use App\Services\SelectedAcademicYearService;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -179,9 +181,10 @@ class ResultManagementController extends Controller
 
         // Get filter parameters
         $termFilter = $request->input("term", "");
-        $yearFilter = $request->input("year", date("Y"));
         $typeFilter = $request->input("type", "exam"); // 'exam' or 'report'
-        $statusFilter = $request->input("status", "active"); // 'active', 'all', 'history'
+        $statusFilter = $this->normalizeResultsEnrollmentStatusFilter(
+            $request->input("status", "Active"),
+        ); // enrollment statuses
         $classFilter = $request->input("class", "");
         $subclassFilter = $request->input("subclass", "");
         $subclassIDParam = $request->input("subclassID", ""); // From classManagement link
@@ -190,6 +193,12 @@ class ResultManagementController extends Controller
         $examFilter = $request->input("examID", ""); // Specific exam filter
         $weekFilter = $request->input("week", ""); // Week filter for weekly/monthly tests
         $subjectFilter = $request->input("subjectID", ""); // Specific subject filter
+
+        // Academic year always from header selection (like manageExamination) — no page year picker
+        $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
+        $academicYearIDs = $yearCtx["academic_year_ids"];
+        $yearFilter = $yearCtx["calendar_year"];
+        $academicYearLabel = $yearCtx["label"];
 
         // BROAD PERMISSION CHECK: If teacher has broad result view permissions, don't restrict to "assigned class"
         $hasBroadResultPermission = $this->hasPermission("view_results");
@@ -388,12 +397,14 @@ class ResultManagementController extends Controller
             }
         }
 
-        // Get available years
-        $availableYears = Examination::where("schoolID", $schoolID)
-            ->distinct()
-            ->orderBy("year", "desc")
-            ->pluck("year")
-            ->toArray();
+        // Available academic years (for display); calendar years kept for legacy PDF helpers
+        $availableYears = !empty($yearCtx["calendar_years"])
+            ? $yearCtx["calendar_years"]
+            : Examination::where("schoolID", $schoolID)
+                ->distinct()
+                ->orderBy("year", "desc")
+                ->pluck("year")
+                ->toArray();
 
         // Get classes for filter
         $classes = ClassModel::where("schoolID", $schoolID)
@@ -1719,12 +1730,17 @@ class ResultManagementController extends Controller
             return response()->json($responseData);
         }
 
-        // Get available exams for the selected term and year
+        // Get available exams for the selected term + header academic year
         $availableExams = collect();
-        if ($yearFilter) {
-            $examQuery = Examination::where("schoolID", $schoolID)
-                ->where("year", $yearFilter)
-                ->orderBy("start_date");
+        if (!empty($academicYearIDs) || $yearFilter) {
+            $examQuery = Examination::where("schoolID", $schoolID)->orderBy(
+                "start_date",
+            );
+            $this->applyExaminationAcademicYearFilter(
+                $examQuery,
+                $academicYearIDs,
+                $yearFilter,
+            );
             if ($termFilter) {
                 $examQuery->where("term", $termFilter);
             }
@@ -1867,16 +1883,11 @@ class ResultManagementController extends Controller
             }
         }
 
-        // Build query for students based on status filter
+        // Build query for students via enrollment (academic year from header + enrollment status)
         $studentQuery = Student::where("schoolID", $schoolID);
-
-        if ($statusFilter === "active") {
-            $studentQuery->where("status", "Active");
-        } elseif ($statusFilter === "history") {
-            // Students who have old_subclassID (were shifted) - show their history
-            $studentQuery->whereNotNull("old_subclassID");
-        }
-        // 'all' includes all students
+        $hasEnrollments = DB::table("student_enrollments")
+            ->where("schoolID", $schoolID)
+            ->exists();
 
         // SECURITY: For regular teachers without broad permissions, ensure they can only access their assigned subclass
         if (
@@ -1884,17 +1895,14 @@ class ResultManagementController extends Controller
             !empty($teacherID) &&
             !$hasBroadResultPermission
         ) {
-            // If teacher view is active (from classManagement), MUST have subclassFilter set
             if ($isTeacherView) {
                 if (empty($subclassFilter)) {
-                    // If isTeacherView is true but no subclassFilter, redirect back
                     return redirect()
                         ->route("AdmitedClasses")
                         ->with("error", "Please select a class to view results")
                         ->with("error_type", "no_subclass_selected");
                 }
 
-                // Verify teacher has access to this subclass
                 $subclass = Subclass::find($subclassFilter);
                 if (!$subclass || $subclass->teacherID != $teacherID) {
                     return redirect()
@@ -1905,11 +1913,7 @@ class ResultManagementController extends Controller
                         )
                         ->with("error_type", "unauthorized_access");
                 }
-
-                // ALWAYS filter by the specific subclass - no exceptions
-                $studentQuery->where("subclassID", $subclassFilter);
             } elseif ($subclassFilter) {
-                // If subclassFilter is set but not teacher view, verify access
                 $subclass = Subclass::find($subclassFilter);
                 if (!$subclass || $subclass->teacherID != $teacherID) {
                     return redirect()
@@ -1920,28 +1924,50 @@ class ResultManagementController extends Controller
                         )
                         ->with("error_type", "unauthorized_access");
                 }
-                $studentQuery->where("subclassID", $subclassFilter);
             } else {
-                // If no subclass selected and not teacher view, show nothing
-                $studentQuery->whereRaw("1 = 0"); // Return no students
+                $studentQuery->whereRaw("1 = 0");
             }
-        } elseif ($subclassFilter) {
-            // Admin or non-teacher: filter by subclass if selected
-            $studentQuery->where("subclassID", $subclassFilter);
-        } elseif ($classFilter) {
-            // Filter by main class if subclass not selected
-            // Check both current subclass and old subclass (for history)
-            $studentQuery->where(function ($query) use ($classFilter) {
-                $query
-                    ->whereHas("subclass", function ($q) use ($classFilter) {
-                        $q->where("classID", $classFilter);
-                    })
-                    ->orWhereHas("oldSubclass", function ($q) use (
-                        $classFilter,
-                    ) {
-                        $q->where("classID", $classFilter);
-                    });
-            });
+        }
+
+        if ($hasEnrollments) {
+            $this->applyResultsEnrollmentScopeToStudentsQuery(
+                $studentQuery,
+                (int) $schoolID,
+                $academicYearIDs,
+                $classFilter ?: null,
+                $subclassFilter ?: null,
+                $statusFilter,
+            );
+        } else {
+            // Legacy schools without enrollments table data
+            if ($statusFilter === "Active") {
+                $studentQuery->where("status", "Active");
+            } elseif ($statusFilter === "Transferred") {
+                $studentQuery->whereNotNull("old_subclassID");
+            } elseif ($statusFilter === "Completed") {
+                $studentQuery->where("status", "Graduated");
+            } elseif (
+                $statusFilter === "Dropped" ||
+                $statusFilter === "Cancelled"
+            ) {
+                $studentQuery->where("status", "Inactive");
+            }
+
+            if ($subclassFilter) {
+                $studentQuery->where("subclassID", $subclassFilter);
+            } elseif ($classFilter) {
+                $studentQuery->where(function ($query) use ($classFilter) {
+                    $query
+                        ->whereHas("subclass", function ($q) use ($classFilter) {
+                            $q->where("classID", $classFilter);
+                        })
+                        ->orWhereHas("oldSubclass", function ($q) use (
+                            $classFilter,
+                        ) {
+                            $q->where("classID", $classFilter);
+                        });
+                });
+            }
         }
 
         $students = $studentQuery
@@ -1955,6 +1981,13 @@ class ResultManagementController extends Controller
             ])
             ->orderBy("first_name")
             ->get();
+
+        $this->attachEnrollmentMetaToStudents(
+            $students,
+            (int) $schoolID,
+            $academicYearIDs,
+            $statusFilter,
+        );
 
         // Get results data
         $resultsData = [];
@@ -1987,6 +2020,7 @@ class ResultManagementController extends Controller
                     $weekFilter,
                     $subjectFilter,
                     $schoolID,
+                    $academicYearIDs,
                 );
             } elseif ($typeFilter === "report") {
                 // Get term report
@@ -1997,6 +2031,7 @@ class ResultManagementController extends Controller
                     $schoolType,
                     $subjectFilter,
                     $schoolID,
+                    $academicYearIDs,
                 );
             }
             // Debug: Check why results might be empty
@@ -2045,9 +2080,15 @@ class ResultManagementController extends Controller
                 if ($examFilter) {
                     $totalResults->where("examID", $examFilter);
                 } else {
-                    $examsQuery = Examination::where("schoolID", $schoolID)
-                        ->where("year", $yearFilter)
-                        ->where("term", $termFilter);
+                    $examsQuery = Examination::where("schoolID", $schoolID)->where(
+                        "term",
+                        $termFilter,
+                    );
+                    $this->applyExaminationAcademicYearFilter(
+                        $examsQuery,
+                        $academicYearIDs,
+                        $yearFilter,
+                    );
                     $examIDs = $examsQuery->pluck("examID")->toArray();
                     $totalResults->whereIn("examID", $examIDs);
                 }
@@ -2096,9 +2137,14 @@ class ResultManagementController extends Controller
             "availableYears" => $availableYears,
             "availableWeeks" => $availableWeeks,
             "examStatusMessage" => $examStatusMessage,
+            "academicYearLabel" => $academicYearLabel,
+            "academicYearIDs" => $academicYearIDs,
             "filters" => [
                 "term" => $termFilter,
                 "year" => $yearFilter,
+                "academic_yearID" => !empty($academicYearIDs)
+                    ? implode(",", $academicYearIDs)
+                    : "",
                 "type" => $typeFilter,
                 "status" => $statusFilter,
                 "class" => $classFilter,
@@ -3497,6 +3543,7 @@ class ResultManagementController extends Controller
         $weekFilter = null,
         $subjectFilter = null,
         $schoolID = null,
+        $academicYearIDs = [],
     ) {
         $resultsData = [];
         if (!$schoolID) {
@@ -3509,11 +3556,13 @@ class ResultManagementController extends Controller
                 $student->studentID,
             );
 
-            // Get examinations for this term and year
-            $examinationsQuery = Examination::where(
-                "schoolID",
-                $schoolID,
-            )->where("year", $year);
+            // Get examinations for this term and academic year (header)
+            $examinationsQuery = Examination::where("schoolID", $schoolID);
+            $this->applyExaminationAcademicYearFilter(
+                $examinationsQuery,
+                is_array($academicYearIDs) ? $academicYearIDs : [],
+                $year,
+            );
 
             if ($term) {
                 $examinationsQuery->where("term", $term);
@@ -3894,6 +3943,7 @@ class ResultManagementController extends Controller
         $schoolType,
         $subjectFilter = null,
         $schoolID = null,
+        $academicYearIDs = [],
     ) {
         $resultsData = [];
         if (!$schoolID) {
@@ -3906,10 +3956,16 @@ class ResultManagementController extends Controller
             ->where("term", $term)
             ->first();
 
-        // OPTIMIZATION: Query examinations
-        $examinationsQuery = Examination::where("schoolID", $schoolID)
-            ->where("year", $year)
-            ->where("term", $term);
+        // OPTIMIZATION: Query examinations by academic year (header)
+        $examinationsQuery = Examination::where("schoolID", $schoolID)->where(
+            "term",
+            $term,
+        );
+        $this->applyExaminationAcademicYearFilter(
+            $examinationsQuery,
+            is_array($academicYearIDs) ? $academicYearIDs : [],
+            $year,
+        );
 
         // If definition exists and has exams, restrict to those exams
         if ($reportDefinition && !empty($reportDefinition->exam_ids)) {
@@ -6633,13 +6689,21 @@ class ResultManagementController extends Controller
         $schoolID = Session::get("schoolID");
         $year = $request->year;
         $term = $request->term;
+        $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
+        $academicYearIDs = $yearCtx["academic_year_ids"];
+        $calendarYear = $year ?: $yearCtx["calendar_year"];
 
-        $exams = Examination::where("schoolID", $schoolID)
-            ->where("year", $year)
+        $examQuery = Examination::where("schoolID", $schoolID)
             ->where("term", $term)
             ->where("exam_category", "school_exams")
-            ->orderBy("start_date", "asc")
-            ->get(["examID", "exam_name"]);
+            ->orderBy("start_date", "asc");
+        $this->applyExaminationAcademicYearFilter(
+            $examQuery,
+            $academicYearIDs,
+            $calendarYear,
+        );
+
+        $exams = $examQuery->get(["examID", "exam_name"]);
 
         return response()->json(["success" => true, "data" => $exams]);
     }
@@ -6649,13 +6713,21 @@ class ResultManagementController extends Controller
         $schoolID = Session::get("schoolID");
         $year = $request->year;
         $term = $request->term;
+        $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
+        $academicYearIDs = $yearCtx["academic_year_ids"];
+        $calendarYear = $year ?: $yearCtx["calendar_year"];
 
-        $exams = Examination::where("schoolID", $schoolID)
-            ->where("year", $year)
+        $examQuery = Examination::where("schoolID", $schoolID)
             ->where("term", $term)
             ->where("exam_category", "test")
-            ->orderBy("start_date", "asc")
-            ->get(["examID", "exam_name", "end_date"]);
+            ->orderBy("start_date", "asc");
+        $this->applyExaminationAcademicYearFilter(
+            $examQuery,
+            $academicYearIDs,
+            $calendarYear,
+        );
+
+        $exams = $examQuery->get(["examID", "exam_name", "end_date"]);
 
         return response()->json(["success" => true, "data" => $exams]);
     }
@@ -7661,5 +7733,202 @@ class ResultManagementController extends Controller
                 ($permission->result_button_status ? "enabled" : "disabled") .
                 " globally.",
         ]);
+    }
+
+    /**
+     * Resolve academic year context from header (same source as manageExamination).
+     */
+    private function resolveResultsAcademicYearContext(int $schoolID): array
+    {
+        $yearService = app(SelectedAcademicYearService::class);
+        $ctx = $yearService->headerContext($schoolID);
+        $yearIds = array_values(
+            array_filter(array_map("intval", $ctx["selected_year_ids"] ?? [])),
+        );
+
+        $years = collect();
+        $labels = [];
+        $calendarYears = [];
+
+        if (!empty($yearIds)) {
+            $years = AcademicYear::where("schoolID", $schoolID)
+                ->whereIn("academic_yearID", $yearIds)
+                ->orderBy("academic_yearID")
+                ->get();
+            foreach ($years as $y) {
+                $labels[] = $y->year_name ?? $y->year;
+                $cal = is_numeric($y->year)
+                    ? (int) $y->year
+                    : (int) preg_replace(
+                        "/\D.*$/",
+                        "",
+                        (string) ($y->year ?? date("Y")),
+                    );
+                if ($cal >= 2000) {
+                    $calendarYears[] = $cal;
+                }
+            }
+        }
+
+        $primaryCal =
+            $calendarYears[0] ??
+            (int) date("Y");
+
+        return [
+            "academic_year_ids" => $yearIds,
+            "academic_years" => $years,
+            "label" => !empty($labels)
+                ? implode(" / ", $labels)
+                : "Year " . $primaryCal,
+            "calendar_year" => $primaryCal,
+            "calendar_years" => array_values(array_unique($calendarYears)),
+        ];
+    }
+
+    /**
+     * Filter examinations by academic_yearID (preferred) with calendar-year fallback.
+     */
+    private function applyExaminationAcademicYearFilter(
+        $query,
+        array $yearIds,
+        $calendarYear = null,
+    ) {
+        $yearIds = array_values(array_filter(array_map("intval", $yearIds)));
+        if (!empty($yearIds)) {
+            $query->where(function ($q) use ($yearIds, $calendarYear) {
+                $q->whereIn("academic_yearID", $yearIds);
+                if ($calendarYear) {
+                    $q->orWhere(function ($q2) use ($calendarYear) {
+                        $q2->whereNull("academic_yearID")->where(
+                            "year",
+                            $calendarYear,
+                        );
+                    });
+                }
+            });
+        } elseif ($calendarYear) {
+            $query->where("year", $calendarYear);
+        }
+
+        return $query;
+    }
+
+    private function normalizeResultsEnrollmentStatusFilter($status): string
+    {
+        $status = is_string($status) ? trim($status) : "";
+        $legacy = [
+            "active" => "Active",
+            "history" => "Transferred",
+            "all" => "all",
+        ];
+        $lower = strtolower($status);
+        if (isset($legacy[$lower])) {
+            return $legacy[$lower];
+        }
+
+        $allowed = [
+            "Active",
+            "Completed",
+            "Transferred",
+            "Dropped",
+            "Cancelled",
+            "all",
+        ];
+        if (in_array($status, $allowed, true)) {
+            return $status;
+        }
+
+        return "Active";
+    }
+
+    private function applyResultsEnrollmentScopeToStudentsQuery(
+        $query,
+        int $schoolID,
+        array $yearIds,
+        $classID,
+        $subclassID,
+        string $enrollmentStatus,
+    ): void {
+        $yearIds = array_values(array_filter(array_map("intval", $yearIds)));
+
+        $query->whereExists(function ($q) use (
+            $schoolID,
+            $yearIds,
+            $classID,
+            $subclassID,
+            $enrollmentStatus,
+        ) {
+            $q->select(DB::raw(1))
+                ->from("student_enrollments")
+                ->whereColumn(
+                    "student_enrollments.studentID",
+                    "students.studentID",
+                )
+                ->where("student_enrollments.schoolID", $schoolID);
+
+            if ($enrollmentStatus !== "all") {
+                $q->where("student_enrollments.status", $enrollmentStatus);
+            }
+
+            if (!empty($yearIds)) {
+                $q->whereIn(
+                    "student_enrollments.academic_yearID",
+                    $yearIds,
+                );
+            }
+
+            if (!empty($subclassID)) {
+                $q->where(
+                    "student_enrollments.subclassID",
+                    (int) $subclassID,
+                );
+            } elseif (!empty($classID)) {
+                $q->where("student_enrollments.classID", (int) $classID);
+            }
+        });
+    }
+
+    private function attachEnrollmentMetaToStudents(
+        $students,
+        int $schoolID,
+        array $yearIds,
+        string $enrollmentStatus,
+    ): void {
+        if (!$students || $students->isEmpty()) {
+            return;
+        }
+
+        $ids = $students->pluck("studentID")->filter()->all();
+        if (empty($ids)) {
+            return;
+        }
+
+        $q = StudentEnrollment::where("schoolID", $schoolID)->whereIn(
+            "studentID",
+            $ids,
+        );
+        $yearIds = array_values(array_filter(array_map("intval", $yearIds)));
+        if (!empty($yearIds)) {
+            $q->whereIn("academic_yearID", $yearIds);
+        }
+        if ($enrollmentStatus !== "all") {
+            $q->where("status", $enrollmentStatus);
+        }
+
+        $map = $q
+            ->orderByDesc("enrollmentID")
+            ->get()
+            ->unique("studentID")
+            ->keyBy("studentID");
+
+        foreach ($students as $student) {
+            $enr = $map->get($student->studentID);
+            $student->result_enrollmentID = $enr->enrollmentID ?? null;
+            $student->enrollment_status = $enr->status ?? null;
+            $student->enrollment_promotion_status =
+                $enr->promotion_status ?? null;
+            $student->enrollment_classID = $enr->classID ?? null;
+            $student->enrollment_subclassID = $enr->subclassID ?? null;
+        }
     }
 }

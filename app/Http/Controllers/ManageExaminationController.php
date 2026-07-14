@@ -18,6 +18,7 @@ use App\Models\ResultApproval;
 use App\Models\Role;
 use App\Models\School;
 use App\Models\Student;
+use App\Models\StudentEnrollment;
 use App\Models\Subclass;
 use App\Models\SubjectElector;
 use App\Models\Teacher;
@@ -1265,6 +1266,12 @@ class ManageExaminationController extends Controller
                     ->where('status', 'Active')
                     ->get();
 
+                $enrollmentMap = $this->enrollmentIdMapForStudents(
+                    (int) $schoolID,
+                    $examination->academic_yearID ?? null,
+                    $students->pluck('studentID')->all()
+                );
+
                 foreach ($students as $student) {
                     // Skip if student doesn't have a subclass
                     if (! $student->subclass || ! $student->subclass->class) {
@@ -1302,6 +1309,7 @@ class ManageExaminationController extends Controller
 
                         $results[] = [
                             'studentID' => $student->studentID,
+                            'enrollmentID' => $enrollmentMap[$student->studentID] ?? null,
                             'examID' => $examination->examID,
                             'subclassID' => $student->subclassID,
                             'class_subjectID' => $classSubject->class_subjectID,
@@ -2266,9 +2274,23 @@ class ManageExaminationController extends Controller
 
                 $desiredKeys = [];
                 $rowsToInsert = [];
+                $examAcademicYearID = $exam->academic_yearID ?? $academicYearID ?? null;
 
                 // Helper to process participating students
-                $processStudents = function ($students) use (&$desiredKeys, &$rowsToInsert, $examID, &$existingKeys) {
+                $processStudents = function ($students) use (
+                    &$desiredKeys,
+                    &$rowsToInsert,
+                    $examID,
+                    &$existingKeys,
+                    $schoolID,
+                    $examAcademicYearID
+                ) {
+                    $enrollmentMap = $this->enrollmentIdMapForStudents(
+                        (int) $schoolID,
+                        $examAcademicYearID,
+                        $students->pluck('studentID')->all()
+                    );
+
                     foreach ($students as $student) {
                         if (! $student->subclass || ! $student->subclass->class) {
                             continue;
@@ -2305,6 +2327,7 @@ class ManageExaminationController extends Controller
                             if (! isset($existingKeys[$key])) {
                                 $rowsToInsert[] = [
                                     'studentID' => $student->studentID,
+                                    'enrollmentID' => $enrollmentMap[$student->studentID] ?? null,
                                     'examID' => $examID,
                                     'subclassID' => $student->subclassID,
                                     'class_subjectID' => $classSubject->class_subjectID,
@@ -7292,6 +7315,26 @@ class ManageExaminationController extends Controller
             'year' => $calendarYear,
             'year_name' => $year ? ($year->year_name ?? $year->year) : null,
         ];
+    }
+
+    /**
+     * Map studentID => enrollmentID for a given academic year (prefer Active).
+     */
+    private function enrollmentIdMapForStudents(int $schoolID, $academicYearID, array $studentIDs): array
+    {
+        if (!$academicYearID || empty($studentIDs)) {
+            return [];
+        }
+
+        return StudentEnrollment::where('schoolID', $schoolID)
+            ->where('academic_yearID', (int) $academicYearID)
+            ->whereIn('studentID', $studentIDs)
+            ->orderByRaw("FIELD(status, 'Active', 'Completed', 'Transferred', 'Dropped', 'Cancelled')")
+            ->orderByDesc('enrollmentID')
+            ->get(['studentID', 'enrollmentID', 'status'])
+            ->unique('studentID')
+            ->mapWithKeys(fn ($e) => [(int) $e->studentID => (int) $e->enrollmentID])
+            ->all();
     }
 
     public function autoShiftStudents(Request $request, $examID)
