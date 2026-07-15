@@ -179,6 +179,57 @@
     </div>
 </div>
 
+@php
+    $todayAttendanceStats = $teacherTodayAttendance['statistics'] ?? [];
+    $todayAttendanceStatus = $todayAttendanceStats['day_status'] ?? 'Not Available';
+    $todayAttendanceLabel = $todayAttendanceStatus === 'Present' ? 'On Time' : $todayAttendanceStatus;
+    $todayCheckIn = $todayAttendanceStats['check_in_time'] ?? null;
+    $todayCheckOut = $todayAttendanceStats['check_out_time'] ?? null;
+    $attendanceStatusColors = [
+        'Present' => ['#e8f5e9', '#207227'],
+        'Early' => ['#fff7e6', '#8a5a00'],
+        'Late' => ['#fff0f0', '#940000'],
+        'Absent' => ['#fff0f0', '#940000'],
+        'Permitted' => ['#f4eef8', '#6f42c1'],
+        'Off Day' => ['#f5f5f5', '#555555'],
+        'Not Available' => ['#f5f5f5', '#555555'],
+    ];
+    $todayAttendanceColors = $attendanceStatusColors[$todayAttendanceStatus] ?? $attendanceStatusColors['Not Available'];
+@endphp
+<div class="card section-card mb-4">
+    <div class="section-header d-flex justify-content-between align-items-center">
+        <span><i class="fa fa-calendar-check-o"></i> My Attendance Today</span>
+        <span class="badge px-3 py-2" style="background: {{ $todayAttendanceColors[0] }}; color: {{ $todayAttendanceColors[1] }};">
+            {{ $todayAttendanceLabel }}
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-sm-4 mb-2">
+                        <small class="text-muted d-block">Check In</small>
+                        <strong>{{ $todayCheckIn ? \Carbon\Carbon::parse($todayCheckIn)->format('h:i A') : '-' }}</strong>
+                    </div>
+                    <div class="col-sm-4 mb-2">
+                        <small class="text-muted d-block">Check Out</small>
+                        <strong>{{ $todayCheckOut ? \Carbon\Carbon::parse($todayCheckOut)->format('h:i A') : '-' }}</strong>
+                    </div>
+                    <div class="col-sm-4 mb-2">
+                        <small class="text-muted d-block">Official Time</small>
+                        <strong>{{ !empty($teacherTodayAttendance['work_start_time']) ? \Carbon\Carbon::parse($teacherTodayAttendance['work_start_time'])->format('h:i A') : '-' }}</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-md-right mt-3 mt-md-0">
+                <a href="{{ route('teacher.my_attendance') }}" class="btn btn-primary-custom btn-sm">
+                    <i class="fa fa-eye"></i> See Report
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 @if(!empty($tangeTeacher))
     @php
         $dashPct = (int) ($tangeTeacher->tange_completion_percent ?? 0);

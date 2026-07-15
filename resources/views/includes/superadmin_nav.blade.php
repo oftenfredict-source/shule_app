@@ -259,6 +259,14 @@
             <i class="bx bx-group"></i> User Management
         </a>
 
+        <div class="sidebar-group-title">BANKING / FEES</div>
+        <a href="{{ route('superadmin.banks.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.banks.*') ? 'active' : '' }}">
+            <i class="bx bx-buildings"></i> Bank Registration
+        </a>
+        <a href="{{ route('superadmin.bank_accounts.verification') }}" class="sidebar-link {{ request()->routeIs('superadmin.bank_accounts.*') ? 'active' : '' }}">
+            <i class="bx bx-check-shield"></i> Account Verification
+        </a>
+
         <div class="sidebar-group-title">SYSTEM TOOLS</div>
         <a href="{{ route('superadmin.user_password') }}" class="sidebar-link {{ request()->routeIs('superadmin.user_password') ? 'active' : '' }}">
             <i class="bx bx-key"></i> User Password

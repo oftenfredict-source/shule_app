@@ -194,6 +194,7 @@
         function getStudentFilterParams(extra) {
             const params = {
                 status: $('#statusFilter').val() || 'Active',
+                promotion_status: $('#promotionFilter').val() || '',
                 classID: $('#classFilter').val() || '',
                 subclassID: $('#subclassFilter').val() || '',
                 gender: $('#genderFilter').val() || '',
@@ -214,6 +215,7 @@
                 : '';
             return {
                 status: $('#statusFilter').val() || 'Active',
+                promotion_status: $('#promotionFilter').val() || '',
                 classID: $('#classFilter').val() || '',
                 subclassID: $('#subclassFilter').val() || '',
                 gender: $('#genderFilter').val() || '',
@@ -2074,6 +2076,7 @@
         function loadStatistics() {
             // Get status from filter
             let status = $('#statusFilter').val() || 'Active';
+            let promotionStatus = $('#promotionFilter').val() || '';
             let classID = $('#classFilter').val() || '';
             let subclassID = $('#subclassFilter').val() || '';
             let gender = $('#genderFilter').val() || '';
@@ -2088,6 +2091,7 @@
                 type: 'GET',
                 data: {
                     status: status,
+                    promotion_status: promotionStatus,
                     classID: classID,
                     subclassID: subclassID,
                     gender: gender,
@@ -2142,6 +2146,11 @@
             let status = $(this).val() || 'Active';
             currentStatus = status;
             reloadData();
+        });
+
+        // Promotion status filter
+        $('#promotionFilter').on('change', function() {
+            handleFilterChange();
         });
 
         // Academic year is controlled from the global header selector
@@ -3736,6 +3745,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
 
             const { jsPDF } = window.jspdf;
             let status = $('#statusFilter').val() || 'Active';
+            let promotionStatus = $('#promotionFilter').val() || '';
             let classID = $('#classFilter').val() || '';
             let subclassID = $('#subclassFilter').val() || '';
             let gender = $('#genderFilter').val() || '';
@@ -3787,6 +3797,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
                 let filterText = 'Filters: ';
                 let filters = [];
                 if (status) filters.push('Enrollment Status: ' + status);
+                if (promotionStatus) filters.push('Promotion Status: ' + promotionStatus);
                 @php
                     $pdfAyLabels = [];
                     if (!empty($headerAcademicYear['selected_o_level_year'])) {
@@ -3931,12 +3942,14 @@ Would you like to try direct registration anyway, or use the manual method?`;
         // Export Excel
         $('#exportExcelBtn').on('click', function() {
             let status = $('#statusFilter').val() || currentStatus;
+            let promotionStatus = $('#promotionFilter').val() || '';
             let classID = $('#classFilter').val() || '';
             let subclassID = $('#subclassFilter').val() || '';
             let gender = $('#genderFilter').val() || '';
             let health = $('#healthFilter').val() || '';
 
             let url = {!! json_encode(route("export_students_excel")) !!} + '?status=' + encodeURIComponent(status) +
+                '\u0026promotion_status=' + encodeURIComponent(promotionStatus) +
                 '\u0026classID=' + encodeURIComponent(classID) +
                 '\u0026subclassID=' + encodeURIComponent(subclassID) +
                 '\u0026gender=' + encodeURIComponent(gender) +
@@ -3946,7 +3959,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
         });
 
         // Initialize Select2 for filters
-        $('#classFilter, #subclassFilter, #genderFilter, #healthFilter, #statusFilter').each(function() {
+        $('#classFilter, #subclassFilter, #genderFilter, #healthFilter, #statusFilter, #promotionFilter').each(function() {
             if (!$(this).hasClass('select2-hidden-accessible')) {
                 safeInitSelect2(this, {
                     theme: 'bootstrap-5',

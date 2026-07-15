@@ -205,6 +205,158 @@ class ManageAttendanceController extends Controller
         ) + $setupData);
     }
 
+    private function ensureTeacherAttendanceAccess()
+    {
+        $teacherID = (int) Session::get('teacherID');
+        $schoolID = (int) Session::get('schoolID');
+        if (Session::get('user_type') !== 'Teacher' || !$teacherID || !$schoolID) {
+            return [null, null, redirect()->route('login')->with('error', 'Access denied')];
+        }
+
+        $teacher = Teacher::where('id', $teacherID)
+            ->where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->first();
+        if (!$teacher) {
+            return [null, null, redirect()->route('login')->with('error', 'Teacher account not found')];
+        }
+
+        return [$teacher, $schoolID, null];
+    }
+
+    public function teacherMyAttendance()
+    {
+        [$teacher, $schoolID, $deny] = $this->ensureTeacherAttendanceAccess();
+        if ($deny) {
+            return $deny;
+        }
+
+        return view('Teacher.my_attendance', [
+            'teacher' => $teacher,
+            'school' => School::find($schoolID),
+            'today' => Carbon::today()->toDateString(),
+        ]);
+    }
+
+    public function teacherMyAttendanceData(Request $request, SchoolWorkingDaysService $workingDaysService)
+    {
+        [$teacher, , $deny] = $this->ensureTeacherAttendanceAccess();
+        if ($deny) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $request->validate([
+            'filter_type' => 'required|in:day,month',
+            'date' => 'nullable|date',
+            'month' => 'nullable|integer|min:1|max:12',
+            'year' => 'nullable|integer|min:2000|max:2100',
+        ]);
+
+        try {
+            $request->merge(['person_type' => 'teacher']);
+            $payload = $this->collectTeacherStaffReportPayload(
+                $request,
+                $workingDaysService,
+                (int) $teacher->id,
+                'teacher'
+            );
+            if (empty($payload['detailed'])) {
+                return response()->json(['success' => false, 'message' => 'Attendance profile not found.'], 404);
+            }
+
+            $detail = $payload['detailed'][0];
+            return response()->json([
+                'success' => true,
+                'person' => $detail['person'],
+                'title' => $payload['title'],
+                'filter_type' => $request->input('filter_type'),
+                'statistics' => $detail['statistics'],
+                'work_start_time' => substr((string) $payload['workTime']->work_start_time, 0, 5),
+                'work_end_time' => substr((string) $payload['workTime']->work_end_time, 0, 5),
+                'period_incomplete' => $payload['range']['incomplete'],
+                'period_label' => $payload['range']['label'],
+                'daily_records' => $detail['daily_records'],
+                'day_summary' => $payload['day_summary'] ?? null,
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to load attendance report.'], 500);
+        }
+    }
+
+    public function exportTeacherMyAttendancePdf(Request $request, SchoolWorkingDaysService $workingDaysService)
+    {
+        [$teacher, $schoolID, $deny] = $this->ensureTeacherAttendanceAccess();
+        if ($deny) {
+            return $deny;
+        }
+
+        $request->validate([
+            'filter_type' => 'required|in:day,month',
+            'date' => 'nullable|date',
+            'month' => 'nullable|integer|min:1|max:12',
+            'year' => 'nullable|integer|min:2000|max:2100',
+        ]);
+
+        try {
+            $request->merge(['person_type' => 'teacher']);
+            $payload = $this->collectTeacherStaffReportPayload(
+                $request,
+                $workingDaysService,
+                (int) $teacher->id,
+                'teacher'
+            );
+            if (empty($payload['detailed'])) {
+                return redirect()->back()->with('error', 'Attendance report not found.');
+            }
+            $detail = $payload['detailed'][0];
+            $pdf = PDF::loadView('Admin.pdf.teacher_staff_attendance_person_pdf', [
+                'school' => School::find($schoolID),
+                'title' => $payload['title'],
+                'person' => $detail['person'],
+                'statistics' => $detail['statistics'],
+                'daily_records' => $detail['daily_records'],
+                'period_label' => $payload['range']['label'],
+                'period_incomplete' => $payload['range']['incomplete'],
+                'work_start_time' => substr((string) $payload['workTime']->work_start_time, 0, 5),
+                'work_end_time' => substr((string) $payload['workTime']->work_end_time, 0, 5),
+                'generated_at' => now()->format('d M Y H:i'),
+            ])->setPaper('A4', 'portrait');
+
+            $safeName = preg_replace('/[^A-Za-z0-9_\-]/', '_', $detail['person']['name'] ?? 'Teacher');
+            return $pdf->download('My_Attendance_' . $safeName . '_' . date('YmdHis') . '.pdf');
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function teacherTodayAttendanceSummary(int $schoolID, int $teacherID): array
+    {
+        try {
+            $request = Request::create('', 'GET', [
+                'filter_type' => 'day',
+                'person_type' => 'teacher',
+                'date' => Carbon::today()->toDateString(),
+            ]);
+            $payload = $this->collectTeacherStaffReportPayload(
+                $request,
+                app(SchoolWorkingDaysService::class),
+                $teacherID,
+                'teacher'
+            );
+            $detail = $payload['detailed'][0] ?? null;
+            return [
+                'statistics' => $detail['statistics'] ?? [],
+                'daily_record' => $detail['daily_records'][0] ?? null,
+                'work_start_time' => substr((string) $payload['workTime']->work_start_time, 0, 5),
+                'work_end_time' => substr((string) $payload['workTime']->work_end_time, 0, 5),
+            ];
+        } catch (\Throwable $e) {
+            return ['statistics' => [], 'daily_record' => null];
+        }
+    }
+
     public function manageStudentFingerprintAttendance(Request $request)
     {
         $userType = Session::get('user_type');

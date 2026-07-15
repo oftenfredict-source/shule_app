@@ -582,6 +582,7 @@
                         @endif
 
                         <li><a href="{{ route('teachersDashboard') }}" class="nav-link"><i class="fa fa-building"></i> Dashboard</a></li>
+                        <li><a href="{{ route('teacher.my_attendance') }}" class="nav-link"><i class="fa fa-calendar-check-o"></i> My Attendance</a></li>
 
                         @php
                             $isStudentRequester = \Illuminate\Support\Facades\DB::table('student_permission_requesters')

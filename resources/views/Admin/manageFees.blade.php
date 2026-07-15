@@ -123,6 +123,159 @@
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         border: 2px solid #940000;
     }
+
+    /* ── Theme overrides: remove Bootstrap blues, use whitesmoke/white/#940000 ── */
+    .nav-pills .nav-link {
+        color: #940000 !important;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0 !important;
+        font-weight: 600;
+        margin-right: 4px;
+    }
+    .nav-pills .nav-link.active {
+        background: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+    }
+    .nav-pills .nav-link:hover:not(.active) {
+        background: whitesmoke;
+    }
+
+    .fee-account-tabs .nav-link {
+        color: #555 !important;
+        font-weight: 700;
+        border: 1px solid transparent;
+        border-radius: 0 !important;
+        background: transparent;
+    }
+    .fee-account-tabs .nav-link.active {
+        color: #940000 !important;
+        background: whitesmoke !important;
+        border-color: #dee2e6 #dee2e6 #fff !important;
+        border-bottom: 3px solid #940000 !important;
+    }
+    .fee-account-tabs .nav-link:hover:not(.active) {
+        color: #940000 !important;
+        background: whitesmoke;
+    }
+
+    .btn-outline-primary {
+        color: #940000 !important;
+        border-color: #940000 !important;
+        background: #fff;
+    }
+    .btn-outline-primary:hover,
+    .btn-outline-primary:focus,
+    .btn-outline-primary:active {
+        background: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+        box-shadow: none !important;
+    }
+    .btn-outline-primary-custom {
+        color: #940000;
+        border: 1px solid #940000;
+        background: #fff;
+        border-radius: 0;
+    }
+    .btn-outline-primary-custom:hover {
+        background: #940000;
+        color: #fff;
+    }
+
+    .bg-info, .modal-header.bg-info {
+        background-color: #940000 !important;
+        color: #fff !important;
+    }
+    .badge.bg-info {
+        background-color: whitesmoke !important;
+        color: #940000 !important;
+        border: 1px solid #940000;
+    }
+    .alert-info {
+        background-color: whitesmoke !important;
+        color: #333 !important;
+        border: 1px solid #e0e0e0 !important;
+        border-left: 4px solid #940000 !important;
+    }
+
+    .btn-success {
+        background-color: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+    }
+    .btn-success:hover {
+        background-color: #7a0000 !important;
+        border-color: #7a0000 !important;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #940000 !important;
+        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.15) !important;
+    }
+
+    #registerAccountPane {
+        position: relative;
+        min-height: 320px;
+    }
+    .bank-account-ajax-loader {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid #eee;
+    }
+    .bank-account-ajax-loader.show {
+        display: flex;
+    }
+    .bank-account-ajax-loader .spinner-border {
+        color: #940000;
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+    .otp-input-wrap {
+        position: relative;
+    }
+    #regAccountOtp {
+        height: 54px;
+        color: #940000;
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: .65rem;
+        text-align: center;
+        transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+    }
+    #regAccountOtp.otp-complete {
+        border-color: #940000 !important;
+        box-shadow: 0 0 0 .2rem rgba(148, 0, 0, .15);
+        animation: otpPulse .6s ease;
+    }
+    #regAccountOtp.otp-invalid {
+        border-color: #dc3545 !important;
+        animation: otpShake .35s ease;
+    }
+    .otp-auto-status {
+        min-height: 22px;
+        color: #666;
+        font-size: .8rem;
+    }
+    .otp-auto-status.verifying {
+        color: #940000;
+        font-weight: 700;
+    }
+    @keyframes otpPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.015); }
+    }
+    @keyframes otpShake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-7px); }
+        75% { transform: translateX(7px); }
+    }
 </style>
 
 <!-- Bootstrap Icons -->
@@ -199,22 +352,50 @@
                             </div>
                         </div>
                         <div class="row text-center mt-3 pt-3 border-top">
-                            <div class="col-md-4 border-right">
+                            <div class="col-md-3 border-right">
                                 <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openSponsorModalBtn_Exp">
                                     <i class="fa fa-user-circle fa-2x mb-2" style="color: #940000;"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ASSIGN SPONSORS</h6>
                                 </a>
                             </div>
-                            <div class="col-md-4 border-right">
+                            @if(!empty($isAdmin))
+                            <div class="col-md-3 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openAccountNumbersModalBtn">
+                                    <i class="fa fa-university fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">ACCOUNT NUMBERS</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-3 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openWithdrawPlaceholderBtn">
+                                    <i class="fa fa-money fa-2x mb-2" style="color: #940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">WITHDRAW</h6>
+                                </a>
+                            </div>
+                            @endif
+                            <div class="col-md-3 border-right">
                                 <a href="#" class="text-decoration-none d-block py-3 setting-item" id="exportPdfBtn_Exp">
                                     <i class="fa fa-file-pdf-o fa-2x mb-2" style="color: #940000;"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">EXPORT PDF</h6>
                                 </a>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <a href="#" class="text-decoration-none d-block py-3 setting-item" id="exportExcelBtn_Exp">
                                     <i class="fa fa-file-excel-o fa-2x mb-2" style="color: #940000;"></i>
                                     <h6 class="font-weight-bold mb-0 small" style="color: #2f2f2f;">EXPORT EXCEL</h6>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-3 pt-3 border-top">
+                            <div class="col-md-3 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openInstallmentManagerBtn">
+                                    <i class="fa fa-calendar fa-2x mb-2" style="color:#940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color:#2f2f2f;">INSTALLMENTS</h6>
+                                </a>
+                            </div>
+                            <div class="col-md-3 border-right">
+                                <a href="#" class="text-decoration-none d-block py-3 setting-item" id="openDeadlineManagerBtn">
+                                    <i class="fa fa-clock-o fa-2x mb-2" style="color:#940000;"></i>
+                                    <h6 class="font-weight-bold mb-0 small" style="color:#2f2f2f;">DEADLINES</h6>
                                 </a>
                             </div>
                         </div>
@@ -222,9 +403,29 @@
                 </div>
             </div>
 
-            <!-- Fees Structure Table -->
+            <!-- Fees Structure Tabs -->
             @if(count($classes) > 0)
-                <div class="card border-0 shadow-sm">
+            @php
+                $singleFeesByClass = $singleFeesByClass ?? $fees->filter(fn($f) => ($f->account_mode ?? 'single') !== 'multi')->groupBy('classID');
+                $multiFeesByClass = $multiFeesByClass ?? $fees->filter(fn($f) => ($f->account_mode ?? 'single') === 'multi')->groupBy('classID');
+            @endphp
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-header bg-white border-bottom" style="border-bottom: 2px solid #940000 !important;">
+                        <ul class="nav nav-tabs card-header-tabs fee-account-tabs" role="tablist" style="border-bottom:0;">
+                            <li class="nav-item">
+                                <a class="nav-link active fw-bold" id="singleAccountTab" data-toggle="tab" href="#singleAccountPane" role="tab">
+                                    <i class="bi bi-wallet2"></i> Single Account Fee
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link fw-bold" id="multiAccountTab" data-toggle="tab" href="#multiAccountPane" role="tab">
+                                    <i class="bi bi-bank"></i> Multi Account Fee
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="tab-content">
+                    <div class="tab-pane fade show active" id="singleAccountPane" role="tabpanel">
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table id="feesStructureTable" class="table table-bordered table-hover mb-0" style="border-collapse: separate; border-spacing: 0;">
@@ -240,7 +441,7 @@
                                 <tbody>
                 @foreach($classes as $class)
                     @php
-                        $classFees = $feesByClass->get($class->classID, collect())->where('status', 'Active');
+                        $classFees = $singleFeesByClass->get($class->classID, collect())->where('status', 'Active');
                         $feeCount = $classFees->count();
                         $rowSpan = $feeCount > 0 ? $feeCount : 1;
                     @endphp
@@ -264,6 +465,11 @@
                                 <!-- Fee Name -->
                                 <td class="border-end">
                                     <span class="fw-bold">{{ $fee->fee_name }}</span>
+                                    @if($fee->bankAccount)
+                                        <br><span class="badge" style="background:whitesmoke;color:#940000;border:1px solid #940000;font-size:.68rem;">
+                                            <i class="bi bi-bank"></i> {{ $fee->bankAccount->displayLabel() }}
+                                        </span>
+                                    @endif
                                     @if($fee->description)
                                         <br><small class="text-muted">{{ $fee->description }}</small>
                                     @endif
@@ -335,8 +541,8 @@
                                         </td>
                                         <td class="text-end border-end" colspan="3">
                                             <strong class="text-primary-custom" style="font-size: 1.5rem;">
-                                                {{ number_format($classes->sum(function($class) use ($feesByClass) {
-                                                    return $feesByClass->get($class->classID, collect())->where('status', 'Active')->sum('amount');
+                                                {{ number_format($classes->sum(function($class) use ($singleFeesByClass) {
+                                                    return $singleFeesByClass->get($class->classID, collect())->where('status', 'Active')->sum('amount');
                                                 }), 0) }}/=
                                             </strong>
                                         </td>
@@ -344,6 +550,93 @@
                                 </tfoot>
                             </table>
                         </div>
+                    </div>
+                    </div>{{-- /singleAccountPane --}}
+
+                    <div class="tab-pane fade" id="multiAccountPane" role="tabpanel">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table id="multiFeesStructureTable" class="table table-bordered table-hover mb-0" style="border-collapse: separate; border-spacing: 0;">
+                                <thead style="background-color: #940000 !important;">
+                                    <tr>
+                                        <th class="text-center border-end text-white" style="background-color:#940000 !important;">Class</th>
+                                        <th class="border-end text-white" style="background-color:#940000 !important;">Fee Name</th>
+                                        <th class="border-end text-white" style="background-color:#940000 !important;">Account</th>
+                                        <th class="text-end border-end text-white" style="background-color:#940000 !important;">Amount (TZS)</th>
+                                        <th class="border-end text-white" style="background-color:#940000 !important;">Breakdown</th>
+                                        <th class="text-center border-end text-white" style="background-color:#940000 !important;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach($classes as $class)
+                                    @php
+                                        $classMultiFees = $multiFeesByClass->get($class->classID, collect())->where('status', 'Active');
+                                        $mCount = $classMultiFees->count();
+                                        $mRowSpan = $mCount > 0 ? $mCount : 1;
+                                    @endphp
+                                    @if($mCount > 0)
+                                        @foreach($classMultiFees as $mindex => $fee)
+                                            <tr class="align-middle">
+                                                @if($mindex === 0)
+                                                <td class="text-center border-end align-middle bg-light" rowspan="{{ $mRowSpan }}">
+                                                    <strong class="text-dark"><i class="bi bi-mortarboard text-primary-custom"></i> {{ $class->class_name }}</strong>
+                                                    <div class="mt-2 pt-2 border-top">
+                                                        <small class="text-muted">Total:</small><br>
+                                                        <strong class="text-primary-custom">{{ number_format($classMultiFees->sum('amount'), 0) }}/=</strong>
+                                                    </div>
+                                                </td>
+                                                @endif
+                                                <td class="border-end">
+                                                    <span class="fw-bold">{{ $fee->fee_name }}</span>
+                                                    @if($fee->feeConditions->where('status', 'Active')->count())
+                                                        <br><span class="badge mt-1" style="background:whitesmoke;color:#940000;border:1px solid #940000;">
+                                                            <i class="bi bi-tags"></i> {{ $fee->feeConditions->where('status', 'Active')->count() }} condition(s)
+                                                        </span>
+                                                    @endif
+                                                    @if($fee->description)<br><small class="text-muted">{{ $fee->description }}</small>@endif
+                                                </td>
+                                                <td class="border-end">
+                                                    @if($fee->bankAccount)
+                                                        <span class="badge bg-light text-dark border">{{ $fee->bankAccount->displayLabel() }}</span>
+                                                    @else
+                                                        <span class="text-muted">—</span>
+                                                    @endif
+                                                </td>
+                                                <td class="text-end border-end"><strong>{{ number_format($fee->amount, 0) }}/=</strong></td>
+                                                <td class="border-end">
+                                                    @if($fee->has_breakdown && $fee->breakdowns->count())
+                                                        <ul class="mb-0 ps-3 small">
+                                                            @foreach($fee->breakdowns as $bd)
+                                                                <li>{{ $bd->item_name }}: {{ number_format($bd->amount, 0) }}/=</li>
+                                                            @endforeach
+                                                        </ul>
+                                                    @else
+                                                        <span class="text-muted">Direct amount</span>
+                                                    @endif
+                                                </td>
+                                                <td class="text-center border-end">
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-sm btn-outline-primary manage-multi-condition-btn" data-fee-id="{{ $fee->feeID }}" title="Define Conditions"><i class="bi bi-tags"></i></button>
+                                                        <button class="btn btn-sm btn-outline-primary manage-multi-agreement-btn" data-class-id="{{ $class->classID }}" title="Student Agreements"><i class="bi bi-handshake"></i></button>
+                                                        <button class="btn btn-sm btn-outline-primary edit-multi-fee-btn" data-fee-id="{{ $fee->feeID }}" title="Edit"><i class="bi bi-pencil"></i></button>
+                                                        <button class="btn btn-sm btn-outline-danger delete-fee-btn" data-fee-id="{{ $fee->feeID }}" data-fee-name="{{ $fee->fee_name }}" title="Delete"><i class="bi bi-trash"></i></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    @else
+                                        <tr>
+                                            <td class="text-center border-end bg-light"><strong>{{ $class->class_name }}</strong></td>
+                                            <td colspan="5" class="text-center text-muted py-3"><em>No multi-account fees for this class</em></td>
+                                        </tr>
+                                    @endif
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    </div>{{-- /multiAccountPane --}}
+                    </div>{{-- /tab-content --}}
                 </div>
             @endif
 
@@ -363,6 +656,323 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+{{-- Fee type chooser --}}
+<div class="modal fade" id="feeTypeChooserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border:2px solid #940000;">
+            <div class="modal-header" style="background:whitesmoke;border-bottom:2px solid #940000;">
+                <h5 class="modal-title fw-bold" style="color:#940000;"><i class="bi bi-plus-circle"></i> Create Fee</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Choose fee account type:</p>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-dark text-start py-3" id="chooseSingleAccountFeeBtn">
+                        <strong style="color:#940000;"><i class="bi bi-wallet2"></i> Single Account Fee</strong>
+                        <div class="small text-muted">One school account receives all fee payments (current logic).</div>
+                    </button>
+                    <button type="button" class="btn btn-outline-dark text-start py-3" id="chooseMultiAccountFeeBtn">
+                        <strong style="color:#940000;"><i class="bi bi-bank"></i> Multi Account Fee</strong>
+                        <div class="small text-muted">Each fee can use its own approved bank account and control number.</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Account Numbers (Admin) --}}
+<div class="modal fade" id="accountNumbersModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border:2px solid #940000;">
+            <div class="modal-header" style="background:whitesmoke;border-bottom:2px solid #940000;">
+                <h5 class="modal-title fw-bold" style="color:#940000;"><i class="bi bi-university"></i> Account Numbers</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-pills mb-3" role="tablist">
+                    <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#registerAccountPane">Register Account Number</a></li>
+                    <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#registeredAccountsPane" id="registeredAccountsTabLink">Registered Account Numbers</a></li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="registerAccountPane">
+                        <div class="bank-account-ajax-loader" id="bankAccountAjaxLoader" aria-live="polite">
+                            <div class="text-center px-3">
+                                <div class="spinner-border mb-3" role="status"><span class="sr-only">Loading...</span></div>
+                                <div class="fw-bold" id="bankAccountLoaderText" style="color:#940000;">Please wait...</div>
+                                <small class="text-muted">Do not close this window.</small>
+                            </div>
+                        </div>
+                        <div class="alert alert-info border-0" style="background:#fff5f5;color:#333;border-left:4px solid #940000 !important;">
+                            <strong>Note:</strong> This account will receive fee payments made via control numbers.
+                        </div>
+                        <input type="hidden" id="editBankAccountID" value="">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Bank <span class="text-danger">*</span></label>
+                            <select class="form-select" id="regBankID"><option value="">Loading banks...</option></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Account Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="regAccountNumber" placeholder="e.g. NBC223456789">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Account Name</label>
+                            <input type="text" class="form-control" id="regAccountName" placeholder="Account holder name (optional)">
+                        </div>
+                        <div class="mb-3" id="otpSection" style="display:none;">
+                            <label class="form-label fw-bold d-flex justify-content-between align-items-center">
+                                <span>OTP sent to school phone <span id="otpMaskedPhone" class="text-muted"></span></span>
+                                <span id="otpCountdown" class="badge" style="background:whitesmoke;color:#940000;border:1px solid #940000;font-size:.78rem;">
+                                    <i class="bi bi-clock"></i> 10:00
+                                </span>
+                            </label>
+                            <div class="otp-input-wrap">
+                                <input type="text" class="form-control" id="regAccountOtp" placeholder="••••••"
+                                    maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                                    aria-describedby="otpAutoStatus">
+                            </div>
+                            <div class="otp-auto-status mt-1" id="otpAutoStatus">
+                                <i class="bi bi-lightning-charge"></i> Verification starts automatically after all 6 digits are entered.
+                            </div>
+                            <input type="hidden" id="regOtpToken" value="">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary-custom" id="btnSendAccountOtp"><i class="bi bi-shield-lock"></i> Send OTP</button>
+                            <button type="button" class="btn btn-success" id="btnVerifyAccountOtp" style="display:none;"><i class="bi bi-check2-circle"></i> Verify &amp; Register</button>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="registeredAccountsPane">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead style="background:whitesmoke;color:#940000;">
+                                    <tr>
+                                        <th>Account</th>
+                                        <th>Bank</th>
+                                        <th>Status</th>
+                                        <th>Notes</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="registeredAccountsBody">
+                                    <tr><td colspan="5" class="text-center text-muted py-3">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Installment Manager --}}
+<div class="modal fade" id="installmentManagerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border:2px solid #940000;">
+            <div class="modal-header" style="background:whitesmoke;border-bottom:2px solid #940000;">
+                <h5 class="modal-title fw-bold" style="color:#940000;"><i class="bi bi-calendar-range"></i> Fee Installments</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    Installments are saved for the academic year selected in the header. The fee total does not change.
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Class <span class="text-danger">*</span></label>
+                        <select class="form-select" id="installmentClassSelect">
+                            <option value="">Select class...</option>
+                            @foreach($classes as $class)
+                                <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Fee <span class="text-danger">*</span></label>
+                        <select class="form-select" id="installmentFeeSelect" disabled>
+                            <option value="">Select class first...</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="installmentConfiguration" style="display:none;">
+                    <div class="p-3 border mb-3" style="background:whitesmoke;border-left:4px solid #940000 !important;">
+                        <div class="d-flex justify-content-between">
+                            <span class="fw-bold">Fee Total</span>
+                            <strong id="installmentFeeTotal" style="color:#940000;">TZS 0.00</strong>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Installment Cycle <span class="text-danger">*</span></label>
+                        <select class="form-select" id="installmentTypeSelect">
+                            <option value="Quarter">Quarter — 4 installments per year</option>
+                            <option value="Term">Term — 2 installments per year</option>
+                            <option value="Month">Month — 12 installments per year</option>
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm mb-0">
+                            <thead style="background:#940000;color:#fff;">
+                                <tr><th>#</th><th>Installment</th><th class="text-end">Amount (TZS)</th></tr>
+                            </thead>
+                            <tbody id="installmentPreviewBody"></tbody>
+                            <tfoot style="background:whitesmoke;">
+                                <tr><th colspan="2">Total</th><th class="text-end" id="installmentPreviewTotal">0.00</th></tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary-custom" id="saveInstallmentScheduleBtn" disabled>
+                    <i class="bi bi-save"></i> Save Installments
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Deadline Manager --}}
+<div class="modal fade" id="deadlineManagerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content" style="border:2px solid #940000;">
+            <div class="modal-header" style="background:whitesmoke;border-bottom:2px solid #940000;">
+                <h5 class="modal-title fw-bold" style="color:#940000;"><i class="bi bi-clock-history"></i> Fee Deadlines</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    Deadlines use the academic year selected in the header. Amount means the cumulative amount a student should have paid by the end date.
+                </div>
+                <ul class="nav nav-pills mb-3" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-toggle="tab" href="#registerDeadlinePane" id="registerDeadlineTab">Register New</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-toggle="tab" href="#registeredDeadlinePane" id="registeredDeadlineTab">Registered</a>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="registerDeadlinePane">
+                        <div class="row align-items-end mb-3">
+                            <div class="col-md-5">
+                                <label class="form-label fw-bold">Class <span class="text-danger">*</span></label>
+                                <select class="form-select" id="deadlineClassSelect">
+                                    <option value="">Select class...</option>
+                                    @foreach($classes as $class)
+                                        <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fw-bold">Fee <span class="text-danger">*</span></label>
+                                <select class="form-select" id="deadlineFeeSelect" disabled>
+                                    <option value="">Select class first...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 text-end">
+                                <button type="button" class="btn btn-outline-primary-custom" id="addDeadlineRowBtn" disabled>
+                                    <i class="bi bi-plus-circle"></i> Add Another
+                                </button>
+                            </div>
+                        </div>
+                        <div id="deadlineAcademicYearInfo" class="small text-muted mb-3"></div>
+                        <div id="deadlineRowsContainer"></div>
+                        <div id="deadlineRealtimeValidation" class="alert alert-danger py-2 mb-3" style="display:none;"></div>
+                        <div id="deadlineEmptyState" class="text-center text-muted py-4 border" style="background:whitesmoke;">
+                            Select a class and fee to register deadlines.
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="registeredDeadlinePane">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Class</label>
+                                <select class="form-select" id="registeredDeadlineClassSelect">
+                                    <option value="">Select class...</option>
+                                    @foreach($classes as $class)
+                                        <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Fee</label>
+                                <select class="form-select" id="registeredDeadlineFeeSelect" disabled>
+                                    <option value="">Select class first...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover mb-0">
+                                <thead style="background:#940000;color:#fff;">
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Period</th>
+                                        <th class="text-end">Required Amount</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="registeredDeadlineBody">
+                                    <tr><td colspan="4" class="text-center text-muted py-4">Select class and fee.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary-custom" id="saveDeadlinesBtn" disabled>
+                    <i class="bi bi-save"></i> Save Deadlines
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Multi Account Fee Modal --}}
+<div class="modal fade" id="addMultiFeeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border:2px solid #940000;">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title"><i class="bi bi-bank"></i> Create Multi Account Fee</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="addMultiFeeForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Class <span class="text-danger">*</span></label>
+                        <select class="form-select" name="classID" id="multi_fee_classID" required>
+                            <option value="">Select class...</option>
+                            @foreach($classes as $class)
+                                @php
+                                    $hasSingleFees = $singleFeesByClass->get($class->classID, collect())->isNotEmpty();
+                                @endphp
+                                <option value="{{ $class->classID }}"
+                                        data-mode-conflict="{{ $hasSingleFees ? 'single' : '' }}">
+                                    {{ $class->class_name }}{{ $hasSingleFees ? ' (Already defined as Single Account Fee)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="small text-danger fw-bold mt-1 fee-mode-conflict-message" id="multiClassModeConflict" style="display:none;"></div>
+                    </div>
+                    <input type="hidden" name="duration" id="multi_fee_duration" value="Year">
+                    <div id="multi_fees_rows"></div>
+                    <button type="button" class="btn btn-outline-primary-custom btn-sm" id="add_multi_fee_row_btn">
+                        <i class="bi bi-plus-circle"></i> Add Another Fee
+                    </button>
+                    <div class="mt-3 p-2 border" style="background:whitesmoke;">
+                        <strong>Total:</strong> <span id="multi_total_fees_display" class="text-primary-custom fw-bold">TZS 0.00</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom">Save Multi Account Fees</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -388,11 +998,30 @@
                         <select name="classID" id="fee_class_select" class="form-select" required>
                             <option value="">Select class...</option>
                             @foreach($classes as $class)
-                                <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
+                                @php
+                                    $hasMultiFees = $multiFeesByClass->get($class->classID, collect())->isNotEmpty();
+                                @endphp
+                                <option value="{{ $class->classID }}"
+                                        data-mode-conflict="{{ $hasMultiFees ? 'multi' : '' }}">
+                                    {{ $class->class_name }}{{ $hasMultiFees ? ' (Already defined as Multi Account Fee)' : '' }}
+                                </option>
                             @endforeach
                         </select>
+                        <div class="small text-danger fw-bold mt-1 fee-mode-conflict-message" id="singleClassModeConflict" style="display:none;"></div>
                     </div>
-                    
+
+                    <!-- Single Account Number -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Account Number</label>
+                        <select name="bank_account_id" id="single_fee_bank_account" class="form-select">
+                            <option value="">-- Select approved account --</option>
+                            @foreach(($approvedBankAccounts ?? collect()) as $acc)
+                                <option value="{{ $acc->accountID }}">{{ $acc->displayLabel() }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">One account receives all payments for this class. The same account number can be used by more than one class.</small>
+                    </div>
+
                     <hr>
                     
                     <!-- Fees List Container -->
@@ -422,71 +1051,7 @@
                         </div>
                     </div>
                     
-                    <!-- Duration Field -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Duration <span class="text-danger">*</span></label>
-                        <select name="duration" id="fee_duration_select" class="form-select" required>
-                            <option value="">Choose duration...</option>
-                            <option value="Year">Year</option>
-                            <option value="Month">Month</option>
-                            <option value="Term">Term</option>
-                            <option value="Semester">Semester</option>
-                            <option value="One-time">One-time</option>
-                        </select>
-                        <small class="text-muted">Default duration for this fee (usually Year for annual fees)</small>
-                    </div>
-
-                    <!-- Installment Options -->
-                    <div class="card border-primary-custom mb-3">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0">
-                                <i class="bi bi-calendar-range"></i> Installment Options
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="allow_partial_payment" id="allow_partial_payment" value="1" checked>
-                                    <label class="form-check-label fw-bold" for="allow_partial_payment">
-                                        Allow Partial Payment
-                                    </label>
-                                </div>
-                                <small class="text-muted">Parents can pay in partial amounts</small>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="allow_installments" id="allow_installments" value="1">
-                                    <label class="form-check-label fw-bold" for="allow_installments">
-                                        Allow Installments
-                                    </label>
-                                </div>
-                                <small class="text-muted">Parents can pay in installments (monthly, termly, etc.)</small>
-                            </div>
-                            
-                            <div id="installment_options" style="display: none;">
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Installment Type <span class="text-danger">*</span></label>
-                                    <select name="default_installment_type" id="default_installment_type" class="form-select">
-                                        <option value="">Select type...</option>
-                                        <option value="Semester">Semester</option>
-                                        <option value="Month">Month</option>
-                                        <option value="Two Months">2 Months</option>
-                                        <option value="Term">Term</option>
-                                        <option value="Quarter">Quarter</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Number of Installments <span class="text-danger">*</span></label>
-                                    <input type="number" name="number_of_installments" id="number_of_installments" class="form-control" min="1" max="12" placeholder="e.g.: 2, 12">
-                                    <small class="text-muted">Total installments (e.g. 2 for 2 semesters, 12 for 12 months)</small>
-                                </div>
-                                <div id="installment_amounts_container" class="mt-3"></div>
-                                <div id="installment_total_validation" class="mt-2"></div>
-                            </div>
-                        </div>
-                    </div>
+                    <input type="hidden" name="duration" id="fee_duration_select" value="Year">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">
@@ -522,60 +1087,38 @@
                         <select name="classID" id="edit_fee_class_select" class="form-select" required>
                             <option value="">Choose a class...</option>
                             @foreach($classes as $class)
-                                <option value="{{ $class->classID }}">{{ $class->class_name }}</option>
+                                @php
+                                    $hasMultiFees = $multiFeesByClass->get($class->classID, collect())->isNotEmpty();
+                                @endphp
+                                <option value="{{ $class->classID }}"
+                                        data-mode-conflict="{{ $hasMultiFees ? 'multi' : '' }}">
+                                    {{ $class->class_name }}{{ $hasMultiFees ? ' (Already defined as Multi Account Fee)' : '' }}
+                                </option>
                             @endforeach
                         </select>
+                        <div class="small text-danger fw-bold mt-1 fee-mode-conflict-message" id="editSingleClassModeConflict" style="display:none;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Account Number</label>
+                        <select name="bank_account_id" id="edit_single_fee_bank_account" class="form-select">
+                            <option value="">-- Select approved account --</option>
+                            @foreach(($approvedBankAccounts ?? collect()) as $acc)
+                                <option value="{{ $acc->accountID }}">{{ $acc->displayLabel() }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">One account receives all payments for this class. The same account number can be used by more than one class.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Fee Name <span class="text-danger">*</span></label>
                         <input type="text" name="fee_name" id="edit_fee_name" class="form-control" placeholder="e.g. Tuition Fee, Bus Fee" required>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <div class="form-check form-switch mt-4">
-                                <input class="form-check-input" type="checkbox" name="must_start_pay" id="edit_must_start_pay" value="1">
-                                <label class="form-check-label fw-bold" for="edit_must_start_pay">
-                                    Must Pay to Start?
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Amount (TZS) <span class="text-danger">*</span></label>
-                            <input type="number" name="amount" id="edit_fee_amount" class="form-control" placeholder="0.00" step="0.01" min="0" required>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Amount (TZS) <span class="text-danger">*</span></label>
+                        <input type="number" name="amount" id="edit_fee_amount" class="form-control" placeholder="0.00" step="0.01" min="0" required>
                     </div>
 
-                    <div class="card border-danger mb-3">
-                        <div class="card-header bg-danger text-white py-2">
-                           <h6 class="mb-0 small"><i class="bi bi-alarm"></i> Deadline Info (Optional)</h6>
-                        </div>
-                        <div class="card-body py-2">
-                            <div class="row">
-                                <div class="col-md-6 mb-2">
-                                    <label class="form-label small fw-bold">Deadline Amount</label>
-                                    <input type="number" name="payment_deadline_amount" id="edit_deadline_amount" class="form-control form-control-sm" placeholder="0.00">
-                                </div>
-                                <div class="col-md-6 mb-2">
-                                    <label class="form-label small fw-bold">Deadline Date</label>
-                                    <input type="date" name="payment_deadline_date" id="edit_deadline_date" class="form-control form-control-sm">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Duration <span class="text-danger">*</span></label>
-                        <select name="duration" id="edit_fee_duration_select" class="form-select" required>
-                            <option value="">Choose duration...</option>
-                            <option value="Year">Year</option>
-                            <option value="Month">Month</option>
-                            <option value="Term">Term</option>
-                            <option value="Semester">Semester</option>
-                            <option value="One-time">One-time</option>
-                        </select>
-                        <small class="text-muted">Default duration for this fee (usually Year for annual fees)</small>
-                    </div>
+                    <input type="hidden" name="duration" id="edit_fee_duration_select" value="Year">
 
                     <!-- Fee Condition Fields -->
                     <div class="mb-3">
@@ -598,65 +1141,6 @@
                                 <button type="button" class="btn btn-sm btn-outline-primary-custom mt-2" id="add_edit_condition_btn">
                                     <i class="bi bi-plus-circle-fill"></i> Add New Condition
                                 </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Installment Options -->
-                    <div class="card border-primary-custom mb-3">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0">
-                                <i class="bi bi-calendar-range"></i> Payment Installment Options
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="allow_partial_payment" id="edit_allow_partial_payment" value="1">
-                                    <label class="form-check-label fw-bold" for="edit_allow_partial_payment">
-                                        Allow Partial Payment
-                                    </label>
-                                </div>
-                                <small class="text-muted">If unchecked, parents must pay the full installment amount, not partial amounts</small>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="allow_installments" id="edit_allow_installments" value="1">
-                                    <label class="form-check-label fw-bold" for="edit_allow_installments">
-                                        Allow Payment by Installments
-                                    </label>
-                                </div>
-                                <small class="text-muted">Parents can pay this fee in installments (semester, monthly, etc.)</small>
-                            </div>
-                            
-                            <div id="edit_installment_options" style="display: none;">
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Installment Type <span class="text-danger">*</span></label>
-                                    <select name="default_installment_type" id="edit_default_installment_type" class="form-select">
-                                        <option value="">Select installment type...</option>
-                                        <option value="Semester">Semester</option>
-                                        <option value="Month">Monthly</option>
-                                        <option value="Two Months">Bi-Monthly (Every 2 Months)</option>
-                                        <option value="Term">Term</option>
-                                        <option value="Quarter">Quarterly</option>
-                                        <option value="One-time">One-time</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Number of Installments <span class="text-danger">*</span></label>
-                                    <input type="number" name="number_of_installments" id="edit_number_of_installments" class="form-control" min="1" max="12" placeholder="e.g., 2 for 2 semesters, 12 for 12 months">
-                                    <small class="text-muted">Total number of installments (e.g., 2 for 2 semesters, 12 for 12 months)</small>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Installment Amounts</label>
-                                    <div id="edit_installment_amounts_container" class="border rounded p-3 bg-light">
-                                        <small class="text-muted">Installment amounts will be calculated automatically based on total fee amount and number of installments.</small>
-                                    </div>
-                                    <div id="edit_installment_total_validation" class="mt-2"></div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -791,7 +1275,6 @@
                         <div id="agreement_placeholder" class="text-center py-5 bg-white border border-dashed rounded">
                             <i class="bi bi-mortarboard text-muted" style="font-size: 3rem;"></i>
                             <p class="mt-3 text-muted">Select a class to view students and manage agreements.</p>
-                            <p class="small text-muted mb-0">Uses Active enrollments for the academic year selected in the header.</p>
                         </div>
 
                         <div id="agreement_results_container" class="d-none">
@@ -991,7 +1474,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            
+
                             <div id="conditions_container" style="display: none;">
                                 <label class="form-label fw-bold mt-3">2. Select Conditions (Discounts)</label>
                                 <div id="class_conditions_list" class="list-group">
@@ -999,7 +1482,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Right Panel: Student Selection -->
                         <div class="col-md-8">
                             <div id="students_selection_container" style="display: none;">
@@ -1010,7 +1493,7 @@
                                         <input type="text" id="student_search_input" class="form-control" placeholder="Search student name...">
                                     </div>
                                 </div>
-                                
+
                                 <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                                     <table class="table table-sm table-hover border">
                                         <thead class="bg-light sticky-top">
@@ -1029,7 +1512,7 @@
                                         </tbody>
                                     </table>
                                 </div>
-                                
+
                                 <div class="mt-3 p-3 bg-light rounded border">
                                     <h6 class="small fw-bold mb-2">Selected Students:</h6>
                                     <div id="selected_students_sum" class="mb-2">
@@ -1040,11 +1523,10 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div id="no_class_placeholder" class="text-center py-5 text-muted">
                                 <i class="bi bi-arrow-left-circle display-4"></i>
                                 <p class="mt-2 text-center w-100">Please select a class first to see conditions and students.</p>
-                                <p class="small text-muted mb-0">Uses Active enrollments for the academic year selected in the header.</p>
                             </div>
                         </div>
                     </div>
@@ -1072,7 +1554,7 @@
                     </div>
                     <h5 class="mb-4" style="color: #940000; font-weight: bold; font-family: 'Century Gothic', sans-serif;">Generating Fees Structure Report</h5>
                     <div class="progress mb-2" style="height: 12px; border-radius: 0 !important;">
-                        <div id="pdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" 
+                        <div id="pdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger"
                             role="progressbar" style="width: 0%; border-radius: 0 !important;"></div>
                     </div>
                     <div id="pdfProgressPercent" class="font-weight-bold text-muted" style="font-size: 14px;">0%</div>
@@ -1100,10 +1582,10 @@
             setTimeout(initFeesManagement, 100);
             return;
         }
-        
+
         // Use jQuery
         var $ = jQuery;
-        
+
         // CSRF Token setup
         $.ajaxSetup({
             headers: {
@@ -1118,41 +1600,1380 @@
 
 
 
-        // Open Add Fee Modal Button Click Handler
+        // Create Fee -> chooser (Single / Multi)
         $(document).on('click', '#openAddFeeModalBtn, #openAddFeeModalBtn_Exp', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Open modal button clicked');
-            
-            // Check if modal exists
-            if ($('#addFeeModal').length === 0) {
-                console.error('Modal #addFeeModal not found!');
-                alert('Modal not found. Please check console for more details.');
-                return;
-            }
-            
-            // Try to show modal
-            try {
-                $('#addFeeModal').modal('show');
-                console.log('Modal show command executed');
-            } catch (error) {
-                console.error('Error showing modal:', error);
-                alert('Error showing modal: ' + error.message);
-            }
+            $('#feeTypeChooserModal').modal('show');
         });
 
-        // Also handle data-toggle for backward compatibility
-        $(document).on('click', '[data-toggle="modal"][data-target="#addFeeModal"]', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('Modal opened via data-toggle');
-            $('#addFeeModal').modal('show');
+        $(document).on('click', '#chooseSingleAccountFeeBtn', function() {
+            $('#feeTypeChooserModal').modal('hide');
+            setTimeout(function() { $('#addFeeModal').modal('show'); }, 300);
         });
-        
-        // Test if button exists
-        console.log('Button exists:', $('#openAddFeeModalBtn').length > 0);
-        console.log('Modal exists:', $('#addFeeModal').length > 0);
-        console.log('jQuery version:', $.fn.jquery);
+
+        $(document).on('click', '#chooseMultiAccountFeeBtn', function() {
+            $('#feeTypeChooserModal').modal('hide');
+            setTimeout(function() { $('#addMultiFeeModal').modal('show'); }, 300);
+        });
+
+        function validateFeeClassMode(selectSelector, requestedMode, messageSelector, formSelector) {
+            const $select = $(selectSelector);
+            const conflictMode = $select.find('option:selected').data('mode-conflict') || '';
+            const $message = $(messageSelector);
+            const hasConflict = conflictMode !== '';
+
+            if (hasConflict) {
+                const existingLabel = conflictMode === 'multi'
+                    ? 'Multi Account Fee'
+                    : 'Single Account Fee';
+                const requestedLabel = requestedMode === 'multi'
+                    ? 'Multi Account Fee'
+                    : 'Single Account Fee';
+                const message = 'This class is already defined under ' + existingLabel +
+                    '. It cannot also be defined under ' + requestedLabel + '.';
+
+                $message.text(message).show();
+                $select.addClass('is-invalid');
+                $(formSelector).find('button[type="submit"]').prop('disabled', true);
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Class Already Defined',
+                    text: message,
+                    confirmButtonColor: '#940000'
+                });
+                return false;
+            }
+
+            $message.hide().text('');
+            $select.removeClass('is-invalid');
+            $(formSelector).find('button[type="submit"]').prop('disabled', false);
+            return true;
+        }
+
+        $(document).on('change', '#multi_fee_classID', function() {
+            validateFeeClassMode(
+                '#multi_fee_classID',
+                'multi',
+                '#multiClassModeConflict',
+                '#addMultiFeeForm'
+            );
+        });
+
+        $(document).on('change', '#fee_class_select', function() {
+            validateFeeClassMode(
+                '#fee_class_select',
+                'single',
+                '#singleClassModeConflict',
+                '#addFeeForm'
+            );
+        });
+
+        $(document).on('change', '#edit_fee_class_select', function() {
+            validateFeeClassMode(
+                '#edit_fee_class_select',
+                'single',
+                '#editSingleClassModeConflict',
+                '#editFeeForm'
+            );
+        });
+
+        $(document).on('click', '#openWithdrawPlaceholderBtn', function(e) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'info',
+                title: 'Withdraw',
+                text: 'Withdraw will be available after bank API integration.',
+                confirmButtonColor: '#940000'
+            });
+        });
+
+        // ── Installment Manager ───────────────────────────────────────────
+        let installmentSelectedFee = null;
+
+        function money(value) {
+            return Number(value || 0).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function safeText(value) {
+            return $('<div>').text(value == null ? '' : value).html();
+        }
+
+        function renderInstallmentPreview() {
+            if (!installmentSelectedFee) return;
+            const type = $('#installmentTypeSelect').val();
+            const counts = { Quarter: 4, Term: 2, Month: 12 };
+            const count = counts[type] || 0;
+            const totalCents = Math.round(Number(installmentSelectedFee.amount || 0) * 100);
+            const baseCents = Math.floor(totalCents / count);
+            const remainder = totalCents - (baseCents * count);
+            let html = '';
+            let previewTotal = 0;
+            for (let i = 1; i <= count; i++) {
+                const amount = (baseCents + (i === count ? remainder : 0)) / 100;
+                previewTotal += amount;
+                html += '<tr><td>' + i + '</td><td>' + type + ' ' + i +
+                    '</td><td class="text-end fw-bold">' + money(amount) + '</td></tr>';
+            }
+            $('#installmentPreviewBody').html(html);
+            $('#installmentPreviewTotal').text(money(previewTotal));
+        }
+
+        $(document).on('click', '#openInstallmentManagerBtn', function(e) {
+            e.preventDefault();
+            installmentSelectedFee = null;
+            $('#installmentClassSelect').val('');
+            $('#installmentFeeSelect').prop('disabled', true).html('<option value="">Select class first...</option>');
+            $('#installmentConfiguration').hide();
+            $('#saveInstallmentScheduleBtn').prop('disabled', true);
+            $('#installmentManagerModal').modal('show');
+        });
+
+        $('#installmentClassSelect').on('change', function() {
+            const classID = $(this).val();
+            installmentSelectedFee = null;
+            $('#installmentConfiguration').hide();
+            $('#saveInstallmentScheduleBtn').prop('disabled', true);
+            if (!classID) {
+                $('#installmentFeeSelect').prop('disabled', true).html('<option value="">Select class first...</option>');
+                return;
+            }
+
+            showOverlay('Loading class fees...');
+            $.get('{{ url("get_class_fees") }}/' + classID)
+                .done(function(res) {
+                    let html = '<option value="">Select fee...</option>';
+                    (res.fees || []).forEach(function(fee) {
+                        const mode = fee.account_mode === 'multi' ? 'Multi' : 'Single';
+                        html += '<option value="' + fee.feeID + '">' + safeText(fee.fee_name) +
+                            ' — TZS ' + money(fee.amount) + ' (' + mode + ')</option>';
+                    });
+                    $('#installmentFeeSelect').html(html).prop('disabled', false);
+                })
+                .fail(function(xhr) {
+                    bankAccountError(xhr.responseJSON?.message || 'Failed to load fees.');
+                })
+                .always(hideOverlay);
+        });
+
+        $('#installmentFeeSelect').on('change', function() {
+            const feeID = $(this).val();
+            installmentSelectedFee = null;
+            $('#installmentConfiguration').hide();
+            $('#saveInstallmentScheduleBtn').prop('disabled', true);
+            if (!feeID) return;
+
+            showOverlay('Loading installment schedule...');
+            $.get('{{ url("fees/installments") }}/' + feeID)
+                .done(function(res) {
+                    installmentSelectedFee = res.fee;
+                    $('#installmentFeeTotal').text('TZS ' + money(res.fee.amount));
+                    if (res.installments && res.installments.length) {
+                        const savedType = res.installments[0].installment_type;
+                        if (['Quarter', 'Term', 'Month'].includes(savedType)) {
+                            $('#installmentTypeSelect').val(savedType);
+                        }
+                    }
+                    renderInstallmentPreview();
+                    $('#installmentConfiguration').fadeIn();
+                    $('#saveInstallmentScheduleBtn').prop('disabled', false);
+                })
+                .fail(function(xhr) {
+                    bankAccountError(xhr.responseJSON?.message || 'Failed to load installments.');
+                })
+                .always(hideOverlay);
+        });
+
+        $('#installmentTypeSelect').on('change', renderInstallmentPreview);
+
+        $('#saveInstallmentScheduleBtn').on('click', function() {
+            if (!installmentSelectedFee) return;
+            const $button = $(this);
+            const original = $button.html();
+            $button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Saving...');
+            showOverlay('Saving installment schedule...');
+            $.ajax({
+                url: '{{ route("fees.installments.store") }}',
+                method: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    classID: $('#installmentClassSelect').val(),
+                    feeID: installmentSelectedFee.feeID,
+                    installment_type: $('#installmentTypeSelect').val()
+                }
+            }).done(function(res) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Installments Saved',
+                    text: res.message,
+                    confirmButtonColor: '#940000'
+                });
+            }).fail(function(xhr) {
+                bankAccountError(xhr.responseJSON?.message || 'Failed to save installments.');
+            }).always(function() {
+                hideOverlay();
+                $button.prop('disabled', false).html(original);
+            });
+        });
+
+        // ── Deadline Manager ──────────────────────────────────────────────
+        let deadlineFeesCache = [];
+        let deadlineDataCache = [];
+        let deadlineAcademicYear = null;
+        let deadlineRowCounter = 0;
+
+        function deadlineFeeOptions(selected) {
+            let html = '<option value="">Select fee...</option>';
+            deadlineFeesCache.forEach(function(fee) {
+                html += '<option value="' + fee.feeID + '"' +
+                    (String(selected) === String(fee.feeID) ? ' selected' : '') + '>' +
+                    safeText(fee.fee_name) + ' — TZS ' + money(fee.amount) + '</option>';
+            });
+            return html;
+        }
+
+        function createDeadlineRow(data) {
+            deadlineRowCounter++;
+            const type = data?.deadline_type || 'date';
+            const startDate = data?.start_date ? String(data.start_date).slice(0, 10) : '';
+            const endDate = data?.end_date ? String(data.end_date).slice(0, 10) : '';
+            const startDateParts = startDate ? startDate.split('-') : [];
+            const endDateParts = endDate ? endDate.split('-') : [];
+            const dateStartMonth = startDateParts.length === 3 ? Number(startDateParts[1]) : '';
+            const dateStartDay = startDateParts.length === 3 ? Number(startDateParts[2]) : '';
+            const dateEndMonth = endDateParts.length === 3 ? Number(endDateParts[1]) : '';
+            const dateEndDay = endDateParts.length === 3 ? Number(endDateParts[2]) : '';
+            const months = [
+                [1, 'January'], [2, 'February'], [3, 'March'], [4, 'April'],
+                [5, 'May'], [6, 'June'], [7, 'July'], [8, 'August'],
+                [9, 'September'], [10, 'October'], [11, 'November'], [12, 'December']
+            ];
+            const monthOptions = function(selected) {
+                return '<option value="">Select month...</option>' + months.map(function(month) {
+                    return '<option value="' + month[0] + '"' +
+                        (String(selected || '') === String(month[0]) ? ' selected' : '') + '>' +
+                        month[1] + '</option>';
+                }).join('');
+            };
+            const dayOptions = function(selected) {
+                let html = '<option value="">Day...</option>';
+                for (let day = 1; day <= 31; day++) {
+                    html += '<option value="' + day + '"' +
+                        (String(selected || '') === String(day) ? ' selected' : '') + '>' + day + '</option>';
+                }
+                return html;
+            };
+            return `<div class="deadline-row card mb-3 border-primary-custom" data-row="${deadlineRowCounter}">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <strong><i class="bi bi-clock"></i> Deadline #${deadlineRowCounter}</strong>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-deadline-row"><i class="bi bi-trash"></i></button>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">Deadline Type *</label>
+                            <select class="form-select deadline-type">
+                                <option value="date" ${type === 'date' ? 'selected' : ''}>Date Range</option>
+                                <option value="month" ${type === 'month' ? 'selected' : ''}>Month Range</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5 deadline-date-inputs" style="display:${type === 'date' ? 'block' : 'none'};">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label fw-bold small">From (Month / Day) *</label>
+                                    <div class="d-flex gap-1">
+                                        <select class="form-select deadline-date-start-month">${monthOptions(dateStartMonth)}</select>
+                                        <select class="form-select deadline-start-day">${dayOptions(dateStartDay)}</select>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-bold small">Until (Month / Day) *</label>
+                                    <div class="d-flex gap-1">
+                                        <select class="form-select deadline-date-end-month">${monthOptions(dateEndMonth)}</select>
+                                        <select class="form-select deadline-end-day">${dayOptions(dateEndDay)}</select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5 deadline-month-inputs" style="display:${type === 'month' ? 'block' : 'none'};">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label fw-bold small">From Month *</label>
+                                    <select class="form-select deadline-start-month">${monthOptions(data?.start_month)}</select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-bold small">Until Month *</label>
+                                    <select class="form-select deadline-end-month">${monthOptions(data?.end_month)}</select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Amount Required by Until Date (TZS) *</label>
+                            <input type="number" class="form-control deadline-amount" min="0.01" step="0.01" value="${data?.amount || ''}">
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        $(document).on('click', '#openDeadlineManagerBtn', function(e) {
+            e.preventDefault();
+            deadlineFeesCache = [];
+            deadlineDataCache = [];
+            deadlineAcademicYear = null;
+            deadlineRowCounter = 0;
+            $('#deadlineClassSelect').val('');
+            $('#deadlineFeeSelect').prop('disabled', true).html('<option value="">Select class first...</option>');
+            $('#registeredDeadlineClassSelect').val('');
+            $('#registeredDeadlineFeeSelect').prop('disabled', true).html('<option value="">Select class first...</option>');
+            $('#registeredDeadlineBody').html('<tr><td colspan="4" class="text-center text-muted py-4">Select class and fee.</td></tr>');
+            $('#registerDeadlineTab').tab('show');
+            $('#deadlineRowsContainer').empty();
+            $('#deadlineRealtimeValidation').hide().text('');
+            $('#deadlineAcademicYearInfo').empty();
+            $('#deadlineEmptyState').show().text('Select a class and fee to register deadlines.');
+            $('#addDeadlineRowBtn,#saveDeadlinesBtn').prop('disabled', true);
+            $('#deadlineManagerModal').modal('show');
+        });
+
+        $('#deadlineClassSelect').on('change', function() {
+            const classID = $(this).val();
+            deadlineFeesCache = [];
+            deadlineDataCache = [];
+            deadlineAcademicYear = null;
+            deadlineRowCounter = 0;
+            $('#deadlineRowsContainer').empty();
+            $('#deadlineRealtimeValidation').hide().text('');
+            $('#deadlineFeeSelect').prop('disabled', true).html('<option value="">Select class first...</option>');
+            $('#addDeadlineRowBtn,#saveDeadlinesBtn').prop('disabled', true);
+            if (!classID) {
+                $('#deadlineEmptyState').show().text('Select a class and fee to register deadlines.');
+                return;
+            }
+
+            showOverlay('Loading fees and deadlines...');
+            Promise.all([
+                $.get('{{ url("get_class_fees") }}/' + classID),
+                $.get('{{ url("fees/deadlines/class") }}/' + classID)
+            ]).then(function(results) {
+                deadlineFeesCache = results[0].fees || [];
+                deadlineDataCache = results[1].deadlines || [];
+                deadlineAcademicYear = results[1].academic_year || null;
+                $('#deadlineAcademicYearInfo').text(deadlineAcademicYear
+                    ? 'Academic Year: ' + (deadlineAcademicYear.year_name || '') + ' (' + deadlineAcademicYear.start_date + ' to ' + deadlineAcademicYear.end_date + ')'
+                    : '');
+                if (!deadlineFeesCache.length) {
+                    $('#deadlineEmptyState').show().text('No active fees found for this class.');
+                    return;
+                }
+                $('#deadlineFeeSelect').html(deadlineFeeOptions()).prop('disabled', false);
+                $('#deadlineEmptyState').show().text('Select a fee to register its deadlines.');
+            }).catch(function(xhr) {
+                bankAccountError(xhr.responseJSON?.message || 'Failed to load deadlines.');
+                $('#deadlineEmptyState').show().text('Failed to load deadlines.');
+            }).finally(hideOverlay);
+        });
+
+        $('#deadlineFeeSelect').on('change', function() {
+            const feeID = $(this).val();
+            deadlineRowCounter = 0;
+            $('#deadlineRowsContainer').empty();
+            $('#addDeadlineRowBtn,#saveDeadlinesBtn').prop('disabled', !feeID);
+            if (!feeID) {
+                $('#deadlineEmptyState').show().text('Select a fee to register its deadlines.');
+                return;
+            }
+            const selected = deadlineDataCache.filter(row => String(row.feeID) === String(feeID));
+            if (selected.length) {
+                selected.forEach(row => $('#deadlineRowsContainer').append(createDeadlineRow(row)));
+            } else {
+                $('#deadlineRowsContainer').append(createDeadlineRow({}));
+            }
+            $('#deadlineEmptyState').hide();
+            validateDeadlineRangesRealtime();
+        });
+
+        $('#addDeadlineRowBtn').on('click', function() {
+            $('#deadlineRowsContainer').append(createDeadlineRow({}));
+            validateDeadlineRangesRealtime();
+        });
+
+        $(document).on('click', '.remove-deadline-row', function() {
+            $(this).closest('.deadline-row').remove();
+            validateDeadlineRangesRealtime();
+        });
+
+        $(document).on('change', '.deadline-type', function() {
+            const $row = $(this).closest('.deadline-row');
+            const monthType = $(this).val() === 'month';
+            $row.find('.deadline-date-inputs').toggle(!monthType);
+            $row.find('.deadline-month-inputs').toggle(monthType);
+            validateDeadlineRangesRealtime();
+        });
+
+        $(document).on(
+            'change input',
+            '.deadline-date-start-month,.deadline-start-day,.deadline-date-end-month,.deadline-end-day,' +
+            '.deadline-start-month,.deadline-end-month,.deadline-amount',
+            validateDeadlineRangesRealtime
+        );
+
+        function resolveDeadlineMonths(startMonth, endMonth) {
+            if (!deadlineAcademicYear?.start_date || !deadlineAcademicYear?.end_date) return null;
+            const yearStart = new Date(deadlineAcademicYear.start_date + 'T00:00:00');
+            const yearEnd = new Date(deadlineAcademicYear.end_date + 'T00:00:00');
+            let cursor = new Date(yearStart.getFullYear(), yearStart.getMonth(), 1);
+            let start = null;
+            let end = null;
+            while (cursor <= yearEnd) {
+                const month = cursor.getMonth() + 1;
+                if (!start && month === Number(startMonth)) {
+                    start = new Date(Math.max(cursor.getTime(), yearStart.getTime()));
+                }
+                if (start && month === Number(endMonth)) {
+                    const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+                    end = new Date(Math.min(monthEnd.getTime(), yearEnd.getTime()));
+                    if (end >= start) break;
+                }
+                cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+            }
+            if (!start || !end || end < start) return null;
+            const format = date => {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                return y + '-' + m + '-' + d;
+            };
+            return { start_date: format(start), end_date: format(end) };
+        }
+
+        function resolveDeadlineDateParts(startMonth, startDay, endMonth, endDay) {
+            if (!deadlineAcademicYear?.start_date || !deadlineAcademicYear?.end_date) return null;
+            const yearStart = new Date(deadlineAcademicYear.start_date + 'T00:00:00');
+            const yearEnd = new Date(deadlineAcademicYear.end_date + 'T00:00:00');
+            let cursor = new Date(yearStart.getFullYear(), yearStart.getMonth(), 1);
+            let start = null;
+            let end = null;
+
+            while (cursor <= yearEnd) {
+                const month = cursor.getMonth() + 1;
+                if (!start && month === Number(startMonth)) {
+                    const candidate = new Date(cursor.getFullYear(), cursor.getMonth(), Number(startDay));
+                    if (
+                        candidate.getMonth() === cursor.getMonth()
+                        && candidate >= yearStart
+                        && candidate <= yearEnd
+                    ) {
+                        start = candidate;
+                    }
+                }
+                if (start && month === Number(endMonth)) {
+                    const candidate = new Date(cursor.getFullYear(), cursor.getMonth(), Number(endDay));
+                    if (
+                        candidate.getMonth() === cursor.getMonth()
+                        && candidate >= start
+                        && candidate <= yearEnd
+                    ) {
+                        end = candidate;
+                        break;
+                    }
+                }
+                cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+            }
+
+            if (!start || !end) return null;
+            const format = date => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return year + '-' + month + '-' + day;
+            };
+            return { start_date: format(start), end_date: format(end) };
+        }
+
+        function validateDeadlineRangesRealtime() {
+            const ranges = [];
+            let message = '';
+            $('.deadline-row').removeClass('border-danger');
+            const selectedFee = deadlineFeesCache.find(item => String(item.feeID) === String($('#deadlineFeeSelect').val()));
+            const feeTotal = Number(selectedFee?.amount || 0);
+
+            let amountsTotal = 0;
+            $('.deadline-row').each(function(index) {
+                const $row = $(this);
+                const type = $row.find('.deadline-type').val();
+                const amount = Number($row.find('.deadline-amount').val() || 0);
+
+                if (amount > 0) {
+                    amountsTotal += amount;
+                    if (feeTotal > 0 && amountsTotal > feeTotal) {
+                        $row.addClass('border-danger');
+                        message = 'Total deadline amounts (TZS ' + money(amountsTotal) +
+                            ') exceed the fee total (TZS ' + money(feeTotal) +
+                            '). Reduce the amount on Deadline #' + (index + 1) + '.';
+                        return false;
+                    }
+                }
+
+                let range = null;
+                if (type === 'month') {
+                    const startMonth = $row.find('.deadline-start-month').val();
+                    const endMonth = $row.find('.deadline-end-month').val();
+                    if (!startMonth || !endMonth) return;
+                    range = resolveDeadlineMonths(startMonth, endMonth);
+                } else {
+                    const startMonth = $row.find('.deadline-date-start-month').val();
+                    const startDay = $row.find('.deadline-start-day').val();
+                    const endMonth = $row.find('.deadline-date-end-month').val();
+                    const endDay = $row.find('.deadline-end-day').val();
+                    if (!startMonth || !startDay || !endMonth || !endDay) return;
+                    range = resolveDeadlineDateParts(startMonth, startDay, endMonth, endDay);
+                }
+
+                if (!range) {
+                    $row.addClass('border-danger');
+                    message = 'Deadline #' + (index + 1) +
+                        ' has an invalid range for the selected academic year. The Until value must be after the From value.';
+                    return false;
+                }
+                ranges.push({
+                    row: $row,
+                    number: index + 1,
+                    start: range.start_date,
+                    end: range.end_date
+                });
+            });
+
+            if (!message) {
+                ranges.sort((a, b) => a.start.localeCompare(b.start));
+                for (let index = 1; index < ranges.length; index++) {
+                    if (ranges[index].start <= ranges[index - 1].end) {
+                        ranges[index - 1].row.addClass('border-danger');
+                        ranges[index].row.addClass('border-danger');
+                        message = 'Deadline #' + ranges[index].number + ' overlaps Deadline #' +
+                            ranges[index - 1].number + '. The next range must start after ' +
+                            ranges[index - 1].end + '; using the same ending date is not allowed.';
+                        break;
+                    }
+                }
+            }
+
+            $('#deadlineRealtimeValidation').toggle(Boolean(message)).text(message);
+            const feeSelected = Boolean($('#deadlineFeeSelect').val());
+            $('#saveDeadlinesBtn').prop('disabled', !feeSelected || Boolean(message));
+            return !message;
+        }
+
+        function collectAndValidateDeadlines() {
+            const rows = [];
+            let error = '';
+            const feeID = $('#deadlineFeeSelect').val();
+            const fee = deadlineFeesCache.find(item => String(item.feeID) === String(feeID));
+            if (!feeID || !fee) return { error: 'Select a fee first.' };
+
+            $('.deadline-row').each(function() {
+                const type = $(this).find('.deadline-type').val();
+                const startMonth = type === 'month'
+                    ? $(this).find('.deadline-start-month').val()
+                    : $(this).find('.deadline-date-start-month').val();
+                const endMonth = type === 'month'
+                    ? $(this).find('.deadline-end-month').val()
+                    : $(this).find('.deadline-date-end-month').val();
+                const startDay = $(this).find('.deadline-start-day').val();
+                const endDay = $(this).find('.deadline-end-day').val();
+                const amount = Number($(this).find('.deadline-amount').val());
+                let start = '';
+                let end = '';
+                if (type === 'month') {
+                    const range = resolveDeadlineMonths(startMonth, endMonth);
+                    if (!startMonth || !endMonth || !range) {
+                        error = 'Select a valid month range within the header academic year.';
+                        return false;
+                    }
+                    start = range.start_date;
+                    end = range.end_date;
+                } else {
+                    const range = resolveDeadlineDateParts(startMonth, startDay, endMonth, endDay);
+                    if (!startMonth || !startDay || !endMonth || !endDay || !range) {
+                        error = 'Select a valid From and Until month/day within the header academic year.';
+                        return false;
+                    }
+                    start = range.start_date;
+                    end = range.end_date;
+                }
+                if (!start || !end || !amount) {
+                    error = 'Complete every deadline field.';
+                    return false;
+                }
+                if (end < start) {
+                    error = 'Until Date cannot be earlier than From Date.';
+                    return false;
+                }
+                rows.push({
+                    deadline_type: type,
+                    start_date: '',
+                    end_date: '',
+                    start_month: startMonth,
+                    end_month: endMonth,
+                    start_day: type === 'date' ? startDay : '',
+                    end_day: type === 'date' ? endDay : '',
+                    resolved_start: start,
+                    resolved_end: end,
+                    amount: amount
+                });
+            });
+            if (error) return { error: error };
+            if (rows.length === 0) {
+                return { error: 'Add at least one deadline before saving.' };
+            }
+
+            const feeRows = rows.sort((a, b) => a.resolved_start.localeCompare(b.resolved_start));
+            for (let i = 0; i < feeRows.length; i++) {
+                if (i > 0 && feeRows[i].resolved_start <= feeRows[i - 1].resolved_end) {
+                    return { error: 'Deadline ranges cannot overlap. The next deadline must begin after the previous Until value.' };
+                }
+            }
+            const amountsTotal = feeRows.reduce((sum, row) => sum + Number(row.amount), 0);
+            if (amountsTotal > Number(fee?.amount || 0)) {
+                return {
+                    error: 'Total deadline amounts (TZS ' + money(amountsTotal) +
+                        ') exceed the fee total (TZS ' + money(Number(fee?.amount || 0)) + ').'
+                };
+            }
+            rows.forEach(row => {
+                delete row.resolved_start;
+                delete row.resolved_end;
+            });
+            return { rows: rows };
+        }
+
+        $('#saveDeadlinesBtn').on('click', function() {
+            const result = collectAndValidateDeadlines();
+            if (result.error) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Check Deadlines',
+                    text: result.error,
+                    confirmButtonColor: '#940000'
+                });
+                return;
+            }
+            const $button = $(this);
+            const original = $button.html();
+            $button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Saving...');
+            showOverlay('Validating and saving deadlines...');
+            $.ajax({
+                url: '{{ route("fees.deadlines.store") }}',
+                method: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    classID: $('#deadlineClassSelect').val(),
+                    feeID: $('#deadlineFeeSelect').val(),
+                    deadlines: result.rows
+                }
+            }).done(function(res) {
+                const selectedFeeID = String($('#deadlineFeeSelect').val());
+                deadlineDataCache = deadlineDataCache
+                    .filter(row => String(row.feeID) !== selectedFeeID)
+                    .concat(res.deadlines || []);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Deadlines Saved',
+                    text: res.message,
+                    confirmButtonColor: '#940000'
+                });
+            }).fail(function(xhr) {
+                bankAccountError(xhr.responseJSON?.message || 'Failed to save deadlines.');
+            }).always(function() {
+                hideOverlay();
+                $button.prop('disabled', false).html(original);
+            });
+        });
+
+        function renderRegisteredDeadlines(feeID) {
+            const rows = deadlineDataCache.filter(row => String(row.feeID) === String(feeID || ''));
+            if (!feeID) {
+                $('#registeredDeadlineBody').html('<tr><td colspan="4" class="text-center text-muted py-4">Select a fee.</td></tr>');
+                return;
+            }
+            if (!rows.length) {
+                $('#registeredDeadlineBody').html('<tr><td colspan="4" class="text-center text-muted py-4">No deadlines registered for this fee and academic year.</td></tr>');
+                return;
+            }
+            const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+            const formatMonthDay = function(value) {
+                const parts = String(value || '').slice(0, 10).split('-');
+                if (parts.length !== 3) return value || '';
+                return monthNames[Number(parts[1])] + ' ' + Number(parts[2]);
+            };
+            let html = '';
+            rows.sort((a, b) => String(a.start_date).localeCompare(String(b.start_date))).forEach(function(row) {
+                const isMonth = row.deadline_type === 'month';
+                const period = isMonth
+                    ? monthNames[Number(row.start_month)] + ' to ' + monthNames[Number(row.end_month)]
+                    : formatMonthDay(row.start_date) + ' to ' + formatMonthDay(row.end_date);
+                html += '<tr>' +
+                    '<td><span class="badge" style="background:whitesmoke;color:#940000;border:1px solid #940000;">' +
+                        (isMonth ? 'Month Range' : 'Date Range') + '</span></td>' +
+                    '<td>' + period + '</td>' +
+                    '<td class="text-end fw-bold">TZS ' + money(row.amount) + '</td>' +
+                    '<td class="text-center text-nowrap">' +
+                        '<button type="button" class="btn btn-sm btn-outline-primary edit-registered-deadline" data-id="' + row.deadlineID + '" title="Edit"><i class="bi bi-pencil"></i></button> ' +
+                        '<button type="button" class="btn btn-sm btn-outline-danger delete-registered-deadline" data-id="' + row.deadlineID + '" title="Delete"><i class="bi bi-trash"></i></button>' +
+                    '</td></tr>';
+            });
+            $('#registeredDeadlineBody').html(html);
+        }
+
+        $('#registeredDeadlineClassSelect').on('change', function() {
+            const classID = $(this).val();
+            $('#registeredDeadlineFeeSelect').prop('disabled', true).html('<option value="">Select class first...</option>');
+            $('#registeredDeadlineBody').html('<tr><td colspan="4" class="text-center text-muted py-4">Loading...</td></tr>');
+            if (!classID) {
+                $('#registeredDeadlineBody').html('<tr><td colspan="4" class="text-center text-muted py-4">Select class and fee.</td></tr>');
+                return;
+            }
+            showOverlay('Loading registered deadlines...');
+            Promise.all([
+                $.get('{{ url("get_class_fees") }}/' + classID),
+                $.get('{{ url("fees/deadlines/class") }}/' + classID)
+            ]).then(function(results) {
+                deadlineFeesCache = results[0].fees || [];
+                deadlineDataCache = results[1].deadlines || [];
+                deadlineAcademicYear = results[1].academic_year || null;
+                $('#registeredDeadlineFeeSelect').html(deadlineFeeOptions()).prop('disabled', false);
+                $('#registeredDeadlineBody').html('<tr><td colspan="4" class="text-center text-muted py-4">Select a fee.</td></tr>');
+            }).catch(function(xhr) {
+                bankAccountError(xhr.responseJSON?.message || 'Failed to load registered deadlines.');
+            }).finally(hideOverlay);
+        });
+
+        $('#registeredDeadlineFeeSelect').on('change', function() {
+            renderRegisteredDeadlines($(this).val());
+        });
+
+        $('#registeredDeadlineTab').on('shown.bs.tab', function() {
+            $('#saveDeadlinesBtn').hide();
+        });
+        $('#registerDeadlineTab').on('shown.bs.tab', function() {
+            $('#saveDeadlinesBtn').show();
+        });
+
+        $(document).on('click', '.edit-registered-deadline', function() {
+            const deadlineID = $(this).data('id');
+            const deadline = deadlineDataCache.find(row => String(row.deadlineID) === String(deadlineID));
+            if (!deadline) return;
+            const classID = $('#registeredDeadlineClassSelect').val();
+            const feeID = deadline.feeID;
+            $('#deadlineClassSelect').val(classID);
+            $('#deadlineFeeSelect').html(deadlineFeeOptions(feeID)).prop('disabled', false).val(String(feeID));
+            $('#deadlineAcademicYearInfo').text(deadlineAcademicYear
+                ? 'Academic Year: ' + (deadlineAcademicYear.year_name || '') + ' (' + deadlineAcademicYear.start_date + ' to ' + deadlineAcademicYear.end_date + ')'
+                : '');
+            deadlineRowCounter = 0;
+            $('#deadlineRowsContainer').empty();
+            deadlineDataCache.filter(row => String(row.feeID) === String(feeID))
+                .forEach(row => $('#deadlineRowsContainer').append(createDeadlineRow(row)));
+            $('#deadlineEmptyState').hide();
+            $('#addDeadlineRowBtn,#saveDeadlinesBtn').prop('disabled', false);
+            $('#registerDeadlineTab').tab('show');
+            validateDeadlineRangesRealtime();
+        });
+
+        $(document).on('click', '.delete-registered-deadline', function() {
+            const deadlineID = $(this).data('id');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Delete Deadline?',
+                text: 'Student required amounts will be recalculated.',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                confirmButtonText: 'Delete'
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                showOverlay('Deleting deadline...');
+                $.ajax({
+                    url: '{{ url("fees/deadlines") }}/' + deadlineID,
+                    method: 'DELETE',
+                    data: { _token: '{{ csrf_token() }}' }
+                }).done(function(res) {
+                    deadlineDataCache = deadlineDataCache.filter(row => String(row.deadlineID) !== String(deadlineID));
+                    renderRegisteredDeadlines($('#registeredDeadlineFeeSelect').val());
+                    Swal.fire({ icon: 'success', title: 'Deleted', text: res.message, confirmButtonColor: '#940000' });
+                }).fail(function(xhr) {
+                    bankAccountError(xhr.responseJSON?.message || 'Failed to delete deadline.');
+                }).always(hideOverlay);
+            });
+        });
+
+        // ── Account Numbers (Admin) ──
+        let approvedAccountsCache = @json(($approvedBankAccounts ?? collect())->map(fn($a) => [
+            'accountID' => $a->accountID,
+            'display_label' => $a->displayLabel(),
+        ])->values());
+
+        function loadActiveBanksSelect() {
+            $.get('{{ route("fees.active_banks") }}', function(res) {
+                const $sel = $('#regBankID').empty().append('<option value="">Select bank...</option>');
+                if (res.success) {
+                    res.banks.forEach(function(b) {
+                        $sel.append('<option value="' + b.bankID + '">' + b.bank_name + (b.bank_code ? ' (' + b.bank_code + ')' : '') + '</option>');
+                    });
+                }
+            });
+        }
+
+        function loadRegisteredAccounts() {
+            const $body = $('#registeredAccountsBody').html('<tr><td colspan="5" class="text-center py-3">Loading...</td></tr>');
+            $.get('{{ route("fees.school_bank_accounts") }}', function(res) {
+                if (!res.success || !res.accounts.length) {
+                    $body.html('<tr><td colspan="5" class="text-center text-muted py-3">No accounts registered yet.</td></tr>');
+                    return;
+                }
+                let html = '';
+                res.accounts.forEach(function(a) {
+                    let badge = a.status === 'approved' ? 'success' : (a.status === 'rejected' ? 'danger' : 'warning text-dark');
+                    let notes = a.status === 'rejected' && a.rejection_reason
+                        ? '<span class="text-danger small">' + a.rejection_reason + '</span>'
+                        : (a.otp_verified_at || '—');
+                    html += '<tr>' +
+                        '<td class="fw-bold">' + a.account_number + (a.account_name ? '<br><small class="text-muted">' + a.account_name + '</small>' : '') + '</td>' +
+                        '<td>' + a.bank_name + (a.bank_code ? ' <small>(' + a.bank_code + ')</small>' : '') + '</td>' +
+                        '<td><span class="badge bg-' + badge + '">' + a.status + '</span></td>' +
+                        '<td>' + notes + '</td>' +
+                        '<td class="text-end text-nowrap">' +
+                            '<button type="button" class="btn btn-sm btn-outline-primary btn-edit-bank-acc" data-id="' + a.accountID + '" data-bank="' + a.bankID + '" data-number="' + a.account_number + '" data-name="' + (a.account_name || '') + '"><i class="bi bi-pencil"></i></button> ' +
+                            '<button type="button" class="btn btn-sm btn-outline-danger btn-del-bank-acc" data-id="' + a.accountID + '"><i class="bi bi-trash"></i></button>' +
+                        '</td></tr>';
+                });
+                $body.html(html);
+            }).fail(function() {
+                $body.html('<tr><td colspan="5" class="text-center text-danger py-3">Failed to load accounts.</td></tr>');
+            });
+        }
+
+        $(document).on('click', '#openAccountNumbersModalBtn', function(e) {
+            e.preventDefault();
+            $('#editBankAccountID').val('');
+            $('#regAccountNumber,#regAccountName,#regAccountOtp,#regOtpToken').val('');
+            $('#otpSection,#btnVerifyAccountOtp').hide();
+            $('#regAccountOtp').removeClass('otp-complete otp-invalid');
+            $('#otpAutoStatus').removeClass('verifying')
+                .html('<i class="bi bi-lightning-charge"></i> Verification starts automatically after all 6 digits are entered.');
+            $('#btnSendAccountOtp').show().html('<i class="bi bi-shield-lock"></i> Send OTP');
+            bankOtpVerifying = false;
+            stopOtpCountdown();
+            setBankAccountLoading(false);
+            loadActiveBanksSelect();
+            loadRegisteredAccounts();
+            $('#accountNumbersModal').modal('show');
+        });
+
+        $(document).on('click', '#registeredAccountsTabLink', function() {
+            loadRegisteredAccounts();
+        });
+
+        let bankOtpVerifying = false;
+        let otpCountdownTimer = null;
+
+        function stopOtpCountdown() {
+            if (otpCountdownTimer) {
+                clearInterval(otpCountdownTimer);
+                otpCountdownTimer = null;
+            }
+        }
+
+        function startOtpCountdown(seconds) {
+            stopOtpCountdown();
+            let remaining = seconds;
+            const $badge = $('#otpCountdown');
+
+            function render() {
+                const m = Math.floor(remaining / 60);
+                const s = remaining % 60;
+                $badge.html('<i class="bi bi-clock"></i> ' + m + ':' + String(s).padStart(2, '0'));
+                if (remaining <= 60) {
+                    $badge.css({ background: '#940000', color: '#fff' });
+                } else {
+                    $badge.css({ background: 'whitesmoke', color: '#940000' });
+                }
+            }
+
+            render();
+            otpCountdownTimer = setInterval(function() {
+                remaining--;
+                if (remaining <= 0) {
+                    stopOtpCountdown();
+                    $badge.html('<i class="bi bi-clock"></i> Expired').css({ background: '#940000', color: '#fff' });
+                    $('#regAccountOtp').val('').removeClass('otp-complete otp-invalid');
+                    $('#otpAutoStatus').removeClass('verifying')
+                        .html('<i class="bi bi-exclamation-circle"></i> OTP expired. Click Resend OTP to get a new code.');
+                    return;
+                }
+                render();
+            }, 1000);
+        }
+
+        function setBankAccountLoading(show, message) {
+            $('#bankAccountLoaderText').text(message || 'Please wait...');
+            $('#bankAccountAjaxLoader').toggleClass('show', show);
+            $('#registerAccountPane :input, #registerAccountPane button').prop('disabled', show);
+        }
+
+        function bankAccountError(message) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Action Failed',
+                text: message,
+                confirmButtonColor: '#940000'
+            });
+        }
+
+        function verifyBankAccountOtp() {
+            const otp = $('#regAccountOtp').val().replace(/\D/g, '');
+            const token = $('#regOtpToken').val();
+            if (bankOtpVerifying || otp.length !== 6 || !token) {
+                return;
+            }
+
+            bankOtpVerifying = true;
+            $('#regAccountOtp').removeClass('otp-invalid').addClass('otp-complete');
+            $('#otpAutoStatus').addClass('verifying')
+                .html('<span class="spinner-border spinner-border-sm me-1" role="status"></span> Verifying OTP automatically...');
+            setBankAccountLoading(true, 'Verifying OTP and registering account...');
+
+            $.post('{{ route("fees.bank_accounts.verify_otp") }}', {
+                otp: otp,
+                otp_token: token
+            }, function(res) {
+                if (!res.success) {
+                    bankAccountError(res.message || 'Verification failed.');
+                    return;
+                }
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Account Registered',
+                    text: res.message,
+                    confirmButtonColor: '#940000'
+                });
+                stopOtpCountdown();
+                $('#editBankAccountID').val('');
+                $('#regAccountNumber,#regAccountName,#regAccountOtp,#regOtpToken').val('');
+                $('#regAccountOtp').removeClass('otp-complete otp-invalid');
+                $('#otpSection,#btnVerifyAccountOtp').hide();
+                $('#otpAutoStatus').removeClass('verifying')
+                    .html('<i class="bi bi-lightning-charge"></i> Verification starts automatically after all 6 digits are entered.');
+                loadRegisteredAccounts();
+                $('#registeredAccountsTabLink').tab('show');
+            }).fail(function(xhr) {
+                $('#regAccountOtp').removeClass('otp-complete').addClass('otp-invalid').trigger('focus').select();
+                $('#otpAutoStatus').removeClass('verifying')
+                    .html('<i class="bi bi-exclamation-circle"></i> ' + (xhr.responseJSON?.message || 'Verification failed. Please try again.'));
+                bankAccountError(xhr.responseJSON?.message || 'Verification failed.');
+            }).always(function() {
+                bankOtpVerifying = false;
+                setBankAccountLoading(false);
+            });
+        }
+
+        $(document).on('click', '#btnSendAccountOtp', function() {
+            const $btn = $(this).prop('disabled', true);
+            setBankAccountLoading(true, 'Sending a secure OTP to the school phone...');
+            $.post('{{ route("fees.bank_accounts.send_otp") }}', {
+                bankID: $('#regBankID').val(),
+                account_number: $('#regAccountNumber').val(),
+                account_name: $('#regAccountName').val(),
+                accountID: $('#editBankAccountID').val() || null
+            }, function(res) {
+                if (res.success) {
+                    $('#regOtpToken').val(res.otp_token);
+                    $('#otpMaskedPhone').text(res.masked_phone || '');
+                    $('#otpSection,#btnVerifyAccountOtp').show();
+                    $('#regAccountOtp').val('').removeClass('otp-complete otp-invalid');
+                    $('#otpAutoStatus').removeClass('verifying')
+                        .html('<i class="bi bi-lightning-charge"></i> Verification starts automatically after all 6 digits are entered.');
+                    $btn.html('<i class="bi bi-arrow-clockwise"></i> Resend OTP');
+                    startOtpCountdown(10 * 60);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'OTP Sent',
+                        text: res.message,
+                        confirmButtonColor: '#940000',
+                        didClose: function() { $('#regAccountOtp').trigger('focus'); }
+                    });
+                } else {
+                    bankAccountError(res.message || 'Failed to send OTP.');
+                }
+            }).fail(function(xhr) {
+                bankAccountError(xhr.responseJSON?.message || 'Failed to send OTP.');
+            }).always(function() {
+                setBankAccountLoading(false);
+                $btn.prop('disabled', false);
+            });
+        });
+
+        $(document).on('click', '#btnVerifyAccountOtp', function() {
+            verifyBankAccountOtp();
+        });
+
+        $(document).on('input', '#regAccountOtp', function() {
+            const digits = $(this).val().replace(/\D/g, '').slice(0, 6);
+            $(this).val(digits).removeClass('otp-invalid');
+            if (digits.length < 6) {
+                $(this).removeClass('otp-complete');
+                $('#otpAutoStatus').removeClass('verifying')
+                    .html('<i class="bi bi-lightning-charge"></i> Verification starts automatically after all 6 digits are entered.');
+                return;
+            }
+
+            $(this).addClass('otp-complete');
+            window.setTimeout(verifyBankAccountOtp, 250);
+        });
+
+        $(document).on('click', '.btn-edit-bank-acc', function() {
+            $('#editBankAccountID').val($(this).data('id'));
+            $('#regBankID').val($(this).data('bank'));
+            $('#regAccountNumber').val($(this).data('number'));
+            $('#regAccountName').val($(this).data('name') || '');
+            $('#otpSection,#btnVerifyAccountOtp').hide();
+            $('#regAccountOtp,#regOtpToken').val('');
+            $('#regAccountOtp').removeClass('otp-complete otp-invalid');
+            $('#btnSendAccountOtp').html('<i class="bi bi-shield-lock"></i> Send OTP');
+            stopOtpCountdown();
+            $('a[href="#registerAccountPane"]').tab('show');
+            Swal.fire({ icon: 'info', title: 'Edit Account', text: 'Update details then Send OTP again. Status will return to pending after verification.', confirmButtonColor: '#940000' });
+        });
+
+        $(document).on('click', '.btn-del-bank-acc', function() {
+            const id = $(this).data('id');
+            Swal.fire({
+                title: 'Delete account?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                confirmButtonText: 'Yes, delete'
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                $.ajax({
+                    url: '{{ url("fees/bank_accounts") }}/' + id,
+                    method: 'DELETE',
+                    success: function(res) {
+                        if (res.success) {
+                            loadRegisteredAccounts();
+                            Swal.fire({ icon: 'success', title: 'Deleted', timer: 1200, showConfirmButton: false });
+                        } else {
+                            Swal.fire('Error', res.message || 'Failed', 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Error', xhr.responseJSON?.message || 'Failed', 'error');
+                    }
+                });
+            });
+        });
+
+        // ── Multi Account Fee form ──
+        let multiFeeRowCounter = 0;
+        let openMultiConditionsAfterLoad = false;
+
+        function approvedAccountOptionsHtml(selected) {
+            let html = '<option value="">Select approved account...</option>';
+            (approvedAccountsCache || []).forEach(function(a) {
+                html += '<option value="' + a.accountID + '"' + (String(selected) === String(a.accountID) ? ' selected' : '') + '>' + a.display_label + '</option>';
+            });
+            return html;
+        }
+
+        function refreshApprovedAccountsCache(cb) {
+            $.get('{{ route("fees.approved_bank_accounts") }}', function(res) {
+                if (res.success) approvedAccountsCache = res.accounts || [];
+                if (typeof cb === 'function') cb();
+            });
+        }
+
+        function createMultiFeeRow() {
+            multiFeeRowCounter++;
+            const idx = multiFeeRowCounter;
+            return `
+                <div class="multi-fee-row card border-primary-custom mb-3" data-fee-index="${idx}">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <strong><i class="bi bi-receipt"></i> Multi Fee #${idx}</strong>
+                        <button type="button" class="btn btn-sm btn-danger remove-multi-fee-row" ${idx === 1 ? 'style="display:none;"' : ''}><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Fee Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control multi-fee-name" name="fees[${idx}][name]" placeholder="e.g. Tuition Fee" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Bank Account <span class="text-danger">*</span></label>
+                                <select class="form-select multi-fee-account" name="fees[${idx}][bank_account_id]" required>${approvedAccountOptionsHtml()}</select>
+                                <small class="text-muted">Only approved accounts are listed</small>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input multi-breakdown-toggle" type="checkbox" id="multi_bd_${idx}" data-fee-index="${idx}">
+                                    <label class="form-check-label fw-bold" for="multi_bd_${idx}">Sub-fee Breakdown</label>
+                                </div>
+                                <input type="hidden" name="fees[${idx}][has_breakdown]" class="multi-has-breakdown" value="0">
+                            </div>
+                            <div class="col-md-6 multi-amount-wrap">
+                                <label class="form-label fw-bold small">Amount (TZS) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control multi-fee-amount" name="fees[${idx}][amount]" min="0" step="0.01" required>
+                            </div>
+                            <div class="col-12 multi-breakdown-wrap" style="display:none;">
+                                <div class="border p-2" style="background:#fafafa;">
+                                    <div class="multi-breakdown-items" data-fee-index="${idx}"></div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary-custom mt-2 add-breakdown-item" data-fee-index="${idx}"><i class="bi bi-plus"></i> Add Breakdown Item</button>
+                                    <div class="mt-2 small">Breakdown total: <strong class="multi-bd-total text-primary-custom">0</strong>/=</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold small">Description</label>
+                                <textarea class="form-control" name="fees[${idx}][description]" rows="1"></textarea>
+                            </div>
+                            <div class="col-12">
+                                <hr>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input condition-toggle" type="checkbox"
+                                        data-fee-index="${idx}" id="multi_condition_toggle_${idx}">
+                                    <label class="form-check-label fw-bold" for="multi_condition_toggle_${idx}">
+                                        <i class="bi bi-tags-fill text-primary-custom"></i> Define Fee Conditions (Discounts)
+                                    </label>
+                                </div>
+                                <small class="text-muted">Define a discount condition for this specific fee. Assigned students will receive a control number with the reduced amount.</small>
+                            </div>
+                            <div class="col-12 condition-details" style="display:none;">
+                                <div class="card border-primary-custom">
+                                    <div class="card-body">
+                                        <div class="conditions-container" id="multi_conditions_container_${idx}"></div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary-custom mt-2 add-condition-row-btn" data-fee-index="${idx}">
+                                            <i class="bi bi-plus-circle-fill"></i> Add New Condition
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center p-2 border" style="background:whitesmoke;border-left:4px solid #940000 !important;">
+                                    <span class="small fw-bold">Fee Total <small class="text-muted">(control number amount)</small></span>
+                                    <strong class="multi-fee-row-total" style="color:#940000;font-size:1.05rem;">TZS 0.00</strong>
+                                </div>
+                            </div>
+                            <input type="hidden" name="fees[${idx}][account_mode]" value="multi">
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function rowTotal($row) {
+            if ($row.find('.multi-breakdown-toggle').is(':checked')) {
+                let t = 0;
+                $row.find('.bd-item-amount').each(function() { t += parseFloat($(this).val()) || 0; });
+                return t;
+            }
+            return parseFloat($row.find('.multi-fee-amount').val()) || 0;
+        }
+
+        function fmtTZS(n) {
+            return 'TZS ' + n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        function calcMultiTotal() {
+            let total = 0;
+            $('#multi_fees_rows .multi-fee-row').each(function() {
+                const $row = $(this);
+                const t = rowTotal($row);
+                $row.find('.multi-fee-row-total').text(fmtTZS(t));
+                total += t;
+            });
+            $('#multi_total_fees_display').text(fmtTZS(total));
+        }
+
+        function syncBreakdownTotal($row) {
+            let t = 0;
+            $row.find('.bd-item-amount').each(function() { t += parseFloat($(this).val()) || 0; });
+            $row.find('.multi-bd-total').text(t.toLocaleString());
+            $row.find('.multi-fee-amount').val(t.toFixed(2));
+            calcMultiTotal();
+        }
+
+        $('#addMultiFeeModal').on('shown.bs.modal', function() {
+            refreshApprovedAccountsCache(function() {
+                if ($('#multi_fees_rows').children().length === 0) {
+                    $('#multi_fees_rows').html(createMultiFeeRow());
+                } else {
+                    $('#multi_fees_rows .multi-fee-account').each(function() {
+                        const v = $(this).val();
+                        $(this).html(approvedAccountOptionsHtml(v));
+                    });
+                }
+                calcMultiTotal();
+            });
+        });
+        $('#addMultiFeeModal').on('hidden.bs.modal', function() {
+            multiFeeRowCounter = 0;
+            $('#multi_fees_rows').empty();
+            $('#addMultiFeeForm')[0].reset();
+            $('#multi_fee_classID').removeClass('is-invalid');
+            $('#multiClassModeConflict').hide().text('');
+            $('#addMultiFeeForm button[type="submit"]').prop('disabled', false);
+            $('#addMultiFeeModal .modal-title').html('<i class="bi bi-bank"></i> Create Multi Account Fee');
+        });
+        $(document).on('click', '#add_multi_fee_row_btn', function() {
+            $('#multi_fees_rows').append(createMultiFeeRow());
+            calcMultiTotal();
+        });
+        $(document).on('click', '.remove-multi-fee-row', function() {
+            $(this).closest('.multi-fee-row').remove();
+            calcMultiTotal();
+        });
+        $(document).on('change', '.multi-breakdown-toggle', function() {
+            const $row = $(this).closest('.multi-fee-row');
+            const on = $(this).is(':checked');
+            $row.find('.multi-has-breakdown').val(on ? '1' : '0');
+            $row.find('.multi-breakdown-wrap').toggle(on);
+            $row.find('.multi-amount-wrap').toggle(!on);
+            $row.find('.multi-fee-amount').prop('readonly', on).prop('required', !on);
+            // Hidden required breakdown inputs silently block native form submission,
+            // so disable them (also excludes them from serialization) when toggle is OFF.
+            $row.find('.multi-breakdown-wrap :input').prop('disabled', !on);
+            if (on && $row.find('.bd-item-row').length === 0) {
+                $row.find('.add-breakdown-item').trigger('click');
+            }
+            if (on) syncBreakdownTotal($row); else calcMultiTotal();
+        });
+        $(document).on('click', '.add-breakdown-item', function() {
+            const idx = $(this).data('fee-index');
+            const bi = Date.now() + Math.floor(Math.random() * 1000);
+            const html = `<div class="row g-2 mb-2 bd-item-row align-items-end">
+                <div class="col-md-6"><input type="text" class="form-control form-control-sm" name="fees[${idx}][breakdowns][${bi}][item_name]" placeholder="e.g. Examination" required></div>
+                <div class="col-md-5"><input type="number" class="form-control form-control-sm bd-item-amount" name="fees[${idx}][breakdowns][${bi}][amount]" min="0" step="0.01" placeholder="Amount" required></div>
+                <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger remove-bd-item"><i class="bi bi-x"></i></button></div>
+            </div>`;
+            $(this).siblings('.multi-breakdown-items').append(html);
+        });
+        $(document).on('click', '.remove-bd-item', function() {
+            const $row = $(this).closest('.multi-fee-row');
+            $(this).closest('.bd-item-row').remove();
+            syncBreakdownTotal($row);
+        });
+        $(document).on('input', '.multi-fee-amount, .bd-item-amount', function() {
+            const $row = $(this).closest('.multi-fee-row');
+            if ($row.find('.multi-breakdown-toggle').is(':checked')) syncBreakdownTotal($row);
+            else calcMultiTotal();
+        });
+
+        $('#addMultiFeeForm').on('submit', function(e) {
+            e.preventDefault();
+            if (!validateFeeClassMode(
+                '#multi_fee_classID',
+                'multi',
+                '#multiClassModeConflict',
+                '#addMultiFeeForm'
+            )) {
+                return;
+            }
+            if (!approvedAccountsCache.length) {
+                Swal.fire('No approved accounts', 'Register and get at least one bank account approved first.', 'warning');
+                return;
+            }
+            const $form = $(this);
+            const submitBtn = $form.find('button[type="submit"]').prop('disabled', true);
+            showOverlay('Saving multi account fees...');
+            $.ajax({
+                url: '{{ route("store_fee") }}',
+                method: 'POST',
+                data: $form.serialize() + '&account_mode=multi',
+                success: function(res) {
+                    hideOverlay();
+                    if (res.success) {
+                        Swal.fire({ icon: 'success', title: 'Success', text: res.message, confirmButtonColor: '#940000' })
+                            .then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', res.message || 'Failed', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    hideOverlay();
+                    Swal.fire('Error', xhr.responseJSON?.message || 'Failed to save', 'error');
+                },
+                complete: function() { submitBtn.prop('disabled', false); }
+            });
+        });
+
+        $(document).on('click', '.manage-multi-condition-btn', function() {
+            openMultiConditionsAfterLoad = true;
+            $('.edit-multi-fee-btn[data-fee-id="' + $(this).data('fee-id') + '"]').trigger('click');
+        });
+
+        $(document).on('click', '.edit-multi-fee-btn', function() {
+            const feeID = $(this).data('fee-id');
+            // Reuse get_fee then open multi modal prefilled simply via edit flow redirect to single edit for now if get_fee returns multi fields
+            $.get('{{ url("get_fee") }}/' + feeID, function(res) {
+                if (!res.success || !res.fee) {
+                    Swal.fire('Error', 'Fee not found', 'error');
+                    return;
+                }
+                const fee = res.fee;
+                $('#multi_fees_rows').empty();
+                multiFeeRowCounter = 0;
+                refreshApprovedAccountsCache(function() {
+                    $('#multi_fees_rows').html(createMultiFeeRow());
+                    const $row = $('#multi_fees_rows .multi-fee-row').first();
+                    $('#multi_fee_classID').val(fee.classID);
+                    $('#multi_fee_duration').val(fee.duration || 'Year');
+                    $row.find('.multi-fee-name').val(fee.fee_name);
+                    $row.find('.multi-fee-account').val(fee.bank_account_id);
+                    $row.find('.multi-fee-amount').val(fee.amount);
+                    $row.append('<input type="hidden" name="edit_feeID" value="' + fee.feeID + '">');
+                    const activeConditions = (fee.fee_conditions || []).filter(function(c) {
+                        return c.status === 'Active';
+                    });
+                    if (activeConditions.length) {
+                        const $conditionToggle = $row.find('.condition-toggle');
+                        $conditionToggle.prop('checked', true).trigger('change');
+                        const $container = $row.find('.conditions-container').empty();
+                        activeConditions.forEach(function(condition) {
+                            $container.append(createEditConditionRow(condition, 1, true));
+                        });
+                    }
+                    if (fee.has_breakdown && fee.breakdowns && fee.breakdowns.length) {
+                        $row.find('.multi-breakdown-toggle').prop('checked', true).trigger('change');
+                        $row.find('.multi-breakdown-items').empty();
+                        fee.breakdowns.forEach(function(bd) {
+                            const bi = bd.breakdownID || (Date.now() + Math.floor(Math.random() * 1000));
+                            $row.find('.multi-breakdown-items').append(
+                                `<div class="row g-2 mb-2 bd-item-row align-items-end">
+                                    <div class="col-md-6"><input type="text" class="form-control form-control-sm" name="fees[1][breakdowns][${bi}][item_name]" value="${bd.item_name}" required></div>
+                                    <div class="col-md-5"><input type="number" class="form-control form-control-sm bd-item-amount" name="fees[1][breakdowns][${bi}][amount]" value="${bd.amount}" min="0" step="0.01" required></div>
+                                    <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger remove-bd-item"><i class="bi bi-x"></i></button></div>
+                                </div>`
+                            );
+                        });
+                        syncBreakdownTotal($row);
+                    }
+                    $('#addMultiFeeModal .modal-title').html('<i class="bi bi-bank"></i> Edit Multi Account Fee');
+                    $('#addMultiFeeModal').modal('show');
+                    if (openMultiConditionsAfterLoad) {
+                        openMultiConditionsAfterLoad = false;
+                        window.setTimeout(function() {
+                            const $toggle = $row.find('.condition-toggle');
+                            if (!$toggle.is(':checked')) {
+                                $toggle.prop('checked', true).trigger('change');
+                            }
+                            $row.find('.condition-details')[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 400);
+                    }
+                });
+            });
+        });
 
         // ==================== NEW FEE STRUCTURE LOGIC ====================
         
@@ -1228,46 +3049,6 @@
                                 <textarea class="form-control fee-description" name="fees[${feeRowCounter}][description]" rows="2" placeholder="Fee description (optional)"></textarea>
                             </div>
                             
-                            <!-- Must Start Pay Toggle -->
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input must-start-pay-toggle" type="checkbox" name="fees[${feeRowCounter}][must_start_pay]" id="must_pay_${feeRowCounter}" value="1">
-                                    <label class="form-check-label fw-bold" for="must_pay_${feeRowCounter}">
-                                        <i class="bi bi-exclamation-triangle text-warning"></i> Must Pay to Start
-                                    </label>
-                                </div>
-                                <small class="text-muted">Student cannot start school until this fee is paid</small>
-                            </div>
-                            
-                            <!-- Payment Deadline (Optional) -->
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input deadline-toggle" type="checkbox" id="deadline_toggle_${feeRowCounter}">
-                                    <label class="form-check-label fw-bold" for="deadline_toggle_${feeRowCounter}">
-                                        Set Deadline
-                                    </label>
-                                </div>
-                                <small class="text-muted">Parents must pay a certain amount by a date</small>
-                            </div>
-                            
-                            <!-- Deadline Details (Hidden by default) -->
-                            <div class="col-12 deadline-details" style="display: none;">
-                                <div class="card border-warning">
-                                    <div class="card-body">
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label class="form-label fw-bold small">Required Amount (TZS)</label>
-                                                <input type="number" class="form-control fee-deadline-amount" name="fees[${feeRowCounter}][deadline_amount]" placeholder="0.00" step="0.01" min="0">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label fw-bold small">Deadline Date</label>
-                                                <input type="date" class="form-control fee-deadline-date" name="fees[${feeRowCounter}][deadline_date]">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Multi-Condition Section -->
                             <div class="col-md-12">
                                 <hr>
@@ -1312,6 +3093,10 @@
             $('#fees_rows').empty();
             $('#addFeeForm')[0].reset();
             $('#total_fees_display').text('TZS 0.00');
+            $('#fee_class_select').removeClass('is-invalid');
+            $('#single_fee_bank_account').val('');
+            $('#singleClassModeConflict').hide().text('');
+            $('#addFeeForm button[type="submit"]').prop('disabled', false);
         });
         
         // Add Fee Row
@@ -1365,26 +3150,29 @@
         // Toggle Condition Details
         $(document).on('change', '.condition-toggle', function() {
             const feeRow = $(this).closest('.fee-row');
+            const multiFeeRow = $(this).closest('.multi-fee-row');
+            const targetRow = feeRow.length ? feeRow : multiFeeRow;
             const feeIndex = $(this).attr('data-fee-index');
-            const conditionDetails = feeRow.find('.condition-details');
-            const container = $(`#conditions_container_${feeIndex}`);
+            const conditionDetails = targetRow.find('.condition-details');
+            const container = targetRow.find('.conditions-container');
             
             if ($(this).is(':checked')) {
                 conditionDetails.slideDown();
                 if (container.children().length === 0) {
                     container.append(createConditionRow(feeIndex));
                 }
+                conditionDetails.find(':input').prop('disabled', false);
             } else {
                 conditionDetails.slideUp();
-                // Optional: Clear conditions if unchecked
-                // container.empty();
+                // Hidden required inputs must not block native form submission.
+                conditionDetails.find(':input').prop('disabled', true);
             }
         });
 
         // Add Condition Row
         $(document).on('click', '.add-condition-row-btn', function() {
             const feeIndex = $(this).attr('data-fee-index');
-            const container = $(`#conditions_container_${feeIndex}`);
+            const container = $(this).siblings('.conditions-container');
             container.append(createConditionRow(feeIndex));
         });
 
@@ -1726,13 +3514,24 @@
     $('#addFeeForm').on('submit', function(e) {
         e.preventDefault();
 
+        if (!validateFeeClassMode(
+            '#fee_class_select',
+            'single',
+            '#singleClassModeConflict',
+            '#addFeeForm'
+        )) {
+            return;
+        }
+
         // Ensure checkbox values are properly set
         $('#allow_installments').val($('#allow_installments').is(':checked') ? 1 : 0);
         $('#allow_partial_payment').val($('#allow_partial_payment').is(':checked') ? 1 : 0);
         
         // Collect checkboxes status as numeric values
-        const allowInstallmentsCheckbox = $('#allow_installments').is(':checked') ? 1 : 0;
-        const allowPartialCheckbox = $('#allow_partial_payment').is(':checked') ? 1 : 0;
+        // New single-account fees use fixed defaults: yearly, partial payments
+        // allowed, and no installment plan.
+        const allowInstallmentsCheckbox = 0;
+        const allowPartialCheckbox = 1;
         
         let formData = $(this).serializeArray();
         
@@ -1960,23 +3759,26 @@
     });
 
         // Condition row for edit modal
-        function createEditConditionRow(condition = null) {
+        function createEditConditionRow(condition = null, feeIndex = null, nestedInFee = false) {
             const condId = condition ? condition.conditionID : (Date.now() + Math.floor(Math.random() * 1000));
+            const prefix = nestedInFee
+                ? `fees[${feeIndex}][conditions][${condId}]`
+                : `conditions[${condId}]`;
             return `
                 <div class="condition-row bg-white p-3 border rounded-0 mb-3" data-cond-id="${condId}">
-                    <input type="hidden" name="conditions[${condId}][id]" value="${condition ? condition.conditionID : ''}">
+                    <input type="hidden" name="${prefix}[id]" value="${condition ? condition.conditionID : ''}">
                     <div class="row g-2 align-items-end mb-2">
                         <div class="col-md-5">
                             <label class="form-label mb-1 fw-bold small text-primary-custom">Condition Name *</label>
-                            <input type="text" class="form-control form-control-sm" name="conditions[${condId}][name]" value="${condition ? condition.condition_name : ''}" required>
+                            <input type="text" class="form-control form-control-sm" name="${prefix}[name]" value="${condition ? condition.condition_name : ''}" required>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label mb-1 fw-bold small text-primary-custom">Amount *</label>
-                            <input type="number" class="form-control form-control-sm" name="conditions[${condId}][amount]" value="${condition ? condition.discount_amount : ''}" step="0.01" min="0" required>
+                            <input type="number" class="form-control form-control-sm" name="${prefix}[amount]" value="${condition ? condition.discount_amount : ''}" step="0.01" min="0" required>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label mb-1 fw-bold small text-primary-custom">Type</label>
-                            <select class="form-select form-select-sm" name="conditions[${condId}][type]">
+                            <select class="form-select form-select-sm" name="${prefix}[type]">
                                 <option value="Fixed" ${condition && condition.discount_type === 'Fixed' ? 'selected' : ''}>Fixed</option>
                                 <option value="Percentage" ${condition && condition.discount_type === 'Percentage' ? 'selected' : ''}>Percentage</option>
                             </select>
@@ -1990,7 +3792,7 @@
                     <div class="row g-2">
                         <div class="col-12">
                             <label class="form-label mb-1 fw-bold small text-primary-custom">Description (Optional)</label>
-                            <textarea class="form-control form-control-sm" name="conditions[${condId}][description]" rows="1" placeholder="Why this discount?">${condition ? (condition.description || '') : ''}</textarea>
+                            <textarea class="form-control form-control-sm" name="${prefix}[description]" rows="1" placeholder="Why this discount?">${condition ? (condition.description || '') : ''}</textarea>
                         </div>
                     </div>
                 </div>
@@ -2008,6 +3810,7 @@
                 const fee = response.fee;
                 $('#edit_fee_id').val(fee.feeID);
                 $('#edit_fee_class_select').val(fee.classID);
+                $('#edit_single_fee_bank_account').val(fee.bank_account_id || '');
                 $('#edit_fee_name').val(fee.fee_name);
                 $('#edit_must_start_pay').prop('checked', fee.must_start_pay == 1);
                 $('#edit_fee_amount').val(fee.amount);
@@ -2031,19 +3834,7 @@
                     $('#edit_conditions_details').hide();
                 }
                 
-                // Handle installments checkbox
                 $('#edit_fee_description').val(fee.description || '');
-                
-                if (fee.allow_installments) {
-                    $('#edit_allow_installments').prop('checked', true);
-                    $('#edit_installment_options').show();
-                    $('#edit_default_installment_type').val(fee.default_installment_type);
-                    $('#edit_number_of_installments').val(fee.number_of_installments);
-                } else {
-                    $('#edit_allow_installments').prop('checked', false);
-                    $('#edit_installment_options').hide();
-                }
-                
                 $('#editFeeModal').modal('show');
             }
         }).fail(function() {
@@ -2079,38 +3870,17 @@
     // Edit Fee Form Submission
     $('#editFeeForm').on('submit', function(e) {
         e.preventDefault();
-        
-        // Validate installment amounts match total fee
-        const totalAmount = parseFloat($('#edit_fee_amount').val()) || 0;
-        const allowInstallments = $('#edit_allow_installments').is(':checked');
-        const numberOfInstallments = parseInt($('#edit_number_of_installments').val()) || 0;
-        
-        if (allowInstallments && numberOfInstallments > 0) {
-            const calculatedTotal = (totalAmount / numberOfInstallments) * numberOfInstallments;
-            const difference = Math.abs(calculatedTotal - totalAmount);
-            
-            if (difference > 0.01) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Validation Error',
-                    text: 'Installment amounts do not match the total fee amount. Please check your calculations.',
-                    confirmButtonColor: '#940000'
-                });
-                return;
-            }
+
+        if (!validateFeeClassMode(
+            '#edit_fee_class_select',
+            'single',
+            '#editSingleClassModeConflict',
+            '#editFeeForm'
+        )) {
+            return;
         }
         
-        // Collect checkboxes status as numeric values
-        const allowInstallmentsCheckbox = $('#edit_allow_installments').is(':checked') ? 1 : 0;
-        const allowPartialCheckbox = $('#edit_allow_partial_payment').is(':checked') ? 1 : 0;
-        const mustStartPayCheckbox = $('#edit_must_start_pay').is(':checked') ? 1 : 0;
-        
         let formData = $(this).serializeArray();
-        
-        // Ensure checkboxes are present in form data even if unchecked
-        formData.push({name: 'allow_installments', value: allowInstallmentsCheckbox});
-        formData.push({name: 'allow_partial_payment', value: allowPartialCheckbox});
-        formData.push({name: 'must_start_pay', value: mustStartPayCheckbox});
 
         const feeID = $('#edit_fee_id').val();
         const submitBtn = $(this).find('button[type="submit"]');
@@ -2828,6 +4598,14 @@
             $('#agreementModal').modal('show');
         });
 
+        $(document).on('click', '.manage-multi-agreement-btn', function() {
+            const classID = $(this).data('class-id');
+            $('#agreementModal').modal('show');
+            window.setTimeout(function() {
+                $('#agreement_class_select').val(String(classID)).trigger('change');
+            }, 250);
+        });
+
         $('#agreement_class_select').on('change', function() {
             const classID = $(this).val();
             if (!classID) {
@@ -2928,6 +4706,9 @@
                                                 <div class="d-flex align-items-center">
                                                     <i class="bi ${ag ? 'bi-caret-down-fill text-dark' : 'bi-caret-right-fill text-primary-custom'} me-2 fee-caret"></i>
                                                     <span class="small fw-bold text-dark">${fee.fee_name}</span>
+                                                    <span class="badge ms-2 ${fee.account_mode === 'multi' ? 'bg-primary-custom text-white' : 'bg-light text-dark border'}">
+                                                        ${fee.account_mode === 'multi' ? 'Multi Account' : 'Single Account'}
+                                                    </span>
                                                 </div>
                                                 <span class="badge bg-light text-dark border extra-small">Std: TZS ${parseFloat(fee.amount).toLocaleString()}</span>
                                             </div>
@@ -2937,13 +4718,17 @@
                                                     <span class="input-group-text bg-white text-primary-custom border-primary-custom fw-bold">Agreed Amount (TZS)</span>
                                                     <input type="number" class="form-control border-primary-custom agreed-amount-input" 
                                                            data-student-id="${student.studentID}" 
-                                                           data-fee-id="${fee.feeID}" 
+                                                           data-fee-id="${fee.feeID}"
+                                                           data-had-agreement="${ag ? '1' : '0'}"
                                                            placeholder="Enter negotiated amount..." 
                                                            value="${amount}"
                                                            min="0" step="1000">
                                                 </div>
                                                 <div class="d-flex justify-content-between align-items-center mt-2">
-                                                    <small class="text-muted extra-small"><i class="bi bi-info-circle me-1"></i> Custom price for this student only.</small>
+                                                    <small class="text-muted extra-small">
+                                                        <i class="bi bi-info-circle me-1"></i>
+                                                        Custom price for this student only.${fee.account_mode === 'multi' && fee.account_display ? ' Control number account: ' + fee.account_display + '.' : ''}
+                                                    </small>
                                                     <button type="button" class="btn btn-sm btn-link text-danger p-0 extra-small clear-agreement-btn">Clear</button>
                                                 </div>
                                             </div>
@@ -3029,11 +4814,21 @@
             const agreements = [];
             $('.agreed-amount-input').each(function() {
                 const val = $(this).val();
+                const hadAgreement = String($(this).data('had-agreement') || '0') === '1';
                 if (val !== '' && val !== null) {
                     agreements.push({
                         studentID: $(this).data('student-id'),
                         feeID: $(this).data('fee-id'),
-                        amount: val
+                        amount: val,
+                        clear: 0
+                    });
+                } else if (hadAgreement) {
+                    // Cleared input for a previously saved agreement
+                    agreements.push({
+                        studentID: $(this).data('student-id'),
+                        feeID: $(this).data('fee-id'),
+                        amount: '',
+                        clear: 1
                     });
                 }
             });
@@ -3055,8 +4850,7 @@
                 data: {
                     _token: "{{ csrf_token() }}",
                     classID: $('#agreement_class_select').val(),
-                    agreements: agreements,
-                    schoolID: "{{ session('schoolID') }}"
+                    agreements: agreements
                 },
                 success: function(response) {
                     hideOverlay();

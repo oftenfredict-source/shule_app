@@ -156,6 +156,12 @@
                         <a href="{{ route('superadmin.parent_fingerprint_portal') }}" class="btn btn-sm btn-outline-dark text-start">
                             <i class="bx bx-fingerprint me-2"></i> Parent Fingerprint Portal
                         </a>
+                        <a href="{{ route('superadmin.banks.index') }}" class="btn btn-sm btn-outline-dark text-start">
+                            <i class="bx bx-buildings me-2"></i> Bank Registration
+                        </a>
+                        <a href="{{ route('superadmin.bank_accounts.verification') }}" class="btn btn-sm btn-outline-dark text-start">
+                            <i class="bx bx-check-shield me-2"></i> Account Verification
+                        </a>
                     </div>
                 </div>
             </div>

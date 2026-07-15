@@ -1207,6 +1207,15 @@ class TeachersController extends Controller
                 ->first();
         }
 
+        $teacherTodayAttendance = ['statistics' => [], 'daily_record' => null];
+        if ($teacherID && Session::get("schoolID")) {
+            $teacherTodayAttendance = app(ManageAttendanceController::class)
+                ->teacherTodayAttendanceSummary(
+                    (int) Session::get("schoolID"),
+                    (int) $teacherID,
+                );
+        }
+
         return view(
             "Teacher.dashboard",
             compact(
@@ -1224,6 +1233,7 @@ class TeachersController extends Controller
                 "managementPermissions",
                 "isOnDuty",
                 "tangeTeacher",
+                "teacherTodayAttendance",
             ),
         );
     }

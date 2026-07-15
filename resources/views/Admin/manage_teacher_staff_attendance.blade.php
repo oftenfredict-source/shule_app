@@ -1447,11 +1447,14 @@
 
     function formatAmPm(timeStr) {
         if (!timeStr) return '';
-        var parts = String(timeStr).trim().split(':');
-        if (parts.length < 2) return timeStr;
-        var h = parseInt(parts[0], 10);
-        var m = parts[1];
-        if (isNaN(h)) return timeStr;
+        // Values may arrive as full datetimes (e.g. "2026-07-15 07:23:45");
+        // extract only the time portion so the hour is parsed correctly.
+        var str = String(timeStr).trim();
+        var timeMatch = str.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*$/);
+        if (!timeMatch) return timeStr;
+        var h = parseInt(timeMatch[1], 10);
+        var m = timeMatch[2];
+        if (isNaN(h) || h > 23) return timeStr;
         var ampm = h >= 12 ? 'PM' : 'AM';
         var hr12 = h % 12;
         if (hr12 === 0) hr12 = 12;

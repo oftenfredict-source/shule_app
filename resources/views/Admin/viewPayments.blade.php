@@ -85,10 +85,34 @@
         background-color: #FFF5F5 !important;
     }
 
-    /* Statistics Backgrounds */
+    /* Statistics Backgrounds — whitesmoke + #940000 like manage_student */
     .stat-card-accent {
-        background-color: #FFF5F5 !important;
+        background-color: whitesmoke !important;
+        border: 1px solid #ececec !important;
         border-left: 4px solid #940000 !important;
+        transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .stat-card-accent:hover {
+        border-color: #d8d8d8 !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+    }
+    .stat-card-accent h4, .stat-card-accent h3 {
+        color: #940000 !important;
+        font-weight: 700;
+    }
+    .stat-card-accent h6 {
+        color: #666 !important;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .payment-section-title {
+        font-weight: 600;
+        margin-bottom: 0;
+        color: #940000;
+        font-size: 1.05rem;
+        font-family: "Century Gothic", Arial, sans-serif;
     }
 
     .student-photo {
@@ -117,10 +141,197 @@
         color: #940000;
     }
     #paymentsTable th {
-        background-color: #FFF5F5;
+        background-color: whitesmoke;
         color: #940000;
         font-weight: bold;
         border-bottom: 2px solid #940000;
+    }
+    #paymentsTable tbody tr:hover {
+        background-color: whitesmoke;
+    }
+
+    /* Payments list / grid toggle */
+    .payment-view-toggle .btn.active {
+        background-color: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+        font-weight: 700;
+    }
+    .payment-data-wrapper .payment-grid-view { display: none; }
+    .payment-data-wrapper[data-active-view="list"] .payment-list-view { display: block !important; }
+    .payment-data-wrapper[data-active-view="list"] .payment-grid-view { display: none !important; }
+    .payment-data-wrapper[data-active-view="grid"] .payment-list-view { display: none !important; }
+    .payment-data-wrapper[data-active-view="grid"] .payment-grid-view { display: block !important; }
+
+    .payment-grid-search-wrap {
+        width: 100%;
+        margin-bottom: 14px;
+    }
+    .payment-grid-search-wrap .form-control {
+        width: 100%;
+        border-radius: 0 !important;
+        padding: 10px 14px;
+        border: 1px solid #dee2e6;
+    }
+    .payment-grid-search-wrap .form-control:focus {
+        border-color: #940000;
+        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
+    }
+
+    .payments-widget-grid {
+        display: flex;
+        flex-wrap: wrap;
+        margin-left: -8px;
+        margin-right: -8px;
+    }
+    .payments-widget-grid > [class*="col-"] {
+        padding-left: 8px;
+        padding-right: 8px;
+        margin-bottom: 16px;
+    }
+
+    .payment-student-widget {
+        width: 100%;
+        background: #ffffff;
+        border: 1px solid #dee2e6;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .payment-student-widget-header {
+        background: #940000;
+        padding: 16px;
+        text-align: center;
+        position: relative;
+    }
+    .payment-student-widget-header img,
+    .payment-student-widget-header .payment-grid-photo-placeholder {
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid rgba(255,255,255,0.35);
+        background: #fff;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: 700;
+        color: #fff;
+    }
+    .payment-student-widget-body {
+        padding: 14px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    .payment-student-widget-body h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0 0 4px;
+        color: #222;
+        line-height: 1.3;
+    }
+    .payment-student-widget-body .pay-class {
+        color: #940000;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+    }
+    .payment-student-widget-body .pay-meta {
+        font-size: 0.84rem;
+        color: #555;
+        margin-bottom: 4px;
+    }
+    .payment-student-widget-body .pay-amounts {
+        margin-top: 8px;
+        padding-top: 10px;
+        border-top: 1px solid #f0f0f0;
+        font-size: 0.84rem;
+    }
+    .payment-student-widget-actions {
+        margin-top: auto;
+        padding-top: 12px;
+    }
+    .payment-grid-empty {
+        border: 1px dashed #dee2e6;
+        padding: 2rem 1rem;
+        text-align: center;
+        color: #6c757d;
+        width: 100%;
+    }
+
+    /* Actions toggle dropdown (three dots) — same pattern as manage_student */
+    .payment-action-dropdown {
+        display: inline-block;
+        position: relative;
+    }
+    .payment-action-toggle {
+        padding: 4px 12px;
+        color: #555;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        line-height: 1.2;
+        border-radius: 0;
+        cursor: pointer;
+    }
+    .payment-action-toggle:hover,
+    .payment-action-dropdown.show .payment-action-toggle {
+        background: whitesmoke;
+        color: #940000;
+        border-color: #ccc;
+    }
+    .payment-action-dropdown .dropdown-menu {
+        min-width: 200px;
+        padding: 4px 0;
+        font-size: 0.875rem;
+        border-radius: 0;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+        display: none;
+        position: absolute;
+        right: 0;
+        left: auto;
+        top: 100%;
+        z-index: 1050;
+        background: #fff;
+        margin-top: 2px;
+    }
+    .payment-action-dropdown.show > .dropdown-menu {
+        display: block;
+    }
+    .payment-action-dropdown .dropdown-item {
+        padding: 8px 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #333;
+        text-decoration: none;
+        border: 0;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+    }
+    .payment-action-dropdown .dropdown-item:hover {
+        background: whitesmoke;
+        color: #940000;
+    }
+    .payment-action-dropdown .dropdown-item i {
+        width: 18px;
+        text-align: center;
+    }
+    .payment-actions-cell {
+        width: 70px;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .payment-student-widget .payment-action-dropdown .dropdown-menu {
+        right: 0;
+        left: auto;
     }
     .badge-primary-custom {
         background-color: #FFF5F5;
@@ -216,6 +427,44 @@
             margin-left: -8px;
             margin-right: -8px;
         }
+    }
+
+    /* ── Theme overrides: remove Bootstrap blues, use whitesmoke/white/#940000 ── */
+    .btn-outline-primary {
+        color: #940000 !important;
+        border-color: #940000 !important;
+        background: #fff;
+        border-radius: 0 !important;
+    }
+    .btn-outline-primary:hover,
+    .btn-outline-primary:focus,
+    .btn-outline-primary:active {
+        background: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+        box-shadow: none !important;
+    }
+    .card-header.bg-info {
+        background-color: #940000 !important;
+        color: #fff !important;
+    }
+    .badge.bg-info {
+        background-color: whitesmoke !important;
+        color: #940000 !important;
+        border: 1px solid #940000;
+    }
+    .alert-info {
+        background-color: whitesmoke !important;
+        color: #333 !important;
+        border: 1px solid #e0e0e0 !important;
+        border-left: 4px solid #940000 !important;
+    }
+    .spinner-border.text-primary {
+        color: #940000 !important;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #940000 !important;
+        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.15) !important;
     }
 </style>
 
@@ -352,39 +601,6 @@
                     <div class="row g-3">
                         <div class="col-md-2">
                             <label class="form-label fw-bold mb-2">
-                                <i class="bi bi-calendar"></i> Academic Year
-                            </label>
-                            <select class="form-select" id="filterYear">
-                                @php
-                                    $defaultAcademicYearID = $defaultAcademicYearID ?? null;
-                                    $defaultYear = $defaultYear ?? date('Y');
-                                    $availableYears = $availableYears ?? [];
-                                @endphp
-                                @if(count($availableYears) > 0)
-                                    @foreach($availableYears as $academicYear)
-                                        @php
-                                            $yearValue = is_array($academicYear) ? $academicYear['year'] : $academicYear;
-                                            $yearName = is_array($academicYear) ? ($academicYear['year_name'] ?? $academicYear['year']) : $yearValue;
-                                            $status = is_array($academicYear) ? ($academicYear['status'] ?? '') : '';
-                                            $ayId = is_array($academicYear) ? ($academicYear['academic_yearID'] ?? null) : null;
-                                            $isSelected = $ayId
-                                                ? ((int) $ayId === (int) $defaultAcademicYearID)
-                                                : ($yearValue == $defaultYear);
-                                        @endphp
-                                        <option value="{{ $ayId ?: $yearValue }}"
-                                            data-year="{{ $yearValue }}"
-                                            {{ $isSelected ? 'selected' : '' }}>
-                                            {{ $yearName }} @if($status) ({{ $status }}) @endif
-                                        </option>
-                                    @endforeach
-                                @else
-                                    <option value="{{ $defaultAcademicYearID ?: $defaultYear }}" selected>{{ $defaultYear }}</option>
-                                @endif
-                            </select>
-                            <small class="text-muted">Defaults to header academic year. Students come from enrollments for this year.</small>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold mb-2">
                                 <i class="bi bi-book"></i> Class
                             </label>
                             <select class="form-select" id="filterClass">
@@ -410,6 +626,21 @@
                                 <option value="Transferred">Transferred</option>
                                 <option value="Dropped">Dropped</option>
                                 <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold mb-2">
+                                <i class="bi bi-arrow-up-right-circle"></i> Promotion Status
+                            </label>
+                            <select class="form-select" id="filterPromotion">
+                                <option value="">All</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Promoted">Promoted</option>
+                                <option value="Repeated">Repeated</option>
+                                <option value="Graduated">Graduated</option>
+                                <option value="Transferred">Transferred</option>
+                                <option value="Truancy">Truancy</option>
+                                <option value="Dropout">Dropout</option>
                             </select>
                         </div>
                         <div class="col-md-2 d-none">
@@ -468,45 +699,63 @@
 
             <!-- Payments Table -->
             <div class="card border-0 shadow-sm">
-                <div class="card-header bg-primary-custom text-white">
-                    <h5 class="mb-0">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: whitesmoke; border-bottom: 2px solid #940000;">
+                    <h5 class="mb-0 payment-section-title">
                         <i class="bi bi-list-ul"></i> Control Numbers & Payments List
                     </h5>
+                    <div class="btn-group btn-group-sm payment-view-toggle" role="group" aria-label="View mode">
+                        <button type="button" class="btn btn-outline-secondary" data-view="list" title="List view">
+                            <i class="bi bi-list-ul"></i> <span class="d-none d-sm-inline">List</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" data-view="grid" title="Grid view">
+                            <i class="bi bi-grid-3x3-gap"></i> <span class="d-none d-sm-inline">Grid</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="overflow-x: auto; max-width: 100%;">
-                        <table class="table table-hover table-sm mb-0" id="paymentsTable">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Student Details</th>
-                                    <th>Payment Type</th>
-                                    <th>Bill Summary (TZS)</th>
-                                    <th>Balance & Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tfoot class="table-light">
-                                <tr>
-                                    <th><input type="text" class="form-control form-control-sm column-filter" placeholder="Filter Student" data-column="0"></th>
-                                    <th><select class="form-control form-control-sm column-filter" data-column="1">
-                                        <option value="">All Types</option>
-                                        <option value="Sponsored">Sponsored</option>
-                                        <option value="Own Payment">Own Payment</option>
-                                    </select></th>
-                                    <th><input type="text" class="form-control form-control-sm column-filter" placeholder="Filter Bill" data-column="2"></th>
-                                    <th><select class="form-control form-control-sm column-filter" data-column="3">
-                                        <option value="">All Status</option>
-                                        <option value="Paid">Paid</option>
-                                        <option value="Pending">Pending</option>
-                                        <option value="Incomplete">Incomplete</option>
-                                    </select></th>
-                                    <th></th>
-                                </tr>
-                            </tfoot>
-                            <tbody id="paymentsTableBody">
-                                <!-- Data will be loaded via AJAX -->
-                            </tbody>
-                        </table>
+                    <div class="payment-data-wrapper" id="paymentsDataWrapper" data-active-view="list">
+                        <div class="payment-list-view">
+                            <div class="table-responsive" style="overflow-x: auto; max-width: 100%;">
+                                <table class="table table-hover table-sm mb-0" id="paymentsTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Student Details</th>
+                                            <th>Payment Type</th>
+                                            <th>Bill Summary (TZS)</th>
+                                            <th>Balance & Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <th><input type="text" class="form-control form-control-sm column-filter" placeholder="Filter Student" data-column="0"></th>
+                                            <th><select class="form-control form-control-sm column-filter" data-column="1">
+                                                <option value="">All Types</option>
+                                                <option value="Sponsored">Sponsored</option>
+                                                <option value="Own Payment">Own Payment</option>
+                                            </select></th>
+                                            <th><input type="text" class="form-control form-control-sm column-filter" placeholder="Filter Bill" data-column="2"></th>
+                                            <th><select class="form-control form-control-sm column-filter" data-column="3">
+                                                <option value="">All Status</option>
+                                                <option value="Paid">Paid</option>
+                                                <option value="Pending">Pending</option>
+                                                <option value="Incomplete">Incomplete</option>
+                                            </select></th>
+                                            <th></th>
+                                        </tr>
+                                    </tfoot>
+                                    <tbody id="paymentsTableBody">
+                                        <!-- Data will be loaded via AJAX -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="payment-grid-view p-3">
+                            <div class="payment-grid-search-wrap">
+                                <input type="search" class="form-control" id="paymentGridSearch" placeholder="Search by name, admission, class..." autocomplete="off">
+                            </div>
+                            <div id="paymentsWidgetGrid" class="payments-widget-grid"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -543,13 +792,35 @@
                     </div>
                     <div class="col-md-6">
                         <h4 class="text-primary-custom mb-1" id="view_student_name">-</h4>
-                        <p class="mb-0 text-muted"> <i class="bi bi-book"></i> <span id="view_student_class">-</span> | <i class="bi bi-person-badge"></i> <span id="view_student_admission">-</span></p>
+                        <p class="mb-1 text-muted"> <i class="bi bi-book"></i> <span id="view_student_class">-</span> | <i class="bi bi-person-badge"></i> <span id="view_student_admission">-</span></p>
+                        <div id="view_student_enrollment_badges" class="mb-0"></div>
                     </div>
                     <div class="col-md-4 text-end">
                         <div class="p-2 stat-card-accent rounded border">
-                            <small class="text-muted d-block font-weight-bold">Control Number</small>
+                            <small class="text-muted d-block font-weight-bold">Control Number (Single Account)</small>
                             <span class="h5 mb-0 text-primary-custom fw-bold" id="view_control_number">-</span>
                         </div>
+                    </div>
+                </div>
+
+                <div id="multiAccountsSection" class="mb-4" style="display:none;">
+                    <h6 class="fw-bold text-primary-custom mb-2"><i class="bi bi-bank"></i> Multi Account Control Numbers</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead style="background:whitesmoke;color:#940000;">
+                                <tr>
+                                    <th>Fee</th>
+                                    <th>Account</th>
+                                    <th>Control Number</th>
+                                    <th class="text-end">Required</th>
+                                    <th class="text-end">Paid</th>
+                                    <th class="text-end">Balance</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="multiAccountsBody"></tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -617,10 +888,12 @@
                                         <th>Main Class</th>
                                         <th>Subclass</th>
                                         <th>Enrollment</th>
+                                        <th>Promotion</th>
                                         <th class="text-end">Required</th>
                                         <th class="text-end">Paid</th>
                                         <th class="text-end">Owed</th>
                                         <th>Status</th>
+                                        <th class="text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="enrollmentYearsBody">
@@ -838,6 +1111,11 @@
                         <input type="text" class="form-control" id="record_control_number" readonly>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label fw-bold">Academic Year</label>
+                        <input type="text" class="form-control bg-light" id="record_academic_year_label" readonly>
+                        <input type="hidden" name="academic_year_id" id="record_academic_year_id">
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label fw-bold">Select Fee to Pay <span class="text-danger">*</span></label>
                         <select name="fee_id" id="record_fee_id" class="form-select" required>
                             <option value="any">Pay to Any Fee (Automatic Priority)</option>
@@ -914,7 +1192,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Notes</label>
-                        <textarea name="notes" id="record_notes" class="form-control" rows="3" placeholder="Optional notes about this payment"></textarea>
+                        <textarea name="notes" id="record_notes" class="form-control" rows="3" placeholder="Optional notes (academic year is saved automatically)"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1158,48 +1436,402 @@
 
         // Variable to store the current AJAX request to allow aborting previous ones
         var currentPaymentsAjax = null;
+        var currentPaymentsData = [];
+        var currentPaymentsClosedYear = false;
+        var currentPaymentsEmptyMsg = '';
 
-        // Function to load payments data via AJAX
-        function loadPaymentsData() {
-            // Abort previous request if it exists
-            if (currentPaymentsAjax) {
-                currentPaymentsAjax.abort();
+        // Header academic year (page reloads when header year changes)
+        @php
+            $__vpDefaultAyId = $defaultAcademicYearID ?? null;
+            $__vpDefaultAyLabel = $defaultYear ?? date('Y');
+            foreach (($availableYears ?? []) as $__ay) {
+                $__ayArr = is_array($__ay) ? $__ay : (array) $__ay;
+                if ((int)($__ayArr['academic_yearID'] ?? 0) === (int)$__vpDefaultAyId) {
+                    $__vpDefaultAyLabel = $__ayArr['year_name'] ?? $__ayArr['year'] ?? $__vpDefaultAyLabel;
+                    break;
+                }
+            }
+        @endphp
+        var headerAcademicYearID = {!! json_encode($__vpDefaultAyId) !!};
+        var headerAcademicYearLabel = {!! json_encode($__vpDefaultAyLabel) !!};
+
+        function paymentIsMobile() {
+            return window.matchMedia('(max-width: 767.98px)').matches;
+        }
+        function paymentDefaultView() {
+            return paymentIsMobile() ? 'grid' : 'list';
+        }
+        function paymentPrefKey() {
+            return 'payment_view_' + (paymentIsMobile() ? 'mobile' : 'desktop');
+        }
+        function paymentUserPrefKey() {
+            return 'payment_view_user_' + (paymentIsMobile() ? 'mobile' : 'desktop');
+        }
+        function paymentGetView() {
+            try {
+                if (localStorage.getItem(paymentUserPrefKey()) === '1') {
+                    var saved = localStorage.getItem(paymentPrefKey());
+                    if (saved === 'list' || saved === 'grid') return saved;
+                }
+            } catch (e) {}
+            return paymentDefaultView();
+        }
+        function paymentSetUserViewPref(view) {
+            try {
+                localStorage.setItem(paymentPrefKey(), view);
+                localStorage.setItem(paymentUserPrefKey(), '1');
+            } catch (e) {}
+        }
+        function setPaymentView(view, userChoice) {
+            view = (view === 'grid') ? 'grid' : 'list';
+            $('#paymentsDataWrapper').attr('data-active-view', view);
+            $('.payment-view-toggle [data-view]').removeClass('active');
+            $('.payment-view-toggle [data-view="' + view + '"]').addClass('active');
+            if (userChoice) paymentSetUserViewPref(view);
+            if (view === 'list' && currentPaymentsData.length) {
+                initPaymentsDataTable();
+            }
+        }
+
+        function buildViewMoreBtnAttrs(item, isClosedYear, cssClass) {
+            var student = item.student || {};
+            var paymentsData = item.payment || {};
+            var totals = item.totals || {};
+            var firstName = student.first_name || '';
+            var firstLetter = firstName ? firstName.charAt(0).toUpperCase() : 'N';
+            var fullName = ((student.first_name || '') + ' ' + (student.last_name || '')).trim();
+            var placeholderColor = getPlaceholderColor(fullName);
+            var studentFullName = ((student.first_name || '') + ' ' + (student.middle_name || '') + ' ' + (student.last_name || '')).replace(/\s+/g, ' ').trim();
+            var studentClass = 'N/A';
+            if (student.subclass) {
+                var mainClass = student.subclass.class_name || '';
+                var subclass = student.subclass.subclass_name || '';
+                studentClass = (mainClass && subclass) ? mainClass + ' ' + subclass : (subclass || mainClass || 'N/A');
+            }
+            var enrStatus = student.enrollment_status || '';
+            var promoStatus = student.promotion_status || '';
+            var promoLabel = student.promotion_status_label || promoStatus;
+            var priorOwed = parseFloat(item.prior_years_owed || totals.prior_years_owed || 0);
+            var paymentsJson = JSON.stringify(paymentsData).replace(/'/g, "&#39;");
+            var sponsorJson = student.sponsor ? JSON.stringify(student.sponsor).replace(/'/g, "&#39;") : '';
+            var totalsJson = JSON.stringify(totals).replace(/'/g, "&#39;");
+            var multiJson = JSON.stringify(item.multi_accounts || []).replace(/'/g, "&#39;");
+
+            return 'class="' + (cssClass || 'btn btn-primary-custom btn-sm view-more-btn') + '" ' +
+                'data-student-id="' + (student.studentID || '') + '" ' +
+                'data-student-name="' + studentFullName + '" ' +
+                'data-student-admission="' + (student.admission_number || 'N/A') + '" ' +
+                'data-student-class="' + studentClass + '" ' +
+                'data-student-photo="' + (student.photo || '') + '" ' +
+                'data-student-first-letter="' + firstLetter + '" ' +
+                'data-student-placeholder-color="' + placeholderColor + '" ' +
+                'data-student-sponsor=\'' + sponsorJson + '\' ' +
+                'data-is-closed-year="' + (isClosedYear ? 'true' : 'false') + '" ' +
+                'data-academic-year="' + (item.academic_year || '') + '" ' +
+                'data-academic-year-id="' + (item.academic_year_id || '') + '" ' +
+                'data-enrollment-status="' + (enrStatus || '') + '" ' +
+                'data-promotion-status="' + (promoLabel || promoStatus || '') + '" ' +
+                'data-prior-years-owed="' + priorOwed + '" ' +
+                'data-payment=\'' + paymentsJson + '\' ' +
+                'data-totals=\'' + totalsJson + '\' ' +
+                'data-multi-accounts=\'' + multiJson + '\' ' +
+                'title="View More Details"';
+        }
+
+        function buildPaymentActionsDropdown(item, isClosedYear) {
+            var paymentsData = item.payment || {};
+            var paymentID = paymentsData.paymentID || '';
+
+            var items = '<button type="button" ' + buildViewMoreBtnAttrs(item, isClosedYear, 'dropdown-item view-more-btn') + '>' +
+                '<i class="bi bi-eye"></i> View Details</button>';
+
+            if (paymentID) {
+                items += '<button type="button" class="dropdown-item resend-control-sms-btn" data-payment-id="' + paymentID + '">' +
+                    '<i class="bi bi-send"></i> Send CN SMS</button>';
             }
 
-            var yearVal = $('#filterYear').val();
-            var academicYearID = '';
-            var year = '';
-            if (yearVal && String(yearVal).match(/^\d+$/) && parseInt(yearVal, 10) > 1900 && parseInt(yearVal, 10) < 3000 && !$('#filterYear option:selected').data('year')) {
-                // Legacy calendar year value
-                year = yearVal;
+            return '<div class="dropdown payment-action-dropdown">' +
+                    '<button class="btn btn-sm payment-action-toggle" type="button" title="Actions" aria-haspopup="true" aria-expanded="false">' +
+                        '<i class="bi bi-three-dots-vertical"></i>' +
+                    '</button>' +
+                    '<div class="dropdown-menu dropdown-menu-right shadow-sm">' + items + '</div>' +
+                '</div>';
+        }
+
+        function buildPaymentsListRow(item, isClosedYear) {
+            var student = item.student || {};
+            var totals = item.totals || {};
+            var firstName = student.first_name || '';
+            var firstLetter = firstName ? firstName.charAt(0).toUpperCase() : 'N';
+            var fullName = ((student.first_name || '') + ' ' + (student.last_name || '')).trim();
+            var placeholderColor = getPlaceholderColor(fullName);
+            var photoHtml = '';
+            if (student.photo) {
+                photoHtml = '<div class="photo-container me-2">' +
+                    '<img src="' + student.photo + '" alt="Photo" class="student-photo" ' +
+                    'onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' +
+                    '<div class="student-photo-placeholder d-none" style="background-color: ' + placeholderColor + ';">' + firstLetter + '</div>' +
+                    '</div>';
             } else {
-                academicYearID = yearVal;
-                year = $('#filterYear option:selected').data('year') || '';
+                photoHtml = '<div class="photo-container me-2">' +
+                    '<div class="student-photo-placeholder" style="background-color: ' + placeholderColor + ';">' + firstLetter + '</div>' +
+                    '</div>';
             }
-            var classID = $('#filterClass').val();
-            var subclassID = $('#filterSubclass').val();
-            var enrollmentStatus = $('#filterStatus').val() || 'Active';
-            var paymentStatus = $('#filterPaymentStatus').val();
-            var searchStudentName = $('#searchStudentName').val();
 
-            // Clear previous table instance
+            var studentFullName = ((student.first_name || '') + ' ' + (student.middle_name || '') + ' ' + (student.last_name || '')).replace(/\s+/g, ' ').trim();
+            var studentClass = 'N/A';
+            if (student.subclass) {
+                var mainClass = student.subclass.class_name || '';
+                var subclass = student.subclass.subclass_name || '';
+                studentClass = (mainClass && subclass) ? mainClass + ' ' + subclass : (subclass || mainClass || 'N/A');
+            }
+            var enrStatus = student.enrollment_status || '';
+            var enrBadgeClass = 'bg-secondary';
+            if (enrStatus === 'Active') enrBadgeClass = 'bg-success';
+            else if (enrStatus === 'Completed') enrBadgeClass = 'bg-primary';
+            else if (enrStatus === 'Transferred') enrBadgeClass = 'bg-info text-dark';
+            else if (enrStatus === 'Dropped' || enrStatus === 'Cancelled') enrBadgeClass = 'bg-warning text-dark';
+            var enrBadge = enrStatus
+                ? '<span class="badge ' + enrBadgeClass + ' ms-1" style="font-size:0.65rem;">' + enrStatus + '</span>'
+                : '';
+
+            var promoStatus = student.promotion_status || '';
+            var promoLabel = student.promotion_status_label || promoStatus;
+            var promoBadgeClass = 'bg-light text-dark border';
+            if (promoStatus === 'Promoted' || promoStatus === 'Graduated') promoBadgeClass = 'bg-success';
+            else if (promoStatus === 'Repeated') promoBadgeClass = 'bg-warning text-dark';
+            else if (promoStatus === 'Transferred') promoBadgeClass = 'bg-info text-dark';
+            else if (promoStatus === 'Truancy' || promoStatus === 'Dropout') promoBadgeClass = 'bg-danger';
+            else if (promoStatus === 'Pending') promoBadgeClass = 'bg-secondary';
+            var promoBadge = promoStatus
+                ? '<span class="badge ' + promoBadgeClass + ' ms-1" style="font-size:0.65rem;" title="Promotion status">' + promoLabel + '</span>'
+                : '';
+
+            var col1 = '<div class="d-flex align-items-center">' +
+                photoHtml +
+                '<div>' +
+                '<div class="fw-bold text-dark">' + studentFullName + enrBadge + promoBadge + '</div>' +
+                '<div class="small text-muted">' + (student.admission_number || 'No Adm') + ' | ' + studentClass + '</div>' +
+                '<div class="small badge bg-light text-dark border">' + (item.academic_year || headerAcademicYearLabel || '') + '</div>' +
+                '</div></div>';
+
+            var colType = student.sponsor
+                ? '<div class="text-center"><span class="badge bg-primary-custom text-white mb-1" style="font-size: 0.7rem; padding: 4px 8px; display: inline-block; width: 100px;"><i class="bi bi-shield-check me-1"></i>Sponsored</span><br><small class="text-muted">' + student.sponsor.percentage + '% Cover</small><br><small class="text-muted" style="font-size: 0.65rem;">' + student.sponsor.sponsor_name + '</small></div>'
+                : '<div class="text-center"><span class="badge bg-secondary text-white" style="font-size: 0.7rem; padding: 4px 8px; display: inline-block; width: 100px;"><i class="bi bi-person me-1"></i>Own Payment</span></div>';
+
+            var col2 = '<div class="bill-container">' +
+                '<div class="bill-item text-muted small">Required: <span class="fw-bold text-dark">' + parseFloat(totals.total_required || 0).toLocaleString() + '</span></div>' +
+                '<div class="bill-item text-muted small">Paid: <span class="fw-bold text-success">' + parseFloat(totals.total_paid || 0).toLocaleString() + '</span></div>' +
+                '</div>';
+
+            var overallStatus = totals.overall_status || 'Pending';
+            var statusClass = 'bg-secondary';
+            if (overallStatus === 'Paid') statusClass = 'bg-success';
+            else if (overallStatus === 'Overpaid') statusClass = 'bg-info';
+            else if ((overallStatus + '').includes('Incomplete') || overallStatus === 'Partial') statusClass = 'bg-warning text-dark';
+
+            var col3 = '<div class="text-end">' +
+                '<div class="fw-bold text-danger mb-1">' + parseFloat(totals.total_balance || 0).toLocaleString() + '/=</div>' +
+                '<span class="badge ' + statusClass + ' mb-1">' + overallStatus + '</span>';
+            var priorOwed = parseFloat(item.prior_years_owed || totals.prior_years_owed || 0);
+            if (priorOwed > 0) {
+                col3 += '<div class="small text-warning mt-1" title="Outstanding from previous enrollments/years"><i class="bi bi-exclamation-triangle"></i> Prev years: ' + priorOwed.toLocaleString() + '/=</div>';
+            }
+            if (totals.can_start_school) {
+                col3 += ' <i class="bi bi-check-circle-fill text-success" title="Can Start School"></i>';
+            }
+            col3 += '</div>';
+
+            var col4 = buildPaymentActionsDropdown(item, isClosedYear);
+
+            return '<tr>' +
+                '<td data-label="Student">' + col1 + '</td>' +
+                '<td data-label="Payment Type" class="text-end">' + colType + '</td>' +
+                '<td data-label="Bill Summary" class="text-end">' + col2 + '</td>' +
+                '<td data-label="Status" class="text-end">' + col3 + '</td>' +
+                '<td data-label="Actions" class="text-center payment-actions-cell">' + col4 + '</td>' +
+                '</tr>';
+        }
+
+        function buildPaymentsGridCard(item, isClosedYear) {
+            var student = item.student || {};
+            var totals = item.totals || {};
+            var firstName = student.first_name || '';
+            var firstLetter = firstName ? firstName.charAt(0).toUpperCase() : 'N';
+            var fullName = ((student.first_name || '') + ' ' + (student.last_name || '')).trim();
+            var placeholderColor = getPlaceholderColor(fullName);
+            var studentFullName = ((student.first_name || '') + ' ' + (student.middle_name || '') + ' ' + (student.last_name || '')).replace(/\s+/g, ' ').trim();
+            var studentClass = 'N/A';
+            if (student.subclass) {
+                var mainClass = student.subclass.class_name || '';
+                var subclass = student.subclass.subclass_name || '';
+                studentClass = (mainClass && subclass) ? mainClass + ' ' + subclass : (subclass || mainClass || 'N/A');
+            }
+            var enrStatus = student.enrollment_status || '';
+            var promoLabel = student.promotion_status_label || student.promotion_status || '';
+            var overallStatus = totals.overall_status || 'Pending';
+            var priorOwed = parseFloat(item.prior_years_owed || totals.prior_years_owed || 0);
+
+            var photoBlock = student.photo
+                ? '<img src="' + student.photo + '" alt="" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' +
+                  '<div class="payment-grid-photo-placeholder d-none" style="background-color:' + placeholderColor + ';display:none;">' + firstLetter + '</div>'
+                : '<div class="payment-grid-photo-placeholder" style="background-color:' + placeholderColor + ';">' + firstLetter + '</div>';
+
+            var badges = '';
+            if (enrStatus) badges += '<span class="badge bg-light text-dark border me-1" style="font-size:0.65rem;">' + enrStatus + '</span>';
+            if (promoLabel) badges += '<span class="badge bg-secondary me-1" style="font-size:0.65rem;">' + promoLabel + '</span>';
+            if (student.sponsor) badges += '<span class="badge bg-primary-custom text-white" style="font-size:0.65rem;">Sponsored</span>';
+
+            return '<div class="col-12 col-sm-6 col-xl-4">' +
+                '<div class="payment-student-widget">' +
+                    '<div class="payment-student-widget-header">' + photoBlock + '</div>' +
+                    '<div class="payment-student-widget-body">' +
+                        '<h3>' + studentFullName + '</h3>' +
+                        '<div class="pay-class">' + studentClass + '</div>' +
+                        '<div class="mb-2">' + badges + '</div>' +
+                        '<div class="pay-meta"><strong>Adm:</strong> ' + (student.admission_number || 'N/A') + '</div>' +
+                        '<div class="pay-meta"><strong>Year:</strong> ' + (item.academic_year || headerAcademicYearLabel || '—') + '</div>' +
+                        '<div class="pay-amounts">' +
+                            '<div class="d-flex justify-content-between"><span>Required</span><strong>' + parseFloat(totals.total_required || 0).toLocaleString() + '/=</strong></div>' +
+                            '<div class="d-flex justify-content-between"><span>Paid</span><strong class="text-success">' + parseFloat(totals.total_paid || 0).toLocaleString() + '/=</strong></div>' +
+                            '<div class="d-flex justify-content-between"><span>Balance</span><strong class="text-danger">' + parseFloat(totals.total_balance || 0).toLocaleString() + '/=</strong></div>' +
+                            (priorOwed > 0 ? '<div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle"></i> Prev years: ' + priorOwed.toLocaleString() + '/=</div>' : '') +
+                            '<div class="mt-1"><span class="badge bg-secondary">' + overallStatus + '</span></div>' +
+                        '</div>' +
+                        '<div class="payment-student-widget-actions d-flex justify-content-between align-items-center">' +
+                            '<button ' + buildViewMoreBtnAttrs(item, isClosedYear) + ' style="flex:1; margin-right:8px;"><i class="bi bi-eye"></i> Details</button>' +
+                            buildPaymentActionsDropdown(item, isClosedYear) +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }
+
+        function initPaymentsDataTable() {
+            if (!$.fn.DataTable) return;
+            if ($.fn.DataTable.isDataTable('#paymentsTable')) {
+                $('#paymentsTable').DataTable().destroy();
+            }
+            var table = $('#paymentsTable').DataTable({
+                destroy: true,
+                dom: 'Bfrtip',
+                buttons: [
+                    'copy', 'csv', 'excel',
+                    {
+                        text: 'PDF',
+                        action: function () {
+                            $('#exportFilteredPdfBtn').trigger('click');
+                        }
+                    },
+                    'print'
+                ],
+                pageLength: 10,
+                lengthMenu: [[5, 10, 25, 50, 100, -1], [5, 10, 25, 50, 100, "All"]],
+                order: [[0, 'asc']],
+                responsive: true,
+                scrollX: true,
+                autoWidth: false,
+                columnDefs: [
+                    { width: "30%", targets: 0 },
+                    { width: "15%", targets: 1 },
+                    { width: "20%", targets: 2 },
+                    { width: "20%", targets: 3 },
+                    { width: "15%", targets: 4, orderable: false }
+                ]
+            });
+            $('.column-filter').off('keyup change').on('keyup change', function() {
+                var columnIndex = $(this).data('column');
+                table.column(columnIndex).search($(this).val()).draw();
+            });
+        }
+
+        function renderPaymentsGrid(items) {
+            var $grid = $('#paymentsWidgetGrid');
+            if (!items || !items.length) {
+                $grid.html('<div class="col-12"><div class="payment-grid-empty">' + (currentPaymentsEmptyMsg || 'No payments found') + '</div></div>');
+                return;
+            }
+            var q = (($('#paymentGridSearch').val() || '') + '').toLowerCase().trim();
+            var filtered = items;
+            if (q) {
+                filtered = items.filter(function(item) {
+                    var s = item.student || {};
+                    var hay = [
+                        s.first_name, s.middle_name, s.last_name, s.admission_number,
+                        (s.subclass && s.subclass.class_name) || '',
+                        (s.subclass && s.subclass.subclass_name) || '',
+                        item.academic_year || ''
+                    ].join(' ').toLowerCase();
+                    return hay.indexOf(q) !== -1;
+                });
+            }
+            if (!filtered.length) {
+                $grid.html('<div class="col-12"><div class="payment-grid-empty">No students match your search.</div></div>');
+                return;
+            }
+            var html = '';
+            filtered.forEach(function(item) {
+                html += buildPaymentsGridCard(item, currentPaymentsClosedYear);
+            });
+            $grid.html(html);
+        }
+
+        function renderPaymentsUI(data, isClosedYear, emptyMsg) {
+            currentPaymentsData = data || [];
+            currentPaymentsClosedYear = !!isClosedYear;
+            currentPaymentsEmptyMsg = emptyMsg || 'No payments found';
+
             if ($.fn.DataTable && $.fn.DataTable.isDataTable('#paymentsTable')) {
                 $('#paymentsTable').DataTable().destroy();
             }
 
-            // Show loading
+            if (!currentPaymentsData.length) {
+                $('#paymentsTableBody').html('<tr><td colspan="5" class="text-center py-4 text-muted"><p class="mt-2">' + currentPaymentsEmptyMsg + '</p></td></tr>');
+                $('#paymentsWidgetGrid').html('<div class="col-12"><div class="payment-grid-empty">' + currentPaymentsEmptyMsg + '</div></div>');
+                return;
+            }
+
+            var listHtml = '';
+            currentPaymentsData.forEach(function(item) {
+                listHtml += buildPaymentsListRow(item, currentPaymentsClosedYear);
+            });
+            $('#paymentsTableBody').html(listHtml);
+            renderPaymentsGrid(currentPaymentsData);
+
+            if (($('#paymentsDataWrapper').attr('data-active-view') || 'list') === 'list') {
+                initPaymentsDataTable();
+            }
+        }
+
+        // Function to load payments data via AJAX
+        function loadPaymentsData() {
+            if (currentPaymentsAjax) {
+                currentPaymentsAjax.abort();
+            }
+
+            var classID = $('#filterClass').val();
+            var subclassID = $('#filterSubclass').val();
+            var enrollmentStatus = $('#filterStatus').val() || 'Active';
+            var promotionStatus = $('#filterPromotion').val() || '';
+            var paymentStatus = $('#filterPaymentStatus').val();
+            var searchStudentName = $('#searchStudentName').val();
+
+            if ($.fn.DataTable && $.fn.DataTable.isDataTable('#paymentsTable')) {
+                $('#paymentsTable').DataTable().destroy();
+            }
+
             $('#paymentsTableBody').html('<tr><td colspan="5" class="text-center py-4"><div class="spinner-border text-primary-custom" role="status"></div><p class="mt-2">Loading payments...</p></td></tr>');
+            $('#paymentsWidgetGrid').html('<div class="col-12"><div class="payment-grid-empty"><div class="spinner-border text-primary-custom" role="status"></div><p class="mt-2 mb-0">Loading...</p></div></div>');
 
             currentPaymentsAjax = $.ajax({
                 url: '{{ route("get_payments_ajax") }}',
                 type: 'GET',
                 data: {
-                    year: year,
-                    academic_year_id: academicYearID,
                     class_id: classID,
                     subclass_id: subclassID,
                     enrollment_status: enrollmentStatus,
                     student_status: enrollmentStatus,
+                    promotion_status: promotionStatus,
                     payment_status: paymentStatus,
                     search_student_name: searchStudentName,
                     sponsorship_filter: $('#filterSponsorship').val()
@@ -1207,136 +1839,15 @@
                 dataType: 'json',
                 success: function(response) {
                     if (response.success && response.data) {
-                        var isClosedYear = response.is_closed_year || false;
-                        var html = '';
-                        if (response.data.length > 0) {
-                            response.data.forEach(function(item) {
-                                var student = item.student;
-                                var paymentsData = item.payment || {}; // Renamed to avoid conflict
-                                var totals = item.totals || {};
-                                
-                                // Generate placeholder
-                                var firstName = student.first_name || '';
-                                var firstLetter = firstName ? firstName.charAt(0).toUpperCase() : 'N';
-                                var fullName = (student.first_name || '') + ' ' + (student.last_name || '');
-                                var placeholderColor = getPlaceholderColor(fullName);
+                        if (response.academic_year) headerAcademicYearLabel = response.academic_year;
+                        if (response.academic_year_id) headerAcademicYearID = response.academic_year_id;
 
-                                // Photo HTML
-                                var photoHtml = '';
-                                if (student.photo) {
-                                    photoHtml = '<div class="photo-container me-2">' +
-                                        '<img src="' + student.photo + '" alt="Photo" class="student-photo" ' +
-                                        'onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' +
-                                        '<div class="student-photo-placeholder d-none" style="background-color: ' + placeholderColor + ';">' + firstLetter + '</div>' +
-                                        '</div>';
-                                } else {
-                                    photoHtml = '<div class="photo-container me-2">' +
-                                        '<div class="student-photo-placeholder" style="background-color: ' + placeholderColor + ';">' + firstLetter + '</div>' +
-                                        '</div>';
-                                }
+                        var emptyMsg = response.error_code === 'no_enrollments'
+                            ? (response.message || 'No enrollments found for the header academic year / selected filters.')
+                            : 'No payments found';
 
-                                var studentFullName = (student.first_name || '') + ' ' + (student.middle_name || '') + ' ' + (student.last_name || '');
-                                var studentClass = 'N/A';
-                                if (student.subclass) {
-                                    var mainClass = student.subclass.class_name || '';
-                                    var subclass = student.subclass.subclass_name || '';
-                                    studentClass = (mainClass && subclass) ? mainClass + ' ' + subclass : (subclass || mainClass || 'N/A');
-                                }
-                                var enrStatus = student.enrollment_status || '';
-                                var enrBadgeClass = 'bg-secondary';
-                                if (enrStatus === 'Active') enrBadgeClass = 'bg-success';
-                                else if (enrStatus === 'Completed') enrBadgeClass = 'bg-primary';
-                                else if (enrStatus === 'Transferred') enrBadgeClass = 'bg-info text-dark';
-                                else if (enrStatus === 'Dropped' || enrStatus === 'Cancelled') enrBadgeClass = 'bg-warning text-dark';
-                                var enrBadge = enrStatus
-                                    ? '<span class="badge ' + enrBadgeClass + ' ms-1" style="font-size:0.65rem;">' + enrStatus + '</span>'
-                                    : '';
+                        renderPaymentsUI(response.data, response.is_closed_year || false, emptyMsg);
 
-                                // Column 1: Student Details
-                                var col1 = '<div class="d-flex align-items-center">' +
-                                    photoHtml +
-                                    '<div>' +
-                                    '<div class="fw-bold text-dark">' + studentFullName.trim() + enrBadge + '</div>' +
-                                    '<div class="small text-muted">' + (student.admission_number || 'No Adm') + ' | ' + studentClass + '</div>' +
-                                    '<div class="small badge bg-light text-dark border">' + (item.academic_year || '') + '</div>' +
-                                    '</div>' +
-                                    '</div>';
-
-                                // Column 2: Payment Type
-                                var colType = '';
-                                if (student.sponsor) {
-                                    colType = '<div class="text-center"><span class="badge bg-primary-custom text-white mb-1" style="font-size: 0.7rem; padding: 4px 8px; display: inline-block; width: 100px;">' +
-                                        '<i class="bi bi-shield-check me-1"></i>Sponsored' +
-                                        '</span><br><small class="text-muted">' + student.sponsor.percentage + '% Cover</small> <br> <small class="text-muted" style="font-size: 0.65rem;">' + student.sponsor.sponsor_name + '</small></div>';
-                                } else {
-                                    colType = '<div class="text-center"><span class="badge bg-secondary text-white" style="font-size: 0.7rem; padding: 4px 8px; display: inline-block; width: 100px;">' +
-                                        '<i class="bi bi-person me-1"></i>Own Payment' +
-                                        '</span></div>';
-                                }
-
-                                // Column 3: Bill Summary
-                                var col2 = '<div class="bill-container">' +
-                                    '<div class="bill-item text-muted small">Required: <span class="fw-bold text-dark">' + parseFloat(totals.total_required || 0).toLocaleString() + '</span></div>' +
-                                    '<div class="bill-item text-muted small">Paid: <span class="fw-bold text-success">' + parseFloat(totals.total_paid || 0).toLocaleString() + '</span></div>' +
-                                    '</div>';
-
-                                // Column 4: Balance & Status
-                                var overallStatus = totals.overall_status || 'Pending';
-                                var statusClass = 'bg-secondary';
-                                if (overallStatus === 'Paid') statusClass = 'bg-success';
-                                else if (overallStatus === 'Overpaid') statusClass = 'bg-info';
-                                else if (overallStatus.includes('Incomplete') || overallStatus === 'Partial') statusClass = 'bg-warning text-dark';
-                                
-                                var col3 = '<div class="text-end">' +
-                                    '<div class="fw-bold text-danger mb-1">' + parseFloat(totals.total_balance || 0).toLocaleString() + '/=</div>' +
-                                    '<span class="badge ' + statusClass + ' mb-1">' + overallStatus + '</span>';
-
-                                var priorOwed = parseFloat(item.prior_years_owed || totals.prior_years_owed || 0);
-                                if (priorOwed > 0) {
-                                    col3 += '<div class="small text-warning mt-1" title="Outstanding from previous enrollments/years"><i class="bi bi-exclamation-triangle"></i> Prev years: ' + priorOwed.toLocaleString() + '/=</div>';
-                                }
-                                
-                                // Can Start Icon
-                                if (totals.can_start_school) {
-                                    col3 += ' <i class="bi bi-check-circle-fill text-success" title="Can Start School"></i>';
-                                }
-                                col3 += '</div>';
-
-                                // Column 5: Actions
-                                var paymentsJson = JSON.stringify(paymentsData).replace(/'/g, "&#39;");
-                                var sponsorJson = student.sponsor ? JSON.stringify(student.sponsor).replace(/'/g, "&#39;") : '';
-                                var col4 = '<button class="btn btn-primary-custom btn-sm view-more-btn" ' +
-                                    'data-student-id="' + student.studentID + '" ' +
-                                    'data-student-name="' + studentFullName.trim() + '" ' +
-                                    'data-student-admission="' + (student.admission_number || 'N/A') + '" ' +
-                                    'data-student-class="' + studentClass + '" ' +
-                                    'data-student-photo="' + (student.photo || '') + '" ' +
-                                    'data-student-first-letter="' + firstLetter + '" ' +
-                                    'data-student-placeholder-color="' + placeholderColor + '" ' +
-                                    'data-student-sponsor=\'' + sponsorJson + '\' ' +
-                                    'data-is-closed-year="' + (isClosedYear ? 'true' : 'false') + '" ' +
-                                    'data-payment=\'' + paymentsJson + '\' ' +
-                                    'data-totals=\'' + JSON.stringify(totals).replace(/'/g, "&#39;") + '\' ' +
-                                    'title="View More Details"><i class="bi bi-eye"></i> Details</button>';
-
-                                html += '<tr>' +
-                                    '<td data-label="Student">' + col1 + '</td>' +
-                                    '<td data-label="Payment Type" class="text-end">' + colType + '</td>' +
-                                    '<td data-label="Bill Summary" class="text-end">' + col2 + '</td>' +
-                                    '<td data-label="Status" class="text-end">' + col3 + '</td>' +
-                                    '<td data-label="Actions" class="text-center">' + col4 + '</td>' +
-                                    '</tr>';
-                            });
-                        } else {
-                            var emptyMsg = response.error_code === 'no_enrollments'
-                                ? (response.message || 'No enrollments found for the selected academic year / enrollment status.')
-                                : 'No payments found';
-                            html = '<tr><td colspan="5" class="text-center py-4 text-muted"><p class="mt-2">' + emptyMsg + '</p></td></tr>';
-                        }
-                        
-                        $('#paymentsTableBody').html(html);
-                        
-                        // Update statistics
                         if (response.statistics) {
                             var stats = response.statistics;
                             $('#statPendingPayments').text(stats.pending_payments || 0);
@@ -1347,74 +1858,67 @@
                             $('#statTotalRequired').text('TZS ' + parseFloat(stats.total_required || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}));
                             $('#statTotalPaid').text('TZS ' + parseFloat(stats.total_paid || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}));
                             $('#statOutstandingBalance').text('TZS ' + parseFloat(stats.total_balance || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}));
-                            
-                            // Log additional statistics for debugging
-                            if (stats.total_students !== undefined) {
-                                console.log('Filter Statistics:', {
-                                    total_students: stats.total_students,
-                                    active_students: stats.active_students,
-                                    graduated_students: stats.graduated_students,
-                                    students_with_debt: stats.students_with_debt,
-                                    students_paid: stats.students_paid
-                                });
-                            }
-                        }
-                        
-                        // Initialize DataTable
-                        if ($.fn.DataTable) {
-                            // Check again if it's already a DataTable (in case another request finished just before this)
-                            if ($.fn.DataTable.isDataTable('#paymentsTable')) {
-                                $('#paymentsTable').DataTable().destroy();
-                            }
-                            
-                            var table = $('#paymentsTable').DataTable({
-                                destroy: true, // Allow re-initialization by destroying previous instance
-                                dom: 'Bfrtip',
-                                buttons: [
-                                    'copy', 'csv', 'excel',
-                                    {
-                                        text: 'PDF',
-                                        action: function ( e, dt, node, config ) {
-                                            $('#exportFilteredPdfBtn').trigger('click');
-                                        }
-                                    },
-                                    'print'
-                                ],
-                                pageLength: 10,
-                                lengthMenu: [[5, 10, 25, 50, 100, -1], [5, 10, 25, 50, 100, "All"]],
-                                order: [[0, 'asc']],
-                                responsive: true,
-                                scrollX: true,
-                                autoWidth: false,
-                                columnDefs: [
-                                    { width: "30%", targets: 0 },
-                                    { width: "15%", targets: 1 },
-                                    { width: "20%", targets: 2 },
-                                    { width: "20%", targets: 3 },
-                                    { width: "15%", targets: 4, orderable: false }
-                                ]
-                            });
-
-                            // Column filters
-                            $('.column-filter').off('keyup change').on('keyup change', function() {
-                                var columnIndex = $(this).data('column');
-                                table.column(columnIndex).search($(this).val()).draw();
-                            });
                         }
                     } else {
-                        $('#paymentsTableBody').html('<tr><td colspan="5" class="text-center py-4 text-muted"><p class="mt-2">No payments found</p></td></tr>');
+                        renderPaymentsUI([], false, 'No payments found');
                     }
                 },
-                error: function(xhr, status, error) {
-                    if (status === 'abort') return; // Ignore aborted requests
+                error: function(xhr, status) {
+                    if (status === 'abort') return;
                     console.error('Error loading payments:', xhr);
                     $('#paymentsTableBody').html('<tr><td colspan="5" class="text-center py-4 text-danger">Error loading payments. Please try again.</td></tr>');
+                    $('#paymentsWidgetGrid').html('<div class="col-12"><div class="payment-grid-empty text-danger">Error loading payments.</div></div>');
                 }
             });
         }
 
+        // View toggle: list / grid (mobile default = grid, desktop default = list)
+        $(document).on('click', '.payment-view-toggle [data-view]', function() {
+            setPaymentView($(this).data('view'), true);
+        });
+
+        // Actions dropdown toggle (three dots) — same behavior as manage_student
+        $(document).on('click', '.payment-action-toggle', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const $dropdown = $(this).closest('.payment-action-dropdown');
+            const wasOpen = $dropdown.hasClass('show');
+            $('.payment-action-dropdown.show').removeClass('show')
+                .find('.payment-action-toggle').attr('aria-expanded', 'false');
+            if (!wasOpen) {
+                $dropdown.addClass('show');
+                $(this).attr('aria-expanded', 'true');
+            }
+        });
+        $(document).on('click', function() {
+            $('.payment-action-dropdown.show').removeClass('show')
+                .find('.payment-action-toggle').attr('aria-expanded', 'false');
+        });
+        $(document).on('click', '.payment-action-dropdown .dropdown-menu', function(e) {
+            e.stopPropagation();
+        });
+        $(document).on('click', '.payment-action-dropdown .dropdown-item', function() {
+            $(this).closest('.payment-action-dropdown').removeClass('show')
+                .find('.payment-action-toggle').attr('aria-expanded', 'false');
+        });
+        var paymentGridSearchTimeout;
+        $('#paymentGridSearch').on('keyup search', function() {
+            clearTimeout(paymentGridSearchTimeout);
+            paymentGridSearchTimeout = setTimeout(function() {
+                renderPaymentsGrid(currentPaymentsData);
+            }, 250);
+        });
+        $(window).on('resize', function() {
+            try {
+                if (localStorage.getItem(paymentUserPrefKey()) !== '1') {
+                    setPaymentView(paymentDefaultView(), false);
+                }
+            } catch (e) {}
+        });
+        setPaymentView(paymentGetView(), false);
+
         // Real-time filtering
-        $('#filterYear, #filterClass, #filterSubclass, #filterStatus, #filterPaymentStatus, #filterSponsorship').on('change', function() {
+        $('#filterClass, #filterSubclass, #filterStatus, #filterPromotion, #filterPaymentStatus, #filterSponsorship').on('change', function() {
             loadPaymentsData();
         });
 
@@ -1430,15 +1934,10 @@
 
         // Clear all filters
         $('#clearFiltersBtn').on('click', function() {
-            var defaultAy = '{{ $defaultAcademicYearID ?? '' }}';
-            if (defaultAy) {
-                $('#filterYear').val(defaultAy);
-            } else {
-                $('#filterYear').val($('#filterYear option:first').val());
-            }
             $('#filterClass').val('');
             $('#filterSubclass').html('<option value="">All Subclasses</option>');
             $('#filterStatus').val('Active');
+            $('#filterPromotion').val('');
             $('#filterPaymentStatus').val('');
             $('#filterSponsorship').val('');
             $('#searchStudentName').val('');
@@ -1447,23 +1946,15 @@
         
         // Export filtered PDF (Standardized AJAX Method)
         $('#exportFilteredPdfBtn').on('click', function() {
-            var yearVal = $('#filterYear').val();
-            var academicYearID = '';
-            var year = '';
-            if (yearVal && String(yearVal).match(/^\d+$/) && parseInt(yearVal, 10) > 1900 && parseInt(yearVal, 10) < 3000 && !$('#filterYear option:selected').data('year')) {
-                year = yearVal;
-            } else {
-                academicYearID = yearVal;
-                year = $('#filterYear option:selected').data('year') || '';
-            }
             const class_id = $('#filterClass').val();
             const subclass_id = $('#filterSubclass').val();
             const enrollment_status = $('#filterStatus').val() || 'Active';
+            const promotion_status = $('#filterPromotion').val() || '';
             const payment_status = $('#filterPaymentStatus').val();
             const search_student_name = $('#searchStudentName').val();
 
             let url = '{{ route("admin.export_filtered_payments_pdf") }}';
-            url += `?year=${encodeURIComponent(year)}&academic_year_id=${encodeURIComponent(academicYearID)}&class_id=${encodeURIComponent(class_id || '')}&subclass_id=${encodeURIComponent(subclass_id || '')}&enrollment_status=${encodeURIComponent(enrollment_status)}&student_status=${encodeURIComponent(enrollment_status)}&payment_status=${encodeURIComponent(payment_status || '')}&search_student_name=${encodeURIComponent(search_student_name || '')}`;
+            url += `?class_id=${encodeURIComponent(class_id || '')}&subclass_id=${encodeURIComponent(subclass_id || '')}&enrollment_status=${encodeURIComponent(enrollment_status)}&student_status=${encodeURIComponent(enrollment_status)}&promotion_status=${encodeURIComponent(promotion_status)}&payment_status=${encodeURIComponent(payment_status || '')}&search_student_name=${encodeURIComponent(search_student_name || '')}`;
 
             $('#pdfProgressTitle').text('Generating Payments Report');
             $('#downloadProgressModal').modal('show');
@@ -1766,13 +2257,13 @@
         // ---------- Button: Send Control Numbers ----------
         $('#sendSMSBtn').off('click').on('click', function(e) {
             e.preventDefault();
-            openFeeSmsModal('control_number', $('#filterYear').val(), '');
+            openFeeSmsModal('control_number', headerAcademicYearID, '');
         });
 
         // ---------- Button: Send Debt Reminders ----------
         $('#sendDebtRemindersBtn').off('click').on('click', function(e) {
             e.preventDefault();
-            openFeeSmsModal('debt_reminder', $('#filterYear').val(), '');
+            openFeeSmsModal('debt_reminder', headerAcademicYearID, '');
         });
 
         // New AJAX Handler for Individual Student Export (Standardized Server-Side)
@@ -1886,7 +2377,7 @@
                         url: '{{ route("generate_control_numbers") }}',
                         method: 'POST',
                         data: {
-                            year: $('#filterYear').val()
+                            academic_year_id: headerAcademicYearID
                         },
                         dataType: 'json',
                         success: function(response) {
@@ -1944,7 +2435,7 @@
                         url: '/send_control_numbers_sms',
                         method: 'POST',
                         data: {
-                            year: $('#filterYear').val()
+                            academic_year_id: headerAcademicYearID
                         },
                         dataType: 'json',
                         success: function(response) {
@@ -2046,6 +2537,14 @@
             $('#view_student_name').text(btn.data('student-name') || '-');
             $('#view_student_class').text(btn.data('student-class') || '-');
             $('#view_student_admission').text(btn.data('student-admission') || '-');
+            var enrSt = btn.data('enrollment-status') || '';
+            var promoSt = btn.data('promotion-status') || '';
+            var badgeHtml = '';
+            if (enrSt) badgeHtml += '<span class="badge bg-success me-1">' + enrSt + '</span>';
+            if (promoSt) badgeHtml += '<span class="badge bg-secondary me-1">' + promoSt + '</span>';
+            var ayLbl = btn.data('academic-year') || '';
+            if (ayLbl) badgeHtml += '<span class="badge bg-light text-dark border">' + ayLbl + '</span>';
+            $('#view_student_enrollment_badges').html(badgeHtml);
             
             // Get payments and totals data
             let payment = {};
@@ -2068,12 +2567,21 @@
             const feePayments = payment.fee_payments || [];
             const tuitionPayments = feePayments.filter(fp => fp.is_required);
             const otherFeePayments = feePayments.filter(fp => !fp.is_required);
+
+            let multiAccounts = [];
+            try {
+                const multiData = btn.data('multi-accounts');
+                if (multiData) multiAccounts = typeof multiData === 'string' ? JSON.parse(multiData) : multiData;
+            } catch (e) { multiAccounts = []; }
             
-            // Debt handling
-            const oldDebt = parseFloat(payment.debt || 0);
-            const totalPaid = parseFloat(payment.amount_paid || 0);
-            const totalRequired = parseFloat(payment.amount_required || 0);
-            const totalOutstanding = parseFloat(payment.balance || 0);
+            // Debt handling — prefer live prior-years calc from list, then bill debt field
+            const priorFromList = parseFloat(btn.data('prior-years-owed') || totals.prior_years_owed || 0);
+            const billDebt = parseFloat(payment.debt || 0);
+            const oldDebt = Math.max(priorFromList, billDebt);
+            // Prefer aggregated totals (single + multi) when present
+            const totalPaid = parseFloat(totals.total_paid != null ? totals.total_paid : (payment.amount_paid || 0));
+            const totalRequired = parseFloat(totals.total_required != null ? totals.total_required : (payment.amount_required || 0));
+            const totalOutstanding = parseFloat(totals.total_balance != null ? totals.total_balance : (payment.balance || 0));
             const currentBillBalance = Math.max(0, totalOutstanding - oldDebt);
 
             // Populate Summary Dashboard
@@ -2083,6 +2591,30 @@
             $('#view_total_fee_required').text(totalRequired.toLocaleString() + '/=');
             $('#view_old_debt').text(oldDebt.toLocaleString() + '/=');
             $('#view_total_outstanding').text(totalOutstanding.toLocaleString() + '/=');
+
+            // Multi account control numbers table
+            if (multiAccounts && multiAccounts.length) {
+                let mah = '';
+                multiAccounts.forEach(function(ma) {
+                    mah += '<tr>' +
+                        '<td class="fw-bold">' + (ma.fee_name || '—') + '</td>' +
+                        '<td><span class="badge bg-light text-dark border">' + (ma.account_label || '—') + '</span></td>' +
+                        '<td class="control-number">' + (ma.control_number || '—') + '</td>' +
+                        '<td class="text-end">' + parseFloat(ma.amount_required || 0).toLocaleString() + '</td>' +
+                        '<td class="text-end text-success">' + parseFloat(ma.amount_paid || 0).toLocaleString() + '</td>' +
+                        '<td class="text-end text-danger">' + parseFloat(ma.balance || 0).toLocaleString() + '</td>' +
+                        '<td><span class="badge bg-secondary">' + (ma.payment_status || 'Pending') + '</span></td>' +
+                        '<td class="text-nowrap">' +
+                            (!isClosedYear ? ('<button class="btn btn-sm btn-success record-payment-btn" data-payment-id="' + ma.paymentID + '" data-control-number="' + (ma.control_number || '') + '" data-academic-year="' + (btn.data('academic-year') || '') + '" data-academic-year-id="' + (btn.data('academic-year-id') || '') + '"><i class="bi bi-cash"></i></button> ') : '') +
+                            (ma.paymentID ? ('<button class="btn btn-sm btn-outline-primary resend-control-sms-btn" data-payment-id="' + ma.paymentID + '"><i class="bi bi-send"></i></button>') : '') +
+                        '</td></tr>';
+                });
+                $('#multiAccountsBody').html(mah);
+                $('#multiAccountsSection').show();
+            } else {
+                $('#multiAccountsBody').empty();
+                $('#multiAccountsSection').hide();
+            }
 
             // Sponsorship Info
             const sponsorData = btn.data('student-sponsor');
@@ -2129,6 +2661,8 @@
             
             // Build Record Payment button for the whole control number
             let recordPaymentHtml = '';
+            const rowYearLabel = btn.data('academic-year') || headerAcademicYearLabel || '';
+            const rowYearId = btn.data('academic-year-id') || headerAcademicYearID || '';
             if (!isClosedYear) {
                 recordPaymentHtml += '<div class="btn-group">';
                 recordPaymentHtml += '<button class="btn btn-success record-payment-btn" ' +
@@ -2138,6 +2672,8 @@
                     'data-amount-paid="' + (payment.amount_paid || 0) + '" ' +
                     'data-balance="' + (payment.balance || 0) + '" ' +
                     'data-is-sponsored="' + (sponsorData ? 'yes' : 'no') + '" ' +
+                    'data-academic-year="' + rowYearLabel + '" ' +
+                    'data-academic-year-id="' + rowYearId + '" ' +
                     'data-payment=\'' + JSON.stringify(payment).replace(/'/g, "&#39;") + '\' ' +
                     'data-fee-type="Unified Payment" ' +
                     'title="Record Payment">' +
@@ -2397,6 +2933,10 @@
                         const statusBadge = y.enrollment_status
                             ? '<span class="badge bg-secondary">' + y.enrollment_status + '</span>'
                             : '<span class="text-muted">—</span>';
+                        const promoLabel = y.promotion_status_label || y.promotion_status || '';
+                        const promoBadge = promoLabel
+                            ? '<span class="badge bg-light text-dark border">' + promoLabel + '</span>'
+                            : '<span class="text-muted">—</span>';
                         const payBadge = owed > 0
                             ? '<span class="badge bg-danger">Owes</span>'
                             : (y.source === 'none'
@@ -2415,10 +2955,40 @@
                         rows += '<td>' + (y.class_name || 'N/A') + '</td>';
                         rows += '<td>' + (y.subclass_name || 'N/A') + '</td>';
                         rows += '<td>' + statusBadge + '</td>';
+                        rows += '<td>' + promoBadge + '</td>';
                         rows += '<td class="text-end">' + fmt(y.amount_required) + '</td>';
                         rows += '<td class="text-end text-success">' + fmt(y.amount_paid) + '</td>';
                         rows += '<td class="text-end fw-bold' + (owed > 0 ? ' text-danger' : '') + '">' + fmt(owed) + '</td>';
                         rows += '<td>' + payBadge + ' <small class="text-muted d-block">' + (y.payment_status || '') + '</small></td>';
+                        rows += '<td class="text-center">';
+                        if (y.can_record && y.paymentID) {
+                            const payObj = y.payment || {
+                                paymentID: y.paymentID,
+                                control_number: y.control_number,
+                                amount_required: y.amount_required,
+                                amount_paid: y.amount_paid,
+                                balance: y.balance,
+                                debt: y.debt,
+                                fee_payments: y.fee_payments || [],
+                                sponsor_balance: (y.payment && y.payment.sponsor_balance) || 0,
+                                parent_balance: (y.payment && y.payment.parent_balance) || 0
+                            };
+                            rows += '<button type="button" class="btn btn-sm btn-success record-payment-btn" ' +
+                                'data-payment-id="' + y.paymentID + '" ' +
+                                'data-control-number="' + (y.control_number || '') + '" ' +
+                                'data-amount-required="' + (y.amount_required || 0) + '" ' +
+                                'data-amount-paid="' + (y.amount_paid || 0) + '" ' +
+                                'data-balance="' + (y.balance || 0) + '" ' +
+                                'data-is-sponsored="no" ' +
+                                'data-academic-year="' + (y.year_name || '') + '" ' +
+                                'data-academic-year-id="' + (y.academic_yearID || '') + '" ' +
+                                'data-payment=\'' + JSON.stringify(payObj).replace(/'/g, "&#39;") + '\' ' +
+                                'title="Record payment for ' + (y.year_name || 'this year') + '">' +
+                                '<i class="bi bi-cash-coin"></i></button>';
+                        } else {
+                            rows += '<span class="text-muted">—</span>';
+                        }
+                        rows += '</td>';
                         rows += '</tr>';
                     });
                     $body.html(rows);
@@ -2458,6 +3028,17 @@
             // Set modal fields
             $('#record_payment_id').val(paymentID);
             $('#record_control_number').val(controlNumber);
+
+            const academicYearLabel = btn.data('academic-year')
+                || (payment.academic_year && (payment.academic_year.year_name || payment.academic_year.year))
+                || headerAcademicYearLabel
+                || '';
+            const academicYearId = btn.data('academic-year-id')
+                || payment.academic_yearID
+                || headerAcademicYearID
+                || '';
+            $('#record_academic_year_label').val(academicYearLabel || '—');
+            $('#record_academic_year_id').val(academicYearId || '');
             
             // Populate Fee Dropdown
             const feeSelect = $('#record_fee_id');
@@ -2485,7 +3066,7 @@
             $('#record_payment_source').val('Cash');
             $('#record_payment_by').val('Parent');
             $('#record_bank_name').val('');
-            $('#record_notes').val('');
+            $('#record_notes').val(academicYearLabel ? ('[Academic Year: ' + academicYearLabel + '] ') : '');
 
             // Store split balances in modal for real-time validation
             $('#recordPaymentModal').data('sponsor-balance', parseFloat(payment.sponsor_balance || 0));

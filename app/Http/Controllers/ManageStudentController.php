@@ -1849,6 +1849,7 @@ class ManageStudentController extends Controller
             $gender = $request->input('gender', ''); // 'Male' or 'Female'
             $health = $request->input('health', ''); // 'good' or 'bad'
             $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($status);
+            $promotionStatus = $this->normalizePromotionStatusFilter($request->input('promotion_status', ''));
             $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
                 (int) $schoolID,
                 $classID,
@@ -1857,6 +1858,7 @@ class ManageStudentController extends Controller
 
             \Log::debug('get_students filters', [
                 'enrollment_status' => $enrollmentStatus,
+                'promotion_status' => $promotionStatus,
                 'page' => $request->input('page', 1),
                 'academic_yearIDs' => $academicYearIDs,
             ]);
@@ -1870,7 +1872,8 @@ class ManageStudentController extends Controller
             $academicYearIDs,
             $classID,
             $subclassID,
-            $enrollmentStatus
+            $enrollmentStatus,
+            $promotionStatus
         );
 
         // Filter by gender
@@ -1985,7 +1988,8 @@ class ManageStudentController extends Controller
             $academicYearIDs,
             $classID,
             $subclassID,
-            $enrollmentStatus
+            $enrollmentStatus,
+            $promotionStatus
         );
 
         $students = $studentsCollection->map(function($student) use ($enrollmentMap, $enrollmentStatus) {
@@ -2092,7 +2096,20 @@ class ManageStudentController extends Controller
     }
 
     /**
-     * Apply academic-year + enrollment-status filter without loading every enrollment row into PHP.
+     * Allowed student_enrollments.promotion_status values for manage_student filter.
+     * Empty string = no promotion filter (all).
+     */
+    private function normalizePromotionStatusFilter($status): string
+    {
+        $status = is_string($status) ? trim($status) : '';
+        if ($status !== '' && in_array($status, StudentEnrollment::PROMOTION_STATUSES, true)) {
+            return $status;
+        }
+        return '';
+    }
+
+    /**
+     * Apply academic-year + enrollment-status (+ optional promotion) filter without loading every enrollment row into PHP.
      */
     private function applyEnrollmentScopeToStudentsQuery(
         $query,
@@ -2100,12 +2117,14 @@ class ManageStudentController extends Controller
         $academicYearIDs = null,
         $classID = null,
         $subclassID = null,
-        $enrollmentStatus = 'Active'
+        $enrollmentStatus = 'Active',
+        $promotionStatus = ''
     ): void {
         $yearIDs = is_array($academicYearIDs)
             ? array_values(array_filter(array_map('intval', $academicYearIDs)))
             : (empty($academicYearIDs) ? [] : [(int) $academicYearIDs]);
         $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($enrollmentStatus);
+        $promotionStatus = $this->normalizePromotionStatusFilter($promotionStatus);
 
         if (!$this->schoolHasEnrollments($schoolID)) {
             // Legacy schools with empty enrollments table — approximate via students.status
@@ -2128,12 +2147,16 @@ class ManageStudentController extends Controller
             return;
         }
 
-        $query->whereExists(function ($q) use ($schoolID, $yearIDs, $classID, $subclassID, $enrollmentStatus) {
+        $query->whereExists(function ($q) use ($schoolID, $yearIDs, $classID, $subclassID, $enrollmentStatus, $promotionStatus) {
             $q->select(DB::raw(1))
                 ->from('student_enrollments')
                 ->whereColumn('student_enrollments.studentID', 'students.studentID')
                 ->where('student_enrollments.schoolID', $schoolID)
                 ->where('student_enrollments.status', $enrollmentStatus);
+
+            if ($promotionStatus !== '') {
+                $q->where('student_enrollments.promotion_status', $promotionStatus);
+            }
 
             if (!empty($yearIDs)) {
                 $q->whereIn('student_enrollments.academic_yearID', $yearIDs);
@@ -2156,7 +2179,8 @@ class ManageStudentController extends Controller
         $academicYearIDs = null,
         $classID = null,
         $subclassID = null,
-        $enrollmentStatus = 'Active'
+        $enrollmentStatus = 'Active',
+        $promotionStatus = ''
     ) {
         $studentIDs = array_values(array_filter(array_map('intval', $studentIDs)));
         if (empty($studentIDs)) {
@@ -2173,6 +2197,11 @@ class ManageStudentController extends Controller
 
         $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($enrollmentStatus);
         $query->where('status', $enrollmentStatus);
+
+        $promotionStatus = $this->normalizePromotionStatusFilter($promotionStatus);
+        if ($promotionStatus !== '') {
+            $query->where('promotion_status', $promotionStatus);
+        }
 
         if (!empty($yearIDs)) {
             $query->whereIn('academic_yearID', $yearIDs);
@@ -2280,6 +2309,7 @@ class ManageStudentController extends Controller
         $gender = $request->input('gender', '');
         $health = $request->input('health', '');
         $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($status);
+        $promotionStatus = $this->normalizePromotionStatusFilter($request->input('promotion_status', ''));
         $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
             (int) $schoolID,
             $classID,
@@ -2295,7 +2325,8 @@ class ManageStudentController extends Controller
             $academicYearIDs,
             $classID,
             $subclassID,
-            $enrollmentStatus
+            $enrollmentStatus,
+            $promotionStatus
         );
 
         // Filter by gender
@@ -2422,6 +2453,7 @@ class ManageStudentController extends Controller
             $gender = $request->input('gender', '');
             $health = $request->input('health', '');
             $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($status);
+            $promotionStatus = $this->normalizePromotionStatusFilter($request->input('promotion_status', ''));
             $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
                 (int) $schoolID,
                 $classID,
@@ -2437,7 +2469,8 @@ class ManageStudentController extends Controller
                 $academicYearIDs,
                 $classID,
                 $subclassID,
-                $enrollmentStatus
+                $enrollmentStatus,
+                $promotionStatus
             );
 
             if (!empty($gender) && in_array($gender, ['Male', 'Female'])) {
@@ -2480,7 +2513,8 @@ class ManageStudentController extends Controller
                 $academicYearIDs,
                 $classID,
                 $subclassID,
-                $enrollmentStatus
+                $enrollmentStatus,
+                $promotionStatus
             );
 
             $school = School::find($schoolID);
@@ -2567,6 +2601,7 @@ class ManageStudentController extends Controller
             $gender = $request->input('gender', '');
             $health = $request->input('health', '');
             $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($status);
+            $promotionStatus = $this->normalizePromotionStatusFilter($request->input('promotion_status', ''));
             $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
                 (int) $schoolID,
                 $classID,
@@ -2582,7 +2617,8 @@ class ManageStudentController extends Controller
                 $academicYearIDs,
                 $classID,
                 $subclassID,
-                $enrollmentStatus
+                $enrollmentStatus,
+                $promotionStatus
             );
 
             if (!empty($gender) && in_array($gender, ['Male', 'Female'])) {
@@ -2646,7 +2682,8 @@ class ManageStudentController extends Controller
                 $academicYearIDs,
                 $classID,
                 $subclassID,
-                $enrollmentStatus
+                $enrollmentStatus,
+                $promotionStatus
             );
 
             $data = [];

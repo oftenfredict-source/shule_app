@@ -14,6 +14,7 @@ class FeeInstallment extends Model
 
     protected $fillable = [
         'feeID',
+        'academic_yearID',
         'installment_name',
         'installment_type',
         'installment_number',
@@ -26,11 +27,17 @@ class FeeInstallment extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'due_date' => 'date',
+        'academic_yearID' => 'integer',
     ];
 
     // Relationships
     public function fee()
     {
         return $this->belongsTo(Fee::class, 'feeID', 'feeID');
+    }
+
+    public function academicYear()
+    {
+        return $this->belongsTo(AcademicYear::class, 'academic_yearID', 'academic_yearID');
     }
 }

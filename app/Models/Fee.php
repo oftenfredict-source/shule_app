@@ -27,6 +27,9 @@ class Fee extends Model
         'sms_assignment_template', // Added
         'sms_reminder_template',   // Added
         'status',
+        'account_mode',
+        'bank_account_id',
+        'has_breakdown',
         'allow_installments',
         'default_installment_type',
         'number_of_installments',
@@ -42,6 +45,7 @@ class Fee extends Model
         'allow_installments' => 'boolean',
         'allow_partial_payment' => 'boolean',
         'number_of_installments' => 'integer',
+        'has_breakdown' => 'boolean',
     ];
 
     // Relationships
@@ -60,6 +64,11 @@ class Fee extends Model
         return $this->hasMany(FeeInstallment::class, 'feeID', 'feeID');
     }
 
+    public function deadlines()
+    {
+        return $this->hasMany(FeeDeadline::class, 'feeID', 'feeID');
+    }
+
     public function otherFeeDetails()
     {
         return $this->hasMany(OtherFeeDetail::class, 'feeID', 'feeID');
@@ -68,5 +77,32 @@ class Fee extends Model
     public function feeConditions()
     {
         return $this->hasMany(FeeCondition::class, 'feeID', 'feeID');
+    }
+
+    public function bankAccount()
+    {
+        return $this->belongsTo(SchoolBankAccount::class, 'bank_account_id', 'accountID');
+    }
+
+    public function breakdowns()
+    {
+        return $this->hasMany(FeeBreakdown::class, 'feeID', 'feeID')->orderBy('display_order');
+    }
+
+    public function isMultiAccount(): bool
+    {
+        return ($this->account_mode ?? 'single') === 'multi';
+    }
+
+    public function scopeSingleAccount($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('account_mode', 'single')->orWhereNull('account_mode');
+        });
+    }
+
+    public function scopeMultiAccount($query)
+    {
+        return $query->where('account_mode', 'multi');
     }
 }

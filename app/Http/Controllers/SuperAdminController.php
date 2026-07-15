@@ -18,6 +18,8 @@ use App\Models\User;
 use App\Models\UserLog;
 use App\Models\UserActivity;
 use App\Models\BlockedIp;
+use App\Models\Bank;
+use App\Models\SchoolBankAccount;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -1900,5 +1902,248 @@ class SuperAdminController extends Controller
             'success' => true,
             'message' => 'Parent fingerprint attendance settings saved successfully.',
         ]);
+    }
+
+    // ─── Bank Registration (integration partners) ───────────────────────────
+
+    public function banks()
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $banks = Bank::orderBy('bank_name')->get();
+        return view('SuperAdmin.banks', compact('banks'));
+    }
+
+    public function storeBank(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'bank_name' => 'required|string|max:150|unique:banks,bank_name',
+            'bank_code' => 'nullable|string|max:50',
+            'status' => 'nullable|in:Active,Inactive',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $bank = Bank::create([
+            'bank_name' => trim($request->bank_name),
+            'bank_code' => $request->bank_code ? strtoupper(trim($request->bank_code)) : null,
+            'status' => $request->status ?: 'Active',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bank registered successfully.',
+            'bank' => $bank,
+        ]);
+    }
+
+    public function updateBank(Request $request, $bankID)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $bank = Bank::find($bankID);
+        if (!$bank) {
+            return response()->json(['success' => false, 'error' => 'Bank not found.'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'bank_name' => 'required|string|max:150|unique:banks,bank_name,' . $bankID . ',bankID',
+            'bank_code' => 'nullable|string|max:50',
+            'status' => 'required|in:Active,Inactive',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $bank->update([
+            'bank_name' => trim($request->bank_name),
+            'bank_code' => $request->bank_code ? strtoupper(trim($request->bank_code)) : null,
+            'status' => $request->status,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bank updated successfully.',
+            'bank' => $bank->fresh(),
+        ]);
+    }
+
+    public function deleteBank($bankID)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $bank = Bank::find($bankID);
+        if (!$bank) {
+            return response()->json(['success' => false, 'error' => 'Bank not found.'], 404);
+        }
+
+        if ($bank->schoolBankAccounts()->exists()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Cannot delete bank with registered school accounts. Deactivate it instead.',
+            ], 422);
+        }
+
+        $bank->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bank deleted successfully.',
+        ]);
+    }
+
+    // ─── School bank account verification ───────────────────────────────────
+
+    public function bankAccountVerification()
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $schools = School::orderBy('school_name')->get(['schoolID', 'school_name', 'phone']);
+        return view('SuperAdmin.bank_account_verification', compact('schools'));
+    }
+
+    public function getSchoolBankAccounts(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $schoolID = (int) $request->input('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'error' => 'School is required.'], 422);
+        }
+
+        $accounts = SchoolBankAccount::with('bank')
+            ->where('schoolID', $schoolID)
+            ->orderByRaw("FIELD(status, 'pending', 'approved', 'rejected')")
+            ->orderByDesc('accountID')
+            ->get()
+            ->map(function ($acc) {
+                return [
+                    'accountID' => $acc->accountID,
+                    'account_number' => $acc->account_number,
+                    'account_name' => $acc->account_name,
+                    'status' => $acc->status,
+                    'rejection_reason' => $acc->rejection_reason,
+                    'otp_verified_at' => optional($acc->otp_verified_at)->format('Y-m-d H:i'),
+                    'reviewed_at' => optional($acc->reviewed_at)->format('Y-m-d H:i'),
+                    'bank_name' => $acc->bank->bank_name ?? '—',
+                    'bank_code' => $acc->bank->bank_code ?? '',
+                    'display_label' => $acc->displayLabel(),
+                ];
+            });
+
+        return response()->json(['success' => true, 'accounts' => $accounts]);
+    }
+
+    public function approveSchoolBankAccount(Request $request, $accountID)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $account = SchoolBankAccount::with(['bank', 'school'])->find($accountID);
+        if (!$account) {
+            return response()->json(['success' => false, 'error' => 'Account not found.'], 404);
+        }
+
+        $account->update([
+            'status' => SchoolBankAccount::STATUS_APPROVED,
+            'rejection_reason' => null,
+            'reviewed_by' => Session::get('user_id') ?? Session::get('id'),
+            'reviewed_at' => now(),
+        ]);
+
+        $this->notifySchoolAboutBankAccount($account, true);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bank account approved. SMS notification sent to school.',
+        ]);
+    }
+
+    public function rejectSchoolBankAccount(Request $request, $accountID)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'rejection_reason' => 'required|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $account = SchoolBankAccount::with(['bank', 'school'])->find($accountID);
+        if (!$account) {
+            return response()->json(['success' => false, 'error' => 'Account not found.'], 404);
+        }
+
+        $account->update([
+            'status' => SchoolBankAccount::STATUS_REJECTED,
+            'rejection_reason' => trim($request->rejection_reason),
+            'reviewed_by' => Session::get('user_id') ?? Session::get('id'),
+            'reviewed_at' => now(),
+        ]);
+
+        $this->notifySchoolAboutBankAccount($account, false);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bank account rejected. SMS notification sent to school.',
+        ]);
+    }
+
+    private function notifySchoolAboutBankAccount(SchoolBankAccount $account, bool $approved): void
+    {
+        $school = $account->school;
+        if (!$school || empty($school->phone)) {
+            return;
+        }
+
+        $label = $account->account_number;
+        $bank = $account->bank->bank_code ?: ($account->bank->bank_name ?? 'Bank');
+
+        if ($approved) {
+            $msg = "ShuleXpert: Bank account {$label} ({$bank}) has been APPROVED. You can now use it for Multi Account Fees.";
+        } else {
+            $reason = $account->rejection_reason ?: 'No reason provided';
+            $msg = "ShuleXpert: Bank account {$label} ({$bank}) was REJECTED. Reason: {$reason}";
+        }
+
+        try {
+            (new SmsService())->sendSms($school->phone, $msg, $school->senderID);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to SMS school about bank account decision', [
+                'accountID' => $account->accountID,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

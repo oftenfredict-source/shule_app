@@ -1386,14 +1386,14 @@
 
             <!-- Filters Section -->
             <div class="row g-3 mb-4">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-bold mb-2">Class</label>
                     <select class="form-select" id="classFilter">
                         <option value="">-- All Classes --</option>
                         <!-- Will be loaded via AJAX -->
                     </select>
                     </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-bold mb-2">Subclass</label>
                     <select class="form-select" id="subclassFilter">
                         <option value="">-- All Subclasses --</option>
@@ -1424,6 +1424,19 @@
                         <option value="Transferred">Transferred</option>
                         <option value="Dropped">Dropped</option>
                         <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold mb-2" for="promotionFilter" title="Promotion status for the selected academic year">Promotion Status</label>
+                    <select class="form-select" id="promotionFilter" title="Promotion status for the selected academic year">
+                        <option value="">-- All --</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Promoted">Promoted</option>
+                        <option value="Repeated">Repeated</option>
+                        <option value="Graduated">Graduated</option>
+                        <option value="Transferred">Transferred</option>
+                        <option value="Truancy">Truancy</option>
+                        <option value="Dropout">Dropout</option>
                     </select>
                 </div>
     </div>

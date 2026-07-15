@@ -310,6 +310,17 @@ Route::get("super-admin/dashboard", [
     SuperAdminController::class,
     "dashboard",
 ])->name("superAdminDashboard");
+
+// Bank registration & school bank account verification (Multi Account Fees)
+Route::get("super-admin/banks", [SuperAdminController::class, "banks"])->name("superadmin.banks.index");
+Route::post("super-admin/banks", [SuperAdminController::class, "storeBank"])->name("superadmin.banks.store");
+Route::put("super-admin/banks/{bankID}", [SuperAdminController::class, "updateBank"])->name("superadmin.banks.update");
+Route::delete("super-admin/banks/{bankID}", [SuperAdminController::class, "deleteBank"])->name("superadmin.banks.delete");
+Route::get("super-admin/bank-account-verification", [SuperAdminController::class, "bankAccountVerification"])->name("superadmin.bank_accounts.verification");
+Route::get("super-admin/bank-accounts/list", [SuperAdminController::class, "getSchoolBankAccounts"])->name("superadmin.bank_accounts.list");
+Route::post("super-admin/bank-accounts/{accountID}/approve", [SuperAdminController::class, "approveSchoolBankAccount"])->name("superadmin.bank_accounts.approve");
+Route::post("super-admin/bank-accounts/{accountID}/reject", [SuperAdminController::class, "rejectSchoolBankAccount"])->name("superadmin.bank_accounts.reject");
+
 Route::get("super-admin/schools/register", [
     ConfigurationController::class,
     "index",
@@ -962,6 +973,18 @@ Route::get("teachersDashboard", [
     TeachersController::class,
     "teachersDashboard",
 ])->name("teachersDashboard");
+Route::get("teacher/my-attendance", [
+    ManageAttendanceController::class,
+    "teacherMyAttendance",
+])->name("teacher.my_attendance");
+Route::get("teacher/my-attendance/data", [
+    ManageAttendanceController::class,
+    "teacherMyAttendanceData",
+])->name("teacher.my_attendance.data");
+Route::get("teacher/my-attendance/pdf", [
+    ManageAttendanceController::class,
+    "exportTeacherMyAttendancePdf",
+])->name("teacher.my_attendance.pdf");
 Route::get("teacher/my-sessions", [
     TeachersController::class,
     "mySessions",
@@ -3429,6 +3452,14 @@ Route::get("get_fee/{feeID}", [FeesController::class, "get_fee"])->name(
     "get_fee",
 );
 
+// School bank accounts (Multi Account Fees) — Admin only for register/OTP
+Route::get("fees/active_banks", [FeesController::class, "list_active_banks"])->name("fees.active_banks");
+Route::get("fees/school_bank_accounts", [FeesController::class, "list_school_bank_accounts"])->name("fees.school_bank_accounts");
+Route::get("fees/approved_bank_accounts", [FeesController::class, "list_approved_school_bank_accounts"])->name("fees.approved_bank_accounts");
+Route::post("fees/bank_accounts/send_otp", [FeesController::class, "send_bank_account_otp"])->name("fees.bank_accounts.send_otp");
+Route::post("fees/bank_accounts/verify_otp", [FeesController::class, "verify_bank_account_otp"])->name("fees.bank_accounts.verify_otp");
+Route::delete("fees/bank_accounts/{accountID}", [FeesController::class, "delete_school_bank_account"])->name("fees.bank_accounts.delete");
+
 // Fee Conditions & Agreements Routes
 Route::get("get_class_conditions/{classID}", [
     FeesController::class,
@@ -3442,6 +3473,26 @@ Route::get("get_class_fees/{classID}", [
     FeesController::class,
     "get_class_fees",
 ])->name("get_class_fees");
+Route::get("fees/installments/{feeID}", [
+    FeesController::class,
+    "get_fee_installments",
+])->name("fees.installments.show");
+Route::post("fees/installments", [
+    FeesController::class,
+    "store_fee_installments",
+])->name("fees.installments.store");
+Route::get("fees/deadlines/class/{classID}", [
+    FeesController::class,
+    "get_class_fee_deadlines",
+])->name("fees.deadlines.class");
+Route::post("fees/deadlines", [
+    FeesController::class,
+    "store_fee_deadlines",
+])->name("fees.deadlines.store");
+Route::delete("fees/deadlines/{deadlineID}", [
+    FeesController::class,
+    "delete_fee_deadline",
+])->name("fees.deadlines.delete");
 Route::get("get_existing_agreements/{classID}", [
     FeesController::class,
     "get_existing_agreements",
