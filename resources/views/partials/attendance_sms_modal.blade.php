@@ -78,9 +78,13 @@
 </div>
 
 <script>
-(function () {
+(function ($) {
     if (window.__attendanceSmsModalInit) return;
     window.__attendanceSmsModalInit = true;
+    if (typeof $ !== 'function') {
+        console.error('Attendance SMS modal: jQuery not available.');
+        return;
+    }
 
     let attSmsSending = false;
     let attSmsContext = { subclassID: null, referenceDate: null };
@@ -260,5 +264,5 @@
         });
         attSmsUpdateCount();
     });
-})();
+})(window.jQuery);
 </script>

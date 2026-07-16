@@ -846,7 +846,9 @@
             </div>
             <div class="modal-body">
                 <div class="alert alert-info">
-                    Deadlines use the academic year selected in the header. Amount means the cumulative amount a student should have paid by the end date.
+                    Deadlines use the academic year selected in the header.
+                    Choose <strong>Fixed</strong> (TZS for that period) or <strong>Percent</strong> (share of the fee for that period).
+                    All percent rows must add up to <strong>100%</strong> (e.g. 70% then 30%). Percent applies to discount/agreement students automatically; fixed amounts are scaled to their reduced bill.
                 </div>
                 <ul class="nav nav-pills mb-3" role="tablist">
                     <li class="nav-item">
@@ -911,7 +913,7 @@
                                     <tr>
                                         <th>Type</th>
                                         <th>Period</th>
-                                        <th class="text-end">Required Amount</th>
+                                        <th class="text-end">Required</th>
                                         <th class="text-center">Actions</th>
                                     </tr>
                                 </thead>
@@ -1839,6 +1841,7 @@
         function createDeadlineRow(data) {
             deadlineRowCounter++;
             const type = data?.deadline_type || 'date';
+            const amountType = data?.amount_type || 'fixed';
             const startDate = data?.start_date ? String(data.start_date).slice(0, 10) : '';
             const endDate = data?.end_date ? String(data.end_date).slice(0, 10) : '';
             const startDateParts = startDate ? startDate.split('-') : [];
@@ -1867,6 +1870,7 @@
                 }
                 return html;
             };
+            const isPercent = amountType === 'percent';
             return `<div class="deadline-row card mb-3 border-primary-custom" data-row="${deadlineRowCounter}">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <strong><i class="bi bi-clock"></i> Deadline #${deadlineRowCounter}</strong>
@@ -1911,9 +1915,21 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small">Amount Required by Until Date (TZS) *</label>
-                            <input type="number" class="form-control deadline-amount" min="0.01" step="0.01" value="${data?.amount || ''}">
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold small">Amount Type *</label>
+                            <select class="form-select deadline-amount-type">
+                                <option value="fixed" ${!isPercent ? 'selected' : ''}>Fixed (TZS)</option>
+                                <option value="percent" ${isPercent ? 'selected' : ''}>Percent (%)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold small deadline-amount-label">${isPercent ? 'Period % *' : 'Amount (TZS) *'}</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control deadline-amount"
+                                    min="0.01" step="0.01" max="${isPercent ? '100' : ''}"
+                                    value="${data?.amount || ''}">
+                                <span class="input-group-text deadline-amount-suffix">${isPercent ? '%' : 'TZS'}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2015,10 +2031,19 @@
             validateDeadlineRangesRealtime();
         });
 
+        $(document).on('change', '.deadline-amount-type', function() {
+            const $row = $(this).closest('.deadline-row');
+            const isPercent = $(this).val() === 'percent';
+            $row.find('.deadline-amount-label').text(isPercent ? 'Period % *' : 'Amount (TZS) *');
+            $row.find('.deadline-amount-suffix').text(isPercent ? '%' : 'TZS');
+            $row.find('.deadline-amount').attr('max', isPercent ? '100' : null);
+            validateDeadlineRangesRealtime();
+        });
+
         $(document).on(
             'change input',
             '.deadline-date-start-month,.deadline-start-day,.deadline-date-end-month,.deadline-end-day,' +
-            '.deadline-start-month,.deadline-end-month,.deadline-amount',
+            '.deadline-start-month,.deadline-end-month,.deadline-amount,.deadline-amount-type',
             validateDeadlineRangesRealtime
         );
 
@@ -2102,20 +2127,39 @@
             const selectedFee = deadlineFeesCache.find(item => String(item.feeID) === String($('#deadlineFeeSelect').val()));
             const feeTotal = Number(selectedFee?.amount || 0);
 
-            let amountsTotal = 0;
+            let fixedTotal = 0;
+            let percentTotal = 0;
+            let percentRowCount = 0;
             $('.deadline-row').each(function(index) {
                 const $row = $(this);
                 const type = $row.find('.deadline-type').val();
+                const amountType = $row.find('.deadline-amount-type').val() || 'fixed';
                 const amount = Number($row.find('.deadline-amount').val() || 0);
 
                 if (amount > 0) {
-                    amountsTotal += amount;
-                    if (feeTotal > 0 && amountsTotal > feeTotal) {
-                        $row.addClass('border-danger');
-                        message = 'Total deadline amounts (TZS ' + money(amountsTotal) +
-                            ') exceed the fee total (TZS ' + money(feeTotal) +
-                            '). Reduce the amount on Deadline #' + (index + 1) + '.';
-                        return false;
+                    if (amountType === 'percent') {
+                        percentRowCount++;
+                        if (amount > 100) {
+                            $row.addClass('border-danger');
+                            message = 'Percent on Deadline #' + (index + 1) + ' cannot exceed 100%.';
+                            return false;
+                        }
+                        percentTotal += amount;
+                        if (percentTotal > 100) {
+                            $row.addClass('border-danger');
+                            message = 'Total percent deadlines cannot exceed 100% (now ' +
+                                percentTotal.toFixed(2) + '%). Example: 70% then 30%, not 70% then 40%.';
+                            return false;
+                        }
+                    } else {
+                        fixedTotal += amount;
+                        if (feeTotal > 0 && fixedTotal > feeTotal) {
+                            $row.addClass('border-danger');
+                            message = 'Total fixed deadline amounts (TZS ' + money(fixedTotal) +
+                                ') exceed the fee total (TZS ' + money(feeTotal) +
+                                '). Reduce the amount on Deadline #' + (index + 1) + '.';
+                            return false;
+                        }
                     }
                 }
 
@@ -2144,7 +2188,9 @@
                     row: $row,
                     number: index + 1,
                     start: range.start_date,
-                    end: range.end_date
+                    end: range.end_date,
+                    amountType: amountType,
+                    amount: amount
                 });
             });
 
@@ -2162,6 +2208,19 @@
                 }
             }
 
+            if (!message && percentRowCount > 0 && Math.abs(percentTotal - 100) > 0.009) {
+                $('.deadline-row').each(function() {
+                    if (($(this).find('.deadline-amount-type').val() || 'fixed') === 'percent') {
+                        $(this).addClass('border-danger');
+                    }
+                });
+                const remaining = (100 - percentTotal).toFixed(2);
+                message = percentTotal < 100
+                    ? ('Percent deadlines must total 100%. Current total: ' + percentTotal.toFixed(2) +
+                        '%. Remaining to allocate: ' + remaining + '%.')
+                    : ('Percent deadlines must total 100%. Current total: ' + percentTotal.toFixed(2) + '%.');
+            }
+
             $('#deadlineRealtimeValidation').toggle(Boolean(message)).text(message);
             const feeSelected = Boolean($('#deadlineFeeSelect').val());
             $('#saveDeadlinesBtn').prop('disabled', !feeSelected || Boolean(message));
@@ -2177,6 +2236,7 @@
 
             $('.deadline-row').each(function() {
                 const type = $(this).find('.deadline-type').val();
+                const amountType = $(this).find('.deadline-amount-type').val() || 'fixed';
                 const startMonth = type === 'month'
                     ? $(this).find('.deadline-start-month').val()
                     : $(this).find('.deadline-date-start-month').val();
@@ -2209,6 +2269,10 @@
                     error = 'Complete every deadline field.';
                     return false;
                 }
+                if (amountType === 'percent' && amount > 100) {
+                    error = 'Percent deadlines cannot exceed 100%.';
+                    return false;
+                }
                 if (end < start) {
                     error = 'Until Date cannot be earlier than From Date.';
                     return false;
@@ -2223,6 +2287,7 @@
                     end_day: type === 'date' ? endDay : '',
                     resolved_start: start,
                     resolved_end: end,
+                    amount_type: amountType,
                     amount: amount
                 });
             });
@@ -2237,10 +2302,32 @@
                     return { error: 'Deadline ranges cannot overlap. The next deadline must begin after the previous Until value.' };
                 }
             }
-            const amountsTotal = feeRows.reduce((sum, row) => sum + Number(row.amount), 0);
-            if (amountsTotal > Number(fee?.amount || 0)) {
+            let fixedTotal = 0;
+            let percentTotal = 0;
+            let hasPercent = false;
+            for (let i = 0; i < feeRows.length; i++) {
+                if (feeRows[i].amount_type === 'percent') {
+                    hasPercent = true;
+                    percentTotal += Number(feeRows[i].amount);
+                } else {
+                    fixedTotal += Number(feeRows[i].amount);
+                }
+            }
+            if (percentTotal > 100) {
                 return {
-                    error: 'Total deadline amounts (TZS ' + money(amountsTotal) +
+                    error: 'Total percent deadlines cannot exceed 100% (now ' +
+                        percentTotal.toFixed(2) + '%). Use 70% then 30%, not 70% then 40%.'
+                };
+            }
+            if (hasPercent && Math.abs(percentTotal - 100) > 0.009) {
+                return {
+                    error: 'Percent deadlines must total exactly 100%. Current total: ' +
+                        percentTotal.toFixed(2) + '%. Remaining: ' + (100 - percentTotal).toFixed(2) + '%.'
+                };
+            }
+            if (fixedTotal > Number(fee?.amount || 0)) {
+                return {
+                    error: 'Total fixed deadline amounts (TZS ' + money(fixedTotal) +
                         ') exceed the fee total (TZS ' + money(Number(fee?.amount || 0)) + ').'
                 };
             }
@@ -2314,6 +2401,7 @@
             let html = '';
             rows.sort((a, b) => String(a.start_date).localeCompare(String(b.start_date))).forEach(function(row) {
                 const isMonth = row.deadline_type === 'month';
+                const isPercent = (row.amount_type || 'fixed') === 'percent';
                 const period = isMonth
                     ? monthNames[Number(row.start_month)] + ' to ' + monthNames[Number(row.end_month)]
                     : formatMonthDay(row.start_date) + ' to ' + formatMonthDay(row.end_date);
@@ -2321,7 +2409,11 @@
                     '<td><span class="badge" style="background:whitesmoke;color:#940000;border:1px solid #940000;">' +
                         (isMonth ? 'Month Range' : 'Date Range') + '</span></td>' +
                     '<td>' + period + '</td>' +
-                    '<td class="text-end fw-bold">TZS ' + money(row.amount) + '</td>' +
+                    '<td class="text-end fw-bold">' +
+                        (isPercent
+                            ? (Number(row.amount).toFixed(2) + '% of period')
+                            : ('TZS ' + money(row.amount))) +
+                    '</td>' +
                     '<td class="text-center text-nowrap">' +
                         '<button type="button" class="btn btn-sm btn-outline-primary edit-registered-deadline" data-id="' + row.deadlineID + '" title="Edit"><i class="bi bi-pencil"></i></button> ' +
                         '<button type="button" class="btn btn-sm btn-outline-danger delete-registered-deadline" data-id="' + row.deadlineID + '" title="Delete"><i class="bi bi-trash"></i></button>' +

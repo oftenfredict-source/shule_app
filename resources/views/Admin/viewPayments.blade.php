@@ -157,11 +157,11 @@
         color: #fff !important;
         font-weight: 700;
     }
-    .payment-data-wrapper .payment-grid-view { display: none; }
+    .payment-data-wrapper .payment-grid-view { display: none; overflow: visible; }
     .payment-data-wrapper[data-active-view="list"] .payment-list-view { display: block !important; }
     .payment-data-wrapper[data-active-view="list"] .payment-grid-view { display: none !important; }
     .payment-data-wrapper[data-active-view="grid"] .payment-list-view { display: none !important; }
-    .payment-data-wrapper[data-active-view="grid"] .payment-grid-view { display: block !important; }
+    .payment-data-wrapper[data-active-view="grid"] .payment-grid-view { display: block !important; overflow: visible; }
 
     .payment-grid-search-wrap {
         width: 100%;
@@ -183,28 +183,74 @@
         flex-wrap: wrap;
         margin-left: -8px;
         margin-right: -8px;
+        overflow: visible;
     }
     .payments-widget-grid > [class*="col-"] {
         padding-left: 8px;
         padding-right: 8px;
         margin-bottom: 16px;
+        overflow: visible;
     }
 
     .payment-student-widget {
         width: 100%;
         background: #ffffff;
         border: 1px solid #dee2e6;
-        overflow: hidden;
+        overflow: visible;
         box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         height: 100%;
         display: flex;
         flex-direction: column;
+        position: relative;
+        z-index: 1;
+    }
+    .payment-student-widget:has(.payment-action-dropdown.show) {
+        z-index: 20;
     }
     .payment-student-widget-header {
         background: #940000;
         padding: 16px;
         text-align: center;
         position: relative;
+        overflow: visible;
+    }
+    .payment-grid-actions-top {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 5;
+    }
+    .payment-grid-actions-top .payment-action-toggle {
+        background: rgba(255,255,255,0.95);
+        border-color: rgba(255,255,255,0.6);
+        color: #940000;
+        padding: 4px 10px;
+    }
+    .payment-grid-actions-top .payment-action-dropdown .dropdown-menu {
+        right: 0;
+        left: auto;
+        top: 100%;
+    }
+    .payment-view-toggle-bar {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: #fff;
+        border: 1px solid #ececec;
+        border-left: 4px solid #940000;
+        padding: 10px 14px;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .payment-view-toggle-bar .payment-view-label {
+        font-weight: 700;
+        color: #940000;
+        margin: 0;
+        font-size: 0.95rem;
     }
     .payment-student-widget-header img,
     .payment-student-widget-header .payment-grid-photo-placeholder {
@@ -221,6 +267,195 @@
         font-size: 28px;
         font-weight: 700;
         color: #fff;
+    }
+    #smsTemplateModal {
+        z-index: 1065 !important;
+    }
+    body.sms-template-open .modal-backdrop {
+        z-index: 1060 !important;
+    }
+    #smsTemplateEditorList {
+        max-height: 55vh;
+        overflow-y: auto;
+    }
+    #smsTemplateEditorList textarea {
+        background: #fff;
+        resize: vertical;
+        min-height: 110px;
+    }
+
+    /* View More modal — desktop */
+    .view-more-modal-dialog {
+        max-width: 95%;
+        width: 1200px;
+    }
+    #viewMoreModal .view-more-stats-row .col {
+        min-width: 0;
+    }
+    #viewMoreModal .enrollment-years-header small {
+        text-align: right;
+    }
+
+    @media (max-width: 767.98px) {
+        .view-more-modal-dialog {
+            max-width: calc(100% - 0.5rem) !important;
+            width: 100% !important;
+            margin: 0.25rem auto;
+            max-height: calc(100% - 0.5rem);
+        }
+        #viewMoreModal .modal-content {
+            max-height: calc(100vh - 0.5rem);
+            display: flex;
+            flex-direction: column;
+            border-radius: 0;
+        }
+        #viewMoreModal .modal-body {
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex: 1 1 auto;
+            padding: 0.75rem;
+            -webkit-overflow-scrolling: touch;
+        }
+        #viewMoreModal .modal-header,
+        #viewMoreModal .modal-footer {
+            padding: 0.75rem;
+            flex-shrink: 0;
+        }
+        #viewMoreModal .modal-header .modal-title {
+            font-size: 1rem;
+            line-height: 1.3;
+            padding-right: 1.5rem;
+        }
+        #viewMoreModal .view-more-student-row > [class*="col-"] {
+            text-align: center !important;
+            margin-bottom: 0.65rem;
+        }
+        #viewMoreModal #view_student_name {
+            font-size: 1.05rem;
+            word-break: break-word;
+        }
+        #viewMoreModal #view_student_enrollment_badges .badge {
+            margin-bottom: 0.25rem;
+        }
+        #viewMoreModal #singleAccountCnWrap .stat-card-accent {
+            text-align: center;
+        }
+        #viewMoreModal .view-more-stats-row > .col {
+            flex: 0 0 50%;
+            max-width: 50%;
+            margin-bottom: 0.35rem;
+        }
+        #viewMoreModal .view-more-stats-row > .col:nth-child(5) {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+        #viewMoreModal .view-more-stats-row h6 {
+            font-size: 0.9rem;
+            word-break: break-word;
+        }
+        #viewMoreModal .enrollment-years-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 0.35rem;
+        }
+        #viewMoreModal .enrollment-years-header small {
+            text-align: left;
+            font-size: 0.72rem;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+        #viewMoreModal .table-responsive {
+            overflow-x: visible;
+        }
+        #viewMoreModal .view-more-responsive-table {
+            border: 0;
+        }
+        #viewMoreModal .view-more-responsive-table thead {
+            display: none;
+        }
+        #viewMoreModal .view-more-responsive-table tbody tr {
+            display: block;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            margin-bottom: 0.75rem;
+            padding: 0.35rem 0;
+            background: #fff;
+        }
+        #viewMoreModal .view-more-responsive-table tbody tr.table-danger {
+            background: #fff5f5;
+        }
+        #viewMoreModal .view-more-responsive-table td {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.5rem;
+            border: none !important;
+            padding: 0.45rem 0.75rem !important;
+            text-align: right !important;
+            word-break: break-word;
+        }
+        #viewMoreModal .view-more-responsive-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #666;
+            font-size: 0.78rem;
+            text-align: left;
+            flex: 0 0 40%;
+            max-width: 40%;
+        }
+        #viewMoreModal .view-more-responsive-table td.text-nowrap,
+        #viewMoreModal .view-more-responsive-table td.text-center {
+            justify-content: space-between;
+        }
+        #viewMoreModal .student-photo-modal-container img,
+        #viewMoreModal .student-photo-modal-container .student-photo-placeholder {
+            width: 72px !important;
+            height: 72px !important;
+            font-size: 28px !important;
+        }
+        #viewMoreModal .modal-footer {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        #viewMoreModal .modal-footer .btn,
+        #viewMoreModal #modalRecordPaymentContainer .btn {
+            width: 100%;
+        }
+        #viewMoreModal #modalRecordPaymentContainer .btn-group {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 0.5rem;
+        }
+        #viewMoreModal #modalRecordPaymentContainer .btn-group .btn {
+            width: 100%;
+            border-radius: 0 !important;
+        }
+        #viewMoreModal #sponsorInfoSection .border-start,
+        #viewMoreModal #sponsorInfoSection .border-end {
+            border: none !important;
+        }
+        #viewMoreModal #sponsorInfoSection .col-md-4.text-end {
+            text-align: center !important;
+        }
+        #viewMoreModal .view-more-responsive-table td[data-label="Action"],
+        #viewMoreModal .view-more-responsive-table td[data-label="Actions"] {
+            flex-wrap: wrap;
+        }
+    }
+
+    tr.payment-deadline-overdue td {
+        background-color: #fff5f5 !important;
+    }
+    tr.payment-deadline-overdue td:first-child {
+        box-shadow: inset 4px 0 0 #dc3545;
+    }
+    .payment-student-widget.payment-deadline-overdue {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.25);
+    }
+    .payment-student-widget.payment-deadline-overdue .payment-student-widget-header {
+        background: #b30000;
     }
     .payment-student-widget-body {
         padding: 14px;
@@ -607,6 +842,14 @@
                                 <option value="">All Classes</option>
                             </select>
                         </div>
+                        <div class="col-md-2" id="filterFeeWrap" style="display:none;">
+                            <label class="form-label fw-bold mb-2">
+                                <i class="bi bi-cash-stack"></i> Fee Account
+                            </label>
+                            <select class="form-select" id="filterFee">
+                                <option value="all">All Fees</option>
+                            </select>
+                        </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold mb-2">
                                 <i class="bi bi-layers"></i> Subclass
@@ -698,20 +941,20 @@
             </div>
 
             <!-- Payments Table -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: whitesmoke; border-bottom: 2px solid #940000;">
-                    <h5 class="mb-0 payment-section-title">
-                        <i class="bi bi-list-ul"></i> Control Numbers & Payments List
-                    </h5>
-                    <div class="btn-group btn-group-sm payment-view-toggle" role="group" aria-label="View mode">
-                        <button type="button" class="btn btn-outline-secondary" data-view="list" title="List view">
-                            <i class="bi bi-list-ul"></i> <span class="d-none d-sm-inline">List</span>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" data-view="grid" title="Grid view">
-                            <i class="bi bi-grid-3x3-gap"></i> <span class="d-none d-sm-inline">Grid</span>
-                        </button>
-                    </div>
+            <div class="payment-view-toggle-bar">
+                <h5 class="payment-view-label mb-0">
+                    <i class="bi bi-credit-card-2-front"></i> Control Numbers &amp; Payments
+                </h5>
+                <div class="btn-group btn-group-sm payment-view-toggle" role="group" aria-label="View mode">
+                    <button type="button" class="btn btn-outline-secondary" data-view="list" title="List view">
+                        <i class="bi bi-list-ul"></i> <span class="d-none d-sm-inline">List</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-view="grid" title="Grid view">
+                        <i class="bi bi-grid-3x3-gap"></i> <span class="d-none d-sm-inline">Grid</span>
+                    </button>
                 </div>
+            </div>
+            <div class="card border-0 shadow-sm">
                 <div class="card-body p-0">
                     <div class="payment-data-wrapper" id="paymentsDataWrapper" data-active-view="list">
                         <div class="payment-list-view">
@@ -755,6 +998,12 @@
                                 <input type="search" class="form-control" id="paymentGridSearch" placeholder="Search by name, admission, class..." autocomplete="off">
                             </div>
                             <div id="paymentsWidgetGrid" class="payments-widget-grid"></div>
+                            <div id="paymentsGridLoadMore" class="text-center py-3 d-none" aria-live="polite">
+                                <div class="spinner-border spinner-border-sm text-primary-custom me-2" role="status"></div>
+                                <span>Inapakia wengine...</span>
+                            </div>
+                            <div id="paymentsGridCount" class="text-center text-muted small py-2 d-none"></div>
+                            <div id="paymentsGridSentinel" style="height:1px;" aria-hidden="true"></div>
                         </div>
                     </div>
                 </div>
@@ -765,7 +1014,7 @@
 
 <!-- View More Modal -->
 <div class="modal fade" id="viewMoreModal" tabindex="-1" aria-labelledby="viewMoreModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 95%; width: 1200px;">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable view-more-modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="viewMoreModalLabel">
@@ -777,8 +1026,8 @@
             </div>
             <div class="modal-body">
                 <!-- Student Information -->
-                <div class="row mb-4 align-items-center">
-                    <div class="col-md-2 text-center">
+                <div class="row mb-4 align-items-center view-more-student-row">
+                    <div class="col-12 col-md-2 text-center">
                         <div class="student-photo-modal-container">
                             <img id="view_student_photo" src="" alt="Student Photo" 
                                 class="img-thumbnail" 
@@ -790,14 +1039,14 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12 col-md-6 text-center text-md-start">
                         <h4 class="text-primary-custom mb-1" id="view_student_name">-</h4>
                         <p class="mb-1 text-muted"> <i class="bi bi-book"></i> <span id="view_student_class">-</span> | <i class="bi bi-person-badge"></i> <span id="view_student_admission">-</span></p>
                         <div id="view_student_enrollment_badges" class="mb-0"></div>
                     </div>
-                    <div class="col-md-4 text-end">
+                    <div class="col-12 col-md-4 text-center text-md-end" id="singleAccountCnWrap">
                         <div class="p-2 stat-card-accent rounded border">
-                            <small class="text-muted d-block font-weight-bold">Control Number (Single Account)</small>
+                            <small class="text-muted d-block font-weight-bold">Control Number</small>
                             <span class="h5 mb-0 text-primary-custom fw-bold" id="view_control_number">-</span>
                         </div>
                     </div>
@@ -806,7 +1055,7 @@
                 <div id="multiAccountsSection" class="mb-4" style="display:none;">
                     <h6 class="fw-bold text-primary-custom mb-2"><i class="bi bi-bank"></i> Multi Account Control Numbers</h6>
                     <div class="table-responsive">
-                        <table class="table table-sm table-bordered mb-0">
+                        <table class="table table-sm table-bordered mb-0 view-more-responsive-table">
                             <thead style="background:whitesmoke;color:#940000;">
                                 <tr>
                                     <th>Fee</th>
@@ -815,6 +1064,7 @@
                                     <th class="text-end">Required</th>
                                     <th class="text-end">Paid</th>
                                     <th class="text-end">Balance</th>
+                                    <th>Deadline</th>
                                     <th>Status</th>
                                     <th></th>
                                 </tr>
@@ -825,8 +1075,8 @@
                 </div>
 
                 <!-- Payment Summary Dashboard -->
-                <div class="row mb-4 g-2">
-                    <div class="col">
+                <div class="row mb-4 g-2 view-more-stats-row">
+                    <div class="col-6 col-md">
                         <div class="card border-0 stat-card-accent h-100">
                             <div class="card-body p-2 text-center">
                                 <small class="text-muted d-block mb-1 font-weight-bold" style="font-size: 0.75rem;">Fee Required</small>
@@ -834,7 +1084,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col">
+                    <div class="col-6 col-md">
                         <div class="card border-0 stat-card-accent h-100">
                             <div class="card-body p-2 text-center">
                                 <small class="text-muted d-block mb-1 font-weight-bold" style="font-size: 0.75rem;">Total Paid</small>
@@ -842,7 +1092,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col">
+                    <div class="col-6 col-md">
                         <div class="card border-0 stat-card-accent h-100">
                             <div class="card-body p-2 text-center">
                                 <small class="text-muted d-block mb-1 font-weight-bold" style="font-size: 0.75rem;">Bill Balance</small>
@@ -850,7 +1100,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col">
+                    <div class="col-6 col-md">
                         <div class="card border-0 stat-card-accent h-100">
                             <div class="card-body p-2 text-center">
                                 <small class="text-muted d-block mb-1 font-weight-bold" style="font-size: 0.75rem;">Prev. Year Debt</small>
@@ -858,7 +1108,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col">
+                    <div class="col-12 col-md">
                         <div class="card border-0 bg-primary-custom text-white h-100 shadow-sm" style="background: linear-gradient(135deg, #940000 0%, #7a0000 100%) !important;">
                             <div class="card-body p-2 text-center">
                                 <small class="d-block mb-1 text-white-50 font-weight-bold" style="font-size: 0.75rem;">Total Outstanding</small>
@@ -870,7 +1120,7 @@
 
                 <!-- Academic Year / Enrollment Payment History -->
                 <div class="card border-0 shadow-sm mb-3">
-                    <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+                    <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center enrollment-years-header">
                         <span class="fw-bold text-dark">
                             <i class="bi bi-calendar3 me-2"></i> Academic Years &amp; Enrollment Payments
                         </span>
@@ -881,12 +1131,11 @@
                             <i class="bi bi-hourglass-split"></i> Loading enrollment payment history…
                         </div>
                         <div class="table-responsive" id="enrollmentYearsTableWrap" style="display:none;">
-                            <table class="table table-sm table-bordered table-hover mb-0">
+                            <table class="table table-sm table-bordered table-hover mb-0 view-more-responsive-table">
                                 <thead class="bg-light">
                                     <tr>
                                         <th>Academic Year</th>
                                         <th>Main Class</th>
-                                        <th>Subclass</th>
                                         <th>Enrollment</th>
                                         <th>Promotion</th>
                                         <th class="text-end">Required</th>
@@ -1013,21 +1262,14 @@
                     </div>
                 </div>
 
-                <!-- Transaction History -->
+                <!-- Transaction History (per control number) -->
                 <div class="card border-0 shadow-sm mt-3">
-                    <div class="card-header bg-white border-bottom-0 p-0">
-                        <button class="btn btn-link w-100 text-start text-decoration-none p-3 d-flex justify-content-between align-items-center" 
-                                type="button" data-toggle="collapse" data-target="#allTransactionsCollapse" aria-expanded="false">
-                            <span class="fw-bold text-dark"><i class="bi bi-clock-history me-2"></i> All Transactions of Control Number</span>
-                            <i class="bi bi-chevron-down"></i>
-                        </button>
+                    <div class="card-header bg-white border-bottom p-3">
+                        <span class="fw-bold text-dark"><i class="bi bi-clock-history me-2"></i> All Transactions by Control Number</span>
+                        <small class="text-muted d-block">Toggle each control number to view its payment transactions.</small>
                     </div>
-                    <div class="collapse" id="allTransactionsCollapse">
-                        <div class="card-body pt-0">
-                            <div id="allTransactionsContent">
-                                <!-- Transaction history will be dynamically inserted here -->
-                            </div>
-                        </div>
+                    <div class="card-body pt-2" id="allTransactionsContent">
+                        <!-- Per-CN accordion inserted here -->
                     </div>
                 </div>
             </div>
@@ -1420,25 +1662,70 @@
         $('#filterClass').on('change', function() {
             var selectedClassID = $(this).val();
             $('#filterSubclass').html('<option value="">All Subclasses</option>');
-            
+            resetFeeFilter();
+
             if (selectedClassID && subclassesData && subclassesData.length > 0) {
                 var filteredSubclasses = subclassesData.filter(function(sub) {
                     return sub.classID == selectedClassID;
                 });
-                
+
                 filteredSubclasses.forEach(function(sub) {
                     $('#filterSubclass').append('<option value="' + sub.subclassID + '">' + sub.subclass_name + '</option>');
                 });
             }
-            
+
             loadPaymentsData();
         });
+
+        var currentFeeStructure = { mode: 'none', fees: [] };
+
+        function resetFeeFilter() {
+            currentFeeStructure = { mode: 'none', fees: [] };
+            $('#filterFee').html('<option value="all">All Fees</option>');
+            $('#filterFeeWrap').hide();
+        }
+
+        function applyFeeStructure(structure, preferredFeeId) {
+            currentFeeStructure = structure || { mode: 'none', fees: [] };
+            var mode = currentFeeStructure.mode || 'none';
+            var fees = currentFeeStructure.fees || [];
+            var $fee = $('#filterFee');
+            var previous = preferredFeeId || $fee.val() || 'all';
+
+            if (mode === 'multi' || mode === 'mixed') {
+                var html = '<option value="all">All Fees</option>';
+                fees.filter(function(f) {
+                    return (f.account_mode || 'single') === 'multi' || mode === 'mixed';
+                }).forEach(function(f) {
+                    html += '<option value="' + f.feeID + '">' + f.fee_name +
+                        (f.account_display ? (' — ' + f.account_display) : '') + '</option>';
+                });
+                $fee.html(html);
+                if (previous && $fee.find('option[value="' + previous + '"]').length) {
+                    $fee.val(previous);
+                } else {
+                    $fee.val('all');
+                }
+                $('#filterFeeWrap').show();
+            } else if (mode === 'single') {
+                $fee.html('<option value="all">Single Account (combined)</option>').val('all');
+                $('#filterFeeWrap').hide();
+            } else {
+                resetFeeFilter();
+            }
+        }
 
         // Variable to store the current AJAX request to allow aborting previous ones
         var currentPaymentsAjax = null;
         var currentPaymentsData = [];
         var currentPaymentsClosedYear = false;
         var currentPaymentsEmptyMsg = '';
+        var paymentGridFilteredData = [];
+        var paymentGridRenderedCount = 0;
+        var paymentGridBatchSize = 10;
+        var paymentGridObserver = null;
+        var paymentGridLoadingBatch = false;
+        var paymentGridScrollArmed = false;
 
         // Header academic year (page reloads when header year changes)
         @php
@@ -1490,6 +1777,178 @@
             if (userChoice) paymentSetUserViewPref(view);
             if (view === 'list' && currentPaymentsData.length) {
                 initPaymentsDataTable();
+            } else if (view === 'grid' && currentPaymentsData.length) {
+                paymentGridObserveSentinel();
+            }
+        }
+
+        function buildPaymentObjectFromMultiAccount(ma) {
+            if (!ma) {
+                return {
+                    paymentID: null,
+                    feeID: null,
+                    control_number: '',
+                    amount_required: 0,
+                    amount_paid: 0,
+                    balance: 0,
+                    fee_payments: [],
+                    sponsor_balance: 0,
+                    parent_balance: 0,
+                    sponsor_amount_required: 0,
+                    parent_amount_required: 0
+                };
+            }
+            var feePayments = ma.fee_payments || [];
+            if (typeof feePayments === 'string') {
+                try { feePayments = JSON.parse(feePayments); } catch (e) { feePayments = []; }
+            }
+            if (!feePayments.length && ma.feeID) {
+                feePayments = [{
+                    feeID: ma.feeID,
+                    fee_name: ma.fee_name || 'Fee',
+                    fee_total_amount: ma.amount_required,
+                    amount_paid: ma.amount_paid,
+                    balance: ma.balance,
+                    is_required: 1
+                }];
+            }
+            return {
+                paymentID: ma.paymentID,
+                feeID: ma.feeID,
+                control_number: ma.control_number,
+                amount_required: ma.amount_required,
+                amount_paid: ma.amount_paid,
+                balance: ma.balance,
+                fee_payments: feePayments,
+                sponsor_balance: ma.sponsor_balance || 0,
+                parent_balance: ma.parent_balance || 0,
+                sponsor_amount_required: ma.sponsor_amount_required || 0,
+                parent_amount_required: ma.parent_amount_required || 0
+            };
+        }
+
+        function findMultiAccountByPaymentId(multiAccounts, paymentId) {
+            if (!multiAccounts || !multiAccounts.length || paymentId == null || paymentId === '') {
+                return null;
+            }
+            return multiAccounts.find(function(ma) {
+                return ma && String(ma.paymentID) === String(paymentId);
+            }) || null;
+        }
+
+        function getViewMoreMultiAccounts() {
+            return $('#viewMoreModal').data('multiAccounts')
+                || $('#viewMoreModal').data('multi-accounts')
+                || [];
+        }
+
+        function isRecordPaymentMultiMode(btn) {
+            return String(btn.attr('data-multi-mode') || btn.data('multiMode') || '') === '1';
+        }
+
+        function parseRecordPaymentData(btn) {
+            var payment = {};
+            try {
+                var pData = btn.data('payment');
+                if (typeof pData === 'string' && pData.trim() !== '') {
+                    payment = JSON.parse(pData);
+                } else if (pData && typeof pData === 'object') {
+                    payment = pData;
+                }
+            } catch (e) {
+                console.error('parseRecordPaymentData error:', e);
+            }
+            if (!payment || typeof payment !== 'object') {
+                payment = {};
+            }
+            return payment;
+        }
+
+        function normalizeFeePaymentsFromMulti(ma) {
+            if (!ma) return [];
+            var fps = ma.fee_payments || [];
+            if (typeof fps === 'string') {
+                try { fps = JSON.parse(fps); } catch (e) { fps = []; }
+            }
+            if (!fps.length && ma.feeID) {
+                fps = [{
+                    feeID: ma.feeID,
+                    fee_name: ma.fee_name || 'Fee',
+                    fee_total_amount: ma.amount_required,
+                    amount_paid: ma.amount_paid,
+                    balance: ma.balance,
+                    is_required: 1
+                }];
+            }
+            return fps;
+        }
+
+        function populateRecordPaymentFeeSelect(payment, multiAccounts, options) {
+            options = options || {};
+            var feeSelect = $('#record_fee_id');
+            var isMulti = multiAccounts && multiAccounts.length > 0;
+
+            feeSelect.find('option').remove();
+
+            if (isMulti) {
+                feeSelect.append('<option value="" disabled selected>Chagua ada...</option>');
+                multiAccounts.forEach(function(ma) {
+                    if (!ma) return;
+                    normalizeFeePaymentsFromMulti(ma).forEach(function(fp) {
+                        var feeId = fp.feeID || ma.feeID;
+                        var feeName = fp.fee_name || ma.fee_name || 'Fee';
+                        var bal = parseFloat(fp.balance != null ? fp.balance : (ma.balance || 0));
+                        var req = parseFloat(fp.fee_total_amount != null ? fp.fee_total_amount : (ma.amount_required || 0));
+                        $('<option></option>')
+                            .attr('value', feeId)
+                            .attr('data-payment-id', ma.paymentID)
+                            .attr('data-control-number', ma.control_number || '')
+                            .attr('data-required', req)
+                            .attr('data-balance', bal)
+                            .attr('data-sponsor-balance', ma.sponsor_balance || 0)
+                            .attr('data-parent-balance', ma.parent_balance || 0)
+                            .text(feeName + ' · Control Number ' + (ma.control_number || '—') + ' (Bal: ' + bal.toLocaleString() + '/=)')
+                            .appendTo(feeSelect);
+                    });
+                });
+                feeSelect.prop('required', true);
+                if (options.preselectFeeId) {
+                    feeSelect.val(String(options.preselectFeeId));
+                    feeSelect.find('option[value=""]').remove();
+                }
+                feeSelect.trigger('change');
+            } else {
+                feeSelect.append('<option value="any">Lipa kwa ada yoyote (Automatic Priority)</option>');
+                if (payment && payment.fee_payments) {
+                    var fps = payment.fee_payments;
+                    if (typeof fps === 'string') {
+                        try { fps = JSON.parse(fps); } catch (e) { fps = []; }
+                    }
+                    fps.forEach(function(fp) {
+                        var optionText = fp.fee_name + ' (Bal: ' + parseFloat(fp.balance || 0).toLocaleString() + '/=)';
+                        $('<option></option>')
+                            .attr('value', fp.feeID)
+                            .attr('data-required', fp.fee_total_amount)
+                            .attr('data-balance', fp.balance)
+                            .text(optionText)
+                            .appendTo(feeSelect);
+                    });
+                }
+                feeSelect.prop('required', true);
+                feeSelect.val(options.preselectFeeId || 'any').trigger('change');
+            }
+        }
+
+        function applyRecordPaymentFeeSelection(selectedOption) {
+            if (!selectedOption.length) return;
+            var paymentId = selectedOption.data('payment-id');
+            if (paymentId) {
+                $('#record_payment_id').val(paymentId);
+                $('#record_control_number').val(selectedOption.data('control-number') || '');
+                $('#record_amount_required').val(parseFloat(selectedOption.data('required') || 0).toLocaleString() + '/=');
+                $('#record_balance').val(parseFloat(selectedOption.data('balance') || 0).toLocaleString() + '/=');
+                $('#recordPaymentModal').data('sponsor-balance', parseFloat(selectedOption.data('sponsor-balance') || 0));
+                $('#recordPaymentModal').data('parent-balance', parseFloat(selectedOption.data('parent-balance') || 0));
             }
         }
 
@@ -1541,6 +2000,11 @@
         function buildPaymentActionsDropdown(item, isClosedYear) {
             var paymentsData = item.payment || {};
             var paymentID = paymentsData.paymentID || '';
+            if (item.focus_fee && item.focus_fee.paymentID) {
+                paymentID = item.focus_fee.paymentID;
+            } else if (!paymentID && item.multi_accounts && item.multi_accounts.length === 1) {
+                paymentID = item.multi_accounts[0].paymentID || '';
+            }
 
             var items = '<button type="button" ' + buildViewMoreBtnAttrs(item, isClosedYear, 'dropdown-item view-more-btn') + '>' +
                 '<i class="bi bi-eye"></i> View Details</button>';
@@ -1619,8 +2083,17 @@
                 ? '<div class="text-center"><span class="badge bg-primary-custom text-white mb-1" style="font-size: 0.7rem; padding: 4px 8px; display: inline-block; width: 100px;"><i class="bi bi-shield-check me-1"></i>Sponsored</span><br><small class="text-muted">' + student.sponsor.percentage + '% Cover</small><br><small class="text-muted" style="font-size: 0.65rem;">' + student.sponsor.sponsor_name + '</small></div>'
                 : '<div class="text-center"><span class="badge bg-secondary text-white" style="font-size: 0.7rem; padding: 4px 8px; display: inline-block; width: 100px;"><i class="bi bi-person me-1"></i>Own Payment</span></div>';
 
-            var col2 = '<div class="bill-container">' +
-                '<div class="bill-item text-muted small">Required: <span class="fw-bold text-dark">' + parseFloat(totals.total_required || 0).toLocaleString() + '</span></div>' +
+            var col2 = '<div class="bill-container">';
+            if (item.focus_fee) {
+                col2 += '<div class="bill-item text-muted small mb-1"><span class="badge" style="background:#fff5f5;color:#940000;border:1px solid #940000;">' +
+                    (item.focus_fee.fee_name || 'Fee') + '</span></div>';
+                if (item.focus_fee.control_number) {
+                    col2 += '<div class="bill-item text-muted small">CN: <span class="fw-bold text-dark">' + item.focus_fee.control_number + '</span></div>';
+                }
+            } else if (item.multi_accounts && item.multi_accounts.length) {
+                col2 += '<div class="bill-item text-muted small mb-1">' + item.multi_accounts.length + ' fee account(s)</div>';
+            }
+            col2 += '<div class="bill-item text-muted small">Required: <span class="fw-bold text-dark">' + parseFloat(totals.total_required || 0).toLocaleString() + '</span></div>' +
                 '<div class="bill-item text-muted small">Paid: <span class="fw-bold text-success">' + parseFloat(totals.total_paid || 0).toLocaleString() + '</span></div>' +
                 '</div>';
 
@@ -1637,6 +2110,21 @@
             if (priorOwed > 0) {
                 col3 += '<div class="small text-warning mt-1" title="Outstanding from previous enrollments/years"><i class="bi bi-exclamation-triangle"></i> Prev years: ' + priorOwed.toLocaleString() + '/=</div>';
             }
+            var deadlineRequired = parseFloat(totals.required_amount || 0);
+            var deadlinePaid = parseFloat(totals.required_paid || 0);
+            if (item.focus_fee) {
+                deadlineRequired = parseFloat(item.focus_fee.deadline_required || 0);
+                deadlinePaid = parseFloat(item.focus_fee.deadline_paid || 0);
+            }
+            if (deadlineRequired > 0) {
+                var deadlineMet = item.focus_fee
+                    ? !!item.focus_fee.deadline_met
+                    : !!totals.deadline_met;
+                col3 += '<div class="small mt-1 ' + (deadlineMet ? 'text-success' : 'text-danger') + '" title="Deadline progress">' +
+                    '<i class="bi bi-clock-history"></i> Deadline: ' +
+                    deadlinePaid.toLocaleString() + ' / ' + deadlineRequired.toLocaleString() +
+                    (deadlineMet ? ' ✓' : '') + '</div>';
+            }
             if (totals.can_start_school) {
                 col3 += ' <i class="bi bi-check-circle-fill text-success" title="Can Start School"></i>';
             }
@@ -1644,7 +2132,15 @@
 
             var col4 = buildPaymentActionsDropdown(item, isClosedYear);
 
-            return '<tr>' +
+            var deadlineOverdue = item.focus_fee
+                ? !!item.focus_fee.deadline_overdue
+                : !!totals.deadline_overdue;
+            if (!deadlineOverdue && deadlineRequired > 0) {
+                deadlineOverdue = !deadlineMet;
+            }
+            var rowClass = deadlineOverdue ? ' class="payment-deadline-overdue"' : '';
+
+            return '<tr' + rowClass + '>' +
                 '<td data-label="Student">' + col1 + '</td>' +
                 '<td data-label="Payment Type" class="text-end">' + colType + '</td>' +
                 '<td data-label="Bill Summary" class="text-end">' + col2 + '</td>' +
@@ -1682,9 +2178,22 @@
             if (promoLabel) badges += '<span class="badge bg-secondary me-1" style="font-size:0.65rem;">' + promoLabel + '</span>';
             if (student.sponsor) badges += '<span class="badge bg-primary-custom text-white" style="font-size:0.65rem;">Sponsored</span>';
 
+            var deadlineOverdue = item.focus_fee
+                ? !!item.focus_fee.deadline_overdue
+                : !!totals.deadline_overdue;
+            var drCheck = item.focus_fee ? parseFloat(item.focus_fee.deadline_required || 0) : parseFloat(totals.required_amount || 0);
+            var metCheck = item.focus_fee ? !!item.focus_fee.deadline_met : !!totals.deadline_met;
+            if (!deadlineOverdue && drCheck > 0) {
+                deadlineOverdue = !metCheck;
+            }
+            var widgetOverdueClass = deadlineOverdue ? ' payment-deadline-overdue' : '';
+
             return '<div class="col-12 col-sm-6 col-xl-4">' +
-                '<div class="payment-student-widget">' +
-                    '<div class="payment-student-widget-header">' + photoBlock + '</div>' +
+                '<div class="payment-student-widget' + widgetOverdueClass + '">' +
+                    '<div class="payment-student-widget-header">' +
+                        '<div class="payment-grid-actions-top">' + buildPaymentActionsDropdown(item, isClosedYear) + '</div>' +
+                        photoBlock +
+                    '</div>' +
                     '<div class="payment-student-widget-body">' +
                         '<h3>' + studentFullName + '</h3>' +
                         '<div class="pay-class">' + studentClass + '</div>' +
@@ -1692,15 +2201,24 @@
                         '<div class="pay-meta"><strong>Adm:</strong> ' + (student.admission_number || 'N/A') + '</div>' +
                         '<div class="pay-meta"><strong>Year:</strong> ' + (item.academic_year || headerAcademicYearLabel || '—') + '</div>' +
                         '<div class="pay-amounts">' +
+                            (item.focus_fee ? ('<div class="small mb-1"><span class="badge" style="background:#fff5f5;color:#940000;border:1px solid #940000;">' + (item.focus_fee.fee_name || 'Fee') + '</span></div>') : '') +
+                            (item.focus_fee && item.focus_fee.control_number ? ('<div class="pay-meta mb-1"><strong>CN:</strong> ' + item.focus_fee.control_number + '</div>') : '') +
                             '<div class="d-flex justify-content-between"><span>Required</span><strong>' + parseFloat(totals.total_required || 0).toLocaleString() + '/=</strong></div>' +
                             '<div class="d-flex justify-content-between"><span>Paid</span><strong class="text-success">' + parseFloat(totals.total_paid || 0).toLocaleString() + '/=</strong></div>' +
                             '<div class="d-flex justify-content-between"><span>Balance</span><strong class="text-danger">' + parseFloat(totals.total_balance || 0).toLocaleString() + '/=</strong></div>' +
+                            (function() {
+                                var dr = item.focus_fee ? parseFloat(item.focus_fee.deadline_required || 0) : parseFloat(totals.required_amount || 0);
+                                var dp = item.focus_fee ? parseFloat(item.focus_fee.deadline_paid || 0) : parseFloat(totals.required_paid || 0);
+                                var met = item.focus_fee ? !!item.focus_fee.deadline_met : !!totals.deadline_met;
+                                if (dr <= 0) return '';
+                                return '<div class="small mt-1 ' + (met ? 'text-success' : 'text-danger') + '"><i class="bi bi-clock-history"></i> Deadline: ' +
+                                    dp.toLocaleString() + ' / ' + dr.toLocaleString() + (met ? ' ✓' : '') + '</div>';
+                            })() +
                             (priorOwed > 0 ? '<div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle"></i> Prev years: ' + priorOwed.toLocaleString() + '/=</div>' : '') +
                             '<div class="mt-1"><span class="badge bg-secondary">' + overallStatus + '</span></div>' +
                         '</div>' +
-                        '<div class="payment-student-widget-actions d-flex justify-content-between align-items-center">' +
-                            '<button ' + buildViewMoreBtnAttrs(item, isClosedYear) + ' style="flex:1; margin-right:8px;"><i class="bi bi-eye"></i> Details</button>' +
-                            buildPaymentActionsDropdown(item, isClosedYear) +
+                        '<div class="payment-student-widget-actions">' +
+                            '<button ' + buildViewMoreBtnAttrs(item, isClosedYear) + ' style="width:100%;"><i class="bi bi-eye"></i> Details</button>' +
                         '</div>' +
                     '</div>' +
                 '</div>' +
@@ -1715,6 +2233,8 @@
             var table = $('#paymentsTable').DataTable({
                 destroy: true,
                 dom: 'Bfrtip',
+                deferRender: true,
+                processing: true,
                 buttons: [
                     'copy', 'csv', 'excel',
                     {
@@ -1726,7 +2246,8 @@
                     'print'
                 ],
                 pageLength: 10,
-                lengthMenu: [[5, 10, 25, 50, 100, -1], [5, 10, 25, 50, 100, "All"]],
+                displayStart: 0,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
                 order: [[0, 'asc']],
                 responsive: true,
                 scrollX: true,
@@ -1745,8 +2266,77 @@
             });
         }
 
+        function paymentGridUpdateCount() {
+            var total = paymentGridFilteredData.length;
+            var shown = Math.min(paymentGridRenderedCount, total);
+            if (!total) {
+                $('#paymentsGridCount').addClass('d-none').text('');
+                return;
+            }
+            $('#paymentsGridCount')
+                .removeClass('d-none')
+                .text('Zimeonyeshwa ' + shown + ' kati ya ' + total);
+        }
+
+        function paymentGridAppendNextBatch() {
+            if (paymentGridLoadingBatch || paymentGridRenderedCount >= paymentGridFilteredData.length) {
+                paymentGridUpdateCount();
+                return;
+            }
+
+            paymentGridLoadingBatch = true;
+            $('#paymentsGridLoadMore').removeClass('d-none');
+
+            window.requestAnimationFrame(function() {
+                var end = Math.min(
+                    paymentGridRenderedCount + paymentGridBatchSize,
+                    paymentGridFilteredData.length
+                );
+                var html = '';
+                for (var i = paymentGridRenderedCount; i < end; i++) {
+                    html += buildPaymentsGridCard(
+                        paymentGridFilteredData[i],
+                        currentPaymentsClosedYear
+                    );
+                }
+                $('#paymentsWidgetGrid').append(html);
+                paymentGridRenderedCount = end;
+                paymentGridLoadingBatch = false;
+                $('#paymentsGridLoadMore').addClass('d-none');
+                paymentGridUpdateCount();
+            });
+        }
+
+        function paymentGridObserveSentinel() {
+            if (paymentGridObserver) {
+                paymentGridObserver.disconnect();
+            }
+            if (!('IntersectionObserver' in window)) return;
+
+            paymentGridObserver = new IntersectionObserver(function(entries) {
+                if (entries[0].isIntersecting &&
+                    paymentGridScrollArmed &&
+                    ($('#paymentsDataWrapper').attr('data-active-view') || 'list') === 'grid') {
+                    paymentGridScrollArmed = false;
+                    paymentGridAppendNextBatch();
+                }
+            }, {
+                root: null,
+                rootMargin: '250px 0px',
+                threshold: 0
+            });
+            var sentinel = document.getElementById('paymentsGridSentinel');
+            if (sentinel) paymentGridObserver.observe(sentinel);
+        }
+
         function renderPaymentsGrid(items) {
             var $grid = $('#paymentsWidgetGrid');
+            paymentGridRenderedCount = 0;
+            paymentGridFilteredData = [];
+            paymentGridLoadingBatch = false;
+            paymentGridScrollArmed = false;
+            $('#paymentsGridLoadMore, #paymentsGridCount').addClass('d-none');
+
             if (!items || !items.length) {
                 $grid.html('<div class="col-12"><div class="payment-grid-empty">' + (currentPaymentsEmptyMsg || 'No payments found') + '</div></div>');
                 return;
@@ -1769,11 +2359,11 @@
                 $grid.html('<div class="col-12"><div class="payment-grid-empty">No students match your search.</div></div>');
                 return;
             }
-            var html = '';
-            filtered.forEach(function(item) {
-                html += buildPaymentsGridCard(item, currentPaymentsClosedYear);
-            });
-            $grid.html(html);
+
+            paymentGridFilteredData = filtered;
+            $grid.empty();
+            paymentGridAppendNextBatch();
+            paymentGridObserveSentinel();
         }
 
         function renderPaymentsUI(data, isClosedYear, emptyMsg) {
@@ -1815,6 +2405,7 @@
             var promotionStatus = $('#filterPromotion').val() || '';
             var paymentStatus = $('#filterPaymentStatus').val();
             var searchStudentName = $('#searchStudentName').val();
+            var feeID = $('#filterFee').val() || 'all';
 
             if ($.fn.DataTable && $.fn.DataTable.isDataTable('#paymentsTable')) {
                 $('#paymentsTable').DataTable().destroy();
@@ -1834,13 +2425,19 @@
                     promotion_status: promotionStatus,
                     payment_status: paymentStatus,
                     search_student_name: searchStudentName,
-                    sponsorship_filter: $('#filterSponsorship').val()
+                    sponsorship_filter: $('#filterSponsorship').val(),
+                    fee_id: feeID
                 },
                 dataType: 'json',
                 success: function(response) {
                     if (response.success && response.data) {
                         if (response.academic_year) headerAcademicYearLabel = response.academic_year;
                         if (response.academic_year_id) headerAcademicYearID = response.academic_year_id;
+                        if (response.fee_structure) {
+                            applyFeeStructure(response.fee_structure, feeID);
+                        } else if (!classID) {
+                            resetFeeFilter();
+                        }
 
                         var emptyMsg = response.error_code === 'no_enrollments'
                             ? (response.message || 'No enrollments found for the header academic year / selected filters.')
@@ -1908,6 +2505,20 @@
                 renderPaymentsGrid(currentPaymentsData);
             }, 250);
         });
+        $(window).on('wheel touchmove keydown', function(e) {
+            if (($('#paymentsDataWrapper').attr('data-active-view') || 'list') !== 'grid') return;
+            if (e.type === 'keydown' && !['ArrowDown', 'PageDown', 'End', ' '].includes(e.key)) return;
+            paymentGridScrollArmed = true;
+        });
+        $(window).on('scroll', function() {
+            if (!paymentGridScrollArmed ||
+                ($('#paymentsDataWrapper').attr('data-active-view') || 'list') !== 'grid') return;
+            var sentinel = document.getElementById('paymentsGridSentinel');
+            if (sentinel && sentinel.getBoundingClientRect().top <= window.innerHeight + 250) {
+                paymentGridScrollArmed = false;
+                paymentGridAppendNextBatch();
+            }
+        });
         $(window).on('resize', function() {
             try {
                 if (localStorage.getItem(paymentUserPrefKey()) !== '1') {
@@ -1918,7 +2529,8 @@
         setPaymentView(paymentGetView(), false);
 
         // Real-time filtering
-        $('#filterClass, #filterSubclass, #filterStatus, #filterPromotion, #filterPaymentStatus, #filterSponsorship').on('change', function() {
+        $('#filterClass, #filterSubclass, #filterStatus, #filterPromotion, #filterPaymentStatus, #filterSponsorship, #filterFee').on('change', function() {
+            if ($(this).attr('id') === 'filterClass') return; // handled above (includes load)
             loadPaymentsData();
         });
 
@@ -1936,6 +2548,7 @@
         $('#clearFiltersBtn').on('click', function() {
             $('#filterClass').val('');
             $('#filterSubclass').html('<option value="">All Subclasses</option>');
+            resetFeeFilter();
             $('#filterStatus').val('Active');
             $('#filterPromotion').val('');
             $('#filterPaymentStatus').val('');
@@ -2017,6 +2630,221 @@
         let feeSmsType         = 'control_number'; // 'control_number' | 'debt_reminder'
         let feeRecipientType   = 'parent';        // 'parent' | 'sponsor'
         let feeSmsYear         = null;
+        let feeSmsAudience     = 'all';
+
+        function feeEscapeHtml(str) {
+            return $('<div>').text(str || '').html();
+        }
+
+        function feeHideModalForSmsEditor($modal) {
+            return closeAllModalsForSms();
+        }
+
+        function closeAllModalsForSms() {
+            return new Promise(function(resolve) {
+                var $open = $('.modal.show').not('#smsTemplateModal');
+                if (!$open.length) {
+                    resolve([]);
+                    return;
+                }
+                var ids = [];
+                $open.each(function() {
+                    var id = $(this).attr('id');
+                    if (id) ids.push(id);
+                });
+                var remaining = $open.length;
+                var finished = false;
+                var done = function() {
+                    if (finished) return;
+                    finished = true;
+                    resolve(ids);
+                };
+                $open.each(function() {
+                    $(this).one('hidden.bs.modal', function() {
+                        remaining--;
+                        if (remaining <= 0) done();
+                    });
+                    $(this).modal('hide');
+                });
+                setTimeout(done, 500);
+            });
+        }
+
+        function restoreModalsAfterSms(modalIds) {
+            (modalIds || []).forEach(function(id) {
+                if (!id || id === 'smsTemplateModal') return;
+                var $m = $('#' + id);
+                if ($m.length) $m.modal('show');
+            });
+        }
+
+        function openSmsTemplateEditor(config) {
+            return new Promise(async function(resolve) {
+                var restoredIds = await closeAllModalsForSms();
+                var resolved = false;
+
+                function finish(result) {
+                    if (resolved) return;
+                    resolved = true;
+                    $('body').removeClass('sms-template-open');
+                    $('#smsTemplateConfirmBtn').off('click.smsTemplate');
+                    $('#smsTemplateCancelBtn, #smsTemplateModal .close').off('click.smsTemplate');
+                    $('#smsTemplateModal').off('hidden.bs.modal.smsTemplate shown.bs.modal.smsTemplate');
+                    $('#smsTemplateModal').modal('hide');
+                    setTimeout(function() {
+                        if (!result.confirmed || config.reopenOnConfirm) {
+                            restoreModalsAfterSms(restoredIds);
+                        }
+                        resolve(result);
+                    }, 300);
+                }
+
+                var items = config.items || [];
+                $('#smsTemplateModalTitle').text(config.title || 'Thibitisha SMS');
+                $('#smsTemplateModalDesc').html(config.description || '');
+
+                var html = '';
+                items.forEach(function(item, idx) {
+                    var key = item.key || ('item_' + idx);
+                    html += '<div class="mb-3 p-3 border rounded sms-template-item" style="background:#fff5f5;border-color:#f0d0d0 !important;">';
+                    if (item.label) {
+                        html += '<div class="small fw-bold mb-1">' + feeEscapeHtml(item.label) + '</div>';
+                    }
+                    if (item.meta) {
+                        html += '<div class="small text-muted mb-2">' + feeEscapeHtml(item.meta) + '</div>';
+                    }
+                    html += '<textarea class="form-control sms-template-message" rows="' + (items.length === 1 ? 5 : 3) + '" data-send-key="' + feeEscapeHtml(key) + '"></textarea>';
+                    html += '</div>';
+                });
+                $('#smsTemplateEditorList').html(html);
+                $('.sms-template-message').each(function(i) {
+                    $(this).val((items[i] || {}).message || '');
+                });
+
+                $('#smsTemplateConfirmBtn').on('click.smsTemplate', function() {
+                    var messages = {};
+                    $('.sms-template-message').each(function() {
+                        messages[String($(this).data('send-key'))] = $(this).val();
+                    });
+                    finish({ confirmed: true, messages: messages });
+                });
+
+                $('#smsTemplateCancelBtn, #smsTemplateModal .close').on('click.smsTemplate', function() {
+                    finish({ confirmed: false, messages: {} });
+                });
+
+                $('#smsTemplateModal').on('hidden.bs.modal.smsTemplate', function() {
+                    if (!resolved) finish({ confirmed: false, messages: {} });
+                }).on('shown.bs.modal.smsTemplate', function() {
+                    $('body').addClass('sms-template-open');
+                    var $first = $('.sms-template-message').first();
+                    if ($first.length) $first.trigger('focus');
+                });
+
+                $('#smsTemplateModal').modal('show');
+            });
+        }
+
+        async function sendControlNumberSmsWithPreview(paymentID, options) {
+            options = options || {};
+            var btn = options.button || null;
+            var originalHtml = btn ? btn.html() : '';
+
+            if (!paymentID) return;
+
+            if (btn) btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+
+            try {
+                var previewRes = await $.ajax({
+                    url: '/resend_control_number/' + paymentID,
+                    method: 'POST',
+                    data: { _token: '{{ csrf_token() }}', preview: 1 }
+                });
+
+                if (btn) btn.prop('disabled', false).html(originalHtml);
+
+                if (!previewRes.success) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Haiwezekani kuona SMS',
+                        text: previewRes.message || 'Imeshindwa kuandaa ujumbe wa SMS.',
+                        confirmButtonColor: '#940000'
+                    });
+                    return;
+                }
+
+                var metaParts = [];
+                if (previewRes.student_name) metaParts.push('Mwanafunzi: ' + previewRes.student_name);
+                if (previewRes.control_number) metaParts.push('Control Number: ' + previewRes.control_number);
+                if (previewRes.fee_name) metaParts.push('Ada: ' + previewRes.fee_name);
+                if (previewRes.to) metaParts.push('Simu: ' + previewRes.to);
+
+                var editResult = await openSmsTemplateEditor({
+                    title: 'Tuma SMS ya Control Number',
+                    description: '<div class="mb-2"><strong>Kwa:</strong> ' + feeEscapeHtml(previewRes.parent_name || 'Mzazi') + '</div>',
+                    items: [{
+                        key: String(paymentID),
+                        label: previewRes.parent_name || 'Mzazi',
+                        meta: metaParts.join(' · '),
+                        message: previewRes.sms_sample || ''
+                    }]
+                });
+
+                if (!editResult.confirmed) return;
+
+                var editedMessage = editResult.messages[String(paymentID)] || previewRes.sms_sample || '';
+                if (btn) btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Inatuma...');
+
+                var response = await $.ajax({
+                    url: '/resend_control_number/' + paymentID,
+                    method: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        message: editedMessage
+                    }
+                });
+
+                Swal.fire({
+                    icon: response.success ? 'success' : 'error',
+                    title: response.success ? 'Imetumwa!' : 'Imeshindwa!',
+                    text: response.message,
+                    confirmButtonColor: '#940000'
+                });
+            } catch (xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Hitilafu!',
+                    text: (xhr.responseJSON && xhr.responseJSON.message) || 'Imeshindwa kutuma SMS.',
+                    confirmButtonColor: '#940000'
+                });
+            } finally {
+                if (btn) btn.prop('disabled', false).html(originalHtml);
+            }
+        }
+
+        function getFeeSmsFilterParams() {
+            return {
+                class_id: $('#filterClass').val() || '',
+                subclass_id: $('#filterSubclass').val() || '',
+                enrollment_status: $('#filterStatus').val() || '',
+                promotion_status: $('#filterPromotion').val() || '',
+                sponsorship_filter: $('#filterSponsorship').val() || '',
+                fee_id: $('#filterFee').val() || 'all',
+                academic_year_id: headerAcademicYearID || '',
+                use_request_year: headerAcademicYearID ? 1 : 0
+            };
+        }
+
+        function feeBuildAudienceChooserHtml() {
+            return '<div class="d-grid gap-2 w-100">' +
+                '<button type="button" class="btn btn-outline-primary btn-lg w-100 fee-audience-choice" data-audience="all">' +
+                    '<i class="bi bi-people-fill me-2"></i> Wote wenye deni (All)' +
+                '</button>' +
+                '<button type="button" class="btn btn-outline-danger btn-lg w-100 fee-audience-choice" data-audience="deadline_reached">' +
+                    '<i class="bi bi-alarm-fill me-2"></i> Deadline zilizofika tu' +
+                '</button>' +
+            '</div>';
+        }
 
         function feeUpdateSelectedCount() {
             const count = $('.fee-parent-checkbox:checked').length;
@@ -2024,23 +2852,25 @@
             $('#feeStartSendingSms').prop('disabled', count === 0);
         }
 
-        function openFeeSmsModal(type, year, sponsorshipFilter) {
+        function openFeeSmsModal(type, year, sponsorshipFilter, audience) {
             feeSmsType = type;
             feeSmsYear = year;
-            feeRecipientType = 'parent'; // Reset to parent by default
+            feeSmsAudience = audience || 'all';
+            feeRecipientType = 'parent';
 
-            // Set modal title & description
             if (type === 'debt_reminder') {
-                $('#feeSmsModalTitle').text('Send Debt Reminder');
-                $('#feeSmsModalDesc').text('List of parents/sponsors with outstanding balances. Select all or individual ones.');
-                $('#feeSmsTabs').show(); // Show tabs for debt reminders
+                $('#feeSmsModalTitle').text('Tuma Ukumbusho wa Deni');
+                var audienceLabel = feeSmsAudience === 'deadline_reached'
+                    ? 'Deadline zilizofika'
+                    : 'Wote wenye deni';
+                $('#feeSmsModalDesc').text('Orodha ya wazazi kulingana na filta zako. Wapokeaji: ' + audienceLabel + '.');
+                $('#feeSmsTabs').show();
             } else {
-                $('#feeSmsModalTitle').text('Send Control Numbers SMS');
-                $('#feeSmsModalDesc').text('List of parents to receive Control Number SMS.');
-                $('#feeSmsTabs').hide(); // Hide tabs for CN (mostly for parents)
+                $('#feeSmsModalTitle').text('Tuma Namba za Kudhibiti (CN)');
+                $('#feeSmsModalDesc').text('Orodha ya wazazi kulingana na filta zako. Chagua wapokeaji kisha angalia SMS kabla ya kutuma.');
+                $('#feeSmsTabs').hide();
             }
 
-            // Reset tabs UI
             $('#parent-sms-tab').addClass('active').attr('aria-selected', 'true');
             $('#sponsor-sms-tab').removeClass('active').attr('aria-selected', 'false');
 
@@ -2057,7 +2887,7 @@
             $('#feeSmsDeliverySummary').empty();
             $('#feeSmsProgressText').text('0 / 0');
             $('#feeSelectAllParents').prop('checked', false);
-            $('#feeStartSendingSms').prop('disabled', true).html('<i class="bi bi-send"></i> Start Sending SMS');
+            $('#feeStartSendingSms').prop('disabled', true).html('<i class="bi bi-eye"></i> Angalia SMS na Tuma');
             $('#feeBtnCancelSms').prop('disabled', false).text('Cancel');
             $('.fee-parent-checkbox, #feeSelectAllParents').prop('disabled', false);
             feeIsSendingSms = false;
@@ -2068,38 +2898,52 @@
             if (feeRecipientType === 'sponsor') {
                 headerRow.html(`
                     <th style="width:40px;"></th>
-                    <th>Sponsor Name</th>
-                    <th>Students</th>
-                    <th>Phone</th>
-                    <th>Debt (TZS)</th>
-                    <th class="text-center" style="width:110px;">Status</th>
+                    <th>Mdhamini</th>
+                    <th>Wanafunzi</th>
+                    <th>Simu</th>
+                    <th>Deni (TZS)</th>
+                    <th class="text-center" style="width:110px;">Hali</th>
+                `);
+            } else if (feeSmsType === 'control_number') {
+                headerRow.html(`
+                    <th style="width:40px;"></th>
+                    <th>Mzazi</th>
+                    <th>Mwanafunzi</th>
+                    <th>Ada</th>
+                    <th>CN</th>
+                    <th>Simu</th>
+                    <th class="text-center" style="width:110px;">Hali</th>
                 `);
             } else {
                 headerRow.html(`
                     <th style="width:40px;"></th>
-                    <th>Recipient (Parent)</th>
-                    <th>Phone</th>
-                    <th>Debt (TZS)</th>
-                    <th class="text-center" style="width:110px;">Status</th>
+                    <th>Mzazi</th>
+                    <th>Mwanafunzi</th>
+                    <th>Ada</th>
+                    <th>CN</th>
+                    <th>Deni (TZS)</th>
+                    <th class="text-center" style="width:110px;">Hali</th>
                 `);
             }
 
+            const filterParams = getFeeSmsFilterParams();
             $.ajax({
                 url: '{{ route("get_fee_sms_recipients") }}',
                 method: 'GET',
-                data: {
+                data: Object.assign({
                     type: feeSmsType,
                     year: feeSmsYear,
-                    recipient_type: feeRecipientType
-                },
+                    recipient_type: feeRecipientType,
+                    audience: feeSmsAudience
+                }, filterParams),
                 success: function(response) {
                     $('#feeSmsLoadingState').addClass('d-none');
                     const list = $('#feeSmsRecipientsList');
                     list.empty();
 
                     if (!response.success || !response.recipients || response.recipients.length === 0) {
-                        const colspan = feeRecipientType === 'sponsor' ? 5 : 5;
-                        list.html(`<tr><td colspan="${colspan}" class="text-center text-muted py-3">No recipients found in this tab.</td></tr>`);
+                        const colspan = feeRecipientType === 'sponsor' ? 6 : (feeSmsType === 'control_number' ? 7 : 7);
+                        list.html(`<tr><td colspan="${colspan}" class="text-center text-muted py-3">Hakuna wapokeaji kulingana na filta zako.</td></tr>`);
                         $('#feeSmsRecipientsSection').removeClass('d-none');
                         return;
                     }
@@ -2108,28 +2952,37 @@
                         const hasPhone   = r.phone && r.phone.length > 0;
                         const disabledAt = hasPhone ? '' : 'disabled="disabled"';
                         const checkId    = 'fee_chk_' + (r.paymentID || r.sponsorID) + '_' + idx;
+                        const overdueRow = r.deadline_overdue ? ' table-danger' : '';
                         const statusHtml = hasPhone
-                            ? '<span class="fee-status-marker text-muted small">Pending</span>'
-                            : '<span class="text-danger small">No Phone</span>';
+                            ? '<span class="fee-status-marker text-muted small">Inasubiri</span>'
+                            : '<span class="text-danger small">Hakuna Simu</span>';
+                        const smsEncoded = encodeURIComponent(r.sms_message || '');
 
-                        let rowHtml = `<tr data-payment-id="${r.paymentID || ''}" data-sponsor-id="${r.sponsorID || ''}" data-phone="${r.phone || ''}">
+                        let rowHtml = `<tr class="${overdueRow.trim()}" data-payment-id="${r.paymentID || ''}" data-sponsor-id="${r.sponsorID || ''}" data-phone="${r.phone || ''}" data-sms-message="${smsEncoded}">
                             <td class="text-center">
                                 <div class="custom-control custom-checkbox">
                                     <input type="checkbox" class="custom-control-input fee-parent-checkbox" id="${checkId}" ${disabledAt}>
                                     <label class="custom-control-label" for="${checkId}">&nbsp;&nbsp;&nbsp;</label>
                                 </div>
                             </td>
-                            <td>${r.recipientLabel}</td>`;
-                        
+                            <td>${feeEscapeHtml(r.recipientLabel)}</td>`;
+
                         if (feeRecipientType === 'sponsor') {
                             rowHtml += `<td>${r.studentCount || 0}</td>`;
                             rowHtml += `<td>${r.phone || '<span class="text-muted">-</span>'}</td>`;
+                            rowHtml += `<td>${parseFloat(r.balance || 0).toLocaleString()}</td>`;
                         } else {
-                            rowHtml += `<td>${r.phone || '<span class="text-muted">-</span>'}</td>`;
+                            rowHtml += `<td>${feeEscapeHtml(r.studentName || '—')}</td>`;
+                            rowHtml += `<td><span class="badge" style="background:#fff5f5;color:#940000;border:1px solid #940000;">${feeEscapeHtml(r.fee_name || 'Ada')}</span></td>`;
+                            rowHtml += `<td class="fw-bold">${feeEscapeHtml(r.control_number || '—')}</td>`;
+                            if (feeSmsType === 'control_number') {
+                                rowHtml += `<td>${r.phone || '<span class="text-muted">-</span>'}</td>`;
+                            } else {
+                                rowHtml += `<td>${parseFloat(r.balance || 0).toLocaleString()}</td>`;
+                            }
                         }
 
-                        rowHtml += `<td>${parseFloat(r.balance || 0).toLocaleString()}</td>
-                            <td class="text-center fee-status-col">${statusHtml}</td>
+                        rowHtml += `<td class="text-center fee-status-col">${statusHtml}</td>
                         </tr>`;
 
                         list.append(rowHtml);
@@ -2165,26 +3018,49 @@
             feeUpdateSelectedCount();
         });
 
-        // Start Sending — async loop per-row (same as result_management)
+        // Preview SMS templates in dedicated modal, confirm, then send per-row
         $('#feeStartSendingSms').on('click', async function() {
             const selectedRows = $('.fee-parent-checkbox:checked').closest('tr');
             if (selectedRows.length === 0) return;
 
-            const confirmed = await Swal.fire({
-                title: 'Send SMS?',
-                text: `Do you want to send SMS to ${selectedRows.length} recipients.`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#940000',
-                confirmButtonText: 'Yes, Send Now',
-                cancelButtonText: 'Cancel'
-            });
-            if (!confirmed.isConfirmed) return;
+            const templateItems = [];
+            selectedRows.each(function(i) {
+                const row = $(this);
+                const label = row.find('td').eq(1).text().trim();
+                const studentCol = feeRecipientType === 'sponsor' ? '' : row.find('td').eq(2).text().trim();
+                const feeCol = feeRecipientType === 'sponsor' ? '' : row.find('td').eq(3).text().trim();
+                const cnCol = feeRecipientType === 'sponsor' ? '' : row.find('td').eq(4).text().trim();
+                const msg = decodeURIComponent(row.attr('data-sms-message') || '');
+                const pid = row.data('payment-id') || '';
+                const sid = row.data('sponsor-id') || '';
+                const key = String(pid || sid || ('row_' + i));
 
+                const metaParts = [];
+                if (studentCol) metaParts.push(studentCol);
+                if (feeCol) metaParts.push(feeCol);
+                if (cnCol && cnCol !== '—') metaParts.push('Control Number: ' + cnCol);
+
+                templateItems.push({
+                    key: key,
+                    label: label,
+                    meta: metaParts.join(' · '),
+                    message: msg
+                });
+            });
+
+            const editResult = await openSmsTemplateEditor({
+                title: 'Thibitisha kutuma SMS',
+                description: 'Unakaribia kutuma SMS kwa <strong>' + selectedRows.length + '</strong> wapokeaji. Hariri ujumbe hapa chini:',
+                reopenOnConfirm: true,
+                items: templateItems
+            });
+            if (!editResult.confirmed) return;
+
+            const messageMap = editResult.messages || {};
             feeIsSendingSms = true;
             feeStopSms      = false;
 
-            $('#feeStartSendingSms').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Sending...');
+            $('#feeStartSendingSms').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Inatuma...');
             $('#feeBtnCancelSms').prop('disabled', true);
             $('.fee-parent-checkbox, #feeSelectAllParents').prop('disabled', true);
             $('#feeSmsProgressArea').removeClass('d-none');
@@ -2203,8 +3079,9 @@
                 const statusCol = row.find('.fee-status-col');
                 const pID       = row.data('payment-id');
                 const sID       = row.data('sponsor-id');
+                const sendKey   = pID || sID || ('row_' + i);
+                const customMsg = messageMap[sendKey] || decodeURIComponent(row.attr('data-sms-message') || '');
 
-                // Show spinner on this row
                 statusCol.html('<div class="spinner-border spinner-border-sm text-primary" role="status"></div>');
 
                 try {
@@ -2216,20 +3093,22 @@
                             sponsorID: sID,
                             type: feeSmsType,
                             recipient_type: feeRecipientType,
+                            audience: feeSmsAudience,
                             year: feeSmsYear,
+                            message: customMsg,
                             _token: $('meta[name="csrf-token"]').attr('content')
                         }
                     });
 
                     if (response.success) {
-                        statusCol.html('<i class="bi bi-check-circle-fill text-success" style="font-size:1.2rem;" title="Delivered"></i>');
+                        statusCol.html('<i class="bi bi-check-circle-fill text-success" style="font-size:1.2rem;" title="Imetumwa"></i>');
                         delivered++;
                     } else {
-                        statusCol.html('<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:1.2rem;" title="' + (response.message || 'Failed') + '"></i>');
+                        statusCol.html('<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:1.2rem;" title="' + feeEscapeHtml(response.message || 'Imeshindwa') + '"></i>');
                         failed++;
                     }
                 } catch (err) {
-                    statusCol.html('<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:1.2rem;" title="Network Error"></i>');
+                    statusCol.html('<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:1.2rem;" title="Hitilafu ya mtandao"></i>');
                     failed++;
                 }
 
@@ -2238,32 +3117,49 @@
                 $('#feeSmsProgressBar').css('width', percent + '%').text(percent + '%');
                 $('#feeSmsProgressText').text(`${current} / ${total}`);
                 $('#feeSmsDeliverySummary').html(
-                    `<span class="text-success font-weight-bold">${delivered} Sent</span> | <span class="text-danger font-weight-bold">${failed} Failed</span>`
+                    `<span class="text-success font-weight-bold">${delivered} Zimetumwa</span> | <span class="text-danger font-weight-bold">${failed} Zimeshindwa</span>`
                 );
             }
 
             feeIsSendingSms = false;
-            $('#feeStartSendingSms').html('<i class="bi bi-check-all"></i> Completed').prop('disabled', true);
-            $('#feeBtnCancelSms').prop('disabled', false).text('Close');
+            $('#feeStartSendingSms').html('<i class="bi bi-check-all"></i> Imekamilika').prop('disabled', true);
+            $('#feeBtnCancelSms').prop('disabled', false).text('Funga');
 
             Swal.fire({
-                title: 'SMS Completed!',
-                text: `Sent: ${delivered}, Failed: ${failed}`,
+                title: 'SMS Imekamilika!',
+                text: `Zimetumwa: ${delivered}, Zimeshindwa: ${failed}`,
                 icon: delivered > 0 ? 'success' : 'info',
                 confirmButtonColor: '#940000'
+            }).then(function() {
+                if (delivered > 0) loadPaymentsData();
             });
         });
 
         // ---------- Button: Send Control Numbers ----------
         $('#sendSMSBtn').off('click').on('click', function(e) {
             e.preventDefault();
-            openFeeSmsModal('control_number', headerAcademicYearID, '');
+            openFeeSmsModal('control_number', headerAcademicYearID, '', 'all');
         });
 
-        // ---------- Button: Send Debt Reminders ----------
+        // ---------- Button: Send Debt Reminders — choose audience first ----------
         $('#sendDebtRemindersBtn').off('click').on('click', function(e) {
             e.preventDefault();
-            openFeeSmsModal('debt_reminder', headerAcademicYearID, '');
+            Swal.fire({
+                title: 'Chagua Wapokeaji wa Ukumbusho',
+                html: feeBuildAudienceChooserHtml(),
+                showConfirmButton: false,
+                showCancelButton: true,
+                cancelButtonText: 'Ghairi',
+                cancelButtonColor: '#6c757d',
+                width: 520,
+                didOpen: function() {
+                    $('.fee-audience-choice').on('click', function() {
+                        const audience = $(this).data('audience');
+                        Swal.close();
+                        openFeeSmsModal('debt_reminder', headerAcademicYearID, '', audience);
+                    });
+                }
+            });
         });
 
         // New AJAX Handler for Individual Student Export (Standardized Server-Side)
@@ -2360,7 +3256,9 @@
             
             Swal.fire({
                 title: 'Are you sure?',
-                text: 'This will generate control numbers for all active students. Existing control numbers will not be overwritten.',
+                text: $('#filterClass').val()
+                    ? 'This will generate control numbers for active students in the selected class. Multi-account fees each get their own CN.'
+                    : 'This will generate control numbers for all active students. Multi-account fees each get their own CN. Existing CNs will not be overwritten.',
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#940000',
@@ -2377,7 +3275,8 @@
                         url: '{{ route("generate_control_numbers") }}',
                         method: 'POST',
                         data: {
-                            academic_year_id: headerAcademicYearID
+                            academic_year_id: headerAcademicYearID,
+                            class_id: $('#filterClass').val() || ''
                         },
                         dataType: 'json',
                         success: function(response) {
@@ -2406,71 +3305,6 @@
                         },
                         complete: function() {
                             btn.prop('disabled', false).html(originalText);
-                        }
-                    });
-                }
-            });
-        });
-
-        // Send SMS to All Parents - Send control numbers directly
-        $('#sendSMSBtn').on('click', function(e) {
-            e.preventDefault();
-            
-            Swal.fire({
-                title: 'Send Control Numbers via SMS',
-                text: 'This will send control numbers (School Fee and Other Contribution) to all parents who have not received SMS yet.',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#940000',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Yes, Send SMS',
-                cancelButtonText: 'Cancel'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const btn = $(this);
-                    const originalHtml = btn.html();
-                    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Sending...');
-                    
-                    $.ajax({
-                        url: '/send_control_numbers_sms',
-                        method: 'POST',
-                        data: {
-                            academic_year_id: headerAcademicYearID
-                        },
-                        dataType: 'json',
-                        success: function(response) {
-                            if (response.success) {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Success!',
-                                    html: `<p>${response.message}</p><p><strong>Sent:</strong> ${response.sent || 0}</p><p><strong>Failed:</strong> ${response.failed || 0}</p>`,
-                                    confirmButtonColor: '#940000'
-                                }).then(() => {
-                                    loadPaymentsData(); // Reload data via AJAX
-                                });
-                            } else {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error!',
-                                    text: response.message || 'Failed to send SMS',
-                                    confirmButtonColor: '#940000'
-                                });
-                            }
-                        },
-                        error: function(xhr) {
-                            let errorMessage = 'Failed to send SMS';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-                            }
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error!',
-                                text: errorMessage,
-                                confirmButtonColor: '#940000'
-                            });
-                        },
-                        complete: function() {
-                            btn.prop('disabled', false).html(originalHtml);
                         }
                     });
                 }
@@ -2562,17 +3396,35 @@
             } catch(e) {
                 console.error('Error parsing payments data:', e);
             }
-            
-            // Extract fee payments from the unified payment record
-            const feePayments = payment.fee_payments || [];
-            const tuitionPayments = feePayments.filter(fp => fp.is_required);
-            const otherFeePayments = feePayments.filter(fp => !fp.is_required);
 
             let multiAccounts = [];
             try {
                 const multiData = btn.data('multi-accounts');
                 if (multiData) multiAccounts = typeof multiData === 'string' ? JSON.parse(multiData) : multiData;
             } catch (e) { multiAccounts = []; }
+            const isMultiAccountStudent = multiAccounts && multiAccounts.length > 0;
+            $('#viewMoreModal').data('multiAccounts', multiAccounts);
+            $('#viewMoreModal').data('isMultiAccount', isMultiAccountStudent);
+            
+            // Extract fee payments — for multi-account aggregate all fee rows
+            let feePayments = payment.fee_payments || [];
+            if (typeof feePayments === 'string') {
+                try { feePayments = JSON.parse(feePayments); } catch (e) { feePayments = []; }
+            }
+            if (multiAccounts && multiAccounts.length) {
+                feePayments = [];
+                multiAccounts.forEach(function(ma) {
+                    normalizeFeePaymentsFromMulti(ma).forEach(function(fp) {
+                        feePayments.push(Object.assign({}, fp, {
+                            _paymentID: ma.paymentID,
+                            _control_number: ma.control_number,
+                            _feeID: fp.feeID || ma.feeID
+                        }));
+                    });
+                });
+            }
+            const tuitionPayments = feePayments.filter(fp => fp.is_required);
+            const otherFeePayments = feePayments.filter(fp => !fp.is_required);
             
             // Debt handling — prefer live prior-years calc from list, then bill debt field
             const priorFromList = parseFloat(btn.data('prior-years-owed') || totals.prior_years_owed || 0);
@@ -2596,24 +3448,49 @@
             if (multiAccounts && multiAccounts.length) {
                 let mah = '';
                 multiAccounts.forEach(function(ma) {
+                    var dReq = parseFloat(ma.deadline_required || 0);
+                    var dPaid = parseFloat(ma.deadline_paid || 0);
+                    var dMet = !!ma.deadline_met;
+                    var deadlineHtml = dReq > 0
+                        ? ('<span class="' + (dMet ? 'text-success' : 'text-danger') + '">' +
+                            dPaid.toLocaleString() + ' / ' + dReq.toLocaleString() +
+                            (dMet ? ' ✓' : '') + '</span>')
+                        : '<span class="text-muted">—</span>';
                     mah += '<tr>' +
-                        '<td class="fw-bold">' + (ma.fee_name || '—') + '</td>' +
-                        '<td><span class="badge bg-light text-dark border">' + (ma.account_label || '—') + '</span></td>' +
-                        '<td class="control-number">' + (ma.control_number || '—') + '</td>' +
-                        '<td class="text-end">' + parseFloat(ma.amount_required || 0).toLocaleString() + '</td>' +
-                        '<td class="text-end text-success">' + parseFloat(ma.amount_paid || 0).toLocaleString() + '</td>' +
-                        '<td class="text-end text-danger">' + parseFloat(ma.balance || 0).toLocaleString() + '</td>' +
-                        '<td><span class="badge bg-secondary">' + (ma.payment_status || 'Pending') + '</span></td>' +
-                        '<td class="text-nowrap">' +
-                            (!isClosedYear ? ('<button class="btn btn-sm btn-success record-payment-btn" data-payment-id="' + ma.paymentID + '" data-control-number="' + (ma.control_number || '') + '" data-academic-year="' + (btn.data('academic-year') || '') + '" data-academic-year-id="' + (btn.data('academic-year-id') || '') + '"><i class="bi bi-cash"></i></button> ') : '') +
+                        '<td class="fw-bold" data-label="Fee">' + (ma.fee_name || '—') + '</td>' +
+                        '<td data-label="Account"><span class="badge bg-light text-dark border">' + (ma.account_label || '—') + '</span></td>' +
+                        '<td class="control-number" data-label="Control Number">' + (ma.control_number || '—') + '</td>' +
+                        '<td class="text-end" data-label="Required">' + parseFloat(ma.amount_required || 0).toLocaleString() + '</td>' +
+                        '<td class="text-end text-success" data-label="Paid">' + parseFloat(ma.amount_paid || 0).toLocaleString() + '</td>' +
+                        '<td class="text-end text-danger" data-label="Balance">' + parseFloat(ma.balance || 0).toLocaleString() + '</td>' +
+                        '<td class="small" data-label="Deadline">' + deadlineHtml + '</td>' +
+                        '<td data-label="Status"><span class="badge bg-secondary">' + (ma.payment_status || 'Pending') + '</span></td>' +
+                        '<td class="text-nowrap" data-label="Action">' +
+                            (!isClosedYear ? (
+                                '<button class="btn btn-sm btn-success record-payment-btn" ' +
+                                    'data-multi-mode="1" ' +
+                                    'data-payment-id="' + ma.paymentID + '" ' +
+                                    'data-fee-id="' + (ma.feeID || '') + '" ' +
+                                    'data-control-number="' + (ma.control_number || '') + '" ' +
+                                    'data-amount-required="' + (ma.amount_required || 0) + '" ' +
+                                    'data-amount-paid="' + (ma.amount_paid || 0) + '" ' +
+                                    'data-balance="' + (ma.balance || 0) + '" ' +
+                                    'data-is-sponsored="' + (btn.data('student-sponsor') ? 'yes' : 'no') + '" ' +
+                                    'data-academic-year="' + (btn.data('academic-year') || '') + '" ' +
+                                    'data-academic-year-id="' + (btn.data('academic-year-id') || '') + '" ' +
+                                    'title="Record payment for ' + (ma.fee_name || 'fee') + '"><i class="bi bi-cash"></i></button> '
+                            ) : '') +
                             (ma.paymentID ? ('<button class="btn btn-sm btn-outline-primary resend-control-sms-btn" data-payment-id="' + ma.paymentID + '"><i class="bi bi-send"></i></button>') : '') +
                         '</td></tr>';
                 });
                 $('#multiAccountsBody').html(mah);
                 $('#multiAccountsSection').show();
+                // Multi-account: each fee has its own CN — hide single-account CN box
+                $('#singleAccountCnWrap').hide();
             } else {
                 $('#multiAccountsBody').empty();
                 $('#multiAccountsSection').hide();
+                $('#singleAccountCnWrap').show();
             }
 
             // Sponsorship Info
@@ -2659,11 +3536,25 @@
                 $('#view_total_fee_required').text(totalRequired.toLocaleString() + '/=');
             }
             
-            // Build Record Payment button for the whole control number
+            // Build Record Payment / Send SMS
             let recordPaymentHtml = '';
             const rowYearLabel = btn.data('academic-year') || headerAcademicYearLabel || '';
             const rowYearId = btn.data('academic-year-id') || headerAcademicYearID || '';
-            if (!isClosedYear) {
+            if (!isClosedYear && isMultiAccountStudent) {
+                recordPaymentHtml += '<button class="btn btn-success record-payment-btn" ' +
+                    'data-multi-mode="1" ' +
+                    'data-payment-id="' + (multiAccounts[0].paymentID || '') + '" ' +
+                    'data-control-number="' + (multiAccounts[0].control_number || '') + '" ' +
+                    'data-amount-required="' + (totals.total_required || 0) + '" ' +
+                    'data-amount-paid="' + (totals.total_paid || 0) + '" ' +
+                    'data-balance="' + (totals.total_balance || 0) + '" ' +
+                    'data-is-sponsored="' + (btn.data('student-sponsor') ? 'yes' : 'no') + '" ' +
+                    'data-academic-year="' + rowYearLabel + '" ' +
+                    'data-academic-year-id="' + rowYearId + '" ' +
+                    'title="Record payment — chagua ada">' +
+                    '<i class="bi bi-cash-coin me-2"></i> Record New Payment' +
+                    '</button>';
+            } else if (!isClosedYear && payment && payment.paymentID) {
                 recordPaymentHtml += '<div class="btn-group">';
                 recordPaymentHtml += '<button class="btn btn-success record-payment-btn" ' +
                     'data-payment-id="' + payment.paymentID + '" ' +
@@ -2679,8 +3570,6 @@
                     'title="Record Payment">' +
                     '<i class="bi bi-cash-coin me-2"></i> Record New Payment' +
                     '</button>';
-                
-                // Add Send SMS button to modal
                 recordPaymentHtml += '<button class="btn btn-outline-primary resend-control-sms-btn" ' +
                     'data-payment-id="' + payment.paymentID + '" ' +
                     'title="Send Control Number SMS">' +
@@ -2694,7 +3583,7 @@
             let tuitionHtml = '';
             if (tuitionPayments.length > 0 || oldDebt > 0) {
                 tuitionHtml += '<div class="table-responsive">';
-                tuitionHtml += '<table class="table table-sm table-bordered table-hover">';
+                tuitionHtml += '<table class="table table-sm table-bordered table-hover view-more-responsive-table">';
                 tuitionHtml += '<thead class="bg-light">';
                 tuitionHtml += '<tr>';
                 tuitionHtml += '<th>Fee Name</th>';
@@ -2709,24 +3598,37 @@
                 // Add Previous Year Debt if applicable
                 if (oldDebt > 0) {
                     tuitionHtml += '<tr class="table-warning">';
-                    tuitionHtml += '<td><strong>Previous Year Debt</strong></td>';
-                    tuitionHtml += '<td class="text-end">' + oldDebt.toLocaleString() + '/=</td>';
-                    tuitionHtml += '<td class="text-end">0.00/=</td>';
-                    tuitionHtml += '<td class="text-end"><strong>' + oldDebt.toLocaleString() + '/=</strong></td>';
-                    tuitionHtml += '<td class="text-center">-</td>';
+                    tuitionHtml += '<td data-label="Fee Name"><strong>Previous Year Debt</strong></td>';
+                    tuitionHtml += '<td class="text-end" data-label="Required (TZS)">' + oldDebt.toLocaleString() + '/=</td>';
+                    tuitionHtml += '<td class="text-end" data-label="Paid (TZS)">0.00/=</td>';
+                    tuitionHtml += '<td class="text-end" data-label="Balance (TZS)"><strong>' + oldDebt.toLocaleString() + '/=</strong></td>';
+                    tuitionHtml += '<td class="text-center" data-label="Actions">-</td>';
                     tuitionHtml += '</tr>';
                 }
 
                 tuitionPayments.forEach(function(fp) {
+                    var rowPaymentId = fp._paymentID || payment.paymentID;
+                    var rowCn = fp._control_number || payment.control_number || '';
                     tuitionHtml += '<tr>';
-                    tuitionHtml += '<td>' + fp.fee_name + '</td>';
-                    tuitionHtml += '<td class="text-end">' + parseFloat(fp.fee_total_amount || 0).toLocaleString() + '/=</td>';
-                    tuitionHtml += '<td class="text-end text-success">' + parseFloat(fp.amount_paid || 0).toLocaleString() + '/=</td>';
-                    tuitionHtml += '<td class="text-end text-danger">' + parseFloat(fp.balance || 0).toLocaleString() + '/=</td>';
-                    tuitionHtml += '<td class="text-center">';
+                    tuitionHtml += '<td data-label="Fee Name">' + fp.fee_name + '</td>';
+                    tuitionHtml += '<td class="text-end" data-label="Required (TZS)">' + parseFloat(fp.fee_total_amount || 0).toLocaleString() + '/=</td>';
+                    tuitionHtml += '<td class="text-end text-success" data-label="Paid (TZS)">' + parseFloat(fp.amount_paid || 0).toLocaleString() + '/=</td>';
+                    tuitionHtml += '<td class="text-end text-danger" data-label="Balance (TZS)">' + parseFloat(fp.balance || 0).toLocaleString() + '/=</td>';
+                    tuitionHtml += '<td class="text-center" data-label="Actions">';
+                    if (!isClosedYear && isMultiAccountStudent && rowPaymentId) {
+                        tuitionHtml += '<button class="btn btn-sm btn-success record-payment-btn me-1" ' +
+                            'data-multi-mode="1" data-payment-id="' + rowPaymentId + '" ' +
+                            'data-fee-id="' + (fp._feeID || fp.feeID || '') + '" ' +
+                            'data-control-number="' + rowCn + '" ' +
+                            'data-amount-required="' + (fp.fee_total_amount || 0) + '" ' +
+                            'data-balance="' + (fp.balance || 0) + '" ' +
+                            'data-is-sponsored="' + (btn.data('student-sponsor') ? 'yes' : 'no') + '" ' +
+                            'data-academic-year="' + rowYearLabel + '" data-academic-year-id="' + rowYearId + '" ' +
+                            'title="Record payment"><i class="bi bi-cash-coin"></i></button>';
+                    }
                     tuitionHtml += '<button class="btn btn-sm btn-outline-info view-payment-records-btn" ';
-                    tuitionHtml += 'data-payment-id="' + payment.paymentID + '" ';
-                    tuitionHtml += 'data-control-number="' + (payment.control_number || '') + '" ';
+                    tuitionHtml += 'data-payment-id="' + rowPaymentId + '" ';
+                    tuitionHtml += 'data-control-number="' + rowCn + '" ';
                     tuitionHtml += 'data-fee-name="' + fp.fee_name + '" ';
                     tuitionHtml += 'title="View History"><i class="bi bi-clock-history"></i></button>';
                     tuitionHtml += '</td>';
@@ -2747,7 +3649,7 @@
             let otherFeesHtml = '';
             if (otherFeePayments.length > 0) {
                 otherFeesHtml += '<div class="table-responsive">';
-                otherFeesHtml += '<table class="table table-sm table-bordered table-hover">';
+                otherFeesHtml += '<table class="table table-sm table-bordered table-hover view-more-responsive-table">';
                 otherFeesHtml += '<thead class="bg-light">';
                 otherFeesHtml += '<tr>';
                 otherFeesHtml += '<th>Fee Name</th>';
@@ -2760,15 +3662,28 @@
                 otherFeesHtml += '<tbody>';
                 
                 otherFeePayments.forEach(function(fp) {
+                    var rowPaymentId = fp._paymentID || payment.paymentID;
+                    var rowCn = fp._control_number || payment.control_number || '';
                     otherFeesHtml += '<tr>';
-                    otherFeesHtml += '<td>' + fp.fee_name + '</td>';
-                    otherFeesHtml += '<td class="text-end">' + parseFloat(fp.fee_total_amount || 0).toLocaleString() + '/=</td>';
-                    otherFeesHtml += '<td class="text-end text-success">' + parseFloat(fp.amount_paid || 0).toLocaleString() + '/=</td>';
-                    otherFeesHtml += '<td class="text-end text-danger">' + parseFloat(fp.balance || 0).toLocaleString() + '/=</td>';
-                    otherFeesHtml += '<td class="text-center">';
+                    otherFeesHtml += '<td data-label="Fee Name">' + fp.fee_name + '</td>';
+                    otherFeesHtml += '<td class="text-end" data-label="Required (TZS)">' + parseFloat(fp.fee_total_amount || 0).toLocaleString() + '/=</td>';
+                    otherFeesHtml += '<td class="text-end text-success" data-label="Paid (TZS)">' + parseFloat(fp.amount_paid || 0).toLocaleString() + '/=</td>';
+                    otherFeesHtml += '<td class="text-end text-danger" data-label="Balance (TZS)">' + parseFloat(fp.balance || 0).toLocaleString() + '/=</td>';
+                    otherFeesHtml += '<td class="text-center" data-label="Actions">';
+                    if (!isClosedYear && isMultiAccountStudent && rowPaymentId) {
+                        otherFeesHtml += '<button class="btn btn-sm btn-success record-payment-btn me-1" ' +
+                            'data-multi-mode="1" data-payment-id="' + rowPaymentId + '" ' +
+                            'data-fee-id="' + (fp._feeID || fp.feeID || '') + '" ' +
+                            'data-control-number="' + rowCn + '" ' +
+                            'data-amount-required="' + (fp.fee_total_amount || 0) + '" ' +
+                            'data-balance="' + (fp.balance || 0) + '" ' +
+                            'data-is-sponsored="' + (btn.data('student-sponsor') ? 'yes' : 'no') + '" ' +
+                            'data-academic-year="' + rowYearLabel + '" data-academic-year-id="' + rowYearId + '" ' +
+                            'title="Record payment"><i class="bi bi-cash-coin"></i></button>';
+                    }
                     otherFeesHtml += '<button class="btn btn-sm btn-outline-info view-payment-records-btn" ';
-                    otherFeesHtml += 'data-payment-id="' + payment.paymentID + '" ';
-                    otherFeesHtml += 'data-control-number="' + (payment.control_number || '') + '" ';
+                    otherFeesHtml += 'data-payment-id="' + rowPaymentId + '" ';
+                    otherFeesHtml += 'data-control-number="' + rowCn + '" ';
                     otherFeesHtml += 'data-fee-name="' + fp.fee_name + '" ';
                     otherFeesHtml += 'title="View History"><i class="bi bi-clock-history"></i></button>';
                     otherFeesHtml += '</td>';
@@ -2785,106 +3700,117 @@
                 $('#otherFeesSection').hide();
             }
             
-            // Build All Transactions section
-            let transactionsHtml = '';
-            const paymentRecords = payment.payment_records || [];
-            
-            // Update collapse button text with control number
-            const controlNo = payment.control_number || 'N/A';
-            $('#allTransactionsCollapse').parent().find('button span').html('<i class="bi bi-clock-history me-2"></i> All Transactions of Control Number: <span class="text-primary-custom">' + controlNo + '</span>');
+            // Build All Transactions section — one toggle per control number
+            function buildCnTransactionTable(records, paymentID, isClosedYear) {
+                if (!records || !records.length) {
+                    return '<div class="text-center py-3 text-muted small">No transactions for this control number.</div>';
+                }
+                let html = '<div class="table-responsive"><table class="table table-sm table-bordered table-hover mb-0">';
+                html += '<thead class="bg-light"><tr>';
+                html += '<th>Date</th><th class="text-end">Amount (TZS)</th><th>Method</th><th>Reference</th>';
+                html += '<th class="text-center">Status</th><th class="text-center">Actions</th>';
+                html += '</tr></thead><tbody>';
 
-            if (paymentRecords.length > 0) {
-                transactionsHtml += '<div class="table-responsive">';
-                transactionsHtml += '<table class="table table-sm table-bordered table-hover">';
-                transactionsHtml += '<thead class="bg-light">';
-                transactionsHtml += '<tr>';
-                transactionsHtml += '<th>Date</th>';
-                transactionsHtml += '<th class="text-end">Amount (TZS)</th>';
-                transactionsHtml += '<th>Method</th>';
-                transactionsHtml += '<th>Reference</th>';
-                transactionsHtml += '<th class="text-center">Status</th>';
-                transactionsHtml += '<th class="text-center">Actions</th>';
-                transactionsHtml += '</tr>';
-                transactionsHtml += '</thead>';
-                transactionsHtml += '<tbody>';
-                
-                paymentRecords.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date)).forEach(function(record) {
+                records.slice().sort(function(a, b) {
+                    return new Date(b.payment_date) - new Date(a.payment_date);
+                }).forEach(function(record) {
                     const isVerified = record.is_verified || false;
-                    
-                    // Format Date
                     let displayDate = 'N/A';
                     if (record.payment_date) {
                         const pDate = new Date(record.payment_date);
-                        displayDate = pDate.toLocaleString('en-GB', { 
-                            day: '2-digit', 
-                            month: 'short', 
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
+                        displayDate = pDate.toLocaleString('en-GB', {
+                            day: '2-digit', month: 'short', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit'
                         });
                     }
-
-                    transactionsHtml += '<tr>';
-                    transactionsHtml += '<td>' + displayDate + '</td>';
-                    transactionsHtml += '<td class="text-end fw-bold text-success">' + parseFloat(record.paid_amount || 0).toLocaleString() + '/=</td>';
-                    transactionsHtml += '<td><span class="badge ' + (record.payment_source === 'Bank' ? 'bg-primary' : 'bg-success') + '">' + (record.payment_source || 'N/A') + '</span></td>';
-                    transactionsHtml += '<td>' + (record.reference_number || 'N/A') + '</td>';
-                    transactionsHtml += '<td class="text-center">';
-                    if (isVerified) {
-                        transactionsHtml += '<span class="badge bg-success" title="Verified"><i class="bi bi-patch-check-fill"></i></span>';
-                    } else {
-                        transactionsHtml += '<span class="badge bg-secondary" title="Unverified"><i class="bi bi-patch-exclamation"></i></span>';
-                    }
-                    transactionsHtml += '</td>';
-                    transactionsHtml += '<td class="text-center">';
-                    transactionsHtml += '<div class="btn-group btn-group-sm">';
-                    
+                    html += '<tr>';
+                    html += '<td>' + displayDate + '</td>';
+                    html += '<td class="text-end fw-bold text-success">' + parseFloat(record.paid_amount || 0).toLocaleString() + '/=</td>';
+                    html += '<td><span class="badge ' + (record.payment_source === 'Bank' ? 'bg-primary' : 'bg-success') + '">' + (record.payment_source || 'N/A') + '</span></td>';
+                    html += '<td>' + (record.reference_number || 'N/A') + '</td>';
+                    html += '<td class="text-center">';
+                    html += isVerified
+                        ? '<span class="badge bg-success" title="Verified"><i class="bi bi-patch-check-fill"></i></span>'
+                        : '<span class="badge bg-secondary" title="Unverified"><i class="bi bi-patch-exclamation"></i></span>';
+                    html += '</td><td class="text-center"><div class="btn-group btn-group-sm">';
                     if (!isClosedYear) {
-                        // Verify/Unverify Toggle
                         if (isVerified) {
-                            transactionsHtml += '<button class="btn btn-outline-secondary unverify-payment-record-btn" ';
-                            transactionsHtml += 'data-record-id="' + record.recordID + '" ';
-                            transactionsHtml += 'data-payment-id="' + payment.paymentID + '" ';
-                            transactionsHtml += 'title="Unverify"><i class="bi bi-patch-minus"></i></button>';
+                            html += '<button class="btn btn-outline-secondary unverify-payment-record-btn" data-record-id="' + record.recordID + '" data-payment-id="' + paymentID + '" title="Unverify"><i class="bi bi-patch-minus"></i></button>';
                         } else {
-                            transactionsHtml += '<button class="btn btn-outline-success verify-payment-record-btn" ';
-                            transactionsHtml += 'data-record-id="' + record.recordID + '" ';
-                            transactionsHtml += 'data-payment-id="' + payment.paymentID + '" ';
-                            transactionsHtml += 'title="Verify"><i class="bi bi-patch-check"></i></button>';
+                            html += '<button class="btn btn-outline-success verify-payment-record-btn" data-record-id="' + record.recordID + '" data-payment-id="' + paymentID + '" title="Verify"><i class="bi bi-patch-check"></i></button>';
                         }
-
-                        // Edit button
-                        transactionsHtml += '<button class="btn btn-outline-warning edit-payment-record-btn" ';
-                        transactionsHtml += 'data-record-id="' + record.recordID + '" ';
-                        transactionsHtml += 'data-payment-id="' + payment.paymentID + '" ';
-                        transactionsHtml += 'data-paid-amount="' + record.paid_amount + '" ';
-                        transactionsHtml += 'data-payment-date="' + (record.payment_date || '') + '" ';
-                        transactionsHtml += 'data-payment-source="' + (record.payment_source || '') + '" ';
-                        transactionsHtml += 'data-reference-number="' + (record.reference_number || '') + '" ';
-                        transactionsHtml += 'data-bank-name="' + (record.bank_name || '') + '" ';
-                        transactionsHtml += 'data-notes="' + (record.notes || '') + '" ';
-                        transactionsHtml += 'title="Edit"><i class="bi bi-pencil"></i></button>';
-                        
-                        // Delete button
-                        transactionsHtml += '<button class="btn btn-outline-danger delete-payment-record-btn" ';
-                        transactionsHtml += 'data-record-id="' + record.recordID + '" ';
-                        transactionsHtml += 'data-payment-id="' + payment.paymentID + '" ';
-                        transactionsHtml += 'data-paid-amount="' + record.paid_amount + '" ';
-                        transactionsHtml += 'title="Delete"><i class="bi bi-trash"></i></button>';
+                        html += '<button class="btn btn-outline-warning edit-payment-record-btn" ' +
+                            'data-record-id="' + record.recordID + '" data-payment-id="' + paymentID + '" ' +
+                            'data-paid-amount="' + record.paid_amount + '" data-payment-date="' + (record.payment_date || '') + '" ' +
+                            'data-payment-source="' + (record.payment_source || '') + '" data-reference-number="' + (record.reference_number || '') + '" ' +
+                            'data-bank-name="' + (record.bank_name || '') + '" data-notes="' + (record.notes || '') + '" title="Edit"><i class="bi bi-pencil"></i></button>';
+                        html += '<button class="btn btn-outline-danger delete-payment-record-btn" data-record-id="' + record.recordID + '" data-payment-id="' + paymentID + '" data-paid-amount="' + record.paid_amount + '" title="Delete"><i class="bi bi-trash"></i></button>';
                     } else {
-                        transactionsHtml += '-';
+                        html += '-';
                     }
-                    
-                    transactionsHtml += '</div>';
-                    transactionsHtml += '</td>';
-                    transactionsHtml += '</tr>';
+                    html += '</div></td></tr>';
                 });
-                
-                transactionsHtml += '</tbody>';
-                transactionsHtml += '</table>';
-                transactionsHtml += '</div>';
+                html += '</tbody></table></div>';
+                return html;
+            }
+
+            // Collect all control-number groups (single + multi)
+            const cnGroups = [];
+            const seenPaymentIds = {};
+            if (multiAccounts && multiAccounts.length) {
+                multiAccounts.forEach(function(ma) {
+                    if (!ma.paymentID || seenPaymentIds[ma.paymentID]) return;
+                    seenPaymentIds[ma.paymentID] = true;
+                    cnGroups.push({
+                        paymentID: ma.paymentID,
+                        control_number: ma.control_number || 'N/A',
+                        label: ma.fee_name || 'Multi Fee',
+                        account_label: ma.account_label || '',
+                        records: ma.payment_records || []
+                    });
+                });
+            }
+            // Single-account / unified bill (feeID null)
+            if (payment && payment.paymentID && !seenPaymentIds[payment.paymentID] && !payment.feeID) {
+                seenPaymentIds[payment.paymentID] = true;
+                cnGroups.unshift({
+                    paymentID: payment.paymentID,
+                    control_number: payment.control_number || 'N/A',
+                    label: 'Single Account',
+                    account_label: '',
+                    records: payment.payment_records || payment.paymentRecords || []
+                });
+            } else if (payment && payment.paymentID && !seenPaymentIds[payment.paymentID] && (!multiAccounts || !multiAccounts.length)) {
+                // Fallback: only one payment object available
+                seenPaymentIds[payment.paymentID] = true;
+                cnGroups.push({
+                    paymentID: payment.paymentID,
+                    control_number: payment.control_number || 'N/A',
+                    label: 'Control Number',
+                    account_label: '',
+                    records: payment.payment_records || payment.paymentRecords || []
+                });
+            }
+
+            let transactionsHtml = '';
+            if (!cnGroups.length) {
+                transactionsHtml = '<div class="text-center py-3 text-muted">No control numbers / transactions found.</div>';
             } else {
-                transactionsHtml = '<div class="text-center py-3 text-muted">No transactions found for this control number.</div>';
+                cnGroups.forEach(function(group, idx) {
+                    const collapseId = 'cnTxCollapse_' + group.paymentID + '_' + idx;
+                    const recordCount = (group.records || []).length;
+                    transactionsHtml += '<div class="border mb-2">';
+                    transactionsHtml += '<button class="btn btn-link w-100 text-start text-decoration-none p-3 d-flex justify-content-between align-items-center" type="button" data-toggle="collapse" data-target="#' + collapseId + '" aria-expanded="false">';
+                    transactionsHtml += '<span><i class="bi bi-upc me-2 text-primary-custom"></i>' +
+                        '<strong class="text-primary-custom">' + group.control_number + '</strong>' +
+                        ' <span class="text-muted">— ' + group.label + '</span>' +
+                        (group.account_label ? (' <span class="badge bg-light text-dark border ms-1">' + group.account_label + '</span>') : '') +
+                        ' <span class="badge bg-secondary ms-2">' + recordCount + ' txn</span></span>';
+                    transactionsHtml += '<i class="bi bi-chevron-down"></i></button>';
+                    transactionsHtml += '<div class="collapse" id="' + collapseId + '"><div class="px-3 pb-3">';
+                    transactionsHtml += buildCnTransactionTable(group.records, group.paymentID, isClosedYear);
+                    transactionsHtml += '</div></div></div>';
+                });
             }
             $('#allTransactionsContent').html(transactionsHtml);
 
@@ -2947,20 +3873,19 @@
                             : ((y.enrollment_status === 'Active') ? ' <span class="badge bg-info text-white">Current</span>' : '');
 
                         rows += '<tr' + (owed > 0 ? ' class="table-danger"' : '') + '>';
-                        rows += '<td><strong>' + (y.year_name || 'N/A') + '</strong>' + yearBadge;
+                        rows += '<td data-label="Academic Year"><strong>' + (y.year_name || 'N/A') + '</strong>' + yearBadge;
                         if (y.enrollmentID) {
                             rows += '<div class="small text-muted">Enr #' + y.enrollmentID + '</div>';
                         }
                         rows += '</td>';
-                        rows += '<td>' + (y.class_name || 'N/A') + '</td>';
-                        rows += '<td>' + (y.subclass_name || 'N/A') + '</td>';
-                        rows += '<td>' + statusBadge + '</td>';
-                        rows += '<td>' + promoBadge + '</td>';
-                        rows += '<td class="text-end">' + fmt(y.amount_required) + '</td>';
-                        rows += '<td class="text-end text-success">' + fmt(y.amount_paid) + '</td>';
-                        rows += '<td class="text-end fw-bold' + (owed > 0 ? ' text-danger' : '') + '">' + fmt(owed) + '</td>';
-                        rows += '<td>' + payBadge + ' <small class="text-muted d-block">' + (y.payment_status || '') + '</small></td>';
-                        rows += '<td class="text-center">';
+                        rows += '<td data-label="Main Class">' + (y.class_name || 'N/A') + '</td>';
+                        rows += '<td data-label="Enrollment">' + statusBadge + '</td>';
+                        rows += '<td data-label="Promotion">' + promoBadge + '</td>';
+                        rows += '<td class="text-end" data-label="Required">' + fmt(y.amount_required) + '</td>';
+                        rows += '<td class="text-end text-success" data-label="Paid">' + fmt(y.amount_paid) + '</td>';
+                        rows += '<td class="text-end fw-bold' + (owed > 0 ? ' text-danger' : '') + '" data-label="Owed">' + fmt(owed) + '</td>';
+                        rows += '<td data-label="Status">' + payBadge + ' <small class="text-muted d-block">' + (y.payment_status || '') + '</small></td>';
+                        rows += '<td class="text-center" data-label="Action">';
                         if (y.can_record && y.paymentID) {
                             const payObj = y.payment || {
                                 paymentID: y.paymentID,
@@ -3011,21 +3936,25 @@
             e.preventDefault();
             const btn = $(this);
             
-            // Get payment data
             const paymentID = btn.data('payment-id');
             const controlNumber = btn.data('control-number');
             const amountRequired = btn.data('amount-required');
             const balance = btn.data('balance');
             const isSponsored = btn.data('is-sponsored');
+            const isMultiMode = isRecordPaymentMultiMode(btn);
+            const preselectFeeId = btn.data('fee-id') || btn.data('feeId') || '';
             
-            // Get raw payment data to access fee_payments
-            let payment = {};
-            try {
-                const pData = btn.data('payment');
-                payment = typeof pData === 'string' ? JSON.parse(pData) : pData;
-            } catch(e) { console.error(e); }
+            let payment = parseRecordPaymentData(btn);
 
-            // Set modal fields
+            let multiAccounts = [];
+            if (isMultiMode) {
+                multiAccounts = getViewMoreMultiAccounts();
+                const matched = findMultiAccountByPaymentId(multiAccounts, paymentID);
+                if (matched) {
+                    payment = buildPaymentObjectFromMultiAccount(matched);
+                }
+            }
+
             $('#record_payment_id').val(paymentID);
             $('#record_control_number').val(controlNumber);
 
@@ -3039,26 +3968,17 @@
                 || '';
             $('#record_academic_year_label').val(academicYearLabel || '—');
             $('#record_academic_year_id').val(academicYearId || '');
-            
-            // Populate Fee Dropdown
-            const feeSelect = $('#record_fee_id');
-            feeSelect.find('option:not([value="any"])').remove();
-            
-            if (payment && payment.fee_payments) {
-                payment.fee_payments.forEach(fp => {
-                    const optionText = `${fp.fee_name} (Bal: ${parseFloat(fp.balance).toLocaleString()}/=)`;
-                    const option = $('<option></option>')
-                        .attr('value', fp.feeID)
-                        .attr('data-required', fp.fee_total_amount)
-                        .attr('data-balance', fp.balance)
-                        .text(optionText);
-                    feeSelect.append(option);
-                });
-            }
-            feeSelect.val('any').trigger('change');
 
-            $('#record_amount_required').val(parseFloat(amountRequired || 0).toLocaleString() + '/=');
-            $('#record_balance').val(parseFloat(balance || 0).toLocaleString() + '/=');
+            populateRecordPaymentFeeSelect(payment, multiAccounts, {
+                preselectFeeId: preselectFeeId
+            });
+
+            if (!multiAccounts.length) {
+                $('#record_amount_required').val(parseFloat(amountRequired || payment.amount_required || 0).toLocaleString() + '/=');
+                $('#record_balance').val(parseFloat(balance || payment.balance || 0).toLocaleString() + '/=');
+                $('#recordPaymentModal').data('sponsor-balance', parseFloat(payment.sponsor_balance || 0));
+                $('#recordPaymentModal').data('parent-balance', parseFloat(payment.parent_balance || 0));
+            }
             
             $('#record_paid_amount').val('').removeClass('is-invalid');
             $('#record_reference_number').val('');
@@ -3068,21 +3988,15 @@
             $('#record_bank_name').val('');
             $('#record_notes').val(academicYearLabel ? ('[Academic Year: ' + academicYearLabel + '] ') : '');
 
-            // Store split balances in modal for real-time validation
-            $('#recordPaymentModal').data('sponsor-balance', parseFloat(payment.sponsor_balance || 0));
-            $('#recordPaymentModal').data('parent-balance', parseFloat(payment.parent_balance || 0));
-
-            // Hide/Show Payment By field
             if (isSponsored === 'yes') {
                 $('#record_payment_by_container').show();
                 $('#record_payment_by').val('Parent').trigger('change');
             } else {
                 $('#record_payment_by_container').hide();
-                $('#record_payment_by').val('Parent'); // Still set for backend
+                $('#record_payment_by').val('Parent');
                 $('#payer_balance_detail_section').hide();
             }
             
-            // Reset form state
             togglePaymentMethodFields('Cash');
             $('#recordPaymentModal').modal('show');
         });
@@ -3094,7 +4008,11 @@
             
             $('#record_paid_amount').val('').removeClass('is-invalid');
 
-            if (feeID === 'any') {
+            if (selectedOption.data('payment-id')) {
+                applyRecordPaymentFeeSelection(selectedOption);
+            }
+
+            if (!feeID || feeID === 'any') {
                 $('#selected_fee_details').hide();
                 $('#overall_payment_details').show();
             } else {
@@ -3689,126 +4607,16 @@
             });
         });
 
-        // Send Control Number Button Click Handler
+        // Send Control Number — preview + editable template modal
         $(document).on('click', '.send-control-number-btn', function(e) {
             e.preventDefault();
-            const btn = $(this);
-            const paymentID = btn.data('payment-id');
-            const controlNumber = btn.data('control-number');
-            const feeType = btn.data('fee-type');
-            
-            Swal.fire({
-                title: 'Send Control Number?',
-                text: `Are you sure you want to send control number ${controlNumber} to parent?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#940000',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Yes, Send',
-                cancelButtonText: 'Cancel'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const originalHtml = btn.html();
-                    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
-                    
-                    $.ajax({
-                        url: `/resend_control_number/${paymentID}`,
-                        method: 'POST',
-                        dataType: 'json',
-                        success: function(response) {
-                            if (response.success) {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Success!',
-                                    text: response.message,
-                                    confirmButtonColor: '#940000'
-                                }).then(() => {
-                                    loadPaymentsData(); // Reload data via AJAX
-                                });
-                            } else {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error!',
-                                    text: response.message || 'Failed to send control number',
-                                    confirmButtonColor: '#940000'
-                                });
-                            }
-                        },
-                        error: function(xhr) {
-                            let errorMessage = 'Failed to send control number';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-                            }
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error!',
-                                text: errorMessage,
-                                confirmButtonColor: '#940000'
-                            });
-                        },
-                        complete: function() {
-                            btn.prop('disabled', false).html(originalHtml);
-                        }
-                    });
-                }
-            });
+            sendControlNumberSmsWithPreview($(this).data('payment-id'), { button: $(this) });
         });
 
-        // Resend SMS
+        // Resend SMS (legacy button)
         $(document).on('click', '.resend-sms-btn', function(e) {
             e.preventDefault();
-            const paymentID = $(this).data('payment-id');
-            const studentName = $(this).data('student-name');
-            
-            Swal.fire({
-                title: 'Are you sure?',
-                text: `Resend control number SMS to parent of ${studentName}?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#940000',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Yes, Resend',
-                cancelButtonText: 'Cancel'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const btn = $(this);
-                    const originalHtml = btn.html();
-                    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
-                    
-                    $.ajax({
-                        url: `/resend_control_number/${paymentID}`,
-                        method: 'POST',
-                        dataType: 'json',
-                        success: function(response) {
-                            if (response.success) {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Success!',
-                                    text: response.message,
-                                    confirmButtonColor: '#940000'
-                                }).then(() => {
-                                    loadPaymentsData(); // Reload data via AJAX
-                                });
-                            }
-                        },
-                        error: function(xhr) {
-                            let errorMessage = 'Failed to send SMS';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-                            }
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error!',
-                                text: errorMessage,
-                                confirmButtonColor: '#940000'
-                            });
-                        },
-                        complete: function() {
-                            btn.prop('disabled', false).html(originalHtml);
-                        }
-                    });
-                }
-            });
+            sendControlNumberSmsWithPreview($(this).data('payment-id'), { button: $(this) });
         });
 
         // Update Payment
@@ -3875,38 +4683,10 @@
             });
         });
 
-        // Resend Individual Control SMS from Modal
-        $(document).on('click', '.resend-control-sms-btn', function() {
-            const btn = $(this);
-            const paymentID = btn.data('payment-id');
-            const originalHtml = btn.html();
-
-            btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Sending...');
-
-            $.ajax({
-                url: '/resend_control_number/' + paymentID,
-                method: 'POST',
-                data: { _token: '{{ csrf_token() }}' },
-                success: function(response) {
-                    Swal.fire({
-                        icon: response.success ? 'success' : 'error',
-                        title: response.success ? 'Sent!' : 'Failed!',
-                        text: response.message,
-                        confirmButtonColor: '#940000'
-                    });
-                },
-                error: function() {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error!',
-                        text: 'Failed to send SMS.',
-                        confirmButtonColor: '#940000'
-                    });
-                },
-                complete: function() {
-                    btn.prop('disabled', false).html(originalHtml);
-                }
-            });
+        // Resend Individual Control SMS — shared editable template modal
+        $(document).on('click', '.resend-control-sms-btn', function(e) {
+            e.preventDefault();
+            sendControlNumberSmsWithPreview($(this).data('payment-id'), { button: $(this) });
         });
 
 
@@ -3922,7 +4702,7 @@
 
 <!-- ===== FEE SMS PROGRESS MODAL ===== -->
 <div class="modal fade" id="feeSmsProgressModal" tabindex="-1" role="dialog" aria-labelledby="feeSmsProgressModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content border-0 shadow">
             <div class="modal-header">
                 <h5 class="modal-title" id="feeSmsProgressModalLabel">
@@ -4005,7 +4785,33 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-light text-primary-custom border" data-dismiss="modal" id="feeBtnCancelSms">Cancel</button>
                 <button type="button" class="btn btn-primary-custom" id="feeStartSendingSms" disabled>
-                    <i class="bi bi-send"></i> Start Sending SMS
+                    <i class="bi bi-eye"></i> Angalia SMS na Tuma
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== SMS TEMPLATE EDITOR MODAL (single modal for all SMS actions) ===== -->
+<div class="modal fade" id="smsTemplateModal" tabindex="-1" role="dialog" aria-labelledby="smsTemplateModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title" id="smsTemplateModalLabel">
+                    <i class="bi bi-chat-left-text me-2"></i> <span id="smsTemplateModalTitle">Thibitisha SMS</span>
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info border-0 shadow-sm mb-3" id="smsTemplateModalDesc"></div>
+                <div id="smsTemplateEditorList"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light text-primary-custom border" id="smsTemplateCancelBtn">Ghairi</button>
+                <button type="button" class="btn btn-primary-custom" id="smsTemplateConfirmBtn">
+                    <i class="bi bi-send"></i> Ndiyo, Tuma SMS
                 </button>
             </div>
         </div>

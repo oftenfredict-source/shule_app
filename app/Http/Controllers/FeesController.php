@@ -731,7 +731,11 @@ class FeesController extends Controller
 
     /**
      * Amount that should already have been paid for a fee based on academic-year deadlines.
-     * Uses the latest deadline whose until-date has been reached (end_date <= today).
+     *
+     * Fixed and percent rows are both period portions:
+     * - fixed: TZS for that period (scaled for discount/agreement)
+     * - percent: % of the student's effective fee for that period
+     * Required by today = sum of every deadline whose end date has already passed.
      */
     private function deadlineRequiredForFee(int $feeID, int $academicYearID, float $effectiveAmount, float $standardAmount): float
     {
@@ -739,24 +743,24 @@ class FeesController extends Controller
             return 0;
         }
 
-        // Deadline amounts are per-period installments; the amount required by
-        // today is the sum of every deadline whose end date has already passed.
-        $deadlineAmount = (float) FeeDeadline::where('feeID', $feeID)
+        $deadlines = FeeDeadline::where('feeID', $feeID)
             ->where('academic_yearID', $academicYearID)
             ->where('status', 'Active')
             ->whereDate('end_date', '<=', Carbon::today()->toDateString())
-            ->sum('amount');
+            ->orderBy('end_date')
+            ->orderBy('deadlineID')
+            ->get();
 
-        if ($deadlineAmount <= 0) {
+        if ($deadlines->isEmpty()) {
             return 0;
         }
 
-        if ($standardAmount > 0 && $effectiveAmount < $standardAmount) {
-            // Scale absolute deadlines when agreement/discount reduced this student's bill.
-            $deadlineAmount = $deadlineAmount * ($effectiveAmount / $standardAmount);
+        $required = 0.0;
+        foreach ($deadlines as $deadline) {
+            $required += $deadline->requiredForAmount($effectiveAmount, $standardAmount);
         }
 
-        return max(0, min($effectiveAmount, $deadlineAmount));
+        return max(0, min($effectiveAmount, $required));
     }
 
     /**
@@ -1593,6 +1597,10 @@ class FeesController extends Controller
             $paymentStatus = $request->input('payment_status', '');
             $searchStudentName = $request->input('search_student_name', '');
             $sponsorshipFilter = $request->input('sponsorship_filter', ''); // 'sponsored' or 'self'
+            $feeIDFilterRaw = $request->input('fee_id', '');
+            $feeIDFilter = ($feeIDFilterRaw !== '' && $feeIDFilterRaw !== 'all' && $feeIDFilterRaw !== null)
+                ? (int) $feeIDFilterRaw
+                : null;
 
             $resolved = $this->resolvePaymentsAcademicYear(
                 (int) $schoolID,
@@ -1615,6 +1623,34 @@ class FeesController extends Controller
             );
 
             if (empty($studentIDs)) {
+                $emptyFeeStructure = ['mode' => 'none', 'fees' => []];
+                if ($classID !== '') {
+                    $classFees = Fee::where('schoolID', $schoolID)
+                        ->where('classID', (int) $classID)
+                        ->where('status', 'Active')
+                        ->with('bankAccount.bank')
+                        ->orderBy('display_order')
+                        ->get();
+                    $hasMulti = $classFees->contains(fn ($f) => ($f->account_mode ?? 'single') === 'multi');
+                    $hasSingle = $classFees->contains(fn ($f) => ($f->account_mode ?? 'single') !== 'multi');
+                    if ($hasMulti && !$hasSingle) {
+                        $emptyFeeStructure['mode'] = 'multi';
+                    } elseif ($hasSingle && !$hasMulti) {
+                        $emptyFeeStructure['mode'] = 'single';
+                    } elseif ($hasMulti && $hasSingle) {
+                        $emptyFeeStructure['mode'] = 'mixed';
+                    }
+                    $emptyFeeStructure['fees'] = $classFees->map(function ($fee) {
+                        return [
+                            'feeID' => (int) $fee->feeID,
+                            'fee_name' => $fee->fee_name,
+                            'amount' => (float) $fee->amount,
+                            'account_mode' => $fee->account_mode ?? 'single',
+                            'account_display' => $fee->bankAccount ? $fee->bankAccount->displayLabel() : null,
+                        ];
+                    })->values()->all();
+                }
+
                 return response()->json([
                     'success' => true,
                     'data' => [],
@@ -1631,6 +1667,8 @@ class FeesController extends Controller
                     'academic_year' => $yearLabel,
                     'academic_year_id' => $academicYearID,
                     'academic_year_ids' => $academicYearIDs,
+                    'fee_structure' => $emptyFeeStructure,
+                    'fee_filter' => $feeIDFilter ?: 'all',
                     'error_code' => 'no_enrollments',
                     'message' => 'No enrollments found for the header academic year / selected filters.',
                 ]);
@@ -1676,6 +1714,44 @@ class FeesController extends Controller
 
             $students = $query->orderBy('first_name')->get();
 
+            // Class fee structure (single vs multi) for the payments fee filter
+            $feeStructure = [
+                'mode' => 'none',
+                'fees' => [],
+            ];
+            if ($classID !== '') {
+                $classFees = Fee::where('schoolID', $schoolID)
+                    ->where('classID', (int) $classID)
+                    ->where('status', 'Active')
+                    ->with('bankAccount.bank')
+                    ->orderBy('display_order')
+                    ->get();
+                $hasMulti = $classFees->contains(fn ($f) => ($f->account_mode ?? 'single') === 'multi');
+                $hasSingle = $classFees->contains(fn ($f) => ($f->account_mode ?? 'single') !== 'multi');
+                if ($hasMulti && !$hasSingle) {
+                    $feeStructure['mode'] = 'multi';
+                } elseif ($hasSingle && !$hasMulti) {
+                    $feeStructure['mode'] = 'single';
+                } elseif ($hasMulti && $hasSingle) {
+                    $feeStructure['mode'] = 'mixed';
+                }
+                $feeStructure['fees'] = $classFees->map(function ($fee) {
+                    return [
+                        'feeID' => (int) $fee->feeID,
+                        'fee_name' => $fee->fee_name,
+                        'amount' => (float) $fee->amount,
+                        'account_mode' => $fee->account_mode ?? 'single',
+                        'account_display' => $fee->bankAccount ? $fee->bankAccount->displayLabel() : null,
+                        'payment_deadline_amount' => $fee->payment_deadline_amount !== null
+                            ? (float) $fee->payment_deadline_amount
+                            : null,
+                        'payment_deadline_date' => $fee->payment_deadline_date
+                            ? $fee->payment_deadline_date->format('Y-m-d')
+                            : null,
+                    ];
+                })->values()->all();
+            }
+
             // Group payments by student and aggregate totals
             $filteredData = [];
             $index = 1; // Initialize index
@@ -1685,6 +1761,10 @@ class FeesController extends Controller
                 ->unique()
                 ->values()
                 ->all();
+            if ($feeIDFilter) {
+                $multiFeeIDs[] = $feeIDFilter;
+                $multiFeeIDs = array_values(array_unique($multiFeeIDs));
+            }
             $multiFeesMap = empty($multiFeeIDs)
                 ? collect()
                 : Fee::with('bankAccount.bank')->whereIn('feeID', $multiFeeIDs)->get()->keyBy('feeID');
@@ -1700,28 +1780,105 @@ class FeesController extends Controller
                     $yearPayments = $student->payments;
                 }
 
-                // Unified single-account payment (feeID null/0) for primary actions
-                $payment = $yearPayments->first(function ($p) {
-                    return empty($p->feeID);
-                }) ?: $yearPayments->first();
+                // Focus on one multi-account fee when fee filter is set
+                $focusFeeMeta = null;
+                if ($feeIDFilter) {
+                    $focusedPayment = $yearPayments->first(function ($p) use ($feeIDFilter) {
+                        return (int) ($p->feeID ?? 0) === $feeIDFilter;
+                    });
+                    if (!$focusedPayment) {
+                        // No bill yet for this fee — still list the student as pending
+                        $feeMeta = $multiFeesMap->get($feeIDFilter);
+                        $yearPayments = collect();
+                        $payment = null;
+                        $multiPayments = collect();
+                        $totalRequired = 0.0;
+                        $totalPaid = 0.0;
+                        $totalBalance = 0.0;
+                        $requiredPaid = 0.0;
+                        $requiredAmount = 0.0;
+                        $canStartSchool = false;
+                        $aggregatedStatus = 'Pending';
+                        $focusFeeMeta = [
+                            'feeID' => $feeIDFilter,
+                            'fee_name' => $feeMeta->fee_name ?? 'Fee',
+                            'control_number' => null,
+                            'account_label' => ($feeMeta && $feeMeta->bankAccount)
+                                ? $feeMeta->bankAccount->displayLabel()
+                                : null,
+                            'amount_required' => 0,
+                            'amount_paid' => 0,
+                            'balance' => 0,
+                            'deadline_required' => 0,
+                            'deadline_paid' => 0,
+                            'deadline_met' => false,
+                            'deadline_overdue' => false,
+                            'payment_status' => 'Pending',
+                        ];
+                    } else {
+                        $yearPayments = collect([$focusedPayment]);
+                        $payment = $focusedPayment;
+                        $multiPayments = collect([$focusedPayment]);
+                        $totalRequired = (float) $focusedPayment->amount_required;
+                        $totalPaid = (float) $focusedPayment->amount_paid;
+                        $totalBalance = (float) $focusedPayment->balance;
+                        $requiredPaid = (float) $focusedPayment->required_fees_paid;
+                        $requiredAmount = (float) $focusedPayment->required_fees_amount;
+                        $canStartSchool = (bool) $focusedPayment->can_start_school;
+                        $aggregatedStatus = $focusedPayment->payment_status ?: 'Pending';
+                        if ($totalBalance <= 0 && $totalPaid > 0) {
+                            $aggregatedStatus = $totalPaid > $totalRequired ? 'Overpaid' : 'Paid';
+                        } elseif ($totalPaid > 0 && $totalBalance > 0) {
+                            $aggregatedStatus = 'Incomplete Payment';
+                        }
+                        $feeMeta = $multiFeesMap->get($feeIDFilter);
+                        $focusFeeMeta = [
+                            'feeID' => $feeIDFilter,
+                            'paymentID' => $focusedPayment->paymentID,
+                            'fee_name' => $feeMeta->fee_name
+                                ?? (optional($focusedPayment->fee_payments->first())->fee_name ?? 'Fee'),
+                            'control_number' => $focusedPayment->control_number,
+                            'account_label' => ($feeMeta && $feeMeta->bankAccount)
+                                ? $feeMeta->bankAccount->displayLabel()
+                                : null,
+                            'amount_required' => $totalRequired,
+                            'amount_paid' => $totalPaid,
+                            'balance' => $totalBalance,
+                            'deadline_required' => $requiredAmount,
+                            'deadline_paid' => $requiredPaid,
+                            'deadline_met' => $requiredAmount <= 0
+                                ? true
+                                : ($requiredPaid + 0.00001 >= $requiredAmount),
+                            'deadline_overdue' => $requiredAmount > 0
+                                && ($requiredPaid + 0.00001 < $requiredAmount),
+                            'payment_status' => $aggregatedStatus,
+                        ];
+                    }
+                } else {
+                    // Unified single-account payment (feeID null/0) for primary actions
+                    $payment = $yearPayments->first(function ($p) {
+                        return empty($p->feeID);
+                    }) ?: $yearPayments->first();
 
-                $multiPayments = $yearPayments->filter(fn ($p) => !empty($p->feeID))->values();
+                    $multiPayments = $yearPayments->filter(fn ($p) => !empty($p->feeID))->values();
 
-                // Aggregate student totals across all control numbers for the year
-                $totalRequired = (float) $yearPayments->sum('amount_required');
-                $totalPaid = (float) $yearPayments->sum('amount_paid');
-                $totalBalance = (float) $yearPayments->sum('balance');
-                $requiredPaid = (float) $yearPayments->sum('required_fees_paid');
-                $requiredAmount = (float) $yearPayments->sum('required_fees_amount');
-                $canStartSchool = $yearPayments->every(fn ($p) => (bool) $p->can_start_school);
+                    // Aggregate student totals across all control numbers for the year
+                    $totalRequired = (float) $yearPayments->sum('amount_required');
+                    $totalPaid = (float) $yearPayments->sum('amount_paid');
+                    $totalBalance = (float) $yearPayments->sum('balance');
+                    $requiredPaid = (float) $yearPayments->sum('required_fees_paid');
+                    $requiredAmount = (float) $yearPayments->sum('required_fees_amount');
+                    $canStartSchool = $yearPayments->isNotEmpty()
+                        && $yearPayments->every(fn ($p) => (bool) $p->can_start_school);
 
-                $aggregatedStatus = 'Pending';
-                if ($yearPayments->isEmpty()) {
                     $aggregatedStatus = 'Pending';
-                } elseif ($totalBalance <= 0 && $totalPaid > 0) {
-                    $aggregatedStatus = $totalPaid > $totalRequired ? 'Overpaid' : 'Paid';
-                } elseif ($totalPaid > 0) {
-                    $aggregatedStatus = 'Incomplete Payment';
+                    if ($yearPayments->isEmpty()) {
+                        $aggregatedStatus = 'Pending';
+                    } elseif ($totalBalance <= 0 && $totalPaid > 0) {
+                        $aggregatedStatus = $totalPaid > $totalRequired ? 'Overpaid' : 'Paid';
+                    } elseif ($totalPaid > 0) {
+                        $aggregatedStatus = 'Incomplete Payment';
+                    }
                 }
 
                 if (!$payment && $yearPayments->isEmpty() && !empty($paymentStatus)) {
@@ -1801,8 +1958,8 @@ class FeesController extends Controller
                     + (float) ($priorDebtInfo['other_contribution_balance'] ?? 0);
 
                 // Prefer live prior-debt calc; fall back to bill's stored debt field
-                $billDebt = (float) ($payment->debt ?? $yearPayments->sum('debt') ?? 0);
-                $displayPriorDebt = max($priorYearsOwed, $billDebt);
+                $billDebt = (float) ($payment?->debt ?? $yearPayments->sum('debt') ?? 0);
+                $displayPriorDebt = $feeIDFilter ? 0.0 : max($priorYearsOwed, $billDebt);
 
                 // No calculation for sponsorAmount is required as sponsors do not adjust 'totalRequiredAmount'
                 $originalTotal = $totalRequired;
@@ -1816,6 +1973,8 @@ class FeesController extends Controller
                 $multiAccountPayload = $multiPayments->map(function ($mp) use ($multiFeesMap) {
                     $fee = $multiFeesMap->get($mp->feeID);
                     $accountLabel = $fee && $fee->bankAccount ? $fee->bankAccount->displayLabel() : null;
+                    $deadlineRequired = (float) ($mp->required_fees_amount ?? 0);
+                    $deadlinePaid = (float) ($mp->required_fees_paid ?? 0);
                     return [
                         'paymentID' => $mp->paymentID,
                         'feeID' => $mp->feeID,
@@ -1826,7 +1985,20 @@ class FeesController extends Controller
                         'amount_paid' => (float) $mp->amount_paid,
                         'balance' => (float) $mp->balance,
                         'payment_status' => $mp->payment_status,
+                        'deadline_required' => $deadlineRequired,
+                        'deadline_paid' => $deadlinePaid,
+                        'deadline_met' => $deadlineRequired <= 0
+                            ? true
+                            : ($deadlinePaid + 0.00001 >= $deadlineRequired),
+                        'deadline_overdue' => $deadlineRequired > 0
+                            && ($deadlinePaid + 0.00001 < $deadlineRequired),
+                        'can_start_school' => (bool) $mp->can_start_school,
                         'fee_payments' => $mp->fee_payments,
+                        'payment_records' => $mp->paymentRecords ?? $mp->payment_records ?? [],
+                        'sponsor_balance' => (float) ($mp->sponsor_balance ?? 0),
+                        'parent_balance' => (float) ($mp->parent_balance ?? 0),
+                        'sponsor_amount_required' => (float) ($mp->sponsor_amount_required ?? 0),
+                        'parent_amount_required' => (float) ($mp->parent_amount_required ?? 0),
                     ];
                 })->values();
 
@@ -1835,6 +2007,7 @@ class FeesController extends Controller
                     'student' => $studentData,
                     'payment' => $payment,
                     'multi_accounts' => $multiAccountPayload,
+                    'focus_fee' => $focusFeeMeta,
                     'all_payments' => $yearPayments->values(),
                     'totals' => [
                         'total_required' => $totalRequired,
@@ -1843,6 +2016,11 @@ class FeesController extends Controller
                         'required_paid' => $requiredPaid,
                         'required_amount' => $requiredAmount,
                         'can_start_school' => $canStartSchool,
+                        'deadline_met' => $requiredAmount <= 0
+                            ? true
+                            : ($requiredPaid + 0.00001 >= $requiredAmount),
+                        'deadline_overdue' => $requiredAmount > 0
+                            && ($requiredPaid + 0.00001 < $requiredAmount),
                         'original_total' => $originalTotal,
                         'sponsor_amount' => $sponsorAmount,
                         'prior_years_owed' => $displayPriorDebt,
@@ -1890,6 +2068,8 @@ class FeesController extends Controller
                 'academic_year_id' => $academicYearID,
                 'academic_year_ids' => $academicYearIDs,
                 'is_closed_year' => $isClosedYear,
+                'fee_structure' => $feeStructure,
+                'fee_filter' => $feeIDFilter ?: 'all',
                 'statistics' => [
                     'total_students' => count($filteredData),
                     'total_payments' => count($filteredData),
@@ -2140,6 +2320,7 @@ class FeesController extends Controller
 
             $requestedYear = $request->input('year');
             $requestYearID = $request->input('academic_year_id');
+            $filterClassID = $request->input('class_id');
             $academicYearID = null;
 
             if (!empty($requestYearID)) {
@@ -2149,6 +2330,15 @@ class FeesController extends Controller
                     ->first();
                 if ($ay) {
                     $academicYearID = (int) $ay->academic_yearID;
+                }
+            }
+
+            if (!$academicYearID && !empty($filterClassID)) {
+                $class = ClassModel::find($filterClassID);
+                $yearID = app(SelectedAcademicYearService::class)
+                    ->yearIdForClassName($class->class_name ?? null, (int) $schoolID);
+                if ($yearID) {
+                    $academicYearID = (int) $yearID;
                 }
             }
 
@@ -2171,13 +2361,28 @@ class FeesController extends Controller
             $academicYear = DB::table('academic_years')->where('academic_yearID', $academicYearID)->first();
             $yearValue = $academicYear ? $academicYear->year : 'N/A';
 
-            // Get all active students
-            $students = Student::where('schoolID', $schoolID)
-                ->where('status', 'Active')
-                ->get();
+            // Get active students (optionally scoped to filtered class enrollments)
+            $studentsQuery = Student::where('schoolID', $schoolID)->where('status', 'Active');
+            if (!empty($filterClassID)) {
+                $classStudentIDs = StudentEnrollment::where('schoolID', $schoolID)
+                    ->where('academic_yearID', $academicYearID)
+                    ->where('classID', (int) $filterClassID)
+                    ->where('status', 'Active')
+                    ->pluck('studentID')
+                    ->unique()
+                    ->values()
+                    ->all();
+                $studentsQuery->whereIn('studentID', $classStudentIDs ?: [0]);
+            }
+            $students = $studentsQuery->get();
 
             if ($students->isEmpty()) {
-                return response()->json(['success' => false, 'message' => 'No active students found.'], 404);
+                return response()->json([
+                    'success' => false,
+                    'message' => !empty($filterClassID)
+                        ? 'No active enrolled students found for the selected class.'
+                        : 'No active students found.',
+                ], 404);
             }
 
             $generated = 0;
@@ -2207,9 +2412,10 @@ class FeesController extends Controller
 
             DB::commit();
 
-            $msg = "Control numbers generated for {$generated} new students for year {$yearValue}!";
+            $scope = !empty($filterClassID) ? 'selected class' : 'all active students';
+            $msg = "Control numbers generated for {$generated} new bill(s) ({$scope}) for year {$yearValue}!";
             if ($skipped > 0) {
-                $msg .= " ({$skipped} students skipped as they already have them)";
+                $msg .= " ({$skipped} students already had control numbers)";
             }
 
             return response()->json([
@@ -2391,7 +2597,7 @@ class FeesController extends Controller
                     if (!($school && $school->senderID)) {
                         $messageSponsor .= "{$school->school_name}: ";
                     }
-                    $messageSponsor .= "Mdhamini wa {$studentName}, Control Number: {$controlNumber}. Lipa TZS {$sponsorShareMsg} ({$sponsorPct}% ya TZS {$totalAmountForMsg}). Lipia benki/mitandao.";
+                    $messageSponsor .= "Mdhamini wa {$studentName}, Control Number: {$controlNumber}. Lipa TZS {$sponsorShareMsg} ({$sponsorPct}% ya TZS {$totalAmountForMsg}) kupitia mtandao wowote wa simu au benki yoyote.";
                     $res = $this->smsService->sendSms($sponsor->phone, $messageSponsor);
                     $rowResult['phone']   = $sponsor->phone;
                     $rowResult['success'] = $res['success'];
@@ -2405,10 +2611,10 @@ class FeesController extends Controller
                         $messageParent .= "{$school->school_name}: ";
                     }
                     if ($p > 0) {
-                        $messageParent .= "Mzazi wa {$studentName}, CN: {$controlNumber}. Jumla TZS {$totalAmountForMsg}, ulipe TZS {$parentShareMsg} (mdhamini TZS {$sponsorShareMsg}). Kuanza: TZS {$requiredAmount}.";
+                        $messageParent .= "Mzazi wa {$studentName}, Control Number: {$controlNumber}. Jumla TZS {$totalAmountForMsg}, ulipe TZS {$parentShareMsg} (mdhamini TZS {$sponsorShareMsg}). Kuanza: TZS {$requiredAmount}. Lipa kupitia mtandao wowote wa simu au benki yoyote.";
                     } else {
                         $totalAmount = number_format($payment->amount_required ?? 0, 0);
-                        $messageParent .= "Mzazi wa {$studentName}, amepangiwa CN: {$controlNumber}. Kiasi: TZS {$totalAmount}, kuanza: TZS {$requiredAmount}. Lipa kuepuka usumbufu.";
+                        $messageParent .= "Mzazi wa {$studentName}, Control Number: {$controlNumber}. Kiasi: TZS {$totalAmount}, kuanza: TZS {$requiredAmount}. Lipa kupitia mtandao wowote wa simu au benki yoyote.";
                     }
                     $res = $this->smsService->sendSms($parent->phone, $messageParent);
                     $rowResult['phone']   = $parent->phone;
@@ -2499,7 +2705,7 @@ class FeesController extends Controller
                 if (!($school && $school->senderID)) {
                     $message .= "{$school->school_name}: ";
                 }
-                $message .= "Mzazi wa {$studentName} unakumbushwa kulipa deni, sh {$balance}, control number {$controlNumber}. Lipa kuepuka usumbufu.";
+                $message .= "Mzazi wa {$studentName}, unakumbushwa kulipa deni la Sh {$balance} kupitia Control Number {$controlNumber}. Lipa kupitia mtandao wowote wa simu au benki yoyote.";
 
                 // Send SMS using the service
                 $smsResult = $this->smsService->sendSms($parent->phone, $message);
@@ -2543,20 +2749,59 @@ class FeesController extends Controller
             return response()->json(['success' => false, 'message' => 'Access denied'], 403);
         }
 
-        $type              = $request->input('type', 'control_number'); // 'control_number' | 'debt_reminder'
-        $requestedYear     = $request->input('year');
-        $recipientType     = $request->input('recipient_type', 'parent'); // 'parent' | 'sponsor'
+        $type              = $request->input('type', 'control_number');
+        $recipientType     = $request->input('recipient_type', 'parent');
+        $audience          = $request->input('audience', 'all');
+        $classID           = $request->input('class_id', '');
+        $subclassID        = $request->input('subclass_id', '');
+        $enrollmentStatus  = $request->input('enrollment_status', $request->input('student_status', 'Active'));
+        if ($enrollmentStatus === null || $enrollmentStatus === '') {
+            $enrollmentStatus = 'Active';
+        }
+        $promotionStatus   = $request->input('promotion_status', '');
+        $sponsorshipFilter = $request->input('sponsorship_filter', '');
+        $feeIDFilterRaw    = $request->input('fee_id', '');
+        $feeIDFilter       = ($feeIDFilterRaw !== '' && $feeIDFilterRaw !== 'all' && $feeIDFilterRaw !== null)
+            ? (int) $feeIDFilterRaw
+            : null;
 
         try {
-            $academicYearID = $this->getCurrentAcademicYearID($schoolID, $requestedYear);
+            $resolved = $this->resolvePaymentsAcademicYear(
+                (int) $schoolID,
+                $request,
+                $classID !== '' ? $classID : null
+            );
+            $academicYearID = $resolved['academicYearID'];
+            $academicYearIDs = $resolved['academicYearIDs'];
             $recipients = [];
 
             if ($recipientType === 'sponsor') {
-                // Better approach: Join tables and group by sponsor
-                $recipients = Payment::join('students', 'payments.studentID', '=', 'students.studentID')
+                $studentIDs = $this->paymentCohortStudentIDs(
+                    (int) $schoolID,
+                    $academicYearIDs,
+                    (string) $enrollmentStatus,
+                    $classID !== '' ? $classID : null,
+                    $subclassID !== '' ? $subclassID : null,
+                    (string) $promotionStatus
+                );
+
+                $sponsorQuery = Payment::join('students', 'payments.studentID', '=', 'students.studentID')
                     ->join('sponsors', 'students.sponsor_id', '=', 'sponsors.sponsorID')
                     ->where('payments.schoolID', $schoolID)
-                    ->where('payments.sponsor_balance', '>', 0)
+                    ->where('payments.academic_yearID', $academicYearID)
+                    ->where('payments.sponsor_balance', '>', 0);
+
+                if (!empty($studentIDs)) {
+                    $sponsorQuery->whereIn('payments.studentID', $studentIDs);
+                } else {
+                    $sponsorQuery->whereRaw('1 = 0');
+                }
+
+                if ($feeIDFilter) {
+                    $sponsorQuery->where('payments.feeID', $feeIDFilter);
+                }
+
+                $recipients = $sponsorQuery
                     ->select(
                         'sponsors.sponsorID',
                         'sponsors.sponsor_name as recipientLabel',
@@ -2566,45 +2811,125 @@ class FeesController extends Controller
                     )
                     ->groupBy('sponsors.sponsorID', 'sponsors.sponsor_name', 'sponsors.phone')
                     ->get()
-                    ->map(function($item) {
-                        $item->type = 'sponsor';
-                        return $item;
+                    ->map(function ($item) use ($schoolID, $type, $audience) {
+                        $school = School::find($schoolID);
+                        $schoolName = $school->school_name ?? 'Shule';
+                        $count = (int) ($item->studentCount ?? 0);
+                        $totalDebt = (float) ($item->balance ?? 0);
+                        $formattedAmount = number_format($totalDebt, 0);
+                        $message = '';
+                        if (!($school && $school->senderID)) {
+                            $message .= "{$schoolName}: ";
+                        }
+                        if ($type === 'debt_reminder' && $audience === 'deadline_reached') {
+                            $message .= "Unakumbushwa kulipa deni la wanafunzi {$count} ambalo deadline limefika, kiasi cha Sh {$formattedAmount}. Tafadhali kamilisha malipo. Ahsante.";
+                        } else {
+                            $message .= "Unakumbushwa kulipa deni la wanafunzi {$count} kiasi cha Sh {$formattedAmount}. Tafadhali kamilisha malipo. Ahsante.";
+                        }
+                        return [
+                            'sponsorID' => $item->sponsorID,
+                            'recipientLabel' => $item->recipientLabel,
+                            'phone' => $item->phone,
+                            'studentCount' => $count,
+                            'balance' => $totalDebt,
+                            'sms_message' => $message,
+                            'type' => 'sponsor',
+                        ];
                     })
-                    ->toArray();
+                    ->values()
+                    ->all();
             } else {
-                // Default: Parent
-                $query = Payment::where('schoolID', $schoolID)
-                    ->where('academic_yearID', $academicYearID)
-                    ->with(['student.parent', 'student.sponsor']);
+                $studentIDs = $this->paymentCohortStudentIDs(
+                    (int) $schoolID,
+                    $academicYearIDs,
+                    (string) $enrollmentStatus,
+                    $classID !== '' ? $classID : null,
+                    $subclassID !== '' ? $subclassID : null,
+                    (string) $promotionStatus
+                );
 
-                if ($type === 'debt_reminder') {
-                    // For debt reminders, only show those where parent actually owes money
-                    // EXCLUDE: 100% sponsored students, and parents with 0 balance
-                    $query->whereHas('student', fn($q) => $q->where('sponsorship_percentage', '<', 100))
-                          ->where('parent_balance', '>', 0);
+                if (empty($studentIDs)) {
+                    return response()->json(['success' => true, 'recipients' => [], 'count' => 0]);
                 }
 
-                $payments = $query->get();
+                $query = Payment::where('schoolID', $schoolID)
+                    ->where('academic_yearID', $academicYearID)
+                    ->whereIn('studentID', $studentIDs)
+                    ->with(['student.parent', 'student.sponsor', 'school']);
+
+                if ($feeIDFilter) {
+                    $query->where('feeID', $feeIDFilter);
+                }
+
+                if ($sponsorshipFilter === 'sponsored') {
+                    $query->whereHas('student', function ($q) {
+                        $q->whereNotNull('sponsor_id')->where('sponsorship_percentage', '>', 0);
+                    });
+                } elseif ($sponsorshipFilter === 'self') {
+                    $query->whereHas('student', function ($q) {
+                        $q->where(function ($inner) {
+                            $inner->whereNull('sponsor_id')->orWhere('sponsorship_percentage', '<=', 0);
+                        });
+                    });
+                }
+
+                if ($type === 'control_number') {
+                    $query->whereNotNull('control_number')->where('control_number', '!=', '');
+                }
+
+                if ($type === 'debt_reminder') {
+                    $query->whereHas('student', fn ($q) => $q->where('sponsorship_percentage', '<', 100))
+                        ->where('parent_balance', '>', 0);
+
+                    if ($audience === 'deadline_reached') {
+                        $query->where('required_fees_amount', '>', 0)
+                            ->whereColumn('required_fees_paid', '<', 'required_fees_amount');
+                    }
+                }
+
+                $payments = $query->orderBy('studentID')->orderBy('feeID')->get();
 
                 foreach ($payments as $payment) {
                     $student = $payment->student;
-                    if (!$student) continue;
+                    if (!$student) {
+                        continue;
+                    }
 
                     $parent = $student->parent ?? null;
                     $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
-                    
+                    $deadlineRequired = (float) ($payment->required_fees_amount ?? 0);
+                    $deadlinePaid = (float) ($payment->required_fees_paid ?? 0);
+                    $deadlineOverdue = $deadlineRequired > 0
+                        && ($deadlinePaid + 0.00001 < $deadlineRequired);
+
+                    $preview = $type === 'control_number'
+                        ? $this->buildControlNumberSmsMessage($payment)
+                        : $this->buildDebtReminderSmsMessage($payment, $audience);
+
                     $recipients[] = [
-                        'paymentID'      => $payment->paymentID,
-                        'recipientLabel' => 'Parent of ' . $studentName,
-                        'studentName'    => $studentName,
-                        'phone'          => $parent->phone ?? '',
-                        'balance'        => $payment->parent_balance,
-                        'type'           => 'parent'
+                        'paymentID' => $payment->paymentID,
+                        'recipientLabel' => 'Mzazi wa ' . $studentName,
+                        'studentName' => $studentName,
+                        'phone' => $parent->phone ?? '',
+                        'balance' => (float) $payment->parent_balance,
+                        'fee_name' => $preview['fee_name'] ?? 'Ada',
+                        'control_number' => $preview['control_number'] ?? $payment->control_number,
+                        'deadline_overdue' => $deadlineOverdue,
+                        'deadline_required' => $deadlineRequired,
+                        'deadline_paid' => $deadlinePaid,
+                        'sms_message' => $preview['message'] ?? '',
+                        'type' => 'parent',
                     ];
                 }
             }
 
-            return response()->json(['success' => true, 'recipients' => $recipients]);
+            return response()->json([
+                'success' => true,
+                'recipients' => $recipients,
+                'count' => count($recipients),
+                'audience' => $audience,
+                'type' => $type,
+            ]);
 
         } catch (\Exception $e) {
             Log::error('get_fee_sms_recipients error: ' . $e->getMessage());
@@ -2627,9 +2952,11 @@ class FeesController extends Controller
 
         $paymentID     = $request->input('paymentID');
         $sponsorID     = $request->input('sponsorID');
-        $type          = $request->input('type', 'control_number'); // 'control_number' | 'debt_reminder'
+        $type          = $request->input('type', 'control_number');
         $recipientType = $request->input('recipient_type', 'parent');
         $year          = $request->input('year');
+        $audience      = $request->input('audience', 'all');
+        $customMessage = trim((string) $request->input('message', ''));
 
         try {
             $school = \App\Models\School::find($schoolID);
@@ -2660,11 +2987,17 @@ class FeesController extends Controller
                 }
 
                 $formattedAmount = number_format($totalDebt);
-                $message = "";
-                if (!($school && $school->senderID)) {
-                    $message .= "{$schoolName}: ";
+                $message = $customMessage !== '' ? $customMessage : '';
+                if ($message === '') {
+                    if (!($school && $school->senderID)) {
+                        $message .= "{$schoolName}: ";
+                    }
+                    if ($type === 'debt_reminder' && $audience === 'deadline_reached') {
+                        $message .= "Unakumbushwa kulipa deni la wanafunzi {$count} ambalo deadline limefika, kiasi cha Sh {$formattedAmount}. Tafadhali kamilisha malipo. Ahsante.";
+                    } else {
+                        $message .= "Unakumbushwa kulipa deni la wanafunzi {$count} kiasi cha Sh {$formattedAmount}. Tafadhali kamilisha malipo. Ahsante.";
+                    }
                 }
-                $message .= "Unakumbushwa kulipa deni la wanafunzi {$count} kiasi cha Sh {$formattedAmount}. Tafadhali wahi kukamilisha malipo. Ahsante.";
                 $phone = $sponsor->phone;
 
                 $smsResult = $this->smsService->sendSms($phone, $message);
@@ -2686,33 +3019,19 @@ class FeesController extends Controller
 
                 $student = $payment->student;
                 $phone = $student->parent->phone;
-                $p = (float)($student->sponsorship_percentage ?? 0);
-                $cn = $payment->control_number;
 
-                if ($type === 'debt_reminder') {
-                    $balanceStr = number_format($payment->parent_balance);
-                    $message = "";
-                    if (!($school && $school->senderID)) {
-                        $message .= "{$schoolName}: ";
-                    }
-                    $message .= "Unakumbushwa kulipa deni la Ada kiasi cha Sh {$balanceStr}. Tafadhali wahi kulipa mapema. Ahsante.";
+                if ($customMessage !== '') {
+                    $message = $customMessage;
+                } elseif ($type === 'debt_reminder') {
+                    $preview = $this->buildDebtReminderSmsMessage($payment, $audience);
+                    $message = $preview['message'];
                 } else {
-                    // control_number SMS (keep existing logic but respect shorter templates if possible)
-                    $totalAmount = number_format($payment->amount_required, 0);
-                    $message = "";
-                    if (!($school && $school->senderID)) {
-                        $message .= "{$schoolName}: ";
-                    }
-                    if ($p > 0) {
-                        $parentShare = number_format(max(0, $payment->amount_required - ($payment->amount_required * $p / 100)), 0);
-                        $message .= "Mzazi wa {$student->first_name}, CN: {$cn}. Jumla Sh {$totalAmount}, sehemu yako Sh {$parentShare}. Ahsante.";
-                    } else {
-                        $message .= "Mzazi wa {$student->first_name}, Control Number: {$cn}. Kiasi: Sh {$totalAmount}. Ahsante.";
-                    }
+                    $preview = $this->buildControlNumberSmsMessage($payment);
+                    $message = $preview['message'];
                 }
 
-                if (strlen($message) > 160) {
-                    $message = substr($message, 0, 157) . '...';
+                if (strlen($message) > 480) {
+                    $message = substr($message, 0, 477) . '...';
                 }
 
                 $smsResult = $this->smsService->sendSms($phone, $message);
@@ -2732,7 +3051,119 @@ class FeesController extends Controller
     /**
      * Resend control number to specific parent
      */
-    public function resend_control_number($paymentID)
+    /**
+     * Build Kiswahili debt-reminder SMS (deadline reached or general balance).
+     */
+    private function buildDebtReminderSmsMessage(Payment $payment, string $audience = 'all'): array
+    {
+        $student = $payment->student;
+        $parent = $student ? $student->parent : null;
+        $school = $payment->school ?: School::find($payment->schoolID);
+
+        $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
+        $controlNumber = $payment->control_number;
+        $balance = (float) $payment->parent_balance;
+        $deadlineRequired = (float) $payment->required_fees_amount;
+        $deadlinePaid = (float) $payment->required_fees_paid;
+
+        $feeName = 'Ada';
+        $accountLabel = null;
+        if (!empty($payment->feeID)) {
+            $fee = Fee::with('bankAccount.bank')->find($payment->feeID);
+            if ($fee) {
+                $feeName = $fee->fee_name;
+                $accountLabel = $fee->bankAccount ? $fee->bankAccount->displayLabel() : null;
+            }
+        }
+
+        $message = '';
+        if (!($school && $school->senderID)) {
+            $message .= ($school->school_name ?? 'Shule') . ': ';
+        }
+
+        if ($audience === 'deadline_reached' && $deadlineRequired > 0) {
+            $shortfall = max(0, $deadlineRequired - $deadlinePaid);
+            $amountStr = number_format($shortfall, 0);
+            $message .= "Mzazi wa {$studentName}, muda wa malipo ya {$feeName} umefika. Unatakiwa kulipa Sh {$amountStr}";
+            if (!empty($controlNumber)) {
+                $message .= " kupitia Control Number {$controlNumber}";
+            }
+            $message .= ' kwa kutumia mtandao wowote wa simu au benki yoyote. Tafadhali lipa mapema ili kuepuka usumbufu. Ahsante.';
+        } else {
+            $amountStr = number_format($balance, 0);
+            $message .= "Mzazi wa {$studentName}, unakumbushwa kulipa {$feeName} deni la Sh {$amountStr}";
+            if (!empty($controlNumber)) {
+                $message .= " kupitia Control Number {$controlNumber}";
+            }
+            $message .= ' kwa kutumia mtandao wowote wa simu au benki yoyote. Tafadhali kamilisha malipo. Ahsante.';
+        }
+
+        return [
+            'message' => $message,
+            'student_name' => $studentName,
+            'parent_phone' => $parent->phone ?? null,
+            'parent_name' => $parent
+                ? trim(($parent->first_name ?? '') . ' ' . ($parent->last_name ?? ''))
+                : null,
+            'control_number' => $controlNumber,
+            'fee_name' => $feeName,
+            'account_label' => $accountLabel,
+            'balance' => $balance,
+            'deadline_required' => $deadlineRequired,
+            'deadline_paid' => $deadlinePaid,
+            'school_name' => $school->school_name ?? null,
+        ];
+    }
+
+    /**
+     * Build the control-number SMS body (shared by preview + send).
+     */
+    private function buildControlNumberSmsMessage(Payment $payment): array
+    {
+        $student = $payment->student;
+        $parent = $student ? $student->parent : null;
+        $school = $payment->school ?: School::find($payment->schoolID);
+
+        $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
+        $controlNumber = $payment->control_number;
+        $totalAmount = number_format((float) $payment->amount_required, 0);
+        $requiredAmount = number_format((float) $payment->required_fees_amount, 0);
+
+        $feeName = null;
+        $accountLabel = null;
+        $feeContext = '';
+        if (!empty($payment->feeID)) {
+            $fee = Fee::with('bankAccount.bank')->find($payment->feeID);
+            if ($fee) {
+                $feeName = $fee->fee_name;
+                $accountLabel = $fee->bankAccount ? $fee->bankAccount->displayLabel() : null;
+                $feeContext = " ya {$fee->fee_name}";
+            }
+        }
+
+        $message = '';
+        if (!($school && $school->senderID)) {
+            $message .= ($school->school_name ?? 'School') . ': ';
+        }
+        $message .= "Mzazi wa {$studentName}, Control Number{$feeContext}: {$controlNumber}. Kiasi cha kuanza: Sh {$requiredAmount}, jumla: Sh {$totalAmount}. Lipa kupitia mtandao wowote wa simu au benki yoyote. Ahsante.";
+
+        return [
+            'message' => $message,
+            'student_name' => $studentName,
+            'parent_phone' => $parent->phone ?? null,
+            'parent_name' => $parent
+                ? trim(($parent->first_name ?? '') . ' ' . ($parent->last_name ?? ''))
+                : null,
+            'control_number' => $controlNumber,
+            'fee_name' => $feeName,
+            'account_label' => $accountLabel,
+            'amount_required' => (float) $payment->amount_required,
+            'deadline_amount' => (float) $payment->required_fees_amount,
+            'school_name' => $school->school_name ?? null,
+        ];
+    }
+
+    public function resend_control_number(Request $request, $paymentID)
     {
         set_time_limit(3600); // 60 minutes
         $userType = Session::get('user_type');
@@ -2754,42 +3185,42 @@ class FeesController extends Controller
 
             $student = $payment->student;
             $parent = $student ? $student->parent : null;
-            $school = $payment->school;
 
-            if (!$student || !$student->parent || !$student->parent->phone) {
+            if (!$student || !$parent || !$parent->phone) {
                 return response()->json(['success' => false, 'message' => 'Parent or phone number not found'], 404);
             }
 
-            $studentName = ($student->first_name ?? '') . ' ' . ($student->last_name ?? '');
-            $controlNumber = $payment->control_number;
-            $totalAmount = number_format($payment->amount_required, 0);
-            $requiredAmount = number_format($payment->required_fees_amount, 0);
+            $preview = $this->buildControlNumberSmsMessage($payment);
+            $customMessage = trim((string) $request->input('message', ''));
 
-            $feeContext = '';
-            if (!empty($payment->feeID)) {
-                $fee = Fee::with('bankAccount.bank')->find($payment->feeID);
-                if ($fee) {
-                    $acc = $fee->bankAccount ? $fee->bankAccount->displayLabel() : '';
-                    $feeContext = " ({$fee->fee_name}" . ($acc ? " / {$acc}" : '') . ')';
-                }
+            // Preview only — do not send yet
+            if ($request->boolean('preview') || $request->input('preview_only')) {
+                return response()->json([
+                    'success' => true,
+                    'preview' => true,
+                    'message' => 'SMS preview ready.',
+                    'sms_sample' => $preview['message'],
+                    'to' => $preview['parent_phone'],
+                    'parent_name' => $preview['parent_name'],
+                    'student_name' => $preview['student_name'],
+                    'control_number' => $preview['control_number'],
+                    'fee_name' => $preview['fee_name'],
+                    'account_label' => $preview['account_label'],
+                ], 200);
             }
 
-            // Shortered Message for Control Number
-            $message = "";
-            if (!($school && $school->senderID)) {
-                $message .= "{$school->school_name}: ";
-            }
-            $message .= "Mzazi wa {$studentName}, CN{$feeContext}: {$controlNumber}. Kiasi kuanza: sh {$requiredAmount}, Jumla: sh {$totalAmount}. Lipa kuepuka usumbufu.";
-
-            $smsResult = $this->smsService->sendSms($parent->phone, $message);
+            $messageToSend = $customMessage !== '' ? $customMessage : $preview['message'];
+            $smsResult = $this->smsService->sendSms($parent->phone, $messageToSend);
 
             if ($smsResult['success']) {
                 $payment->update(['sms_sent' => 'Yes', 'sms_sent_at' => now()]);
                 return response()->json(['success' => true, 'message' => 'Control Number resent successfully.'], 200);
-            } else {
-                return response()->json(['success' => false, 'message' => 'Failed to send SMS: ' . $smsResult['message']], 500);
             }
 
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send SMS: ' . ($smsResult['message'] ?? 'Unknown error'),
+            ], 500);
         } catch (\Exception $e) {
             Log::error('Error resending control number: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
@@ -2831,7 +3262,7 @@ class FeesController extends Controller
             if (!($school && $school->senderID)) {
                 $message .= "{$school->school_name}: ";
             }
-            $message .= "Mzazi wa {$studentName} unakumbushwa kulipa deni, sh {$balance}, control number {$controlNumber}. Lipa kuepuka usumbufu.";
+            $message .= "Mzazi wa {$studentName}, unakumbushwa kulipa deni la Sh {$balance} kupitia Control Number {$controlNumber}. Lipa kupitia mtandao wowote wa simu au benki yoyote. Ahsante.";
 
             $smsResult = $this->smsService->sendSms($parent->phone, $message);
 
@@ -2964,7 +3395,7 @@ class FeesController extends Controller
                 })
                 ->whereNotNull('control_number')
                 ->where('control_number', '!=', '')
-                ->with(['fee.installments', 'fee.otherFeeDetails'])
+                ->with(['fee.installments', 'fee.otherFeeDetails', 'fee.bankAccount'])
                 ->get();
 
             // Get previous year debt for this student (only for active students)
@@ -2973,19 +3404,37 @@ class FeesController extends Controller
                 $previousYearDebt = $this->getPreviousYearBalance($student->studentID, $schoolID);
             }
 
-            // Calculate totals
-            $payment = $payments->first(); // Get the first (unified) payment record
-            $totalRequired = $payment ? $payment->amount_required : 0;
-            $totalPaid = $payment ? $payment->amount_paid : 0;
-            $totalBalance = $payment ? $payment->balance : 0;
-            $requiredPaid = $payment ? $payment->required_fees_paid : 0;
-            $requiredAmount = $payment ? $payment->required_fees_amount : 0;
+            $payment = $payments->first();
+            $totalRequired = (float) $payments->sum('amount_required');
+            $totalPaid = (float) $payments->sum('amount_paid');
+            $totalBalance = (float) $payments->sum('balance');
+            $requiredPaid = $payment ? (float) $payment->required_fees_paid : 0;
+            $requiredAmount = $payment ? (float) $payment->required_fees_amount : 0;
 
-            // Get fee breakdown
-            $feeBreakdown = $payment ? $payment->fee_payments()->orderBy('display_order')->get() : collect();
+            $prevDebtTotal = ($previousYearDebt['school_fee_balance'] ?? 0) + ($previousYearDebt['other_contribution_balance'] ?? 0);
+            $billBalance = max(0, $totalBalance - $prevDebtTotal);
+            $totalOutstanding = $totalBalance;
 
-            // School logo path
-            $schoolLogo = $school->school_logo ? public_path($school->school_logo) : null;
+            $multiAccounts = $payments
+                ->filter(fn ($p) => !empty($p->feeID))
+                ->map(function ($mp) {
+                    $fee = $mp->fee;
+                    return [
+                        'fee_name' => $fee->fee_name ?? 'Fee',
+                        'account_label' => $fee && $fee->bankAccount ? $fee->bankAccount->displayLabel() : '—',
+                        'control_number' => $mp->control_number,
+                        'amount_required' => (float) $mp->amount_required,
+                        'amount_paid' => (float) $mp->amount_paid,
+                        'balance' => (float) $mp->balance,
+                        'payment_status' => $mp->payment_status ?? 'Pending',
+                    ];
+                })
+                ->values()
+                ->all();
+
+            $feeBreakdown = $payments
+                ->flatMap(fn ($p) => $p->fee_payments()->orderBy('display_order')->get())
+                ->values();
 
             // Prepare data for PDF
             $data = [
@@ -2993,13 +3442,15 @@ class FeesController extends Controller
                 'school' => $school,
                 'payment' => $payment,
                 'feeBreakdown' => $feeBreakdown,
+                'multiAccounts' => $multiAccounts,
                 'totalRequired' => $totalRequired,
                 'totalPaid' => $totalPaid,
                 'totalBalance' => $totalBalance,
+                'billBalance' => $billBalance,
+                'totalOutstanding' => $totalOutstanding,
                 'requiredAmount' => $requiredAmount,
                 'requiredPaid' => $requiredPaid,
                 'previousYearDebt' => $previousYearDebt,
-                'schoolLogo' => $schoolLogo,
                 'year' => $currentYear,
             ];
 
@@ -3007,6 +3458,11 @@ class FeesController extends Controller
             try {
                 // Method 1: Try using the facade
                 $pdf = PDF::loadView('Admin.pdf.payment_invoice', $data);
+                $pdf->setOptions([
+                    'isRemoteEnabled' => true,
+                    'isHtml5ParserEnabled' => true,
+                    'chroot' => base_path(),
+                ]);
                 $pdf->setPaper('A4', 'portrait');
 
                 $filename = 'Payment_Invoice_' . str_replace(' ', '_', $student->admission_number) . '_' . $currentYear . '.pdf';
@@ -4189,6 +4645,7 @@ class FeesController extends Controller
             'deadlines.*.end_month' => 'nullable|integer|min:1|max:12',
             'deadlines.*.start_day' => 'nullable|integer|min:1|max:31',
             'deadlines.*.end_day' => 'nullable|integer|min:1|max:31',
+            'deadlines.*.amount_type' => 'required|in:fixed,percent',
             'deadlines.*.amount' => 'required|numeric|min:0.01',
         ]);
         if ($validator->fails()) {
@@ -4234,6 +4691,13 @@ class FeesController extends Controller
 
         $normalized = collect($request->deadlines)->map(function ($row) use ($academicYear) {
             $type = $row['deadline_type'];
+            $amountType = $row['amount_type'] ?? FeeDeadline::AMOUNT_FIXED;
+            $amount = (float) $row['amount'];
+
+            if ($amountType === FeeDeadline::AMOUNT_PERCENT && $amount > 100) {
+                return ['error' => 'Percent deadlines cannot exceed 100%.'];
+            }
+
             if ($type === 'month') {
                 $range = $this->resolveDeadlineMonthRange(
                     $academicYear,
@@ -4259,6 +4723,7 @@ class FeesController extends Controller
                 $row['start_date'] = $range['start_date'];
                 $row['end_date'] = $range['end_date'];
             }
+            $row['amount_type'] = $amountType;
             return $row;
         });
         $normalizationError = $normalized->first(fn ($row) => isset($row['error']));
@@ -4268,11 +4733,13 @@ class FeesController extends Controller
 
         $sorted = $normalized->sortBy('start_date')->values();
         $previousEnd = null;
-        $amountsTotal = 0;
+        $fixedTotal = 0.0;
+        $percentTotal = 0.0;
         foreach ($sorted as $row) {
             $start = Carbon::parse($row['start_date']);
             $end = Carbon::parse($row['end_date']);
             $amount = (float) $row['amount'];
+            $amountType = $row['amount_type'] ?? FeeDeadline::AMOUNT_FIXED;
             if ($end->lt($start)) {
                 return response()->json([
                     'success' => false,
@@ -4285,16 +4752,37 @@ class FeesController extends Controller
                     'message' => "Deadline dates overlap for {$fee->fee_name}. Start the next deadline after {$previousEnd->format('d M Y')}.",
                 ], 422);
             }
-            $amountsTotal += $amount;
-            if ($amountsTotal > (float) $fee->amount) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Total deadline amounts (TZS ' . number_format($amountsTotal, 2)
-                        . ") exceed the fee total (TZS " . number_format((float) $fee->amount, 2)
-                        . ") for {$fee->fee_name}.",
-                ], 422);
+            if ($amountType === FeeDeadline::AMOUNT_PERCENT) {
+                $percentTotal += $amount;
+                if ($percentTotal > 100) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Total percent deadlines cannot exceed 100%. Current total: '
+                            . number_format($percentTotal, 2) . '%. '
+                            . 'Example: 70% then 30% (completes 100%), not 70% then 40%.',
+                    ], 422);
+                }
+            } else {
+                $fixedTotal += $amount;
+                if ($fixedTotal > (float) $fee->amount) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Total fixed deadline amounts (TZS ' . number_format($fixedTotal, 2)
+                            . ") exceed the fee total (TZS " . number_format((float) $fee->amount, 2)
+                            . ") for {$fee->fee_name}.",
+                    ], 422);
+                }
             }
             $previousEnd = $end;
+        }
+
+        if ($percentTotal > 0 && abs($percentTotal - 100) > 0.009) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Percent deadlines must add up to exactly 100%. Current total: '
+                    . number_format($percentTotal, 2) . '%. '
+                    . 'Add or adjust the remaining ' . number_format(100 - $percentTotal, 2) . '%.',
+            ], 422);
         }
 
         DB::beginTransaction();
@@ -4315,6 +4803,7 @@ class FeesController extends Controller
                     'end_date' => $row['end_date'],
                     'start_month' => $row['deadline_type'] === 'month' ? (int) $row['start_month'] : null,
                     'end_month' => $row['deadline_type'] === 'month' ? (int) $row['end_month'] : null,
+                    'amount_type' => $row['amount_type'] ?? FeeDeadline::AMOUNT_FIXED,
                     'amount' => $row['amount'],
                     'status' => 'Active',
                 ]);
@@ -4322,8 +4811,16 @@ class FeesController extends Controller
 
             // Keep legacy fee display fields in sync with the next upcoming/current deadline.
             $next = collect($created)->sortBy('end_date')->first();
+            $legacyAmount = null;
+            if ($next) {
+                if (($next->amount_type ?? 'fixed') === 'percent') {
+                    $legacyAmount = round(((float) $fee->amount) * ((float) $next->amount / 100), 2);
+                } else {
+                    $legacyAmount = $next->amount;
+                }
+            }
             $fee->update([
-                'payment_deadline_amount' => $next?->amount,
+                'payment_deadline_amount' => $legacyAmount,
                 'payment_deadline_date' => $next?->end_date,
             ]);
 
