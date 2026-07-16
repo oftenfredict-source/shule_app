@@ -25,12 +25,16 @@
         table.data-table th { background-color: #940000; color: #fff; font-weight: bold; }
         table.data-table td.center { text-align: center; }
         .row-late { background-color: #fff5f5; }
+        .row-weekend { background-color: #f3e8ff; }
+        .row-nonwork { background-color: #fff8e1; }
         .status-present { color: #28a745; font-weight: bold; }
         .status-absent { color: #dc3545; font-weight: bold; }
         .status-late { color: #dc3545; font-weight: bold; }
         .status-early { color: #0dcaf0; font-weight: bold; }
         .status-off { color: #6c757d; font-weight: bold; }
         .status-permitted { color: #6f42c1; font-weight: bold; }
+        .status-weekend { color: #6f42c1; font-weight: bold; }
+        .status-nonwork { color: #856404; font-weight: bold; }
         .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 9px; color: #777; border-top: 1px solid #eee; padding-top: 5px; }
         .sig-table { width: 100%; margin-top: 30px; border-collapse: collapse; page-break-inside: avoid; }
         .sig-table td { border: none; padding: 0; vertical-align: bottom; }
@@ -191,20 +195,38 @@
         <tbody>
             @forelse($daily_records as $day)
             @php
-                $statusClass = match($day['status'] ?? '') {
+                $status = $day['status'] ?? '';
+                $statusClass = match($status) {
                     'Permitted' => 'status-permitted',
                     'Absent' => 'status-absent',
                     'Late' => 'status-late',
                     'Early' => 'status-early',
                     'Present (Off Day)' => 'status-off',
+                    'Weekend' => 'status-weekend',
+                    'Not a working day' => 'status-nonwork',
                     default => 'status-present',
                 };
+                $rowClass = !empty($day['is_late']) ? 'row-late' : (
+                    ($status === 'Weekend' || ($day['day_kind'] ?? '') === 'weekend') ? 'row-weekend' : (
+                        ($status === 'Not a working day' || ($day['day_kind'] ?? '') === 'non_working') ? 'row-nonwork' : ''
+                    )
+                );
+                $statusNote = $day['status_note'] ?? (
+                    $status === 'Weekend' ? 'Ni weekend' : (
+                        $status === 'Not a working day' ? 'Sio siku ya kazi' : null
+                    )
+                );
             @endphp
-            <tr class="{{ !empty($day['is_late']) ? 'row-late' : '' }}">
+            <tr class="{{ $rowClass }}">
                 <td>{{ $day['date_label'] ?? $day['date'] ?? '' }}</td>
                 <td class="center">{{ $day['check_in_time'] ?? '-' }}</td>
                 <td class="center">{{ $day['check_out_time'] ?? '-' }}</td>
-                <td class="center {{ $statusClass }}">{{ $day['status'] ?? '-' }}</td>
+                <td class="center {{ $statusClass }}">
+                    {{ $status ?: '-' }}
+                    @if($statusNote)
+                        <br><span style="font-size:8px;font-weight:normal;">{{ $statusNote }}</span>
+                    @endif
+                </td>
             </tr>
             @empty
             <tr>

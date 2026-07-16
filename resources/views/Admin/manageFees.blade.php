@@ -46,6 +46,59 @@
         border-color: #7a0000;
         color: #ffffff;
     }
+
+    /* Create Fee chooser — no overlap, brand hover */
+    #feeTypeChooserModal .modal-dialog {
+        z-index: 1060;
+    }
+    #feeTypeChooserModal .fee-type-chooser-options {
+        display: block;
+        width: 100%;
+    }
+    #feeTypeChooserModal .fee-type-choice-btn {
+        display: block;
+        width: 100%;
+        margin: 0 0 12px 0;
+        padding: 14px 16px;
+        border: 2px solid #940000;
+        border-radius: 0;
+        background: #fff;
+        color: #940000;
+        text-align: left;
+        white-space: normal;
+        box-shadow: none;
+        position: relative;
+        z-index: 1;
+    }
+    #feeTypeChooserModal .fee-type-choice-btn:last-child {
+        margin-bottom: 0;
+    }
+    #feeTypeChooserModal .fee-type-choice-title {
+        font-weight: 700;
+        color: #940000;
+        margin-bottom: 4px;
+    }
+    #feeTypeChooserModal .fee-type-choice-desc {
+        font-size: 0.85rem;
+        color: #666;
+        font-weight: 500;
+    }
+    #feeTypeChooserModal .fee-type-choice-btn:hover,
+    #feeTypeChooserModal .fee-type-choice-btn:focus {
+        background: #940000 !important;
+        border-color: #940000 !important;
+        color: #fff !important;
+    }
+    #feeTypeChooserModal .fee-type-choice-btn:hover .fee-type-choice-title,
+    #feeTypeChooserModal .fee-type-choice-btn:focus .fee-type-choice-title,
+    #feeTypeChooserModal .fee-type-choice-btn:hover .fee-type-choice-desc,
+    #feeTypeChooserModal .fee-type-choice-btn:focus .fee-type-choice-desc,
+    #feeTypeChooserModal .fee-type-choice-btn:hover i,
+    #feeTypeChooserModal .fee-type-choice-btn:focus i {
+        color: #fff !important;
+        font-weight: 700;
+    }
+
     .header-gradient {
         background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%) !important;
     }
@@ -670,14 +723,14 @@
             </div>
             <div class="modal-body">
                 <p class="text-muted mb-3">Choose fee account type:</p>
-                <div class="d-grid gap-2">
-                    <button type="button" class="btn btn-outline-dark text-start py-3" id="chooseSingleAccountFeeBtn">
-                        <strong style="color:#940000;"><i class="bi bi-wallet2"></i> Single Account Fee</strong>
-                        <div class="small text-muted">One school account receives all fee payments (current logic).</div>
+                <div class="fee-type-chooser-options">
+                    <button type="button" class="btn fee-type-choice-btn text-start" id="chooseSingleAccountFeeBtn">
+                        <div class="fee-type-choice-title"><i class="bi bi-wallet2"></i> Single Account Fee</div>
+                        <div class="fee-type-choice-desc">One school account receives all fee payments (current logic).</div>
                     </button>
-                    <button type="button" class="btn btn-outline-dark text-start py-3" id="chooseMultiAccountFeeBtn">
-                        <strong style="color:#940000;"><i class="bi bi-bank"></i> Multi Account Fee</strong>
-                        <div class="small text-muted">Each fee can use its own approved bank account and control number.</div>
+                    <button type="button" class="btn fee-type-choice-btn text-start" id="chooseMultiAccountFeeBtn">
+                        <div class="fee-type-choice-title"><i class="bi bi-bank"></i> Multi Account Fee</div>
+                        <div class="fee-type-choice-desc">Each fee can use its own approved bank account and control number.</div>
                     </button>
                 </div>
             </div>
@@ -1546,6 +1599,55 @@
 
 @include('includes.footer')
 
+    {{-- Export Fees Structure PDF: choose classes (multi) --}}
+    <div class="modal fade" id="exportFeesPdfClassModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border:2px solid #940000;">
+                <div class="modal-header" style="background:whitesmoke;border-bottom:2px solid #940000;">
+                    <h5 class="modal-title fw-bold" style="color:#940000;">
+                        <i class="fa fa-file-pdf-o"></i> Export Fees Structure PDF
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-2">Select one or more classes to include in the PDF:</p>
+                    <div class="border p-2 mb-2" style="background:#fff5f5;">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="exportPdfSelectAllClasses" checked>
+                            <label class="form-check-label fw-bold" for="exportPdfSelectAllClasses" style="color:#940000;">
+                                Select All Classes
+                            </label>
+                        </div>
+                    </div>
+                    <div id="exportPdfClassCheckList" class="border p-2" style="max-height:280px;overflow-y:auto;">
+                        @forelse(($classes ?? []) as $class)
+                            <div class="form-check mb-2">
+                                <input type="checkbox"
+                                       class="form-check-input export-pdf-class-cb"
+                                       id="exportPdfClass_{{ $class->classID }}"
+                                       value="{{ $class->classID }}"
+                                       data-class-name="{{ $class->class_name }}"
+                                       checked>
+                                <label class="form-check-label" for="exportPdfClass_{{ $class->classID }}">
+                                    {{ $class->class_name }}
+                                </label>
+                            </div>
+                        @empty
+                            <div class="text-muted small">No classes available.</div>
+                        @endforelse
+                    </div>
+                    <small class="text-muted d-block mt-2">Unaweza kuchagua class moja, mbili, au zote.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn text-white" id="confirmExportFeesPdfBtn" style="background:#940000;border:none;font-weight:700;">
+                        <i class="fa fa-download"></i> Export PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ADDING DOWNLOAD PROGRESS MODAL -->
     <div class="modal fade" id="downloadProgressModal" data-backdrop="static" tabindex="-1" style="z-index: 10000;">
         <div class="modal-dialog modal-dialog-centered">
@@ -1611,12 +1713,20 @@
 
         $(document).on('click', '#chooseSingleAccountFeeBtn', function() {
             $('#feeTypeChooserModal').modal('hide');
-            setTimeout(function() { $('#addFeeModal').modal('show'); }, 300);
+            setTimeout(function() {
+                $('body').removeClass('modal-open');
+                $('.modal-backdrop').remove();
+                $('#addFeeModal').modal('show');
+            }, 320);
         });
 
         $(document).on('click', '#chooseMultiAccountFeeBtn', function() {
             $('#feeTypeChooserModal').modal('hide');
-            setTimeout(function() { $('#addMultiFeeModal').modal('show'); }, 300);
+            setTimeout(function() {
+                $('body').removeClass('modal-open');
+                $('.modal-backdrop').remove();
+                $('#addMultiFeeModal').modal('show');
+            }, 320);
         });
 
         function validateFeeClassMode(selectSelector, requestedMode, messageSelector, formSelector) {
@@ -4242,20 +4352,19 @@
             $('#editFeeForm')[0].reset();
         });
 
-        // Export PDF Function
-        // Export PDF Function (Standardized AJAX Server-Side Method)
-        $(document).on('click', '#exportPdfBtn, #exportPdfBtn_Exp', function(e) {
-            if (e) e.preventDefault();
-            const classID = $('#classFilter').val() || '';
-            const className = classID ? $('#classFilter option:selected').text().trim() : 'All_Classes';
-            
+        // Export PDF — multi-class checkboxes, then generate
+        function runFeesStructurePdfExport(classIDs, classLabel) {
             let url = '{{ route("admin.export_fees_structure_pdf") }}';
-            if (classID) {
-                url += '?classID=' + classID;
+            const params = [];
+            (classIDs || []).forEach(function(id) {
+                if (id) params.push('classIDs[]=' + encodeURIComponent(id));
+            });
+            if (params.length) {
+                url += '?' + params.join('&');
             }
-            
-            // Show progress modal
-            $('#pdfProgressTitle').text('Generating Fees Structure');
+
+            const safeName = (classLabel || 'All_Classes').replace(/\s+/g, '_').replace(/[^\w\-]+/g, '');
+
             $('#downloadProgressModal').modal('show');
             $('#pdfProgressBar').css('width', '0%');
             $('#pdfProgressPercent').text('0%');
@@ -4266,7 +4375,7 @@
                     let inc = 2 + Math.random() * 5;
                     progress += inc;
                     if (progress > 95) progress = 95;
-                    
+
                     $('#pdfProgressBar').css('width', progress + '%');
                     $('#pdfProgressPercent').text(Math.round(progress) + '%');
                 }
@@ -4281,21 +4390,21 @@
                     clearInterval(interval);
                     $('#pdfProgressBar').css('width', '100%');
                     $('#pdfProgressPercent').text('100%');
-                    
+
                     setTimeout(() => {
                         const downloadUrl = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.style.display = 'none';
                         a.href = downloadUrl;
-                        
+
                         const timestamp = new Date().toISOString().slice(0, 10);
-                        a.download = `Fees_Structure_${className}_${timestamp}.pdf`;
-                        
+                        a.download = `Fees_Structure_${safeName}_${timestamp}.pdf`;
+
                         document.body.appendChild(a);
                         a.click();
                         window.URL.revokeObjectURL(downloadUrl);
                         document.body.removeChild(a);
-                        
+
                         setTimeout(() => {
                             $('#downloadProgressModal').modal('hide');
                         }, 500);
@@ -4312,6 +4421,57 @@
                     });
                     console.error('PDF Export Error:', error);
                 });
+        }
+
+        function syncExportPdfSelectAllState() {
+            const total = $('.export-pdf-class-cb').length;
+            const checked = $('.export-pdf-class-cb:checked').length;
+            $('#exportPdfSelectAllClasses').prop('checked', total > 0 && checked === total);
+        }
+
+        $(document).on('change', '#exportPdfSelectAllClasses', function() {
+            $('.export-pdf-class-cb').prop('checked', $(this).is(':checked'));
+        });
+
+        $(document).on('change', '.export-pdf-class-cb', function() {
+            syncExportPdfSelectAllState();
+        });
+
+        $(document).on('click', '#exportPdfBtn, #exportPdfBtn_Exp', function(e) {
+            if (e) e.preventDefault();
+            $('.export-pdf-class-cb').prop('checked', true);
+            syncExportPdfSelectAllState();
+            $('#exportFeesPdfClassModal').modal('show');
+        });
+
+        $(document).on('click', '#confirmExportFeesPdfBtn', function(e) {
+            if (e) e.preventDefault();
+
+            const selected = $('.export-pdf-class-cb:checked');
+            const total = $('.export-pdf-class-cb').length;
+
+            if (selected.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Select Class',
+                    text: 'Please select at least one class.',
+                    confirmButtonColor: '#940000'
+                });
+                return;
+            }
+
+            const classIDs = selected.map(function() { return $(this).val(); }).get();
+            const names = selected.map(function() { return $(this).data('class-name'); }).get();
+            const allSelected = selected.length === total;
+            const classLabel = allSelected
+                ? 'All Classes'
+                : (names.length <= 3 ? names.join(' + ') : (names.length + ' Classes'));
+
+            $('#exportFeesPdfClassModal').modal('hide');
+            setTimeout(function() {
+                // If all selected, send no filter (all classes)
+                runFeesStructurePdfExport(allSelected ? [] : classIDs, classLabel);
+            }, 300);
         });
 
         // Export Excel Function

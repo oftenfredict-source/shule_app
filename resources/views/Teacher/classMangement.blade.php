@@ -436,44 +436,35 @@
 
     <!-- Action Widgets -->
     <div class="row g-4 mb-4">
-        <!-- Register Student Widget -->
-        <!-- <div class="col-12 col-sm-6 col-md-3">
-            <div class="card shadow-sm widget-card h-100" id="registerStudentBtn">
+        {{-- Register / Parent widgets intentionally commented — use Admin Quick Registration + Enroll --}}
+
+        <!-- Enroll Student Widget (class locked to this teacher's subclass) -->
+        @if(!empty($decryptedSubclassID) && empty($isCoordinatorView))
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card shadow-sm widget-card h-100" id="teacherEnrollStudentBtn" role="button" style="cursor:pointer;">
                 <div class="card-body text-center">
                     <div class="mb-3">
-                        <i class="bi bi-person-plus-fill text-primary-custom" style="font-size: 3rem;"></i>
+                        <i class="bi bi-person-check-fill text-primary-custom" style="font-size: 3rem;"></i>
                     </div>
-                    <h6 class="card-title mb-0 fw-bold">Register Student</h6>
-                    <small class="text-muted">Add new student to class</small>
+                    <h6 class="card-title mb-0 fw-bold">Enroll Student</h6>
+                    <small class="text-muted">Enroll / manage class roster</small>
                 </div>
-            </div> -->
-    </div>
-
-    <!-- Parents Registration Widget -->
-    <!-- <div class="col-12 col-sm-6 col-md-3">
-        <div class="card shadow-sm widget-card h-100" id="registerParentBtn">
-            <div class="card-body text-center">
-                <div class="mb-3">
-                    <i class="bi bi-people-fill text-primary-custom" style="font-size: 3rem;"></i>
-                </div>
-                <h6 class="card-title mb-0 fw-bold">Parents Registration</h6>
-                <small class="text-muted">Register parent/guardian</small>
             </div>
         </div>
-    </div> -->
+        @endif
 
-    <!-- View Students Widget -->
-    <div class="col-12 col-sm-6 col-md-3">
-        <div class="card shadow-sm widget-card h-100" id="viewStudentsBtn">
-            <div class="card-body text-center">
-                <div class="mb-3">
-                    <i class="bi bi-people text-primary-custom" style="font-size: 3rem;"></i>
+        <!-- View Students Widget -->
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card shadow-sm widget-card h-100" id="viewStudentsBtn">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-people text-primary-custom" style="font-size: 3rem;"></i>
+                    </div>
+                    <h6 class="card-title mb-0 fw-bold">View Students</h6>
+                    <small class="text-muted">View all class students</small>
                 </div>
-                <h6 class="card-title mb-0 fw-bold">View Students</h6>
-                <small class="text-muted">View all class students</small>
             </div>
         </div>
-    </div>
 
     <!-- View Parents Widget -->
     <div class="col-12 col-sm-6 col-md-3">
@@ -1788,6 +1779,14 @@
 
 <!-- Include Student Registration Modal (Steps) -->
 @include('student_registration.modal')
+
+{{-- Enroll Student (own class only; no quick register on teacher page unless needed) --}}
+@include('Admin.partials.quick_enroll_student_modals', [
+    'qeMode' => 'teacher',
+    'qeLockedSubclassID' => $decryptedSubclassID ?? null,
+    'qeLockedSubclassLabel' => $subclassDisplayName ?? '',
+    'qeCanQuickRegister' => false,
+])
 
 <script>
     (function ($) {

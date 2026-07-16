@@ -401,7 +401,7 @@ class ManageStudentController extends Controller
             }
 
             // Create user account for student
-            // Username = admission_number, Password = last_name
+            // Username = admission_number, Password = first_name
             // Use admission_number as email (must be unique)
             $userEmail = $admissionNumber . '@student.local';
             // Ensure email is unique

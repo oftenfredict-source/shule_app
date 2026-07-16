@@ -115,7 +115,7 @@
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div>{{ $school->address ?? '' }}</div>
         <div>Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
-        <div class="report-title">STUDENT PAYMENT DETAILS — {{ $year }}</div>
+        <div class="report-title">{{ $reportTitle ?? ('STUDENT PAYMENT DETAILS — ' . ($yearLabel ?? $year)) }}</div>
     </div>
 
     <div class="info-section">
@@ -135,8 +135,24 @@
                         N/A
                     @endif
                 </td>
+                <td class="label">Academic Year:</td>
+                <td>{{ $yearLabel ?? $year }}</td>
+            </tr>
+            <tr>
                 <td class="label">Date Generated:</td>
                 <td>{{ date('d M Y H:i') }}</td>
+                <td class="label">Scope:</td>
+                <td>
+                    @php
+                        $scopeBits = array_values(array_filter([
+                            $filterLabels['fee'] ?? null,
+                            $filterLabels['payment_status'] ?? null,
+                            $filterLabels['deadline'] ?? null,
+                            $filterLabels['sponsorship'] ?? null,
+                        ]));
+                    @endphp
+                    {{ !empty($scopeBits) ? implode(' | ', $scopeBits) : 'Full student bill' }}
+                </td>
             </tr>
             @if(!$isMultiAccount && $payment && !empty($payment->control_number))
             <tr>
@@ -185,7 +201,6 @@
         <thead>
             <tr>
                 <th>Fee</th>
-                <th>Account</th>
                 <th>Control Number</th>
                 <th class="amount-col">Required</th>
                 <th class="amount-col">Paid</th>
@@ -197,7 +212,6 @@
             @foreach($multiAccounts as $ma)
             <tr>
                 <td><strong>{{ $ma['fee_name'] ?? '—' }}</strong></td>
-                <td>{{ $ma['account_label'] ?? '—' }}</td>
                 <td>{{ $ma['control_number'] ?? '—' }}</td>
                 <td class="amount-col">{{ number_format($ma['amount_required'] ?? 0, 0) }}</td>
                 <td class="amount-col" style="color: #28a745;">{{ number_format($ma['amount_paid'] ?? 0, 0) }}</td>

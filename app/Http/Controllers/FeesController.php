@@ -1601,6 +1601,7 @@ class FeesController extends Controller
             $feeIDFilter = ($feeIDFilterRaw !== '' && $feeIDFilterRaw !== 'all' && $feeIDFilterRaw !== null)
                 ? (int) $feeIDFilterRaw
                 : null;
+            $deadlineFilter = $request->input('deadline_filter', ''); // reached_unpaid | reached_paid
 
             $resolved = $this->resolvePaymentsAcademicYear(
                 (int) $schoolID,
@@ -1845,12 +1846,14 @@ class FeesController extends Controller
                             'amount_paid' => $totalPaid,
                             'balance' => $totalBalance,
                             'deadline_required' => $requiredAmount,
-                            'deadline_paid' => $requiredPaid,
+                            'deadline_paid' => $requiredAmount > 0
+                                ? min($totalPaid, $requiredAmount)
+                                : $requiredPaid,
                             'deadline_met' => $requiredAmount <= 0
                                 ? true
-                                : ($requiredPaid + 0.00001 >= $requiredAmount),
+                                : (min($totalPaid, $requiredAmount) + 0.00001 >= $requiredAmount),
                             'deadline_overdue' => $requiredAmount > 0
-                                && ($requiredPaid + 0.00001 < $requiredAmount),
+                                && (min($totalPaid, $requiredAmount) + 0.00001 < $requiredAmount),
                             'payment_status' => $aggregatedStatus,
                         ];
                     }
@@ -1866,10 +1869,29 @@ class FeesController extends Controller
                     $totalRequired = (float) $yearPayments->sum('amount_required');
                     $totalPaid = (float) $yearPayments->sum('amount_paid');
                     $totalBalance = (float) $yearPayments->sum('balance');
-                    $requiredPaid = (float) $yearPayments->sum('required_fees_paid');
                     $requiredAmount = (float) $yearPayments->sum('required_fees_amount');
+                    // Multi-account: deadline progress = min(paid, deadline). Avoid stale required_fees_paid=0.
+                    $requiredPaid = (float) $yearPayments->sum(function ($p) {
+                        $req = (float) ($p->required_fees_amount ?? 0);
+                        if ($req <= 0) {
+                            return 0;
+                        }
+                        if (!empty($p->feeID)) {
+                            return min((float) ($p->amount_paid ?? 0), $req);
+                        }
+                        return min((float) ($p->required_fees_paid ?? 0), $req);
+                    });
                     $canStartSchool = $yearPayments->isNotEmpty()
-                        && $yearPayments->every(fn ($p) => (bool) $p->can_start_school);
+                        && $yearPayments->every(function ($p) {
+                            $req = (float) ($p->required_fees_amount ?? 0);
+                            if ($req <= 0) {
+                                return true;
+                            }
+                            $paidToward = !empty($p->feeID)
+                                ? min((float) ($p->amount_paid ?? 0), $req)
+                                : (float) ($p->required_fees_paid ?? 0);
+                            return $paidToward + 0.00001 >= $req;
+                        });
 
                     $aggregatedStatus = 'Pending';
                     if ($yearPayments->isEmpty()) {
@@ -1890,6 +1912,21 @@ class FeesController extends Controller
                     if ($paymentStatus === 'Incomplete' || $paymentStatus === 'Partial' || $paymentStatus === 'Incomplete Payment') {
                         if ($status !== 'Incomplete Payment' && $status !== 'Partial') continue;
                     } elseif ($status !== $paymentStatus) {
+                        continue;
+                    }
+                }
+
+                $rowDeadlineRequired = (float) $requiredAmount;
+                $rowDeadlinePaid = (float) $requiredPaid;
+                $rowDeadlineMet = $rowDeadlineRequired <= 0
+                    ? true
+                    : ($rowDeadlinePaid + 0.00001 >= $rowDeadlineRequired);
+                if ($deadlineFilter === 'reached_unpaid') {
+                    if (!($rowDeadlineRequired > 0 && !$rowDeadlineMet)) {
+                        continue;
+                    }
+                } elseif ($deadlineFilter === 'reached_paid') {
+                    if (!($rowDeadlineRequired > 0 && $rowDeadlineMet)) {
                         continue;
                     }
                 }
@@ -1974,7 +2011,14 @@ class FeesController extends Controller
                     $fee = $multiFeesMap->get($mp->feeID);
                     $accountLabel = $fee && $fee->bankAccount ? $fee->bankAccount->displayLabel() : null;
                     $deadlineRequired = (float) ($mp->required_fees_amount ?? 0);
-                    $deadlinePaid = (float) ($mp->required_fees_paid ?? 0);
+                    // Prefer DB value, but for multi-account CN always derive from amount_paid
+                    // so stale required_fees_paid=0 after payment still shows correctly.
+                    $deadlinePaid = $deadlineRequired > 0
+                        ? min((float) ($mp->amount_paid ?? 0), $deadlineRequired)
+                        : (float) ($mp->required_fees_paid ?? 0);
+                    $deadlineMet = $deadlineRequired <= 0
+                        ? true
+                        : ($deadlinePaid + 0.00001 >= $deadlineRequired);
                     return [
                         'paymentID' => $mp->paymentID,
                         'feeID' => $mp->feeID,
@@ -1987,11 +2031,8 @@ class FeesController extends Controller
                         'payment_status' => $mp->payment_status,
                         'deadline_required' => $deadlineRequired,
                         'deadline_paid' => $deadlinePaid,
-                        'deadline_met' => $deadlineRequired <= 0
-                            ? true
-                            : ($deadlinePaid + 0.00001 >= $deadlineRequired),
-                        'deadline_overdue' => $deadlineRequired > 0
-                            && ($deadlinePaid + 0.00001 < $deadlineRequired),
+                        'deadline_met' => $deadlineMet,
+                        'deadline_overdue' => $deadlineRequired > 0 && !$deadlineMet,
                         'can_start_school' => (bool) $mp->can_start_school,
                         'fee_payments' => $mp->fee_payments,
                         'payment_records' => $mp->paymentRecords ?? $mp->payment_records ?? [],
@@ -2882,8 +2923,19 @@ class FeesController extends Controller
                         ->where('parent_balance', '>', 0);
 
                     if ($audience === 'deadline_reached') {
+                        // Multi-account may have stale required_fees_paid=0; use amount_paid when feeID set
                         $query->where('required_fees_amount', '>', 0)
-                            ->whereColumn('required_fees_paid', '<', 'required_fees_amount');
+                            ->where(function ($q) {
+                                $q->where(function ($multi) {
+                                    $multi->whereNotNull('feeID')
+                                        ->where('feeID', '>', 0)
+                                        ->whereColumn('amount_paid', '<', 'required_fees_amount');
+                                })->orWhere(function ($single) {
+                                    $single->where(function ($f) {
+                                        $f->whereNull('feeID')->orWhere('feeID', 0);
+                                    })->whereColumn('required_fees_paid', '<', 'required_fees_amount');
+                                });
+                            });
                     }
                 }
 
@@ -2898,7 +2950,7 @@ class FeesController extends Controller
                     $parent = $student->parent ?? null;
                     $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
                     $deadlineRequired = (float) ($payment->required_fees_amount ?? 0);
-                    $deadlinePaid = (float) ($payment->required_fees_paid ?? 0);
+                    $deadlinePaid = $this->deadlinePaidToward($payment);
                     $deadlineOverdue = $deadlineRequired > 0
                         && ($deadlinePaid + 0.00001 < $deadlineRequired);
 
@@ -3064,7 +3116,7 @@ class FeesController extends Controller
         $controlNumber = $payment->control_number;
         $balance = (float) $payment->parent_balance;
         $deadlineRequired = (float) $payment->required_fees_amount;
-        $deadlinePaid = (float) $payment->required_fees_paid;
+        $deadlinePaid = $this->deadlinePaidToward($payment);
 
         $feeName = 'Ada';
         $accountLabel = null;
@@ -3346,12 +3398,83 @@ class FeesController extends Controller
     }
 
     /**
+     * Build descriptive PDF report title from active payment filters + header year.
+     */
+    private function buildPaymentsPdfReportTitle(
+        string $baseTitle,
+        string $yearLabel,
+        array $filterParts = []
+    ): string {
+        $parts = array_values(array_filter(array_map(function ($p) {
+            $p = trim((string) $p);
+            return $p !== '' ? $p : null;
+        }, $filterParts)));
+
+        $scope = !empty($parts) ? implode(' | ', $parts) : 'All Students';
+        return trim($baseTitle) . ' — ' . $scope . ' — ' . $yearLabel;
+    }
+
+    /**
+     * Resolve human-readable payment filter labels for PDF titles.
+     */
+    private function resolvePaymentsPdfFilterLabels(
+        int $schoolID,
+        $classID = null,
+        $subclassID = null,
+        $feeID = null,
+        string $paymentStatus = '',
+        string $deadlineFilter = '',
+        string $sponsorshipFilter = '',
+        string $enrollmentStatus = ''
+    ): array {
+        $labels = [];
+
+        if (!empty($classID)) {
+            $class = ClassModel::find($classID);
+            if ($class) {
+                $labels['class'] = $class->class_name;
+            }
+        }
+        if (!empty($subclassID)) {
+            $subclass = Subclass::find($subclassID);
+            if ($subclass) {
+                $labels['subclass'] = $subclass->subclass_name;
+            }
+        }
+        if (!empty($feeID) && $feeID !== 'all') {
+            $fee = Fee::find((int) $feeID);
+            if ($fee) {
+                $labels['fee'] = $fee->fee_name;
+            }
+        }
+        if ($enrollmentStatus !== '' && strtolower($enrollmentStatus) !== 'all') {
+            $labels['enrollment'] = 'Enrollment: ' . $enrollmentStatus;
+        }
+        if ($paymentStatus !== '') {
+            $labels['payment_status'] = 'Status: ' . $paymentStatus;
+        }
+        if ($deadlineFilter === 'reached_unpaid') {
+            $labels['deadline'] = 'Deadline: Reached — not paid';
+        } elseif ($deadlineFilter === 'reached_paid') {
+            $labels['deadline'] = 'Deadline: Reached — paid';
+        }
+        if ($sponsorshipFilter === 'sponsored') {
+            $labels['sponsorship'] = 'Sponsored';
+        } elseif ($sponsorshipFilter === 'self') {
+            $labels['sponsorship'] = 'Self-paying';
+        }
+
+        return $labels;
+    }
+
+    /**
      * Export Payment Invoice PDF
      */
-    public function exportPaymentInvoicePDF($studentID)
+    public function exportPaymentInvoicePDF($studentID, ?Request $request = null)
     {
         $schoolID = Session::get('schoolID');
         $userType = Session::get('user_type');
+        $request = $request ?: request();
 
         if (!$schoolID || !in_array($userType, ['Admin', 'Teacher'])) {
             return redirect()->back()->with('error', 'Access denied');
@@ -3374,29 +3497,65 @@ class FeesController extends Controller
                 return response()->json(['error' => 'School not found'], 404);
             }
 
-            // Get active academic year
-            $activeAcademicYear = DB::table('academic_years')
-                ->where('schoolID', $schoolID)
-                ->where('status', 'Active')
-                ->orderBy('year', 'desc')
-                ->first();
+            // Respect header-selected academic year from payments page when provided
+            $resolved = $this->resolvePaymentsAcademicYear((int) $schoolID, $request, $request->input('class_id'));
+            $academicYearID = $resolved['academicYearID'] ?? null;
+            $yearLabel = $resolved['yearLabel'] ?? ($resolved['year'] ?? date('Y'));
+            $yearValue = $resolved['year'] ?? date('Y');
+            $currentYear = $yearLabel;
 
-            $currentYear = $activeAcademicYear ? $activeAcademicYear->year : date('Y');
-            $academicYearID = $activeAcademicYear ? $activeAcademicYear->academic_yearID : null;
+            $feeIDFilterRaw = $request->input('fee_id', '');
+            $feeIDFilter = ($feeIDFilterRaw !== '' && $feeIDFilterRaw !== 'all' && $feeIDFilterRaw !== null)
+                ? (int) $feeIDFilterRaw
+                : null;
 
-            // Get payments for active academic year - filter out empty/null payments
+            $filterLabels = $this->resolvePaymentsPdfFilterLabels(
+                (int) $schoolID,
+                $request->input('class_id'),
+                $request->input('subclass_id'),
+                $feeIDFilter,
+                (string) $request->input('payment_status', ''),
+                (string) $request->input('deadline_filter', ''),
+                (string) $request->input('sponsorship_filter', ''),
+                (string) $request->input('enrollment_status', '')
+            );
+
+            // Prefer student's class in title when page class filter was not sent
+            if (empty($filterLabels['class']) && $student->subclass && $student->subclass->class) {
+                $filterLabels['class'] = trim(
+                    ($student->subclass->class->class_name ?? '') . ' ' . ($student->subclass->subclass_name ?? '')
+                );
+            }
+
+            $titleParts = array_values(array_filter([
+                $filterLabels['class'] ?? null,
+                $filterLabels['subclass'] ?? null,
+                $filterLabels['fee'] ?? null,
+                $filterLabels['payment_status'] ?? null,
+                $filterLabels['deadline'] ?? null,
+                $filterLabels['sponsorship'] ?? null,
+            ]));
+            $reportTitle = $this->buildPaymentsPdfReportTitle(
+                'STUDENT PAYMENT DETAILS',
+                (string) $yearLabel,
+                $titleParts
+            );
+
+            // Get payments for selected academic year
             $payments = $student->payments()
-                ->where(function($query) use ($academicYearID, $currentYear) {
+                ->where(function ($query) use ($academicYearID, $yearValue) {
                     if ($academicYearID) {
                         $query->where('academic_yearID', $academicYearID);
                     } else {
-                        $query->whereYear('created_at', $currentYear);
+                        $query->whereYear('created_at', $yearValue);
                     }
                 })
-                ->whereNotNull('control_number')
-                ->where('control_number', '!=', '')
                 ->with(['fee.installments', 'fee.otherFeeDetails', 'fee.bankAccount'])
                 ->get();
+
+            if ($feeIDFilter) {
+                $payments = $payments->filter(fn ($p) => (int) ($p->feeID ?? 0) === $feeIDFilter)->values();
+            }
 
             // Get previous year debt for this student (only for active students)
             $previousYearDebt = ['school_fee_balance' => 0, 'other_contribution_balance' => 0];
@@ -3404,21 +3563,38 @@ class FeesController extends Controller
                 $previousYearDebt = $this->getPreviousYearBalance($student->studentID, $schoolID);
             }
 
-            $payment = $payments->first();
-            $totalRequired = (float) $payments->sum('amount_required');
-            $totalPaid = (float) $payments->sum('amount_paid');
-            $totalBalance = (float) $payments->sum('balance');
-            $requiredPaid = $payment ? (float) $payment->required_fees_paid : 0;
-            $requiredAmount = $payment ? (float) $payment->required_fees_amount : 0;
+            // Build multi vs single datasets.
+            // In multi-account mode, the per-fee payment rows will have feeID set.
+            $multiPayments = $payments->filter(fn ($p) => !empty($p->feeID))->values();
+            $singlePayments = $payments->filter(fn ($p) => empty($p->feeID))->values();
+
+            $paymentsForTotals = $multiPayments->isNotEmpty()
+                ? $multiPayments
+                : ($singlePayments->isNotEmpty() ? $singlePayments : $payments);
+
+            $payment = $singlePayments->first() ?: $paymentsForTotals->first();
+
+            $totalRequired = (float) $paymentsForTotals->sum('amount_required');
+            $totalPaid = (float) $paymentsForTotals->sum('amount_paid');
+            $totalBalance = (float) $paymentsForTotals->sum('balance');
+
+            $requiredPaid = (float) ($paymentsForTotals->sum('required_fees_paid') ?? 0);
+            $requiredAmount = (float) ($paymentsForTotals->sum('required_fees_amount') ?? 0);
 
             $prevDebtTotal = ($previousYearDebt['school_fee_balance'] ?? 0) + ($previousYearDebt['other_contribution_balance'] ?? 0);
             $billBalance = max(0, $totalBalance - $prevDebtTotal);
             $totalOutstanding = $totalBalance;
 
-            $multiAccounts = $payments
-                ->filter(fn ($p) => !empty($p->feeID))
+            $multiAccounts = $multiPayments
                 ->map(function ($mp) {
                     $fee = $mp->fee;
+                    $deadlineRequired = (float) ($mp->required_fees_amount ?? 0);
+                    $deadlinePaid = $this->deadlinePaidToward($mp);
+                    $deadlineMet = $deadlineRequired <= 0
+                        ? true
+                        : ($deadlinePaid + 0.00001 >= $deadlineRequired);
+                    $deadlineOverdue = $deadlineRequired > 0
+                        && ($deadlinePaid + 0.00001 < $deadlineRequired);
                     return [
                         'fee_name' => $fee->fee_name ?? 'Fee',
                         'account_label' => $fee && $fee->bankAccount ? $fee->bankAccount->displayLabel() : '—',
@@ -3427,12 +3603,18 @@ class FeesController extends Controller
                         'amount_paid' => (float) $mp->amount_paid,
                         'balance' => (float) $mp->balance,
                         'payment_status' => $mp->payment_status ?? 'Pending',
+                        'deadline_required' => $deadlineRequired,
+                        'deadline_paid' => $deadlinePaid,
+                        'deadline_met' => $deadlineMet,
+                        'deadline_overdue' => $deadlineOverdue,
                     ];
                 })
                 ->values()
                 ->all();
 
-            $feeBreakdown = $payments
+            // Breakdown: if multi rows exist, breakdown should come from them (avoid mixing in unified rows).
+            $breakdownSourcePayments = $multiPayments->isNotEmpty() ? $multiPayments : $paymentsForTotals;
+            $feeBreakdown = $breakdownSourcePayments
                 ->flatMap(fn ($p) => $p->fee_payments()->orderBy('display_order')->get())
                 ->values();
 
@@ -3452,6 +3634,9 @@ class FeesController extends Controller
                 'requiredPaid' => $requiredPaid,
                 'previousYearDebt' => $previousYearDebt,
                 'year' => $currentYear,
+                'yearLabel' => $yearLabel,
+                'reportTitle' => $reportTitle,
+                'filterLabels' => $filterLabels,
             ];
 
             // Generate PDF - try multiple methods for compatibility
@@ -3465,7 +3650,7 @@ class FeesController extends Controller
                 ]);
                 $pdf->setPaper('A4', 'portrait');
 
-                $filename = 'Payment_Invoice_' . str_replace(' ', '_', $student->admission_number) . '_' . $currentYear . '.pdf';
+                $filename = 'Payment_Invoice_' . str_replace(' ', '_', $student->admission_number) . '_' . preg_replace('/\s+/', '_', (string) $yearLabel) . '.pdf';
 
                 return $pdf->download($filename);
             } catch (\Exception $facadeError) {
@@ -3613,6 +3798,31 @@ class FeesController extends Controller
     }
 
     /**
+     * How much of the payment deadline / must-pay threshold has been covered.
+     * Multi-account CNs: min(amount_paid, required_fees_amount).
+     * Single/unified: prefer stored required_fees_paid (allocation-aware).
+     */
+    private function deadlinePaidToward($payment): float
+    {
+        $required = (float) ($payment->required_fees_amount ?? 0);
+        if ($required <= 0) {
+            return 0.0;
+        }
+
+        if (!empty($payment->feeID)) {
+            return min((float) ($payment->amount_paid ?? 0), $required);
+        }
+
+        $stored = (float) ($payment->required_fees_paid ?? 0);
+        // If stored is stale (0) but money was paid, fall back to amount_paid cap
+        if ($stored <= 0 && (float) ($payment->amount_paid ?? 0) > 0) {
+            return min((float) $payment->amount_paid, $required);
+        }
+
+        return min($stored, $required);
+    }
+
+    /**
      * Allocate all paid amounts for a payment across student fees based on priority.
      */
     private function allocatePayment($payment)
@@ -3672,7 +3882,27 @@ class FeesController extends Controller
         }
 
         // 7. Recalculate summary metrics
-        $requiredPaid = $fee_payments->where('must_start_pay', 1)->sum('amount_paid');
+        // Deadline progress (required_fees_paid) must follow required_fees_amount,
+        // which can come from fee deadlines even when must_start_pay is false.
+        $deadlineTarget = (float) ($payment->required_fees_amount ?? 0);
+        $mustStartPaid = (float) $fee_payments
+            ->filter(fn ($fp) => (int) ($fp->must_start_pay ?? 0) === 1)
+            ->sum('amount_paid');
+        $hasMustStartFee = $fee_payments->contains(fn ($fp) => (int) ($fp->must_start_pay ?? 0) === 1);
+
+        if ($deadlineTarget <= 0) {
+            $requiredPaid = 0.0;
+        } elseif (!empty($payment->feeID) || $fee_payments->count() <= 1) {
+            // Multi-account / single fee line: any payment on this CN counts toward deadline
+            $requiredPaid = min((float) $totalPaid, $deadlineTarget);
+        } elseif ($hasMustStartFee) {
+            // Unified bill with must-start fees: credit those allocations only
+            $requiredPaid = min($mustStartPaid, $deadlineTarget);
+        } else {
+            // Deadline-only fees (no must_start_pay): use total paid toward deadline
+            $requiredPaid = min((float) $totalPaid, $deadlineTarget);
+        }
+
         $totalBalance = max(0, $payment->amount_required - $totalPaid);
         
         $paymentStatus = 'Pending';
@@ -3682,7 +3912,9 @@ class FeesController extends Controller
             $paymentStatus = 'Incomplete Payment';
         }
 
-        $canStartSchool = ($requiredPaid >= $payment->required_fees_amount);
+        $canStartSchool = $deadlineTarget <= 0
+            ? true
+            : ($requiredPaid + 0.00001 >= $deadlineTarget);
 
         $payment->update([
             'amount_paid' => $totalPaid,
@@ -3905,45 +4137,94 @@ class FeesController extends Controller
         }
 
         try {
-            $classID = $request->query('classID');
-            $year = date('Y');
+            $rawClassIDs = $request->query('classIDs', $request->input('classIDs', []));
+            if (!is_array($rawClassIDs)) {
+                $rawClassIDs = $rawClassIDs !== null && $rawClassIDs !== ''
+                    ? preg_split('/[,\s]+/', (string) $rawClassIDs)
+                    : [];
+            }
+            // Backward compatible single classID
+            $legacyClassID = $request->query('classID');
+            if (($legacyClassID !== null && $legacyClassID !== '') && empty($rawClassIDs)) {
+                $rawClassIDs = [$legacyClassID];
+            }
+
+            $classIDs = array_values(array_unique(array_filter(array_map(function ($id) {
+                return is_numeric($id) ? (int) $id : null;
+            }, $rawClassIDs))));
 
             $school = School::find($schoolID);
-            
-            $query = ClassModel::where('schoolID', $schoolID)
-                ->with(['fees' => function($q) {
-                    $q->where('status', 'Active')->orderBy('display_order');
-                }, 'fees.installments', 'fees.otherFeeDetails']);
 
-            if ($classID) {
-                $query->where('classID', $classID);
+            $resolved = $this->resolvePaymentsAcademicYear(
+                (int) $schoolID,
+                $request,
+                count($classIDs) === 1 ? $classIDs[0] : null
+            );
+            $yearLabel = $resolved['yearLabel'] ?? ($resolved['year'] ?? date('Y'));
+            $year = $resolved['year'] ?? date('Y');
+
+            $query = ClassModel::where('schoolID', $schoolID)
+                ->with(['fees' => function ($q) {
+                    $q->where('status', 'Active')
+                        ->with(['bankAccount.bank', 'breakdowns', 'installments', 'otherFeeDetails', 'deadlines'])
+                        ->orderBy('display_order');
+                }])
+                ->orderBy('class_name');
+
+            if (!empty($classIDs)) {
+                $query->whereIn('classID', $classIDs);
             }
 
             $classes = $query->get();
+
+            $totalSchoolClasses = ClassModel::where('schoolID', $schoolID)->count();
+            if (empty($classIDs) || $classes->count() === 0 || $classes->count() >= $totalSchoolClasses) {
+                $scopeLabel = 'ALL CLASSES';
+            } elseif ($classes->count() === 1) {
+                $scopeLabel = strtoupper((string) ($classes->first()->class_name ?? 'Selected Class'));
+            } else {
+                $names = $classes->pluck('class_name')->filter()->map(function ($n) {
+                    return strtoupper((string) $n);
+                })->values()->all();
+                $scopeLabel = count($names) <= 4
+                    ? implode(' + ', $names)
+                    : (count($names) . ' CLASSES');
+            }
+
+            $reportTitle = 'OFFICIAL FEES STRUCTURE — ' . $scopeLabel . ' | ' . $yearLabel;
 
             $data = [
                 'school' => $school,
                 'classes' => $classes,
                 'year' => $year,
-                'title' => 'OFFICIAL FEES STRUCTURE - ' . $year
+                'yearLabel' => $yearLabel,
+                'scopeLabel' => $scopeLabel,
+                'reportTitle' => $reportTitle,
+                'title' => $reportTitle,
             ];
 
-            // Method 1: Try using the facade
+            $fileScope = preg_replace('/\s+/', '_', (string) $scopeLabel);
+            $fileScope = preg_replace('/[^\w\-]+/', '', $fileScope) ?: 'Fees_Structure';
+            $filename = 'Fees_Structure_' . $fileScope . '_' . date('Ymd') . '.pdf';
+
             try {
                 $pdf = PDF::loadView('Admin.pdf.fees_structure_pdf', $data);
+                $pdf->setOptions([
+                    'isRemoteEnabled' => true,
+                    'isHtml5ParserEnabled' => true,
+                    'chroot' => base_path(),
+                ]);
                 $pdf->setPaper('A4', 'portrait');
-                $filename = 'Fees_Structure_' . $year . '.pdf';
                 return $pdf->download($filename);
             } catch (\Exception $e) {
-                // Fallback to direct Dompdf if facade fails
                 $dompdf = new \Dompdf\Dompdf();
                 $html = view('Admin.pdf.fees_structure_pdf', $data)->render();
                 $dompdf->loadHtml($html);
                 $dompdf->setPaper('A4', 'portrait');
                 $dompdf->render();
-                return response()->streamDownload(function() use ($dompdf) {
+                return response()->streamDownload(function () use ($dompdf) {
                     echo $dompdf->output();
-                }, 'Fees_Structure_' . $year . '.pdf', ['Content-Type' => 'application/pdf']);
+                }, $filename, ['Content-Type' => 'application/pdf']);
             }
 
         } catch (\Exception $e) {
@@ -3965,7 +4246,6 @@ class FeesController extends Controller
         }
 
         try {
-            // Get filter parameters (same as get_payments_ajax)
             $classID = $request->input('class_id', '');
             $subclassID = $request->input('subclass_id', '');
             $enrollmentStatus = $request->input(
@@ -3977,7 +4257,13 @@ class FeesController extends Controller
             }
             $promotionStatus = $request->input('promotion_status', '');
             $paymentStatus = $request->input('payment_status', '');
+            $deadlineFilter = $request->input('deadline_filter', '');
             $searchStudentName = $request->input('search_student_name', '');
+            $sponsorshipFilter = $request->input('sponsorship_filter', '');
+            $feeIDFilterRaw = $request->input('fee_id', '');
+            $feeIDFilter = ($feeIDFilterRaw !== '' && $feeIDFilterRaw !== 'all' && $feeIDFilterRaw !== null)
+                ? (int) $feeIDFilterRaw
+                : null;
 
             $resolved = $this->resolvePaymentsAcademicYear(
                 (int) $schoolID,
@@ -3987,6 +4273,7 @@ class FeesController extends Controller
             $academicYearIDs = $resolved['academicYearIDs'];
             $academicYearID = $resolved['academicYearID'];
             $year = $resolved['year'];
+            $yearLabel = $resolved['yearLabel'] ?? $year;
 
             $studentIDs = $this->paymentCohortStudentIDs(
                 (int) $schoolID,
@@ -4013,7 +4300,7 @@ class FeesController extends Controller
 
             $query = Student::where('schoolID', $schoolID)
                 ->whereIn('studentID', $studentIDs)
-                ->with(['parent', 'subclass.class', 'payments' => function ($q) use ($academicYearIDs, $year) {
+                ->with(['parent', 'sponsor', 'subclass.class', 'payments' => function ($q) use ($academicYearIDs, $year) {
                     if (!empty($academicYearIDs)) {
                         $q->whereIn('academic_yearID', $academicYearIDs);
                     } else {
@@ -4021,9 +4308,16 @@ class FeesController extends Controller
                     }
                 }, 'payments.fee_payments', 'payments.academicYear']);
 
-            // Filter by student name search
+            if ($sponsorshipFilter === 'sponsored') {
+                $query->whereNotNull('sponsor_id')->where('sponsorship_percentage', '>', 0);
+            } elseif ($sponsorshipFilter === 'self') {
+                $query->where(function ($q) {
+                    $q->whereNull('sponsor_id')->orWhere('sponsorship_percentage', '<=', 0);
+                });
+            }
+
             if (!empty($searchStudentName)) {
-                $query->where(function($q) use ($searchStudentName) {
+                $query->where(function ($q) use ($searchStudentName) {
                     $q->where('first_name', 'like', '%' . $searchStudentName . '%')
                       ->orWhere('last_name', 'like', '%' . $searchStudentName . '%')
                       ->orWhere('middle_name', 'like', '%' . $searchStudentName . '%')
@@ -4041,7 +4335,6 @@ class FeesController extends Controller
                 ], 404);
             }
 
-            // Get school info
             $school = School::find($schoolID);
             if (!$school) {
                 return response()->json([
@@ -4050,43 +4343,101 @@ class FeesController extends Controller
                 ], 404);
             }
 
-            // Generate PDF for all filtered students
             $pdfData = [];
+            $sumRequired = 0.0;
+            $sumPaid = 0.0;
+            $sumBalance = 0.0;
+            $deadlineUnpaidCount = 0;
+            $deadlinePaidCount = 0;
 
             foreach ($students as $student) {
                 $enrMeta = $enrollmentMeta[(int) $student->studentID] ?? null;
                 $studentYearID = (int) ($enrMeta['academic_yearID'] ?? $academicYearID);
-                $payment = $student->payments->first(function ($p) use ($studentYearID) {
-                    return (int) $p->academic_yearID === (int) $studentYearID;
-                }) ?: $student->payments->first();
 
-                if (!$payment && !empty($paymentStatus)) {
-                    if ($paymentStatus !== 'Pending') continue;
+                $yearPayments = $student->payments->filter(function ($p) use ($studentYearID) {
+                    return (int) $p->academic_yearID === (int) $studentYearID;
+                });
+                if ($yearPayments->isEmpty()) {
+                    $yearPayments = $student->payments;
                 }
-                if ($payment && !empty($paymentStatus)) {
-                    $status = $payment->payment_status;
+
+                if ($feeIDFilter) {
+                    $yearPayments = $yearPayments->filter(function ($p) use ($feeIDFilter) {
+                        return (int) ($p->feeID ?? 0) === $feeIDFilter;
+                    })->values();
+                }
+
+                $payment = $yearPayments->first(fn ($p) => empty($p->feeID))
+                    ?: $yearPayments->first();
+
+                $totalRequired = (float) $yearPayments->sum('amount_required');
+                $totalPaid = (float) $yearPayments->sum('amount_paid');
+                $totalBalance = (float) $yearPayments->sum('balance');
+                $requiredAmount = (float) $yearPayments->sum('required_fees_amount');
+                $requiredPaid = (float) $yearPayments->sum(function ($p) {
+                    $req = (float) ($p->required_fees_amount ?? 0);
+                    if ($req <= 0) {
+                        return 0;
+                    }
+                    if (!empty($p->feeID)) {
+                        return min((float) ($p->amount_paid ?? 0), $req);
+                    }
+                    return min((float) ($p->required_fees_paid ?? 0), $req);
+                });
+
+                $aggregatedStatus = 'Pending';
+                if ($yearPayments->isEmpty()) {
+                    $aggregatedStatus = 'Pending';
+                } elseif ($totalBalance <= 0 && $totalPaid > 0) {
+                    $aggregatedStatus = $totalPaid > $totalRequired ? 'Overpaid' : 'Paid';
+                } elseif ($totalPaid > 0) {
+                    $aggregatedStatus = 'Incomplete Payment';
+                }
+
+                if (!$payment && $yearPayments->isEmpty() && !empty($paymentStatus)) {
+                    if ($paymentStatus !== 'Pending') {
+                        continue;
+                    }
+                }
+                if (!empty($paymentStatus)) {
                     if ($paymentStatus === 'Incomplete' || $paymentStatus === 'Partial' || $paymentStatus === 'Incomplete Payment') {
-                        if ($status !== 'Incomplete Payment' && $status !== 'Partial') continue;
-                    } elseif ($status !== $paymentStatus) {
+                        if ($aggregatedStatus !== 'Incomplete Payment' && $aggregatedStatus !== 'Partial') {
+                            continue;
+                        }
+                    } elseif ($aggregatedStatus !== $paymentStatus) {
                         continue;
                     }
                 }
 
-                // Calculate totals
-                $totalRequired = $payment ? $payment->amount_required : 0;
-                $totalPaid = $payment ? $payment->amount_paid : 0;
-                $totalBalance = $payment ? $payment->balance : 0;
-                $requiredPaid = $payment ? $payment->required_fees_paid : 0;
-                $requiredAmount = $payment ? $payment->required_fees_amount : 0;
-                $canStartSchool = $payment ? $payment->can_start_school : false;
+                $deadlineMet = $requiredAmount <= 0
+                    ? true
+                    : ($requiredPaid + 0.00001 >= $requiredAmount);
+                if ($deadlineFilter === 'reached_unpaid') {
+                    if (!($requiredAmount > 0 && !$deadlineMet)) {
+                        continue;
+                    }
+                } elseif ($deadlineFilter === 'reached_paid') {
+                    if (!($requiredAmount > 0 && $deadlineMet)) {
+                        continue;
+                    }
+                }
 
-                // Get fee breakdown
-                $feeBreakdown = $payment ? $payment->fee_payments()->orderBy('display_order')->get() : collect();
+                if ($requiredAmount > 0) {
+                    if ($deadlineMet) {
+                        $deadlinePaidCount++;
+                    } else {
+                        $deadlineUnpaidCount++;
+                    }
+                }
 
                 $mainClass = $enrMeta['class_name'] ?? ($student->subclass->class->class_name ?? '');
                 $subclassName = $enrMeta['subclass_name'] ?? ($student->subclass->subclass_name ?? '');
                 $studentClass = trim(($mainClass ? $mainClass . ' ' : '') . $subclassName) ?: 'N/A';
                 $enrollmentStatusLabel = $enrMeta['enrollment_status'] ?? $student->status;
+
+                $sumRequired += $totalRequired;
+                $sumPaid += $totalPaid;
+                $sumBalance += $totalBalance;
 
                 $pdfData[] = [
                     'student' => [
@@ -4099,18 +4450,16 @@ class FeesController extends Controller
                         'status' => $enrollmentStatusLabel,
                         'enrollment_status' => $enrollmentStatusLabel,
                         'promotion_status' => $enrMeta['promotion_status'] ?? null,
-                        'photo' => $student->photo ? asset('userImages/' . $student->photo) : null,
                         'sponsorship_percentage' => $student->sponsorship_percentage,
                         'sponsor_name' => $student->sponsor ? $student->sponsor->sponsor_name : null,
                     ],
                     'payment' => $payment,
-                    'feeBreakdown' => $feeBreakdown,
                     'totalRequired' => $totalRequired,
                     'totalPaid' => $totalPaid,
                     'totalBalance' => $totalBalance,
-                    'requiredAmount' => $requiredAmount,
-                    'requiredPaid' => $requiredPaid,
-                    'canStartSchool' => $canStartSchool,
+                    'deadline_required' => $requiredAmount,
+                    'deadline_paid' => $requiredPaid,
+                    'payment_status' => $aggregatedStatus,
                 ];
             }
 
@@ -4121,40 +4470,87 @@ class FeesController extends Controller
                 ], 404);
             }
 
-            // Generate combined PDF using existing template
-            $schoolLogo = $school->school_logo ? public_path($school->school_logo) : null;
-            $currentYear = $year;
+            $deadlineFilterLabel = '';
+            if ($deadlineFilter === 'reached_unpaid') {
+                $deadlineFilterLabel = 'Reached — not paid';
+            } elseif ($deadlineFilter === 'reached_paid') {
+                $deadlineFilterLabel = 'Reached — paid';
+            }
+
+            $filterLabels = $this->resolvePaymentsPdfFilterLabels(
+                (int) $schoolID,
+                $classID !== '' ? $classID : null,
+                $subclassID !== '' ? $subclassID : null,
+                $feeIDFilter,
+                (string) $paymentStatus,
+                (string) $deadlineFilter,
+                (string) $sponsorshipFilter,
+                (string) $enrollmentStatus
+            );
+
+            $titleParts = array_values(array_filter([
+                $filterLabels['class'] ?? null,
+                $filterLabels['subclass'] ?? null,
+                $filterLabels['fee'] ?? null,
+                $filterLabels['enrollment'] ?? null,
+                $filterLabels['payment_status'] ?? null,
+                $filterLabels['deadline'] ?? null,
+                $filterLabels['sponsorship'] ?? null,
+            ]));
+            $reportTitle = $this->buildPaymentsPdfReportTitle(
+                'PAYMENTS STATUS REPORT',
+                (string) $yearLabel,
+                $titleParts
+            );
 
             $data = [
                 'school' => $school,
                 'students' => $pdfData,
-                'schoolLogo' => $schoolLogo,
-                'year' => $currentYear,
+                'year' => $year,
+                'yearLabel' => $yearLabel,
+                'reportTitle' => $reportTitle,
+                'summary' => [
+                    'total_students' => count($pdfData),
+                    'total_required' => $sumRequired,
+                    'total_paid' => $sumPaid,
+                    'total_balance' => $sumBalance,
+                    'deadline_unpaid' => $deadlineUnpaidCount,
+                    'deadline_paid' => $deadlinePaidCount,
+                ],
                 'filters' => [
-                    'class' => $classID ? (ClassModel::find($classID)->class_name ?? '') : '',
-                    'subclass' => $subclassID ? (Subclass::find($subclassID)->subclass_name ?? '') : '',
+                    'class' => $filterLabels['class'] ?? '',
+                    'subclass' => $filterLabels['subclass'] ?? '',
+                    'fee' => $filterLabels['fee'] ?? '',
                     'status' => $enrollmentStatus,
                     'payment_status' => $paymentStatus,
-                ]
+                    'deadline_filter' => $deadlineFilterLabel,
+                    'sponsorship' => $sponsorshipFilter,
+                ],
             ];
 
-            // Generate PDF - create a simple list view for filtered payments
             try {
-                // Use a simple view for filtered payments list
                 $pdf = PDF::loadView('Admin.pdf.filtered_payments_list', $data);
+                $pdf->setOptions([
+                    'isRemoteEnabled' => true,
+                    'isHtml5ParserEnabled' => true,
+                    'chroot' => base_path(),
+                ]);
                 $pdf->setPaper('A4', 'portrait');
 
-                $filename = 'Filtered_Payments_' . $year . '_' . date('YmdHis') . '.pdf';
+                $safeTitle = preg_replace('/[^A-Za-z0-9_\-]+/', '_', implode('_', array_filter([
+                    $filterLabels['class'] ?? null,
+                    $filterLabels['fee'] ?? null,
+                    (string) $yearLabel,
+                ])));
+                $filename = 'Payments_' . ($safeTitle ?: 'Report') . '_' . date('YmdHis') . '.pdf';
 
                 return $pdf->download($filename);
             } catch (\Exception $e) {
-                // Fallback: generate individual PDFs
                 Log::error('Error generating filtered payments PDF: ' . $e->getMessage());
 
-                // For now, return first student's PDF as fallback
                 if (!empty($pdfData)) {
                     $firstStudent = $pdfData[0];
-                    return $this->exportPaymentInvoicePDF($firstStudent['student']['studentID']);
+                    return $this->exportPaymentInvoicePDF($firstStudent['student']['studentID'], $request);
                 }
 
                 return response()->json([

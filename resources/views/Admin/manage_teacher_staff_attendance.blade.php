@@ -63,6 +63,8 @@
     }
     .ts-late-cell { color: #dc3545 !important; font-weight: 600; }
     .ts-row-late { background-color: #fff5f5 !important; }
+    .ts-row-weekend { background-color: #f3e8ff !important; }
+    .ts-row-nonwork { background-color: #fff8e1 !important; }
     .ts-action-menu { min-width: 140px; }
     .ts-detail-stat {
         border: 1px solid #e9ecef;
@@ -1113,13 +1115,14 @@
         if (!$('#tsReportDetailDailyTable').length) return;
 
         tsReportDetailDataTable = $('#tsReportDetailDailyTable').DataTable({
-            order: [[0, 'desc']],
-            pageLength: 10,
+            order: [[0, 'asc']],
+            pageLength: 25,
             lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'Zote']],
             autoWidth: false,
             responsive: true,
             language: tsDataTableLanguage(),
             columnDefs: [
+                { orderData: [0], targets: 0 },
                 { className: 'text-center', targets: [1, 2, 3] }
             ]
         });
@@ -1392,13 +1395,22 @@
                 }
 
                 html += '<p class="small text-muted">Official time: <strong>' + formatAmPm(res.work_start_time) + ' - ' + formatAmPm(res.work_end_time) + '</strong></p>';
+                html += '<p class="small text-muted mb-2"><span class="badge" style="background:#fff3cd;color:#856404;border:1px solid #ffc107;">Sio siku ya kazi</span> &nbsp; <span class="badge" style="background:#f3e8ff;color:#6f42c1;border:1px solid #6f42c1;">Weekend</span></p>';
                 html += '<div class="table-responsive"><table id="tsReportDetailDailyTable" class="table table-sm table-bordered table-striped mb-0 w-100">' +
                     '<thead><tr><th>Date</th><th>Check In</th><th>Check Out</th><th>Status</th></tr></thead><tbody>';
 
                 (res.daily_records || []).forEach(function (day) {
-                    var rowClass = day.is_late ? ' class="ts-row-late"' : '';
+                    var rowClass = '';
+                    if (day.is_late) rowClass = ' class="ts-row-late"';
+                    else if (day.day_kind === 'weekend' || day.status === 'Weekend') rowClass = ' class="ts-row-weekend"';
+                    else if (day.day_kind === 'non_working' || day.status === 'Not a working day') rowClass = ' class="ts-row-nonwork"';
+
                     var statusBadge = day.status === 'Permitted'
                         ? '<span class="badge" style="background-color:#6f42c1;">Permitted</span>'
+                        : (day.status === 'Weekend'
+                        ? '<span class="badge" style="background:#6f42c1;">Weekend</span><div class="small" style="color:#6f42c1;">Ni weekend</div>'
+                        : (day.status === 'Not a working day'
+                        ? '<span class="badge" style="background:#ffc107;color:#333;">Not a working day</span><div class="small" style="color:#856404;">Sio siku ya kazi</div>'
                         : (day.status === 'Absent'
                         ? '<span class="badge bg-danger">Absent</span>'
                         : (day.status === 'Late'
@@ -1407,9 +1419,9 @@
                                 ? '<span class="badge bg-info">Early</span>'
                                 : (day.status === 'Present (Off Day)'
                                     ? '<span class="badge bg-secondary">Present (Off Day)</span>'
-                                    : '<span class="badge bg-success">Present</span>'))));
+                                    : '<span class="badge bg-success">Present</span>'))))));
                     html += '<tr' + rowClass + '>' +
-                        '<td>' + day.date_label + '</td>' +
+                        '<td data-order="' + (day.date || '') + '">' + day.date_label + '</td>' +
                         '<td>' + (day.check_in_time ? formatAmPm(day.check_in_time) : '-') + '</td>' +
                         '<td>' + (day.check_out_time ? formatAmPm(day.check_out_time) : '-') + '</td>' +
                         '<td>' + statusBadge + '</td></tr>';

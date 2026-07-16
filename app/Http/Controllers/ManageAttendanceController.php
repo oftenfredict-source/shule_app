@@ -3430,27 +3430,32 @@ class ManageAttendanceController extends Controller
 
         while ($current->lte($end)) {
             $date = $current->format('Y-m-d');
+            $isWeekend = $current->isWeekend();
             $isWorkingDay = isset($workingDateSet[$date]);
             $isPermitted = $isWorkingDay && isset($permittedDateSet[$date]);
             $record = $personAttendance[$date] ?? null;
             $checkIn = $record['check_in_time'] ?? null;
             $checkOut = $record['check_out_time'] ?? null;
 
-            if (!$isWorkingDay && !$checkIn && !$isPermitted) {
-                $current->addDay();
-                continue;
-            }
-
             $status = 'Absent';
             $punctuality = null;
+            $dayKind = 'working'; // working | weekend | non_working
 
-            if ($isPermitted) {
+            if (!$isWorkingDay) {
+                $dayKind = $isWeekend ? 'weekend' : 'non_working';
+                if ($checkIn) {
+                    $punctuality = $this->classifyCheckInPunctuality($checkIn, $date, $workStartTime);
+                    $status = 'Present (Off Day)';
+                } elseif ($isWeekend) {
+                    $status = 'Weekend';
+                } else {
+                    $status = 'Not a working day';
+                }
+            } elseif ($isPermitted) {
                 $status = 'Permitted';
             } elseif ($checkIn) {
                 $punctuality = $this->classifyCheckInPunctuality($checkIn, $date, $workStartTime);
-                if (!$isWorkingDay) {
-                    $status = 'Present (Off Day)';
-                } elseif ($punctuality === 'late') {
+                if ($punctuality === 'late') {
                     $status = 'Late';
                 } elseif ($punctuality === 'early') {
                     $status = 'Early';
@@ -3462,17 +3467,30 @@ class ManageAttendanceController extends Controller
             $daily[] = [
                 'date' => $date,
                 'date_label' => $current->format('l, j M Y'),
-                'check_in_time' => $isPermitted ? null : ($checkIn ? Carbon::parse($checkIn)->format('H:i:s') : null),
-                'check_out_time' => $isPermitted ? null : ($checkOut ? Carbon::parse($checkOut)->format('H:i:s') : null),
+                'check_in_time' => ($isPermitted || in_array($status, ['Weekend', 'Not a working day'], true))
+                    ? null
+                    : ($checkIn ? Carbon::parse($checkIn)->format('H:i:s') : null),
+                'check_out_time' => ($isPermitted || in_array($status, ['Weekend', 'Not a working day'], true))
+                    ? null
+                    : ($checkOut ? Carbon::parse($checkOut)->format('H:i:s') : null),
                 'status' => $status,
                 'punctuality' => $punctuality,
                 'is_late' => $punctuality === 'late',
                 'is_working_day' => $isWorkingDay,
+                'is_weekend' => $isWeekend,
+                'is_non_working' => !$isWorkingDay && !$isWeekend,
+                'day_kind' => $dayKind,
                 'is_permitted' => $isPermitted,
+                'status_note' => $status === 'Weekend'
+                    ? 'Ni weekend'
+                    : ($status === 'Not a working day' ? 'Sio siku ya kazi' : null),
             ];
 
             $current->addDay();
         }
+
+        // Chronological ascending (start of period → end)
+        usort($daily, fn ($a, $b) => strcmp((string) ($a['date'] ?? ''), (string) ($b['date'] ?? '')));
 
         return $daily;
     }

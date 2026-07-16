@@ -909,6 +909,16 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold mb-2">
+                                <i class="bi bi-alarm"></i> Deadline
+                            </label>
+                            <select class="form-select" id="filterDeadline">
+                                <option value="">All</option>
+                                <option value="reached_unpaid">Reached — not paid</option>
+                                <option value="reached_paid">Reached — paid</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold mb-2">
                                 <i class="bi bi-shield-check"></i> Sponsorship
                             </label>
                             <select class="form-select" id="filterSponsorship">
@@ -2112,18 +2122,21 @@
             }
             var deadlineRequired = parseFloat(totals.required_amount || 0);
             var deadlinePaid = parseFloat(totals.required_paid || 0);
+            var deadlineMet = !!totals.deadline_met;
             if (item.focus_fee) {
                 deadlineRequired = parseFloat(item.focus_fee.deadline_required || 0);
                 deadlinePaid = parseFloat(item.focus_fee.deadline_paid || 0);
+                deadlineMet = !!item.focus_fee.deadline_met;
             }
             if (deadlineRequired > 0) {
-                var deadlineMet = item.focus_fee
-                    ? !!item.focus_fee.deadline_met
-                    : !!totals.deadline_met;
-                col3 += '<div class="small mt-1 ' + (deadlineMet ? 'text-success' : 'text-danger') + '" title="Deadline progress">' +
+                deadlineMet = deadlinePaid + 0.00001 >= deadlineRequired;
+            } else {
+                deadlineMet = true;
+            }
+            if (deadlineRequired > 0 && !deadlineMet) {
+                col3 += '<div class="small mt-1 text-danger" title="Deadline reached — not yet paid">' +
                     '<i class="bi bi-clock-history"></i> Deadline: ' +
-                    deadlinePaid.toLocaleString() + ' / ' + deadlineRequired.toLocaleString() +
-                    (deadlineMet ? ' ✓' : '') + '</div>';
+                    deadlinePaid.toLocaleString() + ' / ' + deadlineRequired.toLocaleString() + '</div>';
             }
             if (totals.can_start_school) {
                 col3 += ' <i class="bi bi-check-circle-fill text-success" title="Can Start School"></i>';
@@ -2135,8 +2148,8 @@
             var deadlineOverdue = item.focus_fee
                 ? !!item.focus_fee.deadline_overdue
                 : !!totals.deadline_overdue;
-            if (!deadlineOverdue && deadlineRequired > 0) {
-                deadlineOverdue = !deadlineMet;
+            if (!deadlineOverdue && deadlineRequired > 0 && !deadlineMet) {
+                deadlineOverdue = true;
             }
             var rowClass = deadlineOverdue ? ' class="payment-deadline-overdue"' : '';
 
@@ -2182,9 +2195,10 @@
                 ? !!item.focus_fee.deadline_overdue
                 : !!totals.deadline_overdue;
             var drCheck = item.focus_fee ? parseFloat(item.focus_fee.deadline_required || 0) : parseFloat(totals.required_amount || 0);
-            var metCheck = item.focus_fee ? !!item.focus_fee.deadline_met : !!totals.deadline_met;
-            if (!deadlineOverdue && drCheck > 0) {
-                deadlineOverdue = !metCheck;
+            var dpCheck = item.focus_fee ? parseFloat(item.focus_fee.deadline_paid || 0) : parseFloat(totals.required_paid || 0);
+            var metCheck = drCheck > 0 ? (dpCheck + 0.00001 >= drCheck) : true;
+            if (!deadlineOverdue && drCheck > 0 && !metCheck) {
+                deadlineOverdue = true;
             }
             var widgetOverdueClass = deadlineOverdue ? ' payment-deadline-overdue' : '';
 
@@ -2207,12 +2221,9 @@
                             '<div class="d-flex justify-content-between"><span>Paid</span><strong class="text-success">' + parseFloat(totals.total_paid || 0).toLocaleString() + '/=</strong></div>' +
                             '<div class="d-flex justify-content-between"><span>Balance</span><strong class="text-danger">' + parseFloat(totals.total_balance || 0).toLocaleString() + '/=</strong></div>' +
                             (function() {
-                                var dr = item.focus_fee ? parseFloat(item.focus_fee.deadline_required || 0) : parseFloat(totals.required_amount || 0);
-                                var dp = item.focus_fee ? parseFloat(item.focus_fee.deadline_paid || 0) : parseFloat(totals.required_paid || 0);
-                                var met = item.focus_fee ? !!item.focus_fee.deadline_met : !!totals.deadline_met;
-                                if (dr <= 0) return '';
-                                return '<div class="small mt-1 ' + (met ? 'text-success' : 'text-danger') + '"><i class="bi bi-clock-history"></i> Deadline: ' +
-                                    dp.toLocaleString() + ' / ' + dr.toLocaleString() + (met ? ' ✓' : '') + '</div>';
+                                if (drCheck <= 0 || metCheck) return '';
+                                return '<div class="small mt-1 text-danger"><i class="bi bi-clock-history"></i> Deadline: ' +
+                                    dpCheck.toLocaleString() + ' / ' + drCheck.toLocaleString() + '</div>';
                             })() +
                             (priorOwed > 0 ? '<div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle"></i> Prev years: ' + priorOwed.toLocaleString() + '/=</div>' : '') +
                             '<div class="mt-1"><span class="badge bg-secondary">' + overallStatus + '</span></div>' +
@@ -2404,6 +2415,7 @@
             var enrollmentStatus = $('#filterStatus').val() || 'Active';
             var promotionStatus = $('#filterPromotion').val() || '';
             var paymentStatus = $('#filterPaymentStatus').val();
+            var deadlineFilter = $('#filterDeadline').val() || '';
             var searchStudentName = $('#searchStudentName').val();
             var feeID = $('#filterFee').val() || 'all';
 
@@ -2424,6 +2436,7 @@
                     student_status: enrollmentStatus,
                     promotion_status: promotionStatus,
                     payment_status: paymentStatus,
+                    deadline_filter: deadlineFilter,
                     search_student_name: searchStudentName,
                     sponsorship_filter: $('#filterSponsorship').val(),
                     fee_id: feeID
@@ -2529,7 +2542,7 @@
         setPaymentView(paymentGetView(), false);
 
         // Real-time filtering
-        $('#filterClass, #filterSubclass, #filterStatus, #filterPromotion, #filterPaymentStatus, #filterSponsorship, #filterFee').on('change', function() {
+        $('#filterClass, #filterSubclass, #filterStatus, #filterPromotion, #filterPaymentStatus, #filterDeadline, #filterSponsorship, #filterFee').on('change', function() {
             if ($(this).attr('id') === 'filterClass') return; // handled above (includes load)
             loadPaymentsData();
         });
@@ -2552,6 +2565,7 @@
             $('#filterStatus').val('Active');
             $('#filterPromotion').val('');
             $('#filterPaymentStatus').val('');
+            $('#filterDeadline').val('');
             $('#filterSponsorship').val('');
             $('#searchStudentName').val('');
             loadPaymentsData();
@@ -2564,10 +2578,24 @@
             const enrollment_status = $('#filterStatus').val() || 'Active';
             const promotion_status = $('#filterPromotion').val() || '';
             const payment_status = $('#filterPaymentStatus').val();
+            const deadline_filter = $('#filterDeadline').val() || '';
             const search_student_name = $('#searchStudentName').val();
+            const sponsorship_filter = $('#filterSponsorship').val() || '';
+            const fee_id = $('#filterFee').val() || 'all';
 
             let url = '{{ route("admin.export_filtered_payments_pdf") }}';
-            url += `?class_id=${encodeURIComponent(class_id || '')}&subclass_id=${encodeURIComponent(subclass_id || '')}&enrollment_status=${encodeURIComponent(enrollment_status)}&student_status=${encodeURIComponent(enrollment_status)}&promotion_status=${encodeURIComponent(promotion_status)}&payment_status=${encodeURIComponent(payment_status || '')}&search_student_name=${encodeURIComponent(search_student_name || '')}`;
+            url += `?class_id=${encodeURIComponent(class_id || '')}` +
+                `&subclass_id=${encodeURIComponent(subclass_id || '')}` +
+                `&enrollment_status=${encodeURIComponent(enrollment_status)}` +
+                `&student_status=${encodeURIComponent(enrollment_status)}` +
+                `&promotion_status=${encodeURIComponent(promotion_status)}` +
+                `&payment_status=${encodeURIComponent(payment_status || '')}` +
+                `&deadline_filter=${encodeURIComponent(deadline_filter)}` +
+                `&search_student_name=${encodeURIComponent(search_student_name || '')}` +
+                `&sponsorship_filter=${encodeURIComponent(sponsorship_filter)}` +
+                `&fee_id=${encodeURIComponent(fee_id)}` +
+                `&academic_year_id=${encodeURIComponent(headerAcademicYearID || '')}` +
+                `&use_request_year=${headerAcademicYearID ? 1 : 0}`;
 
             $('#pdfProgressTitle').text('Generating Payments Report');
             $('#downloadProgressModal').modal('show');
@@ -3186,6 +3214,27 @@
             }
 
             let url = '{{ url("export_payment_invoice_pdf") }}/' + studentID;
+            const qs = new URLSearchParams();
+            if (headerAcademicYearID) {
+                qs.set('academic_year_id', headerAcademicYearID);
+                qs.set('use_request_year', '1');
+            }
+            const filterClass = $('#filterClass').val() || btn.data('class-id') || '';
+            const filterSubclass = $('#filterSubclass').val() || '';
+            const filterFee = $('#filterFee').val() || 'all';
+            const filterPaymentStatus = $('#filterPaymentStatus').val() || '';
+            const filterDeadline = $('#filterDeadline').val() || '';
+            const filterSponsorship = $('#filterSponsorship').val() || '';
+            const filterEnrollment = $('#filterStatus').val() || '';
+            if (filterClass) qs.set('class_id', filterClass);
+            if (filterSubclass) qs.set('subclass_id', filterSubclass);
+            if (filterFee && filterFee !== 'all') qs.set('fee_id', filterFee);
+            if (filterPaymentStatus) qs.set('payment_status', filterPaymentStatus);
+            if (filterDeadline) qs.set('deadline_filter', filterDeadline);
+            if (filterSponsorship) qs.set('sponsorship_filter', filterSponsorship);
+            if (filterEnrollment) qs.set('enrollment_status', filterEnrollment);
+            const q = qs.toString();
+            if (q) url += '?' + q;
 
             $('#pdfProgressTitle').text('Generating Student Invoice');
             $('#downloadProgressModal').modal('show');
@@ -3450,11 +3499,10 @@
                 multiAccounts.forEach(function(ma) {
                     var dReq = parseFloat(ma.deadline_required || 0);
                     var dPaid = parseFloat(ma.deadline_paid || 0);
-                    var dMet = !!ma.deadline_met;
-                    var deadlineHtml = dReq > 0
-                        ? ('<span class="' + (dMet ? 'text-success' : 'text-danger') + '">' +
-                            dPaid.toLocaleString() + ' / ' + dReq.toLocaleString() +
-                            (dMet ? ' ✓' : '') + '</span>')
+                    var dMet = dReq > 0 ? (dPaid + 0.00001 >= dReq) : true;
+                    var deadlineHtml = (dReq > 0 && !dMet)
+                        ? ('<span class="text-danger">' +
+                            dPaid.toLocaleString() + ' / ' + dReq.toLocaleString() + '</span>')
                         : '<span class="text-muted">—</span>';
                     mah += '<tr>' +
                         '<td class="fw-bold" data-label="Fee">' + (ma.fee_name || '—') + '</td>' +

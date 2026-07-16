@@ -1927,7 +1927,7 @@ class ManageTeachersController extends Controller
         $pdf = Pdf::loadView('Admin.pdf.teacher_tange_pdf', [
             'teachers' => collect([$teacher]),
             'school' => $school,
-            'title' => 'TANGE — Teachers Particular',
+            'title' => 'TANGE — TEACHERS PARTICULAR',
         ]);
         $pdf->setOptions([
             'isRemoteEnabled' => true,
@@ -1983,7 +1983,7 @@ class ManageTeachersController extends Controller
         $pdf = Pdf::loadView('Admin.pdf.teacher_tange_pdf', [
             'teachers' => $teachers->values(),
             'school' => $school,
-            'title' => 'TANGE — All Teachers Particular',
+            'title' => 'TANGE — TEACHERS PARTICULAR | ALL TEACHERS',
         ]);
         $pdf->setOptions([
             'isRemoteEnabled' => true,

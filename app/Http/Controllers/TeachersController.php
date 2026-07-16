@@ -2014,7 +2014,7 @@ class TeachersController extends Controller
         $pdf = PDF::loadView("Admin.pdf.teacher_tange_pdf", [
             "teachers" => collect([$teacher]),
             "school" => $school,
-            "title" => "TANGE — Teachers Particular",
+            "title" => "TANGE — TEACHERS PARTICULAR",
         ]);
         $pdf->setOptions([
             "isRemoteEnabled" => true,

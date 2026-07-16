@@ -11,15 +11,19 @@
     .btn-outline-brand:hover, .btn-outline-brand.active { background: #940000; color: #fff; }
     .summary-box { border: 1px solid #eeeeee; background: #fff; padding: 14px; height: 100%; text-align: center; }
     .summary-box strong { display: block; color: #940000; font-size: 1.35rem; }
-    .status-badge { display: inline-block; border-radius: 20px; padding: 5px 12px; font-weight: 700; }
+    .status-badge { display: inline-block; border-radius: 0; padding: 5px 12px; font-weight: 700; }
     .status-present { background: #e8f5e9; color: #207227; }
     .status-early { background: #fff7e6; color: #8a5a00; }
     .status-late, .status-absent { background: #fff0f0; color: #940000; }
     .status-permitted { background: #f4eef8; color: #6f42c1; }
-    .status-off-day { background: whitesmoke; color: #555; }
-    #attendanceReportTable thead th { background: #940000; color: #fff; border-color: #940000; }
+    .status-off-day, .status-present-off-day { background: whitesmoke; color: #555; }
+    .status-weekend { background: #f3e8ff; color: #6f42c1; }
+    .status-not-a-working-day { background: #fff8e1; color: #856404; }
+    #attendanceReportTable thead th { background: whitesmoke; color: #333; border-color: #dee2e6; border-top: 2px solid #940000; }
     #attendanceReportTable tbody tr.is-late { background: #fff5f5; }
-    .loading-panel { min-height: 180px; display: flex; align-items: center; justify-content: center; color: #940000; }
+    #attendanceReportTable tbody tr.is-weekend { background: #f3e8ff; }
+    #attendanceReportTable tbody tr.is-nonwork { background: #fff8e1; }
+    .loading-panel { min-height: 180px; display: flex; align-items: center; justify-content: center; color: #666; }
 </style>
 
 <div class="container-fluid mt-3 my-attendance-page">
@@ -144,19 +148,32 @@ $(function () {
 
         html += '<div class="table-responsive"><table id="attendanceReportTable" class="table table-bordered table-sm mb-0">' +
             '<thead><tr><th>Date</th><th>Check In</th><th>Check Out</th><th>Status</th></tr></thead><tbody>';
-        var records = res.daily_records || [];
+        var records = (res.daily_records || []).slice().sort(function (a, b) {
+            return String(a.date || '').localeCompare(String(b.date || ''));
+        });
         if (!records.length) {
             html += '<tr><td colspan="4" class="text-center text-muted py-4">No attendance dates found for this period.</td></tr>';
         } else {
             records.forEach(function (day) {
-                html += '<tr class="' + (day.is_late ? 'is-late' : '') + '">' +
-                    '<td>' + escapeHtml(day.date_label || day.date) + '</td>' +
+                var rowClass = day.is_late ? 'is-late' : (
+                    (day.day_kind === 'weekend' || day.status === 'Weekend') ? 'is-weekend' : (
+                        (day.day_kind === 'non_working' || day.status === 'Not a working day') ? 'is-nonwork' : ''
+                    )
+                );
+                var note = day.status_note
+                    ? '<div class="small mt-1">' + escapeHtml(day.status_note) + '</div>'
+                    : (day.status === 'Weekend'
+                        ? '<div class="small mt-1">Ni weekend</div>'
+                        : (day.status === 'Not a working day' ? '<div class="small mt-1">Sio siku ya kazi</div>' : ''));
+                html += '<tr class="' + rowClass + '">' +
+                    '<td data-order="' + escapeHtml(day.date || '') + '">' + escapeHtml(day.date_label || day.date) + '</td>' +
                     '<td>' + formatTime(day.check_in_time) + '</td>' +
                     '<td>' + formatTime(day.check_out_time) + '</td>' +
-                    '<td>' + statusBadge(day.status) + '</td></tr>';
+                    '<td>' + statusBadge(day.status) + note + '</td></tr>';
             });
         }
         html += '</tbody></table></div>';
+        html += '<p class="small text-muted mt-2 mb-0"><span class="status-badge status-not-a-working-day">Sio siku ya kazi</span> &nbsp; <span class="status-badge status-weekend">Weekend</span></p>';
 
         $('#reportTitle').text(res.title || 'My Attendance');
         $('#officialTime').text('Official time: ' + formatTime(res.work_start_time) + ' - ' + formatTime(res.work_end_time));

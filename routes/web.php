@@ -1630,6 +1630,28 @@ Route::post("save_student", [
     ManageStudentController::class,
     "save_student",
 ])->name("save_student");
+
+// Quick student registration + enroll (no full-form required)
+Route::post("quick_register_student", [
+    \App\Http\Controllers\QuickStudentController::class,
+    "quickRegister",
+])->name("quick_register_student");
+Route::get("quick_enroll_students_list", [
+    \App\Http\Controllers\QuickStudentController::class,
+    "listForEnroll",
+])->name("quick_enroll_students_list");
+Route::post("quick_enroll_students", [
+    \App\Http\Controllers\QuickStudentController::class,
+    "enrollStudents",
+])->name("quick_enroll_students");
+Route::get("quick_enrolled_students_list", [
+    \App\Http\Controllers\QuickStudentController::class,
+    "listEnrolled",
+])->name("quick_enrolled_students_list");
+Route::post("quick_remove_enrollment", [
+    \App\Http\Controllers\QuickStudentController::class,
+    "removeEnrollment",
+])->name("quick_remove_enrollment");
 Route::post("test_device_connection", [
     ManageStudentController::class,
     "test_device_connection",

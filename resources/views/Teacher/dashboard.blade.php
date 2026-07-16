@@ -1,4 +1,4 @@
-@include('includes.teacher_nav')
+﻿@include('includes.teacher_nav')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <style>
     body, .content, .card, .btn, .form-control, .form-select, .table, .list-group-item, .alert {
@@ -8,89 +8,127 @@
         background-color: #940000 !important;
     }
     .text-primary-custom {
-        color: #940000 !important;
+        color: #333 !important;
     }
     .btn-primary-custom {
-        background-color: #940000;
-        border-color: #940000;
-        color: white;
+        background-color: #fff;
+        border-color: #dee2e6;
+        color: #333;
     }
     .btn-primary-custom:hover {
-        background-color: #b30000;
-        border-color: #b30000;
-        color: white;
+        background-color: #f8f9fa;
+        border-color: #adb5bd;
+        color: #212529;
     }
     .btn-outline-primary-custom {
-        border-color: #940000;
-        color: #940000;
+        border-color: #dee2e6;
+        color: #555;
+        background: #fff;
     }
     .btn-outline-primary-custom:hover {
-        background-color: #940000;
-        border-color: #940000;
-        color: white;
+        background-color: #f5f5f5;
+        border-color: #adb5bd;
+        color: #212529;
     }
     .dashboard-hero {
-        background: #fff7f7;
-        border: 1px solid #f0dada;
-        padding: 18px 20px;
-        margin-bottom: 24px;
+        background: #fff;
+        border: 1px solid #eeeeee;
+        border-top: 3px solid #940000;
+        padding: 12px 16px;
+        margin-bottom: 16px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 16px;
+        gap: 12px;
+        flex-wrap: wrap;
     }
     .dashboard-hero .hero-title {
-        font-size: 1.4rem;
-        margin-bottom: 6px;
+        font-size: 1.15rem;
+        margin-bottom: 4px;
+        color: #222;
     }
     .dashboard-hero .hero-subtitle {
         color: #6c757d;
         margin-bottom: 0;
+        font-size: 0.85rem;
     }
     .dashboard-hero .hero-actions .btn {
-        margin-left: 8px;
+        margin-left: 6px;
     }
     .dashboard-card {
-        border: 1px solid #f0f0f0;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        border: 1px solid #eeeeee;
+        box-shadow: none;
         height: 100%;
+        background: #fff;
+        overflow: hidden;
+    }
+    .dashboard-card .card-body {
+        padding: 12px 14px;
     }
     .dashboard-card .card-title {
         font-weight: 600;
-        color: #940000;
-        margin-bottom: 8px;
+        color: #444;
+        margin-bottom: 4px;
+        font-size: 0.82rem;
+        line-height: 1.25;
     }
     .dashboard-card .stat {
-        font-size: 1.8rem;
+        font-size: 1.35rem;
         font-weight: 700;
-        color: #2f2f2f;
-        margin-bottom: 6px;
+        color: #222;
+        margin-bottom: 2px;
+        line-height: 1.2;
     }
     .dashboard-card .stat-note {
-        font-size: 0.85rem;
+        font-size: 0.72rem;
         color: #6c757d;
+        line-height: 1.2;
     }
     .dashboard-card .card-icon {
-        font-size: 2rem;
-        color: rgba(148, 0, 0, 0.35);
+        font-size: 1.25rem;
+        color: #adb5bd;
+        flex-shrink: 0;
     }
     .dashboard-card .card-actions {
-        margin-top: 14px;
+        margin-top: 8px;
+    }
+    .dashboard-card .card-actions .btn {
+        font-size: 0.72rem;
+        padding: 4px 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .dashboard-widgets-row {
+        margin-left: -6px;
+        margin-right: -6px;
+    }
+    .dashboard-widgets-row > [class*="col-"] {
+        padding-left: 6px;
+        padding-right: 6px;
+        margin-bottom: 12px;
     }
     .section-card {
-        border: 1px solid #f0f0f0;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        border: 1px solid #eeeeee;
+        box-shadow: none;
+        background: #fff;
     }
     .section-card .section-header {
-        background: #fff7f7;
-        border-bottom: 1px solid #f0dada;
-        color: #940000;
+        background: whitesmoke;
+        border-bottom: 1px solid #eeeeee;
+        border-left: 3px solid #940000;
+        color: #333;
         font-weight: 600;
-        padding: 12px 16px;
+        padding: 10px 14px;
+        font-size: 0.95rem;
     }
     .section-card .section-header small {
         color: #6c757d;
         font-weight: 400;
+    }
+    @media (max-width: 575.98px) {
+        .dashboard-hero { padding: 10px 12px; }
+        .dashboard-card .stat { font-size: 1.2rem; }
     }
 </style>
 <div class="container-fluid mt-3">
@@ -158,7 +196,7 @@
 @if(isset($dashboardStats))
 <div class="dashboard-hero">
                     <div>
-        <div class="text-muted" style="font-size: 0.9rem;">Today · {{ \Carbon\Carbon::now()->format('l, d M Y') }}</div>
+        <div class="text-muted" style="font-size: 0.9rem;">Today Â· {{ \Carbon\Carbon::now()->format('l, d M Y') }}</div>
         <div class="hero-title">Hello, Teacher</div>
         @if(isset($isNavHOD) && $isNavHOD)
             <div class="mb-2">
@@ -290,13 +328,13 @@
     $cards[] = ['title' => 'Lesson Plans', 'count' => $dashboardStats['lesson_plans_count'] ?? 0, 'icon' => 'fa-file-text', 'note' => ($dashboardStats['lesson_plans_sent_count'] ?? 0) . ' sent to admin', 'link' => route('teacher.lessonPlans'), 'link_label' => 'View Lesson Plans'];
 @endphp
 
-<div class="row">
+<div class="row dashboard-widgets-row">
     @foreach($cards as $card)
-        <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
             <div class="card dashboard-card">
             <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
-                    <div>
+                    <div style="min-width:0;flex:1;">
                             <div class="card-title">{{ $card['title'] }}</div>
                             <div class="stat">{{ $card['count'] }}</div>
                             @if(!empty($card['note']))
@@ -330,10 +368,10 @@
     (isset($waitingApprovals) && count($waitingApprovals) > 0))
 <div class="row mb-4">
     <div class="col-12 mb-3">
-        <h5 class="text-primary-custom" style="font-weight: 600;">
+        <h5 class="text-dark" style="font-weight: 600;">
             <i class="fa fa-check-circle"></i> Exam Approvals Pending
         </h5>
-        <hr style="border-top: 2px solid #940000;">
+        <hr style="border-top: 1px solid #eeeeee;">
     </div>
     
     <!-- Pending Approvals (Regular Roles) -->
@@ -497,124 +535,11 @@
     </div>
 @endif
 
-<!-- Management Permissions Widgets -->
-@if(isset($managementPermissions) && count($managementPermissions) > 0)
-<div class="row mb-4">
-    <div class="col-12 mb-3">
-        <h5 class="text-primary-custom" style="font-weight: 600;">
-            <i class="fa fa-cogs"></i> Management Access
-        </h5>
-        <hr style="border-top: 2px solid #940000;">
-    </div>
-    @foreach($managementPermissions as $permission)
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card section-card h-100" style="border-left: 4px solid {{ $permission['color'] }} !important;">
-            <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2" style="font-size: 0.85rem; font-weight: 600;">{{ $permission['name'] }}</h6>
-                            <p class="mb-0" style="color: {{ $permission['color'] }}; font-weight: bold; font-size: 1.1rem;">Access Granted</p>
-                        </div>
-                        <div style="font-size: 2.5rem; opacity: 0.3; color: {{ $permission['color'] }};">
-                            <i class="fa {{ $permission['icon'] }}"></i>
-                        </div>
-                    </div>
-                    <a href="{{ route($permission['route']) }}" class="btn btn-sm mt-3 w-100" style="background-color: {{ $permission['color'] }}; border-color: {{ $permission['color'] }}; color: white; border-radius: 0;">
-                        <i class="fa fa-arrow-right"></i> Manage
-                    </a>
-                </div>
-            </div>
-        </div>
-    @endforeach
-    </div>
-@endif
-
-<!-- Teaching Subjects Display -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card section-card">
-            <div class="section-header">
-                    <i class="fa fa-book"></i> Teaching Subjects
-            </div>
-            <div class="card-body">
-                @if(isset($dashboardStats['teaching_subjects']) && $dashboardStats['teaching_subjects']->count() > 0)
-                    <div class="row">
-                        @foreach($dashboardStats['teaching_subjects'] as $subject)
-                            <div class="col-md-4 col-lg-3 mb-3">
-                                <div class="alert alert-info mb-0" style="border-left: 4px solid #17a2b8;">
-                                    <strong>
-                                        <i class="fa fa-book"></i> {{ $subject['subject_name'] }}
-                                    </strong>
-                                    @if($subject['subject_code'])
-                                        <br><small class="text-muted">Code: {{ $subject['subject_code'] }}</small>
-                                    @endif
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                    <div class="text-center mt-3">
-                        <a href="{{ route('teacherSubjects') }}" class="btn btn-primary-custom">
-                            <i class="fa fa-eye"></i> View More Subjects
-                        </a>
-                    </div>
-                @else
-                    <div class="alert alert-warning mb-0">
-                        <i class="fa fa-exclamation-triangle"></i> No subjects assigned yet.
-                </div>
-                @endif
-            </div>
-        </div>
-    </div>
-                    </div>
 @else
 <div class="row">
     <div class="col-12">
         <div class="alert alert-info">
             <i class="fa fa-info-circle"></i> Loading dashboard statistics...
-        </div>
-        </div>
-    </div>
-    @endif
-
-<!-- Dashboard Graphs Section -->
-@if(isset($graphData))
-<div class="row mb-4">
-    <!-- Graph 1: Sessions per week by day -->
-    <div class="col-lg-6 mb-4">
-        <div class="card section-card">
-            <div class="section-header">
-                    <i class="fa fa-calendar-week"></i> Sessions Per Week by Day
-                <small class="d-block">Based on approved tasks</small>
-            </div>
-            <div class="card-body">
-                <canvas id="sessionsByDayChart" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Graph 2: Subject Performance -->
-    <div class="col-lg-6 mb-4">
-        <div class="card section-card">
-            <div class="section-header">
-                    <i class="fa fa-line-chart"></i> Subject Performance (Pass/Fail Rates)
-                <small class="d-block">Performance across all classes</small>
-            </div>
-            <div class="card-body">
-                <canvas id="subjectPerformanceChart" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Graph 3: Classes with Most Sessions -->
-    <div class="col-lg-12 mb-4">
-        <div class="card section-card">
-            <div class="section-header">
-                    <i class="fa fa-users"></i> Classes with Most Sessions
-                <small class="d-block">Based on approved tasks</small>
-            </div>
-            <div class="card-body">
-                <canvas id="classesSessionsChart" height="100"></canvas>
-            </div>
         </div>
     </div>
 </div>
@@ -650,149 +575,9 @@
     </div>
 </div>
 
-@if(isset($graphData))
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-@endif
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 $(document).ready(function() {
-    // Initialize graphs
-    @if(isset($graphData))
-    
-    // Graph 1: Sessions per week by day
-    @if(isset($graphData['sessions_by_day']) && !empty($graphData['sessions_by_day']))
-    const sessionsByDayCtx = document.getElementById('sessionsByDayChart');
-    if (sessionsByDayCtx) {
-        new Chart(sessionsByDayCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-                datasets: [{
-                    label: 'Number of Sessions',
-                    data: [
-                        {{ $graphData['sessions_by_day']['Monday'] ?? 0 }},
-                        {{ $graphData['sessions_by_day']['Tuesday'] ?? 0 }},
-                        {{ $graphData['sessions_by_day']['Wednesday'] ?? 0 }},
-                        {{ $graphData['sessions_by_day']['Thursday'] ?? 0 }},
-                        {{ $graphData['sessions_by_day']['Friday'] ?? 0 }}
-                    ],
-                    backgroundColor: 'rgba(148, 0, 0, 0.8)',
-                    borderColor: 'rgba(148, 0, 0, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    }
-    @endif
-    
-    // Graph 2: Subject Performance
-    @if(isset($graphData['subject_performance']) && !empty($graphData['subject_performance']))
-    const subjectPerformanceCtx = document.getElementById('subjectPerformanceChart');
-    if (subjectPerformanceCtx) {
-        const subjectData = @json($graphData['subject_performance']);
-        new Chart(subjectPerformanceCtx, {
-            type: 'bar',
-            data: {
-                labels: subjectData.map(s => s.subject_name),
-                datasets: [{
-                    label: 'Pass Rate (%)',
-                    data: subjectData.map(s => s.pass_rate),
-                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
-                    borderColor: 'rgba(40, 167, 69, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Fail Rate (%)',
-                    data: subjectData.map(s => s.fail_rate),
-                    backgroundColor: 'rgba(220, 53, 69, 0.8)',
-                    borderColor: 'rgba(220, 53, 69, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: true
-                    }
-                }
-            }
-        });
-    }
-    @endif
-    
-    // Graph 3: Classes with Most Sessions
-    @if(isset($graphData['classes_sessions']) && !empty($graphData['classes_sessions']))
-    const classesSessionsCtx = document.getElementById('classesSessionsChart');
-    if (classesSessionsCtx) {
-        const classesData = @json($graphData['classes_sessions']);
-        const classNames = Object.keys(classesData);
-        const sessionCounts = Object.values(classesData);
-        
-        new Chart(classesSessionsCtx, {
-            type: 'bar',
-            data: {
-                labels: classNames,
-                datasets: [{
-                    label: 'Number of Sessions',
-                    data: sessionCounts,
-                    backgroundColor: 'rgba(23, 162, 184, 0.8)',
-                    borderColor: 'rgba(23, 162, 184, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: true,
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    }
-    @endif
-    
-    @endif
-    
     // Handle class teacher approvals button click
     $('.view-class-teacher-approvals').on('click', function() {
         const examID = $(this).data('exam-id');
@@ -859,56 +644,19 @@ $(document).ready(function() {
                         
                         Swal.fire({
                             title: 'Send Reminder SMS',
-                            html: `
-                                <p>Send reminder to <strong>${subclass}</strong> class teacher?</p>
-                                <p><strong>Phone:</strong> ${phone}</p>
-                                <textarea id="reminder-message" class="form-control mt-3" rows="3" placeholder="Enter reminder message (optional)">Please approve the results for ${subclass} class. Thank you.</textarea>
-                            `,
+                            text: `Send reminder to class teacher of ${subclass}?`,
+                            icon: 'question',
                             showCancelButton: true,
-                            confirmButtonText: 'Send SMS',
-                            cancelButtonText: 'Cancel',
-                            confirmButtonColor: '#28a745',
-                            preConfirm: () => {
-                                return {
-                                    phone: phone,
-                                    message: document.getElementById('reminder-message').value || `Please approve the results for ${subclass} class. Thank you.`
-                                };
-                            }
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                // Send SMS via AJAX
-                                $.ajax({
-                                    url: '{{ route("send_message_to_teachers") }}',
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                    },
-                                    data: {
-                                        phone_numbers: [result.value.phone],
-                                        message: result.value.message
-                                    },
-                                    success: function(response) {
-                                        Swal.fire({
-                                            title: 'Success!',
-                                            text: 'Reminder SMS sent successfully.',
-                                            icon: 'success',
-                                            confirmButtonColor: '#940000'
-                                        });
-                                    },
-                                    error: function(xhr) {
-                                        Swal.fire({
-                                            title: 'Error!',
-                                            text: 'Failed to send SMS. Please try again.',
-                                            icon: 'error',
-                                            confirmButtonColor: '#940000'
-                                        });
-                                    }
-                                });
-                            }
+                            confirmButtonColor: '#940000',
+                            confirmButtonText: 'Send'
+                        }).then(function(result) {
+                            if (!result.isConfirmed) return;
+                            // Reminder send handled elsewhere if wired
+                            Swal.fire({ icon: 'info', title: 'Reminder', text: 'Please use the exam approval page to send reminders.', confirmButtonColor: '#940000' });
                         });
                     });
                 } else {
-                    $('#classTeacherApprovalsContent').html('<div class="alert alert-danger">Failed to load class teacher approvals.</div>');
+                    $('#classTeacherApprovalsContent').html('<div class="alert alert-warning">' + (response.message || 'No data') + '</div>');
                 }
             },
             error: function(xhr) {

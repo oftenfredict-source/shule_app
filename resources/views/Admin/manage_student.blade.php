@@ -1353,11 +1353,19 @@
                         <button class="dropdown-item" id="addStudentBtn" type="button" role="menuitem">
                             <i class="bi bi-person-plus" style="color:#940000;"></i> Register
                         </button>
+                        <button class="dropdown-item" id="quickRegisterStudentBtn" type="button" role="menuitem">
+                            <i class="bi bi-lightning-charge-fill" style="color:#940000;"></i> Quick Registration
+                        </button>
                         <a href="{{ route('download_student_template') }}" class="dropdown-item" target="_blank" role="menuitem">
                             <i class="bi bi-download" style="color:#940000;"></i> Template
                         </a>
                         <button class="dropdown-item" id="importBtn" type="button" role="menuitem">
                             <i class="bi bi-file-earmark-excel" style="color:#940000;"></i> Import
+                        </button>
+                        @endif
+                        @if(($canCreate ?? false) || ($canUpdate ?? false))
+                        <button class="dropdown-item" id="enrollStudentBtn" type="button" role="menuitem">
+                            <i class="bi bi-person-check-fill" style="color:#940000;"></i> Enroll Student
                         </button>
                         @endif
                         @if($canUpdate ?? false)
@@ -2443,4 +2451,12 @@
 
 <!-- Include Registration Modal -->
 @include('student_registration.modal')
+
+{{-- Quick Registration + Enroll Student (existing Register/Template untouched) --}}
+@include('Admin.partials.quick_enroll_student_modals', [
+    'qeMode' => 'admin',
+    'qeLockedSubclassID' => null,
+    'qeLockedSubclassLabel' => '',
+    'qeCanQuickRegister' => $canCreate ?? false,
+])
 
