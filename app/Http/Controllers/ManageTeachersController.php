@@ -232,7 +232,7 @@ class ManageTeachersController extends Controller
         }
 
         // Check if teacher has access to this module
-        if ($user === 'Teacher' && !$this->checkPermission('teacher_read_only') && !$this->checkPermission('teacher_create') && !$this->checkPermission('teacher_update')) {
+        if ($user === 'Teacher' && !$this->checkPermission('teacher_read_only') && !$this->checkPermission('teacher_create') && !$this->checkPermission('teacher_update') && !$this->checkPermission('teacher_delete')) {
              return redirect()->route('teachersDashboard')->with('error', 'You are not allowed to access Teacher Management.');
         }
 
@@ -948,6 +948,80 @@ class ManageTeachersController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'An error occurred: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a teacher (and linked login user / role assignments).
+     */
+    public function delete_teacher($id)
+    {
+        if (!$this->checkPermission('teacher_delete')) {
+            return response()->json([
+                'error' => 'Unauthorized. You do not have permission to delete teachers (teacher_delete).',
+            ], 403);
+        }
+
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['error' => 'School ID is required. Please ensure you are logged in.'], 422);
+            }
+
+            $teacher = Teacher::where('id', $id)->where('schoolID', $schoolID)->first();
+            if (!$teacher) {
+                return response()->json(['error' => 'Teacher not found.'], 404);
+            }
+
+            // Prevent deleting yourself
+            $sessionTeacherId = Session::get('teacherID');
+            if ($sessionTeacherId && (int) $sessionTeacherId === (int) $teacher->id) {
+                return response()->json(['error' => 'You cannot delete your own teacher account.'], 422);
+            }
+
+            $teacherName = trim($teacher->first_name . ' ' . $teacher->last_name);
+            $email = $teacher->email;
+
+            DB::transaction(function () use ($teacher, $email) {
+                // Remove role assignments
+                DB::table('role_user')->where('teacher_id', $teacher->id)->delete();
+
+                // Remove login user linked by email
+                if ($email) {
+                    User::where('email', $email)->where('user_type', 'Teacher')->delete();
+                }
+
+                // Delete profile image
+                if ($teacher->image) {
+                    $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+                    $candidates = [
+                        $scriptDir . '/userImages/' . $teacher->image,
+                        public_path('userImages/' . $teacher->image),
+                    ];
+                    foreach ($candidates as $imagePath) {
+                        if (is_file($imagePath)) {
+                            @unlink($imagePath);
+                            break;
+                        }
+                    }
+                }
+
+                $teacher->delete();
+            });
+
+            return response()->json([
+                'success' => 'Teacher "' . $teacherName . '" deleted successfully!',
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('delete_teacher DB error: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Cannot delete this teacher because related records still reference them. Reassign classes/subjects first, or contact support.',
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('delete_teacher error: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'An error occurred: ' . $e->getMessage(),
             ], 500);
         }
     }

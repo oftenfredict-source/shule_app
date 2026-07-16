@@ -483,7 +483,9 @@
                                                                     </a>
                                                                 </li>
                                                                 <li>
-                                                                    <a href="#" class="dropdown-item text-danger">
+                                                                    <a href="#" class="dropdown-item text-danger delete-teacher-btn"
+                                                                       data-teacher-id="{{ $teacher->id }}"
+                                                                       data-teacher-name="{{ trim($teacher->first_name.' '.$teacher->last_name) }}">
                                                                         <i class="bi bi-trash"></i> Delete
                                                                     </a>
                                                                 </li>
@@ -3929,6 +3931,57 @@
                     $('#viewTeacherModal').modal('show');
                 }
             }
+        });
+
+        // Delete Teacher
+        $(document).on('click', '.delete-teacher-btn', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!hasPermission('teacher_delete')) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Access Denied',
+                    text: 'You are not allowed to perform this action. You need the teacher_delete permission.'
+                });
+                return false;
+            }
+            var teacherId = $(this).data('teacher-id');
+            var teacherName = $(this).data('teacher-name') || 'this teacher';
+            $('.actions-dropdown').removeClass('is-open');
+
+            Swal.fire({
+                title: 'Delete Teacher?',
+                html: 'Are you sure you want to delete <strong>' + $('<div>').text(teacherName).html() + '</strong>?<br><br><small class="text-muted">This will also remove their login account. Related class/subject assignments will be cleared where possible.</small>',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete'
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                $.ajax({
+                    url: "{{ route('delete_teacher', ':id') }}".replace(':id', teacherId),
+                    type: 'DELETE',
+                    data: { _token: $('input[name="_token"]').first().val() || '{{ csrf_token() }}' },
+                    success: function(response) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Deleted!',
+                            text: response.success || 'Teacher deleted successfully.'
+                        }).then(function() {
+                            location.reload();
+                        });
+                    },
+                    error: function(xhr) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to delete teacher.'
+                        });
+                    }
+                });
+            });
+            return false;
         });
 
         // Handle Edit Teacher Button Click

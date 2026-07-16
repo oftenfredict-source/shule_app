@@ -768,6 +768,10 @@ Route::post("update_teacher", [
     ManageTeachersController::class,
     "update_teacher",
 ])->name("update_teacher");
+Route::delete("delete_teacher/{id}", [
+    ManageTeachersController::class,
+    "delete_teacher",
+])->name("delete_teacher");
 Route::post("send_teacher_to_fingerprint", [
     ManageTeachersController::class,
     "sendTeacherToFingerprint",
