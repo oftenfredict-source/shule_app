@@ -33,6 +33,20 @@ return new class extends Migration
         return count($rows) > 0;
     }
 
+    private function columnType(string $table, string $column): ?object
+    {
+        $db = DB::getDatabaseName();
+        $rows = DB::select(
+            'SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, EXTRA
+             FROM information_schema.columns
+             WHERE table_schema = ? AND table_name = ? AND column_name = ?
+             LIMIT 1',
+            [$db, $table, $column]
+        );
+
+        return $rows[0] ?? null;
+    }
+
     public function up(): void
     {
         Schema::table('fees', function (Blueprint $table) {
@@ -47,23 +61,51 @@ return new class extends Migration
             }
         });
 
-        // Ensure type matches school_bank_accounts.accountID (bigint unsigned)
         if (Schema::hasColumn('fees', 'bank_account_id')) {
             DB::statement('ALTER TABLE `fees` MODIFY `bank_account_id` BIGINT UNSIGNED NULL');
         }
 
+        // Prefer DB FK when types match. On some MariaDB hosts errno 150 persists
+        // even with matching bigint unsigned — fall back to a plain index so migrate can finish.
+        $fkAdded = false;
         if (
             Schema::hasTable('school_bank_accounts')
             && Schema::hasColumn('fees', 'bank_account_id')
             && ! $this->foreignKeyExists('fees', 'fees_bank_account_id_foreign')
         ) {
-            // FK alone (creates its own index). Do not add a second index in the same ALTER —
-            // MariaDB often returns errno 150 when both are combined.
+            $parent = $this->columnType('school_bank_accounts', 'accountID');
+            $child = $this->columnType('fees', 'bank_account_id');
+            $typesMatch = $parent
+                && $child
+                && str_contains(strtolower((string) $parent->COLUMN_TYPE), 'bigint')
+                && str_contains(strtolower((string) $parent->COLUMN_TYPE), 'unsigned')
+                && str_contains(strtolower((string) $child->COLUMN_TYPE), 'bigint')
+                && str_contains(strtolower((string) $child->COLUMN_TYPE), 'unsigned');
+
+            if ($typesMatch) {
+                try {
+                    Schema::table('fees', function (Blueprint $table) {
+                        $table->foreign('bank_account_id', 'fees_bank_account_id_foreign')
+                            ->references('accountID')
+                            ->on('school_bank_accounts')
+                            ->nullOnDelete();
+                    });
+                    $fkAdded = true;
+                } catch (\Throwable $e) {
+                    // MariaDB errno 150 — continue without FK; Eloquent still works.
+                    $fkAdded = false;
+                }
+            }
+        }
+
+        if (
+            ! $fkAdded
+            && Schema::hasColumn('fees', 'bank_account_id')
+            && ! $this->indexExists('fees', 'fees_bank_account_id_index')
+            && ! $this->foreignKeyExists('fees', 'fees_bank_account_id_foreign')
+        ) {
             Schema::table('fees', function (Blueprint $table) {
-                $table->foreign('bank_account_id', 'fees_bank_account_id_foreign')
-                    ->references('accountID')
-                    ->on('school_bank_accounts')
-                    ->nullOnDelete();
+                $table->index('bank_account_id', 'fees_bank_account_id_index');
             });
         }
 
@@ -79,6 +121,12 @@ return new class extends Migration
         if ($this->foreignKeyExists('fees', 'fees_bank_account_id_foreign')) {
             Schema::table('fees', function (Blueprint $table) {
                 $table->dropForeign('fees_bank_account_id_foreign');
+            });
+        }
+
+        if ($this->indexExists('fees', 'fees_bank_account_id_index')) {
+            Schema::table('fees', function (Blueprint $table) {
+                $table->dropIndex('fees_bank_account_id_index');
             });
         }
 
