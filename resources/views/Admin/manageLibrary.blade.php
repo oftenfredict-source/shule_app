@@ -202,6 +202,27 @@
         position: relative;
         overflow: hidden;
     }
+    .book-card-widget.bulk-edit-selectable {
+        padding-top: 42px;
+    }
+    .book-card-widget.bulk-edit-selected {
+        border: 2px solid #940000;
+        background: #fff5f5;
+        box-shadow: 0 5px 16px rgba(148, 0, 0, 0.14);
+    }
+    .book-bulk-checkbox {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 3;
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+    .book-bulk-edit-bar {
+        border-left: 4px solid #940000;
+        background: #fff5f5;
+    }
     .book-card-widget:hover {
         transform: translateY(-8px);
         box-shadow: 0 15px 30px rgba(148,0,0,0.08);
@@ -416,6 +437,9 @@
                         <button class="btn btn-primary-custom btn-sm" onclick="loadBooks()" title="Refresh Inventory">
                             <i class="fa fa-refresh"></i>
                         </button>
+                        <button class="btn btn-warning btn-sm" id="bulkEditBookDetailsBtn" type="button" title="Filter, select, and edit book details">
+                            <i class="fa fa-pencil"></i> EDIT DETAILS
+                        </button>
                         <button class="btn btn-danger btn-sm" onclick="exportLibraryPdf()" title="Download PDF Report">
                             <i class="fa fa-file-pdf-o"></i> PDF
                         </button>
@@ -429,6 +453,29 @@
             <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white shadow-sm">
                 <h5 class="mb-0 font-weight-bold" style="color: #940000;"><i class="fa fa-th"></i> BOOKS CATALOG</h5>
                 <div class="text-muted small font-weight-bold" id="booksCountInfo">Loading inventory...</div>
+            </div>
+
+            <div class="book-bulk-edit-bar mb-3 mx-3 p-3 shadow-sm d-none" id="bookBulkEditBar">
+                <div class="d-flex flex-wrap align-items-center" style="gap: 8px;">
+                    <strong style="color:#940000;"><i class="fa fa-check-square-o"></i> Edit Book Details</strong>
+                    <span class="small text-muted" id="bookBulkSelectionCount">0 selected</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ml-md-auto" id="bulkSelectAllBooksBtn">
+                        Select All Filtered
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="bulkClearBookSelectionBtn">
+                        Clear
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary-custom" id="openBulkBookEditModalBtn" disabled>
+                        <i class="fa fa-pencil"></i> Edit Selected
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" id="cancelBulkBookEditBtn">
+                        Cancel
+                    </button>
+                </div>
+                <div class="small text-muted mt-2">
+                    All currently filtered books start checked. Uncheck any copies you do not want to update.
+                    Unique IDs will not change.
+                </div>
             </div>
             
             <!-- Pattern Key Legend -->
@@ -552,6 +599,10 @@
                 </button>
             </div>
             <div class="modal-body">
+                <div class="alert alert-warning d-none" id="bulkBookEditNotice" style="border-radius:0;">
+                    Updating details for <strong id="bulkBookEditModalCount">0</strong> selected books.
+                    Unique IDs, borrowing status, and copy status will remain unchanged.
+                </div>
                 <form id="bookForm">
                     <input type="hidden" id="bookID">
                     <div class="row">
@@ -642,6 +693,9 @@
                 </button>
                 <button type="button" class="btn btn-primary-custom d-none" id="saveBookBtn" onclick="saveBook()">
                     <i class="fa fa-save"></i> <span id="saveBookBtnText">Save</span>
+                </button>
+                <button type="button" class="btn btn-primary-custom d-none" id="saveBulkBookDetailsBtn">
+                    <i class="fa fa-save"></i> Update Selected Books
                 </button>
             </div>
         </div>
@@ -1005,6 +1059,8 @@
         let allBooks = [];
         let selectedBookID = null;
         let selectedBorrowers = [];
+        let bulkBookSelectionMode = false;
+        let bulkSelectedBookIDs = new Set();
         let $;
         
         function initLibrary() {
@@ -1022,6 +1078,27 @@
                 $('#searchBook').on('input', () => {
                     clearTimeout(searchTimer);
                     searchTimer = setTimeout(loadBooks, 500);
+                });
+
+                $('#bulkEditBookDetailsBtn').on('click', startBulkBookSelection);
+                $('#bulkSelectAllBooksBtn').on('click', selectAllFilteredBooks);
+                $('#bulkClearBookSelectionBtn').on('click', function() {
+                    bulkSelectedBookIDs.clear();
+                    renderBooksGrid(allBooks, $('#filterStatus').val());
+                });
+                $('#cancelBulkBookEditBtn').on('click', stopBulkBookSelection);
+                $('#openBulkBookEditModalBtn').on('click', openBulkBookEditModal);
+                $('#saveBulkBookDetailsBtn').on('click', saveBulkBookDetails);
+                $(document).on('change', '.book-bulk-checkbox', function(event) {
+                    event.stopPropagation();
+                    const bookID = Number($(this).val());
+                    if ($(this).is(':checked')) {
+                        bulkSelectedBookIDs.add(bookID);
+                    } else {
+                        bulkSelectedBookIDs.delete(bookID);
+                    }
+                    updateBulkBookSelectionUi();
+                    $(this).closest('.book-card-widget').toggleClass('bulk-edit-selected', $(this).is(':checked'));
                 });
 
                 $('#toggleActionsBtn').on('click', function() {
@@ -1043,6 +1120,9 @@
                     $('#bookCopyGroup').val('');
                     $('#uniqueIdCountLabel').text('(0)');
                     $('#isbnList').html('<div class="text-muted small py-3 text-center">Weka Quantity na Group ili Unique ID zijazwe automatically.</div>');
+                    $('#bulkBookEditNotice').addClass('d-none');
+                    $('#saveBulkBookDetailsBtn').addClass('d-none').prop('disabled', false)
+                        .html('<i class="fa fa-save"></i> Update Selected Books');
                 });
 
                 $('#addIsbnRowBtn').on('click', addIsbnRow);
@@ -1123,7 +1203,9 @@
             $.get('{{ route("get_books") }}', data, function(res) {
                 if (res.success) {
                     allBooks = res.books;
-                    $('#booksCountInfo').text(`Showing ${allBooks.length} Books`);
+                    if (bulkBookSelectionMode) {
+                        selectAllFilteredBooks(false);
+                    }
                     renderBooksGrid(allBooks, $('#filterStatus').val());
                 }
             }).fail(function(err) {
@@ -1198,17 +1280,23 @@
                 });
         }
 
-        function renderBooksGrid(books, statusFilter) {
-            let html = '';
-            const filtered = statusFilter 
+        function getCurrentlyFilteredBooks(books = allBooks, statusFilter = $('#filterStatus').val()) {
+            return statusFilter
                 ? books.filter(b => {
                     const s = b.is_lost ? 'lost' : (b.is_damaged ? 'damaged' : (b.is_overdue ? 'overdue' : (b.is_available ? 'available' : 'borrowed')));
                     return s === statusFilter;
                 })
                 : books;
+        }
+
+        function renderBooksGrid(books, statusFilter) {
+            let html = '';
+            const filtered = getCurrentlyFilteredBooks(books, statusFilter);
+            $('#booksCountInfo').text(`Showing ${filtered.length} Books`);
 
             if (filtered.length === 0) {
                 $('#booksGrid').html('<div class="col-12 text-center py-5"><h6>NO BOOKS FOUND</h6></div>');
+                updateBulkBookSelectionUi();
                 return;
             }
 
@@ -1219,8 +1307,21 @@
                 else if (book.is_overdue) s = 'overdue';
                 else if (!book.is_available) s = 'borrowed';
 
+                const bookID = Number(book.bookID);
+                const selected = bulkSelectedBookIDs.has(bookID);
+                const selectionClasses = bulkBookSelectionMode
+                    ? ` bulk-edit-selectable${selected ? ' bulk-edit-selected' : ''}`
+                    : '';
+                const checkbox = bulkBookSelectionMode
+                    ? `<input type="checkbox" class="book-bulk-checkbox" value="${bookID}" ${selected ? 'checked' : ''} onclick="event.stopPropagation()" aria-label="Select book">`
+                    : '';
+                const clickAction = bulkBookSelectionMode
+                    ? `toggleBulkBookSelection('${book.bookID}')`
+                    : `openBookDetails('${book.bookID}')`;
+
                 html += `
-                    <div class="book-card-widget ${s}" onclick="openBookDetails('${book.bookID}')">
+                    <div class="book-card-widget ${s}${selectionClasses}" onclick="${clickAction}">
+                        ${checkbox}
                         <div class="book-status-badge"></div>
                         <i class="fa fa-book book-icon"></i>
                         <span class="book-title">${book.book_title}</span>
@@ -1229,6 +1330,7 @@
                     </div>`;
             });
             $('#booksGrid').html(html);
+            updateBulkBookSelectionUi();
         }
 
         function openBookDetails(bookID) {
@@ -1615,6 +1717,198 @@
             });
         }
 
+        function hasBookFilterApplied() {
+            return Boolean(
+                $('#filterClass').val() ||
+                $('#filterSubject').val() ||
+                $('#filterStatus').val() ||
+                String($('#searchBook').val() || '').trim()
+            );
+        }
+
+        function startBulkBookSelection() {
+            if (!hasBookFilterApplied()) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Filter books first',
+                    text: 'Choose Class, Subject, Status, or enter a search keyword before editing book details in bulk.',
+                    confirmButtonColor: '#940000'
+                });
+                return;
+            }
+
+            const filtered = getCurrentlyFilteredBooks();
+            if (!filtered.length) {
+                Swal.fire('No Books', 'No books match the current filters.', 'info');
+                return;
+            }
+
+            bulkBookSelectionMode = true;
+            bulkSelectedBookIDs.clear();
+            filtered.forEach(book => bulkSelectedBookIDs.add(Number(book.bookID)));
+            $('#bookBulkEditBar').removeClass('d-none');
+            $('#bulkEditBookDetailsBtn').prop('disabled', true);
+            renderBooksGrid(allBooks, $('#filterStatus').val());
+        }
+
+        function stopBulkBookSelection() {
+            bulkBookSelectionMode = false;
+            bulkSelectedBookIDs.clear();
+            $('#bookBulkEditBar').addClass('d-none');
+            $('#bulkEditBookDetailsBtn').prop('disabled', false);
+            renderBooksGrid(allBooks, $('#filterStatus').val());
+        }
+
+        function selectAllFilteredBooks(render = true) {
+            bulkSelectedBookIDs.clear();
+            getCurrentlyFilteredBooks().forEach(book => {
+                bulkSelectedBookIDs.add(Number(book.bookID));
+            });
+            if (render) {
+                renderBooksGrid(allBooks, $('#filterStatus').val());
+            } else {
+                updateBulkBookSelectionUi();
+            }
+        }
+
+        function toggleBulkBookSelection(bookID) {
+            if (!bulkBookSelectionMode) return;
+            const id = Number(bookID);
+            if (bulkSelectedBookIDs.has(id)) {
+                bulkSelectedBookIDs.delete(id);
+            } else {
+                bulkSelectedBookIDs.add(id);
+            }
+            renderBooksGrid(allBooks, $('#filterStatus').val());
+        }
+
+        function updateBulkBookSelectionUi() {
+            const count = bulkSelectedBookIDs.size;
+            $('#bookBulkSelectionCount').text(count + ' selected');
+            $('#openBulkBookEditModalBtn').prop('disabled', count === 0);
+        }
+
+        function openBulkBookEditModal() {
+            const selectedBooks = allBooks.filter(book => bulkSelectedBookIDs.has(Number(book.bookID)));
+            if (!selectedBooks.length) {
+                Swal.fire('Select Books', 'Select at least one book to edit.', 'warning');
+                return;
+            }
+
+            const first = selectedBooks[0];
+            const bookType = first.book_type || (first.classID ? 'Class' : 'Other');
+
+            $('#bookForm')[0].reset();
+            $('#bookID').val('');
+            $('#bookType').val(bookType);
+            $('#bookClassID').val(first.classID || '');
+            $('#bookTitle').val(first.book_title || '');
+            $('#bookAuthor').val(first.author || '');
+            $('#bookPublisher').val(first.publisher || '');
+            $('#bookPublicationYear').val(first.publication_year || '');
+            $('#bookDescription').val(first.description || '');
+
+            toggleBookTypeFields();
+            if (bookType === 'Class' && first.classID) {
+                getSubjects(first.classID, first.subjectID);
+            } else {
+                $('#bookSubjectID').html('<option value="">Select Subject</option>');
+            }
+
+            $('#bookEntriesSection').addClass('d-none');
+            $('#bookStatusDiv').hide();
+            $('#bulkBookEditNotice').removeClass('d-none');
+            $('#bulkBookEditModalCount').text(selectedBooks.length);
+            $('#bookModalTitle').html('<i class="fa fa-pencil"></i> Edit Selected Book Details');
+            $('#saveBooksBtn, #saveBookBtn').addClass('d-none');
+            $('#saveBulkBookDetailsBtn').removeClass('d-none').prop('disabled', false)
+                .html('<i class="fa fa-save"></i> Update Selected Books');
+            $('#bookModal').modal('show');
+        }
+
+        function saveBulkBookDetails() {
+            const bookIDs = Array.from(bulkSelectedBookIDs);
+            const bookType = $('#bookType').val();
+            const title = String($('#bookTitle').val() || '').trim();
+
+            if (!bookIDs.length) {
+                Swal.fire('Select Books', 'No books are selected.', 'warning');
+                return;
+            }
+            if (!title) {
+                Swal.fire('Required', 'Book title is required.', 'warning');
+                return;
+            }
+            if (bookType === 'Class' && (!$('#bookClassID').val() || !$('#bookSubjectID').val())) {
+                Swal.fire('Required', 'Class and Subject are required for a Class Book.', 'warning');
+                return;
+            }
+
+            Swal.fire({
+                icon: 'question',
+                title: 'Update selected books?',
+                html: 'Update details for <strong>' + bookIDs.length + '</strong> selected book(s)?' +
+                    '<br><small>Unique IDs and circulation records will not change.</small>',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Update All Selected'
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+
+                const $button = $('#saveBulkBookDetailsBtn');
+                $button.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Updating...');
+
+                $.ajax({
+                    url: '{{ route("bulk_update_book_details") }}',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    data: JSON.stringify({
+                        bookIDs: bookIDs,
+                        book_type: bookType,
+                        classID: $('#bookClassID').val() || null,
+                        subjectID: $('#bookSubjectID').val() || null,
+                        book_title: title,
+                        author: $('#bookAuthor').val() || null,
+                        publisher: $('#bookPublisher').val() || null,
+                        publication_year: $('#bookPublicationYear').val() || null,
+                        description: $('#bookDescription').val() || null
+                    })
+                }).done(function(res) {
+                    if (!res.success) {
+                        Swal.fire('Error', res.message || 'Failed to update books.', 'error');
+                        return;
+                    }
+
+                    $('#bookModal').modal('hide');
+                    bulkBookSelectionMode = false;
+                    bulkSelectedBookIDs.clear();
+                    $('#bookBulkEditBar').addClass('d-none');
+                    $('#bulkEditBookDetailsBtn').prop('disabled', false);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Updated',
+                        text: res.message,
+                        confirmButtonColor: '#940000'
+                    });
+                    loadBooks();
+                }).fail(function(xhr) {
+                    Swal.fire(
+                        'Error',
+                        (xhr.responseJSON && xhr.responseJSON.message) || 'Failed to update selected books.',
+                        'error'
+                    );
+                }).always(function() {
+                    $button.prop('disabled', false)
+                        .html('<i class="fa fa-save"></i> Update Selected Books');
+                });
+            });
+        }
+
         function showAddBookModal() {
             $('#bookForm')[0].reset();
             $('#bookID').val('');
@@ -1625,7 +1919,8 @@
             $('#bookEntriesSection').removeClass('d-none');
             $('#bookModalTitle').html('<i class="fa fa-book"></i> Add New Book Entries');
             $('#saveBooksBtn').removeClass('d-none');
-            $('#saveBookBtn').addClass('d-none');
+            $('#saveBookBtn, #saveBulkBookDetailsBtn').addClass('d-none');
+            $('#bulkBookEditNotice').addClass('d-none');
             $('#bookStatusDiv').hide();
             $('#bookModal').modal('show');
         }
@@ -1820,7 +2115,8 @@
             if (book.classID) getSubjects(book.classID, book.subjectID);
             $('#isbnList').html(`<div class="row isbn-row mb-2"><div class="col-12"><label class="form-label font-weight-bold">ISBN</label><input type="text" class="form-control isbn-input" value="${book.isbn}" required></div></div>`);
             $('#bookEntriesSection').addClass('d-none'); $('#bookModalTitle').text('Edit Book');
-            $('#saveBooksBtn').addClass('d-none'); $('#saveBookBtn').removeClass('d-none');
+            $('#saveBooksBtn, #saveBulkBookDetailsBtn').addClass('d-none'); $('#saveBookBtn').removeClass('d-none');
+            $('#bulkBookEditNotice').addClass('d-none');
             $('#bookStatusDiv').show(); $('#bookDetailsModal').modal('hide'); $('#bookModal').modal('show');
         }
 
@@ -1867,6 +2163,7 @@
 
         // Global exports
         window.openBookDetails = openBookDetails;
+        window.toggleBulkBookSelection = toggleBulkBookSelection;
         window.openReturnModal = (id, date) => { $('#returnBorrowID').val(id); $('#returnExpectedDate').text(formatDate(date)); $('#returnModal').modal('show'); };
         window.loadBooks = loadBooks;
         window.showBorrowBookModal = showBorrowBookModal;

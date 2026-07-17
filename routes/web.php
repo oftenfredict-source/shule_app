@@ -3380,6 +3380,10 @@ Route::post("update_book/{bookID}", [
     LibraryController::class,
     "update_book",
 ])->name("update_book");
+Route::post("bulk_update_book_details", [
+    LibraryController::class,
+    "bulk_update_book_details",
+])->name("bulk_update_book_details");
 Route::delete("delete_book/{bookID}", [
     LibraryController::class,
     "delete_book",

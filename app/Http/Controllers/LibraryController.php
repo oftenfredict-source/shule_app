@@ -868,6 +868,118 @@ class LibraryController extends Controller
         }
     }
 
+    /**
+     * Update shared book details for selected physical copies.
+     * Unique IDs (isbn), circulation quantities, and copy statuses are preserved.
+     */
+    public function bulk_update_book_details(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+
+            if (!$schoolID) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'School ID not found in session.',
+                ], 400);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'bookIDs' => 'required|array|min:1|max:10000',
+                'bookIDs.*' => 'required|integer',
+                'book_type' => 'required|in:Class,Other',
+                'classID' => 'required_if:book_type,Class|nullable|integer|exists:classes,classID',
+                'subjectID' => 'required_if:book_type,Class|nullable|integer|exists:school_subjects,subjectID',
+                'book_title' => 'required|string|max:255',
+                'author' => 'nullable|string|max:255',
+                'publisher' => 'nullable|string|max:255',
+                'publication_year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
+                'description' => 'nullable|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . implode(', ', $validator->errors()->all()),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $bookIDs = collect($request->input('bookIDs', []))
+                ->map(fn ($id) => (int) $id)
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($bookIDs->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No books selected.',
+                ], 422);
+            }
+
+            $bookType = $request->input('book_type');
+
+            if ($bookType === 'Class') {
+                $classExists = ClassModel::where('classID', $request->classID)
+                    ->where('schoolID', $schoolID)
+                    ->exists();
+                if (!$classExists) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Class not found or does not belong to this school.',
+                    ], 404);
+                }
+
+                $subjectExists = SchoolSubject::where('subjectID', $request->subjectID)
+                    ->where('schoolID', $schoolID)
+                    ->exists();
+                if (!$subjectExists) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Subject not found or does not belong to this school.',
+                    ], 404);
+                }
+            }
+
+            $selectedCount = Book::where('schoolID', $schoolID)
+                ->whereIn('bookID', $bookIDs)
+                ->count();
+
+            if ($selectedCount !== $bookIDs->count()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'One or more selected books were not found in this school. Refresh and try again.',
+                ], 422);
+            }
+
+            Book::where('schoolID', $schoolID)
+                ->whereIn('bookID', $bookIDs)
+                ->update([
+                    'book_type' => $bookType,
+                    'classID' => $bookType === 'Class' ? $request->classID : null,
+                    'subjectID' => $bookType === 'Class' ? $request->subjectID : null,
+                    'book_title' => $request->book_title,
+                    'author' => $request->filled('author') ? $request->author : null,
+                    'publisher' => $request->filled('publisher') ? $request->publisher : null,
+                    'publication_year' => $request->filled('publication_year') ? $request->publication_year : null,
+                    'description' => $request->filled('description') ? $request->description : null,
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Book details updated for {$selectedCount} selected book(s). Unique IDs were preserved.",
+                'updated' => $selectedCount,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error bulk updating book details: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update selected book details: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function delete_book($bookID)
     {
         try {
