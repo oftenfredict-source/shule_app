@@ -146,9 +146,22 @@
 
         function buildStudentActionsHtml(student, status, compact) {
             let items = '';
+            const isNotEnrolled = student.is_not_enrolled === true ||
+                status === 'Not Enrolled' ||
+                status === 'NotEnrolled';
 
             items += '<button type="button" class="dropdown-item view-student-btn" data-student-id="' + student.studentID + '">' +
                 '<i class="bi bi-eye text-info"></i> View Details</button>';
+
+            if (canCreate && isNotEnrolled) {
+                items += '<button type="button" class="dropdown-item enroll-student-now-btn" data-student-id="' + student.studentID + '" data-student-name="' + escapeHtmlStudent(student.full_name || '') + '">' +
+                    '<i class="bi bi-person-plus" style="color:#940000;"></i> Enroll Now</button>';
+            }
+
+            if (canUpdate && isNotEnrolled) {
+                items += '<button type="button" class="dropdown-item edit-student-btn" data-student-id="' + student.studentID + '">' +
+                    '<i class="bi bi-pencil-square text-warning"></i> Edit Student</button>';
+            }
 
             if (canUpdate && status === 'Active') {
                 items += '<button type="button" class="dropdown-item edit-student-btn" data-student-id="' + student.studentID + '">' +
@@ -2174,6 +2187,17 @@
         // Subclass, Gender, Health filters
         $('#subclassFilter, #genderFilter, #healthFilter').on('change', function() {
             handleFilterChange();
+        });
+
+        // Enroll Now (not-enrolled students only)
+        $(document).on('click', '.enroll-student-now-btn', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const studentID = $(this).data('student-id');
+            const studentName = $(this).data('student-name') || '';
+            if (typeof openEnrollStudentModal === 'function') {
+                openEnrollStudentModal({ studentID: studentID, studentName: studentName });
+            }
         });
 
         // View Student Details

@@ -1356,9 +1356,9 @@
                         <button class="dropdown-item" id="quickRegisterStudentBtn" type="button" role="menuitem">
                             <i class="bi bi-lightning-charge-fill" style="color:#940000;"></i> Quick Registration
                         </button>
-                        <a href="{{ route('quick_register_template') }}" class="dropdown-item" target="_blank" role="menuitem">
+                        <button class="dropdown-item" id="quickTemplateDownloadBtn" type="button" role="menuitem">
                             <i class="bi bi-download" style="color:#940000;"></i> Quick Template
-                        </a>
+                        </button>
                         <button class="dropdown-item" id="quickImportStudentBtn" type="button" role="menuitem">
                             <i class="bi bi-file-earmark-excel" style="color:#940000;"></i> Quick Import
                         </button>
@@ -1437,6 +1437,7 @@
                     <label class="form-label fw-bold mb-2" for="statusFilter" title="Enrollment status for the selected academic year">Enrollment Status</label>
                     <select class="form-select" id="statusFilter" title="Enrollment status for the selected academic year">
                         <option value="Active" selected>Active</option>
+                        <option value="NotEnrolled">Not Enrolled</option>
                         <option value="Completed">Completed</option>
                         <option value="Transferred">Transferred</option>
                         <option value="Dropped">Dropped</option>

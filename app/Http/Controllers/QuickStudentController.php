@@ -914,12 +914,26 @@ class QuickStudentController extends Controller
     /**
      * Minimal Excel template for Quick Registration (no class / no enrollment).
      */
-    public function downloadQuickTemplate()
+    public function downloadQuickTemplate(Request $request)
     {
         if (!$this->canCreateStudents()) {
             return redirect()->back()->with('error', 'Unauthorized');
         }
 
+        $withDemo = $request->boolean('with_demo');
+        $spreadsheet = $this->buildQuickRegistrationSpreadsheet($withDemo);
+        $filename = $withDemo
+            ? 'Quick_Student_Registration_Demo_2000_' . date('Y-m-d') . '.xlsx'
+            : 'Quick_Student_Registration_Template.xlsx';
+
+        return $this->downloadSpreadsheet($spreadsheet, $filename);
+    }
+
+    /**
+     * Build the Quick Registration workbook (empty or with demo rows).
+     */
+    private function buildQuickRegistrationSpreadsheet(bool $withDemo): \PhpOffice\PhpSpreadsheet\Spreadsheet
+    {
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Quick Registration');
@@ -936,41 +950,49 @@ class QuickStudentController extends Controller
             'Parent Gender (Male/Female)*',
         ];
 
-        foreach ($columns as $i => $column) {
-            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
-            $sheet->setCellValue($col . '1', $column);
-            $sheet->getStyle($col . '1')->getFont()->setBold(true);
-            $sheet->getColumnDimension($col)->setAutoSize(true);
+        $sheetData = [$columns];
+
+        if ($withDemo) {
+            foreach ($this->generateQuickDemoStudentRows(self::QUICK_DEMO_ROW_COUNT) as $row) {
+                $sheetData[] = $row;
+            }
+        } else {
+            $sheetData[] = ['Juma', 'Ali', 'Hassan', 'Male', '255712345678', 'Amina', '', 'Hassan', 'Female'];
         }
 
-        // Example row
-        $sheet->setCellValue('A2', 'Juma');
-        $sheet->setCellValue('B2', 'Ali');
-        $sheet->setCellValue('C2', 'Hassan');
-        $sheet->setCellValue('D2', 'Male');
-        $sheet->setCellValue('E2', '255712345678');
-        $sheet->setCellValue('F2', 'Amina');
-        $sheet->setCellValue('G2', '');
-        $sheet->setCellValue('H2', 'Hassan');
-        $sheet->setCellValue('I2', 'Female');
-        $sheet->getStyle('A2:I2')->getFont()->setItalic(true)->getColor()->setRGB('888888');
+        $sheet->fromArray($sheetData, null, 'A1');
+
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($columns));
+        $sheet->getStyle('A1:' . $lastCol . '1')->getFont()->setBold(true);
+        for ($i = 1; $i <= count($columns); $i++) {
+            $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i))->setAutoSize(true);
+        }
+
+        if (!$withDemo) {
+            $sheet->getStyle('A2:I2')->getFont()->setItalic(true)->getColor()->setRGB('888888');
+        }
 
         $sheet2 = $spreadsheet->createSheet();
         $sheet2->setTitle('Instructions');
         $sheet2->setCellValue('A1', 'Quick Registration Import');
         $sheet2->getStyle('A1')->getFont()->setBold(true);
-        $sheet2->setCellValue('A3', '1. Fill one student per row (delete the grey example row).');
-        $sheet2->setCellValue('A4', '2. Required: Student first/last name, gender, parent phone, parent first/last name, parent gender.');
+        $sheet2->setCellValue('A3', '1. Fill one student per row (delete the grey example row if empty template).');
+        $sheet2->setCellValue('A4', '2. Required: Student first/last name, gender, parent phone. Parent names + gender only if phone is NEW in this school.');
         $sheet2->setCellValue('A5', '3. Parent phone must be 255 + 9 digits (e.g. 255712345678). 0712… is also accepted.');
         $sheet2->setCellValue('A6', '4. If parent phone already exists in this school, that parent is reused (new parent names ignored for that phone).');
         $sheet2->setCellValue('A7', '5. Students are registered WITHOUT class enrollment — enroll later via Enroll Student.');
         $sheet2->setCellValue('A8', '6. Admission numbers are auto-generated.');
+        if ($withDemo) {
+            $sheet2->setCellValue('A9', '7. This file contains ' . self::QUICK_DEMO_ROW_COUNT . ' demo students (Tanzanian names) for testing — upload or use Import with demo data.');
+        }
         $sheet2->getColumnDimension('A')->setWidth(100);
 
         $spreadsheet->setActiveSheetIndex(0);
 
-        return $this->downloadSpreadsheet($spreadsheet, 'Quick_Student_Registration_Template.xlsx');
+        return $spreadsheet;
     }
+
+    private const QUICK_DEMO_ROW_COUNT = 2000;
 
     /**
      * Export students with no Active enrollment (quick-registered / free to enroll).
@@ -1060,11 +1082,6 @@ class QuickStudentController extends Controller
             return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
         }
 
-        $file = $request->file('excel_file');
-        if (!$file) {
-            return response()->json(['success' => false, 'message' => 'Please upload an Excel file.']);
-        }
-
         try {
             @set_time_limit(0);
             @ini_set('max_execution_time', '0');
@@ -1073,68 +1090,346 @@ class QuickStudentController extends Controller
             // ignore
         }
 
-        try {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getPathname());
-            $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
-            array_shift($rows);
+        $withDemo = $request->boolean('with_demo');
+        $file = $request->file('excel_file');
 
-            DB::beginTransaction();
+        if ($withDemo) {
+            $rows = $file
+                ? $this->readQuickImportRowsFromSpreadsheet($file)
+                : $this->generateQuickDemoStudentRows(self::QUICK_DEMO_ROW_COUNT);
+
+            $parsed = $this->parseQuickImportRows($rows, !$file);
+            if (empty($parsed['items'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => count($parsed['errors']) > 0
+                        ? 'No students imported. ' . implode(' | ', array_slice($parsed['errors'], 0, 5))
+                        : 'No valid demo rows found.',
+                    'imported' => 0,
+                    'errors' => $parsed['errors'],
+                ]);
+            }
+
+            return $this->importQuickDemoBulk((int) $schoolID, $parsed['items']);
+        }
+
+        if (!$file) {
+            return response()->json(['success' => false, 'message' => 'Please upload an Excel file or enable Import with demo data.']);
+        }
+
+        try {
+            $rows = $this->readQuickImportRowsFromSpreadsheet($file);
+
+            return $this->processQuickImportRows((int) $schoolID, $rows, false, false);
+        } catch (\Throwable $e) {
+            Log::error('Quick import error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => SafeErrorMessage::from($e, 'Error importing file. Please check the template and try again.'),
+            ]);
+        }
+    }
+
+    /**
+     * @return array<int, array<int, mixed>>
+     */
+    private function readQuickImportRowsFromSpreadsheet($file): array
+    {
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getPathname());
+        $worksheet = $this->resolveQuickImportWorksheet($spreadsheet);
+        $rows = $worksheet->toArray();
+
+        if (!empty($rows) && stripos((string) ($rows[0][0] ?? ''), 'student') !== false) {
+            array_shift($rows);
+        } else {
+            array_shift($rows);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<int, array<int, mixed>>  $rows
+     * @return array{items: array<int, array<string, mixed>>, errors: array<int, string>}
+     */
+    private function parseQuickImportRows(array $rows, bool $skipExampleRow): array
+    {
+        $items = [];
+        $errors = [];
+
+        foreach ($rows as $index => $row) {
+            $rowNum = $index + 2;
+            $row = array_pad($row, 9, null);
+
+            $sFirst = trim((string) ($row[0] ?? ''));
+            $sMiddle = trim((string) ($row[1] ?? ''));
+            $sLast = trim((string) ($row[2] ?? ''));
+            $sGender = $this->normalizeQuickGender($row[3] ?? '');
+            $pPhoneRaw = trim((string) ($row[4] ?? ''));
+            $pFirst = trim((string) ($row[5] ?? ''));
+            $pMiddle = trim((string) ($row[6] ?? ''));
+            $pLast = trim((string) ($row[7] ?? ''));
+            $pGender = $this->normalizeQuickGender($row[8] ?? '');
+
+            if ($sFirst === '' && $sLast === '' && $pPhoneRaw === '') {
+                continue;
+            }
+
+            if ($skipExampleRow && strcasecmp($sFirst, 'Juma') === 0 && strcasecmp($sLast, 'Hassan') === 0 && str_contains($pPhoneRaw, '712345678')) {
+                continue;
+            }
+
+            if ($sFirst === '' || $sLast === '') {
+                $errors[] = "Row {$rowNum}: Student first name and last name are required.";
+                continue;
+            }
+            if (!$sGender) {
+                $errors[] = "Row {$rowNum}: Student gender must be Male or Female.";
+                continue;
+            }
+
+            $phone = ParentPhone::normalize($pPhoneRaw);
+            if (!$phone) {
+                $errors[] = "Row {$rowNum}: Valid parent phone is required (255 + 9 digits).";
+                continue;
+            }
+
+            $items[] = [
+                'row_num' => $rowNum,
+                'first_name' => $sFirst,
+                'middle_name' => $sMiddle !== '' ? $sMiddle : null,
+                'last_name' => $sLast,
+                'gender' => $sGender,
+                'phone' => $phone,
+                'parent_first_name' => $pFirst,
+                'parent_middle_name' => $pMiddle !== '' ? $pMiddle : null,
+                'parent_last_name' => $pLast,
+                'parent_gender' => $pGender ?? '',
+            ];
+        }
+
+        return ['items' => $items, 'errors' => $errors];
+    }
+
+    /**
+     * Fast bulk path for demo imports (2,000 rows) — batch inserts, no SMS, no per-row locks.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function importQuickDemoBulk(int $schoolID, array $items): \Illuminate\Http\JsonResponse
+    {
+        try {
+            DB::connection()->disableQueryLog();
+
+            $school = School::find($schoolID);
+            if (!$school) {
+                return response()->json(['success' => false, 'message' => 'School not found'], 400);
+            }
+
+            $now = now();
+            $today = $now->toDateString();
+            $studentPassword = Hash::make('demo');
+            $year = date('Y');
+            $schoolNumber = $school->registration_number ?? ('SCH' . $schoolID);
+            $admPrefix = $schoolNumber . '/';
+            $admSuffix = '/' . $year;
+
+            $parentByPhone = ParentModel::where('schoolID', $schoolID)
+                ->whereNotNull('phone')
+                ->get(['parentID', 'phone'])
+                ->mapWithKeys(function ($parent) {
+                    $normalized = ParentPhone::normalize($parent->phone);
+                    return $normalized ? [$normalized => (int) $parent->parentID] : [];
+                })
+                ->all();
+
+            $lastAdmission = Student::where('schoolID', $schoolID)
+                ->where('admission_number', 'like', $admPrefix . '%' . $admSuffix)
+                ->orderByDesc('admission_number')
+                ->value('admission_number');
+
+            $admSeq = 1;
+            if ($lastAdmission && preg_match('/\/(\d+)\/' . preg_quote($year, '/') . '$/', $lastAdmission, $matches)) {
+                $admSeq = (int) $matches[1] + 1;
+            }
+
+            $nextStudentId = max((int) (Student::max('studentID') ?? 0), 1000) + 1;
+
             $successCount = 0;
             $errors = [];
+            $chunkSize = 250;
+
+            foreach (array_chunk($items, $chunkSize) as $chunk) {
+                DB::beginTransaction();
+                try {
+                    $phonesToCreate = [];
+                    foreach ($chunk as $item) {
+                        if (!isset($parentByPhone[$item['phone']])) {
+                            $phonesToCreate[$item['phone']] = $item;
+                        }
+                    }
+
+                    if (!empty($phonesToCreate)) {
+                        $parentRows = [];
+                        foreach ($phonesToCreate as $phone => $item) {
+                            $pGender = $item['parent_gender'] ?: 'Male';
+                            $pFirst = $item['parent_first_name'] ?: 'Demo';
+                            $pLast = $item['parent_last_name'] ?: 'Parent';
+
+                            $parentRows[] = [
+                                'schoolID' => $schoolID,
+                                'first_name' => $pFirst,
+                                'middle_name' => $item['parent_middle_name'],
+                                'last_name' => $pLast,
+                                'gender' => in_array($pGender, ['Male', 'Female'], true) ? $pGender : 'Male',
+                                'phone' => $phone,
+                                'created_at' => $now,
+                                'updated_at' => $now,
+                            ];
+                        }
+
+                        foreach (array_chunk($parentRows, 100) as $parentBatch) {
+                            DB::table('parents')->insert($parentBatch);
+                        }
+
+                        $createdParents = ParentModel::where('schoolID', $schoolID)
+                            ->whereIn('phone', array_keys($phonesToCreate))
+                            ->get(['parentID', 'phone']);
+
+                        foreach ($createdParents as $parent) {
+                            $normalized = ParentPhone::normalize($parent->phone);
+                            if ($normalized) {
+                                $parentByPhone[$normalized] = (int) $parent->parentID;
+                            }
+                        }
+                    }
+
+                    $studentRows = [];
+                    $userRows = [];
+
+                    foreach ($chunk as $item) {
+                        $parentId = $parentByPhone[$item['phone']] ?? null;
+                        if (!$parentId) {
+                            $errors[] = 'Row ' . $item['row_num'] . ': Could not resolve parent.';
+                            continue;
+                        }
+
+                        $studentId = $nextStudentId++;
+                        $fingerprintId = (string) $studentId;
+                        $admissionNumber = $admPrefix . str_pad((string) $admSeq++, 4, '0', STR_PAD_LEFT) . $admSuffix;
+
+                        $studentRows[] = [
+                            'studentID' => $studentId,
+                            'schoolID' => $schoolID,
+                            'subclassID' => null,
+                            'parentID' => $parentId,
+                            'first_name' => $item['first_name'],
+                            'middle_name' => $item['middle_name'],
+                            'last_name' => $item['last_name'],
+                            'gender' => $item['gender'],
+                            'admission_number' => $admissionNumber,
+                            'fingerprint_id' => $fingerprintId,
+                            'sent_to_device' => false,
+                            'device_sent_at' => null,
+                            'fingerprint_capture_count' => 0,
+                            'admission_date' => $today,
+                            'photo' => null,
+                            'status' => 'Active',
+                            'nationality' => 'Tanzanian',
+                            'registration_status' => 'Draft',
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+
+                        $userRows[] = [
+                            'name' => $admissionNumber,
+                            'email' => $admissionNumber . '@student.local',
+                            'password' => $studentPassword,
+                            'user_type' => 'student',
+                            'fingerprint_id' => $fingerprintId,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }
+
+                    if (!empty($studentRows)) {
+                        foreach (array_chunk($studentRows, 100) as $batch) {
+                            DB::table('students')->insert($batch);
+                        }
+                        foreach (array_chunk($userRows, 100) as $batch) {
+                            DB::table('users')->insert($batch);
+                        }
+                        $successCount += count($studentRows);
+                    }
+
+                    DB::commit();
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    Log::error('Quick demo bulk chunk failed: ' . $e->getMessage());
+                    $errors[] = 'Import stopped at ' . $successCount . ' students: ' . $e->getMessage();
+                    break;
+                }
+            }
+
+            if ($successCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => count($errors) > 0
+                        ? 'No students imported. ' . implode(' | ', array_slice($errors, 0, 5))
+                        : 'No students imported.',
+                    'imported' => 0,
+                    'errors' => $errors,
+                ]);
+            }
+
+            $msg = "Successfully imported {$successCount} demo student(s) (not enrolled). No parent SMS sent.";
+            if (count($errors) > 0) {
+                $msg .= ' Some rows failed: ' . implode(' | ', array_slice($errors, 0, 3));
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'imported' => $successCount,
+                'errors' => $errors,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Quick demo bulk import error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => SafeErrorMessage::from($e, 'Demo import failed. Please try again.'),
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<int, array<int, mixed>>  $rows
+     */
+    private function processQuickImportRows(int $schoolID, array $rows, bool $skipExampleRow, bool $skipParentSms): \Illuminate\Http\JsonResponse
+    {
+        $parsed = $this->parseQuickImportRows($rows, $skipExampleRow);
+
+        try {
+            DB::beginTransaction();
+            $successCount = 0;
+            $errors = $parsed['errors'];
             $newParentsSms = 0;
 
-            foreach ($rows as $index => $row) {
-                $rowNum = $index + 2;
-                $row = array_pad($row, 9, null);
-
-                $sFirst = trim((string) ($row[0] ?? ''));
-                $sMiddle = trim((string) ($row[1] ?? ''));
-                $sLast = trim((string) ($row[2] ?? ''));
-                $sGender = trim((string) ($row[3] ?? ''));
-                $pPhoneRaw = trim((string) ($row[4] ?? ''));
-                $pFirst = trim((string) ($row[5] ?? ''));
-                $pMiddle = trim((string) ($row[6] ?? ''));
-                $pLast = trim((string) ($row[7] ?? ''));
-                $pGender = trim((string) ($row[8] ?? ''));
-
-                // Skip empty / example-looking blank rows
-                if ($sFirst === '' && $sLast === '' && $pPhoneRaw === '') {
-                    continue;
-                }
-
-                // Skip italic example if left as-is (optional soft skip)
-                if (strcasecmp($sFirst, 'Juma') === 0 && strcasecmp($sLast, 'Hassan') === 0 && str_contains($pPhoneRaw, '712345678')) {
-                    continue;
-                }
-
-                if ($sFirst === '' || $sLast === '' || $sGender === '') {
-                    $errors[] = "Row {$rowNum}: Student first name, last name and gender are required.";
-                    continue;
-                }
-                if (!in_array($sGender, ['Male', 'Female'], true)) {
-                    $errors[] = "Row {$rowNum}: Student gender must be Male or Female.";
-                    continue;
-                }
-
-                $phone = ParentPhone::normalize($pPhoneRaw);
-                if (!$phone) {
-                    $errors[] = "Row {$rowNum}: Valid parent phone is required (255 + 9 digits).";
-                    continue;
-                }
+            foreach ($parsed['items'] as $item) {
+                $rowNum = $item['row_num'];
 
                 try {
                     $result = $this->createQuickStudentRecord((int) $schoolID, [
-                        'first_name' => $sFirst,
-                        'middle_name' => $sMiddle !== '' ? $sMiddle : null,
-                        'last_name' => $sLast,
-                        'gender' => $sGender,
-                        'parent_phone' => $phone,
-                        'parent_first_name' => $pFirst,
-                        'parent_middle_name' => $pMiddle !== '' ? $pMiddle : null,
-                        'parent_last_name' => $pLast,
-                        'parent_gender' => $pGender,
-                    ]);
+                        'first_name' => $item['first_name'],
+                        'middle_name' => $item['middle_name'],
+                        'last_name' => $item['last_name'],
+                        'gender' => $item['gender'],
+                        'parent_phone' => $item['phone'],
+                        'parent_first_name' => $item['parent_first_name'],
+                        'parent_middle_name' => $item['parent_middle_name'],
+                        'parent_last_name' => $item['parent_last_name'],
+                        'parent_gender' => $item['parent_gender'],
+                    ], $skipParentSms);
 
                     if (!$result['success']) {
                         $errors[] = "Row {$rowNum}: " . $result['message'];
@@ -1151,6 +1446,17 @@ class QuickStudentController extends Controller
             }
 
             DB::commit();
+
+            if ($successCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => count($errors) > 0
+                        ? 'No students imported. ' . implode(' | ', array_slice($errors, 0, 5))
+                        : 'No students imported. Fill the "Quick Registration" sheet (not Instructions) and remove the grey example row.',
+                    'imported' => 0,
+                    'errors' => $errors,
+                ]);
+            }
 
             $msg = "Successfully imported {$successCount} student(s) (not enrolled).";
             if ($newParentsSms > 0) {
@@ -1171,7 +1477,7 @@ class QuickStudentController extends Controller
             Log::error('Quick import error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
-                'message' => SafeErrorMessage::from($e, 'Error importing file. Please check the template and try again.'),
+                'message' => SafeErrorMessage::from($e, 'Error importing students. Please try again.'),
             ]);
         }
     }
@@ -1183,8 +1489,13 @@ class QuickStudentController extends Controller
      * @param  array<string,mixed>  $data
      * @return array{success:bool,message:string,admission_number?:string,is_new_parent?:bool,parent_sms_sent?:bool}
      */
-    private function createQuickStudentRecord(int $schoolID, array $data): array
+    private function createQuickStudentRecord(int $schoolID, array $data, bool $skipParentSms = false): array
     {
+        $normalizedPhone = ParentPhone::normalize($data['parent_phone'] ?? null);
+        if ($normalizedPhone && str_starts_with($normalizedPhone, '2557999')) {
+            $skipParentSms = true;
+        }
+
         $parent = ParentPhone::findInSchool($schoolID, $data['parent_phone'] ?? null);
         $isNewParent = false;
 
@@ -1199,8 +1510,8 @@ class QuickStudentController extends Controller
 
             $pFirst = trim((string) ($data['parent_first_name'] ?? ''));
             $pLast = trim((string) ($data['parent_last_name'] ?? ''));
-            $pGender = trim((string) ($data['parent_gender'] ?? ''));
-            if ($pFirst === '' || $pLast === '' || !in_array($pGender, ['Male', 'Female'], true)) {
+            $pGender = $this->normalizeQuickGender($data['parent_gender'] ?? '');
+            if ($pFirst === '' || $pLast === '' || !$pGender) {
                 return [
                     'success' => false,
                     'message' => 'New parent requires first name, last name and gender (Male/Female).',
@@ -1284,7 +1595,7 @@ class QuickStudentController extends Controller
         ]);
 
         $parentSmsSent = false;
-        if ($isNewParent && $parent->phone) {
+        if (!$skipParentSms && $isNewParent && $parent->phone) {
             try {
                 $school = School::find($schoolID);
                 $smsService = new SmsService();
@@ -1307,5 +1618,116 @@ class QuickStudentController extends Controller
             'is_new_parent' => $isNewParent,
             'parent_sms_sent' => $parentSmsSent,
         ];
+    }
+
+    /**
+     * Prefer the Quick Registration sheet when the workbook has multiple tabs.
+     */
+    private function resolveQuickImportWorksheet(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet): \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet
+    {
+        foreach ($spreadsheet->getAllSheets() as $sheet) {
+            if (strcasecmp(trim((string) $sheet->getTitle()), 'Quick Registration') === 0) {
+                return $sheet;
+            }
+        }
+
+        return $spreadsheet->getActiveSheet();
+    }
+
+    /**
+     * Accept Male/Female in any common casing or shorthand.
+     */
+    private function normalizeQuickGender($value): ?string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return null;
+        }
+
+        $lower = strtolower($raw);
+        if (in_array($lower, ['male', 'm', 'me', 'mvulana', 'kiume'], true)) {
+            return 'Male';
+        }
+        if (in_array($lower, ['female', 'f', 'ke', 'msichana', 'kike'], true)) {
+            return 'Female';
+        }
+        if ($raw === 'Male' || $raw === 'Female') {
+            return $raw;
+        }
+
+        return null;
+    }
+
+    /**
+     * Generate demo quick-registration rows (Tanzanian / African names).
+     *
+     * @return array<int, array{0:string,1:string,2:string,3:string,4:string,5:string,6:string,7:string,8:string}>
+     */
+    private function generateQuickDemoStudentRows(int $count): array
+    {
+        $maleFirst = [
+            'Juma', 'Hassan', 'Rajabu', 'Musa', 'Omari', 'Hamisi', 'Yusuf', 'Ibrahim', 'Mohamed', 'Abdallah',
+            'Salim', 'Rashid', 'Dickson', 'Johnson', 'Frank', 'Joseph', 'Godfrey', 'Patrick', 'Michael', 'Emmanuel',
+            'David', 'Peter', 'John', 'James', 'Charles', 'George', 'Robert', 'William', 'Thomas', 'Daniel',
+            'Selemani', 'Bakari', 'Kassim', 'Ramadhani', 'Baraka', 'Elias', 'Fredrick', 'Goodluck', 'Ismail', 'Jafari',
+        ];
+        $femaleFirst = [
+            'Asha', 'Fatuma', 'Neema', 'Glory', 'Amina', 'Rehema', 'Zainabu', 'Mariam', 'Halima', 'Khadija',
+            'Grace', 'Mary', 'Anna', 'Elizabeth', 'Sarah', 'Rose', 'Agnes', 'Joyce', 'Janet', 'Christina',
+            'Catherine', 'Helen', 'Lucy', 'Irene', 'Pendo', 'Tumaini', 'Faraja', 'Upendo', 'Mwanahamisi', 'Mariam',
+            'Stella', 'Violet', 'Winfrida', 'Rehema', 'Neema', 'Salma', 'Hadija', 'Mwanajuma', 'Latifa', 'Nasra',
+        ];
+        $middle = [
+            'Ali', 'Said', 'Mohamed', 'Abdallah', 'Omary', 'Joseph', 'Peter', 'Paul', 'John', 'Hassan',
+            'Mwinyi', 'Kassim', 'Bakari', 'Rajabu', 'Selemani', 'Yusuph', 'Juma', 'Musa', 'Hamisi', 'Salim',
+        ];
+        $last = [
+            'Hassan', 'Mwinyi', 'Kimaro', 'Lyimo', 'Mussa', 'Juma', 'Rashid', 'Salim', 'Mkumbo', 'Moshi',
+            'Kileo', 'Shirima', 'Malecela', 'Nnko', 'Temu', 'Massawe', 'Mwangosi', 'Urassa', 'Fernando', 'Msuya',
+            'Temba', 'Mwakalinga', 'Mfinanga', 'Mrema', 'Mwakapenda', 'Ngowi', 'Macha', 'Majaliwa', 'Mlowe', 'Masanja',
+            'Mbuya', 'Mchome', 'Mdemu', 'Mhando', 'Mkiva', 'Mollel', 'Mosha', 'Msoffe', 'Mtui', 'Mwambene',
+        ];
+        $parentMaleFirst = [
+            'Juma', 'Hassan', 'Rajabu', 'Musa', 'Omari', 'Hamisi', 'Salim', 'Rashid', 'Mohamed', 'Abdallah',
+            'Yusuf', 'Ibrahim', 'Peter', 'John', 'James', 'Joseph', 'Frank', 'Dickson', 'Emmanuel', 'Godfrey',
+        ];
+        $parentFemaleFirst = [
+            'Asha', 'Fatuma', 'Amina', 'Rehema', 'Zainabu', 'Mariam', 'Halima', 'Khadija', 'Neema', 'Mary',
+            'Grace', 'Anna', 'Elizabeth', 'Sarah', 'Rose', 'Agnes', 'Joyce', 'Janet', 'Mwanahamisi', 'Salma',
+        ];
+
+        $rows = [];
+        for ($i = 1; $i <= $count; $i++) {
+            $isMale = ($i % 2 === 1);
+            $sGender = $isMale ? 'Male' : 'Female';
+            $sFirstPool = $isMale ? $maleFirst : $femaleFirst;
+            $sFirst = $sFirstPool[($i - 1) % count($sFirstPool)];
+            $sMiddle = $middle[($i + 3) % count($middle)];
+            $sLast = $last[($i * 7 + 11) % count($last)];
+
+            // Unique demo phones: 2557999XXXXX (demo range — no SMS)
+            $phone = '2557999' . str_pad((string) $i, 5, '0', STR_PAD_LEFT);
+
+            $parentIsMale = (($i + 5) % 3 !== 0);
+            $pGender = $parentIsMale ? 'Male' : 'Female';
+            $pFirstPool = $parentIsMale ? $parentMaleFirst : $parentFemaleFirst;
+            $pFirst = $pFirstPool[($i + 2) % count($pFirstPool)];
+            $pMiddle = $middle[($i + 9) % count($middle)];
+            $pLast = $last[($i * 13 + 5) % count($last)];
+
+            $rows[] = [
+                $sFirst,
+                $sMiddle,
+                $sLast,
+                $sGender,
+                $phone,
+                $pFirst,
+                $pMiddle,
+                $pLast,
+                $pGender,
+            ];
+        }
+
+        return $rows;
     }
 }

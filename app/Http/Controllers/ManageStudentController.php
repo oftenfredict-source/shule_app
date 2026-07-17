@@ -1992,7 +1992,9 @@ class ManageStudentController extends Controller
             $promotionStatus
         );
 
-        $students = $studentsCollection->map(function($student) use ($enrollmentMap, $enrollmentStatus) {
+        $isNotEnrolledFilter = $this->isNotEnrolledStatusFilter($enrollmentStatus);
+
+        $students = $studentsCollection->map(function($student) use ($enrollmentMap, $enrollmentStatus, $isNotEnrolledFilter) {
             $studentImgPath = \App\Support\UserImageUrl::forGender(
                 $student->photo,
                 $student->gender
@@ -2003,10 +2005,12 @@ class ManageStudentController extends Controller
             $classIDValue = null;
             $subclassIDValue = $student->subclassID;
             $enrollmentID = null;
-            $rowEnrollmentStatus = $enrollmentStatus;
+            $rowEnrollmentStatus = $isNotEnrolledFilter ? 'Not Enrolled' : $enrollmentStatus;
             $rowPromotionStatus = null;
 
-            if ($enrollment) {
+            if ($isNotEnrolledFilter) {
+                $classLabel = 'Not Enrolled';
+            } elseif ($enrollment) {
                 $enrollmentID = $enrollment->enrollmentID;
                 $rowEnrollmentStatus = $enrollment->status ?: $enrollmentStatus;
                 $rowPromotionStatus = $enrollment->promotion_status ?: 'Pending';
@@ -2037,6 +2041,7 @@ class ManageStudentController extends Controller
                 'photo' => $studentImgPath,
                 'status' => $rowEnrollmentStatus,
                 'enrollment_status' => $rowEnrollmentStatus,
+                'is_not_enrolled' => $isNotEnrolledFilter,
                 'promotion_status' => $rowPromotionStatus,
                 'student_record_status' => $student->status,
                 'class' => $classLabel,
@@ -2087,12 +2092,17 @@ class ManageStudentController extends Controller
      */
     private function normalizeEnrollmentStatusFilter($status): string
     {
-        $allowed = ['Active', 'Completed', 'Transferred', 'Dropped', 'Cancelled'];
+        $allowed = ['Active', 'Completed', 'Transferred', 'Dropped', 'Cancelled', 'NotEnrolled'];
         $status = is_string($status) ? trim($status) : '';
         if ($status !== '' && in_array($status, $allowed, true)) {
             return $status;
         }
         return 'Active';
+    }
+
+    private function isNotEnrolledStatusFilter(string $enrollmentStatus): bool
+    {
+        return $enrollmentStatus === 'NotEnrolled';
     }
 
     /**
@@ -2125,6 +2135,32 @@ class ManageStudentController extends Controller
             : (empty($academicYearIDs) ? [] : [(int) $academicYearIDs]);
         $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($enrollmentStatus);
         $promotionStatus = $this->normalizePromotionStatusFilter($promotionStatus);
+
+        if ($this->isNotEnrolledStatusFilter($enrollmentStatus)) {
+            if ($promotionStatus !== '') {
+                $query->whereRaw('1 = 0');
+                return;
+            }
+
+            if (!$this->schoolHasEnrollments($schoolID)) {
+                $query->whereNull('subclassID');
+                return;
+            }
+
+            $query->whereNotExists(function ($q) use ($schoolID, $yearIDs) {
+                $q->select(DB::raw(1))
+                    ->from('student_enrollments')
+                    ->whereColumn('student_enrollments.studentID', 'students.studentID')
+                    ->where('student_enrollments.schoolID', $schoolID)
+                    ->where('student_enrollments.status', 'Active');
+
+                if (!empty($yearIDs)) {
+                    $q->whereIn('student_enrollments.academic_yearID', $yearIDs);
+                }
+            });
+
+            return;
+        }
 
         if (!$this->schoolHasEnrollments($schoolID)) {
             // Legacy schools with empty enrollments table — approximate via students.status
@@ -2196,6 +2232,10 @@ class ManageStudentController extends Controller
             : (empty($academicYearIDs) ? [] : [(int) $academicYearIDs]);
 
         $enrollmentStatus = $this->normalizeEnrollmentStatusFilter($enrollmentStatus);
+        if ($this->isNotEnrolledStatusFilter($enrollmentStatus)) {
+            return collect();
+        }
+
         $query->where('status', $enrollmentStatus);
 
         $promotionStatus = $this->normalizePromotionStatusFilter($promotionStatus);
@@ -2529,7 +2569,9 @@ class ManageStudentController extends Controller
 
             // Build filter description
             $filterDesc = [];
-            if ($status) $filterDesc[] = 'Enrollment Status: ' . $enrollmentStatus;
+            if ($status) {
+                $filterDesc[] = 'Enrollment Status: ' . ($enrollmentStatus === 'NotEnrolled' ? 'Not Enrolled' : $enrollmentStatus);
+            }
             $yearCtx = app(SelectedAcademicYearService::class)->headerContext((int) $schoolID);
             if (!empty($academicYearIDs)) {
                 $yearLabels = AcademicYear::whereIn('academic_yearID', $academicYearIDs)

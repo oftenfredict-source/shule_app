@@ -159,6 +159,32 @@
 </div>
 @endif
 
+{{-- Quick Template download (optional demo data) --}}
+@if($qeCanQuickRegister)
+<div class="modal fade" id="quickTemplateDownloadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:0;">
+            <div class="modal-header" style="background:#f5f5f5;border-bottom:2px solid #940000;">
+                <h5 class="modal-title" style="color:#940000;">
+                    <i class="bi bi-download"></i> Quick Template
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="background:whitesmoke;">
+                @include('Admin.partials.quick_demo_data_toggle', ['toggleId' => 'qeTemplateWithDemoData'])
+                <p class="small text-muted mb-0">OFF = template tupu (mfano mmoja tu). ON = wanafunzi 2,000 wa demo (majina ya Kitanzania).</p>
+            </div>
+            <div class="modal-footer" style="background:#f5f5f5;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal" style="border-radius:0;">Cancel</button>
+                <button type="button" class="btn" id="qeTemplateDownloadConfirmBtn" style="background:#940000;color:#fff;border-radius:0;">
+                    <i class="bi bi-download"></i> Download
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 {{-- Quick Import (minimal columns, no enrollment) --}}
 @if($qeCanQuickRegister)
 <div class="modal fade" id="quickImportStudentsModal" tabindex="-1" aria-hidden="true">
@@ -174,22 +200,28 @@
                 @csrf
                 <div class="modal-body" style="background:whitesmoke;">
                     <div class="alert mb-3" style="border-radius:0;border-left:4px solid #940000;background:#fff;">
-                        <strong>Instructions</strong>
-                        <ol class="mb-0 mt-2 ps-3 small">
-                            <li>Download the <strong>Quick Template</strong> (few columns only).</li>
-                            <li>Fill student + parent details (phone starts with 255).</li>
-                            <li>Upload — students are registered <strong>without class enrollment</strong>.</li>
-                            <li>Use <strong>Enroll Student</strong> later to place them in a class.</li>
+                        <strong>Quick Upload — maana yake nini?</strong>
+                        <p class="mb-2 mt-2 small">Una-upload taarifa <strong>chache tu</strong> (mwanafunzi + mzazi). Mwanafunzi na mzazi wanajisajili kwenye mfumo — <strong>hakuna enrollment ya darasa bado</strong>.</p>
+                        <ol class="mb-0 ps-3 small">
+                            <li>Download <strong>Quick Template</strong> (safu chache tu).</li>
+                            <li>Jaza jina la mwanafunzi, jinsia, na namba ya simu ya mzazi (255 + tarakimu 9).</li>
+                            <li>Ikiwa mzazi tayari yupo kwenye shule, atatumika tena (FK tu) — majina ya mzazi hayahitajiki tena kwa simu ile ile.</li>
+                            <li>Baada ya upload, chagua filter <strong>Not Enrolled</strong> kwenye orodha ya wanafunzi.</li>
+                            <li>Enrollment ya darasa ifanywe baadaye kupitia <strong>Enroll Student</strong> au <strong>Enroll Now</strong>.</li>
                         </ol>
                     </div>
                     <div class="text-center mb-3">
-                        <a href="{{ route('quick_register_template') }}" class="btn btn-outline-secondary fw-bold" target="_blank" style="border-radius:0;border-color:#940000;color:#940000;">
-                            <i class="bi bi-download"></i> Download Quick Template
-                        </a>
+                        @include('Admin.partials.quick_demo_data_toggle', ['toggleId' => 'qeImportWithDemoData'])
                     </div>
-                    <div class="mb-0">
-                        <label for="qeExcelFile" class="form-label fw-bold">Excel file <span class="text-danger">*</span></label>
-                        <input class="form-control" type="file" id="qeExcelFile" name="excel_file" accept=".xlsx,.xls,.csv" required style="border-radius:0;">
+                    <div class="text-center mb-3">
+                        <button type="button" class="btn btn-outline-secondary fw-bold" id="qeImportModalDownloadTemplateBtn" style="border-radius:0;border-color:#940000;color:#940000;">
+                            <i class="bi bi-download"></i> Download Quick Template
+                        </button>
+                    </div>
+                    <div class="mb-0" id="qeImportFileWrap">
+                        <label for="qeExcelFile" class="form-label fw-bold">Excel file <span class="text-danger qe-import-file-required">*</span></label>
+                        <input class="form-control" type="file" id="qeExcelFile" name="excel_file" accept=".xlsx,.xls,.csv" style="border-radius:0;">
+                        <p class="small text-muted mt-1 mb-0 qe-import-file-hint">Required unless <strong>With demo data</strong> is ON — then import runs without a file.</p>
                     </div>
                 </div>
                 <div class="modal-footer" style="background:#f5f5f5;">
@@ -348,6 +380,7 @@
         canQuickRegister: @json((bool)$qeCanQuickRegister),
         routes: {
             quickRegister: @json(route('quick_register_student')),
+            quickTemplate: @json(route('quick_register_template')),
             quickImport: @json(route('quick_register_import')),
             searchParent: @json(route('student.registration.search-parent')),
             listForEnroll: @json(route('quick_enroll_students_list')),
@@ -841,9 +874,14 @@
         });
     }
 
-    window.openEnrollStudentModal = function () {
+    window.openEnrollStudentModal = function (opts) {
+        opts = opts || {};
+        QE.preselectStudentID = opts.studentID ? parseInt(opts.studentID, 10) : null;
+        QE.preselectStudentName = opts.studentName || '';
+
         $('#qeEnrollStepClass').removeClass('d-none');
         $('#qeEnrollStepStudents').addClass('d-none');
+        $('#qeEnrollStudentSearch').val('');
         if (QE.mode === 'teacher' && QE.lockedSubclassID) {
             $('#qeEnrollSubclassID').val(QE.lockedSubclassID);
             $('#qeEnrolledSubclassID').val(QE.lockedSubclassID);
@@ -894,12 +932,36 @@
         $('#qeEnrollStepClass').removeClass('d-none');
     });
 
+    function qeApplyPreselectedEnrollStudent() {
+        if (!QE.preselectStudentID) {
+            return;
+        }
+        const id = QE.preselectStudentID;
+        const name = QE.preselectStudentName || '';
+        if (name) {
+            $('#qeEnrollStudentSearch').val(name);
+            qeRenderEnrollList();
+        }
+        const $check = $('.qe-enroll-check[value="' + id + '"]');
+        if ($check.length) {
+            $check.prop('checked', true);
+            qeUpdateEnrollSelected();
+            const row = $check.closest('tr');
+            if (row.length && row[0].scrollIntoView) {
+                row[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        }
+        QE.preselectStudentID = null;
+        QE.preselectStudentName = '';
+    }
+
     function qeLoadForEnroll() {
         $('#qeEnrollStudentsBody').html('<tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>');
         $.getJSON(QE.routes.listForEnroll, { search: $('#qeEnrollStudentSearch').val() || '' })
             .done(function (res) {
                 QE.enrollStudentsCache = (res.success && res.students) ? res.students : [];
                 qeRenderEnrollList();
+                qeApplyPreselectedEnrollStudent();
             })
             .fail(function () {
                 $('#qeEnrollStudentsBody').html('<tr><td colspan="5" class="text-center text-danger">Failed to load</td></tr>');
@@ -1118,6 +1180,51 @@
         });
     });
 
+    function qeQuickTemplateUrl(withDemo) {
+        const base = QE.routes.quickTemplate || '';
+        return withDemo ? (base + (base.indexOf('?') >= 0 ? '&' : '?') + 'with_demo=1') : base;
+    }
+
+    function qeIsDemoDataOn($toggle) {
+        return $toggle && $toggle.length && $toggle.prop('checked');
+    }
+
+    function qeSyncImportDemoUi() {
+        const on = qeIsDemoDataOn($('#qeImportWithDemoData'));
+        const $file = $('#qeExcelFile');
+        const $wrap = $('#qeImportFileWrap');
+        if (on) {
+            $file.prop('required', false).val('');
+            $wrap.find('.qe-import-file-required').addClass('d-none');
+            $wrap.find('.qe-import-file-hint').html('<span class="text-success">Demo ON — bonyeza Upload &amp; Import kuongeza wanafunzi 2,000 bila faili.</span>');
+        } else {
+            $file.prop('required', true);
+            $wrap.find('.qe-import-file-required').removeClass('d-none');
+            $wrap.find('.qe-import-file-hint').text('Required unless With demo data is ON — then import runs without a file.');
+        }
+    }
+
+    $(document).on('change', '#qeImportWithDemoData', qeSyncImportDemoUi);
+
+    $(document).on('click', '#qeImportModalDownloadTemplateBtn', function () {
+        const withDemo = qeIsDemoDataOn($('#qeImportWithDemoData'));
+        window.open(qeQuickTemplateUrl(withDemo), '_blank');
+    });
+
+    $(document).on('click', '#quickTemplateDownloadBtn', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $('#studentPageActionsDropdown').removeClass('show');
+        $('#qeTemplateWithDemoData').prop('checked', false);
+        qeShowModal('quickTemplateDownloadModal');
+    });
+
+    $('#qeTemplateDownloadConfirmBtn').on('click', function () {
+        const withDemo = qeIsDemoDataOn($('#qeTemplateWithDemoData'));
+        window.open(qeQuickTemplateUrl(withDemo), '_blank');
+        qeHideModal('quickTemplateDownloadModal');
+    });
+
     // Action bar buttons (if present)
     $(document).on('click', '#quickRegisterStudentBtn', function (e) {
         e.preventDefault();
@@ -1131,57 +1238,116 @@
         $('#studentPageActionsDropdown').removeClass('show');
         const form = document.getElementById('quickImportStudentsForm');
         if (form) form.reset();
+        $('#qeImportWithDemoData').prop('checked', false);
+        qeSyncImportDemoUi();
         qeShowModal('quickImportStudentsModal');
     });
     $('#quickImportStudentsForm').on('submit', function (e) {
         e.preventDefault();
+        const withDemo = qeIsDemoDataOn($('#qeImportWithDemoData'));
         const fileInput = document.getElementById('qeExcelFile');
-        if (!fileInput || !fileInput.files || !fileInput.files.length) {
+        const hasFile = fileInput && fileInput.files && fileInput.files.length;
+
+        if (!withDemo && !hasFile) {
             const S = qeSwal();
-            if (S) S.fire({ icon: 'warning', title: 'File required', text: 'Please select an Excel file.', confirmButtonColor: '#940000' });
+            if (S) S.fire({ icon: 'warning', title: 'File required', text: 'Please select an Excel file or turn on With demo data.', confirmButtonColor: '#940000' });
             return;
         }
-        const fd = new FormData(this);
-        const $btn = $('#qeImportSubmitBtn').prop('disabled', true);
-        const original = $btn.html();
-        $btn.html('<i class="bi bi-hourglass-split"></i> Importing...');
-        $.ajax({
-            url: QE.routes.quickImport,
-            type: 'POST',
-            data: fd,
-            processData: false,
-            contentType: false,
-            dataType: 'json',
-            headers: { 'X-CSRF-TOKEN': QE.csrf },
-        }).done(function (res) {
-            const S = qeSwal();
-            if (res.success) {
-                qeHideModal('quickImportStudentsModal');
-                if (S) {
+
+        function qeRunQuickImport() {
+            const fd = new FormData();
+            fd.append('_token', QE.csrf);
+            if (withDemo) {
+                fd.append('with_demo', '1');
+            }
+            if (hasFile) {
+                fd.append('excel_file', fileInput.files[0]);
+            }
+            const $btn = $('#qeImportSubmitBtn').prop('disabled', true);
+            const original = $btn.html();
+            const isDemoBulk = withDemo && !hasFile;
+            $btn.html(isDemoBulk
+                ? '<i class="bi bi-hourglass-split"></i> Importing 2,000 demo…'
+                : '<i class="bi bi-hourglass-split"></i> Importing...');
+            $.ajax({
+                url: QE.routes.quickImport,
+                type: 'POST',
+                data: fd,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                timeout: isDemoBulk ? 600000 : 180000,
+                headers: { 'X-CSRF-TOKEN': QE.csrf },
+            }).done(function (res) {
+                const S = qeSwal();
+                if (res.success && (res.imported || 0) > 0) {
+                    qeHideModal('quickImportStudentsModal');
+                    if ($('#statusFilter').length) {
+                        $('#statusFilter').val('NotEnrolled');
+                    }
+                    if (S) {
+                        S.fire({
+                            icon: 'success',
+                            title: 'Imported',
+                            html: '<p>' + qeEscape(res.message) + '</p><p class="mb-0 small">Orodha imebadilishwa kuonyesha <strong>Not Enrolled</strong>. Tumia Enroll Student au Enroll Now kuweka darasani.</p>',
+                            confirmButtonColor: '#940000'
+                        }).then(function () {
+                            if (typeof reloadData === 'function') reloadData();
+                            else if (typeof loadStudents === 'function') loadStudents();
+                            else if (typeof handleFilterChange === 'function') handleFilterChange();
+                        });
+                    }
+                } else if (S) {
+                    const errHtml = (res.errors && res.errors.length)
+                        ? '<ul class="text-start small mb-0">' + res.errors.slice(0, 8).map(function (e) { return '<li>' + qeEscape(e) + '</li>'; }).join('') + '</ul>'
+                        : '';
                     S.fire({
-                        icon: 'success',
-                        title: 'Imported',
-                        html: '<p>' + qeEscape(res.message) + '</p><p class="mb-0 small">Students are not enrolled — use Enroll Student when ready.</p>',
+                        icon: 'error',
+                        title: 'Import failed',
+                        html: '<p>' + qeEscape(res.message || 'No students were imported.') + '</p>' + errHtml,
                         confirmButtonColor: '#940000'
-                    }).then(function () {
-                        if (typeof reloadData === 'function') reloadData();
-                        else if (typeof loadStudents === 'function') loadStudents();
                     });
                 }
-            } else if (S) {
-                S.fire({ icon: 'error', title: 'Import failed', text: res.message || 'Import failed', confirmButtonColor: '#940000' });
-            }
-        }).fail(function (xhr) {
-            const S = qeSwal();
-            if (S) S.fire({
-                icon: 'error',
-                title: 'Error',
-                text: (xhr.responseJSON && xhr.responseJSON.message) || 'Import failed',
-                confirmButtonColor: '#940000'
+            }).fail(function (xhr, textStatus) {
+                const S = qeSwal();
+                let errText = (xhr.responseJSON && xhr.responseJSON.message) || 'Import failed';
+                if (textStatus === 'timeout') {
+                    errText = 'Import took too long and timed out. Demo import may still be running on the server — refresh the student list and check Not Enrolled filter.';
+                } else if (xhr.status === 0) {
+                    errText = 'Connection lost while importing. Refresh the page and check if students were added (Not Enrolled filter).';
+                }
+                if (S) S.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errText,
+                    confirmButtonColor: '#940000'
+                });
+            }).always(function () {
+                $btn.prop('disabled', false).html(original);
             });
-        }).always(function () {
-            $btn.prop('disabled', false).html(original);
-        });
+        }
+
+        if (withDemo && !hasFile) {
+            const S = qeSwal();
+            if (!S) {
+                qeRunQuickImport();
+                return;
+            }
+            S.fire({
+                icon: 'question',
+                title: 'Import demo data?',
+                html: 'Hii itasajili <strong>wanafunzi 2,000 wa demo</strong> (majina ya Kitanzania, bila enrollment).<br><small class="text-muted">Inaweza kuchukua sekunde 30–90. Hakuna SMS kwa wazazi wa demo.</small>',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Import 2,000 demo'
+            }).then(function (result) {
+                if (result.isConfirmed) qeRunQuickImport();
+            });
+            return;
+        }
+
+        qeRunQuickImport();
     });
     $(document).on('click', '#enrollStudentBtn, #teacherEnrollStudentBtn', function (e) {
         e.preventDefault();
