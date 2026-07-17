@@ -159,6 +159,51 @@
 </div>
 @endif
 
+{{-- Quick Import (minimal columns, no enrollment) --}}
+@if($qeCanQuickRegister)
+<div class="modal fade" id="quickImportStudentsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius:0;">
+            <div class="modal-header" style="background:#f5f5f5;border-bottom:2px solid #940000;">
+                <h5 class="modal-title" style="color:#940000;">
+                    <i class="bi bi-file-earmark-excel"></i> Quick Import Students
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="quickImportStudentsForm" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body" style="background:whitesmoke;">
+                    <div class="alert mb-3" style="border-radius:0;border-left:4px solid #940000;background:#fff;">
+                        <strong>Instructions</strong>
+                        <ol class="mb-0 mt-2 ps-3 small">
+                            <li>Download the <strong>Quick Template</strong> (few columns only).</li>
+                            <li>Fill student + parent details (phone starts with 255).</li>
+                            <li>Upload — students are registered <strong>without class enrollment</strong>.</li>
+                            <li>Use <strong>Enroll Student</strong> later to place them in a class.</li>
+                        </ol>
+                    </div>
+                    <div class="text-center mb-3">
+                        <a href="{{ route('quick_register_template') }}" class="btn btn-outline-secondary fw-bold" target="_blank" style="border-radius:0;border-color:#940000;color:#940000;">
+                            <i class="bi bi-download"></i> Download Quick Template
+                        </a>
+                    </div>
+                    <div class="mb-0">
+                        <label for="qeExcelFile" class="form-label fw-bold">Excel file <span class="text-danger">*</span></label>
+                        <input class="form-control" type="file" id="qeExcelFile" name="excel_file" accept=".xlsx,.xls,.csv" required style="border-radius:0;">
+                    </div>
+                </div>
+                <div class="modal-footer" style="background:#f5f5f5;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal" style="border-radius:0;">Cancel</button>
+                    <button type="submit" class="btn" id="qeImportSubmitBtn" style="background:#940000;color:#fff;border-radius:0;">
+                        <i class="bi bi-upload"></i> Upload &amp; Import
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
 {{-- ========== Enroll Student (tabs) ========== --}}
 <div class="modal fade" id="enrollStudentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -213,7 +258,7 @@
                                 <button type="button" class="btn btn-sm btn-outline-secondary" id="qeEnrollBackClassBtn" style="border-radius:0;">Change Class</button>
                             </div>
                             <div class="alert small mb-2" style="background:#fff;border:1px solid #940000;border-radius:0;">
-                                Students already enrolled in another class can be selected — their previous Active enrollment will be <strong>removed</strong> (not archived like Move), then they join this class.
+                                Students already enrolled in another class can be selected — their previous Active enrollment will be <strong>closed</strong> (status updated, history kept), then they join this class.
                             </div>
                             <input type="search" class="form-control mb-2" id="qeEnrollStudentSearch" placeholder="Search students..." style="border-radius:0;" autocomplete="off">
                             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -270,17 +315,18 @@
                                         <th>Name</th>
                                         <th>Sex</th>
                                         <th>Joined</th>
+                                        <th>Enrolled by</th>
                                     </tr>
                                 </thead>
                                 <tbody id="qeEnrolledStudentsBody">
-                                    <tr><td colspan="5" class="text-center text-muted">Select a class to load enrolled students</td></tr>
+                                    <tr><td colspan="6" class="text-center text-muted">Select a class to load enrolled students</td></tr>
                                 </tbody>
                             </table>
                         </div>
                         <button type="button" class="btn btn-outline-danger mt-3" id="qeRemoveEnrollmentBtn" style="border-radius:0;" disabled>
                             <i class="bi bi-person-dash"></i> Remove from Enrollment
                         </button>
-                        <p class="small text-muted mt-2 mb-0">Removing deletes the Active enrollment (no history kept). Student becomes free to enroll again.</p>
+                        <p class="small text-muted mt-2 mb-0">Removing updates the Active enrollment status to Cancelled (history kept). Student becomes free to enroll again.</p>
                     </div>
                 </div>
             </div>
@@ -302,6 +348,7 @@
         canQuickRegister: @json((bool)$qeCanQuickRegister),
         routes: {
             quickRegister: @json(route('quick_register_student')),
+            quickImport: @json(route('quick_register_import')),
             searchParent: @json(route('student.registration.search-parent')),
             listForEnroll: @json(route('quick_enroll_students_list')),
             enroll: @json(route('quick_enroll_students')),
@@ -917,7 +964,7 @@
 
         let confirmHtml = 'Enroll <strong>' + ids.length + '</strong> student(s) into this class?<br><small>Uses the <strong>current academic year</strong> only.</small>';
         if (reassigned.length) {
-            confirmHtml += '<br><br><div style="text-align:left;background:#fff;border:1px solid #940000;padding:8px;"><strong>Warning:</strong> These students already have an Active enrollment. It will be <em>deleted</em> (not kept like Move), then they join this class:<ul style="margin:6px 0 0;padding-left:18px;">' +
+            confirmHtml += '<br><br><div style="text-align:left;background:#fff;border:1px solid #940000;padding:8px;"><strong>Notice:</strong> These students already have an Active enrollment. The previous enrollment will be <em>closed</em> (status updated, history kept), then they join this class:<ul style="margin:6px 0 0;padding-left:18px;">' +
                 reassigned.slice(0, 8).map(function (t) { return '<li>' + qeEscape(t) + '</li>'; }).join('') +
                 (reassigned.length > 8 ? '<li>…and more</li>' : '') +
                 '</ul></div>';
@@ -949,7 +996,7 @@
                 if (res.success) {
                     let html = '<p>' + qeEscape(res.message) + '</p>';
                     if (res.reassigned && res.reassigned.length) {
-                        html += '<p class="small mb-0" style="color:#940000;">Previous Active enrollments were removed for reassigned students.</p>';
+                        html += '<p class="small mb-0" style="color:#940000;">Previous Active enrollments were closed (history kept) for reassigned students.</p>';
                     }
                     S.fire({ icon: 'success', title: 'Done', html: html, confirmButtonColor: '#940000' }).then(function () {
                         qeLoadForEnroll();
@@ -972,11 +1019,11 @@
     function qeLoadEnrolled() {
         const id = $('#qeEnrolledSubclassID').val() || QE.lockedSubclassID;
         if (!id) {
-            $('#qeEnrolledStudentsBody').html('<tr><td colspan="5" class="text-center text-muted">Select a class</td></tr>');
+            $('#qeEnrolledStudentsBody').html('<tr><td colspan="6" class="text-center text-muted">Select a class</td></tr>');
             return;
         }
         $('#qeEnrolledSubclassID').val(id);
-        $('#qeEnrolledStudentsBody').html('<tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>');
+        $('#qeEnrolledStudentsBody').html('<tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>');
         $.getJSON(QE.routes.listEnrolled, {
             subclassID: id,
             search: $('#qeEnrolledStudentSearch').val() || ''
@@ -984,7 +1031,7 @@
             QE.enrolledCache = (res.success && res.students) ? res.students : [];
             qeRenderEnrolledList();
         }).fail(function () {
-            $('#qeEnrolledStudentsBody').html('<tr><td colspan="5" class="text-center text-danger">Failed to load</td></tr>');
+            $('#qeEnrolledStudentsBody').html('<tr><td colspan="6" class="text-center text-danger">Failed to load</td></tr>');
         });
     }
 
@@ -992,10 +1039,10 @@
         const q = ($('#qeEnrolledStudentSearch').val() || '').toLowerCase().trim();
         let rows = QE.enrolledCache.filter(function (s) {
             if (!q) return true;
-            return ((s.admission_number || '') + ' ' + (s.full_name || '')).toLowerCase().indexOf(q) !== -1;
+            return ((s.admission_number || '') + ' ' + (s.full_name || '') + ' ' + (s.enrolled_by || '')).toLowerCase().indexOf(q) !== -1;
         });
         if (!rows.length) {
-            $('#qeEnrolledStudentsBody').html('<tr><td colspan="5" class="text-center text-muted">No enrolled students</td></tr>');
+            $('#qeEnrolledStudentsBody').html('<tr><td colspan="6" class="text-center text-muted">No enrolled students</td></tr>');
             qeUpdateEnrolledSelected();
             return;
         }
@@ -1006,7 +1053,8 @@
                 '<td>' + qeEscape(s.admission_number || '-') + '</td>' +
                 '<td>' + qeEscape(s.full_name || '-') + '</td>' +
                 '<td>' + qeEscape(s.gender || '-') + '</td>' +
-                '<td>' + qeEscape(s.joined_date || '-') + '</td></tr>';
+                '<td>' + qeEscape(s.joined_date || '-') + '</td>' +
+                '<td class="small">' + qeEscape(s.enrolled_by || '-') + '</td></tr>';
         });
         $('#qeEnrolledStudentsBody').html(html);
         qeUpdateEnrolledSelected();
@@ -1044,7 +1092,7 @@
         S.fire({
             icon: 'warning',
             title: 'Remove from enrollment?',
-            html: 'This will <strong>delete</strong> the Active enrollment for ' + ids.length + ' student(s).<br>No class history will be kept (unlike Move). They become free to enroll again.',
+            html: 'This will <strong>close</strong> the Active enrollment for ' + ids.length + ' student(s) (status → Cancelled).<br>Enrollment history is kept. They become free to enroll again.',
             showCancelButton: true,
             confirmButtonColor: '#940000',
             confirmButtonText: 'Remove'
@@ -1076,6 +1124,64 @@
         e.stopPropagation();
         openQuickRegisterStudentModal();
         $('#studentPageActionsDropdown').removeClass('show');
+    });
+    $(document).on('click', '#quickImportStudentBtn', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $('#studentPageActionsDropdown').removeClass('show');
+        const form = document.getElementById('quickImportStudentsForm');
+        if (form) form.reset();
+        qeShowModal('quickImportStudentsModal');
+    });
+    $('#quickImportStudentsForm').on('submit', function (e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('qeExcelFile');
+        if (!fileInput || !fileInput.files || !fileInput.files.length) {
+            const S = qeSwal();
+            if (S) S.fire({ icon: 'warning', title: 'File required', text: 'Please select an Excel file.', confirmButtonColor: '#940000' });
+            return;
+        }
+        const fd = new FormData(this);
+        const $btn = $('#qeImportSubmitBtn').prop('disabled', true);
+        const original = $btn.html();
+        $btn.html('<i class="bi bi-hourglass-split"></i> Importing...');
+        $.ajax({
+            url: QE.routes.quickImport,
+            type: 'POST',
+            data: fd,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            headers: { 'X-CSRF-TOKEN': QE.csrf },
+        }).done(function (res) {
+            const S = qeSwal();
+            if (res.success) {
+                qeHideModal('quickImportStudentsModal');
+                if (S) {
+                    S.fire({
+                        icon: 'success',
+                        title: 'Imported',
+                        html: '<p>' + qeEscape(res.message) + '</p><p class="mb-0 small">Students are not enrolled — use Enroll Student when ready.</p>',
+                        confirmButtonColor: '#940000'
+                    }).then(function () {
+                        if (typeof reloadData === 'function') reloadData();
+                        else if (typeof loadStudents === 'function') loadStudents();
+                    });
+                }
+            } else if (S) {
+                S.fire({ icon: 'error', title: 'Import failed', text: res.message || 'Import failed', confirmButtonColor: '#940000' });
+            }
+        }).fail(function (xhr) {
+            const S = qeSwal();
+            if (S) S.fire({
+                icon: 'error',
+                title: 'Error',
+                text: (xhr.responseJSON && xhr.responseJSON.message) || 'Import failed',
+                confirmButtonColor: '#940000'
+            });
+        }).always(function () {
+            $btn.prop('disabled', false).html(original);
+        });
     });
     $(document).on('click', '#enrollStudentBtn, #teacherEnrollStudentBtn', function (e) {
         e.preventDefault();

@@ -255,6 +255,47 @@
         box-shadow: 0 8px 25px rgba(148, 0, 0, 0.12) !important;
     }
 
+    /* Widget grid spacing (Bootstrap 4 safe — no gx/gy) */
+    .class-mgmt-widgets {
+        margin-left: -8px;
+        margin-right: -8px;
+    }
+    .class-mgmt-widgets > [class*="col-"] {
+        padding-left: 8px;
+        padding-right: 8px;
+        margin-bottom: 16px;
+    }
+
+    @media (max-width: 767.98px) {
+        .class-mgmt-widgets {
+            margin-left: -6px;
+            margin-right: -6px;
+        }
+        .class-mgmt-widgets > [class*="col-"] {
+            padding-left: 6px;
+            padding-right: 6px;
+            margin-bottom: 12px;
+        }
+        .class-mgmt-widgets .widget-card .card-body {
+            padding: 0.85rem 0.5rem;
+        }
+        .class-mgmt-widgets .widget-card .mb-3 {
+            margin-bottom: 0.5rem !important;
+        }
+        .class-mgmt-widgets .widget-card i {
+            font-size: 2rem !important;
+        }
+        .class-mgmt-widgets .widget-card .card-title {
+            font-size: 0.85rem;
+            line-height: 1.25;
+        }
+        .class-mgmt-widgets .widget-card small {
+            font-size: 0.7rem;
+            display: block;
+            line-height: 1.2;
+        }
+    }
+
     .exam-item:hover {
         background-color: #FFF5F5 !important;
     }
@@ -435,12 +476,12 @@
     </div>
 
     <!-- Action Widgets -->
-    <div class="row g-4 mb-4">
+    <div class="row mb-4 class-mgmt-widgets">
         {{-- Register / Parent widgets intentionally commented — use Admin Quick Registration + Enroll --}}
 
         <!-- Enroll Student Widget (class locked to this teacher's subclass) -->
         @if(!empty($decryptedSubclassID) && empty($isCoordinatorView))
-        <div class="col-12 col-sm-6 col-md-3">
+        <div class="col-6 col-md-3">
             <div class="card shadow-sm widget-card h-100" id="teacherEnrollStudentBtn" role="button" style="cursor:pointer;">
                 <div class="card-body text-center">
                     <div class="mb-3">
@@ -454,7 +495,7 @@
         @endif
 
         <!-- View Students Widget -->
-        <div class="col-12 col-sm-6 col-md-3">
+        <div class="col-6 col-md-3">
             <div class="card shadow-sm widget-card h-100" id="viewStudentsBtn">
                 <div class="card-body text-center">
                     <div class="mb-3">
@@ -467,7 +508,7 @@
         </div>
 
     <!-- View Parents Widget -->
-    <div class="col-12 col-sm-6 col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card shadow-sm widget-card h-100" id="viewParentsBtn">
             <div class="card-body text-center">
                 <div class="mb-3">
@@ -480,7 +521,7 @@
     </div>
 
     <!-- View Results Widget -->
-    <div class="col-12 col-sm-6 col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card shadow-sm widget-card h-100" id="viewResultsBtn">
             <div class="card-body text-center">
                 <div class="mb-3">
@@ -493,7 +534,7 @@
     </div>
 
     <!-- System Attendance Widget -->
-    <div class="col-12 col-sm-6 col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card shadow-sm widget-card h-100" id="systemAttendanceBtn">
             <div class="card-body text-center">
                 <div class="mb-3">
@@ -506,7 +547,7 @@
     </div>
 
     <!-- Fingerprint Attendance Widget -->
-    <div class="col-12 col-sm-6 col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card shadow-sm widget-card h-100" id="fingerprintAttendanceBtn">
             <div class="card-body text-center">
                 <div class="mb-3">
@@ -519,7 +560,7 @@
     </div>
 
     <!-- Send Attendance SMS Widget -->
-    <div class="col-12 col-sm-6 col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card shadow-sm widget-card h-100" id="sendAttendanceSmsBtn">
             <div class="card-body text-center">
                 <div class="mb-3">
@@ -532,7 +573,7 @@
     </div>
 
     <!-- Subject Management Widget -->
-    <div class="col-12 col-sm-6 col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card shadow-sm widget-card h-100" id="subjectManagementBtn">
             <div class="card-body text-center">
                 <div class="mb-3">

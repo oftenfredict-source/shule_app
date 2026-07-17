@@ -1640,6 +1640,18 @@ Route::post("quick_register_student", [
     \App\Http\Controllers\QuickStudentController::class,
     "quickRegister",
 ])->name("quick_register_student");
+Route::get("quick_register_template", [
+    \App\Http\Controllers\QuickStudentController::class,
+    "downloadQuickTemplate",
+])->name("quick_register_template");
+Route::get("quick_register_export", [
+    \App\Http\Controllers\QuickStudentController::class,
+    "exportUnenrolledStudents",
+])->name("quick_register_export");
+Route::post("quick_register_import", [
+    \App\Http\Controllers\QuickStudentController::class,
+    "importQuickStudents",
+])->name("quick_register_import");
 Route::get("quick_enroll_students_list", [
     \App\Http\Controllers\QuickStudentController::class,
     "listForEnroll",

@@ -512,8 +512,75 @@ class QuickStudentController extends Controller
     }
 
     /**
+     * Current logged-in actor for enrollment audit (who enrolled / closed).
+     *
+     * @return array{id: ?int, name: string, type: string, label: string}
+     */
+    private function resolveCurrentActor(): array
+    {
+        $userType = (string) (Session::get('user_type') ?? 'User');
+        $userId = Session::get('userID') ?: Session::get('teacherID') ?: Session::get('staffID');
+        $name = trim((string) (
+            Session::get('teacher_name')
+            ?: Session::get('staff_name')
+            ?: Session::get('user_name')
+            ?: 'Unknown'
+        ));
+
+        return [
+            'id' => $userId ? (int) $userId : null,
+            'name' => $name,
+            'type' => $userType,
+            'label' => $userType . ': ' . $name,
+        ];
+    }
+
+    /**
+     * Close an Active enrollment (preserve history — never delete).
+     */
+    private function closeActiveEnrollment(
+        StudentEnrollment $enrollment,
+        string $newStatus,
+        ?string $promotionStatus = null,
+        ?string $note = null,
+        ?array $actor = null
+    ): void {
+        $actor = $actor ?? $this->resolveCurrentActor();
+        $enrollment->status = $newStatus;
+        $enrollment->left_date = now()->toDateString();
+        if ($promotionStatus !== null) {
+            $enrollment->promotion_status = $promotionStatus;
+        }
+        $enrollment->closed_by = $actor['id'];
+        $enrollment->closed_by_name = $actor['label'];
+        if ($note !== null && $note !== '') {
+            $withBy = rtrim($note, '.') . ' by ' . $actor['label'];
+            $enrollment->notes = trim(
+                ($enrollment->notes ? $enrollment->notes . ' | ' : '') . $withBy
+            );
+        }
+        $enrollment->save();
+    }
+
+    /**
+     * Sync students.subclassID from latest Active enrollment (or null).
+     */
+    private function syncStudentSubclassFromActive(int $schoolID, int $studentID): void
+    {
+        $latest = StudentEnrollment::where('schoolID', $schoolID)
+            ->where('studentID', $studentID)
+            ->where('status', 'Active')
+            ->orderByDesc('enrollmentID')
+            ->first();
+
+        Student::where('studentID', $studentID)
+            ->where('schoolID', $schoolID)
+            ->update(['subclassID' => $latest ? $latest->subclassID : null]);
+    }
+
+    /**
      * Bulk enroll selected students into a subclass (current academic year).
-     * If already Active elsewhere, old Active enrollment is deleted (not Move).
+     * If already Active elsewhere, old Active enrollment is marked Completed (history kept).
      */
     public function enrollStudents(Request $request)
     {
@@ -563,6 +630,7 @@ class QuickStudentController extends Controller
         $studentIDs = array_values(array_unique(array_map('intval', $request->studentIDs)));
         $movedFromOther = [];
         $enrolled = 0;
+        $actor = $this->resolveCurrentActor();
 
         try {
             DB::beginTransaction();
@@ -599,22 +667,54 @@ class QuickStudentController extends Controller
                         'from' => $fromClass ?: 'another class',
                         'to' => $classLabel,
                     ];
-                    $old->delete();
+                    $this->closeActiveEnrollment(
+                        $old,
+                        'Completed',
+                        'Promoted',
+                        'Reassigned via Quick Enroll to ' . $classLabel . ' on ' . now()->format('Y-m-d'),
+                        $actor
+                    );
                 }
 
-                StudentEnrollment::create([
-                    'studentID' => $sid,
-                    'schoolID' => $schoolID,
-                    'academic_yearID' => $yearID,
-                    'classID' => (int) $subclass->classID,
-                    'subclassID' => $subclassID,
-                    'roll_number' => null,
-                    'status' => 'Active',
-                    'promotion_status' => 'Pending',
-                    'joined_date' => now()->toDateString(),
-                    'left_date' => null,
-                    'notes' => 'Enrolled via Quick Enroll',
-                ]);
+                $reuse = StudentEnrollment::where('schoolID', $schoolID)
+                    ->where('studentID', $sid)
+                    ->where('academic_yearID', $yearID)
+                    ->where('subclassID', $subclassID)
+                    ->where('status', '!=', 'Active')
+                    ->orderByDesc('enrollmentID')
+                    ->first();
+
+                $enrollNote = 'Enrolled via Quick Enroll on ' . now()->format('Y-m-d') . ' by ' . $actor['label'];
+
+                if ($reuse) {
+                    $reuse->status = 'Active';
+                    $reuse->promotion_status = 'Pending';
+                    $reuse->classID = (int) $subclass->classID;
+                    $reuse->joined_date = now()->toDateString();
+                    $reuse->left_date = null;
+                    $reuse->enrolled_by = $actor['id'];
+                    $reuse->enrolled_by_name = $actor['label'];
+                    $reuse->closed_by = null;
+                    $reuse->closed_by_name = null;
+                    $reuse->notes = trim(($reuse->notes ? $reuse->notes . ' | ' : '') . $enrollNote);
+                    $reuse->save();
+                } else {
+                    StudentEnrollment::create([
+                        'studentID' => $sid,
+                        'schoolID' => $schoolID,
+                        'academic_yearID' => $yearID,
+                        'classID' => (int) $subclass->classID,
+                        'subclassID' => $subclassID,
+                        'roll_number' => null,
+                        'status' => 'Active',
+                        'promotion_status' => 'Pending',
+                        'joined_date' => now()->toDateString(),
+                        'left_date' => null,
+                        'notes' => $enrollNote,
+                        'enrolled_by' => $actor['id'],
+                        'enrolled_by_name' => $actor['label'],
+                    ]);
+                }
 
                 $student->subclassID = $subclassID;
                 $student->save();
@@ -623,9 +723,9 @@ class QuickStudentController extends Controller
 
             DB::commit();
 
-            $message = $enrolled . ' student(s) enrolled into ' . trim($classLabel) . '.';
+            $message = $enrolled . ' student(s) enrolled into ' . trim($classLabel) . ' by ' . $actor['label'] . '.';
             if (count($movedFromOther) > 0) {
-                $message .= ' Note: ' . count($movedFromOther) . ' already had an Active enrollment elsewhere — that enrollment was removed (not archived like Move).';
+                $message .= ' Note: ' . count($movedFromOther) . ' had an Active enrollment elsewhere — previous enrollment status was updated (history kept).';
             }
 
             return response()->json([
@@ -634,6 +734,7 @@ class QuickStudentController extends Controller
                 'enrolled_count' => $enrolled,
                 'reassigned' => $movedFromOther,
                 'class_label' => trim($classLabel),
+                'performed_by' => $actor['label'],
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -706,6 +807,7 @@ class QuickStudentController extends Controller
                 'gender' => $s->gender,
                 'photo' => $this->studentPhotoUrl($s),
                 'joined_date' => $enr->joined_date ? $enr->joined_date->format('Y-m-d') : null,
+                'enrolled_by' => $enr->enrolled_by_name ?: null,
             ];
         })->filter()->values();
 
@@ -720,7 +822,7 @@ class QuickStudentController extends Controller
     }
 
     /**
-     * Remove Active enrollment permanently (student becomes free — no history kept).
+     * Remove Active enrollment (status update only — history preserved).
      */
     public function removeEnrollment(Request $request)
     {
@@ -761,29 +863,30 @@ class QuickStudentController extends Controller
 
         try {
             DB::beginTransaction();
+            $actor = $this->resolveCurrentActor();
             $removed = 0;
             foreach ($enrollments as $enr) {
+                if ($enr->status !== 'Active') {
+                    continue;
+                }
                 $studentID = (int) $enr->studentID;
-                $subclassID = (int) $enr->subclassID;
-                $enr->delete();
+                $this->closeActiveEnrollment(
+                    $enr,
+                    'Cancelled',
+                    null,
+                    'Removed from enrollment on ' . now()->format('Y-m-d'),
+                    $actor
+                );
                 $removed++;
-
-                $latest = StudentEnrollment::where('schoolID', $schoolID)
-                    ->where('studentID', $studentID)
-                    ->where('status', 'Active')
-                    ->orderByDesc('enrollmentID')
-                    ->first();
-
-                Student::where('studentID', $studentID)
-                    ->where('schoolID', $schoolID)
-                    ->update(['subclassID' => $latest ? $latest->subclassID : null]);
+                $this->syncStudentSubclassFromActive((int) $schoolID, $studentID);
             }
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => $removed . ' student(s) removed from enrollment. They are free to enroll again. No class history was kept for this removal.',
+                'message' => $removed . ' student(s) removed from Active enrollment by ' . $actor['label'] . '. Enrollment history was kept — status updated to Cancelled.',
                 'removed_count' => $removed,
+                'performed_by' => $actor['label'],
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -793,5 +896,418 @@ class QuickStudentController extends Controller
                 'message' => SafeErrorMessage::from($e, 'Failed to remove enrollment.'),
             ], 500);
         }
+    }
+
+    /**
+     * Minimal Excel template for Quick Registration (no class / no enrollment).
+     */
+    public function downloadQuickTemplate()
+    {
+        if (!$this->canCreateStudents()) {
+            return redirect()->back()->with('error', 'Unauthorized');
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Quick Registration');
+
+        $columns = [
+            'Student First Name*',
+            'Student Middle Name',
+            'Student Last Name*',
+            'Student Gender (Male/Female)*',
+            'Parent Phone (255XXXXXXXXX)*',
+            'Parent First Name*',
+            'Parent Middle Name',
+            'Parent Last Name*',
+            'Parent Gender (Male/Female)*',
+        ];
+
+        foreach ($columns as $i => $column) {
+            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+            $sheet->setCellValue($col . '1', $column);
+            $sheet->getStyle($col . '1')->getFont()->setBold(true);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // Example row
+        $sheet->setCellValue('A2', 'Juma');
+        $sheet->setCellValue('B2', 'Ali');
+        $sheet->setCellValue('C2', 'Hassan');
+        $sheet->setCellValue('D2', 'Male');
+        $sheet->setCellValue('E2', '255712345678');
+        $sheet->setCellValue('F2', 'Amina');
+        $sheet->setCellValue('G2', '');
+        $sheet->setCellValue('H2', 'Hassan');
+        $sheet->setCellValue('I2', 'Female');
+        $sheet->getStyle('A2:I2')->getFont()->setItalic(true)->getColor()->setRGB('888888');
+
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Instructions');
+        $sheet2->setCellValue('A1', 'Quick Registration Import');
+        $sheet2->getStyle('A1')->getFont()->setBold(true);
+        $sheet2->setCellValue('A3', '1. Fill one student per row (delete the grey example row).');
+        $sheet2->setCellValue('A4', '2. Required: Student first/last name, gender, parent phone, parent first/last name, parent gender.');
+        $sheet2->setCellValue('A5', '3. Parent phone must be 255 + 9 digits (e.g. 255712345678). 0712… is also accepted.');
+        $sheet2->setCellValue('A6', '4. If parent phone already exists in this school, that parent is reused (new parent names ignored for that phone).');
+        $sheet2->setCellValue('A7', '5. Students are registered WITHOUT class enrollment — enroll later via Enroll Student.');
+        $sheet2->setCellValue('A8', '6. Admission numbers are auto-generated.');
+        $sheet2->getColumnDimension('A')->setWidth(100);
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $fileName = 'Quick_Student_Registration_Template.xlsx';
+        $tempPath = storage_path('app/public/' . $fileName);
+        if (!is_dir(dirname($tempPath))) {
+            @mkdir(dirname($tempPath), 0755, true);
+        }
+        $writer->save($tempPath);
+
+        return response()->download($tempPath, $fileName)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Export students with no Active enrollment (quick-registered / free to enroll).
+     */
+    public function exportUnenrolledStudents()
+    {
+        if (!$this->canCreateStudents() && !$this->canUpdateStudents()) {
+            return redirect()->back()->with('error', 'Unauthorized');
+        }
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return redirect()->back()->with('error', 'School ID not found');
+        }
+
+        $enrolledIds = StudentEnrollment::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->pluck('studentID')
+            ->unique()
+            ->all();
+
+        $students = Student::with('parent')
+            ->where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->when(!empty($enrolledIds), function ($q) use ($enrolledIds) {
+                $q->whereNotIn('studentID', $enrolledIds);
+            })
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Unenrolled Students');
+
+        $headers = [
+            'Admission Number',
+            'Student First Name',
+            'Student Middle Name',
+            'Student Last Name',
+            'Student Gender',
+            'Parent Phone',
+            'Parent First Name',
+            'Parent Middle Name',
+            'Parent Last Name',
+            'Parent Gender',
+            'Registration Status',
+        ];
+        foreach ($headers as $i => $h) {
+            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+            $sheet->setCellValue($col . '1', $h);
+            $sheet->getStyle($col . '1')->getFont()->setBold(true);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $row = 2;
+        foreach ($students as $s) {
+            $p = $s->parent;
+            $sheet->setCellValue('A' . $row, $s->admission_number);
+            $sheet->setCellValue('B' . $row, $s->first_name);
+            $sheet->setCellValue('C' . $row, $s->middle_name);
+            $sheet->setCellValue('D' . $row, $s->last_name);
+            $sheet->setCellValue('E' . $row, $s->gender);
+            $sheet->setCellValue('F' . $row, $p->phone ?? '');
+            $sheet->setCellValue('G' . $row, $p->first_name ?? '');
+            $sheet->setCellValue('H' . $row, $p->middle_name ?? '');
+            $sheet->setCellValue('I' . $row, $p->last_name ?? '');
+            $sheet->setCellValue('J' . $row, $p->gender ?? '');
+            $sheet->setCellValue('K' . $row, $s->registration_status ?? 'Draft');
+            $row++;
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $fileName = 'Unenrolled_Students_' . date('Y-m-d') . '.xlsx';
+        $tempPath = storage_path('app/public/' . $fileName);
+        if (!is_dir(dirname($tempPath))) {
+            @mkdir(dirname($tempPath), 0755, true);
+        }
+        $writer->save($tempPath);
+
+        return response()->download($tempPath, $fileName)->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Import quick-registration Excel: create students + parents, NO enrollment.
+     */
+    public function importQuickStudents(Request $request)
+    {
+        if (!$this->canCreateStudents()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+        }
+
+        $file = $request->file('excel_file');
+        if (!$file) {
+            return response()->json(['success' => false, 'message' => 'Please upload an Excel file.']);
+        }
+
+        try {
+            @set_time_limit(0);
+            @ini_set('max_execution_time', '0');
+            @ini_set('memory_limit', '1024M');
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getPathname());
+            $worksheet = $spreadsheet->getActiveSheet();
+            $rows = $worksheet->toArray();
+            array_shift($rows);
+
+            DB::beginTransaction();
+            $successCount = 0;
+            $errors = [];
+            $newParentsSms = 0;
+
+            foreach ($rows as $index => $row) {
+                $rowNum = $index + 2;
+                $row = array_pad($row, 9, null);
+
+                $sFirst = trim((string) ($row[0] ?? ''));
+                $sMiddle = trim((string) ($row[1] ?? ''));
+                $sLast = trim((string) ($row[2] ?? ''));
+                $sGender = trim((string) ($row[3] ?? ''));
+                $pPhoneRaw = trim((string) ($row[4] ?? ''));
+                $pFirst = trim((string) ($row[5] ?? ''));
+                $pMiddle = trim((string) ($row[6] ?? ''));
+                $pLast = trim((string) ($row[7] ?? ''));
+                $pGender = trim((string) ($row[8] ?? ''));
+
+                // Skip empty / example-looking blank rows
+                if ($sFirst === '' && $sLast === '' && $pPhoneRaw === '') {
+                    continue;
+                }
+
+                // Skip italic example if left as-is (optional soft skip)
+                if (strcasecmp($sFirst, 'Juma') === 0 && strcasecmp($sLast, 'Hassan') === 0 && str_contains($pPhoneRaw, '712345678')) {
+                    continue;
+                }
+
+                if ($sFirst === '' || $sLast === '' || $sGender === '') {
+                    $errors[] = "Row {$rowNum}: Student first name, last name and gender are required.";
+                    continue;
+                }
+                if (!in_array($sGender, ['Male', 'Female'], true)) {
+                    $errors[] = "Row {$rowNum}: Student gender must be Male or Female.";
+                    continue;
+                }
+
+                $phone = ParentPhone::normalize($pPhoneRaw);
+                if (!$phone) {
+                    $errors[] = "Row {$rowNum}: Valid parent phone is required (255 + 9 digits).";
+                    continue;
+                }
+
+                try {
+                    $result = $this->createQuickStudentRecord((int) $schoolID, [
+                        'first_name' => $sFirst,
+                        'middle_name' => $sMiddle !== '' ? $sMiddle : null,
+                        'last_name' => $sLast,
+                        'gender' => $sGender,
+                        'parent_phone' => $phone,
+                        'parent_first_name' => $pFirst,
+                        'parent_middle_name' => $pMiddle !== '' ? $pMiddle : null,
+                        'parent_last_name' => $pLast,
+                        'parent_gender' => $pGender,
+                    ]);
+
+                    if (!$result['success']) {
+                        $errors[] = "Row {$rowNum}: " . $result['message'];
+                        continue;
+                    }
+
+                    $successCount++;
+                    if (!empty($result['is_new_parent']) && !empty($result['parent_sms_sent'])) {
+                        $newParentsSms++;
+                    }
+                } catch (\Throwable $e) {
+                    $errors[] = "Row {$rowNum}: " . $e->getMessage();
+                }
+            }
+
+            DB::commit();
+
+            $msg = "Successfully imported {$successCount} student(s) (not enrolled).";
+            if ($newParentsSms > 0) {
+                $msg .= " Parent SMS sent for {$newParentsSms} new parent(s).";
+            }
+            if (count($errors) > 0) {
+                $msg .= ' Some rows failed: ' . implode(' | ', array_slice($errors, 0, 5)) . (count($errors) > 5 ? '...' : '');
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'imported' => $successCount,
+                'errors' => $errors,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Quick import error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => SafeErrorMessage::from($e, 'Error importing file. Please check the template and try again.'),
+            ]);
+        }
+    }
+
+    /**
+     * Shared create for one quick-registered student (no enrollment).
+     * Caller manages outer transaction for bulk import.
+     *
+     * @param  array<string,mixed>  $data
+     * @return array{success:bool,message:string,admission_number?:string,is_new_parent?:bool,parent_sms_sent?:bool}
+     */
+    private function createQuickStudentRecord(int $schoolID, array $data): array
+    {
+        $parent = ParentPhone::findInSchool($schoolID, $data['parent_phone'] ?? null);
+        $isNewParent = false;
+
+        if (!$parent) {
+            $inOther = ParentPhone::findAnywhere($data['parent_phone'] ?? null, $schoolID);
+            if ($inOther) {
+                return [
+                    'success' => false,
+                    'message' => 'Parent phone already exists in another school.',
+                ];
+            }
+
+            $pFirst = trim((string) ($data['parent_first_name'] ?? ''));
+            $pLast = trim((string) ($data['parent_last_name'] ?? ''));
+            $pGender = trim((string) ($data['parent_gender'] ?? ''));
+            if ($pFirst === '' || $pLast === '' || !in_array($pGender, ['Male', 'Female'], true)) {
+                return [
+                    'success' => false,
+                    'message' => 'New parent requires first name, last name and gender (Male/Female).',
+                ];
+            }
+
+            $parent = ParentModel::create([
+                'schoolID' => $schoolID,
+                'first_name' => $pFirst,
+                'middle_name' => $data['parent_middle_name'] ?? null,
+                'last_name' => $pLast,
+                'gender' => $pGender,
+                'phone' => ParentPhone::normalize($data['parent_phone']),
+            ]);
+            $isNewParent = true;
+        }
+
+        try {
+            ParentUserAccount::ensure($parent);
+        } catch (\Throwable $e) {
+            Log::warning('Quick import parent login skipped: ' . $e->getMessage());
+        }
+
+        do {
+            $admissionNumber = $this->generateAdmissionNumber($schoolID);
+        } while (
+            Student::where('admission_number', $admissionNumber)->exists() ||
+            User::where('name', $admissionNumber)->exists()
+        );
+
+        $fingerprintId = null;
+        $attempts = 0;
+        do {
+            $fingerprintId = (string) rand(1000, 9999);
+            $attempts++;
+            $exists = User::where('fingerprint_id', $fingerprintId)->exists()
+                || Student::where('fingerprint_id', $fingerprintId)->exists()
+                || Student::where('studentID', $fingerprintId)->exists();
+            if (!$exists) {
+                break;
+            }
+            if ($attempts >= 100) {
+                throw new \RuntimeException('Unable to generate unique student ID.');
+            }
+        } while (true);
+
+        Student::create([
+            'studentID' => (int) $fingerprintId,
+            'schoolID' => $schoolID,
+            'subclassID' => null,
+            'parentID' => (int) $parent->parentID,
+            'first_name' => $data['first_name'],
+            'middle_name' => $data['middle_name'] ?? null,
+            'last_name' => $data['last_name'],
+            'gender' => $data['gender'],
+            'admission_number' => $admissionNumber,
+            'fingerprint_id' => $fingerprintId,
+            'sent_to_device' => false,
+            'device_sent_at' => null,
+            'fingerprint_capture_count' => 0,
+            'admission_date' => now()->toDateString(),
+            'photo' => null,
+            'status' => 'Active',
+            'nationality' => 'Tanzanian',
+            'registration_status' => 'Draft',
+        ]);
+
+        $userEmail = $admissionNumber . '@student.local';
+        $emailCounter = 1;
+        while (User::where('email', $userEmail)->exists()) {
+            $userEmail = $admissionNumber . '_' . $emailCounter . '@student.local';
+            $emailCounter++;
+        }
+
+        User::create([
+            'name' => $admissionNumber,
+            'email' => $userEmail,
+            'password' => Hash::make($data['first_name']),
+            'user_type' => 'student',
+            'fingerprint_id' => $fingerprintId,
+        ]);
+
+        $parentSmsSent = false;
+        if ($isNewParent && $parent->phone) {
+            try {
+                $school = School::find($schoolID);
+                $smsService = new SmsService();
+                $parentSms = $smsService->sendParentCredentials(
+                    $parent->phone,
+                    $school->school_name ?? 'School',
+                    $parent->phone,
+                    $parent->first_name
+                );
+                $parentSmsSent = $parentSms['success'] ?? false;
+            } catch (\Throwable $e) {
+                Log::warning('Quick import parent SMS skipped: ' . $e->getMessage());
+            }
+        }
+
+        return [
+            'success' => true,
+            'message' => 'OK',
+            'admission_number' => $admissionNumber,
+            'is_new_parent' => $isNewParent,
+            'parent_sms_sent' => $parentSmsSent,
+        ];
     }
 }

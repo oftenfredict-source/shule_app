@@ -1356,6 +1356,15 @@
                         <button class="dropdown-item" id="quickRegisterStudentBtn" type="button" role="menuitem">
                             <i class="bi bi-lightning-charge-fill" style="color:#940000;"></i> Quick Registration
                         </button>
+                        <a href="{{ route('quick_register_template') }}" class="dropdown-item" target="_blank" role="menuitem">
+                            <i class="bi bi-download" style="color:#940000;"></i> Quick Template
+                        </a>
+                        <button class="dropdown-item" id="quickImportStudentBtn" type="button" role="menuitem">
+                            <i class="bi bi-file-earmark-excel" style="color:#940000;"></i> Quick Import
+                        </button>
+                        <a href="{{ route('quick_register_export') }}" class="dropdown-item" target="_blank" role="menuitem">
+                            <i class="bi bi-file-earmark-spreadsheet" style="color:#940000;"></i> Export Unenrolled
+                        </a>
                         <a href="{{ route('download_student_template') }}" class="dropdown-item" target="_blank" role="menuitem">
                             <i class="bi bi-download" style="color:#940000;"></i> Template
                         </a>

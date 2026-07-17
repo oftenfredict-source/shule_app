@@ -45,6 +45,10 @@ class StudentEnrollment extends Model
         'joined_date',
         'left_date',
         'notes',
+        'enrolled_by',
+        'enrolled_by_name',
+        'closed_by',
+        'closed_by_name',
     ];
 
     protected $casts = [
