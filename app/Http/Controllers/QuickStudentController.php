@@ -899,6 +899,19 @@ class QuickStudentController extends Controller
     }
 
     /**
+     * Stream XLSX download without writing to storage (avoids permission issues on live servers).
+     */
+    private function downloadSpreadsheet(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet, string $fileName)
+    {
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
      * Minimal Excel template for Quick Registration (no class / no enrollment).
      */
     public function downloadQuickTemplate()
@@ -955,15 +968,8 @@ class QuickStudentController extends Controller
         $sheet2->getColumnDimension('A')->setWidth(100);
 
         $spreadsheet->setActiveSheetIndex(0);
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $fileName = 'Quick_Student_Registration_Template.xlsx';
-        $tempPath = storage_path('app/public/' . $fileName);
-        if (!is_dir(dirname($tempPath))) {
-            @mkdir(dirname($tempPath), 0755, true);
-        }
-        $writer->save($tempPath);
 
-        return response()->download($tempPath, $fileName)->deleteFileAfterSend(true);
+        return $this->downloadSpreadsheet($spreadsheet, 'Quick_Student_Registration_Template.xlsx');
     }
 
     /**
@@ -1037,15 +1043,7 @@ class QuickStudentController extends Controller
             $row++;
         }
 
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $fileName = 'Unenrolled_Students_' . date('Y-m-d') . '.xlsx';
-        $tempPath = storage_path('app/public/' . $fileName);
-        if (!is_dir(dirname($tempPath))) {
-            @mkdir(dirname($tempPath), 0755, true);
-        }
-        $writer->save($tempPath);
-
-        return response()->download($tempPath, $fileName)->deleteFileAfterSend(true);
+        return $this->downloadSpreadsheet($spreadsheet, 'Unenrolled_Students_' . date('Y-m-d') . '.xlsx');
     }
 
     /**
