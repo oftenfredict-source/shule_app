@@ -524,6 +524,37 @@
         border-width: 0.15em;
         color: #940000;
     }
+    .not-enrolled-bulk-bar {
+        padding: 10px 12px;
+        background: #fff8f8;
+        border: 1px solid #f1c0c0;
+        border-left: 4px solid #940000;
+        border-radius: 0;
+    }
+    .not-enrolled-check-col {
+        vertical-align: middle !important;
+    }
+    #studentsTable:not(.not-enrolled-bulk-mode) .not-enrolled-check-cell {
+        display: none;
+    }
+    #studentsTable.not-enrolled-bulk-mode thead .not-enrolled-check-col {
+        display: table-cell !important;
+    }
+    .student-widget-select-check {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 2;
+        margin: 0;
+    }
+    .student-widget-select-check input {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+    .student-widget.not-enrolled-selectable {
+        position: relative;
+    }
 
     .student-list-view .dataTables_wrapper .dataTables_filter input,
     .student-list-view .dataTables_wrapper .dataTables_length select {
@@ -1385,6 +1416,11 @@
                             <i class="bi bi-arrow-counterclockwise" style="color:#940000;"></i> Undo Move
                         </button>
                         @endif
+                        @if($canDelete ?? false)
+                        <button class="dropdown-item text-danger" id="deleteAllNotEnrolledBtn" type="button" role="menuitem">
+                            <i class="bi bi-trash"></i> Delete All Not Enrolled
+                        </button>
+                        @endif
                         <button class="dropdown-item" id="exportPdfBtn" type="button" role="menuitem" title="Export to PDF">
                             <i class="bi bi-file-pdf" style="color:#940000;"></i> Export PDF
                         </button>
@@ -1510,12 +1546,34 @@
                 </div>
             </div>
 
+            @if($canDelete ?? false)
+            <div id="notEnrolledBulkBar" class="not-enrolled-bulk-bar d-none mb-3">
+                <div class="d-flex flex-wrap align-items-center" style="gap:8px;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="notEnrolledSelectAllBtn">
+                        <i class="bi bi-check2-square"></i> Select All
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="notEnrolledClearSelectionBtn">
+                        Clear
+                    </button>
+                    <span class="text-muted small" id="notEnrolledSelectedCount">0 selected</span>
+                    <button type="button" class="btn btn-sm btn-danger ml-auto" id="deleteSelectedNotEnrolledBtn" disabled>
+                        <i class="bi bi-trash"></i> Delete Selected
+                    </button>
+                </div>
+            </div>
+            @endif
+
             <div class="student-data-wrapper" id="studentsDataWrapper" data-active-view="list">
                 <div class="student-list-view">
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped w-100" id="studentsTable">
                             <thead class="bg-light">
                                 <tr>
+                                    @if($canDelete ?? false)
+                                    <th class="not-enrolled-check-col d-none text-center" width="40" title="Select on this page">
+                                        <input type="checkbox" class="form-check-input m-0" id="notEnrolledSelectPageCb" title="Select all on this page" aria-label="Select all on this page">
+                                    </th>
+                                    @endif
                                     <th width="40">#</th>
                                     <th width="50">Photo</th>
                                     <th>Admission</th>

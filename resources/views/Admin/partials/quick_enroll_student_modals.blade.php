@@ -292,7 +292,13 @@
                             <div class="alert small mb-2" style="background:#fff;border:1px solid #940000;border-radius:0;">
                                 Students already enrolled in another class can be selected — their previous Active enrollment will be <strong>closed</strong> (status updated, history kept), then they join this class.
                             </div>
-                            <input type="search" class="form-control mb-2" id="qeEnrollStudentSearch" placeholder="Search students..." style="border-radius:0;" autocomplete="off">
+                            <div class="d-flex flex-wrap align-items-center mb-2" style="gap:12px;">
+                                <label class="mb-0 small">
+                                    <input type="checkbox" id="qeEnrollUnenrolledOnly" checked> Not enrolled only
+                                </label>
+                                <span class="small text-muted" id="qeEnrollListMeta"></span>
+                            </div>
+                            <input type="search" class="form-control mb-2" id="qeEnrollStudentSearch" placeholder="Search by admission number or name..." style="border-radius:0;" autocomplete="off">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="mb-0"><input type="checkbox" id="qeEnrollSelectAll"> Select all visible</label>
                                 <span class="small text-muted" id="qeEnrollSelectedCount">0 selected</span>
@@ -881,7 +887,12 @@
 
         $('#qeEnrollStepClass').removeClass('d-none');
         $('#qeEnrollStepStudents').addClass('d-none');
-        $('#qeEnrollStudentSearch').val('');
+        if (QE.preselectStudentName) {
+            $('#qeEnrollStudentSearch').val(QE.preselectStudentName);
+        } else {
+            $('#qeEnrollStudentSearch').val('');
+        }
+        $('#qeEnrollUnenrolledOnly').prop('checked', true);
         if (QE.mode === 'teacher' && QE.lockedSubclassID) {
             $('#qeEnrollSubclassID').val(QE.lockedSubclassID);
             $('#qeEnrolledSubclassID').val(QE.lockedSubclassID);
@@ -937,11 +948,6 @@
             return;
         }
         const id = QE.preselectStudentID;
-        const name = QE.preselectStudentName || '';
-        if (name) {
-            $('#qeEnrollStudentSearch').val(name);
-            qeRenderEnrollList();
-        }
         const $check = $('.qe-enroll-check[value="' + id + '"]');
         if ($check.length) {
             $check.prop('checked', true);
@@ -957,9 +963,21 @@
 
     function qeLoadForEnroll() {
         $('#qeEnrollStudentsBody').html('<tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>');
-        $.getJSON(QE.routes.listForEnroll, { search: $('#qeEnrollStudentSearch').val() || '' })
+        $.getJSON(QE.routes.listForEnroll, {
+            search: $('#qeEnrollStudentSearch').val() || '',
+            unenrolled_only: $('#qeEnrollUnenrolledOnly').is(':checked') ? 1 : 0,
+            limit: 3000
+        })
             .done(function (res) {
                 QE.enrollStudentsCache = (res.success && res.students) ? res.students : [];
+                const meta = [];
+                if (typeof res.not_enrolled_count === 'number') {
+                    meta.push(res.not_enrolled_count + ' not enrolled');
+                }
+                if (typeof res.total === 'number') {
+                    meta.push(res.total + ' shown');
+                }
+                $('#qeEnrollListMeta').text(meta.join(' · '));
                 qeRenderEnrollList();
                 qeApplyPreselectedEnrollStudent();
             })
@@ -978,7 +996,7 @@
             return hay.indexOf(q) !== -1;
         });
         if (!rows.length) {
-            $('#qeEnrollStudentsBody').html('<tr><td colspan="5" class="text-center text-muted">No students match</td></tr>');
+            $('#qeEnrollStudentsBody').html('<tr><td colspan="5" class="text-center text-muted">No students match — try search or turn off &quot;Not enrolled only&quot; to include enrolled students.</td></tr>');
             qeUpdateEnrollSelected();
             return;
         }
@@ -1001,7 +1019,10 @@
     let qeEnrollSearchTimer;
     $('#qeEnrollStudentSearch').on('input', function () {
         clearTimeout(qeEnrollSearchTimer);
-        qeEnrollSearchTimer = setTimeout(qeRenderEnrollList, 200);
+        qeEnrollSearchTimer = setTimeout(qeLoadForEnroll, 300);
+    });
+    $('#qeEnrollUnenrolledOnly').on('change', function () {
+        qeLoadForEnroll();
     });
 
     $(document).on('change', '.qe-enroll-check, #qeEnrollSelectAll', function () {

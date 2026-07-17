@@ -421,7 +421,7 @@ class QuickStudentController extends Controller
     }
 
     /**
-     * Students available for enrollment (unenrolled + enrolled elsewhere for reassignment).
+     * Students available for enrollment (not enrolled first; enrolled elsewhere for reassignment).
      */
     public function listForEnroll(Request $request)
     {
@@ -435,41 +435,87 @@ class QuickStudentController extends Controller
         }
 
         $search = trim((string) $request->input('search', ''));
-        $unenrolledOnly = $request->boolean('unenrolled_only', false);
+        $unenrolledOnly = $request->boolean('unenrolled_only', true);
+        $limit = min(max((int) $request->input('limit', 3000), 50), 5000);
 
-        $query = Student::with(['parent'])
-            ->where('schoolID', $schoolID)
-            ->where('status', 'Active');
+        $yearService = app(SelectedAcademicYearService::class);
+        $yearIDs = array_map('intval', $yearService->selectedYearIds((int) $schoolID));
 
-        if ($search !== '') {
-            $like = '%' . $search . '%';
-            $query->where(function ($q) use ($like) {
-                $q->where('admission_number', 'like', $like)
-                    ->orWhere('first_name', 'like', $like)
-                    ->orWhere('middle_name', 'like', $like)
-                    ->orWhere('last_name', 'like', $like)
-                    ->orWhereRaw("CONCAT(COALESCE(first_name,''),' ',COALESCE(middle_name,''),' ',COALESCE(last_name,'')) LIKE ?", [$like]);
-            });
+        $buildBaseQuery = function () use ($schoolID, $search) {
+            $query = Student::with(['parent'])
+                ->where('schoolID', $schoolID)
+                ->where('status', 'Active');
+
+            if ($search !== '') {
+                $like = '%' . $search . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->where('admission_number', 'like', $like)
+                        ->orWhere('first_name', 'like', $like)
+                        ->orWhere('middle_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like)
+                        ->orWhereRaw("CONCAT(COALESCE(first_name,''),' ',COALESCE(middle_name,''),' ',COALESCE(last_name,'')) LIKE ?", [$like]);
+                });
+            }
+
+            return $query;
+        };
+
+        $unenrolledQuery = $buildBaseQuery();
+        $this->applyNotEnrolledStudentScope($unenrolledQuery, (int) $schoolID, $yearIDs);
+        $unenrolledStudents = $unenrolledQuery
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->limit($limit)
+            ->get();
+
+        $enrolledStudents = collect();
+        if (!$unenrolledOnly) {
+            $remaining = max(0, $limit - $unenrolledStudents->count());
+            if ($remaining > 0) {
+                $enrolledQuery = $buildBaseQuery();
+                $enrolledQuery->whereExists(function ($q) use ($schoolID, $yearIDs) {
+                    $q->select(DB::raw(1))
+                        ->from('student_enrollments')
+                        ->whereColumn('student_enrollments.studentID', 'students.studentID')
+                        ->where('student_enrollments.schoolID', $schoolID)
+                        ->where('student_enrollments.status', 'Active');
+                    if (!empty($yearIDs)) {
+                        $q->whereIn('student_enrollments.academic_yearID', $yearIDs);
+                    }
+                });
+                if ($unenrolledStudents->isNotEmpty()) {
+                    $enrolledQuery->whereNotIn('studentID', $unenrolledStudents->pluck('studentID')->all());
+                }
+                $enrolledStudents = $enrolledQuery
+                    ->orderBy('first_name')
+                    ->orderBy('last_name')
+                    ->limit($remaining)
+                    ->get();
+            }
         }
 
-        $students = $query->orderBy('first_name')->orderBy('last_name')->limit(500)->get();
+        $students = $unenrolledStudents->concat($enrolledStudents);
 
         $activeEnrollments = StudentEnrollment::with(['classModel', 'subclass'])
             ->where('schoolID', $schoolID)
             ->where('status', 'Active')
             ->whereIn('studentID', $students->pluck('studentID')->all())
+            ->when(!empty($yearIDs), function ($q) use ($yearIDs) {
+                $q->whereIn('academic_yearID', $yearIDs);
+            })
             ->orderByDesc('enrollmentID')
             ->get()
             ->unique('studentID')
             ->keyBy('studentID');
 
         $rows = [];
+        $notEnrolledCount = 0;
         foreach ($students as $student) {
             $enrollment = $activeEnrollments->get($student->studentID);
             $isEnrolled = (bool) $enrollment;
 
-            if ($unenrolledOnly && $isEnrolled) {
-                continue;
+            if (!$isEnrolled) {
+                $notEnrolledCount++;
             }
 
             $classLabel = null;
@@ -496,7 +542,6 @@ class QuickStudentController extends Controller
             ];
         }
 
-        // Unenrolled first, then enrolled
         usort($rows, function ($a, $b) {
             if ($a['is_enrolled'] === $b['is_enrolled']) {
                 return strcasecmp($a['full_name'], $b['full_name']);
@@ -508,7 +553,31 @@ class QuickStudentController extends Controller
             'success' => true,
             'students' => $rows,
             'total' => count($rows),
+            'not_enrolled_count' => $notEnrolledCount,
         ]);
+    }
+
+    /**
+     * Students with no Active enrollment in the selected academic year(s).
+     */
+    private function applyNotEnrolledStudentScope($query, int $schoolID, array $yearIDs): void
+    {
+        if (!StudentEnrollment::where('schoolID', $schoolID)->exists()) {
+            $query->whereNull('subclassID');
+            return;
+        }
+
+        $query->whereNotExists(function ($q) use ($schoolID, $yearIDs) {
+            $q->select(DB::raw(1))
+                ->from('student_enrollments')
+                ->whereColumn('student_enrollments.studentID', 'students.studentID')
+                ->where('student_enrollments.schoolID', $schoolID)
+                ->where('student_enrollments.status', 'Active');
+
+            if (!empty($yearIDs)) {
+                $q->whereIn('student_enrollments.academic_yearID', $yearIDs);
+            }
+        });
     }
 
     /**

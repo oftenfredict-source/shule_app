@@ -1728,6 +1728,18 @@ Route::delete("delete_student/{studentID}", [
     ManageStudentController::class,
     "delete_student",
 ])->name("delete_student");
+Route::delete("delete_not_enrolled_student/{studentID}", [
+    ManageStudentController::class,
+    "delete_not_enrolled_student",
+])->name("delete_not_enrolled_student");
+Route::post("delete_all_not_enrolled_students", [
+    ManageStudentController::class,
+    "delete_all_not_enrolled_students",
+])->name("delete_all_not_enrolled_students");
+Route::post("delete_selected_not_enrolled_students", [
+    ManageStudentController::class,
+    "delete_selected_not_enrolled_students",
+])->name("delete_selected_not_enrolled_students");
 Route::post("activate_student/{studentID}", [
     ManageStudentController::class,
     "activate_student",

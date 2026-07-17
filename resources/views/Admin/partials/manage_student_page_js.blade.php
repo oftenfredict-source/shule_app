@@ -1,6 +1,7 @@
 ﻿    const canCreate = {!! !empty($canCreate) ? 'true' : 'false' !!};
     const canUpdate = {!! !empty($canUpdate) ? 'true' : 'false' !!};
     const canDelete = {!! !empty($canDelete) ? 'true' : 'false' !!};
+    let notEnrolledSelectedIds = new Set();
 
     // Ensure $ is bound to jQuery and detect if select2 is available
     if (typeof jQuery !== 'undefined') {
@@ -144,6 +145,64 @@
                 (student.has_chronic_illness === true || student.has_chronic_illness == 1 || student.has_chronic_illness === "1");
         }
 
+        function isNotEnrolledBulkMode() {
+            return canDelete && ($('#statusFilter').val() || '') === 'NotEnrolled';
+        }
+
+        function updateNotEnrolledBulkUi() {
+            const on = isNotEnrolledBulkMode();
+            $('#notEnrolledBulkBar').toggleClass('d-none', !on);
+            $('#studentsTable').toggleClass('not-enrolled-bulk-mode', on);
+            $('.not-enrolled-check-col').toggleClass('d-none', !on);
+            if (!on) {
+                clearNotEnrolledSelection(false);
+            } else {
+                syncNotEnrolledCheckboxes();
+                updateNotEnrolledSelectionCount();
+            }
+        }
+
+        function clearNotEnrolledSelection(refreshUi) {
+            notEnrolledSelectedIds.clear();
+            $('#notEnrolledSelectPageCb').prop('checked', false);
+            if (refreshUi !== false) {
+                syncNotEnrolledCheckboxes();
+                updateNotEnrolledSelectionCount();
+            }
+        }
+
+        function syncNotEnrolledCheckboxes() {
+            $('.not-enrolled-student-check').each(function () {
+                const id = parseInt($(this).val(), 10);
+                $(this).prop('checked', notEnrolledSelectedIds.has(id));
+            });
+            syncNotEnrolledPageSelectAllState();
+        }
+
+        function syncNotEnrolledPageSelectAllState() {
+            const $boxes = $('.not-enrolled-student-check:visible');
+            if (!$boxes.length) {
+                $('#notEnrolledSelectPageCb').prop('checked', false);
+                return;
+            }
+            $('#notEnrolledSelectPageCb').prop('checked', $boxes.filter(':checked').length === $boxes.length);
+        }
+
+        function updateNotEnrolledSelectionCount() {
+            const n = notEnrolledSelectedIds.size;
+            $('#notEnrolledSelectedCount').text(n + ' selected');
+            $('#deleteSelectedNotEnrolledBtn').prop('disabled', n === 0);
+        }
+
+        function renderNotEnrolledStudentCheckbox(studentID) {
+            if (!isNotEnrolledBulkMode()) {
+                return '';
+            }
+            const id = parseInt(studentID, 10);
+            const checked = notEnrolledSelectedIds.has(id) ? ' checked' : '';
+            return '<input type="checkbox" class="not-enrolled-student-check form-check-input m-0" value="' + id + '"' + checked + ' aria-label="Select student">';
+        }
+
         function buildStudentActionsHtml(student, status, compact) {
             let items = '';
             const isNotEnrolled = student.is_not_enrolled === true ||
@@ -182,6 +241,11 @@
                 }
                 items += '<button type="button" class="dropdown-item generate-id-btn" data-student-id="' + student.studentID + '">' +
                     '<i class="bi bi-card-text text-primary"></i> Generate ID Card</button>';
+            }
+
+            if (canDelete && isNotEnrolled) {
+                items += '<button type="button" class="dropdown-item text-danger delete-not-enrolled-student-btn" data-student-id="' + student.studentID + '" data-student-name="' + escapeHtmlStudent(student.full_name || '') + '">' +
+                    '<i class="bi bi-trash"></i> Delete Student</button>';
             }
 
             if (canDelete && status === 'Active') {
@@ -260,65 +324,23 @@
             destroyStudentsTable();
 
             if (!$.fn.DataTable) {
-                $('#studentsTableBody').html('<tr><td colspan="11" class="text-center text-danger">DataTables failed to load.</td></tr>');
+                $('#studentsTableBody').html('<tr><td colspan="12" class="text-center text-danger">DataTables failed to load.</td></tr>');
                 return;
             }
 
-            studentsTable = $('#studentsTable').DataTable({
-                processing: true,
-                serverSide: true,
-                searching: true,
-                ordering: false,
-                paging: true,
-                lengthChange: true,
-                pageLength: 10,
-                lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
-                info: true,
-                autoWidth: false,
-                deferRender: true,
-                dom:
-                    "<'row align-items-center'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
-                    "<'row'<'col-sm-12'tr>>" +
-                    "<'row align-items-center'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
-                ajax: function (data, callback) {
-                    $.ajax({
-                        url: {!! json_encode(route("get_students_list")) !!},
-                        type: 'GET',
-                        dataType: 'json',
-                        data: getListFilterParams(data),
-                        success: function (response) {
-                            const students = (response && response.success) ? (response.students || []) : [];
-                            const meta = (response && response.pagination) ? response.pagination : {};
-                            currentStudentsData = students;
-                            currentStatus = $('#statusFilter').val() || 'Active';
-                            applyPaginationMeta(meta);
-                            callback({
-                                draw: data.draw,
-                                recordsTotal: meta.total || students.length,
-                                recordsFiltered: meta.total || students.length,
-                                data: students
-                            });
-                            loadStatistics();
-                        },
-                        error: function (xhr) {
-                            let errorMessage = 'Failed to load students';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-                            }
-                            currentStudentsData = [];
-                            callback({
-                                draw: data.draw,
-                                recordsTotal: 0,
-                                recordsFiltered: 0,
-                                data: []
-                            });
-                            if (typeof StudentSwal !== 'undefined') {
-                                StudentSwal.fire({ icon: 'error', title: 'Error', text: errorMessage });
-                            }
-                        }
-                    });
-                },
-                columns: [
+            const dtColumns = [];
+            if (canDelete) {
+                dtColumns.push({
+                    data: 'studentID',
+                    orderable: false,
+                    searchable: false,
+                    className: 'not-enrolled-check-cell text-center',
+                    render: function (id) {
+                        return renderNotEnrolledStudentCheckbox(id);
+                    }
+                });
+            }
+            dtColumns.push(
                     {
                         data: null,
                         orderable: false,
@@ -407,7 +429,64 @@
                             return buildStudentActionsHtml(row, row.enrollment_status || currentStatus, true);
                         }
                     }
-                ],
+            );
+
+            studentsTable = $('#studentsTable').DataTable({
+                processing: true,
+                serverSide: true,
+                searching: true,
+                ordering: false,
+                paging: true,
+                lengthChange: true,
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+                info: true,
+                autoWidth: false,
+                deferRender: true,
+                dom:
+                    "<'row align-items-center'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+                    "<'row'<'col-sm-12'tr>>" +
+                    "<'row align-items-center'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+                ajax: function (data, callback) {
+                    $.ajax({
+                        url: {!! json_encode(route("get_students_list")) !!},
+                        type: 'GET',
+                        dataType: 'json',
+                        data: getListFilterParams(data),
+                        success: function (response) {
+                            const students = (response && response.success) ? (response.students || []) : [];
+                            const meta = (response && response.pagination) ? response.pagination : {};
+                            currentStudentsData = students;
+                            currentStatus = $('#statusFilter').val() || 'Active';
+                            applyPaginationMeta(meta);
+                            updateNotEnrolledBulkUi();
+                            callback({
+                                draw: data.draw,
+                                recordsTotal: meta.total || students.length,
+                                recordsFiltered: meta.total || students.length,
+                                data: students
+                            });
+                            loadStatistics();
+                        },
+                        error: function (xhr) {
+                            let errorMessage = 'Failed to load students';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+                            currentStudentsData = [];
+                            callback({
+                                draw: data.draw,
+                                recordsTotal: 0,
+                                recordsFiltered: 0,
+                                data: []
+                            });
+                            if (typeof StudentSwal !== 'undefined') {
+                                StudentSwal.fire({ icon: 'error', title: 'Error', text: errorMessage });
+                            }
+                        }
+                    });
+                },
+                columns: dtColumns,
                 language: {
                     search: 'Search:',
                     lengthMenu: 'Show _MENU_ entries',
@@ -426,6 +505,7 @@
                 },
                 drawCallback: function () {
                     try { this.api().columns.adjust(); } catch (e) {}
+                    syncNotEnrolledCheckboxes();
                 }
             });
 
@@ -466,9 +546,17 @@
                     escapeHtmlStudent(promotionStatusLabel(promo)) + '</span>'
                 : '';
 
+            var selectChk = '';
+            var widgetExtraClass = '';
+            if (isNotEnrolledBulkMode()) {
+                widgetExtraClass = ' not-enrolled-selectable';
+                selectChk = '<label class="student-widget-select-check">' + renderNotEnrolledStudentCheckbox(student.studentID) + '</label>';
+            }
+
             return '<div class="col-12 col-sm-6 col-xl-4">' +
-                '<div class="student-widget">' +
+                '<div class="student-widget' + widgetExtraClass + '">' +
                     '<div class="student-widget-header">' +
+                        selectChk +
                         buildStudentActionsHtml(student, enr, false) +
                         studentPhotoImgHtml(student, '', student.full_name) +
                     '</div>' +
@@ -621,6 +709,7 @@
                             has_more: false,
                             total: currentStudentsData.length
                         });
+                        updateNotEnrolledBulkUi();
                         resetAndRenderGrid();
                         loadStatistics();
                         if (studentSearchKeepFocus) {
@@ -2158,6 +2247,8 @@
         $('#statusFilter').on('change', function() {
             let status = $(this).val() || 'Active';
             currentStatus = status;
+            clearNotEnrolledSelection();
+            updateNotEnrolledBulkUi();
             reloadData();
         });
 
@@ -2187,6 +2278,158 @@
         // Subclass, Gender, Health filters
         $('#subclassFilter, #genderFilter, #healthFilter').on('change', function() {
             handleFilterChange();
+        });
+
+        // Not enrolled bulk selection
+        $(document).on('change', '.not-enrolled-student-check', function () {
+            const id = parseInt($(this).val(), 10);
+            if ($(this).prop('checked')) {
+                notEnrolledSelectedIds.add(id);
+            } else {
+                notEnrolledSelectedIds.delete(id);
+            }
+            updateNotEnrolledSelectionCount();
+            syncNotEnrolledPageSelectAllState();
+        });
+
+        $('#notEnrolledSelectPageCb').on('change', function () {
+            const checked = $(this).prop('checked');
+            $('.not-enrolled-student-check:visible').each(function () {
+                const id = parseInt($(this).val(), 10);
+                $(this).prop('checked', checked);
+                if (checked) {
+                    notEnrolledSelectedIds.add(id);
+                } else {
+                    notEnrolledSelectedIds.delete(id);
+                }
+            });
+            updateNotEnrolledSelectionCount();
+        });
+
+        $('#notEnrolledSelectAllBtn').on('click', function () {
+            const $btn = $(this).prop('disabled', true);
+            const params = Object.assign(getStudentFilterParams({ status: 'NotEnrolled' }), {
+                ids_only: 1,
+                paginate: 0
+            });
+
+            $.getJSON({!! json_encode(route('get_students_list')) !!}, params)
+                .done(function (res) {
+                    if (!res.success || !res.studentIDs || !res.studentIDs.length) {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'No students',
+                            text: 'No not-enrolled students found.',
+                            confirmButtonColor: '#940000'
+                        });
+                        return;
+                    }
+
+                    notEnrolledSelectedIds.clear();
+                    res.studentIDs.forEach(function (id) {
+                        notEnrolledSelectedIds.add(parseInt(id, 10));
+                    });
+
+                    if (res.truncated) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Partial selection',
+                            text: 'Selected ' + res.studentIDs.length + ' of ' + res.total + ' students (limit reached).',
+                            confirmButtonColor: '#940000'
+                        });
+                    }
+
+                    syncNotEnrolledCheckboxes();
+                    updateNotEnrolledSelectionCount();
+
+                    if ($('#studentsDataWrapper').attr('data-active-view') === 'grid') {
+                        resetAndRenderGrid();
+                    } else {
+                        reloadStudentsDataTable(false);
+                    }
+                })
+                .fail(function () {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'Could not load student list for selection.' });
+                })
+                .always(function () {
+                    $btn.prop('disabled', false);
+                });
+        });
+
+        $('#notEnrolledClearSelectionBtn').on('click', function () {
+            clearNotEnrolledSelection();
+            if ($('#studentsDataWrapper').attr('data-active-view') === 'grid') {
+                resetAndRenderGrid();
+            } else {
+                reloadStudentsDataTable(false);
+            }
+        });
+
+        $('#deleteSelectedNotEnrolledBtn').on('click', function () {
+            const ids = Array.from(notEnrolledSelectedIds);
+            if (!ids.length) {
+                return;
+            }
+
+            Swal.fire({
+                title: 'Delete selected students?',
+                html: 'Delete <strong>' + ids.length + '</strong> selected not-enrolled student(s)?<br><span class="text-danger">This cannot be undone.</span>',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Delete selected',
+                cancelButtonText: 'Cancel'
+            }).then(function (result) {
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                Swal.fire({
+                    title: 'Deleting...',
+                    html: 'Please wait.',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: function () { Swal.showLoading(); }
+                });
+
+                $.ajax({
+                    url: {!! json_encode(route('delete_selected_not_enrolled_students')) !!},
+                    type: 'POST',
+                    data: {
+                        _token: $('meta[name="csrf-token"]').attr('content'),
+                        studentIDs: ids
+                    },
+                    dataType: 'json',
+                    timeout: 600000,
+                    success: function (response) {
+                        if (response.success) {
+                            clearNotEnrolledSelection();
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted',
+                                text: response.message || ('Deleted ' + (response.deleted || 0) + ' student(s)'),
+                                confirmButtonColor: '#940000'
+                            }).then(function () {
+                                reloadData();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Delete failed',
+                                text: response.message || 'No students were deleted'
+                            });
+                        }
+                    },
+                    error: function (xhr, textStatus) {
+                        let msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Delete failed';
+                        if (textStatus === 'timeout') {
+                            msg = 'Delete timed out. Refresh and check the Not Enrolled list.';
+                        }
+                        Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                    }
+                });
+            });
         });
 
         // Enroll Now (not-enrolled students only)
@@ -3153,6 +3396,138 @@ Would you like to try direct registration anyway, or use the manual method?`;
             });
         });
 
+        // Delete not-enrolled student (single)
+        $(document).on('click', '.delete-not-enrolled-student-btn', function () {
+            const studentID = $(this).data('student-id');
+            const studentName = $(this).data('student-name') || 'this student';
+
+            Swal.fire({
+                title: 'Delete not enrolled student?',
+                html: 'Delete <strong>' + escapeHtmlStudent(studentName) + '</strong>?<br><small class="text-muted">Only students without Active enrollment are removed.</small>',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete',
+                cancelButtonText: 'Cancel'
+            }).then(function (result) {
+                if (!result.isConfirmed) return;
+
+                $.ajax({
+                    url: {!! json_encode(route('delete_not_enrolled_student', ':id')) !!}.replace(':id', studentID),
+                    type: 'DELETE',
+                    data: getStudentFilterParams(),
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    dataType: 'json',
+                    success: function (response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted',
+                                text: response.message || 'Student deleted',
+                                confirmButtonColor: '#940000'
+                            }).then(function () {
+                                reloadData();
+                            });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'Delete failed' });
+                        }
+                    },
+                    error: function (xhr) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: (xhr.responseJSON && xhr.responseJSON.message) || 'Delete failed'
+                        });
+                    }
+                });
+            });
+        });
+
+        // Delete all not-enrolled students (bulk)
+        $(document).on('click', '#deleteAllNotEnrolledBtn', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            $('#studentPageActionsDropdown').removeClass('show');
+
+            const params = getStudentFilterParams({ status: 'NotEnrolled', paginate: 1, per_page: 1, page: 1 });
+            $.getJSON({!! json_encode(route('get_students')) !!}, params).done(function (res) {
+                const total = (res.success && res.pagination) ? (res.pagination.total || 0) : 0;
+                if (!total) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'No students',
+                        text: 'No not-enrolled students found for the current filters.',
+                        confirmButtonColor: '#940000'
+                    });
+                    return;
+                }
+
+                Swal.fire({
+                    title: 'Delete all not enrolled?',
+                    html: 'Delete <strong>' + total + '</strong> not-enrolled student(s) matching current filters?<br><br><span class="text-danger">This cannot be undone.</span>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Delete all (' + total + ')',
+                    cancelButtonText: 'Cancel'
+                }).then(function (result) {
+                    if (!result.isConfirmed) return;
+
+                    Swal.fire({
+                        title: 'Deleting...',
+                        html: 'Please wait while not-enrolled students are removed.',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: function () { Swal.showLoading(); }
+                    });
+
+                    $.ajax({
+                        url: {!! json_encode(route('delete_all_not_enrolled_students')) !!},
+                        type: 'POST',
+                        data: Object.assign(getStudentFilterParams({ status: 'NotEnrolled' }), {
+                            _token: $('meta[name="csrf-token"]').attr('content')
+                        }),
+                        dataType: 'json',
+                        timeout: 600000,
+                        success: function (response) {
+                            if (response.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Deleted',
+                                    text: response.message || ('Deleted ' + (response.deleted || 0) + ' student(s)'),
+                                    confirmButtonColor: '#940000'
+                                }).then(function () {
+                                    if ($('#statusFilter').val() === 'NotEnrolled') {
+                                        reloadData();
+                                    } else {
+                                        $('#statusFilter').val('NotEnrolled');
+                                        reloadData();
+                                    }
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Delete failed',
+                                    text: response.message || 'No students were deleted'
+                                });
+                            }
+                        },
+                        error: function (xhr, textStatus) {
+                            let msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Delete failed';
+                            if (textStatus === 'timeout') {
+                                msg = 'Delete timed out. Refresh and check the Not Enrolled list — some students may have been removed.';
+                            }
+                            Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                        }
+                    });
+                });
+            }).fail(function () {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Could not count not-enrolled students.' });
+            });
+        });
+
         // Delete Student Button Click
         $(document).on('click', '.delete-student-btn', function() {
             let studentID = $(this).data('student-id');
@@ -3184,8 +3559,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
                                     text: response.message || 'Student deleted successfully',
                                     confirmButtonColor: '#940000'
                                 }).then(() => {
-                                    // Reload active students table
-                                    loadStudents('Active', 'activeStudentsTable');
+                                    reloadData();
                                 });
                             } else {
                                 Swal.fire({

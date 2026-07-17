@@ -933,18 +933,7 @@ class ManageStudentController extends Controller
                 ], 404);
             }
 
-            // Delete photo if exists
-            if ($student->photo && file_exists(public_path('userImages/' . $student->photo))) {
-                unlink(public_path('userImages/' . $student->photo));
-            }
-
-            // Delete user account
-            $user = User::where('name', $student->admission_number)->first();
-            if ($user) {
-                $user->delete();
-            }
-
-            $student->delete();
+            $this->destroyStudentRecord($student);
 
             return response()->json([
                 'success' => true,
@@ -956,6 +945,343 @@ class ManageStudentController extends Controller
                 'message' => 'Failed to delete student: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Delete a single student only if they are not enrolled (selected academic year scope).
+     */
+    public function delete_not_enrolled_student(Request $request, $studentID)
+    {
+        if (!$this->hasPermission('student_delete')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to delete students. You need student_delete permission.',
+            ], 403);
+        }
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+        }
+
+        try {
+            $student = Student::where('studentID', $studentID)
+                ->where('schoolID', $schoolID)
+                ->first();
+
+            if (!$student) {
+                return response()->json(['success' => false, 'message' => 'Student not found'], 404);
+            }
+
+            $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
+                (int) $schoolID,
+                $request->input('classID', ''),
+                $request->input('academic_yearID', '')
+            );
+
+            if (!$this->canDeleteAsNotEnrolled((int) $schoolID, (int) $studentID, $academicYearIDs)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This student has an Active enrollment and cannot be deleted as not enrolled.',
+                ], 422);
+            }
+
+            $this->destroyStudentRecord($student);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Not enrolled student deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete student: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete all not-enrolled students matching manage_student filters.
+     */
+    public function delete_all_not_enrolled_students(Request $request)
+    {
+        if (!$this->hasPermission('student_delete')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to delete students. You need student_delete permission.',
+            ], 403);
+        }
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+        }
+
+        try {
+            @set_time_limit(0);
+            @ini_set('max_execution_time', '0');
+            @ini_set('memory_limit', '512M');
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        try {
+            $classID = $request->input('classID', '');
+            $subclassID = $request->input('subclassID', '');
+            $gender = $request->input('gender', '');
+            $health = $request->input('health', '');
+            $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
+                (int) $schoolID,
+                $classID,
+                $request->input('academic_yearID', '')
+            );
+
+            $query = Student::where('schoolID', $schoolID);
+            $this->applyEnrollmentScopeToStudentsQuery(
+                $query,
+                (int) $schoolID,
+                $academicYearIDs,
+                $classID,
+                $subclassID,
+                'NotEnrolled',
+                ''
+            );
+
+            if (!empty($gender) && in_array($gender, ['Male', 'Female'], true)) {
+                $query->where('gender', $gender);
+            }
+
+            if ($health === 'good') {
+                $query->where(function ($q) {
+                    $q->whereNull('general_health_condition')
+                        ->orWhere('general_health_condition', '')
+                        ->orWhere('general_health_condition', 'like', '%good%')
+                        ->orWhere('general_health_condition', 'like', '%excellent%')
+                        ->orWhere('general_health_condition', 'like', '%fine%')
+                        ->orWhere('general_health_condition', 'like', '%well%');
+                });
+            } elseif ($health === 'bad') {
+                $query->where(function ($q) {
+                    $q->where('is_disabled', true)
+                        ->orWhere('has_epilepsy', true)
+                        ->orWhere('has_allergies', true)
+                        ->orWhere('has_disability', true)
+                        ->orWhere('has_chronic_illness', true);
+                });
+            }
+
+            $search = trim((string) $request->input('search', ''));
+            if ($search !== '') {
+                $like = '%' . $search . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->where('admission_number', 'like', $like)
+                        ->orWhere('first_name', 'like', $like)
+                        ->orWhere('middle_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like)
+                        ->orWhereRaw("CONCAT(COALESCE(first_name,''),' ',COALESCE(middle_name,''),' ',COALESCE(last_name,'')) LIKE ?", [$like]);
+                });
+            }
+
+            $studentIDs = (clone $query)->orderBy('studentID')->pluck('studentID');
+            if ($studentIDs->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No not-enrolled students found to delete.',
+                    'deleted' => 0,
+                ]);
+            }
+
+            $deleted = 0;
+            $errors = [];
+
+            foreach ($studentIDs->chunk(100) as $chunk) {
+                $students = Student::where('schoolID', $schoolID)
+                    ->whereIn('studentID', $chunk->all())
+                    ->get();
+
+                foreach ($students as $student) {
+                    try {
+                        if (!$this->canDeleteAsNotEnrolled((int) $schoolID, (int) $student->studentID, $academicYearIDs)) {
+                            continue;
+                        }
+                        $this->destroyStudentRecord($student);
+                        $deleted++;
+                    } catch (\Throwable $e) {
+                        $errors[] = 'Student ' . $student->studentID . ': ' . $e->getMessage();
+                    }
+                }
+            }
+
+            if ($deleted === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No students were deleted.' . (count($errors) ? ' ' . implode(' | ', array_slice($errors, 0, 3)) : ''),
+                    'deleted' => 0,
+                    'errors' => $errors,
+                ]);
+            }
+
+            $msg = "Deleted {$deleted} not-enrolled student(s).";
+            if (count($errors) > 0) {
+                $msg .= ' Some failed: ' . implode(' | ', array_slice($errors, 0, 3));
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'deleted' => $deleted,
+                'errors' => $errors,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('delete_all_not_enrolled_students: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete not-enrolled students: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete only the selected not-enrolled student IDs (checkbox bulk delete).
+     */
+    public function delete_selected_not_enrolled_students(Request $request)
+    {
+        if (!$this->hasPermission('student_delete')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to delete students. You need student_delete permission.',
+            ], 403);
+        }
+
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+        }
+
+        $studentIDs = $request->input('studentIDs', []);
+        if (!is_array($studentIDs) || empty($studentIDs)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No students selected.',
+                'deleted' => 0,
+            ]);
+        }
+
+        $studentIDs = array_values(array_unique(array_filter(array_map('intval', $studentIDs))));
+        if (empty($studentIDs)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No valid student IDs selected.',
+                'deleted' => 0,
+            ]);
+        }
+
+        try {
+            @set_time_limit(0);
+            @ini_set('max_execution_time', '0');
+            @ini_set('memory_limit', '512M');
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        try {
+            $academicYearIDs = $this->resolveSelectedAcademicYearIDs(
+                (int) $schoolID,
+                $request->input('classID', ''),
+                $request->input('academic_yearID', '')
+            );
+
+            $deleted = 0;
+            $errors = [];
+            $skipped = 0;
+
+            foreach (array_chunk($studentIDs, 100) as $chunk) {
+                $students = Student::where('schoolID', $schoolID)
+                    ->whereIn('studentID', $chunk)
+                    ->get();
+
+                foreach ($students as $student) {
+                    try {
+                        if (!$this->canDeleteAsNotEnrolled((int) $schoolID, (int) $student->studentID, $academicYearIDs)) {
+                            $skipped++;
+                            continue;
+                        }
+                        $this->destroyStudentRecord($student);
+                        $deleted++;
+                    } catch (\Throwable $e) {
+                        $errors[] = 'Student ' . $student->studentID . ': ' . $e->getMessage();
+                    }
+                }
+            }
+
+            if ($deleted === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $skipped > 0
+                        ? 'Selected students could not be deleted (they may be enrolled).'
+                        : 'No students were deleted.',
+                    'deleted' => 0,
+                    'skipped' => $skipped,
+                    'errors' => $errors,
+                ]);
+            }
+
+            $msg = "Deleted {$deleted} selected not-enrolled student(s).";
+            if ($skipped > 0) {
+                $msg .= " Skipped {$skipped} enrolled student(s).";
+            }
+            if (count($errors) > 0) {
+                $msg .= ' Some failed: ' . implode(' | ', array_slice($errors, 0, 3));
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'deleted' => $deleted,
+                'skipped' => $skipped,
+                'errors' => $errors,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('delete_selected_not_enrolled_students: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete selected students: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function destroyStudentRecord(Student $student): void
+    {
+        if ($student->photo && file_exists(public_path('userImages/' . $student->photo))) {
+            @unlink(public_path('userImages/' . $student->photo));
+        }
+
+        $user = User::where('name', $student->admission_number)->first();
+        if ($user) {
+            $user->delete();
+        }
+
+        $student->delete();
+    }
+
+    private function canDeleteAsNotEnrolled(int $schoolID, int $studentID, array $academicYearIDs): bool
+    {
+        if (!$this->schoolHasEnrollments($schoolID)) {
+            return !Student::where('schoolID', $schoolID)
+                ->where('studentID', $studentID)
+                ->whereNotNull('subclassID')
+                ->exists();
+        }
+
+        $query = StudentEnrollment::where('schoolID', $schoolID)
+            ->where('studentID', $studentID)
+            ->where('status', 'Active');
+
+        if (!empty($academicYearIDs)) {
+            $query->whereIn('academic_yearID', $academicYearIDs);
+        }
+
+        return !$query->exists();
     }
 
     public function activate_student($studentID)
@@ -1966,6 +2292,18 @@ class ManageStudentController extends Controller
         }
 
         $total = (clone $query)->count();
+
+        if ($request->boolean('ids_only')) {
+            $limit = min(max(1, (int) $request->input('limit', 5000)), 5000);
+            $studentIDs = (clone $query)->limit($limit)->pluck('studentID')->values();
+
+            return response()->json([
+                'success' => true,
+                'studentIDs' => $studentIDs,
+                'total' => $total,
+                'truncated' => $total > $studentIDs->count(),
+            ]);
+        }
 
         if ($paginate) {
             $studentsCollection = $query
