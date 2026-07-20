@@ -19,7 +19,10 @@
         $png32 = $customFavicon;
         $apple = $customFavicon;
         $chrome192 = $customFavicon;
+        $primaryPng = $customFavicon;
     } else {
+        // Prefer the round brand PNG (clear in tabs); .ico is fallback for older browsers.
+        $primaryPng = $v('/images/shuleXpert-favicon.png');
         $ico = $v('/favicon.ico');
         $png16 = $v('/images/favicon-16x16.png');
         $png32 = $v('/images/favicon-32x32.png');
@@ -28,6 +31,9 @@
     }
     $manifest = $v('/site.webmanifest');
 @endphp
+@unless(!empty($seo['favicon']))
+<link rel="icon" type="image/png" href="{{ $primaryPng }}">
+@endunless
 <link rel="icon" href="{{ $ico }}" sizes="any">
 <link rel="icon" type="image/png" sizes="16x16" href="{{ $png16 }}">
 <link rel="icon" type="image/png" sizes="32x32" href="{{ $png32 }}">
