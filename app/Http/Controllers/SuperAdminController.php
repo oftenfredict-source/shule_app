@@ -20,7 +20,9 @@ use App\Models\UserActivity;
 use App\Models\BlockedIp;
 use App\Models\Bank;
 use App\Models\SchoolBankAccount;
+use App\Models\CustomerRequest;
 use App\Services\SmsService;
+use App\Support\CenturyGothicPdfFont;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +32,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\QueryException;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class SuperAdminController extends Controller
 {
@@ -133,7 +136,11 @@ class SuperAdminController extends Controller
             ->count();
         $liveSchoolsCount = School::where('environment', 'Live')->count();
 
-        return view('SuperAdmin.dashboard', compact('demoSchoolsCount', 'liveSchoolsCount'));
+        $customerInquiryUnread = Schema::hasTable('customer_requests')
+            ? CustomerRequest::where('is_read', false)->count()
+            : 0;
+
+        return view('SuperAdmin.dashboard', compact('demoSchoolsCount', 'liveSchoolsCount', 'customerInquiryUnread'));
     }
 
     public function schools()
@@ -2145,5 +2152,254 @@ class SuperAdminController extends Controller
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Super Admin page: download NBC payment integration documentation (EN / SW).
+     */
+    public function nbcIntegrationDocs()
+    {
+        if ($deny = $this->ensureSuperAdmin()) {
+            return $deny;
+        }
+
+        return view('SuperAdmin.nbc_integration_docs');
+    }
+
+    /**
+     * Download NBC × ShuleXpert payment integration modality PDF.
+     * lang=en|sw
+     */
+    public function downloadNbcIntegrationDocs(Request $request, string $lang = 'en')
+    {
+        if ($deny = $this->ensureSuperAdmin()) {
+            return $deny;
+        }
+
+        $lang = strtolower($lang) === 'sw' ? 'sw' : 'en';
+
+        $titles = [
+            'en' => 'Payment Integration Modality Proposal — National Bank of Commerce (NBC)',
+            'sw' => 'Pendekezo la Modality ya Uunganishaji wa Malipo — National Bank of Commerce (NBC)',
+        ];
+
+        $views = [
+            'en' => 'SuperAdmin.pdf.nbc_payment_integration_en',
+            'sw' => 'SuperAdmin.pdf.nbc_payment_integration_sw',
+        ];
+
+        $filenames = [
+            'en' => 'ShuleXpert_NBC_Payment_Integration_Modality_EN.pdf',
+            'sw' => 'ShuleXpert_NBC_Payment_Integration_Modality_SW.pdf',
+        ];
+
+        $data = [
+            'title' => $titles[$lang],
+            'version' => '1.0',
+            'document_ref' => 'SX-NBC-PAY-' . date('Y'),
+            'generated_at' => Carbon::now()->format('d M Y'),
+            'lang' => $lang,
+        ];
+
+        try {
+            $pdf = PDF::loadView($views[$lang], $data);
+            // NOTE: do not call setOptions() here — it resets DomPDF font metrics and
+            // breaks the registered Century Gothic font (logo is embedded as base64).
+            CenturyGothicPdfFont::ensureRegistered($pdf->getDomPDF());
+            $pdf->setPaper('A4', 'portrait');
+
+            return $pdf->download($filenames[$lang]);
+        } catch (\Throwable $e) {
+            Log::error('NBC integration docs PDF failed', [
+                'lang' => $lang,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('superadmin.nbc_integration_docs')
+                ->with('error', 'Failed to generate PDF: ' . $e->getMessage());
+        }
+    }
+
+    public function customerInquiries()
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        return view('SuperAdmin.customer_inquiries', [
+            'customerInquiryUnread' => CustomerRequest::where('is_read', false)->count(),
+            'customerInquiryTotal' => CustomerRequest::count(),
+        ]);
+    }
+
+    private function customerInquiryBaseQuery(Request $request)
+    {
+        $query = CustomerRequest::query();
+        $period = $request->input('period', 'all');
+        $today = Carbon::today();
+
+        switch ($period) {
+            case 'today':
+                $query->whereDate('created_at', $today);
+                break;
+            case 'month':
+                $query->whereYear('created_at', $today->year)
+                    ->whereMonth('created_at', $today->month);
+                break;
+            case 'year':
+                $query->whereYear('created_at', $today->year);
+                break;
+            case 'range':
+                if ($request->filled('start_date')) {
+                    $query->whereDate('created_at', '>=', $request->start_date);
+                }
+                if ($request->filled('end_date')) {
+                    $query->whereDate('created_at', '<=', $request->end_date);
+                }
+                break;
+        }
+
+        $status = $request->input('status', 'all');
+        if ($status === 'unread') {
+            $query->where('is_read', false);
+        } elseif ($status === 'read') {
+            $query->where('is_read', true);
+        }
+
+        $search = trim((string) $request->input('filter_search', $request->input('search', '')));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('subject', 'like', "%{$search}%")
+                    ->orWhere('message', 'like', "%{$search}%");
+            });
+        }
+
+        return $query;
+    }
+
+    public function getCustomerInquiriesData(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $recordsTotal = CustomerRequest::count();
+        $query = $this->customerInquiryBaseQuery($request);
+        $recordsFiltered = (clone $query)->count();
+
+        $start = max(0, (int) $request->input('start', 0));
+        $length = (int) $request->input('length', 12);
+        if ($length <= 0) {
+            $length = 12;
+        }
+        $length = min($length, 100);
+
+        $items = $query
+            ->orderByDesc('created_at')
+            ->skip($start)
+            ->take($length)
+            ->get()
+            ->map(function (CustomerRequest $item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'email' => $item->email,
+                    'phone' => $item->phone,
+                    'subject' => $item->subject,
+                    'message' => $item->message,
+                    'message_preview' => \Illuminate\Support\Str::limit($item->message, 120),
+                    'is_read' => $item->is_read,
+                    'read_at' => $item->read_at?->format('d M Y H:i'),
+                    'created_at' => $item->created_at?->format('d M Y H:i'),
+                    'created_human' => $item->created_at?->diffForHumans(),
+                ];
+            });
+
+        return response()->json([
+            'draw' => (int) $request->input('draw', 1),
+            'success' => true,
+            'data' => $items,
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'summary' => [
+                'unread' => CustomerRequest::where('is_read', false)->count(),
+                'total' => $recordsTotal,
+            ],
+        ]);
+    }
+
+    public function showCustomerInquiry($id)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $item = CustomerRequest::findOrFail($id);
+        $item->markAsRead();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'email' => $item->email,
+                'phone' => $item->phone,
+                'subject' => $item->subject,
+                'message' => $item->message,
+                'is_read' => $item->is_read,
+                'read_at' => $item->read_at?->format('d M Y H:i'),
+                'created_at' => $item->created_at?->format('d M Y H:i'),
+            ],
+        ]);
+    }
+
+    public function markCustomerInquiryRead($id)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $item = CustomerRequest::findOrFail($id);
+        $item->markAsRead();
+
+        return response()->json([
+            'success' => true,
+            'summary' => [
+                'unread' => CustomerRequest::where('is_read', false)->count(),
+            ],
+        ]);
+    }
+
+    public function getCustomerInquiryNotifications()
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $unread = CustomerRequest::where('is_read', false)->count();
+        $recent = CustomerRequest::where('is_read', false)
+            ->orderByDesc('created_at')
+            ->limit(8)
+            ->get()
+            ->map(function (CustomerRequest $item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'subject' => $item->subject,
+                    'message_preview' => \Illuminate\Support\Str::limit($item->message, 80),
+                    'created_at' => $item->created_at?->format('d M Y H:i'),
+                    'created_human' => $item->created_at?->diffForHumans(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'unread' => $unread,
+            'items' => $recent,
+        ]);
     }
 }

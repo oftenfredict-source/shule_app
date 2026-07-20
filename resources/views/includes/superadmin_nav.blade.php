@@ -214,6 +214,37 @@
         </div>
 
         <div style="display:flex; align-items:center; gap:15px;">
+            @php
+                $customerInquiryUnread = 0;
+                if (session('user_type') === 'SuperAdmin' && \Illuminate\Support\Facades\Schema::hasTable('customer_requests')) {
+                    $customerInquiryUnread = \App\Models\CustomerRequest::where('is_read', false)->count();
+                }
+            @endphp
+
+            <div class="dropdown" id="ci-notifications-wrap">
+                <a href="#" class="position-relative d-inline-flex align-items-center justify-content-center text-decoration-none"
+                   data-bs-toggle="dropdown" aria-expanded="false"
+                   style="width:40px;height:40px;border:2px solid #940000;color:#940000;">
+                    <i class="bx bx-bell" style="font-size:22px;"></i>
+                    <span id="ci-notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger {{ $customerInquiryUnread > 0 ? '' : 'd-none' }}"
+                          style="font-size:10px;min-width:18px;">{{ $customerInquiryUnread > 99 ? '99+' : $customerInquiryUnread }}</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-0" style="width:min(360px,92vw);">
+                    <li class="px-3 py-2 border-bottom bg-light d-flex justify-content-between align-items-center">
+                        <span class="fw-bold small text-uppercase" style="color:#940000;">Customer Inquiries</span>
+                        <span class="badge bg-danger" id="ci-notif-count-label">{{ $customerInquiryUnread }} unread</span>
+                    </li>
+                    <li><div id="ci-notif-list" class="list-group list-group-flush" style="max-height:320px;overflow:auto;">
+                        <div class="list-group-item small text-muted text-center py-4">Loading...</div>
+                    </div></li>
+                    <li class="border-top">
+                        <a class="dropdown-item text-center fw-bold py-2" href="{{ route('superadmin.customer_inquiries') }}" style="color:#940000;">
+                            View all inquiries
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
             <!-- Unified Sidebar Toggle -->
             <button id="sidebar-toggle" style="background:none; border:none; color:#940000; font-size:28px; cursor:pointer;">
                 <i class="bx bx-menu"></i>
@@ -266,6 +297,9 @@
         <a href="{{ route('superadmin.bank_accounts.verification') }}" class="sidebar-link {{ request()->routeIs('superadmin.bank_accounts.*') ? 'active' : '' }}">
             <i class="bx bx-check-shield"></i> Account Verification
         </a>
+        <a href="{{ route('superadmin.nbc_integration_docs') }}" class="sidebar-link {{ request()->routeIs('superadmin.nbc_integration_docs*') ? 'active' : '' }}">
+            <i class="bx bx-file-blank"></i> NBC Integration Docs
+        </a>
 
         <div class="sidebar-group-title">SYSTEM TOOLS</div>
         <a href="{{ route('superadmin.user_password') }}" class="sidebar-link {{ request()->routeIs('superadmin.user_password') ? 'active' : '' }}">
@@ -273,6 +307,12 @@
         </a>
         <a href="{{ route('superadmin.customer_care') }}" class="sidebar-link {{ request()->routeIs('superadmin.customer_care') ? 'active' : '' }}">
             <i class="bx bx-support"></i> Customer Care
+        </a>
+        <a href="{{ route('superadmin.customer_inquiries') }}" class="sidebar-link {{ request()->routeIs('superadmin.customer_inquiries*') ? 'active' : '' }}">
+            <i class="bx bx-envelope"></i> Customer Inquiries
+            @if(($customerInquiryUnread ?? 0) > 0)
+                <span class="badge bg-danger ms-auto">{{ $customerInquiryUnread > 99 ? '99+' : $customerInquiryUnread }}</span>
+            @endif
         </a>
         <a href="{{ route('superadmin.attendance_sms_schedule') }}" class="sidebar-link {{ request()->routeIs('superadmin.attendance_sms_schedule') ? 'active' : '' }}">
             <i class="bx bx-calendar-check"></i> Attendance SMS Schedule
@@ -304,7 +344,7 @@
         @yield('content')
 
         <footer class="footer-corp">
-            &copy; {{ date('Y') }} ShuleXpert | Powered by EmCa Technologies LTD
+            &copy; {{ date('Y') }} ShuleXpert | Powered by EmCa Techonology
         </footer>
     </main>
 
@@ -425,6 +465,63 @@
 
             scheduleIdle();
         });
+
+        window.refreshCustomerInquiryNotifications = function () {
+            var $wrap = $('#ci-notifications-wrap');
+            if (!$wrap.length) return;
+
+            $.get(@json(route('superadmin.customer_inquiries.notifications')), function (res) {
+                if (!res.success) return;
+
+                var unread = res.unread || 0;
+                var $badge = $('#ci-notif-badge');
+                if (unread > 0) {
+                    $badge.removeClass('d-none').text(unread > 99 ? '99+' : unread);
+                } else {
+                    $badge.addClass('d-none');
+                }
+                $('#ci-notif-count-label').text(unread + ' unread');
+
+                var $list = $('#ci-notif-list').empty();
+                if (!res.items || !res.items.length) {
+                    $list.html('<div class="list-group-item small text-muted text-center py-4">No unread inquiries</div>');
+                    return;
+                }
+
+                res.items.forEach(function (item) {
+                    var safeName = $('<div>').text(item.name || '').html();
+                    var safeSubject = $('<div>').text(item.subject || '').html();
+                    var safePreview = $('<div>').text(item.message_preview || '').html();
+                    $list.append(
+                        '<button type="button" class="list-group-item list-group-item-action text-start ci-notif-item" data-id="' + item.id + '">' +
+                            '<div class="d-flex justify-content-between gap-2"><strong class="small">' + safeName + '</strong>' +
+                            '<span class="text-muted smaller">' + (item.created_human || '') + '</span></div>' +
+                            '<div class="small fw-semibold mt-1" style="color:#940000;">' + safeSubject + '</div>' +
+                            '<div class="small text-muted text-truncate">' + safePreview + '</div>' +
+                        '</button>'
+                    );
+                });
+            });
+        };
+
+        $(document).on('click', '.ci-notif-item', function () {
+            var id = $(this).data('id');
+            if (!id) return;
+            if (typeof window.openCustomerInquiry === 'function') {
+                window.openCustomerInquiry(id);
+            } else {
+                window.location.href = @json(route('superadmin.customer_inquiries')) + '?open=' + id;
+            }
+        });
+
+        $('#ci-notifications-wrap').on('show.bs.dropdown', function () {
+            window.refreshCustomerInquiryNotifications();
+        });
+
+        if ($('#ci-notifications-wrap').length) {
+            window.refreshCustomerInquiryNotifications();
+            setInterval(window.refreshCustomerInquiryNotifications, 60000);
+        }
     </script>
 
     <style>

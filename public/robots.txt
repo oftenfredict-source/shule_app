@@ -1,4 +1,24 @@
 User-agent: *
-Disallow:
+Allow: /
+Allow: /about
+Allow: /services
+Allow: /modules
+Allow: /pricing
+Allow: /faq
+Allow: /download
+Allow: /contact
+Allow: /online-application
+Allow: /images/
+Allow: /css/
+Allow: /template/
+Allow: /favicon.ico
+Allow: /site.webmanifest
 
+Disallow: /admin
+Disallow: /AdminDashboard
+Disallow: /super-admin
+Disallow: /api/
+Disallow: /storage/
+
+Sitemap: https://shulexpert.com/sitemap.xml
 Sitemap: https://test.shulexpert.com/sitemap.xml

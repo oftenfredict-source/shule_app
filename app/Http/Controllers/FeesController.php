@@ -4728,10 +4728,20 @@ class FeesController extends Controller
     public function get_class_fees($classID)
     {
         $schoolID = Session::get('schoolID');
+
+        // Used both by manageFees UI and the Online Admission "View fees" modal.
+        // We eager-load details (breakdowns, deadlines) so we can render fee breakdowns without extra requests.
         $fees = Fee::where('schoolID', $schoolID)
             ->where('classID', $classID)
             ->where('status', 'Active')
-            ->with('bankAccount.bank')
+            ->with([
+                'bankAccount.bank',
+                'breakdowns',
+                'installments',
+                'deadlines',
+                'feeConditions',
+                'otherFeeDetails',
+            ])
             ->orderBy('display_order')
             ->get()
             ->each(function ($fee) {

@@ -29,6 +29,9 @@ use App\Http\Controllers\ZKTecoController;
 use App\Http\Controllers\GradeDefinitionController;
 use App\Http\Controllers\PricingController;
 use App\Http\Controllers\OnlineApplicationController;
+use App\Http\Controllers\OnlineApplicationAuthController;
+use App\Http\Controllers\OnlineApplicationDashboardController;
+use App\Http\Controllers\SiteController;
 use App\Http\Controllers\StudentRegistrationController;
 use App\Http\Controllers\WatchmanController;
 use App\Http\Controllers\StaffController;
@@ -217,9 +220,22 @@ Route::prefix("goals")->group(function () {
     ])->name("goals.notifications.read_all");
 });
 
-Route::get("/", function () {
-    return view("home");
-});
+Route::get("/", [SiteController::class, "home"])->name("site.home");
+Route::get("/about", [SiteController::class, "about"])->name("site.about");
+Route::get("/team", [SiteController::class, "team"])->name("site.team");
+Route::get("/team/{slug}", [SiteController::class, "teamShow"])
+    ->where("slug", "[a-z0-9\-]+")
+    ->name("site.team.member");
+Route::get("/services", [SiteController::class, "services"])->name("site.services");
+Route::get("/modules", [SiteController::class, "modulesIndex"])->name("site.modules");
+Route::get("/modules/{slug}", [SiteController::class, "moduleShow"])
+    ->where("slug", "[a-z0-9\-]+")
+    ->name("site.module");
+Route::get("/pricing", [SiteController::class, "pricing"])->name("pricing");
+Route::get("/faq", [SiteController::class, "faq"])->name("site.faq");
+Route::get("/download", [SiteController::class, "download"])->name("site.download");
+Route::get("/contact", [SiteController::class, "contact"])->name("site.contact");
+Route::post("/contact", [SiteController::class, "contactSubmit"])->name("site.contact.submit");
 
 // Browser auto-requests /favicon.ico — serve round ShuleXpert logo
 Route::get("/favicon.ico", function () {
@@ -249,18 +265,27 @@ Route::get("/favicon.ico", function () {
 
 Route::get("/sitemap.xml", [SitemapController::class, "index"]);
 
-// Pricing Route
-Route::get("pricing", [PricingController::class, "index"])->name("pricing");
-
 // Online Application Routes
 Route::get("online-application", [
     OnlineApplicationController::class,
     "index",
 ])->name("online_application");
+Route::get("online-application/schools", [
+    OnlineApplicationController::class,
+    "loadSchools",
+])->name("online_application.schools");
 Route::get("online-application/school/{schoolID}", [
     OnlineApplicationController::class,
     "getSchoolDetails",
 ])->name("online_application.school_details");
+Route::get("online-application/s/{token}", [
+    OnlineApplicationController::class,
+    "showSchoolLanding",
+])->where('token', '.*')->name("online_application.school");
+Route::get("online-application/fees-structure-pdf", [
+    OnlineApplicationController::class,
+    "exportFeesStructurePdf",
+])->name("online_application.fees_structure_pdf");
 Route::get("online-application/apply", [
     OnlineApplicationController::class,
     "showApplicationForm",
@@ -269,6 +294,35 @@ Route::post("online-application/apply", [
     OnlineApplicationController::class,
     "storeApplication",
 ])->name("online_application.store");
+Route::get("online-application/application-success", [
+    OnlineApplicationController::class,
+    "applicationSuccess",
+])->middleware('online.application.auth')->name("online_application.application_success");
+
+// Online Application Account (separate from school users)
+Route::prefix('online-application/account')->name('online_application.auth.')->group(function () {
+    Route::get('register', [OnlineApplicationAuthController::class, 'showRegister'])->name('register');
+    Route::post('register', [OnlineApplicationAuthController::class, 'register']);
+    Route::get('check-phone', [OnlineApplicationAuthController::class, 'checkPhone'])->name('check_phone');
+    Route::get('login', [OnlineApplicationAuthController::class, 'showLogin'])->name('login');
+    Route::post('login', [OnlineApplicationAuthController::class, 'login']);
+    Route::get('verify-otp/{token}', [OnlineApplicationAuthController::class, 'showVerifyOtp'])->name('verify_otp');
+    Route::post('verify-otp/{token}', [OnlineApplicationAuthController::class, 'verifyOtp']);
+    Route::post('resend-otp/{token}', [OnlineApplicationAuthController::class, 'resendOtp'])->name('resend_otp');
+    Route::post('logout', [OnlineApplicationAuthController::class, 'logout'])->name('logout');
+});
+
+Route::prefix('online-application/portal')->name('online_application.portal.')->middleware('online.application.auth')->group(function () {
+    Route::get('/', [OnlineApplicationDashboardController::class, 'dashboard'])->name('dashboard');
+    Route::get('/applications', [OnlineApplicationDashboardController::class, 'myApplications'])->name('applications');
+    Route::get('/applications/{id}/edit', [OnlineApplicationDashboardController::class, 'editApplication'])->name('applications.edit');
+    Route::post('/applications/{id}', [OnlineApplicationDashboardController::class, 'updateApplication'])->name('applications.update');
+    Route::post('/applications/{id}/delete', [OnlineApplicationDashboardController::class, 'deleteApplication'])->name('applications.delete');
+    Route::get('/apply', [OnlineApplicationDashboardController::class, 'applyNow'])->name('apply');
+    Route::get('/account', [OnlineApplicationDashboardController::class, 'account'])->name('account');
+    Route::get('/change-password', [OnlineApplicationDashboardController::class, 'showChangePassword'])->name('change_password');
+    Route::post('/change-password', [OnlineApplicationDashboardController::class, 'changePassword']);
+});
 
 // Sponsor Management Routes
 Route::get("manage_sponsors", [SponsorController::class, "index"])->name(
@@ -311,6 +365,28 @@ Route::get("super-admin/dashboard", [
     "dashboard",
 ])->name("superAdminDashboard");
 
+// Customer inquiries from public contact form
+Route::get("super-admin/customer-inquiries", [
+    SuperAdminController::class,
+    "customerInquiries",
+])->name("superadmin.customer_inquiries");
+Route::get("super-admin/customer-inquiries/data", [
+    SuperAdminController::class,
+    "getCustomerInquiriesData",
+])->name("superadmin.customer_inquiries.data");
+Route::get("super-admin/customer-inquiries/{id}", [
+    SuperAdminController::class,
+    "showCustomerInquiry",
+])->name("superadmin.customer_inquiries.show");
+Route::post("super-admin/customer-inquiries/{id}/read", [
+    SuperAdminController::class,
+    "markCustomerInquiryRead",
+])->name("superadmin.customer_inquiries.read");
+Route::get("super-admin/customer-inquiries-notifications", [
+    SuperAdminController::class,
+    "getCustomerInquiryNotifications",
+])->name("superadmin.customer_inquiries.notifications");
+
 // Bank registration & school bank account verification (Multi Account Fees)
 Route::get("super-admin/banks", [SuperAdminController::class, "banks"])->name("superadmin.banks.index");
 Route::post("super-admin/banks", [SuperAdminController::class, "storeBank"])->name("superadmin.banks.store");
@@ -320,6 +396,12 @@ Route::get("super-admin/bank-account-verification", [SuperAdminController::class
 Route::get("super-admin/bank-accounts/list", [SuperAdminController::class, "getSchoolBankAccounts"])->name("superadmin.bank_accounts.list");
 Route::post("super-admin/bank-accounts/{accountID}/approve", [SuperAdminController::class, "approveSchoolBankAccount"])->name("superadmin.bank_accounts.approve");
 Route::post("super-admin/bank-accounts/{accountID}/reject", [SuperAdminController::class, "rejectSchoolBankAccount"])->name("superadmin.bank_accounts.reject");
+
+// NBC payment integration documentation (EN / SW PDF downloads)
+Route::get("super-admin/nbc-integration-docs", [SuperAdminController::class, "nbcIntegrationDocs"])->name("superadmin.nbc_integration_docs");
+Route::get("super-admin/nbc-integration-docs/download/{lang?}", [SuperAdminController::class, "downloadNbcIntegrationDocs"])
+    ->where("lang", "en|sw")
+    ->name("superadmin.nbc_integration_docs.download");
 
 Route::get("super-admin/schools/register", [
     ConfigurationController::class,
@@ -500,6 +582,7 @@ Route::post("super-admin/system-logs/unblock-ip", [
 
 // login Routes
 Route::get("login", [Auth::class, "login"])->name("login");
+Route::view("forgot-password", "auth.forgot-password")->name("forgot_password");
 Route::post("auth", [Auth::class, "auth"])->name("auth");
 Route::post("auth/otp/verify", [Auth::class, "verifyOtp"])->name(
     "auth.otp.verify",
@@ -1537,6 +1620,88 @@ Route::get("manage_student_page.js", [
     ManageStudentController::class,
     "manage_student_page_js",
 ])->name("manage_student_page_js");
+
+// School Online Admission (Admin configuration + approvals)
+Route::get("online-admission", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "index",
+])->name("school.online_admission.index");
+Route::get("online-admission/form-fields", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "formFields",
+])->name("school.online_admission.form_fields");
+Route::post("online-admission/form-fields/sync", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "saveFormFields",
+])->name("school.online_admission.form_fields.sync");
+Route::post("online-admission/form-fields", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "storeFormField",
+])->name("school.online_admission.form_fields.store");
+Route::put("online-admission/form-fields/{id}", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "updateFormField",
+])->name("school.online_admission.form_fields.update");
+Route::delete("online-admission/form-fields/{id}", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "deleteFormField",
+])->name("school.online_admission.form_fields.delete");
+
+Route::get("online-admission/form-sections", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "formSections",
+])->name("school.online_admission.form_sections");
+Route::post("online-admission/form-sections", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "storeFormSection",
+])->name("school.online_admission.form_sections.store");
+Route::put("online-admission/form-sections/{id}", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "updateFormSection",
+])->name("school.online_admission.form_sections.update");
+Route::delete("online-admission/form-sections/{id}", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "deleteFormSection",
+])->name("school.online_admission.form_sections.delete");
+
+Route::get("online-admission/spaces", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "admissionSpaces",
+])->name("school.online_admission.spaces");
+Route::post("online-admission/spaces", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "saveAdmissionSpaces",
+])->name("school.online_admission.spaces.save");
+
+Route::get("online-admission/applications", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "applications",
+])->name("school.online_admission.applications");
+Route::get("online-admission/applications/{id}", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "showApplication",
+])->name("school.online_admission.applications.show");
+Route::get("online-admission/applications/{id}/pdf", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "downloadApplicationPdf",
+])->name("school.online_admission.applications.pdf");
+Route::post("online-admission/applications/{id}/confirm", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "confirmApplication",
+])->name("school.online_admission.applications.confirm");
+Route::post("online-admission/applications/{id}/reject", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "rejectApplication",
+])->name("school.online_admission.applications.reject");
+Route::delete("online-admission/applications/{id}", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "cancelApplication",
+])->name("school.online_admission.applications.cancel");
+
+Route::get("online-admission/preview", [
+    \App\Http\Controllers\SchoolOnlineAdmissionController::class,
+    "previewForm",
+])->name("school.online_admission.preview");
 Route::get("get_students_list", [
     ManageStudentController::class,
     "get_students",

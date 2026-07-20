@@ -6344,12 +6344,33 @@ class AdminController extends Controller
             ? Carbon::parse($lastSeen)
             : Carbon::createFromTimestamp(0);
 
-        $count = DB::table("school_visitors")
+        $visitorCount = DB::table("school_visitors")
             ->where("schoolID", $schoolID)
             ->where("created_at", ">", $lastSeenAt)
             ->count();
 
-        return response()->json(["success" => true, "count" => $count]);
+        $oaLastSeen = Session::get("online_admissions_last_seen");
+        $oaLastSeenAt = $oaLastSeen
+            ? Carbon::parse($oaLastSeen)
+            : Carbon::createFromTimestamp(0);
+
+        $onlineAdmissionCount = 0;
+        try {
+            $onlineAdmissionCount = DB::table("online_admissions")
+                ->where("schoolID", $schoolID)
+                ->where("status", "Pending")
+                ->where("created_at", ">", $oaLastSeenAt)
+                ->count();
+        } catch (\Throwable $e) {
+            $onlineAdmissionCount = 0;
+        }
+
+        return response()->json([
+            "success" => true,
+            "count" => $visitorCount + $onlineAdmissionCount,
+            "visitors" => $visitorCount,
+            "online_admissions" => $onlineAdmissionCount,
+        ]);
     }
 
     public function markVisitorNotificationsRead()
@@ -6363,6 +6384,7 @@ class AdminController extends Controller
         }
 
         Session::put("visitors_last_seen", now()->toDateTimeString());
+        Session::put("online_admissions_last_seen", now()->toDateTimeString());
         return response()->json(["success" => true]);
     }
 
@@ -6378,6 +6400,7 @@ class AdminController extends Controller
         }
 
         $lastSeenAt = Session::get("visitors_last_seen");
+        $oaLastSeenAt = Session::get("online_admissions_last_seen");
 
         $visitors = DB::table("school_visitors")
             ->where("schoolID", $schoolID)
@@ -6392,10 +6415,44 @@ class AdminController extends Controller
                 $visitor->is_new = $lastSeenAt
                     ? $created->gt(Carbon::parse($lastSeenAt))
                     : true;
+                $visitor->type = "visitor";
                 return $visitor;
             });
 
-        return response()->json(["success" => true, "visitors" => $visitors]);
+        $onlineAdmissions = collect();
+        try {
+            $oaCutoff = $oaLastSeenAt
+                ? Carbon::parse($oaLastSeenAt)
+                : Carbon::createFromTimestamp(0);
+
+            $onlineAdmissions = DB::table("online_admissions")
+                ->where("schoolID", $schoolID)
+                ->where("status", "Pending")
+                ->where("created_at", ">", $oaCutoff)
+                ->orderBy("created_at", "desc")
+                ->limit(5)
+                ->get()
+                ->map(function ($app) {
+                    $created = Carbon::parse($app->created_at);
+                    return [
+                        "type" => "online_admission",
+                        "name" => trim(($app->student_first_name ?? "") . " " . ($app->student_last_name ?? "")),
+                        "application_number" => $app->application_number ?? "",
+                        "time_label" => $created->isToday()
+                            ? $created->diffForHumans()
+                            : $created->format("d M Y"),
+                        "url" => route("school.online_admission.index"),
+                    ];
+                });
+        } catch (\Throwable $e) {
+            $onlineAdmissions = collect();
+        }
+
+        return response()->json([
+            "success" => true,
+            "visitors" => $visitors,
+            "online_admissions" => $onlineAdmissions,
+        ]);
     }
 
     // Student Permission Requesters Management

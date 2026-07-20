@@ -1,394 +1,371 @@
-<!DOCTYPE html>
-<html lang="en">
+@php
+    $skipSplash = true;
+    $editing = $editing ?? false;
+    $admission = $admission ?? null;
+    $portalActive = $editing ? 'applications' : 'apply';
+    $seo = [
+        'title' => ($editing ? 'Edit Application' : 'Student Application') . ' — ShuleXpert',
+        'description' => 'Complete your online school application with ShuleXpert.',
+        'keywords' => 'ShuleXpert application form, school admission',
+        'canonical' => $editing
+            ? route('online_application.portal.applications.edit', $admission->id)
+            : route('online_application.apply'),
+        'robots' => 'noindex, follow',
+    ];
+    $formSections = $formSections ?? collect();
+    $totalSteps = max(1, $formSections->count());
+@endphp
+@extends('layouts.online_application_portal')
 
-<head>
-    <meta charset="utf-8">
-    <title>Apply - ShuleXpert School Management System</title>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <meta content="" name="keywords">
-    <meta content="" name="description">
-
-    <!-- Favicon -->
-    @include('includes.site_favicon')
-
-    <!-- Google Web Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@600;700&family=Open+Sans&display=swap"
-        rel="stylesheet">
-
-    <!-- Icon Font Stylesheet -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
-
-    <!-- Libraries Stylesheet -->
-    <link href="lib/animate/animate.min.css" rel="stylesheet">
-    <link href="lib/owlcarousel/assets/owl.carousel.min.css" rel="stylesheet">
-
-    <!-- Customized Bootstrap Stylesheet -->
-    <link href="css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Template Stylesheet -->
-    <link href="css/style.css" rel="stylesheet">
-
-    <style>
-        /* Splash Screen */
-        #splash-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #940000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            transition: opacity 0.5s ease-out;
-        }
-
-        #splash-screen.hide {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .splash-content {
-            text-align: center;
-            color: #ffffff;
-        }
-
-        .splash-icon {
-            font-size: 80px;
-            color: #ffffff;
-            margin-bottom: 30px;
-            animation: bounce 1.5s ease-in-out infinite;
-        }
-
-        @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0) rotate(0deg);
-            }
-            25% {
-                transform: translateY(-15px) rotate(5deg);
-            }
-            50% {
-                transform: translateY(-25px) rotate(0deg);
-            }
-            75% {
-                transform: translateY(-15px) rotate(-5deg);
-            }
-        }
-
-        .splash-text {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #ffffff;
-            line-height: 1.3;
-        }
-
-        .splash-powered {
-            font-size: 16px;
-            color: #ffffff;
-            margin-top: 20px;
-            opacity: 0.9;
-        }
-
-        .splash-loader {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid #ffffff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .form-section {
-            background: #ffffff;
-            border-radius: 10px;
-            padding: 30px;
-            box-shadow: 0 2px 8px rgba(148, 0, 0, 0.1);
-            margin-bottom: 30px;
-        }
-
-        .form-label {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-        }
-
-        .form-control:focus, .form-select:focus {
-            border-color: #940000;
-            box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #ed9999 0%, #940000 100%);
-            border: none;
-            padding: 12px 30px;
-            font-weight: 600;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #940000 0%, #ed9999 100%);
-        }
-
-        .required-field::after {
-            content: " *";
-            color: #dc3545;
-        }
-    </style>
-</head>
-
-<body>
-    <!-- Splash Screen -->
-    <div id="splash-screen">
-        <div class="splash-content">
-            <div class="splash-icon">
-                <i class="fa fa-graduation-cap"></i>
+@section('content')
+<section class="sx-oa-portal sx-apply-page section-gap">
+    <div class="container">
+        <div class="mb-4">
+            <h2 class="mb-1">{{ $editing ? 'Edit Application' : 'Student Application' }}</h2>
+            <p class="text-muted mb-0">
+                {{ $school->school_name ?? 'School' }}
+                @if(!empty($class))
+                    — {{ $class->class_name ?? '' }}
+                @endif
+                @if($editing && $admission)
+                    <br><small>Ref: {{ $admission->application_number }}</small>
+                @endif
+            </p>
+        </div>
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show sx-apply-alert" role="alert">
+                <i class="fa fa-exclamation-circle"></i> {{ session('error') }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
-            <div class="splash-text">Welcome to ShuleXpert<br>Online Application System</div>
-            <div class="splash-loader"></div>
-            <div class="splash-powered">Powered by: EmCa Technologies LTD</div>
-        </div>
-    </div>
+        @endif
 
-    <!-- Spinner Start -->
-    <div id="spinner"
-        class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
-        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
-    </div>
-    <!-- Spinner End -->
+        @if ($errors->any())
+            <div class="alert alert-danger sx-apply-alert">
+                <i class="fa fa-exclamation-triangle me-2"></i>
+                <ul class="mb-0">
+                    @foreach ($errors->all() as $err)
+                        <li>{{ $err }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
-    @include('includes.web_nav')
+        <div class="sx-apply-form-section">
+            <h3><i class="fa fa-university"></i> Application details</h3>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="sx-apply-label">School</label>
+                    <div class="sx-apply-value">{{ $school->school_name }}</div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="sx-apply-label">Class</label>
+                    <div class="sx-apply-value">{{ $class->class_name }}</div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="sx-apply-label">Available spaces</label>
+                    <div class="sx-apply-value sx-apply-value--success">{{ $availableSpaces }} space(s)</div>
+                </div>
+            </div>
 
-    <!-- Page Header Start -->
-    <div class="container-fluid page-header py-5 wow fadeIn" data-wow-delay="0.1s">
-        <div class="container text-center py-4">
-            <h1 class="display-3 animated slideInDown">Student Application</h1>
-            <nav aria-label="breadcrumb animated slideInDown">
-                <ol class="breadcrumb justify-content-center mb-0">
-                    <li class="breadcrumb-item"><a href="/">Home</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('online_application') }}">Online Application</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Apply</li>
-                </ol>
-            </nav>
-        </div>
-    </div>
-    <!-- Page Header End -->
-
-    <!-- Application Form Start -->
-    <div class="container-xxl py-5">
-        <div class="container">
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fa fa-exclamation-circle me-2"></i>{{ session('error') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            @if(!empty($academicYearName))
+                <div class="mt-2 text-muted small">
+                    Active academic year: <strong>{{ $academicYearName }}</strong>
                 </div>
             @endif
+        </div>
 
-            <!-- School & Class Info -->
-            <div class="form-section">
-                <h4 class="mb-4" style="color: #940000;">
-                    <i class="fa fa-school me-2"></i>Application Details
-                </h4>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">School:</label>
-                        <div class="form-control-plaintext fw-bold">{{ $school->school_name }}</div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Class:</label>
-                        <div class="form-control-plaintext fw-bold">{{ $class->class_name }}</div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Available Spaces:</label>
-                        <div class="form-control-plaintext text-success fw-bold">{{ $availableSpaces }} space(s)</div>
-                    </div>
+        @if($formSections->isEmpty())
+            <div class="alert alert-warning">This school has not configured an admission form yet.</div>
+        @else
+            <nav class="sx-wizard" id="sxStepChain" aria-label="Application steps">
+                <div class="sx-wizard__meta">
+                    <span class="sx-wizard__meta-label" id="sxWizardStatus">Step 1 of {{ $totalSteps }}</span>
+                    <span class="sx-wizard__meta-pct" id="sxWizardPct">0%</span>
                 </div>
-            </div>
+                <div class="sx-wizard__track" aria-hidden="true">
+                    <div class="sx-wizard__fill" id="sxWizardFill" style="width: 0%;"></div>
+                </div>
+                <div class="sx-wizard__steps-wrap">
+                    <ol class="sx-wizard__steps">
+                        @foreach($formSections as $i => $section)
+                            <li class="sx-wizard__step {{ $i === 0 ? 'is-active' : '' }}" data-step-index="{{ $i }}">
+                                <button type="button" class="sx-wizard__btn" data-goto-step="{{ $i }}" aria-current="{{ $i === 0 ? 'step' : 'false' }}">
+                                    <span class="sx-wizard__num">
+                                        <span class="sx-wizard__num-text">{{ $i + 1 }}</span>
+                                        <i class="fa fa-check sx-wizard__check" aria-hidden="true"></i>
+                                    </span>
+                                    <span class="sx-wizard__label">{{ $section->title }}</span>
+                                </button>
+                            </li>
+                        @endforeach
+                    </ol>
+                </div>
+                <p class="sx-wizard__current" id="sxWizardCurrent">{{ $formSections->first()->title ?? '' }}</p>
+            </nav>
 
-            <!-- Application Form -->
-            <form action="{{ route('online_application.store') }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ $editing ? route('online_application.portal.applications.update', $admission->id) : route('online_application.store') }}"
+                  method="POST"
+                  enctype="multipart/form-data"
+                  id="sxApplyWizardForm"
+                  data-editing="{{ $editing ? '1' : '0' }}">
                 @csrf
-                <input type="hidden" name="schoolID" value="{{ $school->schoolID }}">
-                <input type="hidden" name="classID" value="{{ $class->classID }}">
+                @if(!$editing)
+                    <input type="hidden" name="apply_token" value="{{ $token }}">
+                @endif
 
-                <!-- Personal Information -->
-                <div class="form-section">
-                    <h4 class="mb-4" style="color: #940000;">
-                        <i class="fa fa-user me-2"></i>Personal Information
-                    </h4>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="first_name" class="form-label required-field">First Name</label>
-                            <input type="text" class="form-control @error('first_name') is-invalid @enderror" 
-                                id="first_name" name="first_name" value="{{ old('first_name') }}" required>
-                            @error('first_name')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="middle_name" class="form-label">Middle Name</label>
-                            <input type="text" class="form-control @error('middle_name') is-invalid @enderror" 
-                                id="middle_name" name="middle_name" value="{{ old('middle_name') }}">
-                            @error('middle_name')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="last_name" class="form-label required-field">Last Name</label>
-                            <input type="text" class="form-control @error('last_name') is-invalid @enderror" 
-                                id="last_name" name="last_name" value="{{ old('last_name') }}" required>
-                            @error('last_name')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                @foreach($formSections as $i => $section)
+                    <div class="sx-apply-form-section sx-apply-step {{ $i === 0 ? 'is-visible' : '' }}"
+                         data-step="{{ $i }}"
+                         data-step-title="{{ $section->title }}">
+                        <h3>
+                            <span class="sx-step-badge">Step {{ $i + 1 }}/{{ $totalSteps }}</span>
+                            <span class="sx-step-heading">{{ $section->title }}</span>
+                        </h3>
+                        @if($section->description)
+                            <p class="text-muted mb-3">{{ $section->description }}</p>
+                        @endif
+                        <div class="row">
+                            @foreach($section->fields as $field)
+                                @include('partials.online_admission_form_field', [
+                                    'field' => $field,
+                                    'preview' => false,
+                                    'admission' => $admission,
+                                    'editing' => $editing,
+                                ])
+                            @endforeach
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="gender" class="form-label required-field">Gender</label>
-                            <select class="form-select @error('gender') is-invalid @enderror" 
-                                id="gender" name="gender" required>
-                                <option value="">Select Gender</option>
-                                <option value="Male" {{ old('gender') == 'Male' ? 'selected' : '' }}>Male</option>
-                                <option value="Female" {{ old('gender') == 'Female' ? 'selected' : '' }}>Female</option>
-                            </select>
-                            @error('gender')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="date_of_birth" class="form-label required-field">Date of Birth</label>
-                            <input type="date" class="form-control @error('date_of_birth') is-invalid @enderror" 
-                                id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}" required>
-                            @error('date_of_birth')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="photo" class="form-label">Photo</label>
-                            <input type="file" class="form-control @error('photo') is-invalid @enderror" 
-                                id="photo" name="photo" accept="image/jpeg,image/jpg,image/png">
-                            <small class="text-muted">Max size: 2MB (JPG, JPEG, PNG only)</small>
-                            @error('photo')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label for="address" class="form-label">Address</label>
-                            <textarea class="form-control @error('address') is-invalid @enderror" 
-                                id="address" name="address" rows="3">{{ old('address') }}</textarea>
-                            @error('address')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-                </div>
+                @endforeach
 
-                <!-- Health Information -->
-                <div class="form-section">
-                    <h4 class="mb-4" style="color: #940000;">
-                        <i class="fa fa-heartbeat me-2"></i>Health Information
-                    </h4>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="is_disabled" 
-                                    name="is_disabled" value="1" {{ old('is_disabled') == '1' ? 'checked' : '' }}>
-                                <label class="form-check-label" for="is_disabled">
-                                    Has Disability
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="has_epilepsy" 
-                                    name="has_epilepsy" value="1" {{ old('has_epilepsy') == '1' ? 'checked' : '' }}>
-                                <label class="form-check-label" for="has_epilepsy">
-                                    Has Epilepsy
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="has_allergies" 
-                                    name="has_allergies" value="1" {{ old('has_allergies') == '1' ? 'checked' : '' }}>
-                                <label class="form-check-label" for="has_allergies">
-                                    Has Allergies
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label for="allergies_details" class="form-label">Allergies Details</label>
-                            <textarea class="form-control @error('allergies_details') is-invalid @enderror" 
-                                id="allergies_details" name="allergies_details" rows="3" 
-                                placeholder="Please provide details about any allergies">{{ old('allergies_details') }}</textarea>
-                            @error('allergies_details')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Submit Button -->
-                <div class="text-center mb-5">
-                    <button type="submit" class="btn btn-primary btn-lg">
-                        <i class="fa fa-paper-plane me-2"></i>Submit Application
+                <div class="sx-apply-form-actions text-center d-flex flex-wrap justify-content-center align-items-center" style="gap:12px;">
+                    <button type="button" class="btn btn-outline-secondary" id="sxStepPrev" style="display:none;">
+                        <i class="fa fa-arrow-left"></i> Previous
                     </button>
-                    <a href="{{ route('online_application') }}" class="btn btn-secondary btn-lg ms-3">
-                        <i class="fa fa-times me-2"></i>Cancel
-                    </a>
+                    <button type="button" class="primary-btn text-uppercase" id="sxStepNext">
+                        Save &amp; Next <i class="fa fa-arrow-right"></i>
+                    </button>
+                    <button type="submit" class="primary-btn text-uppercase" id="sxStepSubmit" style="display:none;">
+                        <span class="oa-btn-label">
+                            <i class="fa fa-{{ $editing ? 'save' : 'paper-plane' }}"></i>
+                            {{ $editing ? 'Update application' : 'Submit application' }}
+                        </span>
+                        <span class="oa-btn-loading" style="display:none;">
+                            <i class="fa fa-spinner fa-spin"></i>
+                            {{ $editing ? 'Updating...' : 'Submitting...' }}
+                        </span>
+                    </button>
+                    <a href="{{ $editing ? route('online_application.portal.applications') : route('online_application.portal.apply') }}" class="sx-apply-btn-cancel">Cancel</a>
                 </div>
             </form>
-        </div>
+        @endif
     </div>
-    <!-- Application Form End -->
+</section>
 
-    <!-- Footer will be added here if needed -->
+@if($formSections->isNotEmpty())
+@push('scripts')
+@include('online_application.partials.tz-phone-script')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+(function () {
+    var current = 0;
+    var steps = Array.prototype.slice.call(document.querySelectorAll('.sx-apply-step'));
+    var chainItems = Array.prototype.slice.call(document.querySelectorAll('#sxStepChain .sx-wizard__step'));
+    var prevBtn = document.getElementById('sxStepPrev');
+    var nextBtn = document.getElementById('sxStepNext');
+    var submitBtn = document.getElementById('sxStepSubmit');
+    var statusEl = document.getElementById('sxWizardStatus');
+    var pctEl = document.getElementById('sxWizardPct');
+    var fillEl = document.getElementById('sxWizardFill');
+    var currentEl = document.getElementById('sxWizardCurrent');
+    var total = steps.length;
+    var submitting = false;
 
-    <!-- Back to Top -->
-    <a href="#" class="btn btn-lg btn-primary btn-lg-square back-to-top"><i class="bi bi-arrow-up"></i></a>
-
-    <!-- JavaScript Libraries -->
-    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="lib/wow/wow.min.js"></script>
-    <script src="lib/easing/easing.min.js"></script>
-    <script src="lib/waypoints/waypoints.min.js"></script>
-    <script src="lib/owlcarousel/owl.carousel.min.js"></script>
-    <script src="lib/counterup/counterup.min.js"></script>
-
-    <!-- Template Javascript -->
-    <script src="js/main.js"></script>
-
-    <!-- Splash Screen Script -->
-    <script>
-        // Hide splash screen after 1 second
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                var splash = document.getElementById('splash-screen');
-                if (splash) {
-                    splash.classList.add('hide');
-                    setTimeout(function() {
-                        splash.style.display = 'none';
-                    }, 500);
-                }
-            }, 1000);
+    function showStep(index, scroll) {
+        current = Math.max(0, Math.min(index, total - 1));
+        steps.forEach(function (el, i) {
+            el.classList.toggle('is-visible', i === current);
         });
-    </script>
-</body>
+        chainItems.forEach(function (el, i) {
+            el.classList.toggle('is-active', i === current);
+            el.classList.toggle('is-done', i < current);
+            var btn = el.querySelector('.sx-wizard__btn');
+            if (btn) {
+                btn.setAttribute('aria-current', i === current ? 'step' : 'false');
+            }
+        });
+        var pct = total <= 1 ? 100 : Math.round((current / (total - 1)) * 100);
+        if (current === 0) pct = 0;
+        if (statusEl) statusEl.textContent = 'Step ' + (current + 1) + ' of ' + total;
+        if (pctEl) pctEl.textContent = pct + '%';
+        if (fillEl) fillEl.style.width = pct + '%';
+        if (currentEl && steps[current]) {
+            currentEl.textContent = steps[current].getAttribute('data-step-title') || '';
+        }
+        if (prevBtn) prevBtn.style.display = current > 0 ? '' : 'none';
+        if (nextBtn) nextBtn.style.display = current < total - 1 ? '' : 'none';
+        if (submitBtn) submitBtn.style.display = current === total - 1 ? '' : 'none';
 
-</html>
+        var activeStep = chainItems[current];
+        var stepsRail = document.querySelector('#sxStepChain .sx-wizard__steps');
+        if (activeStep && stepsRail) {
+            try {
+                var railRect = stepsRail.getBoundingClientRect();
+                var stepRect = activeStep.getBoundingClientRect();
+                var delta = (stepRect.left + stepRect.width / 2) - (railRect.left + railRect.width / 2);
+                stepsRail.scrollBy({ left: delta, behavior: 'smooth' });
+            } catch (e) {
+                try {
+                    activeStep.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                } catch (e2) {}
+            }
+        }
+        if (scroll !== false) {
+            try {
+                var wizard = document.getElementById('sxStepChain');
+                if (wizard) wizard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (e) {}
+        }
+    }
 
+    function validateCurrentStep() {
+        var step = steps[current];
+        if (!step) return true;
+        var fields = step.querySelectorAll('input, select, textarea');
+        var maxBytes = 10 * 1024 * 1024;
+        var allowedExt = ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'webp'];
+        for (var i = 0; i < fields.length; i++) {
+            var field = fields[i];
+            if (field.type === 'file' && field.files && field.files[0]) {
+                var f = field.files[0];
+                if (f.size > maxBytes) {
+                    alert('File "' + f.name + '" exceeds 10MB limit.');
+                    field.focus();
+                    return false;
+                }
+                var ext = (f.name.split('.').pop() || '').toLowerCase();
+                if (allowedExt.indexOf(ext) === -1) {
+                    alert('File type not allowed. Use: PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP.');
+                    field.focus();
+                    return false;
+                }
+            }
+            if (typeof field.checkValidity === 'function' && !field.checkValidity()) {
+                field.reportValidity();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function setSubmitLoading(on) {
+        submitting = on;
+        if (!submitBtn) return;
+        submitBtn.disabled = on;
+        var label = submitBtn.querySelector('.oa-btn-label');
+        var loading = submitBtn.querySelector('.oa-btn-loading');
+        if (label) label.style.display = on ? 'none' : 'inline';
+        if (loading) loading.style.display = on ? 'inline' : 'none';
+        if (prevBtn) prevBtn.disabled = on;
+        if (nextBtn) nextBtn.disabled = on;
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function () {
+            if (!validateCurrentStep()) return;
+            showStep(current + 1);
+        });
+    }
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function () {
+            showStep(current - 1);
+        });
+    }
+
+    document.querySelectorAll('[data-goto-step]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var target = parseInt(btn.getAttribute('data-goto-step'), 10);
+            if (isNaN(target) || target === current) return;
+            if (target < current) {
+                showStep(target);
+                return;
+            }
+            if (target === current + 1) {
+                if (!validateCurrentStep()) return;
+                showStep(target);
+            }
+        });
+    });
+
+    var form = document.getElementById('sxApplyWizardForm');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (submitting) return;
+            if (!validateCurrentStep()) return;
+
+            setSubmitLoading(true);
+            var csrf = document.querySelector('meta[name="csrf-token"]')
+                ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                : '';
+            var fd = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrf
+                },
+                body: fd
+            })
+            .then(function (res) {
+                return res.json().then(function (data) {
+                    return { ok: res.ok, status: res.status, data: data };
+                }).catch(function () {
+                    return { ok: false, status: res.status, data: { message: 'Unexpected server response.' } };
+                });
+            })
+            .then(function (result) {
+                if (result.ok && result.data && result.data.success && result.data.redirect) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: result.data.message || 'Success',
+                            timer: 1400,
+                            showConfirmButton: false
+                        }).then(function () {
+                            window.location.href = result.data.redirect;
+                        });
+                    } else {
+                        window.location.href = result.data.redirect;
+                    }
+                    return;
+                }
+
+                setSubmitLoading(false);
+                var message = (result.data && result.data.message) || 'Submission failed. Please try again.';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Could not submit', text: message });
+                } else {
+                    alert(message);
+                }
+            })
+            .catch(function () {
+                setSubmitLoading(false);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Network error', text: 'Please try again.' });
+                } else {
+                    alert('Network error. Please try again.');
+                }
+            });
+        });
+    }
+
+    showStep(0, false);
+})();
+</script>
+@endpush
+@endif
+@endsection

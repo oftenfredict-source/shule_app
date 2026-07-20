@@ -147,6 +147,12 @@
                         <a href="{{ route('superadmin.system_alerts') }}" class="btn btn-sm btn-dark text-start">
                             <i class="bx bx-bullhorn me-2"></i> Broadcast Alert
                         </a>
+                        <a href="{{ route('superadmin.customer_inquiries') }}" class="btn btn-sm btn-outline-dark text-start position-relative">
+                            <i class="bx bx-envelope me-2"></i> Customer Inquiries
+                            @if(($customerInquiryUnread ?? 0) > 0)
+                                <span class="badge bg-danger ms-1">{{ $customerInquiryUnread }}</span>
+                            @endif
+                        </a>
                         <a href="{{ route('superadmin.user_password') }}" class="btn btn-sm btn-outline-dark text-start">
                             <i class="bx bx-key me-2"></i> Reset User Password
                         </a>
@@ -163,6 +169,27 @@
                             <i class="bx bx-check-shield me-2"></i> Account Verification
                         </a>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary Row -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-4">
+            <div class="card dashboard-card" style="border-left-color:#c41e3a;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <div class="card-title">Customer Inquiries</div>
+                            <div class="stat-value">{{ $customerInquiryUnread ?? 0 }}</div>
+                        </div>
+                        <div class="card-icon"><i class="bx bx-envelope"></i></div>
+                    </div>
+                    <p class="stat-desc mb-3">Unread messages from the public contact page.</p>
+                    <a href="{{ route('superadmin.customer_inquiries') }}" class="btn btn-sm btn-primary-custom w-100">
+                        <i class="bx bx-show me-1"></i> View Inquiries
+                    </a>
                 </div>
             </div>
         </div>

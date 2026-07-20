@@ -9,127 +9,90 @@ use App\Models\Student;
 use App\Models\SchoolSubject;
 use App\Models\ClassSubject;
 use App\Models\Teacher;
-use App\Models\User;
+use App\Services\OnlineApplicationApplyTokenService;
+use App\Services\OnlineApplicationCapacityService;
+use App\Services\OnlineApplicationSchoolService;
+use App\Services\OnlineAdmissionFormService;
+use App\Services\OnlineAdmissionService;
+use App\Services\OnlineAdmissionSpaceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class OnlineApplicationController extends Controller
 {
-    // Default capacity per subclass (can be made configurable later)
-    const DEFAULT_SUBCLASS_CAPACITY = 50;
+    public function __construct(
+        private OnlineApplicationApplyTokenService $applyTokens,
+        private OnlineApplicationCapacityService $capacity,
+        private OnlineApplicationSchoolService $schoolService,
+        private OnlineAdmissionFormService $formService,
+        private OnlineAdmissionService $admissionService,
+        private OnlineAdmissionSpaceService $spaceService
+    ) {
+    }
 
     /**
-     * Display the online application page
+     * Display the online application page (first 10 schools only).
      */
     public function index(Request $request)
     {
+        if (auth('online_application')->check()) {
+            return redirect()->route('online_application.portal.apply', array_filter([
+                'search' => $request->get('search') ?: null,
+            ]));
+        }
+
         try {
             $search = $request->get('search', '');
-            
-            // Get all active schools with their statistics
-            $schoolsQuery = School::where('status', 'Active');
-            
-            if ($search) {
-                $schoolsQuery->where(function($q) use ($search) {
-                    $q->where('school_name', 'like', '%' . $search . '%')
-                      ->orWhere('region', 'like', '%' . $search . '%')
-                      ->orWhere('district', 'like', '%' . $search . '%');
-                });
-            }
-            
-            $schools = $schoolsQuery->get()->map(function ($school) {
-                // Get active classes for this school
-                $classes = ClassModel::where('schoolID', $school->schoolID)
-                    ->where('status', 'Active')
-                    ->get();
-                
-                $classIDs = $classes->pluck('classID')->toArray();
-                
-                if (empty($classIDs)) {
-                    return [
-                        'schoolID' => $school->schoolID,
-                        'schoolName' => $school->school_name,
-                        'schoolType' => $school->school_type,
-                        'region' => $school->region,
-                        'district' => $school->district,
-                        'schoolLogo' => $school->school_logo,
-                        'classesCount' => 0,
-                        'subclassesCount' => 0,
-                        'activeStudentsCount' => 0,
-                        'classesWithSpaces' => collect(),
-                        'hasAnySpaces' => false,
-                    ];
-                }
-                
-                // Get all subclasses for this school's classes in one query
-                $allSubclasses = Subclass::whereIn('classID', $classIDs)
-                    ->where('status', 'Active')
-                    ->get()
-                    ->groupBy('classID');
-                
-                // Get all student counts grouped by subclassID in one query
-                $subclassIDs = $allSubclasses->flatten()->pluck('subclassID')->toArray();
-                $studentCounts = [];
-                if (!empty($subclassIDs)) {
-                    $studentCounts = Student::whereIn('subclassID', $subclassIDs)
-                        ->where('status', 'Active')
-                        ->select(DB::raw('subclassID, COUNT(*) as count'))
-                        ->groupBy('subclassID')
-                        ->pluck('count', 'subclassID')
-                        ->toArray();
-                }
-                
-                // Get active students count for the school
-                $activeStudentsCount = Student::where('schoolID', $school->schoolID)
-                    ->where('status', 'Active')
-                    ->count();
-                
-                // Calculate available spaces per class
-                $classesWithSpaces = $classes->map(function ($class) use ($allSubclasses, $studentCounts) {
-                    $classSubclasses = $allSubclasses->get($class->classID, collect());
-                    
-                    $totalCapacity = $classSubclasses->count() * self::DEFAULT_SUBCLASS_CAPACITY;
-                    
-                    $currentStudents = $classSubclasses->sum(function($subclass) use ($studentCounts) {
-                        return $studentCounts[$subclass->subclassID] ?? 0;
-                    });
-                    
-                    $availableSpaces = max(0, $totalCapacity - $currentStudents);
-                    
-                    return [
-                        'classID' => $class->classID,
-                        'className' => $class->class_name,
-                        'subclassesCount' => $classSubclasses->count(),
-                        'currentStudents' => $currentStudents,
-                        'totalCapacity' => $totalCapacity,
-                        'availableSpaces' => $availableSpaces,
-                        'hasSpaces' => $availableSpaces > 0,
-                    ];
-                });
-                
-                return [
-                    'schoolID' => $school->schoolID,
-                    'schoolName' => $school->school_name,
-                    'schoolType' => $school->school_type,
-                    'region' => $school->region,
-                    'district' => $school->district,
-                    'schoolLogo' => $school->school_logo,
-                    'classesCount' => $classes->count(),
-                    'subclassesCount' => $allSubclasses->flatten()->count(),
-                    'activeStudentsCount' => $activeStudentsCount,
-                    'classesWithSpaces' => $classesWithSpaces,
-                    'hasAnySpaces' => $classesWithSpaces->where('hasSpaces', true)->count() > 0,
-                ];
-            });
-            
-            return view('online_application', compact('schools', 'search'));
+            $result = $this->schoolService->paginatedSchools($search ?: null, 1, 10);
+
+            return view('online_application', [
+                'schools' => $result['schools'],
+                'search' => $search,
+                'hasMore' => $result['hasMore'],
+                'nextPage' => $result['nextPage'],
+            ]);
         } catch (\Exception $e) {
             \Log::error('OnlineApplicationController index error: ' . $e->getMessage());
-            return view('online_application', ['schools' => collect(), 'search' => $request->get('search', '')])
-                ->with('error', 'An error occurred while loading schools. Please try again.');
+
+            return view('online_application', [
+                'schools' => collect(),
+                'search' => $request->get('search', ''),
+                'hasMore' => false,
+                'nextPage' => 2,
+            ])->with('error', 'An error occurred while loading schools. Please try again.');
+        }
+    }
+
+    /**
+     * Load more schools (infinite scroll).
+     */
+    public function loadSchools(Request $request)
+    {
+        try {
+            $search = $request->get('search', '');
+            $page = max(1, (int) $request->get('page', 1));
+            $result = $this->schoolService->paginatedSchools($search ?: null, $page, 10);
+
+            $html = view('partials.online_application_school_cards', [
+                'schools' => $result['schools'],
+                'requireAuth' => !auth('online_application')->check(),
+            ])->render();
+
+            return response()->json([
+                'success' => true,
+                'html' => $html,
+                'hasMore' => $result['hasMore'],
+                'nextPage' => $result['nextPage'],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('OnlineApplicationController loadSchools error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to load more schools. Please try again.',
+            ], 500);
         }
     }
 
@@ -138,13 +101,12 @@ class OnlineApplicationController extends Controller
      */
     public function getSchoolDetails($schoolID)
     {
-        $school = School::find($schoolID);
-        
-        if (!$school || $school->status !== 'Active') {
+        $school = $this->schoolService->liveSchoolsQuery()->where('schoolID', $schoolID)->first();
+
+        if (!$school) {
             return response()->json(['error' => 'School not found'], 404);
         }
 
-        // Get active classes with their subclasses and student counts
         $classes = ClassModel::where('schoolID', $schoolID)
             ->where('status', 'Active')
             ->get()
@@ -152,19 +114,19 @@ class OnlineApplicationController extends Controller
                 $subclasses = Subclass::where('classID', $class->classID)
                     ->where('status', 'Active')
                     ->get();
-                
+
                 $subclassesWithStudents = $subclasses->map(function ($subclass) {
                     $studentCount = Student::where('subclassID', $subclass->subclassID)
                         ->where('status', 'Active')
                         ->count();
-                    
+
                     return [
                         'subclassID' => $subclass->subclassID,
                         'subclassName' => $subclass->subclass_name ?: 'Main',
                         'studentCount' => $studentCount,
                     ];
                 });
-                
+
                 return [
                     'classID' => $class->classID,
                     'className' => $class->class_name,
@@ -173,65 +135,59 @@ class OnlineApplicationController extends Controller
                 ];
             });
 
-        // Get school subjects
         $schoolSubjects = SchoolSubject::where('schoolID', $schoolID)
             ->where('status', 'Active')
             ->orderBy('subject_name')
             ->get(['subjectID', 'subject_name', 'subject_code']);
 
-        // Get class subjects (grouped by class)
-        $classSubjects = ClassSubject::whereHas('class', function($query) use ($schoolID) {
-                $query->where('schoolID', $schoolID)->where('status', 'Active');
-            })
+        $classSubjects = ClassSubject::whereHas('class', function ($query) use ($schoolID) {
+            $query->where('schoolID', $schoolID)->where('status', 'Active');
+        })
             ->where('status', 'Active')
             ->with(['subject', 'class', 'teacher'])
             ->get()
             ->groupBy('classID')
-            ->map(function ($subjects, $classID) {
+            ->map(function ($subjects) {
                 return $subjects->map(function ($classSubject) {
                     return [
                         'subjectName' => $classSubject->subject ? $classSubject->subject->subject_name : 'N/A',
                         'subjectCode' => $classSubject->subject ? $classSubject->subject->subject_code : '',
-                        'teacherName' => $classSubject->teacher 
+                        'teacherName' => $classSubject->teacher
                             ? ($classSubject->teacher->first_name . ' ' . $classSubject->teacher->last_name)
                             : 'Not Assigned',
                     ];
                 });
             });
 
-        // Get all teachers with their roles
         $teachers = Teacher::where('schoolID', $schoolID)
             ->where('status', 'Active')
             ->get()
             ->map(function ($teacher) use ($schoolID) {
-                // Get teacher roles
                 $roles = DB::table('role_user')
                     ->join('roles', 'role_user.role_id', '=', 'roles.id')
                     ->where('role_user.teacher_id', $teacher->id)
                     ->where('roles.schoolID', $schoolID)
                     ->pluck('roles.role_name')
                     ->toArray();
-                
-                // Also check if teacher is a class teacher (coordinator)
+
                 $isCoordinator = ClassModel::where('teacherID', $teacher->id)
                     ->where('schoolID', $schoolID)
                     ->exists();
-                
+
                 if ($isCoordinator && !in_array('Coordinator', $roles)) {
                     $roles[] = 'Coordinator';
                 }
-                
-                // Check if teacher is a class teacher (subclass teacher)
+
                 $isClassTeacher = Subclass::where('teacherID', $teacher->id)
-                    ->whereHas('class', function($query) use ($schoolID) {
+                    ->whereHas('class', function ($query) use ($schoolID) {
                         $query->where('schoolID', $schoolID);
                     })
                     ->exists();
-                
+
                 if ($isClassTeacher && !in_array('Class Teacher', $roles)) {
                     $roles[] = 'Class Teacher';
                 }
-                
+
                 return [
                     'teacherID' => $teacher->id,
                     'firstName' => $teacher->first_name,
@@ -268,26 +224,196 @@ class OnlineApplicationController extends Controller
     }
 
     /**
-     * Show the application form
+     * Public school landing (encrypted token) — school info, classes, fees, apply CTAs.
      */
-    public function showApplicationForm(Request $request)
+    public function showSchoolLanding(string $token)
     {
-        $schoolID = $request->query('school');
-        $classID = $request->query('class');
-
-        // Validate school and class
-        if (!$schoolID || !$classID) {
+        try {
+            $schoolID = $this->applyTokens->decodeSchool($token);
+        } catch (\InvalidArgumentException $e) {
             return redirect()->route('online_application')
-                ->with('error', 'Please select a school and class to apply.');
+                ->with('error', $e->getMessage());
         }
 
-        $school = School::where('schoolID', $schoolID)
-            ->where('status', 'Active')
-            ->first();
+        $school = $this->schoolService->liveSchoolsQuery()->where('schoolID', $schoolID)->first();
 
         if (!$school) {
             return redirect()->route('online_application')
-                ->with('error', 'Selected school not found or is inactive.');
+                ->with('error', 'Selected school is not available for online application.');
+        }
+
+        $card = $this->schoolService->buildSchoolCard($school);
+        $feesByClass = $this->schoolService->feesByClassForSchool($schoolID);
+        $schoolUrl = $this->applyTokens->schoolUrl($schoolID);
+        $isLoggedIn = auth('online_application')->check();
+
+        return view('online_application.school', compact(
+            'school',
+            'card',
+            'feesByClass',
+            'schoolUrl',
+            'token',
+            'isLoggedIn'
+        ));
+    }
+
+    /**
+     * Public fees structure PDF for a school landing link (same layout as manage_fees).
+     */
+    public function exportFeesStructurePdf(Request $request)
+    {
+        $token = (string) $request->query('token', '');
+        if ($token === '') {
+            return response()->json(['error' => 'Invalid school link.'], 422);
+        }
+
+        try {
+            $schoolID = $this->applyTokens->decodeSchool($token);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        $school = $this->schoolService->liveSchoolsQuery()->where('schoolID', $schoolID)->first();
+        if (!$school) {
+            return response()->json(['error' => 'School not available.'], 404);
+        }
+
+        $rawClassIDs = $request->query('classIDs', $request->input('classIDs', []));
+        if (!is_array($rawClassIDs)) {
+            $rawClassIDs = $rawClassIDs !== null && $rawClassIDs !== ''
+                ? preg_split('/[,\s]+/', (string) $rawClassIDs)
+                : [];
+        }
+        $legacyClassID = $request->query('classID');
+        if (($legacyClassID !== null && $legacyClassID !== '') && empty($rawClassIDs)) {
+            $rawClassIDs = [$legacyClassID];
+        }
+
+        $classIDs = array_values(array_unique(array_filter(array_map(function ($id) {
+            return is_numeric($id) ? (int) $id : null;
+        }, $rawClassIDs))));
+
+        $activeYear = $this->spaceService->currentAcademicYearForSchool($schoolID);
+        $yearLabel = $activeYear->year_name ?? $activeYear->year ?? date('Y');
+        $year = $activeYear->year ?? date('Y');
+
+        $query = ClassModel::where('schoolID', $schoolID)
+            ->with(['fees' => function ($q) {
+                $q->where('status', 'Active')
+                    ->with(['bankAccount.bank', 'breakdowns', 'installments', 'otherFeeDetails', 'deadlines'])
+                    ->orderBy('display_order');
+            }])
+            ->orderBy('class_name');
+
+        if (!empty($classIDs)) {
+            $query->whereIn('classID', $classIDs);
+        }
+
+        $classes = $query->get();
+
+        // Only include classes that have at least one active fee (public landing).
+        if (empty($classIDs)) {
+            $classes = $classes->filter(fn ($c) => $c->fees && $c->fees->count() > 0)->values();
+        }
+
+        if ($classes->isEmpty()) {
+            return response()->json(['error' => 'No fee structure found for the selected class.'], 404);
+        }
+
+        $totalFeeClasses = ClassModel::where('schoolID', $schoolID)
+            ->whereHas('fees', fn ($q) => $q->where('status', 'Active'))
+            ->count();
+
+        if (empty($classIDs) || $classes->count() === 0 || $classes->count() >= $totalFeeClasses) {
+            $scopeLabel = 'ALL CLASSES';
+        } elseif ($classes->count() === 1) {
+            $scopeLabel = strtoupper((string) ($classes->first()->class_name ?? 'Selected Class'));
+        } else {
+            $names = $classes->pluck('class_name')->filter()->map(function ($n) {
+                return strtoupper((string) $n);
+            })->values()->all();
+            $scopeLabel = count($names) <= 4
+                ? implode(' + ', $names)
+                : (count($names) . ' CLASSES');
+        }
+
+        $reportTitle = 'OFFICIAL FEES STRUCTURE — ' . $scopeLabel . ' | ' . $yearLabel;
+
+        $data = [
+            'school' => $school,
+            'classes' => $classes,
+            'year' => $year,
+            'yearLabel' => $yearLabel,
+            'scopeLabel' => $scopeLabel,
+            'reportTitle' => $reportTitle,
+            'title' => $reportTitle,
+        ];
+
+        $fileScope = preg_replace('/\s+/', '_', (string) $scopeLabel);
+        $fileScope = preg_replace('/[^\w\-]+/', '', $fileScope) ?: 'Fees_Structure';
+        $filename = 'Fees_Structure_' . $fileScope . '_' . date('Ymd') . '.pdf';
+
+        try {
+            try {
+                $pdf = PDF::loadView('Admin.pdf.fees_structure_pdf', $data);
+                $pdf->setOptions([
+                    'isRemoteEnabled' => true,
+                    'isHtml5ParserEnabled' => true,
+                    'chroot' => base_path(),
+                ]);
+                $pdf->setPaper('A4', 'portrait');
+                return $pdf->download($filename);
+            } catch (\Throwable $e) {
+                $dompdf = new \Dompdf\Dompdf();
+                $html = view('Admin.pdf.fees_structure_pdf', $data)->render();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'portrait');
+                $dompdf->render();
+                return response()->streamDownload(function () use ($dompdf) {
+                    echo $dompdf->output();
+                }, $filename, ['Content-Type' => 'application/pdf']);
+            }
+        } catch (\Throwable $e) {
+            \Log::error('Online application fees PDF error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to generate PDF.'], 500);
+        }
+    }
+
+    /**
+     * Show the application form (encrypted token only — auth required).
+     */
+    public function showApplicationForm(Request $request)
+    {
+        if (!auth('online_application')->check()) {
+            return redirect()
+                ->route('online_application.auth.login', [
+                    'redirect' => $request->getRequestUri(),
+                ])
+                ->with('info', 'In order to apply, please login first. After login you will continue to the application form.');
+        }
+
+        $token = $request->query('token');
+
+        if (!$token) {
+            return redirect()->route('online_application')
+                ->with('error', 'Invalid application link. Please select a school and class again.');
+        }
+
+        try {
+            $ids = $this->applyTokens->decode($token);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('online_application')
+                ->with('error', $e->getMessage());
+        }
+
+        $schoolID = $ids['schoolID'];
+        $classID = $ids['classID'];
+
+        $school = $this->schoolService->liveSchoolsQuery()->where('schoolID', $schoolID)->first();
+
+        if (!$school) {
+            return redirect()->route('online_application')
+                ->with('error', 'Selected school is not available for online application.');
         }
 
         $class = ClassModel::where('classID', $classID)
@@ -300,69 +426,72 @@ class OnlineApplicationController extends Controller
                 ->with('error', 'Selected class not found or is inactive.');
         }
 
-        // Check if class has available spaces
-        $subclasses = Subclass::where('classID', $classID)
-            ->where('status', 'Active')
-            ->get();
+        $stats = $this->capacity->calculateForClass($class);
+        $availableSpaces = $stats['availableSpaces'];
+        $academicYearID = $ids['academicYearID'] ?? $stats['academicYearID'];
+        $academicYearName = $stats['academicYearName'] ?? null;
 
-        $totalCapacity = $subclasses->count() * self::DEFAULT_SUBCLASS_CAPACITY;
-        $currentStudents = Student::whereIn('subclassID', $subclasses->pluck('subclassID'))
-            ->where('status', 'Active')
-            ->count();
-
-        $availableSpaces = max(0, $totalCapacity - $currentStudents);
-
-        if ($availableSpaces <= 0) {
+        if (!$academicYearID || $availableSpaces <= 0) {
             return redirect()->route('online_application')
-                ->with('error', 'No available spaces in the selected class.');
+                ->with('error', 'No available admission spaces in the selected class for the current academic year.');
         }
 
-        return view('apply', compact('school', 'class', 'availableSpaces'));
+        $this->formService->ensureDefaults($schoolID, $classID);
+        $formSections = $this->formService->activeSectionsWithFields($schoolID, $classID);
+
+        return view('apply', compact(
+            'school',
+            'class',
+            'availableSpaces',
+            'token',
+            'formSections',
+            'academicYearID',
+            'academicYearName'
+        ));
     }
 
     /**
-     * Store the application
+     * Store the application (auth required).
      */
     public function storeApplication(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'schoolID' => 'required|exists:schools,schoolID',
-            'classID' => 'required|exists:classes,classID',
-            'first_name' => 'required|string|max:100',
-            'middle_name' => 'nullable|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'gender' => 'required|in:Male,Female',
-            'date_of_birth' => 'required|date',
-            'address' => 'nullable|string|max:255',
-            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
-            'is_disabled' => 'nullable|boolean',
-            'has_epilepsy' => 'nullable|boolean',
-            'has_allergies' => 'nullable|boolean',
-            'allergies_details' => 'nullable|string|max:500',
-        ], [
-            'photo.image' => 'Photo must be an image file.',
-            'photo.mimes' => 'Photo must be a jpg, jpeg, or png file.',
-            'photo.max' => 'Photo must not exceed 10MB.',
-        ]);
+        $wantsJson = $request->expectsJson() || $request->ajax();
 
-        if ($validator->fails()) {
-            return back()
-                ->withErrors($validator)
-                ->withInput();
+        if (!auth('online_application')->check()) {
+            if ($wantsJson) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please login to submit your application.',
+                    'redirect' => route('online_application.auth.login'),
+                ], 401);
+            }
+
+            return redirect()
+                ->route('online_application.auth.login')
+                ->with('info', 'Please login to submit your application.');
         }
 
-        $schoolID = $request->schoolID;
-        $classID = $request->classID;
+        try {
+            $ids = $this->applyTokens->decode($request->input('apply_token', ''));
+        } catch (\InvalidArgumentException $e) {
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
 
-        // Verify school and class are active
-        $school = School::where('schoolID', $schoolID)
-            ->where('status', 'Active')
-            ->first();
+            return redirect()->route('online_application')->with('error', $e->getMessage());
+        }
 
+        $schoolID = $ids['schoolID'];
+        $classID = $ids['classID'];
+
+        $school = $this->schoolService->liveSchoolsQuery()->where('schoolID', $schoolID)->first();
         if (!$school) {
-            return back()
-                ->with('error', 'Selected school not found or is inactive.')
-                ->withInput();
+            $message = 'Selected school is not available for online application.';
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return redirect()->route('online_application')->with('error', $message);
         }
 
         $class = ClassModel::where('classID', $classID)
@@ -371,119 +500,95 @@ class OnlineApplicationController extends Controller
             ->first();
 
         if (!$class) {
-            return back()
-                ->with('error', 'Selected class not found or is inactive.')
-                ->withInput();
+            $message = 'Selected class not found or is inactive.';
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return back()->with('error', $message)->withInput();
         }
 
-        // Check if class has available spaces
-        $subclasses = Subclass::where('classID', $classID)
-            ->where('status', 'Active')
-            ->get();
+        $stats = $this->capacity->calculateForClass($class);
+        $academicYearID = $ids['academicYearID'] ?? $stats['academicYearID'];
 
-        $totalCapacity = $subclasses->count() * self::DEFAULT_SUBCLASS_CAPACITY;
-        $currentStudents = Student::whereIn('subclassID', $subclasses->pluck('subclassID'))
-            ->where('status', 'Active')
-            ->count();
+        if (!$academicYearID || $stats['availableSpaces'] <= 0) {
+            $message = 'No available admission spaces in the selected class.';
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
 
-        $availableSpaces = max(0, $totalCapacity - $currentStudents);
+            return back()->with('error', $message)->withInput();
+        }
 
-        if ($availableSpaces <= 0) {
-            return back()
-                ->with('error', 'No available spaces in the selected class.')
-                ->withInput();
+        $validation = $this->admissionService->buildValidationRules($schoolID, $classID);
+        $validator = Validator::make($request->all(), $validation['rules'], $validation['messages']);
+
+        if ($validator->fails()) {
+            if ($wantsJson) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first(),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            return back()->withErrors($validator)->withInput();
         }
 
         try {
-            DB::beginTransaction();
+            $admission = $this->admissionService->submit(
+                $request,
+                $schoolID,
+                $classID,
+                (int) $academicYearID,
+                (int) (auth('online_application')->user()?->getKey() ?? 0) ?: null
+            );
 
-            // Handle Image Upload
-            $imageName = null;
-            if ($request->hasFile('photo')) {
-                $uploadPath = public_path('userImages');
-                if (!file_exists($uploadPath)) {
-                    mkdir($uploadPath, 0755, true);
-                }
-
-                $imageName = time() . '_' . $request->file('photo')->getClientOriginalName();
-                $request->file('photo')->move($uploadPath, $imageName);
+            if (!$admission->online_application_userID) {
+                \Log::warning('Online application saved without user ID for application ' . $admission->application_number);
             }
 
-            // Generate unique application number (username)
-            $applicationNumber = 'APP/' . $schoolID . '/' . time();
-            $counter = 1;
-            while (User::where('name', $applicationNumber)->exists()) {
-                $applicationNumber = 'APP/' . $schoolID . '/' . time() . '_' . $counter;
-                $counter++;
-            }
-
-            // Generate random password (8 characters)
-            $password = Str::random(8);
-            $hashedPassword = Hash::make($password);
-
-            // Create user account for applicant
-            $userEmail = $applicationNumber . '@application.local';
-            $emailCounter = 1;
-            while (User::where('email', $userEmail)->exists()) {
-                $userEmail = $applicationNumber . '_' . $emailCounter . '@application.local';
-                $emailCounter++;
-            }
-
-            $user = User::create([
-                'name' => $applicationNumber,
-                'email' => $userEmail,
-                'password' => $hashedPassword,
-                'user_type' => 'student',
-            ]);
-
-            // Get first available subclass for this class (will be reassigned by admin on acceptance)
-            $firstSubclass = $subclasses->first();
-            
-            // Generate temporary studentID (will be changed when accepted)
-            // For now, use a unique number based on timestamp
-            $tempStudentID = (int) (time() % 999999);
-            while (Student::where('studentID', $tempStudentID)->exists() || 
-                   User::where('fingerprint_id', $tempStudentID)->exists()) {
-                $tempStudentID = (int) ((time() + rand(1, 1000)) % 999999);
-            }
-
-            // Create student with status 'Applied'
-            $student = Student::create([
-                'studentID' => $tempStudentID,
-                'schoolID' => $schoolID,
-                'subclassID' => $firstSubclass->subclassID ?? null, // Temporary, will be reassigned by admin
-                'first_name' => $request->first_name,
-                'middle_name' => $request->middle_name ?: null,
-                'last_name' => $request->last_name,
-                'gender' => $request->gender,
-                'date_of_birth' => $request->date_of_birth,
-                'admission_number' => $applicationNumber,
-                'address' => $request->address ?: null,
-                'photo' => $imageName,
-                'status' => 'Applied',
-                'is_disabled' => $request->has('is_disabled') && $request->is_disabled == '1' ? true : false,
-                'has_epilepsy' => $request->has('has_epilepsy') && $request->has_epilepsy == '1' ? true : false,
-                'has_allergies' => $request->has('has_allergies') && $request->has_allergies == '1' ? true : false,
-                'allergies_details' => $request->has_allergies == '1' ? ($request->allergies_details ?: null) : null,
-            ]);
-
-            DB::commit();
-
-            // Return success view with credentials
-            return view('application_success', [
-                'applicationNumber' => $applicationNumber,
-                'password' => $password,
-                'studentName' => $request->first_name . ' ' . ($request->middle_name ? $request->middle_name . ' ' : '') . $request->last_name,
+            $payload = [
+                'applicationNumber' => $admission->application_number,
+                'studentName' => trim($admission->student_first_name . ' ' . ($admission->student_middle_name ? $admission->student_middle_name . ' ' : '') . $admission->student_last_name),
                 'schoolName' => $school->school_name,
                 'className' => $class->class_name,
-            ]);
+                'isPendingReview' => true,
+            ];
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()
-                ->with('error', 'An error occurred while submitting your application. Please try again.')
-                ->withInput();
+            $request->session()->put('oa_application_success', $payload);
+
+            if ($wantsJson) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Application submitted successfully!',
+                    'redirect' => route('online_application.application_success'),
+                ]);
+            }
+
+            return redirect()->route('online_application.application_success');
+        } catch (\Throwable $e) {
+            \Log::error('OnlineApplicationController store error: ' . $e->getMessage());
+            $message = $e->getMessage() ?: 'An error occurred while submitting your application. Please try again.';
+
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return back()->with('error', $message)->withInput();
         }
     }
-}
 
+    /**
+     * Success page after AJAX/normal submit (reads flash payload).
+     */
+    public function applicationSuccess(Request $request)
+    {
+        $payload = $request->session()->pull('oa_application_success');
+        if (!$payload || !is_array($payload)) {
+            return redirect()->route('online_application.portal.applications');
+        }
+
+        return view('application_success', $payload);
+    }
+}

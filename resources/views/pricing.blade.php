@@ -288,7 +288,7 @@
                     <h3 class="mb-3">Need a Custom Plan?</h3>
                     <p class="mb-4">Contact us to discuss your specific requirements</p>
                     <a href="/contact" class="btn btn-primary me-2">Contact Us</a>
-                    <a href="tel:+255757166599" class="btn btn-outline-primary">Call: +255 757 166 599</a>
+                    <a href="tel:{{ config('shulexpert.phone_e164') }}" class="btn btn-outline-primary">Call: {{ config('shulexpert.phone_display') }}</a>
                 </div>
             </div>
         </div>
@@ -302,7 +302,7 @@
                 <div class="col-lg-3 col-md-6">
                     <h4 class="text-light mb-4">ShuleXpert Office</h4>
                     <p class="mb-2"><i class="fa fa-map-marker-alt me-3"></i>Moshi, Kilimanjaro</p>
-                    <p class="mb-2"><i class="fa fa-phone-alt me-3"></i>+255757166599</p>
+                    <p class="mb-2"><i class="fa fa-phone-alt me-3"></i>{{ config('shulexpert.phone_e164') }}</p>
                     <p class="mb-2"><i class="fa fa-envelope me-3"></i>emca@emca.tech</p>
                     <p class="mb-3 mt-3"><span class="footer-powered-by">Powered by: EmCa Technologies LTD</span></p>
                     <div class="d-flex pt-3">

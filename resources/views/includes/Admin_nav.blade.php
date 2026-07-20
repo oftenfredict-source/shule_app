@@ -625,6 +625,7 @@ a#menuToggle.menutoggle:hover {
                             </a>
                             <ul id="academicManagement" class="collapse submenu" style="list-style: none; padding-left: 20px; margin: 0;">
                                 <li><a href="{{ route('manageClasses') }}" class="nav-link"><i class="fa fa-columns"></i> Classes</a></li>
+                                <li><a href="{{ route('school.online_admission.index') }}" class="nav-link"><i class="fa fa-wpforms"></i> Online Admission</a></li>
                                 <li><a href="{{ route('manageSubjects') }}" class="nav-link"><i class="fa fa-bookmark"></i> Subjects</a></li>
                                 <li><a href="{{ route('manage_fees') }}" class="nav-link"><i class="fa fa-money"></i> Fees Structure</a></li>
                                 <li><a href="{{ route('view_payments') }}" class="nav-link"><i class="fa fa-credit-card"></i> Payments</a></li>
@@ -969,8 +970,12 @@ a#menuToggle.menutoggle:hover {
                                 $schoolID = Session::get('schoolID');
                                 $lastSeen = Session::get('visitors_last_seen');
                                 $lastSeenAt = $lastSeen ? \Carbon\Carbon::parse($lastSeen) : \Carbon\Carbon::createFromTimestamp(0);
+                                $oaLastSeen = Session::get('online_admissions_last_seen');
+                                $oaLastSeenAt = $oaLastSeen ? \Carbon\Carbon::parse($oaLastSeen) : \Carbon\Carbon::createFromTimestamp(0);
                                 $newVisitorCount = 0;
+                                $newOnlineAdmissionCount = 0;
                                 $recentVisitors = collect();
+                                $recentOnlineAdmissions = collect();
 
                                 if ($isAdmin && $schoolID) {
                                     $newVisitorQuery = \Illuminate\Support\Facades\DB::table('school_visitors')
@@ -981,20 +986,61 @@ a#menuToggle.menutoggle:hover {
                                         ->orderBy('created_at', 'desc')
                                         ->limit(5)
                                         ->get();
+
+                                    try {
+                                        $oaQuery = \Illuminate\Support\Facades\DB::table('online_admissions')
+                                            ->where('schoolID', $schoolID)
+                                            ->where('status', 'Pending')
+                                            ->where('created_at', '>', $oaLastSeenAt);
+                                        $newOnlineAdmissionCount = $oaQuery->count();
+                                        $recentOnlineAdmissions = \Illuminate\Support\Facades\DB::table('online_admissions')
+                                            ->where('schoolID', $schoolID)
+                                            ->where('status', 'Pending')
+                                            ->where('created_at', '>', $oaLastSeenAt)
+                                            ->orderBy('created_at', 'desc')
+                                            ->limit(5)
+                                            ->get();
+                                    } catch (\Throwable $e) {
+                                        $newOnlineAdmissionCount = 0;
+                                        $recentOnlineAdmissions = collect();
+                                    }
                                 }
+                                $headerNotificationCount = $newVisitorCount + $newOnlineAdmissionCount;
                             @endphp
                             <button class="btn btn-secondary dropdown-toggle position-relative" type="button" id="notification" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <i class="fa fa-bell-o header-icon-muted"></i>
-                                @if($newVisitorCount > 0)
-                                    <span class="count bg-danger notification-count" id="visitorNotificationCount">{{ $newVisitorCount }}</span>
+                                @if($headerNotificationCount > 0)
+                                    <span class="count bg-danger notification-count" id="visitorNotificationCount">{{ $headerNotificationCount }}</span>
                                 @endif
                             </button>
-                            <div class="dropdown-menu" aria-labelledby="notification">
-                                <p class="red" id="visitorNotificationHeader">New Visitors: {{ $newVisitorCount }}</p>
+                            <div class="dropdown-menu" aria-labelledby="notification" style="min-width: 320px; max-width: 360px;">
+                                <p class="red" id="visitorNotificationHeader">
+                                    Notifications: {{ $headerNotificationCount }}
+                                    @if($newOnlineAdmissionCount > 0)
+                                        <small class="d-block text-muted" style="font-weight:500;">Online applications: {{ $newOnlineAdmissionCount }}</small>
+                                    @endif
+                                </p>
                                 <div id="visitorNotificationList">
-                                    @if($newVisitorCount === 0)
-                                        <span class="dropdown-item text-muted">No new visitor notifications.</span>
+                                    @if($headerNotificationCount === 0)
+                                        <span class="dropdown-item text-muted">No new notifications.</span>
                                     @else
+                                        @foreach($recentOnlineAdmissions as $app)
+                                            @php
+                                                $created = \Carbon\Carbon::parse($app->created_at);
+                                                $timeLabel = $created->isToday()
+                                                    ? $created->diffForHumans()
+                                                    : $created->format('d M Y');
+                                                $studentLabel = trim(($app->student_first_name ?? '') . ' ' . ($app->student_last_name ?? ''));
+                                            @endphp
+                                            <a class="dropdown-item media" href="{{ route('school.online_admission.index') }}">
+                                                <i class="fa fa-wpforms" style="color:#940000;"></i>
+                                                <p>
+                                                    Online application<br>
+                                                    <small>{{ $studentLabel }} | {{ $app->application_number ?? '' }}</small>
+                                                    <span class="time float-right">{{ $timeLabel }}</span>
+                                                </p>
+                                            </a>
+                                        @endforeach
                                         @foreach($recentVisitors as $visitor)
                                             @php
                                                 $created = \Carbon\Carbon::parse($visitor->created_at);
@@ -1607,7 +1653,7 @@ function initializeVisitorNotifications() {
             data: { _token: $('meta[name="csrf-token"]').attr('content') },
             success: function() {
                 $('#visitorNotificationCount').remove();
-                $('#visitorNotificationHeader').text('New Visitors: 0');
+                $('#visitorNotificationHeader').text('Notifications: 0');
             }
         });
     });
@@ -1623,6 +1669,7 @@ function updateVisitorNotificationCount() {
             return;
         }
         const count = parseInt(response.count || 0, 10);
+        const oaCount = parseInt(response.online_admissions || 0, 10);
         const $button = $('#notification');
         const $badge = $('#visitorNotificationCount');
 
@@ -1632,13 +1679,17 @@ function updateVisitorNotificationCount() {
             } else {
                 $button.append(`<span class="count bg-danger notification-count" id="visitorNotificationCount">${count}</span>`);
             }
-            $('#visitorNotificationHeader').text('New Visitors: ' + count);
+            let header = 'Notifications: ' + count;
+            if (oaCount > 0) {
+                header += '<small class="d-block text-muted" style="font-weight:500;">Online applications: ' + oaCount + '</small>';
+            }
+            $('#visitorNotificationHeader').html(header);
 
             // Also refresh the visitor list if there are new ones
             fetchRecentVisitors();
         } else {
             $badge.remove();
-            $('#visitorNotificationHeader').text('New Visitors: 0');
+            $('#visitorNotificationHeader').text('Notifications: 0');
         }
     });
 }
@@ -1649,13 +1700,29 @@ function fetchRecentVisitors() {
         if (!response || response.success !== true) return;
 
         const $list = $('#visitorNotificationList');
-        if (response.visitors.length === 0) {
-            $list.html('<span class="dropdown-item text-muted">No new visitor notifications.</span>');
+        const admissions = response.online_admissions || [];
+        const visitors = response.visitors || [];
+        const newVisitors = visitors.filter(function (v) { return v.is_new; });
+
+        if (admissions.length === 0 && newVisitors.length === 0) {
+            $list.html('<span class="dropdown-item text-muted">No new notifications.</span>');
             return;
         }
 
         let html = '';
-        response.visitors.forEach(visitor => {
+        admissions.forEach(function (app) {
+            html += `
+                <a class="dropdown-item media" href="${app.url || '{{ route('school.online_admission.index') }}'}">
+                    <i class="fa fa-wpforms" style="color:#940000;"></i>
+                    <p>
+                        Online application<br>
+                        <small>${app.name || 'Applicant'} | ${app.application_number || ''}</small>
+                        <span class="time float-right">${app.time_label || ''}</span>
+                    </p>
+                </a>
+            `;
+        });
+        newVisitors.forEach(function (visitor) {
             html += `
                 <a class="dropdown-item media" href="{{ route('admin.school_visitors') }}">
                     <i class="fa fa-user"></i>

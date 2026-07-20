@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'school.agent' => \App\Http\Middleware\AuthenticateSchoolAgent::class,
+            'online.application.auth' => \App\Http\Middleware\OnlineApplicationAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

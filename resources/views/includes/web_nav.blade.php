@@ -597,7 +597,7 @@
                         </div>
                         <div class="ms-2">
                             <h6 style="color: #940000 !important;" class="mb-0">Call Us</h6>
-                            <span style="color: #940000 !important;">+255749719998</span>
+                            <span style="color: #940000 !important;">{{ config('shulexpert.phone_display') }}</span>
                         </div>
                     </div>
                 </div>

@@ -2,77 +2,93 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\URL;
-use App\Models\School; // Assuming there's a School model based on routes
+use App\Services\OnlineApplicationApplyTokenService;
 
 class SitemapController extends Controller
 {
-    public function index()
+    public function index(OnlineApplicationApplyTokenService $applyTokens)
     {
-        $urls = [
-            [
-                'loc' => url('/'),
-                'lastmod' => now()->toAtomString(),
-                'changefreq' => 'daily',
-                'priority' => '1.0',
-            ],
-            [
-                'loc' => url('/pricing'),
-                'lastmod' => now()->toAtomString(),
-                'changefreq' => 'weekly',
-                'priority' => '0.8',
-            ],
-            [
-                'loc' => url('/online-application'),
-                'lastmod' => now()->toAtomString(),
-                'changefreq' => 'weekly',
-                'priority' => '0.8',
-            ],
-            [
-                'loc' => url('/login'),
-                'lastmod' => now()->toAtomString(),
-                'changefreq' => 'monthly',
-                'priority' => '0.5',
-            ],
+        $static = [
+            ['/', 'daily', '1.0'],
+            ['/about', 'monthly', '0.9'],
+            ['/team', 'monthly', '0.9'],
+            ['/services', 'monthly', '0.9'],
+            ['/modules', 'weekly', '0.9'],
+            ['/pricing', 'weekly', '0.95'],
+            ['/faq', 'monthly', '0.85'],
+            ['/download', 'weekly', '0.9'],
+            ['/contact', 'monthly', '0.85'],
+            ['/online-application', 'daily', '0.95'],
+            ['/online-application/account/register', 'monthly', '0.85'],
+            ['/online-application/account/login', 'monthly', '0.85'],
         ];
 
-        // Add dynamic school application pages if they exist
+        $urls = [];
+        foreach ($static as [$path, $freq, $priority]) {
+            $urls[] = [
+                'loc' => $applyTokens->publicAbsoluteUrl($path),
+                'lastmod' => now()->toAtomString(),
+                'changefreq' => $freq,
+                'priority' => $priority,
+            ];
+        }
+
+        foreach (array_keys(SiteController::modules()) as $slug) {
+            $urls[] = [
+                'loc' => $applyTokens->publicAbsoluteUrl('/modules/' . $slug),
+                'lastmod' => now()->toAtomString(),
+                'changefreq' => 'weekly',
+                'priority' => '0.7',
+            ];
+        }
+
+        foreach (SiteController::teamMembers() as $member) {
+            $slug = $member['slug'] ?? null;
+            if (!$slug) {
+                continue;
+            }
+            $urls[] = [
+                'loc' => $applyTokens->publicAbsoluteUrl('/team/' . $slug),
+                'lastmod' => now()->toAtomString(),
+                'changefreq' => 'monthly',
+                'priority' => !empty($member['featured']) ? '0.9' : '0.8',
+            ];
+        }
+
         try {
-            $schools = \App\Models\School::where('status', 'active')->get();
+            $schools = \App\Models\School::query()
+                ->where('status', 'Active')
+                ->where('environment', 'Live')
+                ->orderBy('school_name')
+                ->get(['schoolID', 'updated_at']);
+
             foreach ($schools as $school) {
                 $urls[] = [
-                    'loc' => route('online_application.school_details', $school->schoolID),
-                    'lastmod' => $school->updated_at ? $school->updated_at->toAtomString() : now()->toAtomString(),
+                    'loc' => $applyTokens->schoolUrl((int) $school->schoolID),
+                    'lastmod' => $school->updated_at
+                        ? $school->updated_at->toAtomString()
+                        : now()->toAtomString(),
                     'changefreq' => 'weekly',
-                    'priority' => '0.7',
+                    'priority' => '0.85',
                 ];
             }
-        } catch (\Exception $e) {
-            // Handle cases where model or table might not exist
+        } catch (\Throwable $e) {
+            // ignore — sitemap should still return static URLs
         }
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
-
         foreach ($urls as $url) {
-            $xml .= '    <url>' . "\n";
-            $xml .= '        <loc>' . e($url['loc']) . '</loc>' . "\n";
-            if (isset($url['lastmod'])) {
-                $xml .= '        <lastmod>' . $url['lastmod'] . '</lastmod>' . "\n";
-            }
-            if (isset($url['changefreq'])) {
-                $xml .= '        <changefreq>' . $url['changefreq'] . '</changefreq>' . "\n";
-            }
-            if (isset($url['priority'])) {
-                $xml .= '        <priority>' . $url['priority'] . '</priority>' . "\n";
-            }
-            $xml .= '    </url>' . "\n";
+            $xml .= "    <url>\n";
+            $xml .= '        <loc>' . e($url['loc']) . "</loc>\n";
+            $xml .= '        <lastmod>' . $url['lastmod'] . "</lastmod>\n";
+            $xml .= '        <changefreq>' . $url['changefreq'] . "</changefreq>\n";
+            $xml .= '        <priority>' . $url['priority'] . "</priority>\n";
+            $xml .= "    </url>\n";
         }
-
         $xml .= '</urlset>';
 
-        return response($xml)->header('Content-Type', 'text/xml');
+        return response($xml)
+            ->header('Content-Type', 'application/xml; charset=UTF-8');
     }
 }
