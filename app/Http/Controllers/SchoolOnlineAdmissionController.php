@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\ClassModel;
 use App\Models\OnlineAdmission;
 use App\Models\OnlineAdmissionFormField;
-use App\Models\OnlineAdmissionSpace;
 use App\Services\OnlineAdmissionFormService;
 use App\Services\OnlineAdmissionService;
 use App\Services\OnlineAdmissionSpaceService;
@@ -88,25 +87,7 @@ class SchoolOnlineAdmissionController extends Controller
         $classes = ClassModel::where('schoolID', $schoolID)->where('status', 'Active')->orderBy('class_name')->get();
         $publicApplicationUrl = $this->applyTokens->schoolUrl($schoolID);
 
-        // Ensure default admission spaces exist for each class (only when missing).
-        if ($activeYear) {
-            $academicYearID = (int) $activeYear->academic_yearID;
-            foreach ($classes as $class) {
-                $exists = OnlineAdmissionSpace::where('schoolID', $schoolID)
-                    ->where('classID', (int) $class->classID)
-                    ->where('academic_yearID', $academicYearID)
-                    ->exists();
-
-                if (!$exists) {
-                    OnlineAdmissionSpace::create([
-                        'schoolID' => $schoolID,
-                        'classID' => (int) $class->classID,
-                        'academic_yearID' => $academicYearID,
-                        'spaces' => $this->defaultAdmissionSpaces,
-                    ]);
-                }
-            }
-        }
+        $this->spaceService->ensureDefaultSpacesForSchool($schoolID, $this->defaultAdmissionSpaces);
 
         return view('Admin.online_admission', compact('activeYear', 'classes', 'user_type', 'publicApplicationUrl'));
     }
@@ -427,34 +408,12 @@ class SchoolOnlineAdmissionController extends Controller
         $schoolID = $this->schoolIdOrAbort();
         $activeYear = $this->spaceService->currentAcademicYearForSchool($schoolID);
 
-        if (!$activeYear) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No active academic year found. Set a current academic year first.',
-            ], 422);
-        }
-
         $classes = ClassModel::where('schoolID', $schoolID)->where('status', 'Active')->orderBy('class_name')->get();
-        $academicYearID = (int) $activeYear->academic_yearID;
 
-        // Ensure default admission spaces exist for each class (only when missing).
-        foreach ($classes as $class) {
-            $exists = OnlineAdmissionSpace::where('schoolID', $schoolID)
-                ->where('classID', (int) $class->classID)
-                ->where('academic_yearID', $academicYearID)
-                ->exists();
+        $this->spaceService->ensureDefaultSpacesForSchool($schoolID, $this->defaultAdmissionSpaces);
 
-            if (!$exists) {
-                OnlineAdmissionSpace::create([
-                    'schoolID' => $schoolID,
-                    'classID' => (int) $class->classID,
-                    'academic_yearID' => $academicYearID,
-                    'spaces' => $this->defaultAdmissionSpaces,
-                ]);
-            }
-        }
-        $rows = $classes->map(function ($class) use ($schoolID, $activeYear) {
-            $availability = $this->spaceService->classAvailability($class, (int) $activeYear->academic_yearID);
+        $rows = $classes->map(function ($class) {
+            $availability = $this->spaceService->classAvailability($class);
 
             return [
                 'classID' => $class->classID,
@@ -462,6 +421,8 @@ class SchoolOnlineAdmissionController extends Controller
                 'spaces' => $availability['allocated_spaces'],
                 'used' => $availability['used_spaces'],
                 'available' => $availability['available_spaces'],
+                'academic_yearID' => $availability['academic_yearID'],
+                'academic_year_name' => $availability['academic_year_name'],
             ];
         });
 
@@ -475,11 +436,6 @@ class SchoolOnlineAdmissionController extends Controller
     public function saveAdmissionSpaces(Request $request)
     {
         $schoolID = $this->schoolIdOrAbort();
-        $activeYear = $this->spaceService->currentAcademicYearForSchool($schoolID);
-
-        if (!$activeYear) {
-            return response()->json(['success' => false, 'message' => 'No active academic year found.'], 422);
-        }
 
         $validator = Validator::make($request->all(), [
             'spaces' => 'required|array',
@@ -490,9 +446,8 @@ class SchoolOnlineAdmissionController extends Controller
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $this->spaceService->saveSpacesForYear(
+        $this->spaceService->saveSpacesForClasses(
             $schoolID,
-            (int) $activeYear->academic_yearID,
             $request->input('spaces', [])
         );
 

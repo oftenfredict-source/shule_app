@@ -166,7 +166,7 @@
 </section>
 
 {{-- Why / testimonials lite --}}
-<section class="review-area section-gap">
+<section class="review-area section-gap sx-reviews-showcase" style="--sx-reviews-bg: url('{{ asset('images/SS.jpg') }}')">
     <div class="container">
         <div class="row d-flex justify-content-center">
             <div class="menu-content pb-70 col-lg-8">

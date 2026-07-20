@@ -116,6 +116,39 @@ class OnlineAdmissionSpaceService
             && strcasecmp((string) $school->environment, 'Live') === 0;
     }
 
+    /**
+     * Ensure each active class has a spaces row for its resolved academic year.
+     * Default is 50 when missing (does not overwrite existing values).
+     */
+    public function ensureDefaultSpacesForSchool(int $schoolID, int $defaultSpaces = 50): void
+    {
+        $defaultSpaces = max(0, $defaultSpaces);
+        $classes = ClassModel::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->get(['classID', 'schoolID', 'class_name']);
+
+        foreach ($classes as $class) {
+            $yearId = $this->resolveCurrentYearIdForClass($schoolID, $class->class_name);
+            if (!$yearId) {
+                continue;
+            }
+
+            $exists = OnlineAdmissionSpace::where('schoolID', $schoolID)
+                ->where('classID', (int) $class->classID)
+                ->where('academic_yearID', $yearId)
+                ->exists();
+
+            if (!$exists) {
+                OnlineAdmissionSpace::create([
+                    'schoolID' => $schoolID,
+                    'classID' => (int) $class->classID,
+                    'academic_yearID' => $yearId,
+                    'spaces' => $defaultSpaces,
+                ]);
+            }
+        }
+    }
+
     public function saveSpacesForYear(int $schoolID, int $academicYearID, array $classSpaces): void
     {
         foreach ($classSpaces as $classID => $spaces) {
@@ -127,6 +160,43 @@ class OnlineAdmissionSpaceService
                     'schoolID' => $schoolID,
                     'classID' => $classID,
                     'academic_yearID' => $academicYearID,
+                ],
+                ['spaces' => $spaces]
+            );
+        }
+    }
+
+    /**
+     * Save spaces using each class's resolved academic year (O-level / A-level aware).
+     *
+     * @param  array<int|string, int|string>  $classSpaces
+     */
+    public function saveSpacesForClasses(int $schoolID, array $classSpaces): void
+    {
+        $classes = ClassModel::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->whereIn('classID', array_map('intval', array_keys($classSpaces)))
+            ->get()
+            ->keyBy('classID');
+
+        foreach ($classSpaces as $classID => $spaces) {
+            $classID = (int) $classID;
+            $spaces = max(0, (int) $spaces);
+            $class = $classes->get($classID);
+            if (!$class) {
+                continue;
+            }
+
+            $yearId = $this->resolveCurrentYearIdForClass($schoolID, $class->class_name);
+            if (!$yearId) {
+                continue;
+            }
+
+            OnlineAdmissionSpace::updateOrCreate(
+                [
+                    'schoolID' => $schoolID,
+                    'classID' => $classID,
+                    'academic_yearID' => $yearId,
                 ],
                 ['spaces' => $spaces]
             );

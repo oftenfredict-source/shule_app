@@ -13,7 +13,8 @@ class OnlineApplicationSchoolService
 {
     public function __construct(
         private OnlineApplicationCapacityService $capacity,
-        private OnlineApplicationApplyTokenService $applyTokens
+        private OnlineApplicationApplyTokenService $applyTokens,
+        private OnlineAdmissionSpaceService $spaces
     ) {
     }
 
@@ -40,22 +41,24 @@ class OnlineApplicationSchoolService
             });
         }
 
+        // Over-fetch so schools without spaces (after filter) don't empty the page.
+        $fetch = max($perPage * 4, 20);
         $offset = max(0, ($page - 1) * $perPage);
-        $schoolModels = (clone $query)->skip($offset)->take($perPage + 1)->get();
-        $hasMore = $schoolModels->count() > $perPage;
-
-        if ($hasMore) {
-            $schoolModels = $schoolModels->take($perPage);
+        $schoolModels = (clone $query)->skip($offset)->take($fetch + 1)->get();
+        $hasMoreSource = $schoolModels->count() > $fetch;
+        if ($hasMoreSource) {
+            $schoolModels = $schoolModels->take($fetch);
         }
 
         $schools = $schoolModels
             ->map(fn ($school) => $this->buildSchoolCard($school))
             ->filter(fn ($school) => $school['hasAnySpaces'])
+            ->take($perPage)
             ->values();
 
         return [
             'schools' => $schools,
-            'hasMore' => $hasMore,
+            'hasMore' => $hasMoreSource || $schoolModels->count() >= $fetch,
             'nextPage' => $page + 1,
         ];
     }
@@ -71,6 +74,9 @@ class OnlineApplicationSchoolService
         if (empty($classIDs)) {
             return $this->emptySchoolCard($school);
         }
+
+        // Seed default 50 spaces per class/year so public listing matches admin defaults.
+        $this->spaces->ensureDefaultSpacesForSchool((int) $school->schoolID, 50);
 
         $allSubclasses = Subclass::whereIn('classID', $classIDs)
             ->where('status', 'Active')

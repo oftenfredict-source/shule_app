@@ -328,6 +328,57 @@ b, sup, sub, u, del { color: var(--sx-primary); }
         radial-gradient(ellipse at 0% 50%, rgba(148,0,0,0.06) 0%, transparent 55%),
         linear-gradient(180deg, #FFF5F5 0%, #ffffff 100%) !important;
 }
+/* Home — testimonials with SS.jpg background */
+.sx-reviews-showcase.review-area {
+    position: relative;
+    overflow: hidden;
+    background: transparent !important;
+    border-top: 1px solid rgba(148, 0, 0, 0.1);
+    border-bottom: 1px solid rgba(148, 0, 0, 0.1);
+}
+.sx-reviews-showcase.review-area::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: var(--sx-reviews-bg);
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    opacity: 0.9;
+    transform: scale(1.04);
+    pointer-events: none;
+}
+.sx-reviews-showcase.review-area::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 85% 65% at 12% 18%, rgba(228, 106, 106, 0.22) 0%, transparent 58%),
+        radial-gradient(ellipse 75% 55% at 88% 22%, rgba(148, 0, 0, 0.16) 0%, transparent 52%),
+        linear-gradient(
+            155deg,
+            rgba(255, 245, 245, 0.88) 0%,
+            rgba(255, 255, 255, 0.82) 28%,
+            rgba(253, 232, 232, 0.78) 55%,
+            rgba(255, 245, 245, 0.88) 100%
+        );
+    pointer-events: none;
+}
+.sx-reviews-showcase .container {
+    position: relative;
+    z-index: 1;
+}
+.sx-reviews-showcase .menu-content .title h1 {
+    background: linear-gradient(120deg, #5c0000 0%, #940000 42%, #1a0c16 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.sx-reviews-showcase .single-review {
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.97) 0%, rgba(255, 245, 245, 0.94) 100%) !important;
+    box-shadow: 0 8px 28px rgba(74, 0, 0, 0.08);
+    backdrop-filter: blur(6px);
+}
 .gray-bg, .section-bg {
     background:
         radial-gradient(ellipse at 100% 0%, rgba(196,58,58,0.08) 0%, transparent 50%),
@@ -1459,7 +1510,7 @@ body.sx-splash-lock { overflow: hidden; }
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
-    opacity: 0.9;
+    opacity: 0.95;
     transform: scale(1.04);
     z-index: 0;
     pointer-events: none;
