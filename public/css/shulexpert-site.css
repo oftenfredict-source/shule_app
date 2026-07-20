@@ -412,7 +412,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
         linear-gradient(180deg, #ffffff 0%, #FFF5F5 100%) !important;
 }
 
-/* Home — modules showcase with c1.webp + artistic gradient */
+/* Home — modules showcase with x.jpg + artistic gradient */
 .sx-modules-showcase.popular-course-area {
     position: relative;
     overflow: hidden;
@@ -428,7 +428,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
-    opacity: 0.7;
+    opacity: 0.9;
     transform: scale(1.04);
     pointer-events: none;
 }
@@ -1459,7 +1459,7 @@ body.sx-splash-lock { overflow: hidden; }
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
-    opacity: 0.7;
+    opacity: 0.9;
     transform: scale(1.04);
     z-index: 0;
     pointer-events: none;

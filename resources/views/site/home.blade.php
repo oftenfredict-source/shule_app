@@ -66,7 +66,7 @@
 </section>
 
 {{-- Modules grid (like popular courses) --}}
-<section class="popular-course-area section-gap sx-modules-showcase" style="--sx-modules-bg: url('{{ asset('images/c1.webp') }}')">
+<section class="popular-course-area section-gap sx-modules-showcase" style="--sx-modules-bg: url('{{ asset('images/x.jpg') }}')">
     <div class="container">
         <div class="row d-flex justify-content-center">
             <div class="menu-content pb-70 col-lg-8">
