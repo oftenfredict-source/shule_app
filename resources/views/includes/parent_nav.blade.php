@@ -12,7 +12,6 @@
     <link rel="stylesheet" href="{{ asset('vendors/bootstrap/dist/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('vendors/font-awesome/css/font-awesome.min.css') }}">
     <link rel="stylesheet" href="{{ asset('vendors/themify-icons/css/themify-icons.css') }}">
-    <link rel="stylesheet" href="{{ asset('vendors/flag-icon-css/css/flag-icon.min.css') }}">
     <link rel="stylesheet" href="{{ asset('vendors/selectFX/css/cs-skin-elastic.css') }}">
 <!-- Bootstrap CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWN1YhP4P9RZ6HlfD/yEw9Q0mWvH/V+VjFzlY5Vq6y1wq3h+v1rIYh0dA6ZPZbUq" crossorigin="anonymous">
@@ -431,28 +430,6 @@
                             <a class="nav-link" href="#"><i class="fa fa-cog"></i> <span data-translate="settings">Settings</span></a>
 
                             <a class="nav-link" href="{{ route('logout') }}"><i class="fa fa-power-off"></i> <span data-translate="logout">Logout</span></a>
-                        </div>
-                    </div>
-
-                    <div class="language-select dropdown float-right mr-2" id="language-select">
-                        @php
-                            $currentLang = Session::get('locale', 'sw');
-                            $langText = $currentLang === 'en' ? 'English' : 'Kiswahili';
-                            $langFlag = $currentLang === 'en' ? 'us' : 'tz';
-                        @endphp
-                        <a class="dropdown-toggle d-flex align-items-center" href="#" data-toggle="dropdown" id="language" aria-haspopup="true" aria-expanded="true" style="color: #940000; text-decoration: none; padding: 8px 12px;">
-                            <span class="flag-icon flag-icon-{{ $langFlag }}" style="margin-right: 5px;"></span>
-                            <span>{{ $langText }}</span>
-                        </a>
-                        <div class="dropdown-menu" aria-labelledby="language">
-                            <a class="dropdown-item language-option d-flex align-items-center" href="#" data-lang="sw" style="cursor: pointer;">
-                                <span class="flag-icon flag-icon-tz" style="margin-right: 8px;"></span>
-                                <span>Kiswahili</span>
-                            </a>
-                            <a class="dropdown-item language-option d-flex align-items-center" href="#" data-lang="en" style="cursor: pointer;">
-                                <span class="flag-icon flag-icon-us" style="margin-right: 8px;"></span>
-                                <span>English</span>
-                            </a>
                         </div>
                     </div>
 
