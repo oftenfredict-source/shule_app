@@ -5838,16 +5838,19 @@ $(document).ready(function() {
     }
 
     // =========================================================
-    // SERVER-SIDE PDF DOWNLOAD HELPER (DomPDF - direct link)
-    // Uses <a> tag click with href URL - same result as duty book
-    // fetch() approach had session cookie issues, direct link works
+    // SERVER-SIDE PDF DOWNLOAD HELPER (DomPDF via fetch blob)
+    // Validates real PDF bytes before saving — avoids corrupt .pdf files
     // =========================================================
     function serverDownloadPDF(params, filename) {
+        if (window._sxPdfDownloading) {
+            return;
+        }
+        window._sxPdfDownloading = true;
+
         const btn = params._btn;
         const originalHtml = btn ? btn.html() : null;
         if (btn) btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Generating PDF...');
 
-        // Build clean params WITHOUT btn jQuery object
         const cleanParams = {};
         Object.keys(params).forEach(function(k) {
             if (k !== '_btn' && params[k] !== null && params[k] !== undefined && params[k] !== '') {
@@ -5857,23 +5860,90 @@ $(document).ready(function() {
 
         const queryString = new URLSearchParams(cleanParams).toString();
         const url = '{{ route("admin.download_results_pdf") }}?' + queryString;
+        const safeName = (filename || 'Result.pdf').replace(/[\\/:*?"<>|]+/g, '_');
 
-        // Use direct anchor download - avoids fetch() session issues
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename || 'Result.pdf';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Generating PDF...',
+                html: 'Please wait while the report is prepared.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: function() { Swal.showLoading(); }
+            });
+        }
 
-        // Re-enable button after short delay
-        setTimeout(function() {
-            if (btn && originalHtml) btn.prop('disabled', false).html(originalHtml);
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({ title: 'Downloading!', text: 'PDF is being generated...', icon: 'success', timer: 2000, showConfirmButton: false });
+        fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/pdf,application/octet-stream,*/*'
             }
-        }, 1500);
+        })
+        .then(function(res) {
+            return res.arrayBuffer().then(function(buf) {
+                return { ok: res.ok, status: res.status, buf: buf };
+            });
+        })
+        .then(function(result) {
+            const bytes = new Uint8Array(result.buf || []);
+            // Valid PDF starts with %PDF
+            const isPdf = bytes.length > 4
+                && bytes[0] === 0x25
+                && bytes[1] === 0x50
+                && bytes[2] === 0x44
+                && bytes[3] === 0x46;
+
+            if (!result.ok || !isPdf) {
+                let msg = 'PDF file could not be generated.';
+                try {
+                    msg = new TextDecoder().decode(bytes).trim() || msg;
+                } catch (e) {}
+                if (msg.length > 300) msg = msg.substring(0, 300) + '...';
+                throw new Error(msg);
+            }
+
+            const blob = new Blob([result.buf], { type: 'application/pdf' });
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = safeName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() {
+                window.URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(a);
+            }, 200);
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Downloaded!',
+                    text: 'PDF saved successfully.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        })
+        .catch(function(err) {
+            console.error('PDF download error:', err);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'PDF download failed',
+                    text: (err && err.message) ? err.message : 'Please try again.',
+                    confirmButtonColor: '#940000'
+                });
+            } else {
+                alert((err && err.message) ? err.message : 'PDF download failed');
+            }
+        })
+        .finally(function() {
+            window._sxPdfDownloading = false;
+            if (btn && originalHtml) btn.prop('disabled', false).html(originalHtml);
+        });
     }
 
     function serverDownloadExcel(params, filename) {
@@ -5890,21 +5960,70 @@ $(document).ready(function() {
 
         const queryString = new URLSearchParams(cleanParams).toString();
         const url = '{{ route("admin.download_results_excel") }}?' + queryString;
+        const safeName = (filename || 'Results.xlsx').replace(/[\\/:*?"<>|]+/g, '_');
 
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename || 'Results.xlsx';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        setTimeout(function() {
-            if (btn && originalHtml) btn.prop('disabled', false).html(originalHtml);
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({ title: 'Downloading!', text: 'Excel is being generated...', icon: 'success', timer: 2000, showConfirmButton: false });
+        fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*'
             }
-        }, 1500);
+        })
+        .then(function(res) {
+            return res.arrayBuffer().then(function(buf) {
+                return { ok: res.ok, status: res.status, buf: buf };
+            });
+        })
+        .then(function(result) {
+            const bytes = new Uint8Array(result.buf || []);
+            // Valid .xlsx is a ZIP archive (starts with PK)
+            const isXlsx = bytes.length > 4 && bytes[0] === 0x50 && bytes[1] === 0x4B;
+
+            if (!result.ok || !isXlsx) {
+                let msg = 'Excel file could not be generated.';
+                try {
+                    msg = new TextDecoder().decode(bytes).trim() || msg;
+                } catch (e) {}
+                if (msg.length > 300) msg = msg.substring(0, 300) + '...';
+                throw new Error(msg);
+            }
+
+            const blob = new Blob([result.buf], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = safeName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() {
+                window.URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(a);
+            }, 200);
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ title: 'Downloaded!', text: 'Excel file saved successfully.', icon: 'success', timer: 2000, showConfirmButton: false });
+            }
+        })
+        .catch(function(err) {
+            console.error('Excel download error:', err);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Excel download failed',
+                    text: (err && err.message) ? err.message : 'Please try again.',
+                    confirmButtonColor: '#940000'
+                });
+            } else {
+                alert((err && err.message) ? err.message : 'Excel download failed');
+            }
+        })
+        .finally(function() {
+            if (btn && originalHtml) btn.prop('disabled', false).html(originalHtml);
+        });
     }
 
     // Handle export from exam-result modal (single student)

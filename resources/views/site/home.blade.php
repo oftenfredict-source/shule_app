@@ -101,13 +101,13 @@
 </section>
 
 {{-- About / info --}}
-<section class="info-area pb-120 sx-soft-band">
+<section class="info-area pb-120 sx-soft-band sx-home-info">
     <div class="container section-gap">
         <div class="row align-items-center">
-            <div class="col-lg-6 info-area-left">
-                <img class="img-fluid" src="{{ asset('images/african-children-primary-school-classroom-johannesburg-south-africa-september-176110088.webp') }}" alt="ShuleXpert in schools">
+            <div class="col-12 col-lg-6 info-area-left">
+                <img class="img-fluid" src="{{ asset('images/african-children-primary-school-classroom-johannesburg-south-africa-september-176110088.webp') }}" alt="ShuleXpert in schools" loading="lazy" decoding="async">
             </div>
-            <div class="col-lg-6 info-area-right">
+            <div class="col-12 col-lg-6 info-area-right">
                 <h1>Built for schools worldwide</h1>
                 <p>
                     From single campuses to multi-branch institutions, ShuleXpert unifies administration, academics, finance, and parent communication —

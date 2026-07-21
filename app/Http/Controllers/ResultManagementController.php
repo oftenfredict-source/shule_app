@@ -4014,10 +4014,15 @@ class ResultManagementController extends Controller
         }
 
         // Check if there's a custom report definition for this term
-        $reportDefinition = TermReportDefinition::where("schoolID", $schoolID)
-            ->where("year", $year)
-            ->where("term", $term)
-            ->first();
+        $definitionYear = is_array($year) ? ($year[0] ?? null) : $year;
+        $reportDefinitionQuery = TermReportDefinition::where("schoolID", $schoolID)
+            ->where("term", $term);
+        if (is_array($year) && count($year) > 0) {
+            $reportDefinitionQuery->whereIn("year", array_map("intval", $year));
+        } elseif ($definitionYear) {
+            $reportDefinitionQuery->where("year", $definitionYear);
+        }
+        $reportDefinition = $reportDefinitionQuery->first();
 
         // OPTIMIZATION: Query examinations by academic year (header)
         $examinationsQuery = Examination::where("schoolID", $schoolID)->where(
@@ -5344,7 +5349,9 @@ class ResultManagementController extends Controller
         $studentID = $request->get("studentID", null);
         $classID = $request->get("classID", null);
         $subclassID = $request->get("subclassID", null);
-        $statusFilter = $request->get("status", "active");
+        $statusFilter = $this->normalizeResultsEnrollmentStatusFilter(
+            $request->get("status", "Active"),
+        );
 
         $with = [
             "subclass.class",
@@ -5402,7 +5409,7 @@ class ResultManagementController extends Controller
 
         $studentQuery = Student::where("schoolID", $schoolID);
 
-        if ($statusFilter === "active") {
+        if ($statusFilter === "Active") {
             if ($subclassFilterID) {
                 $ids = $enrollment->studentIDsInSubclass(
                     (int) $subclassFilterID,
@@ -5429,7 +5436,7 @@ class ResultManagementController extends Controller
             }
 
             $studentQuery->whereIn("studentID", $ids);
-        } elseif ($statusFilter === "history") {
+        } elseif ($statusFilter === "Transferred" || $statusFilter === "history") {
             $studentQuery->whereNotNull("old_subclassID");
 
             if ($subclassFilterID) {
@@ -5495,10 +5502,23 @@ class ResultManagementController extends Controller
 
         // Get filter parameters from request
         $termFilter = $request->get("term", "");
-        $yearFilter = $request->get("year", date("Y"));
         $typeFilter = $request->get("type", "exam");
-        $statusFilter = $request->get("status", "active");
         $examFilter = $request->get("examID", "");
+        $statusFilter = $this->normalizeResultsEnrollmentStatusFilter(
+            $request->get("status", "Active"),
+        );
+
+        // Same academic-year source as manageResults page (header selection)
+        $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
+        $academicYearIDs = $this->expandRelatedAcademicYearIds(
+            (int) $schoolID,
+            $yearCtx["academic_year_ids"],
+        );
+        $yearFilter = $yearCtx["calendar_year"]
+            ?: $request->get("year", date("Y"));
+        $calendarYears = !empty($yearCtx["calendar_years"])
+            ? $yearCtx["calendar_years"]
+            : ($yearFilter ? [(int) $yearFilter] : []);
 
         // Get school details
         $school = \App\Models\School::find($schoolID);
@@ -5509,7 +5529,7 @@ class ResultManagementController extends Controller
 
         // Get results data
         $resultsData = [];
-        if ($termFilter && $yearFilter) {
+        if ($termFilter && ($yearFilter || !empty($academicYearIDs))) {
             if ($typeFilter === "exam") {
                 // Handle CA Definitions for exam filtering
                 $caExamIDs = $examFilter;
@@ -5530,6 +5550,10 @@ class ResultManagementController extends Controller
                     $yearFilter,
                     $schoolType,
                     $caExamIDs,
+                    null,
+                    null,
+                    $schoolID,
+                    $academicYearIDs,
                 );
             } else {
                 $resultsData = $this->getTermReport(
@@ -5537,6 +5561,9 @@ class ResultManagementController extends Controller
                     $termFilter,
                     $yearFilter,
                     $schoolType,
+                    null,
+                    $schoolID,
+                    $academicYearIDs,
                 );
             }
         }
@@ -5546,7 +5573,13 @@ class ResultManagementController extends Controller
             return isset($resultsData[$student->studentID]);
         });
 
-        // Fetch detailed data for single student (CAs and Exam breakdowns)
+        if ($students->isEmpty()) {
+            return response(
+                "No results found for the selected filters.",
+                422,
+                ["Content-Type" => "text/plain; charset=UTF-8"],
+            );
+        }
         $detailedSingleData = null;
         $detailedBulkData = [];
         if ($option === "single" && count($students) > 0) {
@@ -5624,37 +5657,57 @@ class ResultManagementController extends Controller
             ),
         ];
 
-        // Generate PDF
-        $pdf = PDF::loadView("Admin.pdf.results", $data);
-        CenturyGothicPdfFont::ensureRegistered($pdf->getDomPDF());
-        $pdf->setPaper("A4", "portrait");
+        try {
+            // Generate PDF
+            $pdf = PDF::loadView("Admin.pdf.results", $data);
+            CenturyGothicPdfFont::ensureRegistered($pdf->getDomPDF());
+            $pdf->setPaper("A4", "portrait");
 
-        // Generate filename
-        $filename = "Results_";
-        if ($option === "single" && $students->count() > 0) {
-            $student = $students->first();
-            $filename .= $student->first_name . "_" . $student->last_name . "_";
-        } elseif ($option === "class" && $classID) {
-            $class = ClassModel::find($classID);
+            // Generate filename
+            $filename = "Results_";
+            if ($option === "single" && $students->count() > 0) {
+                $student = $students->first();
+                $filename .=
+                    $student->first_name . "_" . $student->last_name . "_";
+            } elseif ($option === "class" && $classID) {
+                $class = ClassModel::find($classID);
+                $filename .=
+                    ($class
+                        ? str_replace(" ", "_", $class->class_name)
+                        : "Class") . "_";
+            } elseif ($option === "subclass" && $subclassID) {
+                $subclass = Subclass::find($subclassID);
+                $filename .=
+                    ($subclass
+                        ? str_replace(" ", "_", $subclass->subclass_name)
+                        : "Subclass") . "_";
+            } else {
+                $filename .= "All_Students_";
+            }
             $filename .=
-                ($class ? str_replace(" ", "_", $class->class_name) : "Class") .
-                "_";
-        } elseif ($option === "subclass" && $subclassID) {
-            $subclass = Subclass::find($subclassID);
+                ($typeFilter === "exam" ? "Exam" : "Term_Report") . "_";
             $filename .=
-                ($subclass
-                    ? str_replace(" ", "_", $subclass->subclass_name)
-                    : "Subclass") . "_";
-        } else {
-            $filename .= "All_Students_";
+                ($termFilter ? str_replace("_", "", $termFilter) . "_" : "") .
+                $yearFilter .
+                ".pdf";
+            $filename = preg_replace(
+                '/[\\\\\\/\\?\\*\\[\\]:<>\\|"]+/',
+                "_",
+                $filename,
+            );
+
+            return $pdf->download($filename);
+        } catch (\Throwable $e) {
+            \Log::error("downloadPdf failed: " . $e->getMessage(), [
+                "trace" => $e->getTraceAsString(),
+            ]);
+
+            return response(
+                "Failed to generate PDF: " . $e->getMessage(),
+                500,
+                ["Content-Type" => "text/plain; charset=UTF-8"],
+            );
         }
-        $filename .= ($typeFilter === "exam" ? "Exam" : "Term_Report") . "_";
-        $filename .=
-            ($termFilter ? str_replace("_", "", $termFilter) . "_" : "") .
-            $yearFilter .
-            ".pdf";
-
-        return $pdf->download($filename);
     }
 
     /**
@@ -5983,10 +6036,13 @@ class ResultManagementController extends Controller
         }
         unset($item);
 
-        $fixedCols = 3; // Exam No, Sex, Strm
-        $summaryCols = $schoolType === "Secondary" ? 4 : 2;
-        $totalCols = $fixedCols + count($subjectNames) + $summaryCols;
+        $fixedCols = 5; // S/N, Student Name, Exam No, Sex, Strm
+        $subjectColSpan = 2; // Marks + Grade under each subject
+        $summaryCols = $schoolType === "Secondary" ? 4 : 3; // AVG+DIV+POINT+POST | AVG+GRADE+POST
+        $totalCols =
+            $fixedCols + count($subjectNames) * $subjectColSpan + $summaryCols;
         $lastCol = Coordinate::stringFromColumnIndex(max(1, $totalCols));
+        $nameColLetter = Coordinate::stringFromColumnIndex(2);
 
         $perfHeader = [
             "SEX",
@@ -6253,32 +6309,150 @@ class ResultManagementController extends Controller
             ->getBottom()
             ->setBorderStyle(Border::BORDER_NONE);
 
-        $tableHeaderRow = $perfLastRow + 1;
-        $headers = ["EXAM NO.", "SEX", "STRM"];
+        // Student results table: subject name spans Marks + Grade columns
+        $subjectHeaderRow = $perfLastRow + 1;
+        $subHeaderRow = $subjectHeaderRow + 1;
+
+        $summaryHeaders =
+            $schoolType === "Secondary"
+                ? ["AVG", "DIV", "POINT", "POST"]
+                : ["AVG", "GRADE", "POST"];
+
+        // Fixed columns (row 1 labels; merge down to sub-header row)
+        $fixedHeaders = ["S/N", "STUDENT NAME", "EXAM NO.", "SEX", "STRM"];
+        foreach ($fixedHeaders as $i => $label) {
+            $col = $i + 1;
+            $letter = Coordinate::stringFromColumnIndex($col);
+            $sheet->setCellValue("{$letter}{$subjectHeaderRow}", $label);
+            $sheet->mergeCells(
+                "{$letter}{$subjectHeaderRow}:{$letter}{$subHeaderRow}",
+            );
+        }
+
+        // Subject names — each merged across Marks + Grade
+        $colIndex = $fixedCols + 1;
+        $maxVerticalLen = strlen("EXAM NO.");
         foreach ($subjectNames as $name) {
-            $headers[] = $name;
-        }
-        $headers[] = "AVG";
-        if ($schoolType === "Secondary") {
-            $headers[] = "DIV";
-            $headers[] = "POINT";
-            $headers[] = "POST";
-        } else {
-            $headers[] = "GRADE";
-            $headers[] = "POST";
+            $startLetter = Coordinate::stringFromColumnIndex($colIndex);
+            $endLetter = Coordinate::stringFromColumnIndex($colIndex + 1);
+            $sheet->setCellValue("{$startLetter}{$subjectHeaderRow}", $name);
+            $sheet->mergeCells(
+                "{$startLetter}{$subjectHeaderRow}:{$endLetter}{$subjectHeaderRow}",
+            );
+            $sheet->setCellValue("{$startLetter}{$subHeaderRow}", "Marks");
+            $sheet->setCellValue("{$endLetter}{$subHeaderRow}", "Grade");
+            $maxVerticalLen = max($maxVerticalLen, strlen((string) $name));
+            $colIndex += $subjectColSpan;
         }
 
-        $sheet->fromArray([$headers], null, "A{$tableHeaderRow}");
+        // Summary columns — merge vertically across both header rows
+        foreach ($summaryHeaders as $label) {
+            $letter = Coordinate::stringFromColumnIndex($colIndex);
+            $sheet->setCellValue("{$letter}{$subjectHeaderRow}", $label);
+            $sheet->mergeCells(
+                "{$letter}{$subjectHeaderRow}:{$letter}{$subHeaderRow}",
+            );
+            $maxVerticalLen = max($maxVerticalLen, strlen((string) $label));
+            $colIndex++;
+        }
 
-        $dataRow = $tableHeaderRow + 1;
+        $headerRange = "A{$subjectHeaderRow}:{$lastCol}{$subHeaderRow}";
+        $sheet->getStyle($headerRange)->getFont()->setBold(true);
+        $sheet
+            ->getStyle($headerRange)
+            ->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setARGB("FFF5F5F5");
+        $sheet
+            ->getStyle($headerRange)
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+
+        // S/N, Student Name, Exam No — horizontal; SEX/STRM rotate
+        for ($c = 1; $c <= 3; $c++) {
+            $letter = Coordinate::stringFromColumnIndex($c);
+            $sheet
+                ->getStyle("{$letter}{$subjectHeaderRow}")
+                ->getAlignment()
+                ->setTextRotation(0)
+                ->setWrapText(true);
+        }
+
+        for ($c = 4; $c <= $fixedCols; $c++) {
+            $letter = Coordinate::stringFromColumnIndex($c);
+            $sheet
+                ->getStyle("{$letter}{$subjectHeaderRow}")
+                ->getAlignment()
+                ->setTextRotation(90);
+        }
+
+        $colIndex = $fixedCols + 1;
+        foreach ($subjectNames as $name) {
+            $startLetter = Coordinate::stringFromColumnIndex($colIndex);
+            $sheet
+                ->getStyle("{$startLetter}{$subjectHeaderRow}")
+                ->getAlignment()
+                ->setTextRotation(90)
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            $colIndex += $subjectColSpan;
+        }
+
+        for ($c = $fixedCols + count($subjectNames) * $subjectColSpan + 1; $c <= $totalCols; $c++) {
+            $letter = Coordinate::stringFromColumnIndex($c);
+            $sheet
+                ->getStyle("{$letter}{$subjectHeaderRow}")
+                ->getAlignment()
+                ->setTextRotation(90);
+        }
+
+        // Sub-header Marks/Grade — horizontal, smaller
+        $marksGradeStart = Coordinate::stringFromColumnIndex($fixedCols + 1);
+        $marksGradeEnd = Coordinate::stringFromColumnIndex(
+            $fixedCols + count($subjectNames) * $subjectColSpan,
+        );
+        if (count($subjectNames) > 0) {
+            $sheet
+                ->getStyle("{$marksGradeStart}{$subHeaderRow}:{$marksGradeEnd}{$subHeaderRow}")
+                ->getFont()
+                ->setBold(true)
+                ->setSize(8);
+            $sheet
+                ->getStyle("{$marksGradeStart}{$subHeaderRow}:{$marksGradeEnd}{$subHeaderRow}")
+                ->getAlignment()
+                ->setTextRotation(0)
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
+
+        $sheet
+            ->getRowDimension($subjectHeaderRow)
+            ->setRowHeight(min(200, max(70, (int) round($maxVerticalLen * 5.5))));
+        $sheet->getRowDimension($subHeaderRow)->setRowHeight(18);
+
+        $dataRow = $subHeaderRow + 1;
+        $serialNo = 0;
         foreach ($prepared as $item) {
+            $serialNo++;
             $student = $item["student"];
             $row = $item["row"];
             $stream =
                 $student->subclass->stream_code ??
                 ($student->oldSubclass->stream_code ?? "");
+            $studentName = trim(
+                $student->first_name .
+                    " " .
+                    ($student->middle_name
+                        ? $student->middle_name . " "
+                        : "") .
+                    $student->last_name,
+            );
 
             $line = [
+                $serialNo,
+                $studentName,
                 $examNumbers[$student->studentID] ?? "N/A",
                 $this->genderShort($student->gender),
                 $stream,
@@ -6293,6 +6467,7 @@ class ResultManagementController extends Controller
                 $subj = $subjectMap[$name] ?? null;
                 if (!$subj) {
                     $line[] = "-";
+                    $line[] = "-";
                     continue;
                 }
                 $marks = $subj["marks"] ?? null;
@@ -6302,10 +6477,11 @@ class ResultManagementController extends Controller
                     $marks === "incomplete"
                 ) {
                     $line[] = "-";
+                    $line[] = "-";
                 } else {
-                    $grade = $subj["grade"] ?? "";
-                    $line[] =
-                        round((float) $marks) . ($grade ? "-" . $grade : "");
+                    $grade = trim((string) ($subj["grade"] ?? ""));
+                    $line[] = round((float) $marks);
+                    $line[] = $grade !== "" ? $grade : "-";
                 }
             }
 
@@ -6325,70 +6501,36 @@ class ResultManagementController extends Controller
             $dataRow++;
         }
 
-        $headerStyle = "A{$tableHeaderRow}:{$lastCol}{$tableHeaderRow}";
-        $sheet
-            ->getStyle($headerStyle)
-            ->getFont()
-            ->setBold(true);
-        $sheet
-            ->getStyle($headerStyle)
-            ->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()
-            ->setARGB("FFF5F5F5");
-        $sheet
-            ->getStyle($headerStyle)
-            ->getFont()
-            ->getColor()
-            ->setARGB("FF000000");
-        $sheet
-            ->getStyle($headerStyle)
-            ->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
-
-        // EXAM NO. — horizontal; all other headers — vertical (board style)
-        $sheet
-            ->getStyle("A{$tableHeaderRow}")
-            ->getAlignment()
-            ->setWrapText(true);
-
-        $maxVerticalLen = 0;
-        for ($c = 2; $c <= $totalCols; $c++) {
-            $colLetter = Coordinate::stringFromColumnIndex($c);
-            $headerText = $headers[$c - 1] ?? "";
-            $maxVerticalLen = max($maxVerticalLen, strlen($headerText));
-            $sheet
-                ->getStyle("{$colLetter}{$tableHeaderRow}")
-                ->getAlignment()
-                ->setTextRotation(90)
-                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-                ->setVertical(Alignment::VERTICAL_CENTER);
-        }
-
-        $sheet
-            ->getRowDimension($tableHeaderRow)
-            ->setRowHeight(min(200, max(70, (int) round($maxVerticalLen * 5.5))));
-
         $lastDataRow = $dataRow - 1;
-        if ($lastDataRow >= $tableHeaderRow) {
+        if ($lastDataRow >= $subjectHeaderRow) {
             $sheet
-                ->getStyle("A{$tableHeaderRow}:{$lastCol}{$lastDataRow}")
+                ->getStyle("A{$subjectHeaderRow}:{$lastCol}{$lastDataRow}")
                 ->getBorders()
                 ->getAllBorders()
                 ->setBorderStyle(Border::BORDER_THIN);
             $sheet
-                ->getStyle("A" . ($tableHeaderRow + 1) . ":{$lastCol}{$lastDataRow}")
+                ->getStyle("A" . ($subHeaderRow + 1) . ":{$lastCol}{$lastDataRow}")
                 ->getAlignment()
                 ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet
+                ->getStyle("{$nameColLetter}" . ($subHeaderRow + 1) . ":{$nameColLetter}{$lastDataRow}")
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_LEFT);
         }
 
         for ($c = 1; $c <= $totalCols; $c++) {
             $colLetter = Coordinate::stringFromColumnIndex($c);
             if ($c === 1) {
-                $sheet->getColumnDimension($colLetter)->setWidth(18);
-            } else {
                 $sheet->getColumnDimension($colLetter)->setWidth(5);
+            } elseif ($c === 2) {
+                $sheet->getColumnDimension($colLetter)->setWidth(28);
+            } elseif ($c === 3) {
+                $sheet->getColumnDimension($colLetter)->setWidth(18);
+            } elseif ($c <= $fixedCols) {
+                $sheet->getColumnDimension($colLetter)->setWidth(5);
+            } else {
+                // Marks / Grade subject columns — slightly wider for readability
+                $sheet->getColumnDimension($colLetter)->setWidth(5.5);
             }
         }
     }
@@ -6398,177 +6540,225 @@ class ResultManagementController extends Controller
      */
     public function downloadExcel(Request $request)
     {
-        $userType = Session::get("user_type");
-        $schoolID = Session::get("schoolID");
+        try {
+            set_time_limit(0);
+            ini_set("memory_limit", "2048M");
 
-        // Match PDF export: any logged-in user with a valid school session
-        if (!$schoolID) {
-            return redirect()->route("login")->with("error", "Access denied");
-        }
+            $schoolID = Session::get("schoolID");
 
-        $option = $request->get("option", "all");
-        $studentID = $request->get("studentID", null);
-        $classID = $request->get("classID", null);
-        $subclassID = $request->get("subclassID", null);
-
-        // Get filter parameters
-        $termFilter = $request->get("term", "");
-        $yearFilter = $request->get("year", date("Y"));
-        $typeFilter = $request->get("type", "exam");
-        $statusFilter = $request->get("status", "active");
-        $examFilter = $request->get("examID", "");
-
-        // Get school details
-        $school = \App\Models\School::find($schoolID);
-        $schoolType = $school ? $school->school_type : "Secondary";
-
-        // Get students based on option (Active enrollments for selected year — same as PDF)
-        $students = $this->studentsForResultDownload($request, $schoolID);
-
-        // Get results data
-        $resultsData = [];
-        if ($termFilter && $yearFilter) {
-            if ($typeFilter === "exam") {
-                // Handle CA Definitions for exam filtering
-                $caExamIDs = $examFilter;
-                if ($examFilter && !is_array($examFilter)) {
-                    $caDef = CaDefinition::where("examID", $examFilter)
-                        ->where("schoolID", $schoolID)
-                        ->first();
-                    if ($caDef && !empty($caDef->test_ids)) {
-                        $caExamIDs = array_merge(
-                            [$examFilter],
-                            $caDef->test_ids,
-                        );
-                    }
+            // Match PDF export: any logged-in user with a valid school session
+            if (!$schoolID) {
+                if ($request->expectsJson() || $request->ajax()) {
+                    return response()->json(
+                        ["success" => false, "message" => "Access denied"],
+                        401,
+                    );
                 }
-                $resultsData = $this->getExamResults(
-                    $students,
-                    $termFilter,
-                    $yearFilter,
-                    $schoolType,
-                    $caExamIDs,
+
+                return redirect()->route("login")->with("error", "Access denied");
+            }
+
+            $option = $request->get("option", "all");
+            $studentID = $request->get("studentID", null);
+            $classID = $request->get("classID", null);
+            $subclassID = $request->get("subclassID", null);
+
+            // Get filter parameters
+            $termFilter = $request->get("term", "");
+            $typeFilter = $request->get("type", "exam");
+            $examFilter = $request->get("examID", "");
+
+            // Same academic-year source as manageResults page (header selection)
+            $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
+            $academicYearIDs = $this->expandRelatedAcademicYearIds(
+                (int) $schoolID,
+                $yearCtx["academic_year_ids"],
+            );
+            $yearFilter = $yearCtx["calendar_year"]
+                ?: $request->get("year", date("Y"));
+            $calendarYears = !empty($yearCtx["calendar_years"])
+                ? $yearCtx["calendar_years"]
+                : ($yearFilter ? [(int) $yearFilter] : []);
+
+            // Get school details
+            $school = \App\Models\School::find($schoolID);
+            $schoolType = $school ? $school->school_type : "Secondary";
+
+            // Get students based on option (Active enrollments for selected year — same as PDF)
+            $students = $this->studentsForResultDownload($request, $schoolID);
+
+            // Get results data
+            $resultsData = [];
+            if ($termFilter && ($yearFilter || !empty($academicYearIDs))) {
+                if ($typeFilter === "exam") {
+                    // Handle CA Definitions for exam filtering
+                    $caExamIDs = $examFilter;
+                    if ($examFilter && !is_array($examFilter)) {
+                        $caDef = CaDefinition::where("examID", $examFilter)
+                            ->where("schoolID", $schoolID)
+                            ->first();
+                        if ($caDef && !empty($caDef->test_ids)) {
+                            $caExamIDs = array_merge(
+                                [$examFilter],
+                                $caDef->test_ids,
+                            );
+                        }
+                    }
+                    $resultsData = $this->getExamResults(
+                        $students,
+                        $termFilter,
+                        $yearFilter,
+                        $schoolType,
+                        $caExamIDs,
+                        null,
+                        null,
+                        $schoolID,
+                        $academicYearIDs,
+                    );
+                } else {
+                    $resultsData = $this->getTermReport(
+                        $students,
+                        $termFilter,
+                        $yearFilter,
+                        $schoolType,
+                        null,
+                        $schoolID,
+                        $academicYearIDs,
+                    );
+                }
+            }
+
+            // Filter students to only those with results
+            $students = $students->filter(function ($student) use ($resultsData) {
+                return isset($resultsData[$student->studentID]);
+            });
+
+            if ($students->isEmpty()) {
+                return response(
+                    "No results found for the selected filters.",
+                    422,
+                    ["Content-Type" => "text/plain; charset=UTF-8"],
                 );
-            } else {
-                $resultsData = $this->getTermReport(
-                    $students,
-                    $termFilter,
-                    $yearFilter,
-                    $schoolType,
-                );
-            }
-        }
-
-        // Filter students to only those with results
-        $students = $students->filter(function ($student) use ($resultsData) {
-            return isset($resultsData[$student->studentID]);
-        });
-
-        if ($students->isEmpty()) {
-            return redirect()
-                ->back()
-                ->with("error", "No results found for the selected filters.");
-        }
-
-        $titleLine = $this->buildBoardTitleLine(
-            $typeFilter,
-            $examFilter,
-            $termFilter,
-            $yearFilter,
-        );
-
-        $studentsByClass = [];
-        foreach ($students as $student) {
-            $cid = null;
-            if ($student->subclass && $student->subclass->class) {
-                $cid = $student->subclass->class->classID;
-            } elseif ($student->oldSubclass && $student->oldSubclass->class) {
-                $cid = $student->oldSubclass->class->classID;
-            }
-            if (!$cid) {
-                $cid = 0;
-            }
-            $studentsByClass[$cid][] = $student;
-        }
-
-        $spreadsheet = new Spreadsheet();
-        $sheetIndex = 0;
-
-        foreach ($studentsByClass as $cid => $classStudents) {
-            $className =
-                $cid > 0
-                    ? ClassModel::find($cid)?->class_name ?? "Class {$cid}"
-                    : "Unknown Class";
-            $sheetTitle = preg_replace('/[\\\\\\/\\?\\*\\[\\]:]/', "", $className);
-            $sheetTitle = substr($sheetTitle, 0, 31) ?: "Results";
-
-            $sheet =
-                $sheetIndex === 0
-                    ? $spreadsheet->getActiveSheet()
-                    : new Worksheet($spreadsheet, $sheetTitle);
-
-            if ($sheetIndex > 0) {
-                $spreadsheet->addSheet($sheet);
-            } else {
-                $sheet->setTitle($sheetTitle);
             }
 
-            $examNumbers =
-                $cid > 0
-                    ? $this->buildExamNumberMapForClass($cid, $school)
-                    : [];
-
-            $this->populateBoardResultsSheet(
-                $sheet,
-                $className,
-                $titleLine,
-                collect($classStudents),
-                $resultsData,
-                $examNumbers,
-                $schoolType,
+            $titleLine = $this->buildBoardTitleLine(
                 $typeFilter,
                 $examFilter,
+                $termFilter,
+                $yearFilter,
             );
 
-            $sheetIndex++;
-        }
+            $studentsByClass = [];
+            foreach ($students as $student) {
+                $cid = null;
+                if ($student->subclass && $student->subclass->class) {
+                    $cid = $student->subclass->class->classID;
+                } elseif ($student->oldSubclass && $student->oldSubclass->class) {
+                    $cid = $student->oldSubclass->class->classID;
+                }
+                if (!$cid) {
+                    $cid = 0;
+                }
+                $studentsByClass[$cid][] = $student;
+            }
 
-        $spreadsheet->setActiveSheetIndex(0);
+            $spreadsheet = new Spreadsheet();
+            $sheetIndex = 0;
 
-        // Generate filename
-        $filename = "Results_";
-        if ($option === "single" && $students->count() > 0) {
-            $student = $students->first();
-            $filename .= $student->first_name . "_" . $student->last_name . "_";
-        } elseif ($option === "class" && $classID) {
-            $class = ClassModel::find($classID);
+            foreach ($studentsByClass as $cid => $classStudents) {
+                $className =
+                    $cid > 0
+                        ? ClassModel::find($cid)?->class_name ?? "Class {$cid}"
+                        : "Unknown Class";
+                $sheetTitle = preg_replace('/[\\\\\\/\\?\\*\\[\\]:]/', "", $className);
+                $sheetTitle = substr($sheetTitle, 0, 31) ?: "Results";
+
+                $sheet =
+                    $sheetIndex === 0
+                        ? $spreadsheet->getActiveSheet()
+                        : new Worksheet($spreadsheet, $sheetTitle);
+
+                if ($sheetIndex > 0) {
+                    $spreadsheet->addSheet($sheet);
+                } else {
+                    $sheet->setTitle($sheetTitle);
+                }
+
+                $examNumbers =
+                    $cid > 0
+                        ? $this->buildExamNumberMapForClass($cid, $school)
+                        : [];
+
+                $this->populateBoardResultsSheet(
+                    $sheet,
+                    $className,
+                    $titleLine,
+                    collect($classStudents),
+                    $resultsData,
+                    $examNumbers,
+                    $schoolType,
+                    $typeFilter,
+                    $examFilter,
+                );
+
+                $sheetIndex++;
+            }
+
+            $spreadsheet->setActiveSheetIndex(0);
+
+            // Generate filename
+            $filename = "Results_";
+            if ($option === "single" && $students->count() > 0) {
+                $student = $students->first();
+                $filename .= $student->first_name . "_" . $student->last_name . "_";
+            } elseif ($option === "class" && $classID) {
+                $class = ClassModel::find($classID);
+                $filename .=
+                    ($class ? str_replace(" ", "_", $class->class_name) : "Class") .
+                    "_";
+            } elseif ($option === "subclass" && $subclassID) {
+                $subclass = Subclass::find($subclassID);
+                $filename .=
+                    ($subclass
+                        ? str_replace(" ", "_", $subclass->subclass_name)
+                        : "Subclass") . "_";
+            } else {
+                $filename .= "All_Students_";
+            }
+            $filename .= ($typeFilter === "exam" ? "Exam" : "Term_Report") . "_";
             $filename .=
-                ($class ? str_replace(" ", "_", $class->class_name) : "Class") .
-                "_";
-        } elseif ($option === "subclass" && $subclassID) {
-            $subclass = Subclass::find($subclassID);
-            $filename .=
-                ($subclass
-                    ? str_replace(" ", "_", $subclass->subclass_name)
-                    : "Subclass") . "_";
-        } else {
-            $filename .= "All_Students_";
-        }
-        $filename .= ($typeFilter === "exam" ? "Exam" : "Term_Report") . "_";
-        $filename .=
-            ($termFilter ? str_replace("_", "", $termFilter) . "_" : "") .
-            $yearFilter .
-            ".xlsx";
+                ($termFilter ? str_replace("_", "", $termFilter) . "_" : "") .
+                $yearFilter .
+                ".xlsx";
+            $filename = preg_replace('/[\\\\\\/\\?\\*\\[\\]:<>\\|"]+/', "_", $filename);
 
-        // Create writer and download
-        $writer = new Xlsx($spreadsheet);
-        header(
-            "Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        );
-        header('Content-Disposition: attachment;filename="' . $filename . '"');
-        header("Cache-Control: max-age=0");
-        $writer->save("php://output");
-        exit();
+            return response()->streamDownload(
+                function () use ($spreadsheet) {
+                    while (ob_get_level() > 0) {
+                        ob_end_clean();
+                    }
+                    $writer = new Xlsx($spreadsheet);
+                    $writer->save("php://output");
+                },
+                $filename,
+                [
+                    "Content-Type" =>
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "Cache-Control" => "max-age=0, no-cache, must-revalidate",
+                    "Pragma" => "public",
+                ],
+            );
+        } catch (\Throwable $e) {
+            \Log::error("downloadExcel failed: " . $e->getMessage(), [
+                "trace" => $e->getTraceAsString(),
+            ]);
+
+            return response(
+                "Failed to generate Excel: " . $e->getMessage(),
+                500,
+                ["Content-Type" => "text/plain; charset=UTF-8"],
+            );
+        }
     }
     /**
      * Save term report definition
