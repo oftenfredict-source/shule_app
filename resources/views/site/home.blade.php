@@ -6,7 +6,7 @@
     <div class="overlay overlay-bg"></div>
     <div class="container">
         <div class="row fullscreen d-flex align-items-center justify-content-between">
-            <div class="banner-content col-lg-9 col-md-12">
+            <div class="banner-content col-12 col-lg-9 col-md-12">
                 <h1 class="text-uppercase">
                     Transform school management<br>for a better WORLD
                 </h1>
@@ -25,7 +25,7 @@
 <section class="feature-area">
     <div class="container">
         <div class="row">
-            <div class="col-lg-4">
+            <div class="col-12 col-lg-4">
                 <div class="single-feature sx-feature-card">
                     <div class="title">
                         <i class="fa fa-money" aria-hidden="true"></i>
@@ -37,7 +37,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-lg-4">
+            <div class="col-12 col-lg-4">
                 <div class="single-feature sx-feature-card">
                     <div class="title">
                         <i class="fa fa-hand-paper-o" aria-hidden="true"></i>
@@ -49,7 +49,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-lg-4">
+            <div class="col-12 col-lg-4">
                 <div class="single-feature sx-feature-card">
                     <div class="title">
                         <i class="fa fa-users" aria-hidden="true"></i>
@@ -78,7 +78,7 @@
         </div>
         <div class="row sx-modules-grid">
             @foreach(array_slice($modules, 0, 8) as $module)
-                <div class="col-lg-3 col-md-6 sx-module-col">
+                <div class="col-lg-3 col-md-6 col-12 sx-module-col">
                     <div class="sx-module-card">
                         <div class="thumb thumb-icon" aria-hidden="true">
                             <i class="fa {{ $module['icon'] }}"></i>
@@ -102,22 +102,20 @@
 
 {{-- About / info --}}
 <section class="info-area pb-120 sx-soft-band sx-home-info">
-    <div class="container section-gap">
-        <div class="row align-items-center">
-            <div class="col-12 col-lg-6 info-area-left">
-                <img class="img-fluid" src="{{ asset('images/african-children-primary-school-classroom-johannesburg-south-africa-september-176110088.webp') }}" alt="ShuleXpert in schools" loading="lazy" decoding="async">
-            </div>
-            <div class="col-12 col-lg-6 info-area-right">
-                <h1>Built for schools worldwide</h1>
-                <p>
-                    From single campuses to multi-branch institutions, ShuleXpert unifies administration, academics, finance, and parent communication —
-                    with school-level branding, academic-year awareness, and role-based portals for Admin, Teachers, Staff, Parents, and Watchmen.
-                </p>
-                <p class="mt-20">
-                    No more scattered spreadsheets. One platform for enrollments, fees, attendance, exams, library, store, hostel, discipline, and strategic performance.
-                </p>
-                <a href="{{ route('site.about') }}" class="primary-btn text-uppercase mt-30">About ShuleXpert</a>
-            </div>
+    <div class="sx-home-info-inner">
+        <div class="sx-home-info-media">
+            <img src="{{ asset('images/african-children-primary-school-classroom-johannesburg-south-africa-september-176110088.webp') }}" alt="ShuleXpert in schools" loading="lazy" decoding="async">
+        </div>
+        <div class="sx-home-info-body">
+            <h1>Built for schools worldwide</h1>
+            <p>
+                From single campuses to multi-branch institutions, ShuleXpert unifies administration, academics, finance, and parent communication —
+                with school-level branding, academic-year awareness, and role-based portals for Admin, Teachers, Staff, Parents, and Watchmen.
+            </p>
+            <p class="sx-home-info-gap">
+                No more scattered spreadsheets. One platform for enrollments, fees, attendance, exams, library, store, hostel, discipline, and strategic performance.
+            </p>
+            <a href="{{ route('site.about') }}" class="primary-btn text-uppercase sx-home-info-btn">About ShuleXpert</a>
         </div>
     </div>
 </section>
@@ -177,7 +175,7 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-lg-4">
+            <div class="col-12 col-lg-4">
                 <div class="single-review" style="background:#fff;border:1px solid #f0dada;padding:28px;margin-bottom:20px;">
                     <div class="star"><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span></div>
                     <p class="mt-20">Fee control numbers and SMS reminders transformed our collections. Parents pay with confidence.</p>
@@ -185,7 +183,7 @@
                     <p>Secondary School, Kilimanjaro</p>
                 </div>
             </div>
-            <div class="col-lg-4">
+            <div class="col-12 col-lg-4">
                 <div class="single-review" style="background:#fff;border:1px solid #f0dada;padding:28px;margin-bottom:20px;">
                     <div class="star"><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span></div>
                     <p class="mt-20">Entering results and publishing to parents is finally simple. The teacher portal saves hours every week.</p>
@@ -193,7 +191,7 @@
                     <p>High School, Moshi</p>
                 </div>
             </div>
-            <div class="col-lg-4">
+            <div class="col-12 col-lg-4">
                 <div class="single-review" style="background:#fff;border:1px solid #f0dada;padding:28px;margin-bottom:20px;">
                     <div class="star"><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span></div>
                     <p class="mt-20">I get attendance and results on my phone. Fee balances are clear — I always know what I owe.</p>
