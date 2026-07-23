@@ -26,6 +26,7 @@ class Examination extends Model
         'student_shifting_status',
         'schoolID',
         'academic_yearID',
+        'academic_year_ids',
         'year',
         'details',
         'created_by',
@@ -43,6 +44,7 @@ class Examination extends Model
         'end_date' => 'date',
         'year' => 'integer',
         'except_class_ids' => 'array',
+        'academic_year_ids' => 'array',
     ];
 
     // Relationships
@@ -54,6 +56,114 @@ class Examination extends Model
     public function academicYear()
     {
         return $this->belongsTo(AcademicYear::class, 'academic_yearID', 'academic_yearID');
+    }
+
+    /**
+     * Linked academic years for this exam (O-Level and/or A-Level).
+     */
+    public function linkedAcademicYearIds(): array
+    {
+        $ids = array_values(array_filter(array_map('intval', (array) ($this->academic_year_ids ?? []))));
+        if ($ids === [] && $this->academic_yearID) {
+            $ids = [(int) $this->academic_yearID];
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Display year for a class context:
+     * Form 5 / Form 6 → A-Level year (e.g. 2026/2027)
+     * Other classes → O-Level year (e.g. 2027)
+     */
+    public function displayYearLabelForClass(?string $className = null): string
+    {
+        $yearService = app(\App\Services\SelectedAcademicYearService::class);
+        $wantALevel = $yearService->isALevelClassName($className);
+        $linkedIds = $this->linkedAcademicYearIds();
+
+        $years = $linkedIds !== []
+            ? AcademicYear::whereIn('academic_yearID', $linkedIds)->get()
+            : collect();
+
+        if ($years->isNotEmpty()) {
+            $pick = $years->first(function ($y) use ($yearService, $wantALevel) {
+                return $wantALevel
+                    ? $yearService->isALevelYear($y)
+                    : ! $yearService->isALevelYear($y);
+            });
+
+            // Dual exam missing one level in academic_year_ids → fall back to header year for that level
+            if (! $pick) {
+                $headerId = $yearService->yearIdForClassName($className, (int) $this->schoolID);
+                if ($headerId) {
+                    $pick = AcademicYear::find($headerId);
+                }
+            }
+
+            if ($pick) {
+                return (string) ($pick->year_name ?: $pick->year);
+            }
+        }
+
+        // No linked years: use header Active year for this class level
+        $headerId = $yearService->yearIdForClassName($className, (int) $this->schoolID);
+        if ($headerId) {
+            $headerYear = AcademicYear::find($headerId);
+            if ($headerYear) {
+                return (string) ($headerYear->year_name ?: $headerYear->year);
+            }
+        }
+
+        if ($this->relationLoaded('academicYear') && $this->academicYear) {
+            return (string) ($this->academicYear->year_name ?: $this->academicYear->year);
+        }
+
+        if ($this->academic_yearID) {
+            $ay = AcademicYear::find($this->academic_yearID);
+            if ($ay) {
+                return (string) ($ay->year_name ?: $ay->year);
+            }
+        }
+
+        return (string) ($this->year ?? '');
+    }
+
+    /**
+     * All linked year labels (for exam lists without a class context).
+     * Dual: "O-Level 2027 · A-Level 2026/2027"
+     */
+    public function displayYearLabelAll(bool $withLevelPrefix = true): string
+    {
+        $yearService = app(\App\Services\SelectedAcademicYearService::class);
+        $linkedIds = $this->linkedAcademicYearIds();
+        if ($linkedIds === []) {
+            return (string) ($this->year ?? '');
+        }
+
+        $years = AcademicYear::whereIn('academic_yearID', $linkedIds)->get();
+        if ($years->isEmpty()) {
+            return (string) ($this->year ?? '');
+        }
+
+        $o = $years->first(fn ($y) => ! $yearService->isALevelYear($y));
+        $a = $years->first(fn ($y) => $yearService->isALevelYear($y));
+        $parts = [];
+
+        if ($o) {
+            $label = (string) ($o->year_name ?: $o->year);
+            $parts[] = $withLevelPrefix && $a ? 'O-Level '.$label : $label;
+        }
+        if ($a) {
+            $label = (string) ($a->year_name ?: $a->year);
+            $parts[] = $withLevelPrefix && $o ? 'A-Level '.$label : $label;
+        }
+
+        if ($parts === []) {
+            return (string) ($years->first()->year_name ?: $years->first()->year ?: $this->year);
+        }
+
+        return implode(' · ', $parts);
     }
 
     public function results()

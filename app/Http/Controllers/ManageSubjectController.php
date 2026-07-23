@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\SchoolSubject;
+use App\Models\SchoolSubjectComponent;
 use App\Models\ClassSubject;
+use App\Models\ClassSubjectComponentTeacher;
 use App\Models\Subclass;
 use App\Models\Teacher;
 use App\Models\SubjectElector;
@@ -103,6 +105,113 @@ class ManageSubjectController extends Controller
         return false;
     }
 
+    /**
+     * Replace duo/paper components for a school subject (A-Level Secondary).
+     */
+    private function syncSubjectComponents(SchoolSubject $subject, array $components): void
+    {
+        $subject->components()->delete();
+
+        $order = 0;
+        foreach ($components as $component) {
+            $name = trim((string) ($component['component_name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $maxMarks = (int) ($component['max_marks'] ?? 100);
+            if ($maxMarks < 1) {
+                $maxMarks = 1;
+            }
+            if ($maxMarks > 100) {
+                $maxMarks = 100;
+            }
+
+            SchoolSubjectComponent::create([
+                'subjectID' => $subject->subjectID,
+                'component_name' => $name,
+                'max_marks' => $maxMarks,
+                'sort_order' => $order++,
+            ]);
+        }
+    }
+
+    /**
+     * Validate duo paper teacher assignments. Returns normalized list or null on hard error.
+     */
+    private function normalizeComponentTeacherAssignments(
+        SchoolSubject $subject,
+        array $componentAssignments,
+        $schoolID,
+        int $index,
+        array &$errors
+    ): ?array {
+        $validComponentIDs = $subject->components->pluck('componentID')->map(fn ($id) => (int) $id)->all();
+        $byComponent = [];
+
+        foreach ($componentAssignments as $row) {
+            $componentID = (int) ($row['componentID'] ?? 0);
+            if (!$componentID || !in_array($componentID, $validComponentIDs, true)) {
+                $errors[] = "Subject " . ($index + 1) . ": Invalid paper/component selected.";
+                return null;
+            }
+
+            $teacherID = $row['teacherID'] ?? null;
+            if ($teacherID === null || $teacherID === '' || $teacherID === '0' || $teacherID === false) {
+                $teacherID = null;
+            } else {
+                $teacherID = (int) $teacherID;
+                $teacher = Teacher::find($teacherID);
+                if (!$teacher || $teacher->schoolID != $schoolID) {
+                    $errors[] = "Subject " . ($index + 1) . ": Paper teacher not found or does not belong to this school.";
+                    return null;
+                }
+            }
+
+            $byComponent[$componentID] = $teacherID;
+        }
+
+        // Ensure every defined paper has a row (teacher may be null)
+        $normalized = [];
+        foreach ($validComponentIDs as $componentID) {
+            $normalized[] = [
+                'componentID' => $componentID,
+                'teacherID' => $byComponent[$componentID] ?? null,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    private function syncClassSubjectComponentTeachers(
+        ClassSubject $classSubject,
+        SchoolSubject $subject,
+        array $componentAssignments
+    ): void {
+        ClassSubjectComponentTeacher::where('class_subjectID', $classSubject->class_subjectID)->delete();
+
+        $validComponentIDs = $subject->components->pluck('componentID')->map(fn ($id) => (int) $id)->all();
+
+        foreach ($componentAssignments as $row) {
+            $componentID = (int) ($row['componentID'] ?? 0);
+            if (!$componentID || !in_array($componentID, $validComponentIDs, true)) {
+                continue;
+            }
+
+            $teacherID = $row['teacherID'] ?? null;
+            if ($teacherID === null || $teacherID === '' || $teacherID === '0') {
+                $teacherID = null;
+            } else {
+                $teacherID = (int) $teacherID;
+            }
+
+            ClassSubjectComponentTeacher::create([
+                'class_subjectID' => $classSubject->class_subjectID,
+                'componentID' => $componentID,
+                'teacherID' => $teacherID,
+            ]);
+        }
+    }
+
     public function manageSubjects()
     {
          $user = Session::get('user_type');
@@ -113,14 +222,15 @@ class ManageSubjectController extends Controller
 
         $schoolID = Session::get('schoolID');
 
-        // Get all school subjects
+        // Get all school subjects (with A-Level duo components when present)
         $schoolSubjects = SchoolSubject::where('schoolID', $schoolID)
+            ->with('components')
             ->orderBy('subject_name')
             ->get();
 
         // Get all subclasses for dropdown with combinations
         // Use Eloquent to get subclasses with relationships
-        $allSubclasses = \App\Models\Subclass::with(['class', 'combie'])
+        $allSubclasses = \App\Models\Subclass::with(['class', 'combie.subjects.components'])
             ->whereHas('class', function($query) use ($schoolID) {
                 $query->where('schoolID', $schoolID);
             })
@@ -141,6 +251,7 @@ class ManageSubjectController extends Controller
                         'display_name' => $subclass->class->class_name,
                         'stream_code' => $subclass->stream_code,
                         'class_name' => $subclass->class->class_name,
+                        'combieID' => $subclass->combieID,
                         'combie_name' => $subclass->combie ? $subclass->combie->combie_name : null,
                         'combie_code' => $subclass->combie ? $subclass->combie->combie_code : null,
                     ]);
@@ -152,6 +263,7 @@ class ManageSubjectController extends Controller
                         'display_name' => $subclass->class->class_name . ' ' . $subclass->subclass_name,
                         'stream_code' => $subclass->stream_code,
                         'class_name' => $subclass->class->class_name,
+                        'combieID' => $subclass->combieID,
                         'combie_name' => $subclass->combie ? $subclass->combie->combie_name : null,
                         'combie_code' => $subclass->combie ? $subclass->combie->combie_code : null,
                     ]);
@@ -170,6 +282,7 @@ class ManageSubjectController extends Controller
                         'display_name' => $displayName,
                         'stream_code' => $subclass->stream_code,
                         'class_name' => $subclass->class->class_name,
+                        'combieID' => $subclass->combieID,
                         'combie_name' => $subclass->combie ? $subclass->combie->combie_name : null,
                         'combie_code' => $subclass->combie ? $subclass->combie->combie_code : null,
                     ]);
@@ -188,7 +301,48 @@ class ManageSubjectController extends Controller
         // Get school details for conditional display
         $school_details = \App\Models\School::find($schoolID);
 
-        return view('Admin.manageSubject', compact('schoolSubjects', 'subclasses', 'teachers', 'school_details'));
+        // JS payloads for Add Class Subject searchable selects / combie autofill
+        $activeSchoolSubjectsJson = $schoolSubjects
+            ->filter(function ($s) {
+                return strcasecmp((string) ($s->status ?? ''), 'Active') === 0;
+            })
+            ->map(function ($s) {
+                return [
+                    'subjectID' => (int) $s->subjectID,
+                    'subject_name' => $s->subject_name,
+                    'subject_code' => $s->subject_code,
+                    'is_duo' => (bool) ($s->is_duo ?? false),
+                    'components' => $s->components
+                        ->sortBy('sort_order')
+                        ->values()
+                        ->map(function ($c) {
+                            return [
+                                'componentID' => (int) $c->componentID,
+                                'component_name' => $c->component_name,
+                                'max_marks' => (int) $c->max_marks,
+                                'sort_order' => (int) $c->sort_order,
+                            ];
+                        })
+                        ->all(),
+                ];
+            })
+            ->values();
+
+        $teacherOptionsJson = $teachers->map(function ($t) {
+            return [
+                'id' => (int) $t->id,
+                'label' => trim(($t->first_name ?? '') . ' ' . ($t->last_name ?? '')) . ' (' . ($t->employee_number ?? '') . ')',
+            ];
+        })->values();
+
+        return view('Admin.manageSubject', compact(
+            'schoolSubjects',
+            'subclasses',
+            'teachers',
+            'school_details',
+            'activeSchoolSubjectsJson',
+            'teacherOptionsJson'
+        ));
     }
 
     public function save_school_subject(Request $request)
@@ -217,11 +371,15 @@ class ManageSubjectController extends Controller
                     'subject_code' => $request->subject_code,
                     'status' => $request->status,
                     'student_status' => $request->student_status,
+                    'is_duo' => $request->boolean('is_duo'),
+                    'components' => $request->input('components', []),
                 ]];
 
             $createdSubjects = [];
             $errors = [];
             $hasApprovalPermission = $this->hasPermission('approve_created_subject');
+            $school = School::find($schoolID);
+            $isSecondarySchool = $school && strcasecmp((string) $school->school_type, 'Secondary') === 0;
 
             foreach ($subjects as $index => $subjectData) {
                 // Validate each subject
@@ -230,6 +388,10 @@ class ManageSubjectController extends Controller
                     'subject_code' => 'nullable|string|max:20',
                     'status' => 'required|in:Active,Inactive',
                     'student_status' => 'nullable|in:Required,Optional',
+                    'is_duo' => 'nullable', // normalized below (jQuery may send "true"/"false"/0/1)
+                    'components' => 'nullable|array',
+                    'components.*.component_name' => 'nullable|string|max:100',
+                    'components.*.max_marks' => 'nullable|integer|min:1|max:100',
                 ]);
 
                 if ($validator->fails()) {
@@ -249,19 +411,42 @@ class ManageSubjectController extends Controller
                     continue;
                 }
 
+                $isDuo = $isSecondarySchool && (
+                    filter_var($subjectData['is_duo'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                    || ($subjectData['is_duo'] ?? '') === '1'
+                    || ($subjectData['is_duo'] ?? '') === 1
+                );
+                $components = is_array($subjectData['components'] ?? null) ? $subjectData['components'] : [];
+
+                if ($isDuo && count($components) < 2) {
+                    $errors[] = "Subject " . ($index + 1) . ": Duo subject needs at least 2 papers (e.g. PHY1, PHY2).";
+                    continue;
+                }
+
                 // Check if user has approval permission - if yes, use requested status, otherwise set to Inactive
                 $status = $hasApprovalPermission ? ($subjectData['status'] ?? 'Active') : 'Inactive';
 
                 try {
+                    DB::beginTransaction();
+
                     $subject = SchoolSubject::create([
                         'schoolID' => $schoolID,
                         'subject_name' => $subjectData['subject_name'],
                         'subject_code' => $subjectData['subject_code'] ?? null,
                         'status' => $status,
+                        'is_duo' => $isDuo,
                     ]);
 
+                    if ($isDuo) {
+                        $this->syncSubjectComponents($subject, $components);
+                    }
+
+                    DB::commit();
+
+                    $subject->load('components');
                     $createdSubjects[] = $subject;
                 } catch (\Exception $e) {
+                    DB::rollBack();
                     $errors[] = "Subject " . ($index + 1) . ": Failed to create - " . $e->getMessage();
                 }
             }
@@ -312,6 +497,10 @@ class ManageSubjectController extends Controller
                 'subject_name' => 'required|string|max:100',
                 'subject_code' => 'nullable|string|max:20',
                 'status' => 'required|in:Active,Inactive',
+                'is_duo' => 'nullable', // normalized below
+                'components' => 'nullable|array',
+                'components.*.component_name' => 'nullable|string|max:100',
+                'components.*.max_marks' => 'nullable|integer|min:1|max:100',
             ]);
 
             if ($validator->fails()) {
@@ -351,11 +540,39 @@ class ManageSubjectController extends Controller
                 ], 400);
             }
 
-            $subject->update([
-                'subject_name' => $request->subject_name,
-                'subject_code' => $request->subject_code ?? null,
-                'status' => $request->status,
-            ]);
+            $school = School::find($schoolID);
+            $isSecondarySchool = $school && strcasecmp((string) $school->school_type, 'Secondary') === 0;
+            $isDuo = $isSecondarySchool && $request->boolean('is_duo');
+            $components = is_array($request->components) ? $request->components : [];
+
+            if ($isDuo && count($components) < 2) {
+                return response()->json([
+                    'error' => 'Duo subject needs at least 2 papers (e.g. PHY1, PHY2).'
+                ], 422);
+            }
+
+            DB::beginTransaction();
+            try {
+                $subject->update([
+                    'subject_name' => $request->subject_name,
+                    'subject_code' => $request->subject_code ?? null,
+                    'status' => $request->status,
+                    'is_duo' => $isDuo,
+                ]);
+
+                if ($isDuo) {
+                    $this->syncSubjectComponents($subject, $components);
+                } else {
+                    $subject->components()->delete();
+                }
+
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+            $subject->load('components');
 
             return response()->json([
                 'success' => 'Subject "' . $subject->subject_name . '" updated successfully!',
@@ -541,6 +758,123 @@ class ManageSubjectController extends Controller
         }
     }
 
+    /**
+     * Defaults for Add Class Subject: already-assigned IDs + missing combie main subjects.
+     */
+    public function get_subclass_subject_defaults($subclassID)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json([
+                    'error' => 'School ID not found in session.'
+                ], 400);
+            }
+
+            $subclass = Subclass::with(['combie.subjects.components', 'class'])
+                ->where('subclassID', $subclassID)
+                ->whereHas('class', function ($query) use ($schoolID) {
+                    $query->where('schoolID', $schoolID);
+                })
+                ->first();
+
+            if (!$subclass) {
+                return response()->json([
+                    'error' => 'Subclass not found.'
+                ], 404);
+            }
+
+            $assigned = ClassSubject::where('subclassID', $subclassID)
+                ->with('subject')
+                ->get();
+
+            $assignedSubjectIDs = $assigned->pluck('subjectID')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+
+            $assignedSubjects = $assigned->map(function ($classSubject) {
+                return [
+                    'subjectID' => (int) $classSubject->subjectID,
+                    'class_subjectID' => $classSubject->class_subjectID,
+                    'subject_name' => $classSubject->subject ? $classSubject->subject->subject_name : null,
+                    'subject_code' => $classSubject->subject ? $classSubject->subject->subject_code : null,
+                ];
+            })->values();
+
+            $combie = $subclass->combie;
+            $combieSubjects = collect();
+            if ($combie && $combie->relationLoaded('subjects')) {
+                $combieSubjects = $combie->subjects
+                    ->filter(function ($subject) {
+                        return strcasecmp((string) ($subject->status ?? ''), 'Active') === 0
+                            || empty($subject->status);
+                    })
+                    ->values();
+            }
+
+            $missingSubjects = $combieSubjects
+                ->reject(fn ($subject) => in_array((int) $subject->subjectID, $assignedSubjectIDs, true))
+                ->map(function ($subject) {
+                    $components = ($subject->components ?? collect())
+                        ->sortBy('sort_order')
+                        ->values()
+                        ->map(function ($c) {
+                            return [
+                                'componentID' => (int) $c->componentID,
+                                'component_name' => $c->component_name,
+                                'max_marks' => (int) $c->max_marks,
+                                'sort_order' => (int) $c->sort_order,
+                            ];
+                        })
+                        ->values()
+                        ->all();
+
+                    return [
+                        'subjectID' => (int) $subject->subjectID,
+                        'subject_name' => $subject->subject_name,
+                        'subject_code' => $subject->subject_code,
+                        'is_duo' => (bool) ($subject->is_duo ?? false) && count($components) > 0,
+                        'components' => $components,
+                        'sort_order' => (int) ($subject->pivot->sort_order ?? 0),
+                    ];
+                })
+                ->values();
+
+            $alreadyFromCombie = $combieSubjects
+                ->filter(fn ($subject) => in_array((int) $subject->subjectID, $assignedSubjectIDs, true))
+                ->map(function ($subject) {
+                    return [
+                        'subjectID' => (int) $subject->subjectID,
+                        'subject_name' => $subject->subject_name,
+                        'subject_code' => $subject->subject_code,
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'subclassID' => (int) $subclass->subclassID,
+                'combie' => $combie ? [
+                    'combieID' => (int) $combie->combieID,
+                    'combie_name' => $combie->combie_name,
+                    'combie_code' => $combie->combie_code,
+                ] : null,
+                'has_combie_subjects' => $combieSubjects->isNotEmpty(),
+                'combie_subject_count' => $combieSubjects->count(),
+                'assigned_subject_ids' => $assignedSubjectIDs,
+                'assigned_subjects' => $assignedSubjects,
+                'already_assigned_combie_subjects' => $alreadyFromCombie,
+                'missing_subjects' => $missingSubjects,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function save_class_subject(Request $request)
     {
         // Check permission
@@ -569,6 +903,9 @@ class ManageSubjectController extends Controller
                 'subjects.*.teacherID' => 'nullable|exists:teachers,id',
                 'subjects.*.status' => 'required|in:Active,Inactive',
                 'subjects.*.student_status' => 'nullable|in:Required,Optional',
+                'subjects.*.components' => 'nullable|array',
+                'subjects.*.components.*.componentID' => 'required_with:subjects.*.components|exists:school_subject_components,componentID',
+                'subjects.*.components.*.teacherID' => 'nullable|exists:teachers,id',
             ]);
 
             if ($validator->fails()) {
@@ -640,21 +977,41 @@ class ManageSubjectController extends Controller
                     }
 
                     // Verify subject belongs to this school
-                    $subject = SchoolSubject::find($subjectID);
+                    $subject = SchoolSubject::with('components')->find($subjectID);
                     if (!$subject || $subject->schoolID != $schoolID) {
                         $errors[] = "Subject " . ($index + 1) . ": Subject not found or does not belong to this school.";
                         continue;
                     }
 
-                    // Handle teacherID
-                    if ($teacherID === null || $teacherID === '' || $teacherID === '0' || $teacherID === false) {
+                    $isDuo = (bool) ($subject->is_duo ?? false) && $subject->components->count() > 0;
+                    $componentAssignments = is_array($subjectData['components'] ?? null)
+                        ? $subjectData['components']
+                        : [];
+
+                    // Duo: teachers live on papers only — clear main teacher
+                    if ($isDuo) {
                         $teacherID = null;
-                    } else {
-                        $teacherID = (int) $teacherID;
-                        $teacher = Teacher::find($teacherID);
-                        if (!$teacher || $teacher->schoolID != $schoolID) {
-                            $errors[] = "Subject " . ($index + 1) . ": Selected teacher not found or does not belong to this school.";
+                        $componentAssignments = $this->normalizeComponentTeacherAssignments(
+                            $subject,
+                            $componentAssignments,
+                            $schoolID,
+                            $index,
+                            $errors
+                        );
+                        if ($componentAssignments === null) {
                             continue;
+                        }
+                    } else {
+                        // Handle teacherID for non-duo
+                        if ($teacherID === null || $teacherID === '' || $teacherID === '0' || $teacherID === false) {
+                            $teacherID = null;
+                        } else {
+                            $teacherID = (int) $teacherID;
+                            $teacher = Teacher::find($teacherID);
+                            if (!$teacher || $teacher->schoolID != $schoolID) {
+                                $errors[] = "Subject " . ($index + 1) . ": Selected teacher not found or does not belong to this school.";
+                                continue;
+                            }
                         }
                     }
 
@@ -671,7 +1028,7 @@ class ManageSubjectController extends Controller
                     }
 
                     // Integrity Constraint: Check if teacher is already assigned to this subject in this subclass only
-                    if ($teacherID) {
+                    if (!$isDuo && $teacherID) {
                         $existingTeacherSubject = ClassSubject::where('subclassID', $request->subclassID)
                             ->where('subjectID', $subjectID)
                             ->where('teacherID', $teacherID)
@@ -694,6 +1051,10 @@ class ManageSubjectController extends Controller
                         'status' => $finalStatus,
                         'student_status' => $studentStatus,
                     ]);
+
+                    if ($isDuo) {
+                        $this->syncClassSubjectComponentTeachers($classSubject, $subject, $componentAssignments);
+                    }
 
                     $createdSubjects[] = $classSubject;
 
@@ -777,7 +1138,12 @@ class ManageSubjectController extends Controller
                 ->map(function($subclass) use ($schoolID) {
                     $enrollment = app(StudentEnrollmentService::class);
                     // Get subjects for this subclass (show all, not just Active)
-                    $subjects = ClassSubject::with(['subject', 'teacher'])
+                    $subjects = ClassSubject::with([
+                            'subject.components',
+                            'teacher',
+                            'componentTeachers.teacher',
+                            'componentTeachers.component',
+                        ])
                         ->where('subclassID', $subclass->subclassID)
                         ->get()
                         ->map(function($classSubject) use ($enrollment, $schoolID) {
@@ -789,15 +1155,58 @@ class ManageSubjectController extends Controller
                                 'Active'
                             ));
                             $nonElectors = $totalStudents - $totalElectors;
+
+                            $isDuo = (bool) ($classSubject->subject->is_duo ?? false)
+                                && $classSubject->subject
+                                && $classSubject->subject->components
+                                && $classSubject->subject->components->count() > 0;
+
+                            $paperTeachers = [];
+                            if ($isDuo) {
+                                $byComp = $classSubject->componentTeachers->keyBy('componentID');
+                                $paperTeachers = $classSubject->subject->components
+                                    ->sortBy('sort_order')
+                                    ->values()
+                                    ->map(function ($comp) use ($byComp) {
+                                        $assign = $byComp->get($comp->componentID);
+                                        $t = $assign ? $assign->teacher : null;
+                                        return [
+                                            'componentID' => (int) $comp->componentID,
+                                            'component_name' => $comp->component_name,
+                                            'max_marks' => (int) $comp->max_marks,
+                                            'teacherID' => $assign && $assign->teacherID
+                                                ? (int) $assign->teacherID
+                                                : null,
+                                            'teacher_name' => $t
+                                                ? trim(($t->first_name ?? '') . ' ' . ($t->last_name ?? ''))
+                                                : 'Not Assigned',
+                                        ];
+                                    })
+                                    ->all();
+                            }
+
+                            $teacherDisplay = 'Not Assigned';
+                            if ($isDuo) {
+                                $names = collect($paperTeachers)
+                                    ->pluck('teacher_name')
+                                    ->filter(fn ($n) => $n && $n !== 'Not Assigned')
+                                    ->unique()
+                                    ->values();
+                                $teacherDisplay = $names->isNotEmpty()
+                                    ? $names->implode(', ')
+                                    : 'Not Assigned';
+                            } elseif ($classSubject->teacher) {
+                                $teacherDisplay = $classSubject->teacher->first_name . ' ' . $classSubject->teacher->last_name;
+                            }
                             
                             return [
                                 'class_subjectID' => $classSubject->class_subjectID,
                                 'subject_name' => $classSubject->subject ? $classSubject->subject->subject_name : 'N/A',
                                 'subject_code' => $classSubject->subject ? $classSubject->subject->subject_code : null,
-                                'teacher_name' => $classSubject->teacher
-                                    ? $classSubject->teacher->first_name . ' ' . $classSubject->teacher->last_name
-                                    : 'Not Assigned',
+                                'is_duo' => $isDuo,
+                                'teacher_name' => $teacherDisplay,
                                 'teacher_id' => $classSubject->teacherID,
+                                'papers' => $paperTeachers,
                                 'status' => $classSubject->status ?? 'Inactive',
                                 'student_status' => $classSubject->student_status ?? null,
                                 'elected_count' => $totalElectors,
@@ -842,6 +1251,9 @@ class ManageSubjectController extends Controller
                 'class_subjectID' => 'required|exists:class_subjects,class_subjectID',
                 'subclassID' => 'required|exists:subclasses,subclassID',
                 'teacherID' => 'nullable|exists:teachers,id',
+                'components' => 'nullable|array',
+                'components.*.componentID' => 'required_with:components|exists:school_subject_components,componentID',
+                'components.*.teacherID' => 'nullable|exists:teachers,id',
             ]);
 
             if ($validator->fails()) {
@@ -860,7 +1272,7 @@ class ManageSubjectController extends Controller
                 ], 400);
             }
 
-            $classSubject = ClassSubject::find($request->class_subjectID);
+            $classSubject = ClassSubject::with(['subject.components'])->find($request->class_subjectID);
             if (!$classSubject) {
                 return response()->json([
                     'error' => 'Class subject not found.'
@@ -882,7 +1294,37 @@ class ManageSubjectController extends Controller
                 ], 403);
             }
 
-            // Verify teacher belongs to this school if provided
+            $subject = $classSubject->subject;
+            $isDuo = $subject
+                && (bool) ($subject->is_duo ?? false)
+                && $subject->components
+                && $subject->components->count() > 0;
+
+            if ($isDuo) {
+                $errors = [];
+                $componentAssignments = $this->normalizeComponentTeacherAssignments(
+                    $subject,
+                    is_array($request->input('components')) ? $request->input('components') : [],
+                    $schoolID,
+                    0,
+                    $errors
+                );
+                if ($componentAssignments === null) {
+                    return response()->json([
+                        'error' => !empty($errors) ? implode(' ', $errors) : 'Invalid paper teacher assignments.'
+                    ], 422);
+                }
+
+                $classSubject->teacherID = null;
+                $classSubject->save();
+                $this->syncClassSubjectComponentTeachers($classSubject, $subject, $componentAssignments);
+
+                return response()->json([
+                    'success' => 'Duo paper teachers updated successfully!'
+                ], 200);
+            }
+
+            // Non-duo: single main teacher
             $teacherID = $request->input('teacherID');
             if ($teacherID === null || $teacherID === '' || $teacherID === '0' || $teacherID === false) {
                 $teacherID = null;
@@ -902,6 +1344,9 @@ class ManageSubjectController extends Controller
             // Update teacher
             $classSubject->teacherID = $teacherID;
             $classSubject->save();
+
+            // Clear any leftover duo paper rows if subject is no longer duo
+            ClassSubjectComponentTeacher::where('class_subjectID', $classSubject->class_subjectID)->delete();
 
             // Update all session timetables for this class_subjectID if teacher changed
             if ($oldTeacherID != $teacherID) {

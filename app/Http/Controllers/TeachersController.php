@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClassSubject;
+use App\Models\ClassSubjectComponentTeacher;
 use App\Models\Result;
 use App\Models\ResultApproval;
 use App\Models\Student;
@@ -16,6 +17,7 @@ use App\Models\GradeDefinition;
 use App\Models\ClassModel;
 use App\Models\Teacher;
 use App\Models\SchoolSubject;
+use App\Models\SchoolSubjectComponent;
 use App\Models\ClassTeacherApproval;
 use App\Models\CoordinatorApproval;
 use App\Models\SubjectElector;
@@ -3040,7 +3042,7 @@ class TeachersController extends Controller
                 ->where("enter_result", true)
                 ->orderBy("created_at", "desc")
                 ->get()
-                ->map(function ($exam) use ($schoolID) {
+                ->map(function ($exam) use ($schoolID, $classSubject) {
                     // Check if term is closed
                     $isTermClosed = false;
                     if ($exam->term && $exam->year) {
@@ -3072,6 +3074,10 @@ class TeachersController extends Controller
                         "exam_id" => $exam->examID,
                         "exam_name" => $exam->exam_name,
                         "year" => $exam->year,
+                        "year_label" => $exam->displayYearLabelForClass(
+                            optional($classSubject->class)->class_name
+                                ?? optional(optional($classSubject->subclass)->class)->class_name
+                        ),
                         "status" => $exam->status,
                         "start_date" => $exam->start_date
                             ? $exam->start_date->format("Y-m-d")
@@ -4417,28 +4423,36 @@ class TeachersController extends Controller
                 ->with("error", "Teacher ID not found");
         }
 
-        // Get all class subjects assigned to this teacher with statistics
-        // Only show subjects where both ClassSubject and SchoolSubject have status = Active
+        $teacherID = (int) $teacherID;
+
+        // Subjects where this teacher owns the main row OR teaches at least one duo paper
         $classSubjects = ClassSubject::with([
             "subject" => function ($query) {
-                $query->where("status", "Active");
+                $query->where("status", "Active")->with("components");
             },
             "class",
             "subclass.class",
+            "componentTeachers.component",
+            "componentTeachers.teacher",
         ])
-            ->where("teacherID", $teacherID)
             ->where("status", "Active")
+            ->where(function ($q) use ($teacherID) {
+                $q->where("teacherID", $teacherID)->orWhereHas(
+                    "componentTeachers",
+                    function ($cq) use ($teacherID) {
+                        $cq->where("teacherID", $teacherID);
+                    },
+                );
+            })
             ->whereHas("subject", function ($query) {
                 $query->where("status", "Active");
             })
             ->get()
             ->filter(function ($classSubject) {
-                // Additional filter: ensure subject relationship exists and has Active status
                 return $classSubject->subject &&
                     $classSubject->subject->status === "Active";
             })
-            ->map(function ($classSubject) {
-                // Count Active enrollments for header academic year only
+            ->map(function ($classSubject) use ($teacherID) {
                 $subclassID = $classSubject->subclassID;
                 $classID = $classSubject->classID;
                 $schoolID = (int) Session::get("schoolID");
@@ -4465,14 +4479,76 @@ class TeachersController extends Controller
                 }
 
                 $classSubject->total_students = $studentCount;
+
+                $isDuo =
+                    (bool) ($classSubject->subject->is_duo ?? false) &&
+                    $classSubject->subject->components &&
+                    $classSubject->subject->components->count() > 0;
+
+                $classSubject->is_duo_subject = $isDuo;
+                $classSubject->is_main_teacher =
+                    (int) $classSubject->teacherID === $teacherID;
+
+                $myPapers = $classSubject->componentTeachers
+                    ->where("teacherID", $teacherID)
+                    ->values()
+                    ->map(function ($row) {
+                        return [
+                            "componentID" => (int) $row->componentID,
+                            "component_name" => $row->component
+                                ? $row->component->component_name
+                                : "Paper",
+                            "max_marks" => $row->component
+                                ? (int) $row->component->max_marks
+                                : null,
+                        ];
+                    });
+
+                $classSubject->my_assigned_papers = $myPapers;
+
+                $allPapers = collect();
+                if ($isDuo) {
+                    $teacherByComponent = $classSubject->componentTeachers->keyBy(
+                        "componentID",
+                    );
+                    $allPapers = $classSubject->subject->components
+                        ->sortBy("sort_order")
+                        ->values()
+                        ->map(function ($comp) use ($teacherByComponent, $teacherID) {
+                            $assign = $teacherByComponent->get(
+                                $comp->componentID,
+                            );
+                            $t = $assign ? $assign->teacher : null;
+                            $name = $t
+                                ? trim(
+                                    ($t->first_name ?? "") .
+                                        " " .
+                                        ($t->last_name ?? ""),
+                                )
+                                : null;
+                            return [
+                                "componentID" => (int) $comp->componentID,
+                                "component_name" => $comp->component_name,
+                                "max_marks" => (int) $comp->max_marks,
+                                "teacherID" => $assign
+                                    ? (int) $assign->teacherID
+                                    : null,
+                                "teacher_name" => $name ?: "Not assigned",
+                                "is_me" =>
+                                    $assign &&
+                                    (int) $assign->teacherID === $teacherID,
+                            ];
+                        });
+                }
+                $classSubject->all_paper_teachers = $allPapers;
+
                 return $classSubject;
             })
             ->filter(function ($classSubject) {
-                // Final filter: ensure subject still exists and is Active after mapping
                 return $classSubject->subject &&
                     $classSubject->subject->status === "Active";
             })
-            ->values(); // Re-index array after filtering
+            ->values();
 
         $schoolID = Session::get("schoolID");
         $teacherResultPermission = \App\Models\TeacherResultPermission::where(
@@ -4493,6 +4569,157 @@ class TeachersController extends Controller
             "Teacher.teacher_subjects",
             compact("classSubjects", "schoolType", "resultButtonStatus"),
         );
+    }
+
+    /**
+     * True if teacher owns the class subject OR teaches any duo paper on it.
+     */
+    private function teacherOwnsOrTeachesClassSubject(
+        $classSubject,
+        $teacherID,
+    ): bool {
+        if (!$classSubject || !$teacherID) {
+            return false;
+        }
+        if ((int) $classSubject->teacherID === (int) $teacherID) {
+            return true;
+        }
+        return ClassSubjectComponentTeacher::where(
+            "class_subjectID",
+            $classSubject->class_subjectID,
+        )
+            ->where("teacherID", $teacherID)
+            ->exists();
+    }
+
+    /**
+     * Papers for a duo class subject + which ones the logged-in teacher can enter.
+     */
+    public function getClassSubjectPapers($classSubjectID)
+    {
+        try {
+            $teacherID = Session::get("teacherID");
+            $userType = Session::get("user_type");
+
+            if (!$teacherID && $userType !== "Admin" && $userType !== "Staff") {
+                return response()->json(
+                    ["error" => "Teacher ID not found in session."],
+                    400,
+                );
+            }
+
+            $classSubject = ClassSubject::with([
+                "subject.components",
+                "componentTeachers.teacher",
+                "componentTeachers.component",
+                "teacher",
+            ])
+                ->where("class_subjectID", $classSubjectID)
+                ->where("status", "Active")
+                ->first();
+
+            if (!$classSubject || !$classSubject->subject) {
+                return response()->json(
+                    ["error" => "Class subject not found."],
+                    404,
+                );
+            }
+
+            if ($userType !== "Admin" && $userType !== "Staff") {
+                if (
+                    !$this->teacherOwnsOrTeachesClassSubject(
+                        $classSubject,
+                        $teacherID,
+                    )
+                ) {
+                    return response()->json(
+                        [
+                            "error" =>
+                                "You are not assigned to this subject or its papers.",
+                        ],
+                        403,
+                    );
+                }
+            }
+
+            $isDuo =
+                (bool) ($classSubject->subject->is_duo ?? false) &&
+                $classSubject->subject->components->count() > 0;
+
+            $teacherByComponent = $classSubject->componentTeachers->keyBy(
+                "componentID",
+            );
+
+            $allPapers = $classSubject->subject->components
+                ->sortBy("sort_order")
+                ->values()
+                ->map(function ($comp) use ($teacherByComponent, $teacherID) {
+                    $assign = $teacherByComponent->get($comp->componentID);
+                    $t = $assign ? $assign->teacher : null;
+                    $name = $t
+                        ? trim(
+                            ($t->first_name ?? "") . " " . ($t->last_name ?? ""),
+                        )
+                        : null;
+                    $assignedToMe =
+                        $assign && (int) $assign->teacherID === (int) $teacherID;
+                    return [
+                        "componentID" => (int) $comp->componentID,
+                        "component_name" => $comp->component_name,
+                        "max_marks" => (int) $comp->max_marks,
+                        "teacherID" => $assign ? (int) $assign->teacherID : null,
+                        "teacher_name" => $name ?: "Not assigned",
+                        "assigned_to_me" => $assignedToMe,
+                    ];
+                });
+
+            $myPapers = $allPapers
+                ->filter(fn($p) => $p["assigned_to_me"])
+                ->values();
+
+            // Admin / Staff can enter marks for every duo paper
+            if ($userType === "Admin" || $userType === "Staff") {
+                $myPapers = $allPapers->values();
+            }
+
+            // Non-duo: treat main teacher as sole "paper" for result entry
+            if (!$isDuo) {
+                $myPapers = collect([
+                    [
+                        "componentID" => null,
+                        "component_name" =>
+                            $classSubject->subject->subject_name,
+                        "max_marks" => null,
+                        "teacherID" => (int) $classSubject->teacherID,
+                        "teacher_name" => $classSubject->teacher
+                            ? trim(
+                                ($classSubject->teacher->first_name ?? "") .
+                                    " " .
+                                    ($classSubject->teacher->last_name ?? ""),
+                            )
+                            : null,
+                        "assigned_to_me" => true,
+                    ],
+                ]);
+            }
+
+            return response()->json(
+                [
+                    "success" => true,
+                    "is_duo" => $isDuo,
+                    "subject_name" => $classSubject->subject->subject_name,
+                    "subject_code" => $classSubject->subject->subject_code,
+                    "all_papers" => $allPapers,
+                    "my_papers" => $myPapers,
+                ],
+                200,
+            );
+        } catch (\Exception $e) {
+            return response()->json(
+                ["error" => "An error occurred: " . $e->getMessage()],
+                500,
+            );
+        }
     }
 
     public function schemeOfWork()
@@ -5798,7 +6025,10 @@ class TeachersController extends Controller
 
             if ($userType !== "Admin" && $userType !== "Staff") {
                 // Check if direct owner
-                $isOwner = $classSubject->teacherID == $teacherID;
+                $isOwner = $this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                );
 
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
@@ -6297,6 +6527,7 @@ class TeachersController extends Controller
                 "subject" => function ($query) {
                     $query->where("status", "Active");
                 },
+                "subject.components",
                 "class",
                 "subclass",
             ])
@@ -6318,39 +6549,14 @@ class TeachersController extends Controller
 
             if ($userType !== "Admin" && $userType !== "Staff") {
                 // Check if direct owner
-                $isOwner = $classSubject->teacherID == $teacherID;
+                $isOwner = $this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                );
 
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
                 if (!$isOwner) {
-                    // Debug: Get all assignments for this teacher
-                    $allAssignments = TeacherResultAssignment::where(
-                        "schoolID",
-                        Session::get("schoolID"),
-                    )
-                        ->where("teacherID", $teacherID)
-                        ->where("status", true)
-                        ->get();
-
-                    \Log::info("Teacher assignments found", [
-                        "teacherID" => $teacherID,
-                        "schoolID" => Session::get("schoolID"),
-                        "classID_needed" => $classSubject->classID,
-                        "subclassID_needed" => $classSubject->subclassID,
-                        "subjectID_needed" => $classSubject->subjectID,
-                        "total_assignments" => $allAssignments->count(),
-                        "assignments" => $allAssignments->map(function ($a) {
-                            return [
-                                "id" => $a->id,
-                                "classID" => $a->classID,
-                                "subclassID" => $a->subclassID,
-                                "subject_ids" => $a->subject_ids,
-                                "examID" => $a->examID,
-                                "status" => $a->status,
-                            ];
-                        }),
-                    ]);
-
                     $assignmentQuery = TeacherResultAssignment::where(
                         "schoolID",
                         Session::get("schoolID"),
@@ -6370,24 +6576,9 @@ class TeachersController extends Controller
                         );
 
                     $isAssigned = $assignmentQuery->exists();
-
-                    \Log::info("Assignment check result", [
-                        "isAssigned" => $isAssigned,
-                        "query_sql" => $assignmentQuery->toSql(),
-                    ]);
                 }
 
                 if (!$isOwner && !$isAssigned) {
-                    \Log::error("Teacher authorization failed", [
-                        "teacherID" => $teacherID,
-                        "schoolID" => Session::get("schoolID"),
-                        "classSubjectID" => $classSubjectID,
-                        "classID" => $classSubject->classID,
-                        "subclassID" => $classSubject->subclassID,
-                        "subjectID" => $classSubject->subjectID,
-                        "isOwner" => $isOwner,
-                        "isAssigned" => $isAssigned,
-                    ]);
                     return response()->json(
                         [
                             "error" =>
@@ -6398,47 +6589,246 @@ class TeachersController extends Controller
                 }
             }
 
+            // Save remaps marks onto the student's subclass class_subject.
+            // View must still find those rows when opening any card for the same class+subject.
+            $relatedClassSubjectIDs = ClassSubject::where(
+                "classID",
+                $classSubject->classID,
+            )
+                ->where("subjectID", $classSubject->subjectID)
+                ->where("status", "Active")
+                ->pluck("class_subjectID")
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+            if (!in_array((int) $classSubjectID, $relatedClassSubjectIDs, true)) {
+                $relatedClassSubjectIDs[] = (int) $classSubjectID;
+            }
+
             $classSubjectIDs = [];
-            if ($request->get('all_subclasses')) {
-                $classSubjectIDs = ClassSubject::where('classID', $classSubject->classID)
-                    ->where('subjectID', $classSubject->subjectID)
-                    ->pluck('class_subjectID')
-                    ->toArray();
+            if ($request->get("all_subclasses")) {
+                $classSubjectIDs = $relatedClassSubjectIDs;
                 $query = Result::with(["student", "examination"])->whereIn(
                     "class_subjectID",
                     $classSubjectIDs,
                 );
             } else {
-                $query = Result::with(["student", "examination"])->where(
+                $classSubjectIDs = $relatedClassSubjectIDs;
+                $query = Result::with(["student", "examination"])->whereIn(
                     "class_subjectID",
-                    $classSubjectID,
+                    $classSubjectIDs,
                 );
+                // Keep stream isolation when this card is for one subclass
+                if ($classSubject->subclassID) {
+                    $query->where(function ($q) use ($classSubject, $classSubjectID) {
+                        $q->where("subclassID", $classSubject->subclassID)
+                            ->orWhere("class_subjectID", (int) $classSubjectID)
+                            ->orWhereNull("subclassID");
+                    });
+                }
             }
 
             if ($examID) {
                 $query->where("examID", $examID);
             }
 
-            if ($request->has("test_week")) {
+            if ($request->filled("test_week")) {
                 $query->where("test_week", $request->test_week);
+            }
+
+            // Single-paper load (result entry for one duo paper)
+            $filterComponentID = $request->get("componentID");
+            if ($filterComponentID === "" || $filterComponentID === null || $filterComponentID === "0") {
+                $filterComponentID = null;
+            } else {
+                $filterComponentID = (int) $filterComponentID;
+                $query->where("componentID", $filterComponentID);
             }
 
             $results = $query->get();
             $hasCA = false;
 
-            // PRE-FETCH Grade Definitions and Class Info to avoid N+1 queries in loops
+            // Distinct weeks for this exam/subject (ignore current week filter)
+            $weeksQuery = Result::whereIn(
+                "class_subjectID",
+                $classSubjectIDs,
+            )->whereNotNull("test_week")->where("test_week", "!=", "");
+            if ($examID) {
+                $weeksQuery->where("examID", $examID);
+            }
+            if (
+                !$request->get("all_subclasses") &&
+                $classSubject->subclassID
+            ) {
+                $weeksQuery->where(function ($q) use (
+                    $classSubject,
+                    $classSubjectID,
+                ) {
+                    $q->where("subclassID", $classSubject->subclassID)
+                        ->orWhere("class_subjectID", (int) $classSubjectID)
+                        ->orWhereNull("subclassID");
+                });
+            }
+            $availableTestWeeks = $weeksQuery
+                ->distinct()
+                ->orderBy("test_week")
+                ->pluck("test_week")
+                ->values()
+                ->all();
+
             $grades = GradeDefinition::where(
                 "classID",
                 $classSubject->classID,
             )->get();
             $className =
                 ClassModel::find($classSubject->classID)->class_name ?? "";
-            $classNameLower = strtolower(
-                preg_replace("/[\s\-]+/", "_", $className),
-            );
+            $isALevelClass = app(
+                \App\Services\SelectedAcademicYearService::class,
+            )->isALevelClassName($className);
+
+            $isDuoSubject =
+                (bool) ($classSubject->subject->is_duo ?? false) &&
+                $classSubject->subject->components &&
+                $classSubject->subject->components->count() > 0;
+
+            $duoPapers = [];
+            $paperMaxTotal = 0;
+            if ($isDuoSubject) {
+                $duoPapers = $classSubject->subject->components
+                    ->sortBy("sort_order")
+                    ->values()
+                    ->map(function ($comp) {
+                        return [
+                            "componentID" => (int) $comp->componentID,
+                            "component_name" => $comp->component_name,
+                            "max_marks" => (int) $comp->max_marks,
+                        ];
+                    })
+                    ->all();
+                $paperMaxTotal = (int) collect($duoPapers)->sum("max_marks");
+            }
+
+            // Duo view (exam selected, not filtering one paper): one row per student with paper cols
+            if ($isDuoSubject && $examID && !$filterComponentID) {
+                $studentRows = $results
+                    ->groupBy("studentID")
+                    ->map(function ($studentResults) use (
+                        $duoPapers,
+                        $paperMaxTotal,
+                        $className,
+                        $isALevelClass,
+                    ) {
+                        $first = $studentResults->first();
+                        $paperMarks = [];
+                        $studentRawTotal = 0;
+                        $anyMarked = false;
+
+                        foreach ($duoPapers as $paper) {
+                            $cid = (int) $paper["componentID"];
+                            $row = $studentResults->first(function ($r) use (
+                                $cid,
+                            ) {
+                                return (int) ($r->componentID ?? 0) === $cid;
+                            });
+                            $mark =
+                                $row &&
+                                $row->marks !== null &&
+                                $row->marks !== ""
+                                    ? (float) $row->marks
+                                    : null;
+                            $paperMarks[$cid] = $mark;
+                            if ($mark !== null) {
+                                $anyMarked = true;
+                                $studentRawTotal += $mark;
+                            }
+                        }
+
+                        // Legacy rows saved without a paper (componentID 0/null)
+                        if (!$anyMarked) {
+                            $legacy = $studentResults->first(function ($r) {
+                                $cid = (int) ($r->componentID ?? 0);
+                                return $cid === 0 &&
+                                    $r->marks !== null &&
+                                    $r->marks !== "";
+                            });
+                            if ($legacy && !empty($duoPapers)) {
+                                $anyMarked = true;
+                                $legacyMark = (float) $legacy->marks;
+                                $firstPaperId = (int) $duoPapers[0]["componentID"];
+                                $paperMarks[$firstPaperId] = $legacyMark;
+                                $studentRawTotal = $legacyMark;
+                            }
+                        }
+
+                        $percentage = null;
+                        $grade = null;
+                        $remark = null;
+                        if ($anyMarked && $paperMaxTotal > 0) {
+                            $percentage = round(
+                                ($studentRawTotal / $paperMaxTotal) * 100,
+                                2,
+                            );
+                            $calc = $this->calculateGradeAndRemarkFromMarks(
+                                $percentage,
+                                $className,
+                            );
+                            $grade = $calc["grade"];
+                            $remark = $calc["remark"];
+                        } else {
+                            $grade = "Incomplete";
+                            $remark = "Incomplete";
+                        }
+
+                        return (object) [
+                            "studentID" => $first->studentID,
+                            "student" => $first->student,
+                            "examination" => $first->examination,
+                            "test_week" => $first->test_week,
+                            "paper_marks" => $paperMarks,
+                            "student_raw_total" => $anyMarked
+                                ? round($studentRawTotal, 2)
+                                : null,
+                            "percentage" => $percentage,
+                            "marks" => $percentage,
+                            "exam_marks" => $percentage,
+                            "total_marks" => $percentage,
+                            "avg_marks" => $percentage,
+                            "ca_marks" => 0,
+                            "grade" => $grade,
+                            "remark" => $remark,
+                        ];
+                    })
+                    ->values()
+                    ->sortByDesc(function ($row) {
+                        return $row->percentage ?? -1;
+                    })
+                    ->values();
+
+                $studentRows = $this->attachExaminationNumbersToResultRows(
+                    $studentRows,
+                    (int) $classSubject->classID,
+                    (int) Session::get("schoolID"),
+                );
+
+                return response()->json(
+                    [
+                        "success" => true,
+                        "results" => $studentRows,
+                        "has_ca" => false,
+                        "is_duo" => true,
+                        "duo_papers" => $duoPapers,
+                        "paper_max_total" => $paperMaxTotal,
+                        "is_a_level" => $isALevelClass,
+                        "class_name" => $className,
+                        "class_subject" => $classSubject,
+                        "available_test_weeks" => $availableTestWeeks,
+                    ],
+                    200,
+                );
+            }
 
             if ($examID) {
-                // Check if this exam has CA definition
                 $caDefinition = \App\Models\CaDefinition::where(
                     "schoolID",
                     Session::get("schoolID"),
@@ -6446,7 +6836,7 @@ class TeachersController extends Controller
                     ->where("examID", $examID)
                     ->first();
 
-                if ($caDefinition && !empty($caDefinition->test_ids)) {
+                if ($caDefinition && !empty($caDefinition->test_ids) && !$isDuoSubject) {
                     $hasCA = true;
                     if ($request->get('all_subclasses')) {
                         $allTestResults = Result::whereIn(
@@ -6483,9 +6873,9 @@ class TeachersController extends Controller
 
                     $results->transform(function ($result) use (
                         $caMarksMap,
-                        $classSubject,
                         $grades,
-                        $classNameLower,
+                        $className,
+                        $isALevelClass,
                     ) {
                         $caMark = isset($caMarksMap[$result->studentID])
                             ? $caMarksMap[$result->studentID]
@@ -6500,44 +6890,34 @@ class TeachersController extends Controller
                         $result->total_marks = $examMark + $caMark;
                         $result->avg_marks = $result->total_marks / 2;
 
-                        // Use pre-fetched grades logic here instead of call to getGradeFromDefinition
                         $marksNum = (float) $result->avg_marks;
-                        $gradeDefinition = $grades
-                            ->where("first", "<=", $marksNum)
-                            ->where("last", ">=", $marksNum)
-                            ->first();
-                        $result->grade = $gradeDefinition->grade ?? "N/A";
-
-                        // Map grade to descriptive remark
-                        $gradeUpper = strtoupper($result->grade);
-                        switch ($gradeUpper) {
-                            case "A":
-                                $result->remark = "Excellent";
-                                break;
-                            case "B":
-                                $result->remark = "Very Good";
-                                break;
-                            case "C":
-                                $result->remark = "Good";
-                                break;
-                            case "D":
-                                $result->remark = "Pass";
-                                break;
-                            case "E":
-                                $result->remark = "Satisfactory";
-                                break;
-                            default:
-                                $result->remark = "Fail";
-                                break;
+                        if ($isALevelClass) {
+                            $calc = $this->calculateGradeAndRemarkFromMarks(
+                                $marksNum,
+                                $className,
+                            );
+                            $result->grade = $calc["grade"] ?? "N/A";
+                            $result->remark = $calc["remark"] ?? "Fail";
+                        } else {
+                            $gradeDefinition = $grades
+                                ->where("first", "<=", $marksNum)
+                                ->where("last", ">=", $marksNum)
+                                ->first();
+                            $result->grade = $gradeDefinition->grade ?? "N/A";
+                            $result->remark = $this->remarkForGrade(
+                                $result->grade,
+                                $className,
+                            );
                         }
 
                         return $result;
                     });
                 } else {
                     $results->transform(function ($result) use (
-                        $classSubject,
                         $grades,
-                        $classNameLower,
+                        $className,
+                        $isALevelClass,
+                        $isDuoSubject,
                     ) {
                         $result->ca_marks = 0;
                         $result->exam_marks =
@@ -6547,84 +6927,91 @@ class TeachersController extends Controller
                         $result->total_marks = $result->exam_marks;
                         $result->avg_marks = $result->total_marks;
 
-                        // Use pre-fetched grades logic here instead of call to getGradeFromDefinition
-                        $marksNum = (float) $result->avg_marks;
-                        $gradeDefinition = $grades
-                            ->where("first", "<=", $marksNum)
-                            ->where("last", ">=", $marksNum)
-                            ->first();
-                        $result->grade = $gradeDefinition->grade ?? "N/A";
+                        // Single duo paper row (edit load): no letter grade
+                        if ($isDuoSubject) {
+                            $result->grade = null;
+                            $result->remark = null;
+                            return $result;
+                        }
 
-                        // Map grade to descriptive remark
-                        $gradeUpper = strtoupper($result->grade);
-                        switch ($gradeUpper) {
-                            case "A":
-                                $result->remark = "Excellent";
-                                break;
-                            case "B":
-                                $result->remark = "Very Good";
-                                break;
-                            case "C":
-                                $result->remark = "Good";
-                                break;
-                            case "D":
-                                $result->remark = "Pass";
-                                break;
-                            case "E":
-                                $result->remark = "Satisfactory";
-                                break;
-                            default:
-                                $result->remark = "Fail";
-                                break;
+                        $marksNum = (float) $result->avg_marks;
+                        if ($isALevelClass) {
+                            $calc = $this->calculateGradeAndRemarkFromMarks(
+                                $marksNum,
+                                $className,
+                            );
+                            $result->grade = $calc["grade"] ?? "N/A";
+                            $result->remark = $calc["remark"] ?? "Fail";
+                        } else {
+                            $gradeDefinition = $grades
+                                ->where("first", "<=", $marksNum)
+                                ->where("last", ">=", $marksNum)
+                                ->first();
+                            $result->grade = $gradeDefinition->grade ?? "N/A";
+                            $result->remark = $this->remarkForGrade(
+                                $result->grade,
+                                $className,
+                            );
                         }
 
                         return $result;
                     });
                 }
             } else {
-                // Basic results if no examID
-                $results->transform(function ($result) use ($classSubject) {
+                $results->transform(function ($result) use (
+                    $classSubject,
+                    $className,
+                    $isALevelClass,
+                ) {
                     $result->ca_marks = 0;
                     $result->exam_marks =
                         $result->marks !== null ? (float) $result->marks : 0;
                     $result->total_marks = $result->exam_marks;
                     $result->avg_marks = $result->total_marks;
 
-                    $gradeData = $this->getGradeFromDefinition(
-                        $result->total_marks,
-                        $classSubject->classID,
-                    );
-                    $result->grade = $gradeData["grade"] ?? "N/A";
-
-                    // Map grade to descriptive remark
-                    $grade = strtoupper($result->grade);
-                    if ($grade === "A") {
-                        $result->remark = "Excellent";
-                    } elseif ($grade === "B") {
-                        $result->remark = "Very Good";
-                    } elseif ($grade === "C") {
-                        $result->remark = "Good";
-                    } elseif ($grade === "D") {
-                        $result->remark = "Pass";
-                    } elseif ($grade === "E") {
-                        $result->remark = "Satisfactory";
+                    if ($isALevelClass) {
+                        $calc = $this->calculateGradeAndRemarkFromMarks(
+                            $result->total_marks,
+                            $className,
+                        );
+                        $result->grade = $calc["grade"] ?? "N/A";
+                        $result->remark = $calc["remark"] ?? "Fail";
                     } else {
-                        $result->remark = "Fail";
+                        $gradeData = $this->getGradeFromDefinition(
+                            $result->total_marks,
+                            $classSubject->classID,
+                        );
+                        $result->grade = $gradeData["grade"] ?? "N/A";
+                        $result->remark = $this->remarkForGrade(
+                            $result->grade,
+                            $className,
+                        );
                     }
 
                     return $result;
                 });
             }
 
-            // Sort by total_marks high to low
             $results = $results->sortByDesc("total_marks")->values();
+
+            $results = $this->attachExaminationNumbersToResultRows(
+                $results,
+                (int) $classSubject->classID,
+                (int) Session::get("schoolID"),
+            );
 
             return response()->json(
                 [
                     "success" => true,
                     "results" => $results,
                     "has_ca" => $hasCA,
+                    "is_duo" => $isDuoSubject,
+                    "duo_papers" => $duoPapers,
+                    "paper_max_total" => $paperMaxTotal,
+                    "is_a_level" => $isALevelClass,
+                    "class_name" => $className,
                     "class_subject" => $classSubject,
+                    "available_test_weeks" => $availableTestWeeks,
                 ],
                 200,
             );
@@ -6676,11 +7063,41 @@ class TeachersController extends Controller
                     "class_subjects.*",
                     "classes.class_name",
                     "school_subjects.subject_name",
+                    "school_subjects.is_duo",
+                    "school_subjects.subjectID as subject_id",
                 )
                 ->first();
 
             if (!$classSubject) {
                 return redirect()->back()->with("error", "Subject not found.");
+            }
+
+            $className = $classSubject->class_name ?? "";
+            $isALevelClass = app(
+                \App\Services\SelectedAcademicYearService::class,
+            )->isALevelClassName($className);
+
+            $duoPapers = [];
+            $paperMaxTotal = 0;
+            $isDuoSubject = (bool) ($classSubject->is_duo ?? false);
+            if ($isDuoSubject) {
+                $duoPapers = \App\Models\SchoolSubjectComponent::where(
+                    "subjectID",
+                    $classSubject->subjectID ?? $classSubject->subject_id,
+                )
+                    ->orderBy("sort_order")
+                    ->get()
+                    ->map(function ($comp) {
+                        return [
+                            "componentID" => (int) $comp->componentID,
+                            "component_name" => $comp->component_name,
+                            "max_marks" => (int) $comp->max_marks,
+                        ];
+                    })
+                    ->values()
+                    ->all();
+                $isDuoSubject = count($duoPapers) > 0;
+                $paperMaxTotal = (int) collect($duoPapers)->sum("max_marks");
             }
 
             // Fetch results by joining with students to filter by schoolID
@@ -6693,7 +7110,7 @@ class TeachersController extends Controller
                 )
                 ->where("results.class_subjectID", $classSubjectID)
                 ->where("students.schoolID", $schoolID)
-                ->select("results.*"); // Ensure we only get result columns to avoid ID conflicts
+                ->select("results.*");
 
             if ($examID) {
                 $query->where("results.examID", $examID);
@@ -6710,14 +7127,89 @@ class TeachersController extends Controller
             if ($examID) {
                 $examination = Examination::find($examID);
                 $examName = $examination ? $examination->exam_name : "Unknown";
+            }
 
+            // Duo + exam selected: one row per student with paper columns + combined total/grade
+            if ($isDuoSubject && $examID) {
+                $results = $results
+                    ->groupBy("studentID")
+                    ->map(function ($studentResults) use (
+                        $duoPapers,
+                        $paperMaxTotal,
+                        $className,
+                    ) {
+                        $first = $studentResults->first();
+                        $paperMarks = [];
+                        $studentRawTotal = 0;
+                        $anyMarked = false;
+
+                        foreach ($duoPapers as $paper) {
+                            $cid = (int) $paper["componentID"];
+                            $row = $studentResults->firstWhere(
+                                "componentID",
+                                $cid,
+                            );
+                            $mark =
+                                $row &&
+                                $row->marks !== null &&
+                                $row->marks !== ""
+                                    ? (float) $row->marks
+                                    : null;
+                            $paperMarks[$cid] = $mark;
+                            if ($mark !== null) {
+                                $anyMarked = true;
+                                $studentRawTotal += $mark;
+                            }
+                        }
+
+                        $percentage = null;
+                        $grade = "Incomplete";
+                        $remark = "Incomplete";
+                        if ($anyMarked && $paperMaxTotal > 0) {
+                            $percentage = round(
+                                ($studentRawTotal / $paperMaxTotal) * 100,
+                                2,
+                            );
+                            $calc = $this->calculateGradeAndRemarkFromMarks(
+                                $percentage,
+                                $className,
+                            );
+                            $grade = $calc["grade"] ?? "N/A";
+                            $remark = $calc["remark"] ?? "Fail";
+                        }
+
+                        return (object) [
+                            "studentID" => $first->studentID,
+                            "student" => $first->student,
+                            "paper_marks" => $paperMarks,
+                            "student_raw_total" => $anyMarked
+                                ? round($studentRawTotal, 2)
+                                : null,
+                            "percentage" => $percentage,
+                            "exam_marks" => $percentage,
+                            "total_marks" => $percentage,
+                            "grade" => $grade,
+                            "remark" => $remark,
+                        ];
+                    })
+                    ->values()
+                    ->sortByDesc(function ($row) {
+                        return $row->percentage ?? -1;
+                    })
+                    ->values();
+
+                $results = $this->attachExaminationNumbersToResultRows(
+                    $results,
+                    (int) $classSubject->classID,
+                    (int) $schoolID,
+                );
+            } elseif ($examID) {
                 $caDefinition = \App\Models\CaDefinition::where("schoolID", $schoolID)
                     ->where("examID", $examID)
                     ->first();
 
-                if ($caDefinition && !empty($caDefinition->test_ids)) {
+                if ($caDefinition && !empty($caDefinition->test_ids) && !$isDuoSubject) {
                     $hasCA = true;
-                    // Filter test results by schoolID via students join as well
                     $allTestResults = Result::join(
                         "students",
                         "results.studentID",
@@ -6750,6 +7242,8 @@ class TeachersController extends Controller
                     $results->transform(function ($result) use (
                         $caMarksMap,
                         $classSubject,
+                        $className,
+                        $isALevelClass,
                     ) {
                         $caMark = isset($caMarksMap[$result->studentID])
                             ? $caMarksMap[$result->studentID]
@@ -6763,31 +7257,33 @@ class TeachersController extends Controller
                         $result->total_marks = $examMark + $caMark;
                         $result->avg_marks = $result->total_marks / 2;
 
-                        $gradeData = $this->getGradeFromDefinition(
-                            $result->avg_marks,
-                            $classSubject->classID,
-                        );
-                        $result->grade = $gradeData["grade"] ?? "N/A";
-
-                        $grade = strtoupper($result->grade);
-                        if ($grade === "A") {
-                            $result->remark = "Excellent";
-                        } elseif ($grade === "B") {
-                            $result->remark = "Very Good";
-                        } elseif ($grade === "C") {
-                            $result->remark = "Good";
-                        } elseif ($grade === "D") {
-                            $result->remark = "Pass";
-                        } elseif ($grade === "E") {
-                            $result->remark = "Satisfactory";
+                        if ($isALevelClass) {
+                            $calc = $this->calculateGradeAndRemarkFromMarks(
+                                $result->avg_marks,
+                                $className,
+                            );
+                            $result->grade = $calc["grade"] ?? "N/A";
+                            $result->remark = $calc["remark"] ?? "Fail";
                         } else {
-                            $result->remark = "Fail";
+                            $gradeData = $this->getGradeFromDefinition(
+                                $result->avg_marks,
+                                $classSubject->classID,
+                            );
+                            $result->grade = $gradeData["grade"] ?? "N/A";
+                            $result->remark = $this->remarkForGrade(
+                                $result->grade,
+                                $className,
+                            );
                         }
 
                         return $result;
                     });
                 } else {
-                    $results->transform(function ($result) use ($classSubject) {
+                    $results->transform(function ($result) use (
+                        $classSubject,
+                        $className,
+                        $isALevelClass,
+                    ) {
                         $result->ca_marks = 0;
                         $result->exam_marks =
                             $result->marks !== null
@@ -6796,84 +7292,103 @@ class TeachersController extends Controller
                         $result->total_marks = $result->exam_marks;
                         $result->avg_marks = $result->total_marks;
 
-                        $gradeData = $this->getGradeFromDefinition(
-                            $result->total_marks,
-                            $classSubject->classID,
-                        );
-                        $result->grade = $gradeData["grade"] ?? "N/A";
-
-                        $grade = strtoupper($result->grade);
-                        if ($grade === "A") {
-                            $result->remark = "Excellent";
-                        } elseif ($grade === "B") {
-                            $result->remark = "Very Good";
-                        } elseif ($grade === "C") {
-                            $result->remark = "Good";
-                        } elseif ($grade === "D") {
-                            $result->remark = "Pass";
-                        } elseif ($grade === "E") {
-                            $result->remark = "Satisfactory";
+                        if ($isALevelClass) {
+                            $calc = $this->calculateGradeAndRemarkFromMarks(
+                                $result->total_marks,
+                                $className,
+                            );
+                            $result->grade = $calc["grade"] ?? "N/A";
+                            $result->remark = $calc["remark"] ?? "Fail";
                         } else {
-                            $result->remark = "Fail";
+                            $gradeData = $this->getGradeFromDefinition(
+                                $result->total_marks,
+                                $classSubject->classID,
+                            );
+                            $result->grade = $gradeData["grade"] ?? "N/A";
+                            $result->remark = $this->remarkForGrade(
+                                $result->grade,
+                                $className,
+                            );
                         }
 
                         return $result;
                     });
                 }
+                $results = $results->sortByDesc("total_marks")->values();
             } else {
-                $results->transform(function ($result) use ($classSubject) {
+                $results->transform(function ($result) use (
+                    $classSubject,
+                    $className,
+                    $isALevelClass,
+                ) {
                     $result->ca_marks = 0;
                     $result->exam_marks =
                         $result->marks !== null ? (float) $result->marks : 0;
                     $result->total_marks = $result->exam_marks;
                     $result->avg_marks = $result->total_marks;
 
-                    $gradeData = $this->getGradeFromDefinition(
-                        $result->total_marks,
-                        $classSubject->classID,
-                    );
-                    $result->grade = $gradeData["grade"] ?? "N/A";
-
-                    $grade = strtoupper($result->grade);
-                    if ($grade === "A") {
-                        $result->remark = "Excellent";
-                    } elseif ($grade === "B") {
-                        $result->remark = "Very Good";
-                    } elseif ($grade === "C") {
-                        $result->remark = "Good";
-                    } elseif ($grade === "D") {
-                        $result->remark = "Pass";
-                    } elseif ($grade === "E") {
-                        $result->remark = "Satisfactory";
+                    if ($isALevelClass) {
+                        $calc = $this->calculateGradeAndRemarkFromMarks(
+                            $result->total_marks,
+                            $className,
+                        );
+                        $result->grade = $calc["grade"] ?? "N/A";
+                        $result->remark = $calc["remark"] ?? "Fail";
                     } else {
-                        $result->remark = "Fail";
+                        $gradeData = $this->getGradeFromDefinition(
+                            $result->total_marks,
+                            $classSubject->classID,
+                        );
+                        $result->grade = $gradeData["grade"] ?? "N/A";
+                        $result->remark = $this->remarkForGrade(
+                            $result->grade,
+                            $className,
+                        );
                     }
 
                     return $result;
                 });
+                $results = $results->sortByDesc("total_marks")->values();
             }
 
-            $results = $results->sortByDesc("total_marks")->values();
+            if (!($isDuoSubject && $examID)) {
+                $results = $this->attachExaminationNumbersToResultRows(
+                    $results,
+                    (int) $classSubject->classID,
+                    (int) $schoolID,
+                );
+            }
 
             $teacher = DB::table("teachers")->where("id", $teacherID)->first();
             $teacherName = $teacher
                 ? $teacher->first_name . " " . $teacher->last_name
                 : "N/A";
 
+            $school = School::find($schoolID);
+
             $dompdf = new Dompdf();
             $html = view("Teacher.subject_results_pdf", [
                 "results" => $results,
                 "class_subject" => $classSubject,
                 "has_ca" => $hasCA,
+                "is_duo" => $isDuoSubject && $examID,
+                "duo_papers" => $duoPapers,
+                "paper_max_total" => $paperMaxTotal,
                 "exam_name" => $examName,
                 "teacher_name" => $teacherName,
+                "school" => $school,
                 "subject" => (object) [
                     "subject_name" => $classSubject->subject_name,
                 ],
             ])->render();
 
             $dompdf->loadHtml($html);
-            $dompdf->setPaper("A4", "portrait");
+            // Landscape when duo has several paper columns
+            $orientation =
+                $isDuoSubject && $examID && count($duoPapers) >= 2
+                    ? "landscape"
+                    : "portrait";
+            $dompdf->setPaper("A4", $orientation);
             $dompdf->render();
 
             $filename =
@@ -6898,11 +7413,12 @@ class TeachersController extends Controller
         }
     }
 
-    public function getExaminationsForSubject($classSubjectID)
+    public function getExaminationsForSubject(Request $request, $classSubjectID)
     {
         try {
             $teacherID = Session::get("teacherID");
             $userType = Session::get("user_type");
+            $forView = $request->boolean("for_view");
 
             if (!$teacherID && $userType !== "Admin" && $userType !== "Staff") {
                 return response()->json(
@@ -6914,10 +7430,8 @@ class TeachersController extends Controller
             }
 
             // Verify access
-            $classSubject = ClassSubject::where(
-                "class_subjectID",
-                $classSubjectID,
-            )
+            $classSubject = ClassSubject::with(['class', 'subclass.class'])
+                ->where("class_subjectID", $classSubjectID)
                 ->where("status", "Active")
                 ->whereHas("subject", function ($query) {
                     $query->where("status", "Active");
@@ -6935,7 +7449,10 @@ class TeachersController extends Controller
 
             if ($userType !== "Admin" && $userType !== "Staff") {
                 // Check if direct owner
-                $isOwner = $classSubject->teacherID == $teacherID;
+                $isOwner = $this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                );
 
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
@@ -7015,15 +7532,93 @@ class TeachersController extends Controller
                 }
             }
 
-            // Get examinations - ONLY exams with enter_result = true (no other logic)
+            // Get examinations scoped to header years.
+            // Add/Edit: only exams with enter_result=true.
+            // View: all exams in those years (so saved results remain visible after entry is closed).
             $schoolID = Session::get("schoolID");
+            $yearService = app(\App\Services\SelectedAcademicYearService::class);
+            $headerYearIds = array_values(
+                array_filter(array_map("intval", $yearService->selectedYearIds((int) $schoolID))),
+            );
 
-            // Get examinations where enter_result = true only - no other checks
-            $examinations = Examination::where("schoolID", $schoolID)
-                ->where("enter_result", true) // Only exams with enter_result = true
+            $examQuery = Examination::where(function ($outer) use (
+                $schoolID,
+                $forView,
+                $headerYearIds,
+                $classSubjectID,
+                $classSubject,
+            ) {
+                $outer->where(function ($q) use (
+                    $schoolID,
+                    $forView,
+                    $headerYearIds,
+                ) {
+                    $q->where("schoolID", $schoolID);
+                    if (!$forView) {
+                        $q->where("enter_result", true);
+                    }
+                    if (!empty($headerYearIds)) {
+                        $q->where(function ($yq) use ($headerYearIds) {
+                            $yq->whereIn("academic_yearID", $headerYearIds);
+                            foreach ($headerYearIds as $yearId) {
+                                $yq->orWhereJsonContains(
+                                    "academic_year_ids",
+                                    $yearId,
+                                );
+                            }
+                        });
+                    }
+                });
+
+                // View: also include any exam that already has saved marks for this subject
+                // (including sibling subclass class_subjects — save remaps per student stream)
+                if ($forView) {
+                    $relatedCsIds = ClassSubject::where(
+                        "classID",
+                        $classSubject->classID,
+                    )
+                        ->where("subjectID", $classSubject->subjectID)
+                        ->where("status", "Active")
+                        ->pluck("class_subjectID")
+                        ->all();
+                    if (
+                        !in_array(
+                            (int) $classSubjectID,
+                            array_map("intval", $relatedCsIds),
+                            true,
+                        )
+                    ) {
+                        $relatedCsIds[] = (int) $classSubjectID;
+                    }
+                    $resultExamIds = Result::whereIn(
+                        "class_subjectID",
+                        $relatedCsIds,
+                    )
+                        ->distinct()
+                        ->pluck("examID")
+                        ->filter()
+                        ->values()
+                        ->all();
+                    if (!empty($resultExamIds)) {
+                        $outer->orWhere(function ($q) use (
+                            $schoolID,
+                            $resultExamIds,
+                        ) {
+                            $q->where("schoolID", $schoolID)->whereIn(
+                                "examID",
+                                $resultExamIds,
+                            );
+                        });
+                    }
+                }
+            });
+
+            $examinations = $examQuery
                 ->orderBy("created_at", "desc")
                 ->get()
-                ->map(function ($exam) use ($schoolID) {
+                ->unique("examID")
+                ->values()
+                ->map(function ($exam) use ($schoolID, $classSubject) {
                     // Check if term is closed
                     $isTermClosed = false;
                     if ($exam->term && $exam->year) {
@@ -7056,11 +7651,34 @@ class TeachersController extends Controller
                         "examID" => $exam->examID,
                         "exam_name" => $exam->exam_name,
                         "year" => $exam->year,
+                        "year_label" => $exam->displayYearLabelForClass(
+                            optional($classSubject->class)->class_name
+                                ?? optional(optional($classSubject->subclass)->class)->class_name
+                        ),
+                        "academic_yearID" => $exam->academic_yearID,
+                        "academic_year_ids" => $exam->linkedAcademicYearIds(),
                         "status" => $exam->status,
                         "start_date" => $exam->start_date,
                         "end_date" => $exam->end_date,
                         "enter_result" => $exam->enter_result,
                         "exam_category" => $exam->exam_category,
+                        "exam_type" => $exam->exam_type,
+                        "test_type" => (function () use ($exam) {
+                            $name = strtolower((string) ($exam->exam_name ?? ""));
+                            if (
+                                $exam->exam_category === "test" &&
+                                str_contains($name, "monthly")
+                            ) {
+                                return "monthly_test";
+                            }
+                            if (
+                                $exam->exam_category === "test" &&
+                                str_contains($name, "weekly")
+                            ) {
+                                return "weekly_test";
+                            }
+                            return $exam->exam_type;
+                        })(),
                         "term" => $exam->term,
                         "is_term_closed" => $isTermClosed,
                         "allow_no_format" => $exam->allow_no_format,
@@ -7068,10 +7686,44 @@ class TeachersController extends Controller
                     ];
                 });
 
+            $classNameForYear =
+                optional($classSubject->class)->class_name
+                ?? optional(optional($classSubject->subclass)->class)->class_name
+                ?? "";
+            $headerYearId = $yearService->yearIdForClassName(
+                $classNameForYear,
+                (int) $schoolID,
+            );
+            $yearCtx = $yearService->headerContext((int) $schoolID);
+            $headerLabels = [];
+            if (!empty($yearCtx["has_a_level"])) {
+                $o = $yearCtx["selected_o_level_year"] ?? null;
+                $a = $yearCtx["selected_a_level_year"] ?? null;
+                if ($o) {
+                    $headerLabels[] = ($o->year_name ?: $o->year) . " (O-Level)";
+                }
+                if ($a) {
+                    $headerLabels[] = ($a->year_name ?: $a->year) . " (A-Level)";
+                }
+            } else {
+                $single = $yearCtx["selected_year"] ?? ($yearCtx["selected_o_level_year"] ?? null);
+                if ($single) {
+                    $headerLabels[] = $single->year_name ?: $single->year;
+                }
+            }
+            $headerYearLabel = !empty($headerLabels)
+                ? implode(" / ", $headerLabels)
+                : null;
+
             return response()->json(
                 [
                     "success" => true,
                     "examinations" => $examinations,
+                    "class_name" => $classNameForYear,
+                    "is_a_level" => $yearService->isALevelClassName($classNameForYear),
+                    "header_academic_yearID" => $headerYearId,
+                    "header_academic_year_ids" => $headerYearIds,
+                    "header_academic_year_label" => $headerYearLabel,
                 ],
                 200,
             );
@@ -7135,7 +7787,10 @@ class TeachersController extends Controller
             }
 
             if ($userType !== "Admin" && $userType !== "Staff") {
-                $isOwner = $classSubject->teacherID == $teacherID;
+                $isOwner = $this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                );
                 $isAssigned = false;
                 if (!$isOwner) {
                     $isAssigned = TeacherResultAssignment::where(
@@ -7176,16 +7831,29 @@ class TeachersController extends Controller
 
             // Fetch exam paper WITHOUT restricting by teacherID — the paper was created by the subject owner
             // but assigned teachers also need to load the question format
-            if (request()->get('all_subclasses')) {
-                $examPaper = ExamPaper::whereIn("class_subjectID", $classSubjectIDs)
-                    ->where("examID", $examID)
-                    ->orderBy("created_at", "desc")
-                    ->first();
+            $componentID = request()->get('componentID');
+            if ($componentID === '' || $componentID === null || $componentID === '0') {
+                $componentID = null;
             } else {
-                $examPaper = ExamPaper::where("class_subjectID", $classSubjectID)
-                    ->where("examID", $examID)
-                    ->orderBy("created_at", "desc")
-                    ->first();
+                $componentID = (int) $componentID;
+            }
+
+            $paperQuery = request()->get('all_subclasses')
+                ? ExamPaper::whereIn("class_subjectID", $classSubjectIDs)->where("examID", $examID)
+                : ExamPaper::where("class_subjectID", $classSubjectID)->where("examID", $examID);
+
+            if ($componentID) {
+                $paperQuery->where("componentID", $componentID);
+            }
+
+            $examPaper = $paperQuery->orderBy("created_at", "desc")->first();
+
+            $paperMaxMarks = null;
+            if ($componentID) {
+                $component = SchoolSubjectComponent::find($componentID);
+                if ($component) {
+                    $paperMaxMarks = (int) $component->max_marks;
+                }
             }
 
             $exam = Examination::find($examID);
@@ -7349,6 +8017,9 @@ class TeachersController extends Controller
                     "optional_total" => $optionalTotal,
                     "optional_ranges" => $optionalRanges,
                     "test_week" => $examPaper->test_week,
+                    "componentID" => $componentID,
+                    "paper_max_marks" => $paperMaxMarks,
+                    "is_duo_paper" => !empty($componentID),
                 ],
                 200,
             );
@@ -7402,7 +8073,8 @@ class TeachersController extends Controller
                 );
             }
 
-            $classSubject = ClassSubject::where(
+            $classSubject = ClassSubject::with(['subject.components', 'class', 'subclass.class'])
+                ->where(
                 "class_subjectID",
                 $request->class_subjectID,
             )
@@ -7416,8 +8088,41 @@ class TeachersController extends Controller
                 );
             }
 
+            $componentID = $request->input("componentID");
+            if ($componentID === "" || $componentID === null || $componentID === "0") {
+                $componentID = null;
+            } else {
+                $componentID = (int) $componentID;
+            }
+
+            $isDuoSubject = (bool) ($classSubject->subject->is_duo ?? false)
+                && $classSubject->subject->components
+                && $classSubject->subject->components->count() > 0;
+
+            $paperMaxMarks = 100;
+            if ($isDuoSubject) {
+                if (!$componentID) {
+                    return response()->json(
+                        ["error" => "Please select which duo paper you are entering marks for."],
+                        422,
+                    );
+                }
+                $component = $classSubject->subject->components
+                    ->firstWhere("componentID", $componentID);
+                if (!$component) {
+                    return response()->json(
+                        ["error" => "Invalid duo paper selected."],
+                        422,
+                    );
+                }
+                $paperMaxMarks = max(1, (int) $component->max_marks);
+            }
+
             if ($userType !== "Admin" && $userType !== "Staff") {
-                $isOwner = $classSubject->teacherID == $teacherID;
+                $isOwner = $this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                );
                 $isAssigned = false;
                 if (!$isOwner) {
                     $isAssigned = TeacherResultAssignment::where(
@@ -7531,9 +8236,28 @@ class TeachersController extends Controller
                 $grade = $resultData["grade"] ?? null;
                 $remark = $resultData["remark"] ?? null;
 
-                // Auto-calculate if not provided
-                if ($marks !== null && (!$grade || !$remark)) {
-                    $calc = $this->calculateGradeAndRemarkFromMarks($marks);
+                // Duo paper: validate against that paper's max marks; do NOT assign A/B (combined formula later)
+                if ($isDuoSubject && $marks !== null && $marks !== "") {
+                    if (!is_numeric($marks) || (float) $marks < 0 || (float) $marks > $paperMaxMarks) {
+                        return response()->json(
+                            [
+                                "error" => "Duo paper marks must be between 0 and {$paperMaxMarks}.",
+                            ],
+                            422,
+                        );
+                    }
+                    $grade = null;
+                    $remark = null;
+                } elseif ($marks !== null && (!$grade || !$remark)) {
+                    // Non-duo: auto-calculate letter grade (Form 5/6 use A-Level scale)
+                    $classNameForGrade =
+                        optional($classSubject->class)->class_name
+                        ?? optional(optional($classSubject->subclass)->class)->class_name
+                        ?? "";
+                    $calc = $this->calculateGradeAndRemarkFromMarks(
+                        $marks,
+                        $classNameForGrade,
+                    );
                     $grade = $grade ?: $calc["grade"];
                     $remark = $remark ?: $calc["remark"];
                 }
@@ -7553,6 +8277,7 @@ class TeachersController extends Controller
                     "enrollmentID" => $activeEnr["enrollmentID"],
                     "examID" => $request->examID,
                     "class_subjectID" => $resolvedClassSubjectID,
+                    "componentID" => $isDuoSubject ? (int) $componentID : 0,
                     "subclassID" => $studentSubclassID,
                     "marks" => $marks,
                     "grade" => $grade,
@@ -7610,6 +8335,7 @@ class TeachersController extends Controller
                             "examID" => $resultData["examID"],
                             "class_subjectID" => $resultData["class_subjectID"],
                             "test_week" => $resultData["test_week"],
+                            "componentID" => $resultData["componentID"] ?? 0,
                         ],
                         [
                             "subclassID" => $resultData["subclassID"],
@@ -7665,25 +8391,139 @@ class TeachersController extends Controller
         }
     }
 
-    private function calculateGradeAndRemarkFromMarks($marks)
+    private function calculateGradeAndRemarkFromMarks($marks, $className = null)
     {
         if ($marks === null || $marks === "" || !is_numeric($marks)) {
             return ["grade" => null, "remark" => null];
         }
 
         $marksNum = (float) $marks;
+        $isALevel = app(
+            \App\Services\SelectedAcademicYearService::class,
+        )->isALevelClassName($className);
 
-        if ($marksNum >= 75) {
-            return ["grade" => "A", "remark" => "Excellent"];
-        } elseif ($marksNum >= 65) {
-            return ["grade" => "B", "remark" => "Very Good"];
-        } elseif ($marksNum >= 45) {
-            return ["grade" => "C", "remark" => "Good"];
-        } elseif ($marksNum >= 30) {
-            return ["grade" => "D", "remark" => "Pass"];
-        } else {
+        // Form Five / Form Six (A-Level) — NECTA-style scale
+        if ($isALevel) {
+            if ($marksNum >= 80) {
+                return ["grade" => "A", "remark" => "Excellent"];
+            }
+            if ($marksNum >= 70) {
+                return ["grade" => "B", "remark" => "Very Good"];
+            }
+            if ($marksNum >= 60) {
+                return ["grade" => "C", "remark" => "Good"];
+            }
+            if ($marksNum >= 50) {
+                return ["grade" => "D", "remark" => "Average"];
+            }
+            if ($marksNum >= 40) {
+                return ["grade" => "E", "remark" => "Satisfactory"];
+            }
+            if ($marksNum >= 35) {
+                return ["grade" => "S", "remark" => "Subsidiary"];
+            }
             return ["grade" => "F", "remark" => "Fail"];
         }
+
+        // O-Level / default
+        if ($marksNum >= 75) {
+            return ["grade" => "A", "remark" => "Excellent"];
+        }
+        if ($marksNum >= 65) {
+            return ["grade" => "B", "remark" => "Very Good"];
+        }
+        if ($marksNum >= 45) {
+            return ["grade" => "C", "remark" => "Good"];
+        }
+        if ($marksNum >= 30) {
+            return ["grade" => "D", "remark" => "Pass"];
+        }
+        return ["grade" => "F", "remark" => "Fail"];
+    }
+
+    private function remarkForGrade($grade, $className = null)
+    {
+        $g = strtoupper(trim((string) $grade));
+        $isALevel = app(
+            \App\Services\SelectedAcademicYearService::class,
+        )->isALevelClassName($className);
+
+        $map = [
+            "A" => "Excellent",
+            "B" => "Very Good",
+            "C" => "Good",
+            "D" => $isALevel ? "Average" : "Pass",
+            "E" => "Satisfactory",
+            "S" => "Subsidiary",
+            "F" => "Fail",
+            "S/F" => "Fail",
+        ];
+
+        return $map[$g] ?? "Fail";
+    }
+
+    /**
+     * Exam numbers for a class (same sequence as attendance / admin add-results).
+     */
+    private function buildExaminationNumberMap(int $classID, int $schoolID): array
+    {
+        if (!$classID || !$schoolID) {
+            return [];
+        }
+
+        $school = School::find($schoolID);
+        $examCenterNo = !empty($school->exam_center_number)
+            ? $school->exam_center_number
+            : "SET-CENTER-NO";
+
+        $enrollmentService = app(
+            \App\Services\StudentEnrollmentService::class,
+        );
+        $activeInClassIds = $enrollmentService->studentIDsInClass(
+            $classID,
+            $schoolID,
+            "Active",
+        );
+
+        if (empty($activeInClassIds)) {
+            return [];
+        }
+
+        $students = Student::whereIn("studentID", $activeInClassIds)
+            ->orderByRaw(
+                "CASE
+                    WHEN gender LIKE 'F%' OR gender LIKE 'K%' THEN 1
+                    ELSE 2
+                END ASC",
+            )
+            ->orderBy("first_name", "asc")
+            ->get(["studentID"]);
+
+        $map = [];
+        foreach ($students as $index => $student) {
+            $sequence = str_pad($index + 1, 4, "0", STR_PAD_LEFT);
+            $map[(int) $student->studentID] = "{$examCenterNo}/{$sequence}";
+        }
+
+        return $map;
+    }
+
+    private function attachExaminationNumbersToResultRows($rows, int $classID, int $schoolID)
+    {
+        $map = $this->buildExaminationNumberMap($classID, $schoolID);
+        if ($map === []) {
+            return $rows;
+        }
+
+        foreach ($rows as $row) {
+            $sid = (int) ($row->studentID ?? 0);
+            if ($row->student) {
+                $row->student->examination_number = $map[$sid] ?? null;
+            }
+            $row->examination_number = $map[$sid] ?? null;
+        }
+
+        return $rows;
     }
 
     /**
@@ -7769,7 +8609,10 @@ class TeachersController extends Controller
                 );
             }
 
-            $isOwner = $classSubject->teacherID == $teacherID;
+            $isOwner = $this->teacherOwnsOrTeachesClassSubject(
+                $classSubject,
+                $teacherID,
+            );
             $isAssigned = false;
             if (!$isOwner) {
                 $isAssigned = TeacherResultAssignment::where(
@@ -8122,7 +8965,10 @@ class TeachersController extends Controller
             }
 
             if ($userType !== "Admin" && $userType !== "Staff") {
-                $isOwner = $classSubject->teacherID == $teacherID;
+                $isOwner = $this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                );
                 $isAssigned = false;
                 if (!$isOwner) {
                     $isAssigned = TeacherResultAssignment::where(
@@ -8493,7 +9339,10 @@ class TeachersController extends Controller
             }
 
             if ($userType !== "Admin" && $userType !== "Staff") {
-                $isOwner = $classSubject->teacherID == $teacherID;
+                $isOwner = $this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                );
                 $isAssigned = false;
                 if (!$isOwner) {
                     $isAssigned = TeacherResultAssignment::where(
@@ -12103,7 +12952,10 @@ class TeachersController extends Controller
             }
 
             if ($userType !== "Admin" && $userType !== "Staff") {
-                $isOwner = $classSubject->teacherID == $teacherID;
+                $isOwner = $this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                );
                 $isAssigned = false;
                 if (!$isOwner) {
                     $isAssigned = TeacherResultAssignment::where(

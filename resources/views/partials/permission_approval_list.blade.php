@@ -80,22 +80,20 @@
         </td>
         <td>{{ ucfirst($permission->time_mode) }}</td>
         <td>
+            @php
+                $startDateFmt = $permission->start_date
+                    ? (\Carbon\Carbon::parse($permission->start_date)->format('j F Y'))
+                    : '—';
+                $endDateFmt = $permission->end_date
+                    ? (\Carbon\Carbon::parse($permission->end_date)->format('j F Y'))
+                    : '—';
+            @endphp
             @if($permission->time_mode === 'days')
-                @if($isStudentPerm)
-                    {{ \Carbon\Carbon::parse($permission->start_date)->format('j F Y') }} - {{ \Carbon\Carbon::parse($permission->end_date)->format('j F Y') }}
-                    <br><span class="badge badge-light border">({{ $permission->days_count }} days)</span>
-                @else
-                    {{ $permission->start_date->format('j F Y') }} - {{ $permission->end_date->format('j F Y') }}
-                    <br><span class="badge badge-light border">({{ $permission->days_count }} days)</span>
-                @endif
+                {{ $startDateFmt }} - {{ $endDateFmt }}
+                <br><span class="badge badge-light border">({{ $permission->days_count }} days)</span>
             @else
-                @if($isStudentPerm)
-                    {{ \Carbon\Carbon::parse($permission->start_date)->format('j F Y') }}<br>
-                    {{ $permission->start_time }} - {{ $permission->end_time }}
-                @else
-                    {{ $permission->start_date->format('j F Y') }}<br>
-                    {{ $permission->start_time }} - {{ $permission->end_time }}
-                @endif
+                {{ $startDateFmt }}<br>
+                {{ $permission->start_time ?? '—' }} - {{ $permission->end_time ?? '—' }}
             @endif
         </td>
         <td>

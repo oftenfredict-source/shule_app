@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
 use App\Models\ClassSubject;
+use App\Models\ClassSubjectComponentTeacher;
 use App\Models\Examination;
 use App\Models\ExamPaper;
+use App\Models\SchoolSubjectComponent;
 use App\Models\OtherStaff;
 use App\Models\ExamPaperNotification;
 use App\Models\ExamPaperQuestion;
@@ -88,11 +90,62 @@ class ManageExaminationController extends Controller
             return redirect()->route('login')->with('error', 'Access denied');
         }
 
-        // Get teacher's subjects
-        $teacherSubjects = ClassSubject::where('teacherID', $teacherID)
-            ->where('status', 'Active')
-            ->with(['subject', 'class', 'subclass'])
-            ->get();
+        // Subjects this teacher teaches (main row OR duo paper assignment)
+        $teacherSubjects = ClassSubject::where('status', 'Active')
+            ->where(function ($q) use ($teacherID) {
+                $q->where('teacherID', $teacherID)
+                    ->orWhereHas('componentTeachers', function ($cq) use ($teacherID) {
+                        $cq->where('teacherID', $teacherID);
+                    });
+            })
+            ->with([
+                'subject.components',
+                'class',
+                'subclass',
+                'componentTeachers' => function ($q) use ($teacherID) {
+                    $q->where('teacherID', $teacherID)->with('component');
+                },
+            ])
+            ->get()
+            ->filter(function ($cs) {
+                return $cs->subject && strcasecmp((string) ($cs->subject->status ?? ''), 'Active') === 0;
+            })
+            ->map(function ($cs) use ($teacherID) {
+                $isDuo = (bool) ($cs->subject->is_duo ?? false)
+                    && $cs->subject->components
+                    && $cs->subject->components->count() > 0;
+
+                $myPapers = collect();
+                if ($isDuo) {
+                    $assignedComponentIDs = $cs->componentTeachers
+                        ->where('teacherID', (int) $teacherID)
+                        ->pluck('componentID')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+
+                    // Main teacher of duo with no paper rows yet → show all papers
+                    if (empty($assignedComponentIDs) && (int) $cs->teacherID === (int) $teacherID) {
+                        $myPapers = $cs->subject->components->sortBy('sort_order')->values();
+                    } else {
+                        $myPapers = $cs->subject->components
+                            ->filter(fn ($c) => in_array((int) $c->componentID, $assignedComponentIDs, true))
+                            ->sortBy('sort_order')
+                            ->values();
+                    }
+                }
+
+                $cs->is_duo_subject = $isDuo && $myPapers->count() > 0;
+                $cs->my_duo_papers = $myPapers->map(function ($c) {
+                    return [
+                        'componentID' => (int) $c->componentID,
+                        'component_name' => $c->component_name,
+                        'max_marks' => (int) $c->max_marks,
+                    ];
+                })->values();
+
+                return $cs;
+            })
+            ->values();
 
         // Get schoolID from session
         $schoolID = Session::get('schoolID');
@@ -140,7 +193,7 @@ class ManageExaminationController extends Controller
             });
 
         $myExamPapers = $myExamPapersQuery
-            ->with(['examination', 'classSubject.subject', 'classSubject.class', 'classSubject.subclass'])
+            ->with(['examination', 'classSubject.subject', 'classSubject.class', 'classSubject.subclass', 'component'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($paper) {
@@ -186,7 +239,7 @@ class ManageExaminationController extends Controller
                 $q->where('test_date', '>=', $today)
                   ->where('test_date', '<=', $nextWeekEnd);
             })
-            ->with(['examination', 'classSubject.subject', 'classSubject.class', 'classSubject.subclass'])
+            ->with(['examination', 'classSubject.subject', 'classSubject.class', 'classSubject.subclass', 'component'])
             ->orderBy('test_date', 'asc')
             ->get();
 
@@ -452,14 +505,15 @@ class ManageExaminationController extends Controller
             ? (int) $currentAcademicYear->academic_yearID
             : ($selectedYearIds[0] ?? null);
 
+        // Create-exam choices: only Active years selected in header (O-Level and/or A-Level)
+        $createExamAcademicYears = $this->buildCreateExamAcademicYearOptions($yearCtx, $yearService);
+
         // Get search parameters
         $search = request()->get('search', '');
-        $yearFilter = request()->get('year', ''); // legacy calendar year
-        $academicYearFilter = request()->get('academic_yearID', '');
-        // Default filter = header selected academic years when none explicitly chosen
-        if ($academicYearFilter === '' && $yearFilter === '' && !empty($selectedYearIds)) {
-            $academicYearFilter = implode(',', $selectedYearIds);
-        }
+        $yearFilter = request()->get('year', ''); // legacy calendar year (ignored when header years set)
+        // Academic year filter always comes from header (O-Level + A-Level selections)
+        $academicYearFilter = !empty($selectedYearIds) ? implode(',', $selectedYearIds) : '';
+        $headerAcademicYearLabel = $this->buildHeaderAcademicYearLabel($yearCtx);
         $statusFilter = request()->get('status', '');
         $termFilter = request()->get('term', '');
         $examCategoryFilter = request()->get('exam_category', '');
@@ -473,9 +527,9 @@ class ManageExaminationController extends Controller
             $query->where('exam_name', 'like', '%'.$search.'%');
         }
 
-        $filterYearIds = array_values(array_filter(array_map('intval', preg_split('/[,\s]+/', (string) $academicYearFilter) ?: [])));
+        $filterYearIds = $selectedYearIds;
         if (!empty($filterYearIds)) {
-            $query->whereIn('academic_yearID', $filterYearIds);
+            $this->applyExaminationAcademicYearFilter($query, $filterYearIds);
         } elseif (! empty($yearFilter)) {
             $query->where('year', $yearFilter);
         }
@@ -682,12 +736,22 @@ class ManageExaminationController extends Controller
             ->orderBy('class_name')
             ->get();
 
-        // Get available academic years for filter
+        // Get available academic years for filter (label O/A when school has A-Level)
+        $schoolHasALevel = !empty($yearCtx['has_a_level']);
         $availableAcademicYears = AcademicYear::where('schoolID', $schoolID)
             ->orderByDesc('is_current')
             ->orderByDesc('year')
             ->orderByDesc('academic_yearID')
-            ->get();
+            ->get()
+            ->map(function ($ay) use ($yearService, $schoolHasALevel) {
+                $isA = $yearService->isALevelYear($ay);
+                $ay->level_label = $isA ? 'A-Level' : 'O-Level';
+                $base = $ay->year_name ?: $ay->year;
+                $ay->display_label = $schoolHasALevel
+                    ? $base . ' (' . ($isA ? 'A-Level' : 'O-Level') . ')'
+                    : $base;
+                return $ay;
+            });
 
         // Legacy calendar years (fallback display)
         $availableYears = Examination::where('schoolID', $schoolID)
@@ -730,9 +794,12 @@ class ManageExaminationController extends Controller
             'currentYear',
             'currentAcademicYearID',
             'currentAcademicYear',
+            'createExamAcademicYears',
+            'yearCtx',
             'availableYears',
             'availableAcademicYears',
             'academicYearFilter',
+            'headerAcademicYearLabel',
             'selectedYearIds',
             'totalExams',
             'search',
@@ -794,10 +861,13 @@ class ManageExaminationController extends Controller
         $perPage = $request->get('per_page', 12);
         $search = $request->get('search', '');
         $yearFilter = $request->get('year', '');
-        $academicYearFilter = $request->get('academic_yearID', '');
         $statusFilter = $request->get('status', '');
         $approvalFilter = $request->get('approval_status', '');
         $examTypeFilter = $request->get('exam_type', '');
+
+        // Always filter by header academic years (O-Level + A-Level)
+        $selectedIds = app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID);
+        $filterYearIds = array_values(array_filter(array_map('intval', $selectedIds)));
 
         // Build query
         $query = Examination::where('schoolID', $schoolID);
@@ -807,16 +877,10 @@ class ManageExaminationController extends Controller
             $query->where('exam_name', 'like', '%'.$search.'%');
         }
 
-        $filterYearIds = array_values(array_filter(array_map('intval', preg_split('/[,\s]+/', (string) $academicYearFilter) ?: [])));
         if (!empty($filterYearIds)) {
-            $query->whereIn('academic_yearID', $filterYearIds);
+            $this->applyExaminationAcademicYearFilter($query, $filterYearIds);
         } elseif (! empty($yearFilter)) {
             $query->where('year', $yearFilter);
-        } else {
-            $selectedIds = app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID);
-            if (!empty($selectedIds)) {
-                $query->whereIn('academic_yearID', array_map('intval', $selectedIds));
-            }
         }
 
         if (! empty($statusFilter)) {
@@ -1044,10 +1108,23 @@ class ManageExaminationController extends Controller
                 ], 400);
             }
 
-            // Resolve academic year (header/current) for new exams
-            $resolvedYear = $this->resolveExaminationAcademicYear((int) $schoolID, $request->input('academic_yearID'));
+            // Resolve academic year (all Active header years: O + A)
+            $resolvedYear = $this->resolveExaminationAcademicYear((int) $schoolID, $request->input('academic_yearID'), true);
             $academicYearID = $resolvedYear['academic_yearID'];
+            $academicYearIds = $resolvedYear['academic_year_ids'] ?? [];
             $calendarYear = $resolvedYear['year'];
+
+            // Prefer explicit academic_year_ids from form when they match header Active years
+            $requestYearIds = array_values(array_filter(array_map('intval', (array) $request->input('academic_year_ids', []))));
+            if (!empty($requestYearIds) && !empty($academicYearIds)) {
+                $intersect = array_values(array_intersect($requestYearIds, $academicYearIds));
+                if (!empty($intersect)) {
+                    $academicYearIds = $intersect;
+                }
+            }
+            if (empty($academicYearIds) && $academicYearID) {
+                $academicYearIds = [(int) $academicYearID];
+            }
 
             // Prevent duplicate creation of Weekly/Monthly tests for the same school and year
             if ($request->exam_category === 'test' && in_array($request->exam_name, ['Weekly Test', 'Monthly Test'])) {
@@ -1117,6 +1194,7 @@ class ManageExaminationController extends Controller
                 'exam_type' => 'school_wide_all_subjects', // Set default for compatibility
                 'schoolID' => $schoolID,
                 'academic_yearID' => $academicYearID,
+                'academic_year_ids' => $academicYearIds,
                 'year' => $calendarYear,
                 'details' => $request->details,
                 'student_shifting_status' => ($request->exam_category === 'school_exams' || $request->exam_category === 'test') ? ($request->student_shifting_status ?? 'none') : 'none',
@@ -1660,6 +1738,12 @@ class ManageExaminationController extends Controller
                 'results_count' => count($results),
             ], 200);
 
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'errors' => $e->errors(),
+                'error' => collect($e->errors())->flatten()->first() ?: 'Validation failed.',
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Exam creation error: '.$e->getMessage(), [
@@ -1714,7 +1798,30 @@ class ManageExaminationController extends Controller
                 ->select('subclasses.subclassID', 'subclasses.subclass_name', 'subclasses.stream_code', 'classes.class_name')
                 ->orderBy('classes.class_name')
                 ->orderBy('subclasses.subclass_name')
-                ->get();
+                ->get()
+                ->map(function ($subclass) {
+                    $className = trim((string) ($subclass->class_name ?? ''));
+                    $subclassName = trim((string) ($subclass->subclass_name ?? ''));
+                    $isALevel = app(\App\Services\SelectedAcademicYearService::class)
+                        ->isALevelClassName($className);
+
+                    if ($isALevel) {
+                        $displayName = $subclassName !== '' ? $subclassName : $className;
+                    } elseif ($subclassName === '') {
+                        $displayName = $className;
+                    } else {
+                        $displayName = $className . ' ' . $subclassName;
+                    }
+
+                    return [
+                        'subclassID' => $subclass->subclassID,
+                        'subclass_name' => $subclass->subclass_name,
+                        'stream_code' => $subclass->stream_code,
+                        'class_name' => $subclass->class_name,
+                        'display_name' => $displayName,
+                    ];
+                })
+                ->values();
 
             return response()->json([
                 'success' => true,
@@ -1885,9 +1992,27 @@ class ManageExaminationController extends Controller
             $examData['enter_result'] = $exam->enter_result ?? false;
             $examData['except_class_ids'] = $exam->except_class_ids ?? [];
             $examData['academic_yearID'] = $exam->academic_yearID;
-            if ($exam->academic_yearID) {
+            $examData['academic_year_ids'] = $exam->academic_year_ids ?? ($exam->academic_yearID ? [(int) $exam->academic_yearID] : []);
+            $yearLabels = [];
+            $idsForLabels = $examData['academic_year_ids'];
+            if (!empty($idsForLabels)) {
+                $years = AcademicYear::whereIn('academic_yearID', $idsForLabels)->get()->keyBy('academic_yearID');
+                $yearService = app(SelectedAcademicYearService::class);
+                foreach ($idsForLabels as $yid) {
+                    $ay = $years->get($yid);
+                    if (!$ay) {
+                        continue;
+                    }
+                    $level = $yearService->isALevelYear($ay) ? 'A-Level' : 'O-Level';
+                    $yearLabels[] = $level . ' — ' . ($ay->year_name ?: $ay->year);
+                }
+            }
+            $examData['academic_year_labels'] = $yearLabels;
+            if (!empty($yearLabels)) {
+                $examData['academic_year_name'] = implode(' · ', $yearLabels);
+            } elseif ($exam->academic_yearID) {
                 $ay = AcademicYear::find($exam->academic_yearID);
-                $examData['academic_year_name'] = $ay ? ($ay->year_name ?: $ay->year) : null;
+                $examData['academic_year_name'] = $ay ? ($ay->year_name ?: $ay->year) : $exam->year;
             } else {
                 $examData['academic_year_name'] = $exam->year;
             }
@@ -2149,9 +2274,13 @@ class ManageExaminationController extends Controller
 
             DB::beginTransaction();
 
-            $resolvedYear = $this->resolveExaminationAcademicYear((int) $schoolID, $request->input('academic_yearID'));
+            $resolvedYear = $this->resolveExaminationAcademicYear((int) $schoolID, $request->input('academic_yearID'), false);
             $academicYearID = $resolvedYear['academic_yearID'];
             $calendarYear = $resolvedYear['year'];
+            $academicYearIds = $exam->academic_year_ids;
+            if (empty($academicYearIds) && ($academicYearID || $exam->academic_yearID)) {
+                $academicYearIds = [(int) ($academicYearID ?? $exam->academic_yearID)];
+            }
 
             // Derive exam name based on category
             $examCategory = $request->exam_category;
@@ -2205,6 +2334,7 @@ class ManageExaminationController extends Controller
                 'allow_no_paper' => $request->has('allow_no_paper') ? 1 : 0,
                 'exam_type' => 'school_wide_all_subjects',
                 'academic_yearID' => $academicYearID ?? $exam->academic_yearID,
+                'academic_year_ids' => !empty($academicYearIds) ? $academicYearIds : ($exam->academic_year_ids ?? null),
                 'year' => $calendarYear ?? $request->year,
                 'details' => $request->details,
                 'student_shifting_status' => ($examCategory === 'school_exams' || $examCategory === 'test') ? ($request->student_shifting_status ?? 'none') : 'none',
@@ -4362,6 +4492,133 @@ class ManageExaminationController extends Controller
     }
 
     /**
+     * Expected question-format total: duo paper max_marks, otherwise 100.
+     */
+    private function resolveQuestionFormatTotalMarks($componentID): int
+    {
+        if ($componentID === '' || $componentID === null || $componentID === '0' || $componentID === 0) {
+            return 100;
+        }
+
+        $component = SchoolSubjectComponent::find((int) $componentID);
+        if ($component && (int) $component->max_marks > 0) {
+            return max(1, (int) $component->max_marks);
+        }
+
+        return 100;
+    }
+
+    /**
+     * Validate question descriptions/marks against expected paper total.
+     * Returns error message string, or null when valid.
+     */
+    private function validateQuestionFormatAgainstTotal(
+        array $descriptions,
+        array $marks,
+        array $optionals,
+        array $optionalRanges,
+        array $optionalRequiredCounts,
+        int $expectedTotal
+    ): ?string {
+        $expectedTotal = max(1, (int) $expectedTotal);
+        $optionalEnabled = is_array($optionalRanges) && count($optionalRanges) > 0;
+        $optionalTotals = [];
+
+        if ($optionalEnabled) {
+            foreach ($optionalRanges as $rangeNumber => $totalMarks) {
+                $rangeNumber = (int) $rangeNumber;
+                $totalMarks = (int) $totalMarks;
+                if ($rangeNumber <= 0 || $totalMarks <= 0 || $totalMarks >= $expectedTotal) {
+                    return "Optional range total marks must be between 1 and ".($expectedTotal - 1).".";
+                }
+                $optionalTotals[$rangeNumber] = $totalMarks;
+            }
+        }
+
+        if (count($descriptions) === 0) {
+            return 'Please add at least one question format.';
+        }
+
+        if (count($marks) === 0) {
+            return 'Please provide marks for each question.';
+        }
+
+        if (count($descriptions) !== count($marks)) {
+            return 'Question descriptions and marks do not match.';
+        }
+
+        $requiredTotal = 0;
+        $optionalSum = 0;
+        $optionalSumByRange = [];
+        $optionalCountByRange = [];
+
+        foreach ($descriptions as $index => $description) {
+            $description = trim((string) $description);
+            $markValue = $marks[$index] ?? null;
+            $optionalRange = isset($optionals[$index]) ? (int) $optionals[$index] : 0;
+
+            if ($description === '') {
+                return 'Question description is required.';
+            }
+
+            if (! is_numeric($markValue) || (int) $markValue <= 0) {
+                return 'Each question must have a valid marks value.';
+            }
+
+            $markInt = (int) $markValue;
+            if ($markInt > $expectedTotal) {
+                return "Each question marks cannot exceed {$expectedTotal}.";
+            }
+
+            if ($optionalRange > 0) {
+                $optionalSum += $markInt;
+                $optionalSumByRange[$optionalRange] = ($optionalSumByRange[$optionalRange] ?? 0) + $markInt;
+                $optionalCountByRange[$optionalRange] = ($optionalCountByRange[$optionalRange] ?? 0) + 1;
+            } else {
+                $requiredTotal += $markInt;
+            }
+        }
+
+        if ($optionalEnabled) {
+            $optionalTotalSum = array_sum($optionalTotals);
+            if ($optionalTotalSum > $expectedTotal) {
+                return "Optional range totals cannot exceed {$expectedTotal}.";
+            }
+
+            foreach ($optionalRequiredCounts as $rangeNumber => $requiredCount) {
+                $rangeNumber = (int) $rangeNumber;
+                $requiredCount = (int) $requiredCount;
+                if ($requiredCount <= 0) {
+                    return 'Required optional questions must be at least 1.';
+                }
+                $available = $optionalCountByRange[$rangeNumber] ?? 0;
+                if ($requiredCount > $available) {
+                    return "Required optional questions exceed available questions for range {$rangeNumber}.";
+                }
+            }
+
+            foreach ($optionalTotals as $rangeNumber => $rangeTotal) {
+                $sum = $optionalSumByRange[$rangeNumber] ?? 0;
+                if ($sum < $rangeTotal) {
+                    return "Optional range {$rangeNumber} total must be at least {$rangeTotal}.";
+                }
+            }
+
+            if ($requiredTotal > ($expectedTotal - $optionalTotalSum)) {
+                return 'Required questions exceed allowed total.';
+            }
+
+            if (($requiredTotal + $optionalTotalSum) !== $expectedTotal) {
+                return "Required total plus optional totals must be exactly {$expectedTotal}.";
+            }
+        } elseif (($requiredTotal + $optionalSum) !== $expectedTotal) {
+            return "Total marks must be exactly {$expectedTotal}.";
+        }
+
+        return null;
+    }
+
+    /**
      * Store exam paper (upload or create)
      */
     public function storeExamPaper(Request $request)
@@ -4376,6 +4633,7 @@ class ManageExaminationController extends Controller
         $validator = Validator::make($request->all(), [
             'examID' => 'required|exists:examinations,examID',
             'class_subjectID' => 'required|exists:class_subjects,class_subjectID',
+            'componentID' => 'nullable|exists:school_subject_components,componentID',
             'upload_type' => 'required|in:upload',
             'test_week' => 'nullable|string',
             'test_date' => 'nullable|date',
@@ -4395,115 +4653,17 @@ class ManageExaminationController extends Controller
 
         if ($requiresQuestionFormat) {
             $validator->after(function ($validator) use ($request) {
-                $descriptions = $request->input('question_descriptions', []);
-                $marks = $request->input('question_marks', []);
-                $optionals = $request->input('question_optional', []);
-                $optionalRanges = $request->input('optional_ranges', []);
-                $optionalRequiredCounts = $request->input('optional_required_counts', []);
-                $optionalEnabled = is_array($optionalRanges) && count($optionalRanges) > 0;
-                $optionalTotals = [];
-                if ($optionalEnabled) {
-                    foreach ($optionalRanges as $rangeNumber => $totalMarks) {
-                        $rangeNumber = (int) $rangeNumber;
-                        $totalMarks = (int) $totalMarks;
-                        if ($rangeNumber <= 0 || $totalMarks <= 0 || $totalMarks >= 100) {
-                            $validator->errors()->add('optional_ranges', 'Optional range total marks must be between 1 and 99.');
-                            return;
-                        }
-                        $optionalTotals[$rangeNumber] = $totalMarks;
-                    }
-                }
-
-                if (! is_array($descriptions) || count($descriptions) === 0) {
-                    $validator->errors()->add('question_descriptions', 'Please add at least one question format.');
-                    return;
-                }
-
-                if (! is_array($marks) || count($marks) === 0) {
-                    $validator->errors()->add('question_marks', 'Please provide marks for each question.');
-                    return;
-                }
-
-                if (count($descriptions) !== count($marks)) {
-                    $validator->errors()->add('question_marks', 'Question descriptions and marks do not match.');
-                    return;
-                }
-
-                $requiredTotal = 0;
-                $optionalSum = 0;
-                foreach ($descriptions as $index => $description) {
-                    $description = trim((string) $description);
-                    $markValue = $marks[$index] ?? null;
-                    $optionalRange = isset($optionals[$index]) ? (int) $optionals[$index] : 0;
-                    $isOptional = $optionalRange > 0;
-
-                    if ($description === '') {
-                        $validator->errors()->add("question_descriptions.{$index}", 'Question description is required.');
-                        return;
-                    }
-
-                    if (! is_numeric($markValue) || (int) $markValue <= 0) {
-                        $validator->errors()->add("question_marks.{$index}", 'Each question must have a valid marks value.');
-                        return;
-                    }
-
-                    if ($isOptional) {
-                        $optionalSum += (int) $markValue;
-                    } else {
-                        $requiredTotal += (int) $markValue;
-                    }
-                }
-
-                if ($optionalEnabled) {
-                    $optionalSumByRange = [];
-                    $optionalCountByRange = [];
-                    foreach ($descriptions as $index => $description) {
-                        $rangeNumber = isset($optionals[$index]) ? (int) $optionals[$index] : 0;
-                        if ($rangeNumber > 0) {
-                            $optionalSumByRange[$rangeNumber] = ($optionalSumByRange[$rangeNumber] ?? 0) + (int) ($marks[$index] ?? 0);
-                            $optionalCountByRange[$rangeNumber] = ($optionalCountByRange[$rangeNumber] ?? 0) + 1;
-                        }
-                    }
-
-                    $optionalTotalSum = array_sum($optionalTotals);
-                    if ($optionalTotalSum > 100) {
-                        $validator->errors()->add('optional_ranges', 'Optional range totals cannot exceed 100.');
-                        return;
-                    }
-
-                    foreach ($optionalRequiredCounts as $rangeNumber => $requiredCount) {
-                        $rangeNumber = (int) $rangeNumber;
-                        $requiredCount = (int) $requiredCount;
-                        if ($requiredCount <= 0) {
-                            $validator->errors()->add('optional_required_counts', 'Required optional questions must be at least 1.');
-                            return;
-                        }
-                        $available = $optionalCountByRange[$rangeNumber] ?? 0;
-                        if ($requiredCount > $available) {
-                            $validator->errors()->add('optional_required_counts', "Required optional questions exceed available questions for range {$rangeNumber}.");
-                            return;
-                        }
-                    }
-
-                    foreach ($optionalTotals as $rangeNumber => $rangeTotal) {
-                        $sum = $optionalSumByRange[$rangeNumber] ?? 0;
-                        if ($sum < $rangeTotal) {
-                            $validator->errors()->add('question_marks', "Optional range {$rangeNumber} total must be at least {$rangeTotal}.");
-                            return;
-                        }
-                    }
-
-                    if ($requiredTotal > (100 - $optionalTotalSum)) {
-                        $validator->errors()->add('question_marks', 'Required questions exceed allowed total.');
-                        return;
-                    }
-                    if (($requiredTotal + $optionalTotalSum) !== 100) {
-                        $validator->errors()->add('question_marks', 'Required total plus optional totals must be exactly 100.');
-                        return;
-                    }
-                } else if (($requiredTotal + $optionalSum) !== 100) {
-                    $validator->errors()->add('question_marks', 'Total marks must be exactly 100.');
-                    return;
+                $expectedTotal = $this->resolveQuestionFormatTotalMarks($request->input('componentID'));
+                $error = $this->validateQuestionFormatAgainstTotal(
+                    $request->input('question_descriptions', []),
+                    $request->input('question_marks', []),
+                    $request->input('question_optional', []),
+                    $request->input('optional_ranges', []),
+                    $request->input('optional_required_counts', []),
+                    $expectedTotal
+                );
+                if ($error) {
+                    $validator->errors()->add('question_marks', $error);
                 }
             });
         }
@@ -4516,14 +4676,57 @@ class ManageExaminationController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Verify teacher owns this class_subject
-        $classSubject = ClassSubject::where('class_subjectID', $request->class_subjectID)
-            ->where('teacherID', $teacherID)
+        // Verify teacher owns this class_subject OR is assigned to a duo paper on it
+        $classSubject = ClassSubject::with(['subject.components', 'componentTeachers'])
+            ->where('class_subjectID', $request->class_subjectID)
             ->where('status', 'Active')
+            ->where(function ($q) use ($teacherID) {
+                $q->where('teacherID', $teacherID)
+                    ->orWhereHas('componentTeachers', function ($cq) use ($teacherID) {
+                        $cq->where('teacherID', $teacherID);
+                    });
+            })
             ->first();
 
         if (! $classSubject) {
             return response()->json(['error' => 'You do not teach this subject'], 403);
+        }
+
+        $isDuo = (bool) ($classSubject->subject->is_duo ?? false)
+            && $classSubject->subject->components
+            && $classSubject->subject->components->count() > 0;
+
+        $componentID = $request->input('componentID');
+        if ($componentID === '' || $componentID === null || $componentID === '0') {
+            $componentID = null;
+        } else {
+            $componentID = (int) $componentID;
+        }
+
+        if ($isDuo) {
+            if (!$componentID) {
+                return response()->json(['error' => 'Please select which duo paper (e.g. PHY1) you are uploading.'], 422);
+            }
+
+            $validComponentIDs = $classSubject->subject->components->pluck('componentID')->map(fn ($id) => (int) $id)->all();
+            if (!in_array($componentID, $validComponentIDs, true)) {
+                return response()->json(['error' => 'Invalid duo paper selected for this subject.'], 422);
+            }
+
+            $assignedToPaper = ClassSubjectComponentTeacher::where('class_subjectID', $classSubject->class_subjectID)
+                ->where('componentID', $componentID)
+                ->where('teacherID', $teacherID)
+                ->exists();
+            $isMainTeacher = (int) $classSubject->teacherID === (int) $teacherID;
+            // Allow if assigned to that paper, or main teacher when no paper teachers exist yet
+            $hasAnyPaperTeachers = ClassSubjectComponentTeacher::where('class_subjectID', $classSubject->class_subjectID)
+                ->whereNotNull('teacherID')
+                ->exists();
+            if (!$assignedToPaper && !($isMainTeacher && !$hasAnyPaperTeachers)) {
+                return response()->json(['error' => 'You are not assigned to upload this duo paper.'], 403);
+            }
+        } else {
+            $componentID = null;
         }
 
         // Verify examination is approved and has upload_paper enabled
@@ -4541,6 +4744,12 @@ class ManageExaminationController extends Controller
         $query = ExamPaper::where('examID', $request->examID)
             ->where('class_subjectID', $request->class_subjectID)
             ->where('teacherID', $teacherID);
+
+        if ($componentID) {
+            $query->where('componentID', $componentID);
+        } else {
+            $query->whereNull('componentID');
+        }
 
         if ($request->test_week) {
             $query->where('test_week', $request->test_week);
@@ -4620,6 +4829,7 @@ class ManageExaminationController extends Controller
 
             $examPaper->examID = $request->examID;
             $examPaper->class_subjectID = $request->class_subjectID;
+            $examPaper->componentID = $componentID;
             $examPaper->teacherID = $teacherID;
             $examPaper->upload_type = 'upload';
             $examPaper->test_week = $request->test_week;
@@ -5040,6 +5250,7 @@ class ManageExaminationController extends Controller
                 'classSubject.class',
                 'classSubject.subclass',
                 'teacher',
+                'component',
             ]);
 
         // Filter out placeholders (empty content) - Admin only wants to see actual submissions
@@ -5205,6 +5416,13 @@ class ManageExaminationController extends Controller
 
             $paperArr = $paper->toArray();
             $paperArr['pending_log_id'] = $pendingLog ? $pendingLog->paper_approval_logID : null;
+            $paperArr['component_name'] = $paper->component ? $paper->component->component_name : null;
+            $paperArr['is_duo_paper'] = !empty($paper->componentID);
+            $paperArr['display_year'] = $paper->displayYearLabel();
+            if (isset($paperArr['examination']) && is_array($paperArr['examination'])) {
+                $paperArr['examination']['display_year'] = $paperArr['display_year'];
+                $paperArr['examination']['year_label'] = $paperArr['display_year'];
+            }
 
             // Handle no_approval_required display
             if ($paper->examination && $paper->examination->no_approval_required) {
@@ -5426,11 +5644,25 @@ class ManageExaminationController extends Controller
         }
 
         $baseQuery = function() use ($schoolID, $yearFilter, $termFilter, $selectedYearIds) {
-            return PaperApprovalLog::with(['examPaper.teacher', 'examPaper.classSubject.subject', 'examPaper.classSubject.class', 'examPaper.classSubject.subclass', 'examPaper.examination', 'role', 'approver'])
+            return PaperApprovalLog::with([
+                'examPaper.teacher',
+                'examPaper.component',
+                'examPaper.classSubject.subject',
+                'examPaper.classSubject.class',
+                'examPaper.classSubject.subclass',
+                'examPaper.examination',
+                'role',
+                'approver',
+            ])
                 ->whereHas('examPaper.examination', function ($q) use ($schoolID, $yearFilter, $termFilter, $selectedYearIds) {
                     $q->where('schoolID', $schoolID);
                     if (!empty($selectedYearIds)) {
-                        $q->whereIn('academic_yearID', $selectedYearIds);
+                        $q->where(function ($yearQ) use ($selectedYearIds) {
+                            $yearQ->whereIn('academic_yearID', $selectedYearIds);
+                            foreach ($selectedYearIds as $yearId) {
+                                $yearQ->orWhereJsonContains('academic_year_ids', (int) $yearId);
+                            }
+                        });
                     }
                     if ($yearFilter) {
                         $q->where('year', $yearFilter);
@@ -6110,6 +6342,20 @@ class ManageExaminationController extends Controller
                 $optionalRanges = $request->input('optional_ranges', []);
                 $optionalRequiredCounts = $request->input('optional_required_counts', []);
 
+                $expectedTotal = $this->resolveQuestionFormatTotalMarks($examPaper->componentID);
+                $formatError = $this->validateQuestionFormatAgainstTotal(
+                    is_array($descriptions) ? $descriptions : [],
+                    is_array($marks) ? $marks : [],
+                    is_array($optionals) ? $optionals : [],
+                    is_array($optionalRanges) ? $optionalRanges : [],
+                    is_array($optionalRequiredCounts) ? $optionalRequiredCounts : [],
+                    $expectedTotal
+                );
+                if ($formatError) {
+                    DB::rollBack();
+                    return response()->json(['error' => $formatError], 422);
+                }
+
                 // Clean existing
                 ExamPaperQuestion::where('exam_paperID', $examPaper->exam_paperID)->delete();
                 ExamPaperOptionalRange::where('exam_paperID', $examPaper->exam_paperID)->delete();
@@ -6182,11 +6428,15 @@ class ManageExaminationController extends Controller
                 ->orderBy('range_number')
                 ->get(['range_number', 'total_marks', 'required_questions']);
 
+            $paperMaxMarks = $this->resolveQuestionFormatTotalMarks($examPaper->componentID);
+
             return response()->json([
                 'success' => true,
                 'exam_paper' => $examPaper,
                 'questions' => $questions,
                 'optional_ranges' => $optionalRanges,
+                'paper_max_marks' => $paperMaxMarks,
+                'componentID' => $examPaper->componentID,
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to load questions'], 500);
@@ -6217,6 +6467,7 @@ class ManageExaminationController extends Controller
                 return [
                     'exam_paperID' => $paper->exam_paperID,
                     'class_subjectID' => $paper->class_subjectID,
+                    'componentID' => $paper->componentID,
                     'subjectID' => $paper->classSubject->subject->subjectID ?? null,
                     'classID' => $paper->classSubject->class->classID ?? null,
                     'subclassID' => $paper->classSubject->subclass->subclassID ?? null,
@@ -6270,69 +6521,34 @@ class ManageExaminationController extends Controller
                 return response()->json(['error' => 'You can only edit questions for pending, rejected, or approved papers'], 422);
             }
 
-            $examination = $examPaper->examination;
-
             $descriptions = $request->input('question_descriptions', []);
             $marks = $request->input('question_marks', []);
             $optionals = $request->input('question_optional', []);
             $optionalRanges = $request->input('optional_ranges', []);
-            $optionalTotals = [];
+            $optionalRequiredCounts = $request->input('optional_required_counts', []);
+            $expectedTotal = $this->resolveQuestionFormatTotalMarks($examPaper->componentID);
 
+            $formatError = $this->validateQuestionFormatAgainstTotal(
+                is_array($descriptions) ? $descriptions : [],
+                is_array($marks) ? $marks : [],
+                is_array($optionals) ? $optionals : [],
+                is_array($optionalRanges) ? $optionalRanges : [],
+                is_array($optionalRequiredCounts) ? $optionalRequiredCounts : [],
+                $expectedTotal
+            );
+            if ($formatError) {
+                return response()->json(['error' => $formatError], 422);
+            }
+
+            $optionalTotals = [];
             if (is_array($optionalRanges)) {
                 foreach ($optionalRanges as $rangeNumber => $totalMarks) {
                     $rangeNumber = (int) $rangeNumber;
                     $totalMarks = (int) $totalMarks;
-                    if ($rangeNumber > 0 && $totalMarks > 0 && $totalMarks < 100) {
+                    if ($rangeNumber > 0 && $totalMarks > 0 && $totalMarks < $expectedTotal) {
                         $optionalTotals[$rangeNumber] = $totalMarks;
                     }
                 }
-            }
-
-            $optionalTotalSum = array_sum($optionalTotals);
-            if ($optionalTotalSum > 100) {
-                return response()->json(['error' => 'Optional range totals cannot exceed 100.'], 422);
-            }
-
-            $requiredTotal = 0;
-            $optionalSumByRange = [];
-            $optionalCountByRange = [];
-            foreach ($descriptions as $index => $description) {
-                $markValue = $marks[$index] ?? null;
-                $rangeNumber = isset($optionals[$index]) ? (int) $optionals[$index] : 0;
-                $markValue = (int) $markValue;
-                if ($rangeNumber > 0) {
-                    $optionalSumByRange[$rangeNumber] = ($optionalSumByRange[$rangeNumber] ?? 0) + $markValue;
-                    $optionalCountByRange[$rangeNumber] = ($optionalCountByRange[$rangeNumber] ?? 0) + 1;
-                } else {
-                    $requiredTotal += $markValue;
-                }
-            }
-
-            $optionalRequiredCounts = $request->input('optional_required_counts', []);
-            if (is_array($optionalRequiredCounts)) {
-                foreach ($optionalRequiredCounts as $rangeNumber => $requiredCount) {
-                    $rangeNumber = (int) $rangeNumber;
-                    $requiredCount = (int) $requiredCount;
-                    $available = $optionalCountByRange[$rangeNumber] ?? 0;
-                    if ($requiredCount > $available) {
-                        return response()->json(['error' => "Required optional questions exceed available questions for range {$rangeNumber}."], 422);
-                    }
-                }
-            }
-
-            foreach ($optionalTotals as $rangeNumber => $rangeTotal) {
-                $sum = $optionalSumByRange[$rangeNumber] ?? 0;
-                if ($sum < $rangeTotal) {
-                    return response()->json(['error' => "Optional range {$rangeNumber} total must be at least {$rangeTotal}."], 422);
-                }
-            }
-
-            if ($requiredTotal > (100 - $optionalTotalSum)) {
-                return response()->json(['error' => 'Required questions exceed allowed total.'], 422);
-            }
-
-            if (($requiredTotal + $optionalTotalSum) !== 100) {
-                return response()->json(['error' => 'Required total plus optional totals must be exactly 100.'], 422);
             }
 
             DB::beginTransaction();
@@ -6367,7 +6583,7 @@ class ManageExaminationController extends Controller
                     'exam_paperID' => $examPaper->exam_paperID,
                     'range_number' => $rangeNumber,
                     'total_marks' => $totalMarks,
-                    'required_questions' => $optionalRequiredCounts[$rangeNumber] ?? 1,
+                    'required_questions' => (int) ($optionalRequiredCounts[$rangeNumber] ?? 1),
                 ]);
             }
 
@@ -7384,20 +7600,153 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Auto shift students based on exam results
+     * Options for Create Exam academic-year select: only header-selected Active years.
      */
+    private function buildCreateExamAcademicYearOptions(array $yearCtx, SelectedAcademicYearService $yearService): array
+    {
+        $options = [];
+        $mode = $yearCtx['mode'] ?? 'none';
+        $hasALevel = !empty($yearCtx['has_a_level']);
+
+        $push = function ($year, string $level) use (&$options, $hasALevel) {
+            if (!$year) {
+                return;
+            }
+            $id = (int) $year->academic_yearID;
+            if ($id <= 0) {
+                return;
+            }
+            foreach ($options as $existing) {
+                if ((int) $existing['academic_yearID'] === $id) {
+                    return;
+                }
+            }
+            $name = $year->year_name ?: $year->year;
+            $levelLabel = $level === 'a_level' ? 'A-Level' : ($level === 'o_level' ? 'O-Level' : 'Year');
+            $label = $hasALevel && in_array($level, ['o_level', 'a_level'], true)
+                ? "{$levelLabel} — {$name}"
+                : (string) $name;
+            $calendarYear = is_numeric($year->year)
+                ? (int) $year->year
+                : (int) preg_replace('/\D.*$/', '', (string) ($year->year ?? date('Y')));
+            if ($calendarYear < 2000) {
+                $calendarYear = (int) date('Y');
+            }
+            $options[] = [
+                'academic_yearID' => $id,
+                'level' => $level,
+                'label' => $label,
+                'year' => $calendarYear,
+                'year_name' => $name,
+                'is_current' => (bool) ($year->is_current ?? false),
+                'status' => $year->status ?? null,
+            ];
+        };
+
+        if ($mode === 'secondary_dual') {
+            $push($yearCtx['selected_o_level_year'] ?? null, 'o_level');
+            $push($yearCtx['selected_a_level_year'] ?? null, 'a_level');
+        } elseif ($mode === 'secondary_o_only' || $mode === 'primary') {
+            $push(
+                $yearCtx['selected_o_level_year']
+                    ?? $yearCtx['selected_year']
+                    ?? null,
+                $mode === 'primary' ? 'primary' : 'o_level'
+            );
+        }
+
+        return $options;
+    }
+
     /**
-     * Resolve academic year for create/update examination (defaults to header selected / current).
+     * Human-readable label for header O/A academic year selection.
      */
-    private function resolveExaminationAcademicYear(int $schoolID, $requestedYearID = null): array
+    private function buildHeaderAcademicYearLabel(array $yearCtx): string
+    {
+        $parts = [];
+        $o = $yearCtx['selected_o_level_year'] ?? null;
+        $a = $yearCtx['selected_a_level_year'] ?? null;
+        $single = $yearCtx['selected_year'] ?? null;
+
+        if (!empty($yearCtx['has_a_level'])) {
+            if ($o) {
+                $parts[] = ($o->year_name ?: $o->year).' (O-Level)';
+            }
+            if ($a) {
+                $parts[] = ($a->year_name ?: $a->year).' (A-Level)';
+            }
+        } elseif ($single) {
+            $parts[] = $single->year_name ?: $single->year;
+        } elseif ($o) {
+            $parts[] = $o->year_name ?: $o->year;
+        }
+
+        return !empty($parts) ? implode(' / ', $parts) : '—';
+    }
+
+    /**
+     * Filter examinations by any linked academic year (primary or academic_year_ids JSON).
+     */
+    private function applyExaminationAcademicYearFilter($query, array $filterYearIds): void
+    {
+        $filterYearIds = array_values(array_filter(array_map('intval', $filterYearIds)));
+        if ($filterYearIds === []) {
+            return;
+        }
+
+        $query->where(function ($q) use ($filterYearIds) {
+            $q->whereIn('academic_yearID', $filterYearIds);
+            foreach ($filterYearIds as $yearId) {
+                $q->orWhereJsonContains('academic_year_ids', $yearId);
+            }
+        });
+    }
+
+    /**
+     * Resolve academic year for create/update examination.
+     * Create: automatically uses ALL Active header years (O-Level + A-Level when dual).
+     * Primary academic_yearID prefers O-Level for legacy compatibility.
+     * Update: any year belonging to the school is allowed (keeps existing exam year).
+     */
+    private function resolveExaminationAcademicYear(int $schoolID, $requestedYearID = null, bool $restrictToHeader = true): array
     {
         $yearService = app(SelectedAcademicYearService::class);
         $ctx = $yearService->headerContext($schoolID);
         $selectedIds = array_values(array_filter(array_map('intval', $ctx['selected_year_ids'] ?? [])));
+        $allowedOptions = $this->buildCreateExamAcademicYearOptions($ctx, $yearService);
+        $allowedIds = array_values(array_map(fn ($o) => (int) $o['academic_yearID'], $allowedOptions));
 
-        $yearId = $requestedYearID ? (int) $requestedYearID : null;
-        if (!$yearId && !empty($selectedIds)) {
-            $yearId = (int) $selectedIds[0];
+        $yearId = ($requestedYearID !== null && $requestedYearID !== '') ? (int) $requestedYearID : null;
+        $linkedIds = [];
+
+        if ($restrictToHeader) {
+            if (empty($allowedIds)) {
+                throw ValidationException::withMessages([
+                    'academic_yearID' => 'Set Active O-Level / A-Level academic year in the header first.',
+                ]);
+            }
+
+            // School-wide create: bind exam to ALL header Active years (O + A)
+            $linkedIds = $allowedIds;
+
+            // Prefer O-Level as primary/legacy academic_yearID
+            $oLevel = collect($allowedOptions)->firstWhere('level', 'o_level');
+            $yearId = $oLevel
+                ? (int) $oLevel['academic_yearID']
+                : (int) $allowedIds[0];
+
+            // If client sent a specific year, keep it only when it is one of the Active header years
+            if ($requestedYearID !== null && $requestedYearID !== '') {
+                $requested = (int) $requestedYearID;
+                if (in_array($requested, $allowedIds, true)) {
+                    $yearId = $requested;
+                }
+            }
+        } else {
+            if (!$yearId && !empty($selectedIds)) {
+                $yearId = (int) $selectedIds[0];
+            }
+            $linkedIds = $yearId ? [$yearId] : $selectedIds;
         }
 
         $year = null;
@@ -7410,6 +7759,12 @@ class ManageExaminationController extends Controller
             $year = $ctx['selected_year']
                 ?? $ctx['selected_o_level_year']
                 ?? AcademicYear::where('schoolID', $schoolID)->where('is_current', 1)->orderByDesc('academic_yearID')->first();
+            if ($year) {
+                $yearId = (int) $year->academic_yearID;
+                if (empty($linkedIds)) {
+                    $linkedIds = [$yearId];
+                }
+            }
         }
 
         $calendarYear = (int) date('Y');
@@ -7422,10 +7777,14 @@ class ManageExaminationController extends Controller
             }
         }
 
+        $linkedIds = array_values(array_unique(array_filter(array_map('intval', $linkedIds))));
+
         return [
             'academic_yearID' => $year ? (int) $year->academic_yearID : null,
+            'academic_year_ids' => $linkedIds,
             'year' => $calendarYear,
             'year_name' => $year ? ($year->year_name ?? $year->year) : null,
+            'is_a_level' => $year ? $yearService->isALevelYear($year) : false,
         ];
     }
 
@@ -9330,30 +9689,78 @@ class ManageExaminationController extends Controller
             $subjects = [];
             foreach ($schedules as $schedule) {
                 // Find teacher's ClassSubject entries that match this schedule
-                $query = ClassSubject::where('teacherID', $teacherID)
-                    ->where('subjectID', $schedule->subjectID)
-                    ->where('status', 'Active');
+                // (main teacher OR duo paper teacher)
+                $query = ClassSubject::where('subjectID', $schedule->subjectID)
+                    ->where('status', 'Active')
+                    ->where(function ($q) use ($teacherID) {
+                        $q->where('teacherID', $teacherID)
+                            ->orWhereHas('componentTeachers', function ($cq) use ($teacherID) {
+                                $cq->where('teacherID', $teacherID);
+                            });
+                    });
 
                 if ($schedule->scope === 'class') {
                     $query->where('classID', $schedule->scope_id);
                 } elseif ($schedule->scope === 'subclass') {
                     $query->where('subclassID', $schedule->scope_id);
                 }
-                // school_wide doesn't need extra filter beyond teacherID + subjectID
+                // school_wide doesn't need extra filter beyond teacher + subject
 
                 // Special case: direct teacher assignment in schedule
                 if ($schedule->teacher_id && $schedule->teacher_id != $teacherID) {
                     continue;
                 }
 
-                $csList = $query->with(['subject', 'class', 'subclass'])->get();
+                $csList = $query->with([
+                    'subject.components',
+                    'class',
+                    'subclass',
+                    'componentTeachers' => function ($q) use ($teacherID) {
+                        $q->where('teacherID', $teacherID)->with('component');
+                    },
+                ])->get();
+
                 foreach ($csList as $cs) {
+                    $isDuo = (bool) ($cs->subject->is_duo ?? false)
+                        && $cs->subject->components
+                        && $cs->subject->components->count() > 0;
+
+                    $myPapers = collect();
+                    if ($isDuo) {
+                        $assignedComponentIDs = $cs->componentTeachers
+                            ->where('teacherID', (int) $teacherID)
+                            ->pluck('componentID')
+                            ->map(fn ($id) => (int) $id)
+                            ->all();
+
+                        if (empty($assignedComponentIDs) && (int) $cs->teacherID === (int) $teacherID) {
+                            $myPapers = $cs->subject->components->sortBy('sort_order')->values();
+                        } else {
+                            $myPapers = $cs->subject->components
+                                ->filter(fn ($c) => in_array((int) $c->componentID, $assignedComponentIDs, true))
+                                ->sortBy('sort_order')
+                                ->values();
+                        }
+                    }
+
+                    $duoPapers = $myPapers->map(function ($c) {
+                        return [
+                            'componentID' => (int) $c->componentID,
+                            'component_name' => $c->component_name,
+                            'max_marks' => (int) $c->max_marks,
+                        ];
+                    })->values();
+
                     $subjects[] = [
                         'class_subjectID' => $cs->class_subjectID,
+                        'subjectID' => $cs->subjectID,
                         'subject_name' => $cs->subject->subject_name ?? 'N/A',
                         'class_name' => trim(($cs->class->class_name ?? '') . ' ' . ($cs->subclass->subclass_name ?? '')),
+                        'class_display' => trim(($cs->class->class_name ?? '') . ' ' . ($cs->subclass->subclass_name ?? '')),
                         'day' => $schedule->day,
-                        'time' => \Carbon\Carbon::parse($schedule->start_time)->format('h:i A') . ' - ' . \Carbon\Carbon::parse($schedule->end_time)->format('h:i A')
+                        'time' => \Carbon\Carbon::parse($schedule->start_time)->format('h:i A') . ' - ' . \Carbon\Carbon::parse($schedule->end_time)->format('h:i A'),
+                        'is_duo' => $isDuo && $duoPapers->count() > 0,
+                        'duo_papers' => $duoPapers,
                     ];
                 }
             }

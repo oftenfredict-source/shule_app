@@ -9,6 +9,7 @@ use App\Models\Subclass;
 use App\Models\ClassSubject;
 use App\Models\Teacher;
 use App\Models\Combie;
+use App\Models\SchoolSubject;
 use App\Models\Attendance;
 use App\Models\User;
 use App\Services\ZKTecoService;
@@ -114,6 +115,56 @@ class ManageClassessController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Normalize combie subject IDs: unique, max 3, must belong to school & Active.
+     * @return array|false  false on invalid
+     */
+    private function normalizeCombieSubjectIds($rawIds, int $schoolID)
+    {
+        if ($rawIds === null || $rawIds === '') {
+            return [];
+        }
+        if (!is_array($rawIds)) {
+            return false;
+        }
+
+        $ids = [];
+        foreach ($rawIds as $id) {
+            if ($id === null || $id === '' || $id === '0' || $id === 0) {
+                continue;
+            }
+            $ids[] = (int) $id;
+        }
+        $ids = array_values(array_unique($ids));
+
+        if (count($ids) > 3) {
+            return false;
+        }
+        if (count($ids) === 0) {
+            return [];
+        }
+
+        $validCount = SchoolSubject::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->whereIn('subjectID', $ids)
+            ->count();
+
+        if ($validCount !== count($ids)) {
+            return false;
+        }
+
+        return $ids;
+    }
+
+    private function syncCombieSubjects(Combie $combie, array $subjectIds): void
+    {
+        $sync = [];
+        foreach ($subjectIds as $order => $subjectID) {
+            $sync[(int) $subjectID] = ['sort_order' => $order];
+        }
+        $combie->subjects()->sync($sync);
     }
 
     public function manageClasses()
@@ -295,15 +346,34 @@ class ManageClassessController extends Controller
         // Get all teachers for dropdown
         $teachers = Teacher::where('schoolID', $schoolID)->get();
 
-        // Get all combies for the school
-        $combies = Combie::where('schoolID', $schoolID)->orderBy('combie_name')->get();
+        // Get all combies for the school (with main A-Level subjects)
+        $combies = Combie::where('schoolID', $schoolID)
+            ->with('subjects')
+            ->orderBy('combie_name')
+            ->get();
+
+        // Active school subjects for combie assignment (A-Level / custom)
+        $schoolSubjects = SchoolSubject::where('schoolID', $schoolID)
+            ->where('status', 'Active')
+            ->orderBy('subject_name')
+            ->get(['subjectID', 'subject_name', 'subject_code', 'is_duo']);
         
         // Get existing class names for disabling in dropdowns
         $existingClassNames = ClassModel::where('schoolID', $schoolID)
             ->pluck('class_name')
             ->toArray();
 
-        return view('Admin.manageClasses', compact('subclasses', 'classes', 'classesForDropdown', 'teachers', 'combies', 'school_details', 'existingClassNames', 'academicYearLabel'));
+        return view('Admin.manageClasses', compact(
+            'subclasses',
+            'classes',
+            'classesForDropdown',
+            'teachers',
+            'combies',
+            'school_details',
+            'existingClassNames',
+            'academicYearLabel',
+            'schoolSubjects'
+        ));
     }
 
     //class teachers class management
@@ -3963,6 +4033,8 @@ class ManageClassessController extends Controller
                 'combie_code' => 'nullable|string|max:20',
                 'description' => 'nullable|string',
                 'status' => 'nullable|in:Active,Inactive',
+                'subject_ids' => 'nullable|array|max:3',
+                'subject_ids.*' => 'nullable|integer|exists:school_subjects,subjectID',
             ]);
 
             if ($validator->fails()) {
@@ -4001,13 +4073,31 @@ class ManageClassessController extends Controller
                 return redirect()->back()->with('error', 'Combination "' . $request->combie_name . '" already exists for this school.')->withInput();
             }
 
-            $combie = Combie::create([
-                'schoolID' => $schoolID,
-                'combie_name' => $request->combie_name,
-                'combie_code' => $request->combie_code ?? null,
-                'description' => $request->description ?? null,
-                'status' => $request->status ?? 'Active',
-            ]);
+            $subjectIds = $this->normalizeCombieSubjectIds($request->input('subject_ids', []), (int) $schoolID);
+            if ($subjectIds === false) {
+                return response()->json([
+                    'error' => 'Invalid subjects. Use up to 3 unique Active school subjects from this school.'
+                ], 422);
+            }
+
+            DB::beginTransaction();
+            try {
+                $combie = Combie::create([
+                    'schoolID' => $schoolID,
+                    'combie_name' => $request->combie_name,
+                    'combie_code' => $request->combie_code ?? null,
+                    'description' => $request->description ?? null,
+                    'status' => $request->status ?? 'Active',
+                ]);
+
+                $this->syncCombieSubjects($combie, $subjectIds);
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+            $combie->load('subjects');
 
             // Check if request is AJAX
             if ($request->ajax() || $request->wantsJson()) {
@@ -4053,6 +4143,8 @@ class ManageClassessController extends Controller
                 'combie_code' => 'nullable|string|max:20',
                 'description' => 'nullable|string',
                 'status' => 'nullable|in:Active,Inactive',
+                'subject_ids' => 'nullable|array|max:3',
+                'subject_ids.*' => 'nullable|integer|exists:school_subjects,subjectID',
             ]);
 
             if ($validator->fails()) {
@@ -4113,12 +4205,30 @@ class ManageClassessController extends Controller
                 return redirect()->back()->with('error', 'Combination "' . $request->combie_name . '" already exists for this school.')->withInput();
             }
 
-            $combie->update([
-                'combie_name' => $request->combie_name,
-                'combie_code' => $request->combie_code ?? null,
-                'description' => $request->description ?? null,
-                'status' => $request->status ?? 'Active',
-            ]);
+            $subjectIds = $this->normalizeCombieSubjectIds($request->input('subject_ids', []), (int) $schoolID);
+            if ($subjectIds === false) {
+                return response()->json([
+                    'error' => 'Invalid subjects. Use up to 3 unique Active school subjects from this school.'
+                ], 422);
+            }
+
+            DB::beginTransaction();
+            try {
+                $combie->update([
+                    'combie_name' => $request->combie_name,
+                    'combie_code' => $request->combie_code ?? null,
+                    'description' => $request->description ?? null,
+                    'status' => $request->status ?? 'Active',
+                ]);
+
+                $this->syncCombieSubjects($combie, $subjectIds);
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+            $combie->load('subjects');
 
             // Check if request is AJAX
             if ($request->ajax() || $request->wantsJson()) {

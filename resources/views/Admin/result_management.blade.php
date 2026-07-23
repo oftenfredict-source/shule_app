@@ -492,7 +492,6 @@
                                     style="background-color: #e9ecef; cursor: not-allowed;" title="Change academic year from the header selector">
                                 <input type="hidden" id="year" name="year" value="{{ $filters['year'] ?? date('Y') }}">
                                 <input type="hidden" id="academic_yearID" name="academic_yearID" value="{{ $filters['academic_yearID'] ?? '' }}">
-                                <small class="text-muted"><i class="bi bi-lock"></i> From header</small>
                             </div>
 
                             <!-- Type Filter -->
@@ -1023,9 +1022,16 @@
                                             ->first();
                                         if ($selectedSubclassForTitle) {
                                             $subclassName = trim($selectedSubclassForTitle->subclass_name);
-                                            $subclassDisplayName = empty($subclassName) 
-                                                ? $selectedSubclassForTitle->class->class_name 
-                                                : $selectedSubclassForTitle->class->class_name . ' ' . $subclassName;
+                                            $titleClassName = $selectedSubclassForTitle->class->class_name ?? '';
+                                            $isALevelTitle = app(\App\Services\SelectedAcademicYearService::class)
+                                                ->isALevelClassName($titleClassName);
+                                            if ($isALevelTitle) {
+                                                $subclassDisplayName = $subclassName !== '' ? $subclassName : $titleClassName;
+                                            } else {
+                                                $subclassDisplayName = empty($subclassName) 
+                                                    ? $titleClassName 
+                                                    : $titleClassName . ' ' . $subclassName;
+                                            }
                                         }
                                     }
                                 @endphp
@@ -1378,7 +1384,7 @@
                                         ->get()
                                         ->groupBy('subclassID');
 
-                                    // 2. Loop through each student to cross-reference with expected subjects
+                                    // 2. Loop through each student — one row per subject (duo = total only)
                                     foreach ($examStudents as $examStudent) {
                                         $gender = $examStudent['student']->gender ?? '';
                                         $subclassID = $examStudent['student']->subclassID ?? $examStudent['student']->oldSubclassID ?? null;
@@ -1386,24 +1392,40 @@
                                         // Expected subjects for this student's subclass
                                         $expectedSubjects = $allClassSubjects[$subclassID] ?? collect();
                                         
-                                        // Student's results indexed by subject name/ID
+                                        // Student's results indexed by subjectID / name (already duo-collapsed)
                                         $studentSubjects = $examStudent['result']['subjects'] ?? [];
+                                        $resultsBySubjectId = collect($studentSubjects)->keyBy('subjectID')->toArray();
                                         $resultsBySubjectName = collect($studentSubjects)->keyBy('subject_name')->toArray();
+                                        $seenSubjectIds = [];
                                         
                                         foreach ($expectedSubjects as $cs) {
-                                            $subjectName = $cs->subject->subject_name ?? 'N/A';
+                                            $subject = $cs->subject ?? null;
+                                            $subjectID = $subject->subjectID ?? ($cs->subjectID ?? null);
+                                            $subjectName = $subject->subject_name ?? 'N/A';
+                                            if ($subjectID && isset($seenSubjectIds[$subjectID])) {
+                                                continue;
+                                            }
+                                            if ($subjectID) {
+                                                $seenSubjectIds[$subjectID] = true;
+                                            }
                                             
                                             // Initialize subject stats if not exists
                                             if (!isset($subjectStats[$subjectName])) {
                                                 $subjectStats[$subjectName] = [];
-                                                $gradesToInit = ($schoolType === 'Primary') ? ['A', 'B', 'C', 'D', 'E', 'F', 'Incomplete'] : ['A', 'B', 'C', 'D', 'F', 'Incomplete'];
+                                                $gradesToInit = ($schoolType === 'Primary')
+                                                    ? ['A', 'B', 'C', 'D', 'E', 'F', 'Incomplete']
+                                                    : (($isALevelView ?? false)
+                                                        ? ['A', 'B', 'C', 'D', 'E', 'S', 'F', 'Incomplete']
+                                                        : ['A', 'B', 'C', 'D', 'F', 'Incomplete']);
                                                 foreach ($gradesToInit as $g) {
                                                     $subjectStats[$subjectName][$g] = ['male' => 0, 'female' => 0, 'total' => 0];
                                                 }
                                             }
 
                                             // Determine current grade/category
-                                            $res = $resultsBySubjectName[$subjectName] ?? null;
+                                            $res = ($subjectID && isset($resultsBySubjectId[$subjectID]))
+                                                ? $resultsBySubjectId[$subjectID]
+                                                : ($resultsBySubjectName[$subjectName] ?? null);
                                             $marksVal = $res['marks'] ?? null;
                                             $subjectGrade = $res['grade'] ?? 'Incomplete';
                                             
@@ -1411,7 +1433,7 @@
                                                 $subjectGrade = 'Incomplete';
                                             }
 
-                                            if ($subjectGrade !== 'Incomplete' && !in_array($subjectGrade, ['A', 'B', 'C', 'D', 'E', 'F'])) {
+                                            if ($subjectGrade !== 'Incomplete' && !in_array($subjectGrade, ['A', 'B', 'C', 'D', 'E', 'S', 'F'])) {
                                                 $subjectGrade = 'Incomplete';
                                             }
 
@@ -1471,7 +1493,9 @@
                                     $classGPAStudentCount = 0;
                                     $ptMapGPA = ($schoolType === 'Primary')
                                         ? ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0]
-                                        : ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'F'=>5];
+                                        : (($isALevelView ?? false)
+                                            ? ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'E'=>5,'S'=>6,'F'=>7]
+                                            : ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'F'=>5]);
                                     foreach ($examStudents as $examStudent) {
                                         $subs = $examStudent['result']['subjects'] ?? [];
                                         $stuPoints = 0; $stuSubCount = 0;
@@ -1565,9 +1589,18 @@
                                     if (!$allClassesSelected) {
                                         if ($subclassSelected && $selectedSubclass) {
                                             $subclassName = trim($selectedSubclass->subclass_name);
-                                            $displayName = empty($subclassName) 
-                                                ? ($selectedSubclass->class ? $selectedSubclass->class->class_name : 'All Classes')
-                                                : ($selectedSubclass->class ? $selectedSubclass->class->class_name . ' ' . $subclassName : 'All Classes');
+                                            $titleClassName = $selectedSubclass->class ? $selectedSubclass->class->class_name : '';
+                                            $isALevelTitle = app(\App\Services\SelectedAcademicYearService::class)
+                                                ->isALevelClassName($titleClassName);
+                                            if ($isALevelTitle) {
+                                                $displayName = $subclassName !== ''
+                                                    ? $subclassName
+                                                    : ($titleClassName !== '' ? $titleClassName : 'All Classes');
+                                            } else {
+                                                $displayName = empty($subclassName) 
+                                                    ? ($titleClassName !== '' ? $titleClassName : 'All Classes')
+                                                    : ($titleClassName !== '' ? $titleClassName . ' ' . $subclassName : 'All Classes');
+                                            }
                                         } else {
                                             $displayName = $selectedClass ? $selectedClass->class_name : 'All Classes';
                                         }
@@ -1957,7 +1990,11 @@
                                                                 <div class="result-color-block result-color-excellent">A - Excellent</div>
                                                                 <div class="result-color-block result-color-pass">B - Very Good</div>
                                                                 <div class="result-color-block bg-warning text-dark">C - Good</div>
-                                                                <div class="result-color-block bg-orange-bootstrap text-white">D - Satisfactory</div>
+                                                                <div class="result-color-block bg-orange-bootstrap text-white">D - {{ ($isALevelView ?? false) ? 'Average' : 'Satisfactory' }}</div>
+                                                                @if($isALevelView ?? false)
+                                                                    <div class="result-color-block bg-orange-bootstrap text-white">E - Satisfactory</div>
+                                                                    <div class="result-color-block bg-orange-bootstrap text-white">S - Subsidiary</div>
+                                                                @endif
                                                                 <div class="result-color-block result-color-fail">F - Fail</div>
                                                                 <div class="result-color-block result-color-inc">Incomplete</div>
                                                             @else
@@ -1978,6 +2015,9 @@
                                                                     <th>D</th>
                                                                     @if($schoolType === 'Primary')
                                                                         <th>E</th>
+                                                                    @elseif($isALevelView ?? false)
+                                                                        <th>E</th>
+                                                                        <th>S</th>
                                                                     @endif
                                                                     <th>F</th>
                                                                     <th>GPA</th>
@@ -1990,7 +2030,11 @@
                                                                     <tr>
                                                                         <td><strong>{{ $subjectName }}</strong></td>
                                                                         @php
-                                                                            $gradesToLoop = ($schoolType === 'Primary') ? ['A', 'B', 'C', 'D', 'E', 'F'] : ['A', 'B', 'C', 'D', 'F'];
+                                                                            $gradesToLoop = ($schoolType === 'Primary')
+                                                                            ? ['A', 'B', 'C', 'D', 'E', 'F']
+                                                                            : (($isALevelView ?? false)
+                                                                                ? ['A', 'B', 'C', 'D', 'E', 'S', 'F']
+                                                                                : ['A', 'B', 'C', 'D', 'F']);
                                                                         @endphp
                                                                         @foreach($gradesToLoop as $grade)
                                                                             @php
@@ -2018,7 +2062,11 @@
                                                                             // Calculate Subject GPA
                                                                             $sTotal = 0;
                                                                             $sPoints = 0;
-                                                                            $sGrades = ($schoolType === 'Primary') ? ['A', 'B', 'C', 'D', 'E', 'F'] : ['A', 'B', 'C', 'D', 'F'];
+                                                                            $sGrades = ($schoolType === 'Primary')
+                                                                            ? ['A', 'B', 'C', 'D', 'E', 'F']
+                                                                            : (($isALevelView ?? false)
+                                                                                ? ['A', 'B', 'C', 'D', 'E', 'S', 'F']
+                                                                                : ['A', 'B', 'C', 'D', 'F']);
                                                                             foreach($sGrades as $sg) {
                                                                                 $c = $grades[$sg]['total'] ?? 0;
                                                                                 $sTotal += $c;
@@ -2026,7 +2074,9 @@
                                                                                     $ptMap = ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0];
                                                                                 } else {
                                                                                     // Secondary: Lower is better (NECTA GPA)
-                                                                                    $ptMap = ['A' => 1, 'B' => 2, 'C' => 3, 'D' => 4, 'F' => 5];
+                                                                                    $ptMap = ($isALevelView ?? false)
+                                                                                        ? ['A' => 1, 'B' => 2, 'C' => 3, 'D' => 4, 'E' => 5, 'S' => 6, 'F' => 7]
+                                                                                        : ['A' => 1, 'B' => 2, 'C' => 3, 'D' => 4, 'F' => 5];
                                                                                 }
                                                                                 $sPoints += ($c * ($ptMap[$sg] ?? 0));
                                                                             }
@@ -2045,13 +2095,17 @@
                                                                                 elseif ($sGPA <= 2.5) $subjectGrade = 'B';
                                                                                 elseif ($sGPA <= 3.5) $subjectGrade = 'C';
                                                                                 elseif ($sGPA <= 4.5) $subjectGrade = 'D';
+                                                                                elseif (($isALevelView ?? false) && $sGPA <= 5.5) $subjectGrade = 'E';
+                                                                                elseif (($isALevelView ?? false) && $sGPA <= 6.5) $subjectGrade = 'S';
                                                                                 else $subjectGrade = 'F';
                                                                             }
                                                                             if ($schoolType === 'Secondary') {
                                                                                 if ($subjectGrade === 'A') { $remarkClass = 'bg-grade-a'; $remarkText = 'Excellent'; }
                                                                                 elseif ($subjectGrade === 'B') { $remarkClass = 'bg-pass'; $remarkText = 'Very Good'; }
                                                                                 elseif ($subjectGrade === 'C') { $remarkClass = 'bg-warning'; $remarkText = 'Good'; }
-                                                                                elseif ($subjectGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Satisfactory'; }
+                                                                                elseif ($subjectGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = ($isALevelView ?? false) ? 'Average' : 'Satisfactory'; }
+                                                                                elseif (($isALevelView ?? false) && $subjectGrade === 'E') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Satisfactory'; }
+                                                                                elseif (($isALevelView ?? false) && $subjectGrade === 'S') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Subsidiary'; }
                                                                                 elseif ($subjectGrade === 'F') { $remarkClass = 'bg-fail'; $remarkText = 'Fail'; }
                                                                                 else { $remarkClass = 'bg-inc'; $remarkText = 'Incomplete'; }
                                                                             } else {
@@ -2520,9 +2574,16 @@
                                             ->first();
                                         if ($selectedSubclassForTitle) {
                                             $subclassName = trim($selectedSubclassForTitle->subclass_name);
-                                            $subclassDisplayName = empty($subclassName) 
-                                                ? $selectedSubclassForTitle->class->class_name 
-                                                : $selectedSubclassForTitle->class->class_name . ' ' . $subclassName;
+                                            $titleClassName = $selectedSubclassForTitle->class->class_name ?? '';
+                                            $isALevelTitle = app(\App\Services\SelectedAcademicYearService::class)
+                                                ->isALevelClassName($titleClassName);
+                                            if ($isALevelTitle) {
+                                                $subclassDisplayName = $subclassName !== '' ? $subclassName : $titleClassName;
+                                            } else {
+                                                $subclassDisplayName = empty($subclassName) 
+                                                    ? $titleClassName 
+                                                    : $titleClassName . ' ' . $subclassName;
+                                            }
                                         }
                                     }
                                     
@@ -2739,69 +2800,60 @@
                                         ->get()
                                         ->groupBy('subclassID');
 
-                                    // 2. Loop through each student to cross-reference with expected subjects
+                                    // 2. One grade per subject from term totals (duo already collapsed)
                                     foreach ($reportStudents as $reportStudent) {
                                         $student = $reportStudent['student'];
-                                        $studentID = $student->studentID;
                                         $gender = $student->gender ?? '';
                                         $subclassID = $student->subclassID ?? $student->oldSubclassID ?? null;
                                         
-                                        // Expected subjects for this student's subclass
                                         $expectedSubjects = $allClassSubjects[$subclassID] ?? collect();
+                                        $studentSubjects = $reportStudent['subjects'] ?? [];
+                                        $resultsBySubjectId = collect($studentSubjects)->keyBy('subjectID')->toArray();
+                                        $resultsBySubjectName = collect($studentSubjects)->keyBy('subject_name')->toArray();
+                                        $seenSubjectIds = [];
                                         
-                                        // Loop through all exams for this report student
-                                        foreach (($reportStudent['exams'] ?? []) as $examData) {
-                                            $exam = $examData['exam'] ?? null;
-                                            if (!$exam) continue;
-                                            
-                                            // Get results for this student/exam
-                                            $examResults = \App\Models\Result::where('studentID', $studentID)
-                                                ->where('examID', $exam->examID)
-                                                ->pluck('marks', 'class_subjectID')
-                                                ->toArray();
-                                            
-                                            foreach ($expectedSubjects as $cs) {
-                                                $subjectName = $cs->subject->subject_name ?? 'N/A';
-                                                
-                                                // Initialize subject stats if not exists
-                                                if (!isset($subjectStats[$subjectName])) {
-                                                    $subjectStats[$subjectName] = [];
-                                                    $gradesToInit = ($schoolType === 'Primary') ? ['A', 'B', 'C', 'D', 'E', 'F', 'Incomplete'] : ['A', 'B', 'C', 'D', 'F', 'Incomplete'];
-                                                    foreach ($gradesToInit as $g) {
-                                                        $subjectStats[$subjectName][$g] = ['male' => 0, 'female' => 0, 'total' => 0];
-                                                    }
-                                                }
-
-                                                // Determine if incomplete or graded
-                                                $marksNum = $examResults[$cs->class_subjectID] ?? null;
-                                                $subjectGrade = 'Incomplete';
-                                                
-                                                if ($marksNum !== null && $marksNum !== '') {
-                                                    $m = (float)$marksNum;
-                                                    if ($schoolType === 'Primary') {
-                                                        if ($m >= 75) $subjectGrade = 'A';
-                                                        elseif ($m >= 65) $subjectGrade = 'B';
-                                                        elseif ($m >= 45) $subjectGrade = 'C';
-                                                        elseif ($m >= 30) $subjectGrade = 'D';
-                                                        elseif ($m >= 20) $subjectGrade = 'E';
-                                                        else $subjectGrade = 'F';
-                                                    } else {
-                                                        if ($m >= 75) $subjectGrade = 'A';
-                                                        elseif ($m >= 65) $subjectGrade = 'B';
-                                                        elseif ($m >= 45) $subjectGrade = 'C';
-                                                        elseif ($m >= 30) $subjectGrade = 'D';
-                                                        else $subjectGrade = 'F';
-                                                    }
-                                                }
-
-                                                // Count it
-                                                if ($gender === 'Male') {
-                                                    $subjectStats[$subjectName][$subjectGrade]['male']++;
-                                                } elseif ($gender === 'Female') {
-                                                    $subjectStats[$subjectName][$subjectGrade]['female']++;
-                                                }
-                                                $subjectStats[$subjectName][$subjectGrade]['total']++;
+                                        foreach ($expectedSubjects as $cs) {
+                                            $subject = $cs->subject ?? null;
+                                            $subjectID = $subject->subjectID ?? ($cs->subjectID ?? null);
+                                            $subjectName = $subject->subject_name ?? 'N/A';
+                                            if ($subjectID && isset($seenSubjectIds[$subjectID])) {
+                                                continue;
                                             }
+                                            if ($subjectID) {
+                                                $seenSubjectIds[$subjectID] = true;
+                                            }
+                                            
+                                            if (!isset($subjectStats[$subjectName])) {
+                                                $subjectStats[$subjectName] = [];
+                                                $gradesToInit = ($schoolType === 'Primary')
+                                                    ? ['A', 'B', 'C', 'D', 'E', 'F', 'Incomplete']
+                                                    : (($isALevelView ?? false)
+                                                        ? ['A', 'B', 'C', 'D', 'E', 'S', 'F', 'Incomplete']
+                                                        : ['A', 'B', 'C', 'D', 'F', 'Incomplete']);
+                                                foreach ($gradesToInit as $g) {
+                                                    $subjectStats[$subjectName][$g] = ['male' => 0, 'female' => 0, 'total' => 0];
+                                                }
+                                            }
+
+                                            $res = ($subjectID && isset($resultsBySubjectId[$subjectID]))
+                                                ? $resultsBySubjectId[$subjectID]
+                                                : ($resultsBySubjectName[$subjectName] ?? null);
+                                            $marksNum = $res['marks'] ?? null;
+                                            $subjectGrade = $res['grade'] ?? 'Incomplete';
+                                            
+                                            if ($marksNum === null || $marksNum === '' || strtoupper((string)$subjectGrade) === 'INCOMPLETE') {
+                                                $subjectGrade = 'Incomplete';
+                                            }
+                                            if ($subjectGrade !== 'Incomplete' && !in_array($subjectGrade, ['A', 'B', 'C', 'D', 'E', 'S', 'F'])) {
+                                                $subjectGrade = 'Incomplete';
+                                            }
+
+                                            if ($gender === 'Male') {
+                                                $subjectStats[$subjectName][$subjectGrade]['male']++;
+                                            } elseif ($gender === 'Female') {
+                                                $subjectStats[$subjectName][$subjectGrade]['female']++;
+                                            }
+                                            $subjectStats[$subjectName][$subjectGrade]['total']++;
                                         }
                                     }
                                     
@@ -2919,7 +2971,9 @@
                                     $classGPATotal = 0;
                                     $rPtMap = ($schoolType === 'Primary')
                                         ? ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0]
-                                        : ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'F'=>5];
+                                        : (($isALevelView ?? false)
+                                            ? ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'E'=>5,'S'=>6,'F'=>7]
+                                            : ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'F'=>5]);
                                     foreach ($subjectStats as $sName => $sGrades) {
                                         foreach ($rPtMap as $g => $pts) {
                                             $cnt = $sGrades[$g]['total'] ?? 0;
@@ -3286,7 +3340,11 @@
                                                             <div class="result-color-block result-color-excellent">A - Excellent</div>
                                                             <div class="result-color-block result-color-pass">B - Very Good</div>
                                                             <div class="result-color-block bg-warning text-dark">C - Good</div>
-                                                            <div class="result-color-block bg-orange-bootstrap text-white">D - Satisfactory</div>
+                                                            <div class="result-color-block bg-orange-bootstrap text-white">D - {{ ($isALevelView ?? false) ? 'Average' : 'Satisfactory' }}</div>
+                                                            @if($isALevelView ?? false)
+                                                                <div class="result-color-block bg-orange-bootstrap text-white">E - Satisfactory</div>
+                                                                <div class="result-color-block bg-orange-bootstrap text-white">S - Subsidiary</div>
+                                                            @endif
                                                             <div class="result-color-block result-color-fail">F - Fail</div>
                                                             <div class="result-color-block result-color-inc">Incomplete</div>
                                                         @else
@@ -3307,6 +3365,9 @@
                                                                 <th>D</th>
                                                                 @if($schoolType === 'Primary')
                                                                     <th>E</th>
+                                                                @elseif($isALevelView ?? false)
+                                                                    <th>E</th>
+                                                                    <th>S</th>
                                                                 @endif
                                                                 <th>F</th>
                                                                 <th>GPA</th>
@@ -3319,7 +3380,11 @@
                                                                 <tr>
                                                                     <td><strong>{{ $subjectName }}</strong></td>
                                                                     @php
-                                                                        $gradesToLoop = ($schoolType === 'Primary') ? ['A', 'B', 'C', 'D', 'E', 'F'] : ['A', 'B', 'C', 'D', 'F'];
+                                                                        $gradesToLoop = ($schoolType === 'Primary')
+                                                                            ? ['A', 'B', 'C', 'D', 'E', 'F']
+                                                                            : (($isALevelView ?? false)
+                                                                                ? ['A', 'B', 'C', 'D', 'E', 'S', 'F']
+                                                                                : ['A', 'B', 'C', 'D', 'F']);
                                                                     @endphp
                                                                     @foreach($gradesToLoop as $grade)
                                                                         @php
@@ -3346,14 +3411,20 @@
                                                                         // Calculate Subject GPA
                                                                         $sTotal = 0;
                                                                         $sPoints = 0;
-                                                                        $sGrades = ($schoolType === 'Primary') ? ['A', 'B', 'C', 'D', 'E', 'F'] : ['A', 'B', 'C', 'D', 'F'];
+                                                                        $sGrades = ($schoolType === 'Primary')
+                                                                            ? ['A', 'B', 'C', 'D', 'E', 'F']
+                                                                            : (($isALevelView ?? false)
+                                                                                ? ['A', 'B', 'C', 'D', 'E', 'S', 'F']
+                                                                                : ['A', 'B', 'C', 'D', 'F']);
                                                                         foreach($sGrades as $sg) {
                                                                             $c = $grades[$sg]['total'] ?? 0;
                                                                             $sTotal += $c;
                                                                             if ($schoolType === 'Primary') {
                                                                                 $ptMap = ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0];
                                                                             } else {
-                                                                                $ptMap = ['A' => 1, 'B' => 2, 'C' => 3, 'D' => 4, 'F' => 5];
+                                                                                $ptMap = ($isALevelView ?? false)
+                                                                                    ? ['A' => 1, 'B' => 2, 'C' => 3, 'D' => 4, 'E' => 5, 'S' => 6, 'F' => 7]
+                                                                                    : ['A' => 1, 'B' => 2, 'C' => 3, 'D' => 4, 'F' => 5];
                                                                             }
                                                                             $sPoints += ($c * ($ptMap[$sg] ?? 0));
                                                                         }
@@ -3372,13 +3443,17 @@
                                                                             elseif ($sGPA <= 2.5) $subjectGrade = 'B';
                                                                             elseif ($sGPA <= 3.5) $subjectGrade = 'C';
                                                                             elseif ($sGPA <= 4.5) $subjectGrade = 'D';
+                                                                            elseif (($isALevelView ?? false) && $sGPA <= 5.5) $subjectGrade = 'E';
+                                                                            elseif (($isALevelView ?? false) && $sGPA <= 6.5) $subjectGrade = 'S';
                                                                             else $subjectGrade = 'F';
                                                                         }
                                                                         if ($schoolType === 'Secondary') {
                                                                             if ($subjectGrade === 'A') { $remarkClass = 'bg-grade-a'; $remarkText = 'Excellent'; }
                                                                             elseif ($subjectGrade === 'B') { $remarkClass = 'bg-pass'; $remarkText = 'Very Good'; }
                                                                             elseif ($subjectGrade === 'C') { $remarkClass = 'bg-warning'; $remarkText = 'Good'; }
-                                                                            elseif ($subjectGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Satisfactory'; }
+                                                                            elseif ($subjectGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = ($isALevelView ?? false) ? 'Average' : 'Satisfactory'; }
+                                                                            elseif (($isALevelView ?? false) && $subjectGrade === 'E') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Satisfactory'; }
+                                                                            elseif (($isALevelView ?? false) && $subjectGrade === 'S') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Subsidiary'; }
                                                                             elseif ($subjectGrade === 'F') { $remarkClass = 'bg-fail'; $remarkText = 'Fail'; }
                                                                             else { $remarkClass = 'bg-inc'; $remarkText = 'Incomplete'; }
                                                                         } else {
@@ -3657,7 +3732,9 @@
                                                                                                 if ($subGrade === 'A') { $remarkClass = 'bg-grade-a'; $remarkText = 'Excellent'; }
                                                                                                 elseif ($subGrade === 'B') { $remarkClass = 'bg-pass'; $remarkText = 'Very Good'; }
                                                                                                 elseif ($subGrade === 'C') { $remarkClass = 'bg-warning'; $remarkText = 'Good'; }
-                                                                                                elseif ($subGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Satisfactory'; }
+                                                                                                elseif ($subGrade === 'D') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = ($isALevelView ?? false) ? 'Average' : 'Satisfactory'; }
+                                                                                                elseif (($isALevelView ?? false) && $subGrade === 'E') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Satisfactory'; }
+                                                                                                elseif (($isALevelView ?? false) && $subGrade === 'S') { $remarkClass = 'bg-orange-bootstrap'; $remarkText = 'Subsidiary'; }
                                                                                                 elseif ($subGrade === 'F') { $remarkClass = 'bg-fail'; $remarkText = 'Fail'; }
                                                                                                 elseif (preg_match('/^(I|II|III|IV)\./', $subGrade)) { $remarkClass = 'bg-pass'; $remarkText = 'Pass'; }
                                                                                             } elseif (in_array($subGrade, ['A', 'B', 'C', 'D'])) {
@@ -3945,25 +4022,43 @@ $(document).ready(function() {
     initializeReportStudentsDataTable();
     initializeReportSubjectStatsDataTable();
 
-    function getReportSubjectRemark(grade, isSecondary) {
+    function getReportSubjectRemark(grade, isSecondary, isALevel) {
         const normalizedGrade = String(grade || '').toUpperCase().trim();
         if (!grade || normalizedGrade === 'N/A' || normalizedGrade === 'INCOMPLETE' || normalizedGrade === '-') {
             return { text: 'Incomplete', cssClass: 'bg-inc' };
         }
 
         if (isSecondary) {
-            switch (normalizedGrade) {
-                case 'A':
-                    return { text: 'Excellent', cssClass: 'bg-grade-a' };
-                case 'B':
-                    return { text: 'Very Good', cssClass: 'bg-pass' };
-                case 'C':
-                    return { text: 'Good', cssClass: 'bg-warning' };
-                case 'D':
-                    return { text: 'Satisfactory', cssClass: 'bg-orange-bootstrap' };
-                case 'F':
-                case 'E':
-                    return { text: 'Fail', cssClass: 'bg-fail' };
+            if (isALevel) {
+                switch (normalizedGrade) {
+                    case 'A':
+                        return { text: 'Excellent', cssClass: 'bg-grade-a' };
+                    case 'B':
+                        return { text: 'Very Good', cssClass: 'bg-pass' };
+                    case 'C':
+                        return { text: 'Good', cssClass: 'bg-warning' };
+                    case 'D':
+                        return { text: 'Average', cssClass: 'bg-orange-bootstrap' };
+                    case 'E':
+                        return { text: 'Satisfactory', cssClass: 'bg-orange-bootstrap' };
+                    case 'S':
+                        return { text: 'Subsidiary', cssClass: 'bg-orange-bootstrap' };
+                    case 'F':
+                        return { text: 'Fail', cssClass: 'bg-fail' };
+                }
+            } else {
+                switch (normalizedGrade) {
+                    case 'A':
+                        return { text: 'Excellent', cssClass: 'bg-grade-a' };
+                    case 'B':
+                        return { text: 'Very Good', cssClass: 'bg-pass' };
+                    case 'C':
+                        return { text: 'Good', cssClass: 'bg-warning' };
+                    case 'D':
+                        return { text: 'Satisfactory', cssClass: 'bg-orange-bootstrap' };
+                    case 'F':
+                        return { text: 'Fail', cssClass: 'bg-fail' };
+                }
             }
             if (/^(I|II|III|IV)\./.test(normalizedGrade)) {
                 return { text: 'Pass', cssClass: 'bg-pass' };
@@ -3997,13 +4092,18 @@ $(document).ready(function() {
         return map[cssClass] || map['bg-fail'];
     }
 
-    function renderRemarkCellHtml(grade, isSecondary) {
-        const remarkInfo = getReportSubjectRemark(grade, isSecondary);
+    function renderRemarkCellHtml(grade, isSecondary, isALevel) {
+        const remarkInfo = getReportSubjectRemark(grade, isSecondary, isALevel);
         return `<td class="text-center colored-remark ${remarkInfo.cssClass}">${remarkInfo.text}</td>`;
     }
 
-    function getRemarkColorDefinitionHtml(isSecondary) {
+    function getRemarkColorDefinitionHtml(isSecondary, isALevel) {
         if (isSecondary) {
+            const dLabel = isALevel ? 'D - Average' : 'D - Satisfactory';
+            const aLevelExtra = isALevel
+                ? `<div class="result-color-block bg-orange-bootstrap text-white">E - Satisfactory</div>
+                   <div class="result-color-block bg-orange-bootstrap text-white">S - Subsidiary</div>`
+                : '';
             return `
                 <div class="result-color-def-container">
                     <div class="result-color-def-title">Remark Color Definition</div>
@@ -4011,7 +4111,8 @@ $(document).ready(function() {
                         <div class="result-color-block result-color-excellent">A - Excellent</div>
                         <div class="result-color-block result-color-pass">B - Very Good</div>
                         <div class="result-color-block bg-warning text-dark">C - Good</div>
-                        <div class="result-color-block bg-orange-bootstrap text-white">D - Satisfactory</div>
+                        <div class="result-color-block bg-orange-bootstrap text-white">${dLabel}</div>
+                        ${aLevelExtra}
                         <div class="result-color-block result-color-fail">F - Fail</div>
                         <div class="result-color-block result-color-inc">Incomplete</div>
                     </div>
@@ -4071,7 +4172,7 @@ $(document).ready(function() {
         `;
     }
 
-    function drawRemarkColorLegendPdf(doc, startY, marginLeft, pageWidth, isSecondary) {
+    function drawRemarkColorLegendPdf(doc, startY, marginLeft, pageWidth, isSecondary, isALevel) {
         const legendY = startY;
         const normalizedMargin = (typeof marginLeft === 'number') ? marginLeft : (marginLeft && marginLeft.left ? marginLeft.left : 14);
         const usableWidth = pageWidth - (normalizedMargin * 2);
@@ -4080,7 +4181,11 @@ $(document).ready(function() {
             { label: 'A - Excellent', colors: getRemarkPdfColors('bg-grade-a') },
             { label: 'B - Very Good', colors: getRemarkPdfColors('bg-pass') },
             { label: 'C - Good', colors: getRemarkPdfColors('bg-warning') },
-            { label: 'D - Satisfactory', colors: getRemarkPdfColors('bg-orange-bootstrap') },
+            { label: isALevel ? 'D - Average' : 'D - Satisfactory', colors: getRemarkPdfColors('bg-orange-bootstrap') },
+            ...(isALevel ? [
+                { label: 'E - Satisfactory', colors: getRemarkPdfColors('bg-orange-bootstrap') },
+                { label: 'S - Subsidiary', colors: getRemarkPdfColors('bg-orange-bootstrap') }
+            ] : []),
             { label: 'F - Fail', colors: getRemarkPdfColors('bg-fail') },
             { label: 'Incomplete', colors: getRemarkPdfColors('bg-inc') }
         ] : [
@@ -4200,6 +4305,7 @@ $(document).ready(function() {
                     averageMarks: response.averageMarks || 0,
                     grade: response.grade || gradeOrDivision,
                     division: response.division || null,
+                    isALevel: !!response.isALevel,
                     subjects: response.subjects || [],
                     exams: response.exams || [],
                     examinationSummaries: response.examinationSummaries || [],
@@ -4227,7 +4333,7 @@ $(document).ready(function() {
                             </div>
                         </div>
                     </div>
-                    ${getRemarkColorDefinitionHtml(isSecondary)}
+                    ${getRemarkColorDefinitionHtml(isSecondary, !!response.isALevel)}
                     <div class="card mb-3">
                         <div class="card-header bg-light">
                             <h6 class="mb-0"><strong>Results Summary</strong></h6>
@@ -4405,6 +4511,7 @@ $(document).ready(function() {
         const examName = $('#examID option:selected').text().split('(')[0].trim();
         const schoolType = '{{ $schoolType ?? "Secondary" }}';
         const isSecondaryExamDetails = (schoolType || '').toLowerCase() === 'secondary';
+        const isALevelExamDetails = {{ !empty($isALevelView) ? 'true' : 'false' }};
         
         // Build content
         let content = `
@@ -4426,7 +4533,7 @@ $(document).ready(function() {
                     </div>
                 </div>
             </div>
-                    ${getRemarkColorDefinitionHtml(isSecondaryExamDetails)}
+                    ${getRemarkColorDefinitionHtml(isSecondaryExamDetails, isALevelExamDetails)}
                     <div class="card mb-3">
                         <div class="card-header bg-light">
                             <h6 class="mb-0"><strong>Results Summary</strong></h6>
@@ -4486,6 +4593,7 @@ $(document).ready(function() {
                         subjectCount: response.subjectCount || 0,
                         grade: response.grade || null,
                         division: response.division || null,
+                        isALevel: !!response.isALevel,
                         totalStudentsCount: response.totalStudentsCount || 0,
                         subjects: response.subjects || [],
                         characterAssessment: response.characterAssessment || null,
@@ -4546,7 +4654,18 @@ $(document).ready(function() {
                                 response.exams.forEach(ex => {
                                     const res = (subject.exams && subject.exams[ex.examID]) ? subject.exams[ex.examID] : null;
                                     if (res) {
-                                        examCells += `<td class="text-center">${res.marks !== null ? parseFloat(res.marks).toFixed(0) : '-'}<br><small class="text-muted">${res.grade || '-'}</small></td>`;
+                                        let cellInner = `${res.marks !== null ? parseFloat(res.marks).toFixed(0) : '-'}<br><small class="text-muted">${res.grade || '-'}</small>`;
+                                        if (res.papers && res.papers.length) {
+                                            cellInner += `<div class="small text-muted mt-1" style="line-height:1.2;">`;
+                                            res.papers.forEach(function(p) {
+                                                const pm = (p.marks !== null && p.marks !== undefined && p.marks !== '')
+                                                    ? Math.round(parseFloat(p.marks)) + '/' + (p.max_marks || '')
+                                                    : '-';
+                                                cellInner += `<div>${p.component_name || 'Paper'}: ${pm}</div>`;
+                                            });
+                                            cellInner += `</div>`;
+                                        }
+                                        examCells += `<td class="text-center">${cellInner}</td>`;
                                     } else {
                                         examCells += `<td class="text-center text-muted">-</td>`;
                                     }
@@ -4558,7 +4677,7 @@ $(document).ready(function() {
                                         ${examCells}
                                         <td class="text-center align-middle font-weight-bold">${avgDisplay}</td>
                                         <td class="text-center align-middle">${gradeDisplay}</td>
-                                        ${renderRemarkCellHtml(gradeDisplay, isSecondaryExam)}
+                                        ${renderRemarkCellHtml(gradeDisplay, isSecondaryExam, !!response.isALevel)}
                                     </tr>
                                 `;
                             });
@@ -4607,23 +4726,50 @@ $(document).ready(function() {
                                                 <span>${ex.exam_name}:</span>
                                                 <span class="font-italic">${ex.marks ?? '-'} (${ex.grade ?? '-'})</span>
                                             </div>`;
+                                            if (ex.papers && ex.papers.length) {
+                                                ex.papers.forEach(function(p) {
+                                                    const pm = (p.marks !== null && p.marks !== undefined && p.marks !== '')
+                                                        ? Math.round(parseFloat(p.marks)) + '/' + (p.max_marks || '')
+                                                        : '-';
+                                                    subjectsHtml += `<div class="d-flex justify-content-between mb-1 pl-2" style="opacity:.85;">
+                                                        <span>${p.component_name || 'Paper'}:</span>
+                                                        <span>${pm}</span>
+                                                    </div>`;
+                                                });
+                                            }
                                         });
                                     }
                                     
                                     subjectsHtml += `</div></td>
                                         <td class="text-center align-middle h5"><strong>${Math.round(parseFloat(subject.marks))}</strong></td>
                                         <td class="text-center align-middle font-weight-bold h5"><strong>${subject.grade ?? 'N/A'}</strong></td>
-                                        ${renderRemarkCellHtml(subject.grade, isSecondaryExamSingle)}
+                                        ${renderRemarkCellHtml(subject.grade, isSecondaryExamSingle, isALevelExamDetails)}
                                     </tr>`;
                                 } else {
-                                    // Single Exam View
+                                    // Single Exam View — duo shows papers + total
                                     const marks = subject.marks !== null && subject.marks !== '' ? 
                                         parseFloat(subject.marks).toFixed(0) : 'N/A';
+                                    let subjectLabel = `<div class="font-weight-bold">${subject.subject_name}</div>`;
+                                    if (subject.is_duo && subject.papers && subject.papers.length) {
+                                        subjectLabel += `<div class="small text-muted mt-1 px-2 border-left">`;
+                                        subject.papers.forEach(function(p) {
+                                            const pm = (p.marks !== null && p.marks !== undefined && p.marks !== '')
+                                                ? Math.round(parseFloat(p.marks)) + '/' + (p.max_marks || '')
+                                                : '-';
+                                            subjectLabel += `<div class="d-flex justify-content-between mb-1">
+                                                <span>${p.component_name || 'Paper'}:</span>
+                                                <span>${pm}</span>
+                                            </div>`;
+                                        });
+                                        subjectLabel += `<div class="d-flex justify-content-between font-weight-bold">
+                                            <span>Total:</span><span>${marks}%</span>
+                                        </div></div>`;
+                                    }
                                     subjectsHtml += `<tr>
-                                        <td>${subject.subject_name}</td>
-                                        <td class="text-center">${marks}</td>
-                                        <td class="text-center font-weight-bold">${subject.grade ?? 'N/A'}</td>
-                                        ${renderRemarkCellHtml(subject.grade, isSecondaryExamSingle)}
+                                        <td>${subjectLabel}</td>
+                                        <td class="text-center align-middle font-weight-bold">${marks}</td>
+                                        <td class="text-center align-middle font-weight-bold">${subject.grade ?? 'N/A'}</td>
+                                        ${renderRemarkCellHtml(subject.grade, isSecondaryExamSingle, isALevelExamDetails)}
                                     </tr>`;
                                 }
                             });
@@ -5386,11 +5532,13 @@ $(document).ready(function() {
                     $response = $('<div>').append($.parseHTML(response, document, true));
                 }
                 
-                // Rehydrate detailedViewData from response scripts (jQuery .html() does not run them)
+                // Rehydrate detailedViewData ONLY from tiny assignment scripts.
+                // Never eval the main page bundle (it mentions detailedViewData and would
+                // re-bind every $(document).on(...) → duplicate Excel/PDF downloads).
                 window.detailedViewData = null;
-                $response.find('script').addBack('script').each(function () {
-                    const text = this.textContent || this.innerText || '';
-                    if (text.indexOf('window.detailedViewData') === -1) return;
+                $response.find('script').each(function () {
+                    const text = (this.textContent || this.innerText || '').trim();
+                    if (!/^\s*window\.detailedViewData\s*=/.test(text)) return;
                     try {
                         // eslint-disable-next-line no-eval
                         eval(text);
@@ -5947,6 +6095,11 @@ $(document).ready(function() {
     }
 
     function serverDownloadExcel(params, filename) {
+        if (window._sxExcelDownloading) {
+            return;
+        }
+        window._sxExcelDownloading = true;
+
         const btn = params._btn;
         const originalHtml = btn ? btn.html() : null;
         if (btn) btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Generating Excel...');
@@ -6022,6 +6175,7 @@ $(document).ready(function() {
             }
         })
         .finally(function() {
+            window._sxExcelDownloading = false;
             if (btn && originalHtml) btn.prop('disabled', false).html(originalHtml);
         });
     }
@@ -6376,7 +6530,7 @@ $(document).ready(function() {
                 doc.setFont('helvetica', 'bold');
                 doc.text(examName + ' - ' + examDate, 14, yPos);
                 yPos += 8;
-                yPos = drawRemarkColorLegendPdf(doc, yPos, 14, pageWidth, (schoolType || '').toLowerCase() === 'secondary');
+                yPos = drawRemarkColorLegendPdf(doc, yPos, 14, pageWidth, (schoolType || '').toLowerCase() === 'secondary', {{ !empty($isALevelView) ? 'true' : 'false' }});
 
                 // Get subjects from collapsed section
                 const collapseButton = firstExamRow.find('button[data-toggle="collapse"]');
@@ -6677,9 +6831,10 @@ $(document).ready(function() {
     // Export All Students PDF
     // If detailed view (class/subclass with stats) is showing → use jsPDF rich export
     // Otherwise → use server-side DomPDF (simple table)
-    $(document).on('click', '#exportAllPdf', function(e) {
+    $(document).off('click.sxExportPdf', '#exportAllPdf').on('click.sxExportPdf', '#exportAllPdf', function(e) {
         e.preventDefault();
         e.stopPropagation();
+        if (window._sxPdfDownloading) return;
 
         const $btn = $(this);
 
@@ -7009,7 +7164,10 @@ $(document).ready(function() {
                 const subjectNames = Object.keys(data.subjectStats).sort();
                 // Build table header and data
                 const isPrimary = (schoolType === 'Primary');
-                const gradesToInclude = isPrimary ? ['A', 'B', 'C', 'D', 'E', 'F'] : ['A', 'B', 'C', 'D', 'F'];
+                const isALevelView = {{ !empty($isALevelView) ? 'true' : 'false' }};
+                const gradesToInclude = isPrimary
+                    ? ['A', 'B', 'C', 'D', 'E', 'F']
+                    : (isALevelView ? ['A', 'B', 'C', 'D', 'E', 'S', 'F'] : ['A', 'B', 'C', 'D', 'F']);
                 const header = ['Subject', ...gradesToInclude, 'GPA'];
 
                 const subjectStatsData = [];
@@ -7036,7 +7194,9 @@ $(document).ready(function() {
                                 const ptMap = {'A':5,'B':4,'C':3,'D':2,'E':1,'F':0};
                                 sPointsCount += (total * (ptMap[grade] || 0));
                             } else {
-                                const ptMap = {'A':1,'B':2,'C':3,'D':4,'F':5};
+                                const ptMap = isALevelView
+                                    ? {'A':1,'B':2,'C':3,'D':4,'E':5,'S':6,'F':7}
+                                    : {'A':1,'B':2,'C':3,'D':4,'F':5};
                                 sPointsCount += (total * (ptMap[grade] || 0));
                             }
                         }
@@ -7300,9 +7460,10 @@ $(document).ready(function() {
     }
 
     // Export All Excel — server-side (same filters/option logic as Export All PDF)
-    $(document).on('click', '#exportAllExcel', function(e) {
+    $(document).off('click.sxExportExcel', '#exportAllExcel').on('click.sxExportExcel', '#exportAllExcel', function(e) {
         e.preventDefault();
         e.stopPropagation();
+        if (window._sxExcelDownloading) return;
 
         const $btn = $(this);
         const classVal    = $('#class').val() || '';
@@ -7870,7 +8031,7 @@ $(document).ready(function() {
             });
             yPos = doc.lastAutoTable.finalY + 10;
             const isSecondaryExamPdf = (schoolType || '').toLowerCase() === 'secondary';
-            yPos = drawRemarkColorLegendPdf(doc, yPos, tableMargin, pageWidth, isSecondaryExamPdf);
+            yPos = drawRemarkColorLegendPdf(doc, yPos, tableMargin, pageWidth, isSecondaryExamPdf, !!(studentData.isALevel || {{ !empty($isALevelView) ? 'true' : 'false' }}));
 
             // Subjects Table
             if (studentData.subjects && studentData.subjects.length > 0) {
@@ -7889,8 +8050,20 @@ $(document).ready(function() {
                         marks = parseFloat(subject.marks).toFixed(0);
                     }
                     const gradeVal = subject.grade || 'N/A';
-                    const remarkInfo = getReportSubjectRemark(gradeVal, isSecondaryExamPdf);
+                    const isALevelPdfRow = !!(studentData.isALevel || {{ !empty($isALevelView) ? 'true' : 'false' }});
+                    const remarkInfo = getReportSubjectRemark(gradeVal, isSecondaryExamPdf, isALevelPdfRow);
                     remarkCellStyles.push(getRemarkPdfColors(remarkInfo.cssClass));
+
+                    let subjectLabel = subject.subject_name || 'N/A';
+                    if (subject.is_duo && subject.papers && subject.papers.length) {
+                        const paperLines = subject.papers.map(function(p) {
+                            const pm = (p.marks !== null && p.marks !== undefined && p.marks !== '')
+                                ? Math.round(parseFloat(p.marks)) + '/' + (p.max_marks || '')
+                                : '-';
+                            return (p.component_name || 'Paper') + ': ' + pm;
+                        });
+                        subjectLabel = subjectLabel + '\n' + paperLines.join('\n') + '\nTotal: ' + marks + '%';
+                    }
 
                     if (hasCA) {
                         let caMarks = '-';
@@ -7909,7 +8082,7 @@ $(document).ready(function() {
                             if (caCount > 0) caMarks = (caSum / caCount).toFixed(0);
                         }
                         subjectData.push([
-                            subject.subject_name || 'N/A',
+                            subjectLabel,
                             caMarks,
                             examMarks,
                             marks,
@@ -7918,7 +8091,7 @@ $(document).ready(function() {
                         ]);
                     } else {
                         subjectData.push([
-                            subject.subject_name || 'N/A',
+                            subjectLabel,
                             marks,
                             gradeVal,
                             remarkInfo.text
@@ -8274,7 +8447,7 @@ $(document).ready(function() {
             });
             yPos = doc.lastAutoTable.finalY + 10;
             const isSecondaryPdf = ('{{ $schoolType ?? "Secondary" }}' || '').toLowerCase() === 'secondary';
-            yPos = drawRemarkColorLegendPdf(doc, yPos, tableMargin, pageWidth, isSecondaryPdf);
+            yPos = drawRemarkColorLegendPdf(doc, yPos, tableMargin, pageWidth, isSecondaryPdf, !!(reportStudentData.isALevel || {{ !empty($isALevelView) ? 'true' : 'false' }}));
             
             // Subject Results Table
             if (reportStudentData.subjects && reportStudentData.subjects.length > 0 && reportStudentData.exams && reportStudentData.exams.length > 0) {
@@ -8293,7 +8466,17 @@ $(document).ready(function() {
                         const examResult = (subject.exams && subject.exams[exam.examID]) ? subject.exams[exam.examID] : null;
                         
                         if (examResult && examResult.marks !== null && examResult.marks !== '') {
-                            row.push(parseFloat(examResult.marks).toFixed(0));
+                            let cell = parseFloat(examResult.marks).toFixed(0);
+                            if (examResult.papers && examResult.papers.length) {
+                                const paperLines = examResult.papers.map(function(p) {
+                                    const pm = (p.marks !== null && p.marks !== undefined && p.marks !== '')
+                                        ? Math.round(parseFloat(p.marks)) + '/' + (p.max_marks || '')
+                                        : '-';
+                                    return (p.component_name || 'Paper') + ': ' + pm;
+                                });
+                                cell = cell + '\n' + paperLines.join('\n');
+                            }
+                            row.push(cell);
                         } else {
                             row.push('-');
                         }
@@ -8304,7 +8487,7 @@ $(document).ready(function() {
                         ? '-'
                         : parseFloat(subject.average).toFixed(1);
                     const grade = isIncompleteRow ? 'Incomplete' : (subject.grade || 'N/A');
-                    const remarkInfo = getReportSubjectRemark(grade, isSecondaryPdf);
+                    const remarkInfo = getReportSubjectRemark(grade, isSecondaryPdf, !!(reportStudentData.isALevel || {{ !empty($isALevelView) ? 'true' : 'false' }}));
                     row.push(avg, grade, remarkInfo.text);
                     remarkCellStyles.push(getRemarkPdfColors(remarkInfo.cssClass));
                     
@@ -10083,7 +10266,10 @@ $(document).ready(function() {
         }, 250);
 
         const schoolTypePdf = ('{{ $schoolType ?? "Secondary" }}' || '').toLowerCase();
-        const gradeLabels = (schoolTypePdf === 'primary') ? ['A', 'B', 'C', 'D', 'E', 'F'] : ['A', 'B', 'C', 'D', 'F'];
+        const isALevelPdfExport = {{ !empty($isALevelView) ? 'true' : 'false' }};
+        const gradeLabels = (schoolTypePdf === 'primary')
+            ? ['A', 'B', 'C', 'D', 'E', 'F']
+            : (isALevelPdfExport ? ['A', 'B', 'C', 'D', 'E', 'S', 'F'] : ['A', 'B', 'C', 'D', 'F']);
         const classLabel = ($('#class option:selected').text() || '').trim() || 'ALL CLASSES';
         const subclassLabel = ($('#subclass option:selected').text() || '').trim();
         const displayClass = subclassLabel ? `${classLabel} ${subclassLabel}` : classLabel;
@@ -10133,19 +10319,30 @@ $(document).ready(function() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
                 'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
                 rows: rowsPayload,
                 school_type: schoolTypePdf,
+                is_a_level: isALevelPdfExport,
                 term: $('#term option:selected').text() || '-',
                 year: $('#year').val() || '-',
                 class_label: displayClass
             })
         })
-        .then(function(response) {
-            if (!response.ok) throw new Error('Server error: ' + response.status);
+        .then(async function(response) {
+            if (!response.ok) {
+                let msg = 'Server error: ' + response.status;
+                try {
+                    const errJson = await response.json();
+                    if (errJson && (errJson.error || errJson.message)) {
+                        msg = errJson.error || errJson.message;
+                    }
+                } catch (e) { /* keep status message */ }
+                throw new Error(msg);
+            }
             return response.blob();
         })
         .then(function(blob) {

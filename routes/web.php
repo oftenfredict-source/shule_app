@@ -1021,6 +1021,10 @@ Route::get("get_class_subjects_by_subclass/{subclassID}", [
     ManageSubjectController::class,
     "get_class_subjects_by_subclass",
 ])->name("get_class_subjects_by_subclass");
+Route::get("get_subclass_subject_defaults/{subclassID}", [
+    ManageSubjectController::class,
+    "get_subclass_subject_defaults",
+])->name("get_subclass_subject_defaults");
 Route::post("save_class_subject", [
     ManageSubjectController::class,
     "save_class_subject",
@@ -1341,6 +1345,10 @@ Route::get("get_subject_students/{classSubjectID}", [
     TeachersController::class,
     "getSubjectStudents",
 ])->name("get_subject_students");
+Route::get("get_class_subject_papers/{classSubjectID}", [
+    TeachersController::class,
+    "getClassSubjectPapers",
+])->name("get_class_subject_papers");
 Route::get("get_subject_results/{classSubjectID}", [
     TeachersController::class,
     "getSubjectResults",

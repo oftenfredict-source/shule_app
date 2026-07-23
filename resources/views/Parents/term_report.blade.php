@@ -714,8 +714,52 @@ $(document).ready(function() {
         updateWizard();
     });
 
+    const getParentSubjectRemark = (grade, isSecondary, isALevel) => {
+        const g = String(grade || '').toUpperCase().trim();
+        if (!grade || g === 'N/A' || g === 'INCOMPLETE' || g === '-') {
+            return { text: 'Incomplete', cssClass: 'bg-inc' };
+        }
+        if (isSecondary) {
+            if (isALevel) {
+                const map = {
+                    A: 'Excellent', B: 'Very Good', C: 'Good',
+                    D: 'Average', E: 'Satisfactory', S: 'Subsidiary', F: 'Fail'
+                };
+                if (map[g]) {
+                    return { text: map[g], cssClass: g === 'F' ? 'bg-fail' : 'bg-pass' };
+                }
+            } else {
+                const map = {
+                    A: 'Excellent', B: 'Very Good', C: 'Good', D: 'Pass', F: 'Fail'
+                };
+                if (map[g]) {
+                    return { text: map[g], cssClass: g === 'F' ? 'bg-fail' : 'bg-pass' };
+                }
+            }
+            if (/^(I|II|III|IV)\./.test(g)) {
+                return { text: 'Pass', cssClass: 'bg-pass' };
+            }
+            return { text: 'Fail', cssClass: 'bg-fail' };
+        }
+        if (['A', 'B', 'C', 'D'].includes(g)) {
+            return { text: 'Pass', cssClass: 'bg-pass' };
+        }
+        return { text: 'Fail', cssClass: 'bg-fail' };
+    };
+
+    const formatPaperLines = (papers) => {
+        if (!papers || !papers.length) return '';
+        return papers.map(p => {
+            const pm = (p.marks !== null && p.marks !== undefined && p.marks !== '')
+                ? `${Math.round(parseFloat(p.marks))}/${p.max_marks || ''}`
+                : '-';
+            return `<li class="exam-sub-item px-3" style="opacity:.9; padding-left:1.25rem !important;">${p.component_name || 'Paper'}: <strong>${pm}</strong></li>`;
+        }).join('');
+    };
+
     const renderResults = (data) => {
         const isSecondary = (data.school_type || '').toLowerCase() === 'secondary';
+        const isALevel = !!data.is_a_level;
         const overallLabel = isSecondary ? 'Divisheni ya Muhula:' : 'Daraja la Muhula:';
         const overallValue = isSecondary ? (data.overall_division || '-') : (data.overall_grade || '-');
         // Overview
@@ -745,26 +789,15 @@ $(document).ready(function() {
         
         data.results.forEach(res => {
             // Determine if average is null/empty → Incomplete
-            const rawAvg = res.average;
+            const rawAvg = res.average ?? res.marks;
             const hasMarks = rawAvg !== null && rawAvg !== undefined && rawAvg !== '' && rawAvg !== '-';
             const avgVal = hasMarks ? parseFloat(rawAvg).toFixed(0) : 'Incomplete';
-            const gradeText = hasMarks ? (res.grade || 'F') : 'Incomplete';
-            
-            // Determine remark class based on grade
-            let remarkClass = 'bg-fail';
-            let remarkText = 'Failed';
-            if (!hasMarks || gradeText === 'Incomplete') {
-                remarkClass = 'bg-inc';
-                remarkText = 'Incomplete';
-            } else if (isSecondary) {
-                if (/^(I|II|III|IV)\./.test(String(gradeText).toUpperCase())) {
-                    remarkClass = 'bg-pass';
-                    remarkText = 'Pass';
-                }
-            } else if (['A', 'B', 'C', 'D'].includes(gradeText)) {
-                remarkClass = 'bg-pass';
-                remarkText = 'Pass';
-            }
+            const gradeText = (!hasMarks || String(res.grade || '').toLowerCase() === 'incomplete')
+                ? 'Incomplete'
+                : (res.grade || 'F');
+            const remarkInfo = getParentSubjectRemark(gradeText, isSecondary, isALevel);
+            const remarkClass = remarkInfo.cssClass;
+            const remarkText = res.remark || remarkInfo.text;
 
             bodyHtml += `
                 <tr>
@@ -774,7 +807,8 @@ $(document).ready(function() {
                             ${examsInTerm.map(ex => {
                                 const exResult = res.exams ? res.exams[ex.examID] : null;
                                 const exMarks = exResult && exResult.marks !== null && exResult.marks !== '' ? parseFloat(exResult.marks).toFixed(0) : '-';
-                                return `<li class="exam-sub-item px-3">${ex.exam_name}: <strong>${exMarks}</strong></li>`;
+                                const papersHtml = exResult ? formatPaperLines(exResult.papers || []) : '';
+                                return `<li class="exam-sub-item px-3">${ex.exam_name}: <strong>${exMarks}</strong></li>${papersHtml}`;
                             }).join('')}
                         </ul>
                     </td>

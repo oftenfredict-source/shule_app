@@ -71,6 +71,29 @@
         background: #940000;
     }
 
+    /* Combie main subjects (A-Level / Custom) */
+    .combie-subjects-box {
+        background: #FFF5F5;
+        border: 1px solid rgba(148, 0, 0, 0.2);
+        padding: 12px 14px;
+        margin-top: 4px;
+    }
+    .combie-subjects-box select.combie-subject-select option:disabled,
+    .combie-subjects-box select.edit-combie-subject-select option:disabled {
+        color: #adb5bd;
+        background: #e9ecef;
+    }
+    .combie-subject-chip {
+        display: inline-block;
+        background: #fff;
+        border: 1px solid rgba(148, 0, 0, 0.25);
+        color: #940000;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        margin: 2px;
+    }
+
     .modal-content {
         border-radius: 0 !important;
         border: none !important;
@@ -748,6 +771,26 @@
                         <input type="text" name="custom_combie_name" id="custom_combie_name" class="form-control" placeholder="e.g., Custom Combination Name" maxlength="100">
                         <small class="text-muted">Enter your custom combination name</small>
                     </div>
+                    <div class="mb-3" id="combieSubjectsAssignGroup" style="display: none;">
+                        <label class="form-label fw-bold">Assign Main Subjects <span class="text-muted">(max 3)</span></label>
+                        <div class="combie-subjects-box">
+                            <small class="d-block text-muted mb-2">A-Level / Custom only. Already chosen subjects are greyed out (no duplicates).</small>
+                            @for($i = 1; $i <= 3; $i++)
+                            <div class="mb-2">
+                                <label class="small fw-bold mb-0">Subject {{ $i }}</label>
+                                <select class="form-control form-control-sm combie-subject-select" id="add_combie_subject_{{ $i }}" data-slot="{{ $i }}">
+                                    <option value="">-- Select subject --</option>
+                                    @foreach(($schoolSubjects ?? collect()) as $subj)
+                                        <option value="{{ $subj->subjectID }}">
+                                            {{ $subj->subject_name }}{{ $subj->subject_code ? ' ('.$subj->subject_code.')' : '' }}{{ !empty($subj->is_duo) ? ' · DUO' : '' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endfor
+                            <div id="add_combie_subject_error" class="text-danger small fw-bold" style="display:none;"></div>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Combination Code</label>
                         <input type="text" name="combie_code" id="combie_code_input" class="form-control" placeholder="e.g., SCI, ART, BUS, PCM, PGM" maxlength="20">
@@ -814,6 +857,16 @@
                                                 <p class="mb-0 small text-muted">{{ Str::limit($combie->description, 80) }}</p>
                                             </div>
                                         @endif
+                                        @if($combie->subjects && $combie->subjects->count())
+                                            <div class="mb-2">
+                                                <strong><i class="bi bi-book"></i> Main subjects:</strong>
+                                                <div class="mt-1">
+                                                    @foreach($combie->subjects as $subj)
+                                                        <span class="combie-subject-chip">{{ $subj->subject_name }}</span>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endif
                                         <div class="mb-2">
                                             <strong><i class="bi bi-circle-fill"></i> Status:</strong>
                                             <span class="badge {{ $combie->status == 'Active' ? 'bg-success' : 'bg-secondary' }}">
@@ -833,6 +886,7 @@
                                                         data-combie-code="{{ $combie->combie_code }}"
                                                         data-combie-description="{{ $combie->description }}"
                                                         data-combie-status="{{ $combie->status }}"
+                                                        data-subject-ids='@json($combie->subjects->pluck("subjectID")->values())'
                                                         title="Edit Combination">
                                                     <i class="bi bi-pencil-fill"></i>
                                                 </button>
@@ -917,6 +971,26 @@
                         <label class="form-label fw-bold">Custom Combination Name <span class="text-danger">*</span></label>
                         <input type="text" name="custom_combie_name" id="edit_custom_combie_name" class="form-control" placeholder="e.g., Custom Combination Name" maxlength="100">
                         <small class="text-muted">Enter your custom combination name</small>
+                    </div>
+                    <div class="mb-3" id="editCombieSubjectsAssignGroup" style="display: none;">
+                        <label class="form-label fw-bold">Assign Main Subjects <span class="text-muted">(max 3)</span></label>
+                        <div class="combie-subjects-box">
+                            <small class="d-block text-muted mb-2">A-Level / Custom only. Already chosen subjects are greyed out (no duplicates).</small>
+                            @for($i = 1; $i <= 3; $i++)
+                            <div class="mb-2">
+                                <label class="small fw-bold mb-0">Subject {{ $i }}</label>
+                                <select class="form-control form-control-sm edit-combie-subject-select" id="edit_combie_subject_{{ $i }}" data-slot="{{ $i }}">
+                                    <option value="">-- Select subject --</option>
+                                    @foreach(($schoolSubjects ?? collect()) as $subj)
+                                        <option value="{{ $subj->subjectID }}">
+                                            {{ $subj->subject_name }}{{ $subj->subject_code ? ' ('.$subj->subject_code.')' : '' }}{{ !empty($subj->is_duo) ? ' · DUO' : '' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endfor
+                            <div id="edit_combie_subject_error" class="text-danger small fw-bold" style="display:none;"></div>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Combination Code</label>
@@ -2515,6 +2589,89 @@
             });
         });
 
+        // ---- Combie main subjects (A-Level / Custom, max 3, no duplicates) ----
+        var BASIC_COMBIES = ['Science', 'Arts', 'Business'];
+
+        function combieNeedsSubjectAssign(selectedValue) {
+            if (!selectedValue || selectedValue === '') return false;
+            if (selectedValue === 'custom') return true;
+            if (BASIC_COMBIES.indexOf(selectedValue) !== -1) return false;
+            // A-Level preset codes (PCM, PGM, ...) or any non-basic name
+            return true;
+        }
+
+        function toggleCombieSubjectsGroup(selectedValue, groupSelector, selectClass) {
+            var $group = $(groupSelector);
+            if (combieNeedsSubjectAssign(selectedValue)) {
+                $group.slideDown(150);
+                refreshCombieSubjectOptions(selectClass);
+            } else {
+                $group.slideUp(150);
+                $(selectClass).val('');
+                refreshCombieSubjectOptions(selectClass);
+                $(groupSelector).find('[id$="_subject_error"]').hide().text('');
+            }
+        }
+
+        function refreshCombieSubjectOptions(selectClass) {
+            var selected = [];
+            $(selectClass).each(function() {
+                var v = $(this).val();
+                if (v) selected.push(String(v));
+            });
+
+            $(selectClass).each(function() {
+                var $sel = $(this);
+                var current = String($sel.val() || '');
+                $sel.find('option').each(function() {
+                    var $opt = $(this);
+                    var val = String($opt.attr('value') || '');
+                    if (!val) {
+                        $opt.prop('disabled', false);
+                        return;
+                    }
+                    // Disable if selected in another slot
+                    var usedElsewhere = selected.indexOf(val) !== -1 && val !== current;
+                    $opt.prop('disabled', usedElsewhere);
+                });
+            });
+        }
+
+        function collectCombieSubjectIds(selectClass) {
+            var ids = [];
+            var seen = {};
+            var duplicate = false;
+            $(selectClass).each(function() {
+                var v = $(this).val();
+                if (!v) return;
+                if (seen[v]) {
+                    duplicate = true;
+                    return false;
+                }
+                seen[v] = true;
+                ids.push(parseInt(v, 10));
+            });
+            if (duplicate) return null;
+            return ids;
+        }
+
+        function setCombieSubjectIds(selectClass, ids) {
+            ids = ids || [];
+            $(selectClass).each(function(index) {
+                $(this).val(ids[index] ? String(ids[index]) : '');
+            });
+            refreshCombieSubjectOptions(selectClass);
+        }
+
+        $(document).on('change', '.combie-subject-select', function() {
+            refreshCombieSubjectOptions('.combie-subject-select');
+            $('#add_combie_subject_error').hide().text('');
+        });
+        $(document).on('change', '.edit-combie-subject-select', function() {
+            refreshCombieSubjectOptions('.edit-combie-subject-select');
+            $('#edit_combie_subject_error').hide().text('');
+        });
+
         // Handle Combie Name Select Change
         $(document).on('change', '#combie_name_select', function() {
             var selectedValue = $(this).val();
@@ -2548,6 +2705,8 @@
                 $('#combie_name_select').prop('required', true);
                 $codeInput.val('');
             }
+
+            toggleCombieSubjectsGroup(selectedValue, '#combieSubjectsAssignGroup', '.combie-subject-select');
         });
 
         // Handle Add Combie Form Submission
@@ -2595,8 +2754,27 @@
                 combie_code: $('#combie_code_input').val(),
                 description: $('textarea[name="description"]').val(),
                 status: $('select[name="status"]').val(),
+                subject_ids: [],
                 _token: $('input[name="_token"]').val()
             };
+
+            var selectVal = $('#combie_name_select').val();
+            if (combieNeedsSubjectAssign(selectVal)) {
+                var subjectIds = collectCombieSubjectIds('.combie-subject-select');
+                if (subjectIds === null) {
+                    $('#add_combie_subject_error').text('Cannot use the same school subject twice in one combination.').show();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Duplicate Subject',
+                        text: 'Cannot use the same school subject twice in one combination.',
+                        confirmButtonColor: '#940000'
+                    });
+                    return false;
+                }
+                formData.subject_ids = subjectIds;
+            } else {
+                formData.subject_ids = [];
+            }
 
             console.log('Form Data:', formData);
 
@@ -2750,6 +2928,8 @@
                 $('#edit_custom_combie_name').prop('required', false);
                 $('#edit_combie_name_select').prop('required', true);
             }
+
+            toggleCombieSubjectsGroup(selectedValue, '#editCombieSubjectsAssignGroup', '.edit-combie-subject-select');
         });
 
         // Handle Edit Combie Button Click
@@ -2770,6 +2950,10 @@
             var combieCode = $(this).data('combie-code') || '';
             var combieDescription = $(this).data('combie-description') || '';
             var combieStatus = $(this).data('combie-status') || 'Active';
+            var subjectIds = $(this).data('subject-ids') || [];
+            if (typeof subjectIds === 'string') {
+                try { subjectIds = JSON.parse(subjectIds); } catch (err) { subjectIds = []; }
+            }
 
             // Populate edit form
             $('#edit_combieID').val(combieID);
@@ -2780,6 +2964,7 @@
             // Check if combie name exists in dropdown options
             var $select = $('#edit_combie_name_select');
             var optionExists = $select.find('option[value="' + combieName + '"]').length > 0;
+            var selectValueForSubjects = combieName;
 
             if (optionExists) {
                 // Set dropdown value
@@ -2797,11 +2982,15 @@
             } else {
                 // Use custom input
                 $select.val('custom');
+                selectValueForSubjects = 'custom';
                 $('#editCustomCombieNameGroup').show();
                 $('#edit_custom_combie_name').val(combieName);
                 $('#edit_custom_combie_name').prop('required', true);
                 $('#edit_combie_name_select').prop('required', false);
             }
+
+            toggleCombieSubjectsGroup(selectValueForSubjects, '#editCombieSubjectsAssignGroup', '.edit-combie-subject-select');
+            setCombieSubjectIds('.edit-combie-subject-select', subjectIds);
 
             // Close view modal and open edit modal
             $('#viewCombiesModal').modal('hide');
@@ -2854,8 +3043,27 @@
                 combie_code: $('#edit_combie_code').val(),
                 description: $('#edit_combie_description').val(),
                 status: $('#edit_combie_status').val(),
+                subject_ids: [],
                 _token: $('input[name="_token"]').val()
             };
+
+            var editSelectVal = $('#edit_combie_name_select').val();
+            if (combieNeedsSubjectAssign(editSelectVal)) {
+                var editSubjectIds = collectCombieSubjectIds('.edit-combie-subject-select');
+                if (editSubjectIds === null) {
+                    $('#edit_combie_subject_error').text('Cannot use the same school subject twice in one combination.').show();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Duplicate Subject',
+                        text: 'Cannot use the same school subject twice in one combination.',
+                        confirmButtonColor: '#940000'
+                    });
+                    return false;
+                }
+                formData.subject_ids = editSubjectIds;
+            } else {
+                formData.subject_ids = [];
+            }
 
             console.log('Form Data:', formData);
 
@@ -4730,6 +4938,10 @@
             $('#customCombieNameGroup').hide();
             $('#custom_combie_name').prop('required', false);
             $('#combie_name_select').prop('required', true);
+            $('#combieSubjectsAssignGroup').hide();
+            $('.combie-subject-select').val('');
+            refreshCombieSubjectOptions('.combie-subject-select');
+            $('#add_combie_subject_error').hide().text('');
         });
 
         $('#editCombieModal').on('hidden.bs.modal', function() {
@@ -4737,6 +4949,10 @@
             $('#editCustomCombieNameGroup').hide();
             $('#edit_custom_combie_name').prop('required', false);
             $('#edit_combie_name_select').prop('required', true);
+            $('#editCombieSubjectsAssignGroup').hide();
+            $('.edit-combie-subject-select').val('');
+            refreshCombieSubjectOptions('.edit-combie-subject-select');
+            $('#edit_combie_subject_error').hide().text('');
         });
 
         // Alternative Bootstrap 4 event handlers

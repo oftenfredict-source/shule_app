@@ -28,15 +28,18 @@ use App\Models\ClassModel;
 use App\Services\SchoolWorkingDaysService;
 use App\Services\StudentPermissionAttendanceService;
 use App\Services\ParentFingerprintPortalService;
+use App\Services\SecondaryResultGradingService;
 use App\Models\StudentFingerprintAttendance;
 
 class ParentsContoller extends Controller
 {
     protected $smsService;
+    protected SecondaryResultGradingService $grading;
 
-    public function __construct()
+    public function __construct(SecondaryResultGradingService $grading)
     {
         $this->smsService = new SmsService();
+        $this->grading = $grading;
     }
 
     /**
@@ -540,7 +543,12 @@ class ParentsContoller extends Controller
         $query = Result::whereIn('studentID', $students->pluck('studentID'))
             ->whereIn('status', ['allowed', 'approved'])
             ->where('parent_status', 'enabled')
-            ->with(['student.subclass.class', 'examination', 'classSubject.subject']);
+            ->with([
+                'student.subclass.class',
+                'student.subclass.combie.subjects',
+                'examination',
+                'classSubject.subject.components',
+            ]);
 
         // Apply filters
         if (!empty($studentFilter)) {
@@ -690,11 +698,12 @@ class ParentsContoller extends Controller
                 ->pluck('classID')
                 ->toArray();
 
+            $schoolType = $school->school_type ?? 'Secondary';
+
             foreach ($studentResults as $studentID => $studentResultList) {
                 $student = $studentResultList->first()->student ?? null;
                 if (!$student) continue;
 
-                // Check if the student's class has published reports
                 $studentClassID = $student->subclass ? $student->subclass->classID : null;
                 if (!in_array($studentClassID, $publishedReports)) {
                     continue;
@@ -704,113 +713,132 @@ class ParentsContoller extends Controller
                     ? $student->subclass->class->class_name
                     : null;
 
-                // Group results by exam
                 $examResults = $studentResultList->groupBy('examID');
                 $examsData = [];
-                $subjectData = [];
+                $subjectAccum = []; // subjectID => totals across exams
 
                 foreach ($examResults as $examID => $examResultList) {
                     $exam = $examResultList->first()->examination ?? null;
                     if (!$exam) continue;
 
+                    $collapsed = $this->grading->collapseResultsToSubjectMarks($examResultList);
                     $examTotalMarks = 0;
                     $examSubjectCount = 0;
 
-                    foreach ($examResultList as $result) {
-                        if ($result->marks !== null && $result->marks !== '') {
-                            $examTotalMarks += (float)$result->marks;
-                            $examSubjectCount++;
+                    foreach ($collapsed as $entry) {
+                        if ($entry['marks'] === null || $entry['marks'] === '') {
+                            continue;
                         }
+                        $marks = (float) $entry['marks'];
+                        $examTotalMarks += $marks;
+                        $examSubjectCount++;
 
-                        $subjectName = $result->classSubject->subject->subject_name ?? 'N/A';
-                        if (!isset($subjectData[$subjectName])) {
-                            $subjectData[$subjectName] = [
-                                'subject_name' => $subjectName,
-                                'exams' => []
+                        $sid = $entry['subjectID'];
+                        if (!isset($subjectAccum[$sid])) {
+                            $subjectAccum[$sid] = [
+                                'subject_name' => $entry['subject_name'],
+                                'subjectID' => $sid,
+                                'is_duo' => $entry['is_duo'],
+                                'exams' => [],
+                                'mark_sum' => 0.0,
+                                'mark_count' => 0,
                             ];
                         }
+                        $gradeInfo = $schoolType === 'Secondary'
+                            ? $this->grading->getSecondaryHardcodedGrade($marks, $className)
+                            : $this->calculateGradeOrDivision($marks, $schoolType, $className, $studentClassID);
 
-                        $gradeOrDivision = $this->calculateGradeOrDivision($result->marks, $school->school_type ?? 'Secondary', $className, $studentClassID);
-                        $subjectData[$subjectName]['exams'][$examID] = [
-                            'marks' => $result->marks,
-                            'grade' => $gradeOrDivision['grade'],
-                            'exam_name' => $exam->exam_name
+                        $subjectAccum[$sid]['exams'][$examID] = [
+                            'marks' => $marks,
+                            'grade' => $gradeInfo['grade'] ?? null,
+                            'exam_name' => $exam->exam_name,
+                            'papers' => $entry['papers'] ?? [],
                         ];
+                        $subjectAccum[$sid]['mark_sum'] += $marks;
+                        $subjectAccum[$sid]['mark_count']++;
                     }
 
                     $examAverage = $examSubjectCount > 0 ? round($examTotalMarks / $examSubjectCount, 0) : 0;
-                    $examGradeOrDiv = $this->calculateTotalDivision(0, $school->school_type ?? 'Secondary', $className, $examAverage, $studentClassID);
-
                     $examsData[] = [
                         'exam' => $exam,
                         'average' => $examAverage,
-                        'grade' => $examGradeOrDiv['grade'] ?? null,
-                        'division' => $examGradeOrDiv['division'] ?? null
+                        'grade' => null,
+                        'division' => null,
                     ];
                 }
 
-                // Get all exams for this term to use as divisor for missing marks
                 $termExamsCount = \App\Models\Examination::where('schoolID', $schoolID)
                     ->where('year', $yearFilter)
                     ->where('term', $termFilter)
                     ->count();
+                $reportExamsCount = $termExamsCount > 0 ? $termExamsCount : 1;
 
-                // Calculate overall average (average of subject averages)
-                $subjectAverages = [];
                 $subjects = [];
                 $allSubjectPoints = [];
+                $subjectAverages = [];
 
-                foreach ($subjectData as $subjectName => $data) {
-                    $subjectMarks = [];
-                    foreach ($data['exams'] as $examID => $examData) {
-                        if ($examData['marks'] !== null && $examData['marks'] !== '') {
-                            $subjectMarks[] = (float)$examData['marks'];
-                        }
-                    }
-
-                    // Divisor should be the total number of exams in the term to treat missing as zero
-                    $reportExamsCount = $termExamsCount > 0 ? $termExamsCount : (count($subjectMarks) > 0 ? count($subjectMarks) : 1);
-                    $subjectAverage = round(array_sum($subjectMarks) / $reportExamsCount, 0);
+                foreach ($subjectAccum as $sid => $data) {
+                    $subjectAverage = round($data['mark_sum'] / $reportExamsCount, 0);
                     $subjectAverages[] = $subjectAverage;
 
-                    // Calculate points for this subject average
-                    $gradePoints = $this->calculateGradeOrDivision($subjectAverage, $school->school_type ?? 'Secondary', $className, $studentClassID);
+                    $gradePoints = $schoolType === 'Secondary'
+                        ? $this->grading->getSecondaryHardcodedGrade($subjectAverage, $className)
+                        : $this->calculateGradeOrDivision($subjectAverage, $schoolType, $className, $studentClassID);
+
                     if ($gradePoints['points'] !== null) {
-                        $allSubjectPoints[] = $gradePoints['points'];
+                        $allSubjectPoints[] = [
+                            'points' => (int) $gradePoints['points'],
+                            'marks' => (float) $subjectAverage,
+                            'grade' => $gradePoints['grade'] ?? null,
+                            'subjectID' => (int) $sid,
+                        ];
                     }
 
-                    $subjectGradeOrDiv = $this->calculateTotalDivision(0, $school->school_type ?? 'Secondary', $className, $subjectAverage, $studentClassID);
-
                     $subjects[] = [
-                        'subject_name' => $subjectName,
+                        'subject_name' => $data['subject_name'],
+                        'subjectID' => $sid,
+                        'is_duo' => $data['is_duo'],
                         'exams' => array_values($data['exams']),
                         'average' => $subjectAverage,
-                        'grade' => $gradePoints['grade'] ?? ($subjectGradeOrDiv['grade'] ?? null),
-                        'points' => $gradePoints['points'] ?? null
+                        'grade' => $gradePoints['grade'] ?? null,
+                        'points' => $gradePoints['points'] ?? null,
+                        'remark' => $this->grading->subjectRemark($gradePoints['grade'] ?? null, $className),
+                        'papers' => [],
                     ];
                 }
 
-                $overallAverage = $termExamsCount > 0 && !empty($subjectAverages) ? round(array_sum($subjectAverages) / $termExamsCount, 0) : (!empty($subjectAverages) ? round(array_sum($subjectAverages) / count($subjectAverages), 0) : 0);
+                $overallAverage = !empty($subjectAverages)
+                    ? round(array_sum($subjectAverages) / max(1, count($subjectAverages)), 0)
+                    : 0;
 
-                // Calculate total points for division (Best 7 for O-Level, Best 3 for A-Level)
                 $totalPoints = 0;
-                $classNameLower = strtolower(preg_replace('/[\s\-]+/', '_', $className ?? ''));
+                $overallDivision = null;
+                $overallGrade = null;
 
-                if ($school->school_type === 'Secondary' && (in_array($classNameLower, ['form_one', 'form_two', 'form_three', 'form_four', 'form_1', 'form_2', 'form_3', 'form_4']) || preg_match('/form\s*(one|two|three|four|1|2|3|4)/i', $className))) {
-                    if (count($allSubjectPoints) > 0) {
-                        sort($allSubjectPoints);
-                        $bestSeven = array_slice($allSubjectPoints, 0, min(7, count($allSubjectPoints)));
-                        $totalPoints = array_sum($bestSeven);
-                    }
-                } elseif ($school->school_type === 'Secondary' && (in_array($classNameLower, ['form_five', 'form_six', 'form_5', 'form_6']) || preg_match('/form\s*(five|six|5|6)/i', $className))) {
-                    if (count($allSubjectPoints) > 0) {
-                        rsort($allSubjectPoints);
-                        $bestThree = array_slice($allSubjectPoints, 0, min(3, count($allSubjectPoints)));
-                        $totalPoints = array_sum($bestThree);
-                    }
+                if ($schoolType === 'Secondary') {
+                    $pick = $this->grading->resolveSecondaryBestSubjectsForDivision(
+                        $allSubjectPoints,
+                        (string) $className,
+                        $schoolType,
+                        $this->grading->getCombinationSubjectIdsForStudent($student),
+                    );
+                    $totalPoints = $pick['total_points'];
+                    $div = $this->grading->calculateDivisionFromPoints(
+                        $totalPoints,
+                        $schoolType,
+                        $className,
+                    );
+                    $overallDivision = $div['division'] ?? null;
+                } else {
+                    $overallGradeOrDiv = $this->calculateTotalDivision(
+                        0,
+                        $schoolType,
+                        $className,
+                        $overallAverage,
+                        $studentClassID,
+                    );
+                    $overallGrade = $overallGradeOrDiv['grade'] ?? null;
                 }
-
-                $overallGradeOrDiv = $this->calculateTotalDivision($totalPoints, $school->school_type ?? 'Secondary', $className, $overallAverage, $studentClassID);
 
                 $processedResults[] = [
                     'type' => 'report',
@@ -820,81 +848,176 @@ class ParentsContoller extends Controller
                     'exams' => $examsData,
                     'subjects' => $subjects,
                     'overall_average' => $overallAverage,
-                    'overall_grade' => $overallGradeOrDiv['grade'] ?? null,
-                    'overall_division' => $overallGradeOrDiv['division'] ?? null,
-                    'total_points' => $totalPoints
+                    'average' => $overallAverage,
+                    'overall_grade' => $overallGrade ?? $overallDivision,
+                    'overall_division' => $overallDivision,
+                    'total_points' => $totalPoints,
+                    'is_a_level' => $this->grading->isALevelClassName($className),
                 ];
             }
         } else {
-            // For exam: Group by subject to support the new UI table (Somo, Mitihani, Alama...)
+            // For exam: duo collapsed totals + papers for parent view
             $studentResults = $results->groupBy('studentID');
+            $schoolType = $school->school_type ?? 'Secondary';
+
             foreach ($studentResults as $studentID => $studentResultList) {
                 $student = $studentResultList->first()->student ?? null;
                 if (!$student) continue;
                 $mainExam = Examination::find($examFilter);
 
-                $className = $student->subclass && $student->subclass->class ? $student->subclass->class->class_name : null;
-                $classID = $student->subclass && $student->subclass->class ? $student->subclass->class->classID : null;
+                $className = $student->subclass && $student->subclass->class
+                    ? $student->subclass->class->class_name
+                    : null;
+                $classID = $student->subclass && $student->subclass->class
+                    ? $student->subclass->class->classID
+                    : null;
 
-                $subjectData = [];
-                foreach ($studentResultList as $result) {
-                    $subjectName = $result->classSubject->subject->subject_name ?? 'N/A';
-                    if (!isset($subjectData[$subjectName])) {
-                        $subjectData[$subjectName] = [
-                            'subject_name' => $subjectName,
-                            'exams' => [],
-                            'total_marks' => 0,
-                            'points' => null,
-                            'grade' => null,
-                            'remark' => 'Failed'
+                $caDef = \App\Models\CaDefinition::where('examID', $examFilter)
+                    ->where('schoolID', $schoolID)
+                    ->first();
+                $involvedCount = ($caDef && !empty($caDef->test_ids))
+                    ? count($caDef->test_ids) + 1
+                    : 1;
+
+                $finalSubjects = [];
+                $allSubjectPoints = [];
+                $totalMarks = 0;
+                $subjectCount = 0;
+
+                if ($involvedCount > 1) {
+                    // CA: collapse per exam, then average
+                    $byExam = $studentResultList->groupBy('examID');
+                    $accum = [];
+                    foreach ($byExam as $examRows) {
+                        foreach ($this->grading->collapseResultsToSubjectMarks($examRows) as $entry) {
+                            $sid = $entry['subjectID'];
+                            if (!isset($accum[$sid])) {
+                                $accum[$sid] = [
+                                    'subject_name' => $entry['subject_name'],
+                                    'subjectID' => $sid,
+                                    'is_duo' => $entry['is_duo'],
+                                    'exams' => [],
+                                    'sum' => 0.0,
+                                    'count' => 0,
+                                    'papers' => $entry['papers'] ?? [],
+                                ];
+                            }
+                            if ($entry['marks'] !== null && $entry['marks'] !== '') {
+                                $marks = (float) $entry['marks'];
+                                $examModel = $examRows->first()->examination ?? null;
+                                $gradeInfo = $schoolType === 'Secondary'
+                                    ? $this->grading->getSecondaryHardcodedGrade($marks, $className)
+                                    : $this->calculateGradeOrDivision($marks, $schoolType, $className, $classID);
+                                $accum[$sid]['exams'][] = [
+                                    'exam_name' => $examModel->exam_name ?? 'N/A',
+                                    'marks' => $marks,
+                                    'grade' => $gradeInfo['grade'] ?? null,
+                                    'papers' => $entry['papers'] ?? [],
+                                ];
+                                $accum[$sid]['sum'] += $marks;
+                                $accum[$sid]['count']++;
+                                if (!empty($entry['papers'])) {
+                                    $accum[$sid]['papers'] = $entry['papers'];
+                                }
+                            }
+                        }
+                    }
+
+                    foreach ($accum as $sid => $data) {
+                        $avg = $involvedCount > 0
+                            ? round($data['sum'] / $involvedCount, 0)
+                            : 0;
+                        $totalMarks += $avg;
+                        $subjectCount++;
+                        $gradePoints = $schoolType === 'Secondary'
+                            ? $this->grading->getSecondaryHardcodedGrade($avg, $className)
+                            : $this->calculateGradeOrDivision($avg, $schoolType, $className, $classID);
+                        if ($gradePoints['points'] !== null) {
+                            $allSubjectPoints[] = [
+                                'points' => (int) $gradePoints['points'],
+                                'marks' => (float) $avg,
+                                'grade' => $gradePoints['grade'] ?? null,
+                                'subjectID' => (int) $sid,
+                            ];
+                        }
+                        $finalSubjects[] = [
+                            'subject_name' => $data['subject_name'],
+                            'subjectID' => $sid,
+                            'is_duo' => $data['is_duo'],
+                            'exams' => $data['exams'],
+                            'average' => $avg,
+                            'grade' => $gradePoints['grade'] ?? 'F',
+                            'points' => $gradePoints['points'] ?? null,
+                            'remark' => $this->grading->subjectRemark($gradePoints['grade'] ?? null, $className),
+                            'papers' => $data['papers'] ?? [],
                         ];
                     }
-                    $subjectData[$subjectName]['exams'][] = [
-                        'exam_name' => $result->examination->exam_name ?? 'N/A',
-                        'marks' => $result->marks
-                    ];
-                }
-
-                // Process subject aggregates (Halving Rule if CA exists)
-                $caDef = \App\Models\CaDefinition::where('examID', $examFilter)->where('schoolID', $schoolID)->first();
-                $involvedCount = ($caDef && !empty($caDef->test_ids)) ? count($caDef->test_ids) + 1 : 1;
-
-                $totalMarks = 0; $subjectCount = 0; $allSubjectPoints = [];
-                $finalSubjects = [];
-
-                foreach ($subjectData as $sName => $sData) {
-                    $mSum = 0;
-                    foreach ($sData['exams'] as $ex) {
-                        $mSum += ($ex['marks'] !== null && $ex['marks'] !== '') ? (float)$ex['marks'] : 0;
+                } else {
+                    foreach ($this->grading->collapseResultsToSubjectMarks($studentResultList) as $entry) {
+                        if ($entry['marks'] === null || $entry['marks'] === '') {
+                            continue;
+                        }
+                        $avg = round((float) $entry['marks'], 0);
+                        $totalMarks += $avg;
+                        $subjectCount++;
+                        $gradePoints = $schoolType === 'Secondary'
+                            ? $this->grading->getSecondaryHardcodedGrade($avg, $className)
+                            : $this->calculateGradeOrDivision($avg, $schoolType, $className, $classID);
+                        if ($gradePoints['points'] !== null) {
+                            $allSubjectPoints[] = [
+                                'points' => (int) $gradePoints['points'],
+                                'marks' => (float) $avg,
+                                'grade' => $gradePoints['grade'] ?? null,
+                                'subjectID' => (int) $entry['subjectID'],
+                            ];
+                        }
+                        $finalSubjects[] = [
+                            'subject_name' => $entry['subject_name'],
+                            'subjectID' => $entry['subjectID'],
+                            'is_duo' => $entry['is_duo'],
+                            'exams' => [[
+                                'exam_name' => $mainExam->exam_name ?? 'N/A',
+                                'marks' => $avg,
+                                'papers' => $entry['papers'] ?? [],
+                            ]],
+                            'average' => $avg,
+                            'grade' => $gradePoints['grade'] ?? 'F',
+                            'points' => $gradePoints['points'] ?? null,
+                            'remark' => $this->grading->subjectRemark($gradePoints['grade'] ?? null, $className),
+                            'papers' => $entry['papers'] ?? [],
+                        ];
                     }
-                    $avg = round($mSum / $involvedCount, 0);
-                    $totalMarks += $avg;
-                    $subjectCount++;
-
-                    $gradePoints = $this->calculateGradeOrDivision($avg, $school->school_type ?? 'Secondary', $className, $classID);
-                    if ($gradePoints['points'] !== null) $allSubjectPoints[] = $gradePoints['points'];
-
-                    $sData['average'] = $avg;
-                    $sData['grade'] = $gradePoints['grade'] ?? 'F';
-                    $sData['points'] = $gradePoints['points'];
-                    $sData['remark'] = in_array($sData['grade'], ['A', 'B', 'C', 'D']) ? 'Pass' : 'Failed';
-                    $finalSubjects[] = $sData;
                 }
 
                 $overallAverage = $subjectCount > 0 ? round($totalMarks / $subjectCount, 0) : 0;
 
-                // Calculate points
                 $totalPoints = 0;
-                $classNameLower = strtolower(preg_replace('/[\s\-]+/', '_', $className ?? ''));
-                if ($school->school_type === 'Secondary' && (in_array($classNameLower, ['form_one', 'form_two', 'form_three', 'form_four', 'form_1', 'form_2', 'form_3', 'form_4']) || preg_match('/form\s*(one|two|three|four|1|2|3|4)/i', $className))) {
-                    sort($allSubjectPoints);
-                    $totalPoints = array_sum(array_slice($allSubjectPoints, 0, min(7, count($allSubjectPoints))));
-                } elseif ($school->school_type === 'Secondary' && (in_array($classNameLower, ['form_five', 'form_six', 'form_5', 'form_6']) || preg_match('/form\s*(five|six|5|6)/i', $className))) {
-                    rsort($allSubjectPoints);
-                    $totalPoints = array_sum(array_slice($allSubjectPoints, 0, min(3, count($allSubjectPoints))));
+                $overallDivision = null;
+                $overallGrade = null;
+                if ($schoolType === 'Secondary') {
+                    $pick = $this->grading->resolveSecondaryBestSubjectsForDivision(
+                        $allSubjectPoints,
+                        (string) $className,
+                        $schoolType,
+                        $this->grading->getCombinationSubjectIdsForStudent($student),
+                    );
+                    $totalPoints = $pick['total_points'];
+                    $div = $this->grading->calculateDivisionFromPoints(
+                        $totalPoints,
+                        $schoolType,
+                        $className,
+                    );
+                    $overallDivision = $div['division'] ?? null;
+                } else {
+                    $overallGradeOrDiv = $this->calculateTotalDivision(
+                        0,
+                        $schoolType,
+                        $className,
+                        $overallAverage,
+                        $classID,
+                    );
+                    $overallGrade = $overallGradeOrDiv['grade'] ?? null;
                 }
-
-                $overallGradeOrDiv = $this->calculateTotalDivision($totalPoints, $school->school_type ?? 'Secondary', $className, $overallAverage, $classID);
 
                 $processedResults[] = [
                     'type' => 'exam',
@@ -904,9 +1027,17 @@ class ParentsContoller extends Controller
                     'has_ca' => $involvedCount > 1,
                     'total_marks' => $totalMarks,
                     'average' => $overallAverage,
-                    'overall_grade' => $overallGradeOrDiv['grade'] ?? null,
-                    'overall_division' => $overallGradeOrDiv['division'] ?? null,
-                    'position' => $this->calculatePosition($student, $termFilter, $yearFilter, $overallAverage, $school->school_type ?? 'Secondary')
+                    'overall_grade' => $overallGrade ?? $overallDivision,
+                    'overall_division' => $overallDivision,
+                    'total_points' => $totalPoints,
+                    'is_a_level' => $this->grading->isALevelClassName($className),
+                    'position' => $this->calculatePosition(
+                        $student,
+                        $termFilter,
+                        $yearFilter,
+                        $overallAverage,
+                        $schoolType,
+                    ),
                 ];
             }
         }
@@ -962,9 +1093,9 @@ class ParentsContoller extends Controller
             $pointsMap = ['A' => 1, 'B' => 2, 'C' => 3, 'D' => 4, 'F' => 5];
             $points = $pointsMap[$grade] ?? 5;
         } elseif (in_array($classNameLower, ['form_five', 'form_six', 'form_5', 'form_6']) || preg_match('/form\s*(five|six|5|6)/i', $className)) {
-            // A-Level points
-            $pointsMap = ['A' => 5, 'B' => 4, 'C' => 3, 'D' => 2, 'E' => 1, 'S/F' => 0];
-            $points = $pointsMap[$grade] ?? 0;
+            // A-Level points (NECTA): A=1 … S=6, F=7
+            $pointsMap = ['A' => 1, 'B' => 2, 'C' => 3, 'D' => 4, 'E' => 5, 'S' => 6, 'F' => 7];
+            $points = $pointsMap[$grade] ?? 7;
         }
 
         return ['grade' => $grade, 'points' => $points];
@@ -976,7 +1107,16 @@ class ParentsContoller extends Controller
             return ['grade' => null, 'division' => null, 'points' => null];
         }
 
-        // If classID is provided, use grade_definitions table
+        if ($schoolType === 'Secondary') {
+            $g = $this->grading->getSecondaryHardcodedGrade($marks, $className);
+            return [
+                'grade' => $g['grade'],
+                'division' => null,
+                'points' => $g['points'],
+            ];
+        }
+
+        // Primary: prefer grade_definitions
         if ($classID) {
             $def = $this->getGradeFromDefinition($marks, $classID);
             if ($def['grade']) {
@@ -984,94 +1124,37 @@ class ParentsContoller extends Controller
             }
         }
 
-        $marksNum = (float)$marks;
-        $classNameLower = strtolower(preg_replace('/[\s\-]+/', '_', $className ?? ''));
-
-        if ($schoolType === 'Secondary') {
-            if (in_array($classNameLower, ['form_one', 'form_two', 'form_three', 'form_four', 'form_1', 'form_2', 'form_3', 'form_4']) || preg_match('/form\s*(one|two|three|four|1|2|3|4)/i', $className)) {
-                // O-Level Grading System
-                if ($marksNum >= 75) {
-                    return ['grade' => 'A', 'division' => null, 'points' => 1];
-                } elseif ($marksNum >= 65) {
-                    return ['grade' => 'B', 'division' => null, 'points' => 2];
-                } elseif ($marksNum >= 45) {
-                    return ['grade' => 'C', 'division' => null, 'points' => 3];
-                } elseif ($marksNum >= 30) {
-                    return ['grade' => 'D', 'division' => null, 'points' => 4];
-                } else {
-                    return ['grade' => 'F', 'division' => null, 'points' => 5];
-                }
-            } elseif (in_array($classNameLower, ['form_five', 'form_six', 'form_5', 'form_6']) || preg_match('/form\s*(five|six|5|6)/i', $className)) {
-                // A-Level Grading System
-                if ($marksNum >= 75) {
-                    return ['grade' => 'A', 'division' => null, 'points' => 5];
-                } elseif ($marksNum >= 70) {
-                    return ['grade' => 'B', 'division' => null, 'points' => 4];
-                } elseif ($marksNum >= 60) {
-                    return ['grade' => 'C', 'division' => null, 'points' => 3];
-                } elseif ($marksNum >= 50) {
-                    return ['grade' => 'D', 'division' => null, 'points' => 2];
-                } elseif ($marksNum >= 40) {
-                    return ['grade' => 'E', 'division' => null, 'points' => 1];
-                } elseif ($marksNum >= 35) {
-                    return ['grade' => 'S', 'division' => null, 'points' => 0.5];
-                } else {
-                    return ['grade' => 'F', 'division' => null, 'points' => 0];
-                }
-            } else {
-                // Default Secondary (fallback)
-                if ($marksNum >= 75) {
-                    return ['grade' => 'A', 'division' => null, 'points' => null];
-                } elseif ($marksNum >= 65) {
-                    return ['grade' => 'B', 'division' => null, 'points' => null];
-                } elseif ($marksNum >= 45) {
-                    return ['grade' => 'C', 'division' => null, 'points' => null];
-                } elseif ($marksNum >= 30) {
-                    return ['grade' => 'D', 'division' => null, 'points' => null];
-                } else {
-                    return ['grade' => 'F', 'division' => null, 'points' => null];
-                }
-            }
+        $marksNum = (float) $marks;
+        if ($marksNum >= 75) {
+            return ['grade' => 'A', 'division' => null, 'points' => null];
+        }
+        if ($marksNum >= 65) {
+            return ['grade' => 'B', 'division' => null, 'points' => null];
+        }
+        if ($marksNum >= 45) {
+            return ['grade' => 'C', 'division' => null, 'points' => null];
+        }
+        if ($marksNum >= 30) {
+            return ['grade' => 'D', 'division' => null, 'points' => null];
+        }
+        if ($marksNum >= 20) {
+            return ['grade' => 'E', 'division' => null, 'points' => null];
         }
 
-        return ['grade' => null, 'division' => null, 'points' => null];
+        return ['grade' => 'F', 'division' => null, 'points' => null];
     }
 
     private function calculateTotalDivision($totalPoints, $schoolType, $className = null, $averageMarks = 0, $classID = null)
     {
-        $classNameLower = strtolower(preg_replace('/[\s\-]+/', '_', $className ?? ''));
-
         if ($schoolType === 'Secondary') {
-            if (in_array($classNameLower, ['form_one', 'form_two', 'form_three', 'form_four', 'form_1', 'form_2', 'form_3', 'form_4']) || preg_match('/form\s*(one|two|three|four|1|2|3|4)/i', $className)) {
-                // O-Level Division based on total points (7 best subjects)
-                if ($totalPoints >= 7 && $totalPoints <= 17) {
-                    return ['grade' => null, 'division' => 'I.' . $totalPoints];
-                } elseif ($totalPoints >= 18 && $totalPoints <= 21) {
-                    return ['grade' => null, 'division' => 'II.' . $totalPoints];
-                } elseif ($totalPoints >= 22 && $totalPoints <= 25) {
-                    return ['grade' => null, 'division' => 'III.' . $totalPoints];
-                } elseif ($totalPoints >= 26 && $totalPoints <= 33) {
-                    return ['grade' => null, 'division' => 'IV.' . $totalPoints];
-                } else {
-                    return ['grade' => null, 'division' => '0.' . $totalPoints];
-                }
-            } elseif (in_array($classNameLower, ['form_five', 'form_six', 'form_5', 'form_6']) || preg_match('/form\s*(five|six|5|6)/i', $className)) {
-                // A-Level Division based on 3 best principal subjects points
-                if ($totalPoints >= 12 && $totalPoints <= 15) {
-                    return ['grade' => null, 'division' => 'I.' . $totalPoints];
-                } elseif ($totalPoints >= 9 && $totalPoints <= 11) {
-                    return ['grade' => null, 'division' => 'II.' . $totalPoints];
-                } elseif ($totalPoints >= 6 && $totalPoints <= 8) {
-                    return ['grade' => null, 'division' => 'III.' . $totalPoints];
-                } elseif ($totalPoints >= 3 && $totalPoints <= 5) {
-                    return ['grade' => null, 'division' => 'IV.' . $totalPoints];
-                } else {
-                    return ['grade' => null, 'division' => '0.' . $totalPoints];
-                }
-            }
+            return $this->grading->calculateDivisionFromPoints(
+                (int) $totalPoints,
+                $schoolType,
+                $className,
+            );
         }
 
-        // Default or Primary: Calculate grade from grade_definitions if classID available
+        // Primary: Calculate grade from grade_definitions if classID available
         if ($classID && $averageMarks !== null && $averageMarks !== '') {
             $gradeResult = $this->getGradeFromDefinition($averageMarks, $classID);
             if ($gradeResult['grade']) {
@@ -1079,18 +1162,20 @@ class ParentsContoller extends Controller
             }
         }
 
-        // Default or Primary fallback
         if ($averageMarks >= 75) {
             return ['grade' => 'A', 'division' => null];
-        } elseif ($averageMarks >= 65) {
-            return ['grade' => 'B', 'division' => null];
-        } elseif ($averageMarks >= 45) {
-            return ['grade' => 'C', 'division' => null];
-        } elseif ($averageMarks >= 30) {
-            return ['grade' => 'D', 'division' => null];
-        } else {
-            return ['grade' => 'F', 'division' => null];
         }
+        if ($averageMarks >= 65) {
+            return ['grade' => 'B', 'division' => null];
+        }
+        if ($averageMarks >= 45) {
+            return ['grade' => 'C', 'division' => null];
+        }
+        if ($averageMarks >= 30) {
+            return ['grade' => 'D', 'division' => null];
+        }
+
+        return ['grade' => 'F', 'division' => null];
     }
 
     public function parentAttendance(Request $request)
@@ -4208,7 +4293,8 @@ class ParentsContoller extends Controller
         $year = $request->input('year');
         $term = $request->input('term');
 
-        $student = Student::where('studentID', $studentID)
+        $student = Student::with(['subclass.class', 'subclass.combie.subjects'])
+            ->where('studentID', $studentID)
             ->where('parentID', $parentID)
             ->first();
 
@@ -4263,12 +4349,31 @@ class ParentsContoller extends Controller
             return response()->json(['success' => false, 'message' => 'Hakuna matokeo yaliyochapishwa kwa sasa.']);
         }
 
+        $isALevel = !empty($detailedData['isALevel']);
+        $className = $student->subclass && $student->subclass->class
+            ? $student->subclass->class->class_name
+            : null;
+
         // For report type, the structure is slightly different (contains averages across exams)
         if ($type === 'report') {
             $isSecondary = strcasecmp($detailedData['schoolType'] ?? '', 'Secondary') === 0;
             $overallDisplay = $isSecondary
                 ? ($detailedData['division'] ?? '-')
                 : ($detailedData['grade'] ?? '-');
+
+            $reportResults = [];
+            foreach ($detailedData['subjects'] ?? [] as $subject) {
+                $grade = $subject['grade'] ?? null;
+                $reportResults[] = array_merge($subject, [
+                    'average' => $subject['average'] ?? $subject['marks'] ?? null,
+                    'remark' => $this->grading->subjectRemark(
+                        is_string($grade) ? $grade : null,
+                        $className,
+                    ),
+                    'is_duo' => (bool) ($subject['is_duo'] ?? false),
+                ]);
+            }
+
             return response()->json([
                 'success' => true,
                 'is_report' => true,
@@ -4280,9 +4385,10 @@ class ParentsContoller extends Controller
                     'overall_grade' => $overallDisplay,
                     'overall_division' => $detailedData['division'] ?? '-',
                     'school_type' => $detailedData['schoolType'] ?? 'Secondary',
-                    'results' => $detailedData['subjects'] ?? [],
-                    'exams_included' => $detailedData['exams'] ?? []
-                ]
+                    'is_a_level' => $isALevel,
+                    'results' => $reportResults,
+                    'exams_included' => $detailedData['exams'] ?? [],
+                ],
             ]);
         }
 
@@ -4294,35 +4400,37 @@ class ParentsContoller extends Controller
         if (!empty($detailedData['subjects'])) {
             foreach ($detailedData['subjects'] as $subject) {
                 $grade = $subject['grade'] ?? 'F';
-                $remark = 'Failed';
-                if (in_array($grade, ['A', 'B', 'C', 'D'])) {
-                    $remark = 'Pass';
-                } elseif ($grade === 'Incomplete') {
-                    $remark = 'Incomplete';
-                }
-
                 $processedResults[] = [
                     'subject_name' => $subject['subject_name'] ?? 'N/A',
-                    'average' => isset($subject['marks']) ? round($subject['marks'], 1) : '-',
+                    'average' => array_key_exists('marks', $subject) && $subject['marks'] !== null && $subject['marks'] !== ''
+                        ? round((float) $subject['marks'], 1)
+                        : '-',
                     'grade' => $grade,
-                    'remark' => $remark,
-                    'exams' => $subject['exams'] ?? []
+                    'remark' => $this->grading->subjectRemark(
+                        is_string($grade) ? $grade : null,
+                        $className,
+                    ),
+                    'exams' => $subject['exams'] ?? [],
+                    'is_duo' => (bool) ($subject['is_duo'] ?? false),
+                    'papers' => $subject['papers'] ?? [],
                 ];
             }
         }
 
-    return response()->json([
-        'success' => true,
-        'is_report' => false,
-        'data' => [
-            'student' => $student,
-            'total_marks' => isset($totalMarks) ? round($totalMarks, 1) : (isset($detailedData['totalMarks']) ? round($detailedData['totalMarks'], 1) : '-'),
-            'average' => isset($average) ? round($average, 1) : (isset($detailedData['averageMarks']) ? round($detailedData['averageMarks'], 1) : '-'),
-            'position' => $position ?? ($detailedData['position'] ?? 'N/A'),
-                'overall_grade' => $detailedData['division'] ?? '-',
+        return response()->json([
+            'success' => true,
+            'is_report' => false,
+            'data' => [
+                'student' => $student,
+                'total_marks' => isset($detailedData['totalMarks']) ? round($detailedData['totalMarks'], 1) : '-',
+                'average' => isset($detailedData['averageMarks']) ? round($detailedData['averageMarks'], 1) : '-',
+                'position' => $position,
+                'overall_grade' => $detailedData['division'] ?? ($detailedData['grade'] ?? '-'),
                 'has_ca' => $hasCa,
-                'results' => $processedResults
-            ]
+                'is_a_level' => $isALevel,
+                'school_type' => $detailedData['schoolType'] ?? 'Secondary',
+                'results' => $processedResults,
+            ],
         ]);
     }
 

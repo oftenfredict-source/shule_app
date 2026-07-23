@@ -76,6 +76,190 @@
     .modal-header {
         border-radius: 0 !important;
     }
+
+    /* Duo / multi-paper subjects (A-Level Secondary) */
+    .duo-toggle-wrap {
+        background: #FFF5F5;
+        border: 1px solid rgba(148, 0, 0, 0.15);
+        padding: 12px 14px;
+        border-radius: 0;
+    }
+    .duo-components-box {
+        background: #fafafa;
+        border: 1px dashed rgba(148, 0, 0, 0.25);
+        padding: 12px;
+        margin-top: 10px;
+    }
+    .duo-component-row {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        margin-bottom: 8px;
+    }
+    .duo-component-row .duo-name-wrap { flex: 1; }
+    .duo-component-row .duo-marks-wrap { width: 130px; }
+    .duo-component-row .remove-duo-component-btn {
+        margin-top: 22px;
+    }
+    .duo-component-row .duo-marks-wrap .duo-marks-error {
+        display: none;
+        color: #dc3545;
+        font-size: 0.7rem;
+        font-weight: 700;
+        margin-top: 2px;
+        line-height: 1.2;
+    }
+    .duo-component-row .duo-component-marks.is-invalid {
+        border-color: #dc3545 !important;
+        background-color: #fff5f5;
+    }
+    .duo-component-row .duo-component-marks.is-invalid + .duo-marks-error,
+    .duo-component-row .duo-marks-wrap .duo-component-marks.is-invalid ~ .duo-marks-error {
+        display: block;
+    }
+    /* Custom searchable select (Select2 was broken inside this Bootstrap modal) */
+    .sx-ss {
+        position: relative;
+        width: 100%;
+    }
+    .sx-ss-btn {
+        border-radius: 0 !important;
+        text-align: left !important;
+        background: #fff;
+        cursor: pointer;
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .sx-ss-btn .sx-ss-label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #212529;
+    }
+    .sx-ss-btn .sx-ss-caret {
+        color: #6c757d;
+        font-size: 0.75rem;
+    }
+    .sx-ss-btn.is-placeholder .sx-ss-label {
+        color: #6c757d;
+    }
+    .sx-ss-panel {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 2px);
+        z-index: 2050;
+        background: #fff;
+        border: 1px solid #ced4da;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+        display: none;
+    }
+    .sx-ss-panel.open {
+        display: block;
+    }
+    .sx-ss-search {
+        border: 0 !important;
+        border-bottom: 1px solid #ced4da !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+    .sx-ss-list {
+        max-height: 220px;
+        overflow-y: auto;
+    }
+    .sx-ss-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: #fff;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: #212529;
+    }
+    .sx-ss-item:hover,
+    .sx-ss-item.active {
+        background: #FFF5F5;
+        color: #940000;
+    }
+    .sx-ss-item:disabled,
+    .sx-ss-item.is-disabled {
+        color: #adb5bd;
+        cursor: not-allowed;
+        background: #f8f9fa;
+    }
+    .sx-ss-empty {
+        padding: 10px 12px;
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+    .class-subject-locked-label {
+        background-color: #e9ecef;
+        font-weight: 600;
+        cursor: not-allowed;
+    }
+    .duo-papers-box {
+        background: #fafafa;
+        border: 1px dashed rgba(148, 0, 0, 0.3);
+        padding: 12px;
+        margin-top: 4px;
+    }
+    .duo-papers-box .duo-paper-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: flex-end;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    .duo-papers-box .duo-paper-row:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: 0;
+    }
+    .duo-papers-box .duo-paper-name {
+        flex: 1;
+        min-width: 140px;
+    }
+    .duo-papers-box .duo-paper-teacher {
+        flex: 1.4;
+        min-width: 180px;
+    }
+
+    .duo-badge {
+        background: #940000 !important;
+        color: #fff !important;
+        font-size: 0.7rem;
+        letter-spacing: 0.03em;
+    }
+    .duo-component-chip {
+        display: inline-block;
+        background: #FFF5F5;
+        border: 1px solid rgba(148, 0, 0, 0.2);
+        color: #940000;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        margin: 2px;
+    }
+    .subject-row .field-error,
+    #editSchoolSubjectForm .field-error {
+        display: none;
+        color: #dc3545;
+        font-size: 0.75rem;
+        font-weight: 700;
+        margin-top: 4px;
+    }
+    .subject-row .is-invalid,
+    #editSchoolSubjectForm .is-invalid {
+        border-color: #dc3545 !important;
+    }
 </style>
 
 <!-- Bootstrap Icons -->
@@ -124,6 +308,7 @@
                         $canEditSubject = $isAdmin || $perms->intersect(['edit_subject', 'update_subject', 'subject_update'])->isNotEmpty();
                         $canDeleteSubject = $isAdmin || $perms->intersect(['delete_subject', 'subject_delete'])->isNotEmpty();
                         $canActivateSubject = $isAdmin || $perms->intersect(['activate_subject', 'subject_update'])->isNotEmpty();
+                        $isSecondarySchool = isset($school_details) && strcasecmp((string) ($school_details->school_type ?? ''), 'Secondary') === 0;
                     @endphp
 
                     <!-- Hidden triggers for AJAX refreshes -->
@@ -179,7 +364,12 @@
                                             <div class="d-flex justify-content-center align-items-center mb-2">
                                                 <i class="bi bi-book-fill" style="font-size: 2.5rem; color: #ffffff;"></i>
                                             </div>
-                                            <h5 class="mb-0 fw-bold text-white">{{ $subject->subject_name }}</h5>
+                                            <h5 class="mb-0 fw-bold text-white">
+                                                {{ $subject->subject_name }}
+                                                @if($subject->is_duo)
+                                                    <span class="badge duo-badge ml-1">DUO</span>
+                                                @endif
+                                            </h5>
                                         </div>
                                         <div class="card-body p-3">
                                             @if($subject->subject_code)
@@ -189,6 +379,18 @@
                                                         <i class="bi bi-code-square text-primary-custom me-1"></i> Code:
                                                     </span>
                                                     <span class="badge bg-info text-white fw-bold">{{ $subject->subject_code }}</span>
+                                                </div>
+                                            </div>
+                                            @endif
+                                            @if($subject->is_duo && $subject->components && $subject->components->count())
+                                            <div class="mb-3">
+                                                <div class="p-2 bg-light rounded">
+                                                    <span class="text-muted small fw-bold d-block mb-1">
+                                                        <i class="bi bi-layers text-primary-custom me-1"></i> Papers:
+                                                    </span>
+                                                    @foreach($subject->components as $comp)
+                                                        <span class="duo-component-chip">{{ $comp->component_name }} ({{ $comp->max_marks }})</span>
+                                                    @endforeach
                                                 </div>
                                             </div>
                                             @endif
@@ -210,6 +412,8 @@
                                                         data-subject-id="{{ $subject->subjectID }}"
                                                         data-subject-name="{{ $subject->subject_name }}"
                                                         data-subject-code="{{ $subject->subject_code }}"
+                                                        data-is-duo="{{ $subject->is_duo ? '1' : '0' }}"
+                                                        data-components='@json($subject->components->map(function ($c) { return ["component_name" => $c->component_name, "max_marks" => $c->max_marks]; })->values())'
                                                         title="Edit Subject">
                                                     <i class="bi bi-pencil-square"></i> Edit
                                                 </button>
@@ -286,11 +490,12 @@
                             
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Name <span class="text-danger">*</span></label>
-                                <input type="text" name="subjects[0][subject_name]" class="form-control subject-name" placeholder="e.g., Mathematics, English, Kiswahili" required maxlength="100">
+                                <input type="text" name="subjects[0][subject_name]" class="form-control subject-name" placeholder="e.g., Mathematics, English, Physics" required maxlength="100">
+                                <div class="field-error subject-name-error">Subject name is required</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Code</label>
-                                <input type="text" name="subjects[0][subject_code]" class="form-control subject-code" placeholder="e.g., MAT, ENG, KIS" maxlength="20">
+                                <input type="text" name="subjects[0][subject_code]" class="form-control subject-code" placeholder="e.g., MAT, ENG, PHY" maxlength="20">
                         <small class="text-muted">Optional: Enter a short code for this subject</small>
                     </div>
                     <div class="mb-3">
@@ -300,6 +505,27 @@
                             <option value="Inactive">Inactive</option>
                         </select>
                             </div>
+                            @if($isSecondarySchool)
+                            <div class="mb-3 duo-toggle-wrap">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <label class="form-label fw-bold mb-0" for="duo_toggle_0">Duo Subject</label>
+                                        <small class="d-block text-muted">ON = subject has papers (e.g. PHY1, PHY2, PHY3)</small>
+                                    </div>
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input duo-toggle" id="duo_toggle_0" data-row="0">
+                                        <label class="custom-control-label" for="duo_toggle_0"></label>
+                                    </div>
+                                </div>
+                                <div class="duo-components-box" id="duo_components_0" style="display: none;">
+                                    <div class="duo-components-list"></div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary add-duo-component-btn mt-1">
+                                        <i class="bi bi-plus-circle"></i> Add Paper
+                                    </button>
+                                    <small class="d-block text-muted mt-2">Each paper: name + max marks (1–100). Need at least 2 papers.</small>
+                                </div>
+                            </div>
+                            @endif
                         </div>
                     </div>
 
@@ -341,11 +567,12 @@
                 <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Name <span class="text-danger">*</span></label>
-                        <input type="text" name="subject_name" id="edit_subject_name" class="form-control" placeholder="e.g., Mathematics, English, Kiswahili" required maxlength="100">
+                        <input type="text" name="subject_name" id="edit_subject_name" class="form-control" placeholder="e.g., Mathematics, English, Physics" required maxlength="100">
+                        <div class="field-error" id="edit_subject_name_error">Subject name is required</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Code</label>
-                        <input type="text" name="subject_code" id="edit_subject_code" class="form-control" placeholder="e.g., MAT, ENG, KIS" maxlength="20">
+                        <input type="text" name="subject_code" id="edit_subject_code" class="form-control" placeholder="e.g., MAT, ENG, PHY" maxlength="20">
                         <small class="text-muted">Optional: Enter a short code for this subject</small>
                     </div>
                     <div class="mb-3">
@@ -355,6 +582,27 @@
                             <option value="Inactive">Inactive</option>
                         </select>
                     </div>
+                    @if($isSecondarySchool)
+                    <div class="mb-3 duo-toggle-wrap">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <label class="form-label fw-bold mb-0" for="edit_duo_toggle">Duo Subject</label>
+                                <small class="d-block text-muted">ON = subject has papers (e.g. PHY1, PHY2, PHY3)</small>
+                            </div>
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="edit_duo_toggle">
+                                <label class="custom-control-label" for="edit_duo_toggle"></label>
+                            </div>
+                        </div>
+                        <div class="duo-components-box" id="edit_duo_components" style="display: none;">
+                            <div class="duo-components-list" id="edit_duo_components_list"></div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="edit_add_duo_component_btn">
+                                <i class="bi bi-plus-circle"></i> Add Paper
+                            </button>
+                            <small class="d-block text-muted mt-2">Each paper: name + max marks (1–100). Need at least 2 papers.</small>
+                        </div>
+                    </div>
+                    @endif
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">
@@ -371,7 +619,7 @@
 
 <!-- Add Class Subject Modal -->
 <div class="modal fade" id="addClassSubjectModal" tabindex="-1" aria-labelledby="addClassSubjectModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="addClassSubjectModalLabel">
@@ -382,13 +630,16 @@
                 </button>
             </div>
             <form id="addClassSubjectForm">
+                @csrf
                 <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Select Subclass <span class="text-danger">*</span></label>
                         <select name="subclassID" id="class_subject_subclass_select" class="form-select" required>
                             <option value="">Choose a subclass...</option>
                             @foreach($subclasses as $subclass)
-                                <option value="{{ $subclass->subclassID }}">
+                                <option value="{{ $subclass->subclassID }}"
+                                    data-combie-id="{{ $subclass->combieID ?? '' }}"
+                                    data-combie-name="{{ $subclass->combie_name ?? '' }}">
                                     {{ $subclass->display_name ?? ($subclass->stream_code ?? ($subclass->class_name . ' ' . $subclass->subclass_name)) }}
                                     @if(isset($school_details) && $school_details->school_type == 'Secondary' && $subclass->combie_name)
                                         - {{ $subclass->combie_name }}
@@ -401,14 +652,14 @@
                         </select>
                         <small class="text-muted">
                             @if(isset($school_details) && $school_details->school_type == 'Secondary')
-                                <i class="bi bi-info-circle"></i> Showing subclass name with combination
+                                <i class="bi bi-info-circle"></i> Search and select subclass (shows combination when available)
                             @else
-                                <i class="bi bi-info-circle"></i> Showing subclass name
+                                <i class="bi bi-info-circle"></i> Search and select subclass
                             @endif
                         </small>
                     </div>
                     <div class="alert alert-info mb-3" id="subclassSelectedAlert" style="display: none;">
-                        <i class="bi bi-info-circle"></i> <strong>Note:</strong> Subjects that are already added to this subclass will be disabled (grayed out).
+                        <i class="bi bi-info-circle"></i> <span id="subclassSelectedAlertText">Subjects already added to this subclass stay as they are. Missing combie subjects load below — assign a teacher for each.</span>
                     </div>
 
                     <!-- Dynamic Subjects Container -->
@@ -507,17 +758,20 @@
             </div>
             <form id="editClassSubjectForm">
                 @csrf
-                <input type="hidden" name="class_subjectID">
-                <input type="hidden" name="subclassID">
+                <input type="hidden" name="class_subjectID" id="edit_class_subject_id">
+                <input type="hidden" name="subclassID" id="edit_subclass_id">
+                <input type="hidden" name="is_duo" id="edit_is_duo" value="0">
                 <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject <span class="text-danger">*</span></label>
                         <input type="text" name="subject_name" id="edit_subject_name" class="form-control" readonly style="background-color: #e9ecef; font-weight: 600; cursor: not-allowed;" tabindex="-1">
-                        <small class="text-muted">Subject name cannot be changed</small>
+                        <small class="text-muted" id="edit_subject_hint">Subject name cannot be changed</small>
                     </div>
-                    <div class="mb-3">
+
+                    <!-- Non-duo: single teacher -->
+                    <div class="mb-3" id="editMainTeacherWrap">
                         <label class="form-label fw-bold">Select Teacher</label>
-                        <select name="teacherID" id="edit_teacher_select" class="form-select">
+                        <select name="teacherID" id="edit_teacher_select" class="form-select teacher-select">
                             <option value="">Select Teacher (Optional)</option>
                             @foreach($teachers as $teacher)
                                 <option value="{{ $teacher->id }}">
@@ -525,7 +779,18 @@
                                 </option>
                             @endforeach
                         </select>
-                        <small class="text-muted">Select a teacher to assign or leave empty to unassign</small>
+                        <small class="text-muted">Search and select a teacher, or leave empty to unassign</small>
+                    </div>
+
+                    <!-- Duo: per-paper teachers -->
+                    <div class="mb-3" id="editDuoPapersWrap" style="display: none;">
+                        <label class="form-label fw-bold text-primary-custom">
+                            <i class="bi bi-layers"></i> Duo papers — assign a teacher per paper
+                        </label>
+                        <div class="duo-papers-box" id="editDuoPapersBox"></div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="bi bi-info-circle"></i> Main subject has no single teacher. Same teacher can be selected on every paper if they teach all.
+                        </small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -660,54 +925,6 @@
     </div>
 </div>
 
-<!-- Edit Class Subject Modal -->
-<div class="modal fade" id="editClassSubjectModal" tabindex="-1" aria-labelledby="editClassSubjectModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title" id="editClassSubjectModalLabel">
-                    <i class="bi bi-pencil-square"></i> Edit Subject Teacher
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form id="editClassSubjectForm">
-                @csrf
-                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                    <input type="hidden" name="class_subjectID" id="edit_class_subject_id">
-                    <input type="hidden" name="subclassID" id="edit_subclass_id">
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Subject</label>
-                        <input type="text" class="form-control" id="edit_subject_name" readonly>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Teacher</label>
-                        <select name="teacherID" id="edit_teacher_id" class="form-select">
-                            <option value="">Select Teacher (Optional)</option>
-                            @foreach($teachers as $teacher)
-                                <option value="{{ $teacher->id }}">
-                                    {{ $teacher->first_name }} {{ $teacher->last_name }} ({{ $teacher->employee_number }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                        <i class="bi bi-x-circle"></i> Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary-custom">
-                        <i class="bi bi-save"></i> Update
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 @include('includes.footer')
 
 <!-- DataTables CSS -->
@@ -737,6 +954,499 @@
         // Store user permissions for JavaScript checks
         var userPermissions = @json($teacherPermissions ?? collect());
         var userType = @json($user_type ?? '');
+        var isSecondarySchool = @json(isset($school_details) && strcasecmp((string) ($school_details->school_type ?? ''), 'Secondary') === 0);
+        var activeSchoolSubjects = @json($activeSchoolSubjectsJson ?? collect());
+        var teacherOptionsData = @json($teacherOptionsJson ?? collect());
+        var subjectRowCount = 0;
+        var addedSubjectIDsCache = [];
+
+        function escapeHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function buildSubjectOptionsHtml(selectedId, assignedIds, locked) {
+            selectedId = selectedId ? String(selectedId) : '';
+            assignedIds = (assignedIds || []).map(String);
+            let html = '<option value="">Choose a subject...</option>';
+            activeSchoolSubjects.forEach(function(subject) {
+                const id = String(subject.subjectID);
+                const already = assignedIds.includes(id) && id !== selectedId;
+                const selected = id === selectedId ? ' selected' : '';
+                const disabled = already || (locked && id !== selectedId) ? ' disabled' : '';
+                const duo = subject.is_duo ? ' [DUO]' : '';
+                const code = subject.subject_code ? ' (' + subject.subject_code + ')' : '';
+                const alreadyText = already ? ' (Already Added)' : '';
+                html += `<option value="${id}"${selected}${disabled}>${escapeHtml(subject.subject_name)}${escapeHtml(code)}${duo}${alreadyText}</option>`;
+            });
+            return html;
+        }
+
+        function buildTeacherOptionsHtml(selectedId) {
+            selectedId = selectedId ? String(selectedId) : '';
+            let html = '<option value="">Select Teacher (Optional)</option>';
+            teacherOptionsData.forEach(function(teacher) {
+                const id = String(teacher.id);
+                const selected = id === selectedId ? ' selected' : '';
+                html += `<option value="${id}"${selected}>${escapeHtml(teacher.label)}</option>`;
+            });
+            return html;
+        }
+
+        function destroySelect2In($root) {
+            destroySearchSelectsIn($root);
+        }
+
+        function destroySearchSelectsIn($root) {
+            $root.find('select.sx-ss-enhanced').each(function() {
+                const $select = $(this);
+                if (typeof $select.data('sx-close-panel') === 'function') {
+                    $select.data('sx-close-panel')();
+                }
+                const $wrap = $select.closest('.sx-ss');
+                if ($wrap.length) {
+                    // Also remove any panel that was moved to body
+                    $('body > .sx-ss-panel').each(function() {
+                        const $p = $(this);
+                        if ($p.data('sx-owner-wrap') && $p.data('sx-owner-wrap')[0] === $wrap[0]) {
+                            $p.remove();
+                        }
+                    });
+                    $wrap.before($select);
+                    $wrap.remove();
+                }
+                $select.removeClass('sx-ss-enhanced').removeData('sx-close-panel').removeData('sx-panel').removeData('sx-placeholder').show();
+            });
+        }
+
+        function syncSearchSelectLabel($select) {
+            const $wrap = $select.closest('.sx-ss');
+            if (!$wrap.length) return;
+            const $btn = $wrap.find('.sx-ss-btn');
+            const $opt = $select.find('option:selected');
+            const val = $select.val();
+            const placeholder = $select.data('sx-placeholder') || 'Select...';
+            if (!val) {
+                $btn.addClass('is-placeholder');
+                $btn.find('.sx-ss-label').text(placeholder);
+            } else {
+                $btn.removeClass('is-placeholder');
+                $btn.find('.sx-ss-label').text($opt.text() || placeholder);
+            }
+        }
+
+        function rebuildSearchSelectList($select, filterText) {
+            const $panel = $select.data('sx-panel');
+            if (!$panel || !$panel.length) return;
+            const $list = $panel.find('.sx-ss-list').empty();
+            const q = String(filterText || '').toLowerCase().trim();
+            let shown = 0;
+
+            $select.find('option').each(function() {
+                const $opt = $(this);
+                const val = $opt.attr('value');
+                const text = $.trim($opt.text());
+                if (val === undefined || val === null || val === '') {
+                    return;
+                }
+                if (q && text.toLowerCase().indexOf(q) === -1) {
+                    return;
+                }
+                const disabled = !!$opt.prop('disabled');
+                const isSelected = String($select.val()) === String(val);
+                const $item = $('<button type="button" class="sx-ss-item"></button>')
+                    .attr('data-value', val)
+                    .text(text);
+                if (disabled) {
+                    $item.addClass('is-disabled').prop('disabled', true);
+                }
+                if (isSelected) {
+                    $item.addClass('active');
+                }
+                $list.append($item);
+                shown++;
+            });
+
+            if (!shown) {
+                $list.append('<div class="sx-ss-empty">No results found</div>');
+            }
+        }
+
+        function initSearchableSelect($el, placeholder) {
+            if (!$el || !$el.length) return;
+            $el.each(function() {
+                const $select = $(this);
+                if ($select.hasClass('sx-ss-enhanced')) {
+                    syncSearchSelectLabel($select);
+                    return;
+                }
+
+                const ph = placeholder || ($select.find('option[value=""]').text() || 'Select...');
+                $select.data('sx-placeholder', ph);
+
+                const $wrap = $('<div class="sx-ss"></div>');
+                const $btn = $(
+                    '<button type="button" class="form-control sx-ss-btn is-placeholder">' +
+                        '<span class="sx-ss-label"></span>' +
+                        '<span class="sx-ss-caret"><i class="bi bi-chevron-down"></i></span>' +
+                    '</button>'
+                );
+                const $panel = $(
+                    '<div class="sx-ss-panel">' +
+                        '<input type="text" class="form-control sx-ss-search" placeholder="Type to search..." autocomplete="off">' +
+                        '<div class="sx-ss-list"></div>' +
+                    '</div>'
+                );
+
+                $select.addClass('sx-ss-enhanced').hide();
+                $select.data('sx-panel', $panel);
+                $select.before($wrap);
+                $wrap.append($btn).append($panel).append($select);
+                $btn.find('.sx-ss-label').text(ph);
+                syncSearchSelectLabel($select);
+
+                function closePanel() {
+                    $panel.removeClass('open').css({
+                        position: '',
+                        left: '',
+                        top: '',
+                        width: '',
+                        zIndex: ''
+                    });
+                    // Keep panel node with wrap for cleanup
+                    if ($panel.parent()[0] !== $wrap[0]) {
+                        $wrap.append($panel);
+                    }
+                }
+
+                $btn.on('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const willOpen = !$panel.hasClass('open');
+                    $('.sx-ss-panel.open').each(function() {
+                        const $p = $(this);
+                        const $owner = $p.data('sx-owner-wrap');
+                        $p.removeClass('open').css({
+                            position: '',
+                            left: '',
+                            top: '',
+                            width: '',
+                            zIndex: ''
+                        });
+                        if ($owner && $owner.length) {
+                            $owner.append($p);
+                        }
+                    });
+                    if (willOpen) {
+                        const rect = this.getBoundingClientRect();
+                        // Append to body so Bootstrap modal transform/overflow cannot clip it
+                        $panel.data('sx-owner-wrap', $wrap);
+                        $('body').append($panel);
+                        $panel.css({
+                            position: 'fixed',
+                            left: rect.left + 'px',
+                            top: (rect.bottom + 2) + 'px',
+                            width: Math.max(rect.width, 240) + 'px',
+                            zIndex: 3000
+                        }).addClass('open');
+                        $panel.find('.sx-ss-search').val('');
+                        rebuildSearchSelectList($select, '');
+                        setTimeout(function() {
+                            $panel.find('.sx-ss-search').trigger('focus');
+                        }, 10);
+                    } else {
+                        closePanel();
+                    }
+                });
+
+                $panel.on('input', '.sx-ss-search', function() {
+                    rebuildSearchSelectList($select, $(this).val());
+                });
+
+                $panel.on('click', '.sx-ss-item', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if ($(this).prop('disabled') || $(this).hasClass('is-disabled')) {
+                        return;
+                    }
+                    const val = String($(this).attr('data-value'));
+                    $select.val(val).trigger('change');
+                    syncSearchSelectLabel($select);
+                    closePanel();
+                });
+
+                $panel.on('click', function(e) {
+                    e.stopPropagation();
+                });
+
+                $select.data('sx-close-panel', closePanel);
+            });
+        }
+
+        function initClassSubjectFormSelect2() {
+            initClassSubjectSearchSelects();
+        }
+
+        function initClassSubjectSearchSelects() {
+            initSearchableSelect($('#class_subject_subclass_select'), 'Search subclass...');
+            $('#addClassSubjectModal .subject-select').each(function() {
+                initSearchableSelect($(this), 'Search subject...');
+            });
+            $('#addClassSubjectModal .teacher-select').each(function() {
+                initSearchableSelect($(this), 'Search teacher...');
+            });
+        }
+
+        // When subject changes (manual row), show/hide duo paper teachers
+        $(document).on('change', '#addClassSubjectModal .subject-select', function() {
+            const $row = $(this).closest('.subject-row');
+            applyDuoUiForRow($row, $(this).val());
+            $row.attr('data-is-duo', $row.find('.duo-papers-wrap').length ? '1' : '0');
+        });
+
+        // Close searchable panels when clicking outside / scrolling
+        function closeAllSxPanels() {
+            $('.sx-ss-panel.open').each(function() {
+                const $p = $(this);
+                const $owner = $p.data('sx-owner-wrap');
+                $p.removeClass('open').css({
+                    position: '',
+                    left: '',
+                    top: '',
+                    width: '',
+                    zIndex: ''
+                });
+                if ($owner && $owner.length) {
+                    $owner.append($p);
+                }
+            });
+        }
+
+        $(document).on('click.sxss', function() {
+            closeAllSxPanels();
+        });
+
+        $(window).on('resize.sxss', function() {
+            closeAllSxPanels();
+        });
+
+        // Modal body scroll should close floating panels
+        $(document).on('scroll.sxss', '#addClassSubjectModal .modal-body, #editClassSubjectModal .modal-body', function() {
+            closeAllSxPanels();
+        });
+
+        function getSubjectMeta(subjectID) {
+            const id = String(subjectID || '');
+            return (activeSchoolSubjects || []).find(function(s) {
+                return String(s.subjectID) === id;
+            }) || null;
+        }
+
+        function buildDuoPapersHtml(rowIndex, components, teacherMap) {
+            components = components || [];
+            teacherMap = teacherMap || {};
+            if (!components.length) {
+                return '';
+            }
+            let rows = '';
+            components.forEach(function(comp, i) {
+                const cid = comp.componentID;
+                const teacherVal = teacherMap[cid] || teacherMap[String(cid)] || '';
+                rows += `
+                    <div class="duo-paper-row" data-component-id="${escapeHtml(cid)}">
+                        <div class="duo-paper-name">
+                            <label class="form-label fw-bold mb-1">Paper ${i + 1}</label>
+                            <input type="text" class="form-control class-subject-locked-label" value="${escapeHtml(comp.component_name)}${comp.max_marks ? ' (' + escapeHtml(comp.max_marks) + ' marks)' : ''}" readonly tabindex="-1">
+                            <input type="hidden" name="subjects[${rowIndex}][components][${i}][componentID]" value="${escapeHtml(cid)}" class="duo-component-id">
+                        </div>
+                        <div class="duo-paper-teacher">
+                            <label class="form-label fw-bold mb-1">Teacher <span class="text-muted">(paper)</span></label>
+                            <select name="subjects[${rowIndex}][components][${i}][teacherID]" class="form-select teacher-select duo-component-teacher">
+                                ${buildTeacherOptionsHtml(teacherVal)}
+                            </select>
+                        </div>
+                    </div>`;
+            });
+            return `
+                <div class="mb-3 duo-papers-wrap">
+                    <label class="form-label fw-bold text-primary-custom">
+                        <i class="bi bi-layers"></i> Duo papers — assign a teacher per paper
+                    </label>
+                    <div class="duo-papers-box">
+                        ${rows}
+                        <small class="text-muted d-block mt-1">
+                            <i class="bi bi-info-circle"></i> Main subject has no single teacher. Same teacher can be selected on every paper if they teach all.
+                        </small>
+                    </div>
+                </div>`;
+        }
+
+        function buildMainTeacherHtml(rowIndex, teacherID, visible) {
+            const display = visible ? '' : 'display: none;';
+            return `
+                <div class="mb-3 main-teacher-wrap" style="${display}">
+                    <label class="form-label fw-bold">Teacher</label>
+                    <select name="subjects[${rowIndex}][teacherID]" class="form-select teacher-select main-teacher-select">
+                        ${buildTeacherOptionsHtml(teacherID)}
+                    </select>
+                </div>`;
+        }
+
+        function applyDuoUiForRow($row, subjectID) {
+            const rowIndex = $row.attr('data-row-index') || 0;
+            const meta = getSubjectMeta(subjectID);
+            const isDuo = !!(meta && meta.is_duo && meta.components && meta.components.length);
+            const $mainTeacher = $row.find('.main-teacher-wrap');
+            $row.find('.duo-papers-wrap').remove();
+
+            if (isDuo) {
+                $mainTeacher.hide();
+                $mainTeacher.find('select').val('');
+                const papersHtml = buildDuoPapersHtml(rowIndex, meta.components, {});
+                if ($mainTeacher.length) {
+                    $mainTeacher.after(papersHtml);
+                } else {
+                    $row.find('.subject-select, .subject-select-value').closest('.mb-3').after(papersHtml);
+                }
+                $row.find('.duo-component-teacher').each(function() {
+                    initSearchableSelect($(this), 'Search teacher...');
+                });
+            } else {
+                $mainTeacher.show();
+            }
+        }
+
+        function buildClassSubjectRowHtml(rowIndex, options) {
+            options = options || {};
+            const locked = !!options.locked;
+            const subjectID = options.subjectID || '';
+            const subjectLabel = options.subjectLabel || '';
+            const teacherID = options.teacherID || '';
+            const studentStatus = options.studentStatus || (locked ? 'Required' : '');
+            const canRemove = options.canRemove !== false;
+            const subjectNumber = options.subjectNumber || (rowIndex + 1);
+            const components = options.components || [];
+            const isDuo = !!(options.isDuo && components.length);
+
+            let subjectBlock;
+            if (locked) {
+                subjectBlock = `
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Subject <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control class-subject-locked-label" value="${escapeHtml(subjectLabel)}" readonly tabindex="-1">
+                        <input type="hidden" name="subjects[${rowIndex}][subjectID]" value="${escapeHtml(subjectID)}" class="subject-select-value" data-locked="1">
+                        <small class="text-muted"><i class="bi bi-lock-fill"></i> Pre-filled from combie${isDuo ? ' (DUO — assign teachers per paper below)' : ' — assign a teacher'}</small>
+                    </div>`;
+            } else {
+                subjectBlock = `
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Select Subject <span class="text-danger">*</span></label>
+                        <select name="subjects[${rowIndex}][subjectID]" class="form-select subject-select" required>
+                            ${buildSubjectOptionsHtml(subjectID, addedSubjectIDsCache, false)}
+                        </select>
+                        <small class="text-muted">Only active subjects are shown</small>
+                    </div>`;
+            }
+
+            const teacherBlock = isDuo
+                ? buildDuoPapersHtml(rowIndex, components, options.componentTeachers || {})
+                : buildMainTeacherHtml(rowIndex, teacherID, true);
+
+            // Keep a hidden main-teacher slot for duo rows so toggling works if subject changes
+            const hiddenMain = isDuo ? buildMainTeacherHtml(rowIndex, '', false) : '';
+
+            return `
+                <div class="subject-row mb-4 p-3 border rounded" data-row-index="${rowIndex}" data-locked="${locked ? '1' : '0'}" data-is-duo="${isDuo ? '1' : '0'}">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 text-primary-custom">
+                            <i class="bi bi-book"></i> Subject <span class="subject-number">${subjectNumber}</span>
+                            ${isDuo ? '<span class="badge badge-danger ms-1" style="border-radius:0;background:#940000;">DUO</span>' : ''}
+                        </h6>
+                        <button type="button" class="btn btn-sm btn-danger remove-subject-row" style="${canRemove ? '' : 'display: none;'}">
+                            <i class="bi bi-trash"></i> Remove
+                        </button>
+                    </div>
+                    ${subjectBlock}
+                    ${hiddenMain}
+                    ${teacherBlock}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Status <span class="text-danger">*</span></label>
+                        <select name="subjects[${rowIndex}][status]" class="form-select status-select" required>
+                            <option value="Active" selected>Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Student Status</label>
+                        <select name="subjects[${rowIndex}][student_status]" class="form-select student-status-select">
+                            <option value="">Select Student Status (Optional)</option>
+                            <option value="Required"${studentStatus === 'Required' ? ' selected' : ''}>Required - All students must take this subject</option>
+                            <option value="Optional"${studentStatus === 'Optional' ? ' selected' : ''}>Optional - Students can choose to take this subject</option>
+                        </select>
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> This determines if this subject is mandatory or optional for students.
+                        </small>
+                    </div>
+                </div>`;
+        }
+
+        function resetClassSubjectsContainer(manual) {
+            destroySelect2In($('#classSubjectsContainer'));
+            subjectRowCount = 0;
+            $('#classSubjectsContainer').html(buildClassSubjectRowHtml(0, {
+                locked: false,
+                canRemove: false,
+                subjectNumber: 1
+            }));
+            if (manual !== false) {
+                initClassSubjectFormSelect2();
+            }
+        }
+
+        function renderMissingCombieSubjects(missingSubjects, alertMeta) {
+            destroySelect2In($('#classSubjectsContainer'));
+            if (!missingSubjects || missingSubjects.length === 0) {
+                $('#classSubjectsContainer').html(`
+                    <div class="alert alert-success mb-0">
+                        <i class="bi bi-check-circle"></i> All combie main subjects are already assigned to this subclass.
+                        Use <strong>Add Another Subject</strong> only if you need extra (non-combie) subjects.
+                    </div>`);
+                subjectRowCount = -1;
+                updateClassSubjectNumbers();
+                initSearchableSelect($('#class_subject_subclass_select'), 'Search subclass...');
+                return;
+            }
+
+            let html = '';
+            missingSubjects.forEach(function(subject, index) {
+                const code = subject.subject_code ? ' (' + subject.subject_code + ')' : '';
+                const isDuo = !!(subject.is_duo && subject.components && subject.components.length);
+                const duo = isDuo ? ' [DUO]' : '';
+                html += buildClassSubjectRowHtml(index, {
+                    locked: true,
+                    subjectID: subject.subjectID,
+                    subjectLabel: subject.subject_name + code + duo,
+                    studentStatus: 'Required',
+                    canRemove: false,
+                    subjectNumber: index + 1,
+                    isDuo: isDuo,
+                    components: subject.components || []
+                });
+            });
+            subjectRowCount = missingSubjects.length - 1;
+            $('#classSubjectsContainer').html(html);
+            updateClassSubjectNumbers();
+            initClassSubjectFormSelect2();
+
+            if (alertMeta) {
+                $('#subclassSelectedAlertText').html(alertMeta);
+                $('#subclassSelectedAlert').show();
+            }
+        }
 
         // Helper function to check permission with hierarchy support
         function hasPermission(permissionName) {
@@ -861,6 +1571,237 @@
 
 
 
+        // ---- Duo / multi-paper subject helpers (Secondary A-Level) ----
+        const isSecondarySchool = @json($isSecondarySchool ?? false);
+
+        function buildDuoComponentRowHtml(name, marks) {
+            const safeName = name || '';
+            let safeMarks = parseInt(marks, 10);
+            if (isNaN(safeMarks)) safeMarks = 100;
+            return `
+                <div class="duo-component-row">
+                    <div class="duo-name-wrap">
+                        <label class="small fw-bold mb-0">Paper name</label>
+                        <input type="text" class="form-control form-control-sm duo-component-name" placeholder="e.g. PHY1" value="${safeName}" maxlength="100">
+                        <div class="field-error duo-name-error">Paper name is required</div>
+                    </div>
+                    <div class="duo-marks-wrap">
+                        <label class="small fw-bold mb-0">Max marks</label>
+                        <input type="number" class="form-control form-control-sm duo-component-marks" min="1" max="100" value="${safeMarks}" inputmode="numeric">
+                        <div class="duo-marks-error">Marks cannot exceed 100</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-duo-component-btn" title="Remove">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        function validateDuoMarksInput($input) {
+            const raw = ($input.val() || '').toString().trim();
+            const $err = $input.siblings('.duo-marks-error');
+            if (raw === '') {
+                $input.removeClass('is-invalid');
+                $err.hide().text('Marks cannot exceed 100');
+                return true;
+            }
+            const marks = parseFloat(raw);
+            if (isNaN(marks) || marks < 1) {
+                $input.addClass('is-invalid');
+                $err.text('Marks must be at least 1').show();
+                return false;
+            }
+            if (marks > 100) {
+                $input.addClass('is-invalid');
+                $err.text('Marks cannot exceed 100').show();
+                return false;
+            }
+            $input.removeClass('is-invalid');
+            $err.hide().text('Marks cannot exceed 100');
+            return true;
+        }
+
+        function validateDuoNameInput($input, requireFilled) {
+            const name = ($input.val() || '').trim();
+            const $err = $input.siblings('.duo-name-error');
+            if (!requireFilled && name === '') {
+                $input.removeClass('is-invalid');
+                $err.hide();
+                return true;
+            }
+            if (name === '') {
+                $input.addClass('is-invalid');
+                $err.text('Paper name is required').show();
+                return false;
+            }
+            $input.removeClass('is-invalid');
+            $err.hide();
+            return true;
+        }
+
+        function validateSubjectNameInput($input) {
+            const name = ($input.val() || '').trim();
+            const $err = $input.siblings('.subject-name-error, .field-error').first();
+            if (name === '') {
+                $input.addClass('is-invalid');
+                $err.text('Subject name is required').show();
+                return false;
+            }
+            $input.removeClass('is-invalid');
+            $err.hide();
+            return true;
+        }
+
+        function validateDuoRowRealtime($row) {
+            const isDuo = isSecondarySchool && $row.find('.duo-toggle').is(':checked');
+            let ok = validateSubjectNameInput($row.find('.subject-name'));
+            if (!isDuo) {
+                $row.find('.duo-component-name, .duo-component-marks').removeClass('is-invalid');
+                $row.find('.duo-name-error, .duo-marks-error').hide();
+                return ok;
+            }
+            const $names = $row.find('.duo-component-name');
+            let filled = 0;
+            $names.each(function() {
+                const filledOk = validateDuoNameInput($(this), true);
+                if (($(this).val() || '').trim() !== '') filled++;
+                if (!filledOk) ok = false;
+            });
+            $row.find('.duo-component-marks').each(function() {
+                if (!validateDuoMarksInput($(this))) ok = false;
+            });
+            if (filled < 2) {
+                ok = false;
+            }
+            return ok;
+        }
+
+        $(document).on('input change blur', '#schoolSubjectsContainer .subject-name', function() {
+            validateSubjectNameInput($(this));
+        });
+        $(document).on('input change blur', '#edit_subject_name', function() {
+            validateSubjectNameInput($(this));
+        });
+        $(document).on('input change blur', '.duo-component-marks', function() {
+            validateDuoMarksInput($(this));
+        });
+        $(document).on('input change blur', '.duo-component-name', function() {
+            const $row = $(this).closest('.subject-row, #editSchoolSubjectForm');
+            const isDuo = $row.find('.duo-toggle, #edit_duo_toggle').is(':checked');
+            validateDuoNameInput($(this), !!isDuo);
+        });
+
+        function duoMarksAreValid($scope) {
+            let ok = true;
+            $scope.find('.duo-component-marks').each(function() {
+                if (!validateDuoMarksInput($(this))) {
+                    ok = false;
+                }
+            });
+            return ok;
+        }
+        function ensureDuoComponents($box, minRows) {
+            const $list = $box.find('.duo-components-list');
+            while ($list.find('.duo-component-row').length < minRows) {
+                $list.append(buildDuoComponentRowHtml('', 100));
+            }
+        }
+
+        function collectDuoComponentsFrom($box) {
+            const components = [];
+            let hasInvalidMarks = false;
+            $box.find('.duo-component-row').each(function() {
+                const $marksInput = $(this).find('.duo-component-marks');
+                if (!validateDuoMarksInput($marksInput)) {
+                    hasInvalidMarks = true;
+                    return;
+                }
+                const name = ($(this).find('.duo-component-name').val() || '').trim();
+                let marks = parseInt($marksInput.val(), 10);
+                if (isNaN(marks)) marks = 100;
+                if (name) {
+                    components.push({ component_name: name, max_marks: marks });
+                }
+            });
+            if (hasInvalidMarks) {
+                return null; // signal invalid
+            }
+            return components;
+        }
+
+        function duoSectionHtml(rowIndex) {
+            if (!isSecondarySchool) return '';
+            return `
+                <div class="mb-3 duo-toggle-wrap">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <label class="form-label fw-bold mb-0" for="duo_toggle_${rowIndex}">Duo Subject</label>
+                            <small class="d-block text-muted">ON = subject has papers (e.g. PHY1, PHY2, PHY3)</small>
+                        </div>
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input duo-toggle" id="duo_toggle_${rowIndex}" data-row="${rowIndex}">
+                            <label class="custom-control-label" for="duo_toggle_${rowIndex}"></label>
+                        </div>
+                    </div>
+                    <div class="duo-components-box" id="duo_components_${rowIndex}" style="display: none;">
+                        <div class="duo-components-list"></div>
+                        <button type="button" class="btn btn-sm btn-outline-primary add-duo-component-btn mt-1">
+                            <i class="bi bi-plus-circle"></i> Add Paper
+                        </button>
+                        <small class="d-block text-muted mt-2">Each paper: name + max marks (1–100). Need at least 2 papers.</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        $(document).on('change', '.duo-toggle', function() {
+            const $row = $(this).closest('.subject-row');
+            const $box = $row.find('.duo-components-box');
+            if ($(this).is(':checked')) {
+                $box.slideDown(150);
+                ensureDuoComponents($box, 2);
+                setTimeout(function() { validateDuoRowRealtime($row); }, 200);
+            } else {
+                $box.slideUp(150);
+                $row.find('.duo-component-name, .duo-component-marks').removeClass('is-invalid');
+                $row.find('.duo-name-error, .duo-marks-error').hide();
+            }
+        });
+
+        $(document).on('click', '.add-duo-component-btn', function() {
+            const $box = $(this).closest('.duo-components-box');
+            $box.find('.duo-components-list').append(buildDuoComponentRowHtml('', 100));
+        });
+
+        $(document).on('click', '.remove-duo-component-btn', function() {
+            const $list = $(this).closest('.duo-components-list');
+            if ($list.find('.duo-component-row').length <= 2) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Duo Subject',
+                    text: 'Duo subject needs at least 2 papers.',
+                    confirmButtonColor: '#940000'
+                });
+                return;
+            }
+            $(this).closest('.duo-component-row').remove();
+        });
+
+        $('#edit_duo_toggle').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#edit_duo_components').slideDown(150);
+                ensureDuoComponents($('#edit_duo_components'), 2);
+            } else {
+                $('#edit_duo_components').slideUp(150);
+                $('#edit_duo_components').find('.duo-component-name, .duo-component-marks').removeClass('is-invalid');
+                $('#edit_duo_components').find('.duo-name-error, .duo-marks-error').hide();
+            }
+        });
+
+        $('#edit_add_duo_component_btn').on('click', function() {
+            $('#edit_duo_components_list').append(buildDuoComponentRowHtml('', 100));
+        });
+
         // Add Another School Subject Row
         let schoolSubjectRowCount = 0;
         $(document).on('click', '#addAnotherSchoolSubjectBtn', function() {
@@ -881,11 +1822,12 @@
                     
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Name <span class="text-danger">*</span></label>
-                        <input type="text" name="subjects[${rowIndex}][subject_name]" class="form-control subject-name" placeholder="e.g., Mathematics, English, Kiswahili" required maxlength="100">
+                        <input type="text" name="subjects[${rowIndex}][subject_name]" class="form-control subject-name" placeholder="e.g., Mathematics, English, Physics" required maxlength="100">
+                        <div class="field-error subject-name-error">Subject name is required</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Code</label>
-                        <input type="text" name="subjects[${rowIndex}][subject_code]" class="form-control subject-code" placeholder="e.g., MAT, ENG, KIS" maxlength="20">
+                        <input type="text" name="subjects[${rowIndex}][subject_code]" class="form-control subject-code" placeholder="e.g., MAT, ENG, PHY" maxlength="20">
                         <small class="text-muted">Optional: Enter a short code for this subject</small>
                     </div>
                     <div class="mb-3">
@@ -895,6 +1837,7 @@
                             <option value="Inactive">Inactive</option>
                         </select>
                     </div>
+                    ${duoSectionHtml(rowIndex)}
                 </div>
             `;
             
@@ -904,32 +1847,38 @@
             updateRemoveButtonsVisibility();
         });
 
-        // Remove Subject Row
-        $(document).on('click', '.remove-subject-row', function() {
+        // Remove Subject Row (school subjects modal)
+        $(document).on('click', '#schoolSubjectsContainer .remove-subject-row, #addSchoolSubjectModal .remove-subject-row', function() {
             $(this).closest('.subject-row').remove();
-            updateSubjectNumbers();
+            updateSchoolSubjectNumbers();
             updateRemoveButtonsVisibility();
         });
 
-        // Function to update subject numbers
-        function updateSubjectNumbers() {
-            $('.subject-row').each(function(index) {
+        // Function to update school subject numbers
+        function updateSchoolSubjectNumbers() {
+            $('#schoolSubjectsContainer .subject-row').each(function(index) {
                 $(this).find('.subject-number').text(index + 1);
                 $(this).attr('data-row-index', index);
             });
         }
 
+        // Legacy alias used by school-subject reset flows
+        function updateSubjectNumbers() {
+            updateSchoolSubjectNumbers();
+        }
+
         // Function to update remove button visibility
         function updateRemoveButtonsVisibility() {
-            const rowCount = $('.subject-row').length;
-            $('.remove-subject-row').each(function() {
+            const $rows = $('#schoolSubjectsContainer .subject-row');
+            const rowCount = $rows.length;
+            $rows.find('.remove-subject-row').each(function() {
                 if (rowCount > 1) {
                     $(this).show();
                 } else {
                     $(this).hide();
                 }
             });
-            }
+        }
 
         // Handle Add School Subject Form Submission
         $(document).on('submit', '#addSchoolSubjectForm', function(e) {
@@ -955,12 +1904,8 @@
                 const subjectName = ($row.find('.subject-name').val() || '').trim();
                 const subjectCode = ($row.find('.subject-code').val() || '').trim();
                 const status = $row.find('.status-select').val() || 'Active';
-
-                console.log('Processing school subject row:', index + 1, {
-                    subjectName: subjectName,
-                    subjectCode: subjectCode,
-                    status: status
-                });
+                const isDuo = isSecondarySchool && $row.find('.duo-toggle').is(':checked');
+                let components = [];
 
                 // Validation
                 if (!subjectName) {
@@ -970,10 +1915,26 @@
                     return false;
                 }
 
+                if (isDuo) {
+                    components = collectDuoComponentsFrom($row.find('.duo-components-box'));
+                    if (components === null) {
+                        hasError = true;
+                        errorMessage = `Subject ${index + 1}: Marks cannot exceed 100 (and must be at least 1).`;
+                        return false;
+                    }
+                    if (components.length < 2) {
+                        hasError = true;
+                        errorMessage = `Subject ${index + 1}: Duo subject needs at least 2 papers (name + max marks).`;
+                        return false;
+                    }
+                }
+
                 subjects.push({
                     subject_name: subjectName,
                     subject_code: subjectCode || null,
-                    status: status
+                    status: status,
+                    is_duo: isDuo ? 1 : 0,
+                    components: components
                 });
             });
 
@@ -983,7 +1944,8 @@
                 Swal.fire({
                     icon: 'error',
                     title: 'Validation Error',
-                    text: errorMessage
+                    text: errorMessage,
+                    confirmButtonColor: '#940000'
                 });
                 return false;
             }
@@ -1083,7 +2045,7 @@
                         Swal.fire({
                             icon: 'error',
                             title: 'Error',
-                            text: errorMsg,
+                            html: errorMsg,
                             confirmButtonColor: '#940000'
                         });
                     }
@@ -1096,6 +2058,11 @@
             const subjectID = $(this).data('subject-id');
             const subjectName = $(this).data('subject-name');
             const subjectCode = $(this).data('subject-code') || '';
+            const isDuo = String($(this).data('is-duo')) === '1';
+            let components = $(this).data('components') || [];
+            if (typeof components === 'string') {
+                try { components = JSON.parse(components); } catch (e) { components = []; }
+            }
 
             $('#edit_subjectID').val(subjectID);
             $('#edit_subject_name').val(subjectName);
@@ -1104,6 +2071,24 @@
             // Get current status from the activate button
             const currentStatus = $(this).closest('.card').find('.activate-subject-btn').data('current-status');
             $('#edit_status').val(currentStatus);
+
+            if (isSecondarySchool) {
+                $('#edit_duo_components_list').empty();
+                $('#edit_duo_toggle').prop('checked', isDuo);
+                if (isDuo) {
+                    $('#edit_duo_components').show();
+                    if (components.length) {
+                        components.forEach(function(c) {
+                            $('#edit_duo_components_list').append(
+                                buildDuoComponentRowHtml(c.component_name || '', c.max_marks || 100)
+                            );
+                        });
+                    }
+                    ensureDuoComponents($('#edit_duo_components'), 2);
+                } else {
+                    $('#edit_duo_components').hide();
+                }
+            }
 
             $('#editSchoolSubjectModal').modal('show');
         });
@@ -1122,11 +2107,37 @@
                 return false;
             }
 
+            const isDuo = isSecondarySchool && $('#edit_duo_toggle').is(':checked');
+            let components = [];
+            if (isDuo) {
+                components = collectDuoComponentsFrom($('#edit_duo_components'));
+                if (components === null) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Validation Error',
+                        text: 'Marks cannot exceed 100 (and must be at least 1).',
+                        confirmButtonColor: '#940000'
+                    });
+                    return false;
+                }
+                if (components.length < 2) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Validation Error',
+                        text: 'Duo subject needs at least 2 papers (name + max marks).',
+                        confirmButtonColor: '#940000'
+                    });
+                    return false;
+                }
+            }
+
             const formData = {
                 subjectID: $('#edit_subjectID').val(),
                 subject_name: $('#edit_subject_name').val(),
                 subject_code: $('#edit_subject_code').val(),
                 status: $('#edit_status').val(),
+                is_duo: isDuo ? 1 : 0,
+                components: components,
                 _token: $('input[name="_token"]', '#editSchoolSubjectForm').val()
             };
 
@@ -1286,44 +2297,82 @@
             });
         });
 
-        // Handle Subclass Selection Change - Disable already added subjects
+        // Handle Subclass Selection Change — load combie defaults / skip already assigned
         $(document).on('change', '#class_subject_subclass_select', function() {
             const subclassID = $(this).val();
-            
+
             if (!subclassID) {
                 $('#subclassSelectedAlert').hide();
-                // Reset all subject selects
-                $('.subject-select').each(function() {
-                    $(this).find('option').prop('disabled', false).css({
-                        'background-color': '',
-                        'color': ''
-                    });
-                });
+                $('#subclassSelectedAlertText').text('Subjects already added to this subclass stay as they are. Missing combie subjects load below — assign a teacher for each.');
+                addedSubjectIDsCache = [];
+                resetClassSubjectsContainer(true);
                 return;
             }
-            
+
             $('#subclassSelectedAlert').show();
-            
-            // Fetch already added subjects for this subclass
+            $('#subclassSelectedAlertText').html('<i class="bi bi-hourglass-split"></i> Loading subclass subjects...');
+
             $.ajax({
-                url: "{{ route('get_class_subjects_by_subclass', ':id') }}".replace(':id', subclassID),
+                url: "{{ route('get_subclass_subject_defaults', ':id') }}".replace(':id', subclassID),
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
-                    if (response.success && response.subjects) {
-                        addedSubjectIDsCache = response.subjects.map(s => s.subjectID.toString());
-                        
-                        // Disable already added subjects in all subject selects
-                        $('.subject-select').each(function() {
+                    if (!response.success) {
+                        addedSubjectIDsCache = [];
+                        resetClassSubjectsContainer(true);
+                        $('#subclassSelectedAlertText').text(response.error || 'Could not load subclass defaults.');
+                        return;
+                    }
+
+                    addedSubjectIDsCache = (response.assigned_subject_ids || []).map(String);
+
+                    const missing = response.missing_subjects || [];
+                    const alreadyCombie = response.already_assigned_combie_subjects || [];
+                    const hasCombieSubjects = !!response.has_combie_subjects;
+                    const combieName = response.combie
+                        ? (response.combie.combie_name + (response.combie.combie_code ? ' (' + response.combie.combie_code + ')' : ''))
+                        : '';
+
+                    if (hasCombieSubjects) {
+                        let noteParts = [];
+                        if (combieName) {
+                            noteParts.push('<strong>Combie:</strong> ' + escapeHtml(combieName));
+                        }
+                        if (alreadyCombie.length) {
+                            noteParts.push(
+                                '<strong>Already assigned:</strong> ' +
+                                alreadyCombie.map(s => escapeHtml(s.subject_name)).join(', ') +
+                                ' (left as-is).'
+                            );
+                        }
+                        if (missing.length) {
+                            noteParts.push(
+                                '<strong>To assign now:</strong> ' +
+                                missing.map(s => escapeHtml(s.subject_name)).join(', ') +
+                                ' — select a teacher for each.'
+                            );
+                        } else {
+                            noteParts.push('All combie main subjects are already on this subclass.');
+                        }
+                        renderMissingCombieSubjects(missing, noteParts.join('<br>'));
+                    } else {
+                        resetClassSubjectsContainer(true);
+                        $('#classSubjectsContainer .subject-select').each(function() {
                             disableAlreadyAddedSubjects($(this), addedSubjectIDsCache);
                         });
-                    } else {
-                        addedSubjectIDsCache = [];
+                        initClassSubjectFormSelect2();
+                        $('#subclassSelectedAlertText').html(
+                            addedSubjectIDsCache.length
+                                ? 'No combie main subjects on this subclass. Already-added subjects are disabled in the subject list.'
+                                : 'No combie main subjects assigned. Pick subjects and teachers manually.'
+                        );
                     }
                 },
                 error: function() {
-                    console.error('Failed to fetch already added subjects');
+                    console.error('Failed to fetch subclass subject defaults');
                     addedSubjectIDsCache = [];
+                    resetClassSubjectsContainer(true);
+                    $('#subclassSelectedAlertText').text('Failed to load subclass defaults. You can still add subjects manually.');
                 }
             });
         });
@@ -1339,7 +2388,7 @@
                                 'background-color': '#e9ecef',
                                 'color': '#6c757d'
                             });
-                        
+
                         let optionText = $(this).text();
                         if (optionText.indexOf('(Already Added)') === -1) {
                             $(this).text(optionText + ' (Already Added)');
@@ -1350,7 +2399,7 @@
                                 'background-color': '',
                                 'color': ''
                             });
-                        
+
                         let optionText = $(this).text();
                         if (optionText.indexOf('(Already Added)') !== -1) {
                             $(this).text(optionText.replace(' (Already Added)', ''));
@@ -1361,162 +2410,89 @@
         }
 
         // Add Another Subject Row
-        let subjectRowCount = 0;
-        let addedSubjectIDsCache = [];
-        
         $(document).on('click', '#addAnotherSubjectBtn', function() {
+            // If container only has the "all assigned" alert, clear it first
+            if ($('#classSubjectsContainer .subject-row').length === 0) {
+                subjectRowCount = -1;
+            }
             subjectRowCount++;
             const rowIndex = subjectRowCount;
-            const subjectNumber = subjectRowCount + 1;
-            
-            const newRow = `
-                <div class="subject-row mb-4 p-3 border rounded" data-row-index="${rowIndex}">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0 text-primary-custom">
-                            <i class="bi bi-book"></i> Subject <span class="subject-number">${subjectNumber}</span>
-                        </h6>
-                        <button type="button" class="btn btn-sm btn-danger remove-subject-row">
-                            <i class="bi bi-trash"></i> Remove
-                        </button>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Select Subject <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <select name="subjects[${rowIndex}][subjectID]" class="form-select subject-select" required>
-                                <option value="">Choose a subject...</option>
-                                @foreach($schoolSubjects as $subject)
-                                    @if($subject->status == 'Active')
-                                        <option value="{{ $subject->subjectID }}">
-                                            {{ $subject->subject_name }} @if($subject->subject_code)({{ $subject->subject_code }})@endif
-                                        </option>
-                                    @endif
-                                @endforeach
-                            </select>
-                        </div>
-                        <small class="text-muted">Only active subjects are shown</small>
-                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Teacher</label>
-                        <select name="subjects[${rowIndex}][teacherID]" class="form-select teacher-select">
-                            <option value="">Select Teacher (Optional)</option>
-                            @foreach($teachers as $teacher)
-                                <option value="{{ $teacher->id }}">
-                                    {{ $teacher->first_name }} {{ $teacher->last_name }} ({{ $teacher->employee_number }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Status <span class="text-danger">*</span></label>
-                        <select name="subjects[${rowIndex}][status]" class="form-select status-select" required>
-                            <option value="Active" selected>Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Student Status</label>
-                        <select name="subjects[${rowIndex}][student_status]" class="form-select student-status-select">
-                            <option value="">Select Student Status (Optional)</option>
-                            <option value="Required">Required - All students must take this subject</option>
-                            <option value="Optional">Optional - Students can choose to take this subject</option>
-                        </select>
-                        <small class="text-muted">
-                            <i class="bi bi-info-circle"></i> This determines if this subject is mandatory or optional for students. If Optional, students can elect to take it.
-                        </small>
-                    </div>
-                </div>
-            `;
-            
+            const newRow = buildClassSubjectRowHtml(rowIndex, {
+                locked: false,
+                canRemove: true,
+                subjectNumber: $('#classSubjectsContainer .subject-row').length + 1
+            });
+
+            // Remove empty-state alert if present
+            $('#classSubjectsContainer > .alert').remove();
             $('#classSubjectsContainer').append(newRow);
-            updateSubjectNumbers();
+            updateClassSubjectNumbers();
+            const $newSelects = $('#classSubjectsContainer .subject-row').last();
+            initSearchableSelect($newSelects.find('.subject-select'), 'Search subject...');
+            initSearchableSelect($newSelects.find('.teacher-select'), 'Search teacher...');
+            disableAlreadyAddedSubjects($newSelects.find('.subject-select'), addedSubjectIDsCache);
         });
 
-        // Remove Subject Row
-        $(document).on('click', '.remove-subject-row', function() {
-            $(this).closest('.subject-row').remove();
-            updateSubjectNumbers();
+        // Remove Subject Row (class subjects modal only)
+        $(document).on('click', '#addClassSubjectModal .remove-subject-row', function() {
+            const $row = $(this).closest('.subject-row');
+            destroySelect2In($row);
+            $row.remove();
+            updateClassSubjectNumbers();
         });
 
-        // Update Subject Numbers
-        function updateSubjectNumbers() {
-            $('.subject-row').each(function(index) {
+        // Update Subject Numbers (class subjects)
+        function updateClassSubjectNumbers() {
+            const $rows = $('#classSubjectsContainer .subject-row');
+            $rows.each(function(index) {
                 $(this).find('.subject-number').text(index + 1);
-                // Show remove button if more than one row
-                if ($('.subject-row').length > 1) {
+                if ($rows.length > 1 && $(this).attr('data-locked') !== '1') {
                     $(this).find('.remove-subject-row').show();
+                } else if ($(this).attr('data-locked') === '1') {
+                    $(this).find('.remove-subject-row').hide();
                 } else {
                     $(this).find('.remove-subject-row').hide();
                 }
             });
         }
 
+        // Init searchable selects when Add Class Subject modal opens
+        $('#addClassSubjectModal').on('shown.bs.modal', function() {
+            setTimeout(function() {
+                initClassSubjectSearchSelects();
+            }, 50);
+        });
+
+        // Edit modal teacher search (main + duo papers)
+        $('#editClassSubjectModal').on('shown.bs.modal', function() {
+            setTimeout(function() {
+                if ($('#editMainTeacherWrap').is(':visible')) {
+                    initSearchableSelect($('#edit_teacher_select'), 'Search teacher...');
+                }
+                $('#editDuoPapersBox .edit-duo-component-teacher').each(function() {
+                    initSearchableSelect($(this), 'Search teacher...');
+                });
+            }, 50);
+        });
+
+        $('#editClassSubjectModal').on('hidden.bs.modal', function() {
+            destroySearchSelectsIn($(this));
+            $('#editDuoPapersWrap').hide();
+            $('#editDuoPapersBox').empty();
+            $('#editMainTeacherWrap').show();
+            $('#edit_is_duo').val('0');
+            $('#editClassSubjectForm')[0].reset();
+        });
 
         // Reset form when modal is closed
         $('#addClassSubjectModal').on('hidden.bs.modal', function() {
+            destroySearchSelectsIn($(this));
             $('#addClassSubjectForm')[0].reset();
             $('#subclassSelectedAlert').hide();
+            $('#subclassSelectedAlertText').text('Subjects already added to this subclass stay as they are. Missing combie subjects load below — assign a teacher for each.');
             addedSubjectIDsCache = [];
-            $('#classSubjectsContainer').html(`
-                <div class="subject-row mb-4 p-3 border rounded" data-row-index="0">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0 text-primary-custom">
-                            <i class="bi bi-book"></i> Subject <span class="subject-number">1</span>
-                        </h6>
-                        <button type="button" class="btn btn-sm btn-danger remove-subject-row" style="display: none;">
-                            <i class="bi bi-trash"></i> Remove
-                        </button>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Select Subject <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <select name="subjects[0][subjectID]" class="form-select subject-select" required>
-                                <option value="">Choose a subject...</option>
-                                @foreach($schoolSubjects as $subject)
-                                    @if($subject->status == 'Active')
-                                        <option value="{{ $subject->subjectID }}">
-                                            {{ $subject->subject_name }} @if($subject->subject_code)({{ $subject->subject_code }})@endif
-                                        </option>
-                                    @endif
-                                @endforeach
-                            </select>
-                        </div>
-                        <small class="text-muted">Only active subjects are shown</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Teacher</label>
-                        <select name="subjects[0][teacherID]" class="form-select teacher-select">
-                            <option value="">Select Teacher (Optional)</option>
-                            @foreach($teachers as $teacher)
-                                <option value="{{ $teacher->id }}">
-                                    {{ $teacher->first_name }} {{ $teacher->last_name }} ({{ $teacher->employee_number }})
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Status <span class="text-danger">*</span></label>
-                        <select name="subjects[0][status]" class="form-select status-select" required>
-                            <option value="Active" selected>Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Student Status</label>
-                        <select name="subjects[0][student_status]" class="form-select student-status-select">
-                            <option value="">Select Student Status (Optional)</option>
-                            <option value="Required">Required - All students must take this subject</option>
-                            <option value="Optional">Optional - Students can choose to take this subject</option>
-                        </select>
-                        <small class="text-muted">
-                            <i class="bi bi-info-circle"></i> This determines if this subject is mandatory or optional for students. If Optional, students can elect to take it.
-                        </small>
-                    </div>
-                </div>
-            `);
+            resetClassSubjectsContainer(false);
             subjectRowCount = 0;
         });
 
@@ -1555,30 +2531,55 @@
 
             $('#classSubjectsContainer .subject-row').each(function(index) {
                 const $row = $(this);
-                const subjectID = $row.find('.subject-select').val() || '';
-                const teacherID = $row.find('.teacher-select').val() || '';
+                const subjectID = $row.find('.subject-select').val()
+                    || $row.find('input[name*="[subjectID]"]').val()
+                    || $row.find('.subject-select-value').val()
+                    || '';
                 const status = $row.find('.status-select').val() || 'Active';
                 const studentStatus = $row.find('.student-status-select').val() || null;
+                const isDuo = $row.find('.duo-papers-wrap').length > 0
+                    || $row.attr('data-is-duo') === '1';
 
-                console.log('Processing subject row:', index + 1, {
-                    subjectID: subjectID,
-                    status: status,
-                    studentStatus: studentStatus
-                });
-
-                // Validation
                 if (!subjectID) {
                     hasError = true;
                     errorMessage = `Please select a subject for Subject ${index + 1}.`;
-                    return false; // This breaks the each loop, not the function
+                    return false;
                 }
 
-                subjects.push({
+                const payload = {
                     subjectID: subjectID,
-                    teacherID: teacherID || null,
+                    teacherID: null,
                     status: status,
                     student_status: studentStatus
-                });
+                };
+
+                if (isDuo) {
+                    const components = [];
+                    $row.find('.duo-paper-row').each(function() {
+                        const componentID = $(this).find('.duo-component-id').val()
+                            || $(this).attr('data-component-id');
+                        const teacherID = $(this).find('.duo-component-teacher').val() || null;
+                        if (componentID) {
+                            components.push({
+                                componentID: componentID,
+                                teacherID: teacherID || null
+                            });
+                        }
+                    });
+                    if (!components.length) {
+                        hasError = true;
+                        errorMessage = `Duo subject ${index + 1} has no papers. Re-select the subject.`;
+                        return false;
+                    }
+                    payload.components = components;
+                    payload.teacherID = null;
+                } else {
+                    payload.teacherID = $row.find('.main-teacher-select').val()
+                        || $row.find('.teacher-select').not('.duo-component-teacher').val()
+                        || null;
+                }
+
+                subjects.push(payload);
             });
 
             console.log('Total subjects collected:', subjects.length, subjects);
@@ -1796,7 +2797,18 @@
                                         html += '</small>';
                                         html += '</div>';
                                     }
-                                    if (subject.teacher_name && subject.teacher_name !== 'Not Assigned') {
+                                    if (subject.is_duo && subject.papers && subject.papers.length) {
+                                        html += '<div class="mt-1">';
+                                        html += '<span class="badge badge-danger mr-1 mb-1" style="border-radius:0;background:#940000;">DUO</span>';
+                                        subject.papers.forEach(function(paper) {
+                                            html += '<div class="small text-muted">';
+                                            html += '<i class="bi bi-layers text-primary-custom me-1"></i>';
+                                            html += '<strong>' + paper.component_name + '</strong>: ';
+                                            html += (paper.teacher_name || 'Not Assigned');
+                                            html += '</div>';
+                                        });
+                                        html += '</div>';
+                                    } else if (subject.teacher_name && subject.teacher_name !== 'Not Assigned') {
                                         html += '<div>';
                                         html += '<small class="text-muted d-block">';
                                         html += '<i class="bi bi-person-badge text-info me-1"></i>Teacher: ' + subject.teacher_name;
@@ -1838,11 +2850,19 @@
                                         html += '</button>';
                                     }
                                     if (canEdit) {
+                                        window.classSubjectEditCache = window.classSubjectEditCache || {};
+                                        window.classSubjectEditCache[subject.class_subjectID] = {
+                                            is_duo: !!subject.is_duo,
+                                            papers: subject.papers || [],
+                                            teacher_id: subject.teacher_id || null,
+                                            subject_name: subject.subject_name
+                                        };
                                         html += '<button class="btn btn-sm btn-warning text-dark edit-class-subject-btn flex-fill" ';
                                         html += 'data-class-subject-id="' + subject.class_subjectID + '" ';
                                         html += 'data-subject-name="' + subject.subject_name + '" ';
                                         html += 'data-teacher-id="' + (subject.teacher_id || '') + '" ';
                                         html += 'data-subclass-id="' + (subclass.subclassID || subclass.id) + '" ';
+                                        html += 'data-is-duo="' + (subject.is_duo ? '1' : '0') + '" ';
                                         html += 'title="Edit Teacher">';
                                         html += '<i class="bi bi-pencil-square"></i>';
                                         html += '</button>';
@@ -2441,19 +3461,47 @@
             var subjectName = $(this).data('subject-name');
             var teacherID = $(this).data('teacher-id');
             var subclassID = $(this).data('subclass-id');
+            var cached = (window.classSubjectEditCache || {})[classSubjectID] || {};
+            var isDuo = ($(this).data('is-duo') == 1 || $(this).data('is-duo') === true || !!cached.is_duo);
+            var papers = cached.papers || [];
 
-            console.log('Edit clicked:', {
-                classSubjectID: classSubjectID,
-                subjectName: subjectName,
-                teacherID: teacherID,
-                subclassID: subclassID
-            });
+            destroySearchSelectsIn($('#editClassSubjectModal'));
 
-            // Populate edit modal
-            $('#editClassSubjectModal').find('input[name="class_subjectID"]').val(classSubjectID);
-            $('#editClassSubjectModal').find('input[name="subclassID"]').val(subclassID);
-            $('#editClassSubjectModal').find('#edit_subject_name').val(subjectName);
-            $('#editClassSubjectModal').find('#edit_teacher_select').val(teacherID || '');
+            $('#edit_class_subject_id').val(classSubjectID);
+            $('#edit_subclass_id').val(subclassID);
+            $('#edit_subject_name').val(subjectName);
+            $('#edit_is_duo').val(isDuo ? '1' : '0');
+
+            if (isDuo && papers.length) {
+                $('#editMainTeacherWrap').hide();
+                $('#edit_teacher_select').val('');
+                $('#edit_subject_hint').text('DUO subject — assign a teacher for each paper below');
+                var papersHtml = '';
+                papers.forEach(function(paper, i) {
+                    papersHtml += `
+                        <div class="duo-paper-row" data-component-id="${escapeHtml(paper.componentID)}">
+                            <div class="duo-paper-name">
+                                <label class="form-label fw-bold mb-1">Paper ${i + 1}</label>
+                                <input type="text" class="form-control class-subject-locked-label" value="${escapeHtml(paper.component_name)}${paper.max_marks ? ' (' + escapeHtml(paper.max_marks) + ' marks)' : ''}" readonly tabindex="-1">
+                                <input type="hidden" class="edit-duo-component-id" value="${escapeHtml(paper.componentID)}">
+                            </div>
+                            <div class="duo-paper-teacher">
+                                <label class="form-label fw-bold mb-1">Teacher <span class="text-muted">(paper)</span></label>
+                                <select class="form-select teacher-select edit-duo-component-teacher">
+                                    ${buildTeacherOptionsHtml(paper.teacherID || '')}
+                                </select>
+                            </div>
+                        </div>`;
+                });
+                $('#editDuoPapersBox').html(papersHtml);
+                $('#editDuoPapersWrap').show();
+            } else {
+                $('#editDuoPapersWrap').hide();
+                $('#editDuoPapersBox').empty();
+                $('#editMainTeacherWrap').show();
+                $('#edit_subject_hint').text('Subject name cannot be changed');
+                $('#edit_teacher_select').val(teacherID || cached.teacher_id || '');
+            }
 
             // Close Subclass Subjects modal
             $('#viewSubclassSubjectsModal').modal('hide');
@@ -2475,12 +3523,31 @@
                 return false;
             }
 
+            var isDuo = $('#edit_is_duo').val() === '1';
             var formData = {
-                class_subjectID: $('input[name="class_subjectID"]', '#editClassSubjectForm').val(),
-                subclassID: $('input[name="subclassID"]', '#editClassSubjectForm').val(),
-                teacherID: $('select[name="teacherID"]', '#editClassSubjectForm').val(),
+                class_subjectID: $('#edit_class_subject_id').val(),
+                subclassID: $('#edit_subclass_id').val(),
                 _token: $('input[name="_token"]', '#editClassSubjectForm').val()
             };
+
+            if (isDuo) {
+                var components = [];
+                $('#editDuoPapersBox .duo-paper-row').each(function() {
+                    var componentID = $(this).find('.edit-duo-component-id').val()
+                        || $(this).attr('data-component-id');
+                    var paperTeacherID = $(this).find('.edit-duo-component-teacher').val() || null;
+                    if (componentID) {
+                        components.push({
+                            componentID: componentID,
+                            teacherID: paperTeacherID || null
+                        });
+                    }
+                });
+                formData.components = components;
+                formData.teacherID = null;
+            } else {
+                formData.teacherID = $('#edit_teacher_select').val() || null;
+            }
 
             var $form = $(this);
             var $submitBtn = $form.find('button[type="submit"]');

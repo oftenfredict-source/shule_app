@@ -3,7 +3,7 @@
     $isMonthlyTest = ($exam->exam_name === 'Monthly Test' || $exam->start_date === 'every_month' || $exam->end_date === 'every_month');
     $statusLabel = ucfirst(str_replace('_', ' ', $exam->status ?? 'scheduled'));
     $approvalLabel = $exam->approval_status ?? 'Pending';
-    $termYear = trim(($exam->term ? ucfirst(str_replace('_', ' ', $exam->term)) . ' • ' : '') . ($exam->year ?? ''));
+    $termYear = trim(($exam->term ? ucfirst(str_replace('_', ' ', $exam->term)) . ' • ' : '') . ($exam->displayYearLabelAll() ?: ($exam->year ?? '')));
     $examViewMore = [
         'title' => $exam->exam_name,
         'fields' => [

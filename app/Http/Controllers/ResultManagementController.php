@@ -493,6 +493,8 @@ class ResultManagementController extends Controller
         }
 
         // Format subclasses with display names
+        // A-Level (Form Five/Six): subclass only (e.g. "A") — Main Class already selected
+        // O-Level: keep "FORM ONE A" style
         foreach ($allSubclasses as $classID => $classSubclasses) {
             // If class has only one subclass and it's default (empty name), include it but show only class name
             if ($classSubclasses->count() === 1) {
@@ -509,16 +511,11 @@ class ResultManagementController extends Controller
                     );
                 } else {
                     // Single subclass with name
-                    $subclassName = trim($subclass->subclass_name);
-                    $displayName = $isCoordinatorResultsView
-                        ? (empty($subclassName)
-                            ? $subclass->class->class_name
-                            : $subclass->class->class_name .
-                                " - " .
-                                $subclassName)
-                        : $subclass->class->class_name .
-                            " " .
-                            $subclass->subclass_name;
+                    $displayName = $this->formatSubclassFilterDisplayName(
+                        $subclass->class->class_name ?? "",
+                        $subclass->subclass_name ?? "",
+                        $isCoordinatorResultsView,
+                    );
                     $subclasses->push(
                         (object) [
                             "subclassID" => $subclass->subclassID,
@@ -529,18 +526,13 @@ class ResultManagementController extends Controller
                     );
                 }
             } else {
-                // Multiple subclasses - show all with class_name + subclass_name
+                // Multiple subclasses
                 foreach ($classSubclasses as $subclass) {
-                    $subclassName = trim($subclass->subclass_name);
-                    $displayName = empty($subclassName)
-                        ? $subclass->class->class_name
-                        : ($isCoordinatorResultsView
-                            ? $subclass->class->class_name .
-                                " - " .
-                                $subclassName
-                            : $subclass->class->class_name .
-                                " " .
-                                $subclassName);
+                    $displayName = $this->formatSubclassFilterDisplayName(
+                        $subclass->class->class_name ?? "",
+                        $subclass->subclass_name ?? "",
+                        $isCoordinatorResultsView,
+                    );
 
                     $subclasses->push(
                         (object) [
@@ -742,8 +734,10 @@ class ResultManagementController extends Controller
                 ->where("schoolID", $schoolID)
                 ->with([
                     "subclass.class",
+                    "subclass.combie.subjects",
                     "subclass.teacher",
                     "oldSubclass.class",
+                    "oldSubclass.combie.subjects",
                     "oldSubclass.teacher",
                 ])
                 ->first();
@@ -787,7 +781,7 @@ class ResultManagementController extends Controller
 
                 $results = Result::where("studentID", $studentIDFilter)
                     ->whereIn("examID", $examIDs)
-                    ->with(["classSubject.subject", "examination"])
+                    ->with(["classSubject.subject.components", "examination"])
                     ->get();
             } else {
                 // For exam: get results for specific exam
@@ -800,7 +794,7 @@ class ResultManagementController extends Controller
                     $resultsQuery->where("test_week", $weekFilter);
                 }
 
-                $results = $resultsQuery->with(["classSubject.subject"])->get();
+                $results = $resultsQuery->with(["classSubject.subject.components"])->get();
             }
 
             $electedClassSubjectIds = $this->getElectedClassSubjectIdsForStudent(
@@ -909,49 +903,127 @@ class ResultManagementController extends Controller
                     $effectiveExaminations = $examinations;
                 }
 
-                // Group raw results by subject and exam (all exams shown as columns)
+                // Group by subjectID; duo papers → one % per exam (not Paper 1 / Paper 2)
                 foreach ($results as $result) {
-                    $subjectName =
-                        $result->classSubject->subject->subject_name ?? "N/A";
+                    $subject = $result->classSubject->subject ?? null;
+                    if (!$subject) {
+                        continue;
+                    }
+                    $subjectID = (int) $subject->subjectID;
+                    $subjectName = $subject->subject_name ?? "N/A";
                     $examID = $result->examID;
 
-                    if (!isset($subjectData[$subjectName])) {
-                        $subjectData[$subjectName] = [
+                    if (!isset($subjectData[$subjectID])) {
+                        if (
+                            ($subject->is_duo ?? false) &&
+                            !$subject->relationLoaded("components")
+                        ) {
+                            $subject->load("components");
+                        }
+                        $subjectData[$subjectID] = [
+                            "subject" => $subject,
                             "subject_name" => $subjectName,
                             "exams" => [],
+                            "paper_rows" => [],
                         ];
                     }
 
                     if ($result->marks !== null && $result->marks !== "") {
-                        $marks = (float) $result->marks;
-                        $gradePoints = $this->calculateGradePoints(
-                            $marks,
-                            $schoolType,
-                            $className,
-                            $classID,
-                        );
-                        $grade = $result->grade ?? $gradePoints["grade"];
-
-                        $examName = "N/A";
-                        if (
-                            isset($examsData[$examID]) &&
-                            isset($examsData[$examID]["exam_name"])
-                        ) {
-                            $examName = $examsData[$examID]["exam_name"];
-                        } elseif (
-                            $result->examination &&
-                            $result->examination->exam_name
-                        ) {
-                            $examName = $result->examination->exam_name;
+                        $isDuo =
+                            (bool) ($subject->is_duo ?? false) &&
+                            ($subject->components?->count() ?? 0) > 0;
+                        if ($isDuo) {
+                            if (
+                                !isset(
+                                    $subjectData[$subjectID]["paper_rows"][
+                                        $examID
+                                    ],
+                                )
+                            ) {
+                                $subjectData[$subjectID]["paper_rows"][
+                                    $examID
+                                ] = [];
+                            }
+                            $subjectData[$subjectID]["paper_rows"][$examID][] =
+                                $result;
+                        } else {
+                            $marks = (float) $result->marks;
+                            $gradePoints = $this->calculateGradePoints(
+                                $marks,
+                                $schoolType,
+                                $className,
+                                $classID,
+                            );
+                            $examName =
+                                $examsData[$examID]["exam_name"] ??
+                                ($result->examination->exam_name ?? "N/A");
+                            $subjectData[$subjectID]["exams"][$examID] = [
+                                "marks" => $marks,
+                                "grade" =>
+                                    $result->grade ?? $gradePoints["grade"],
+                                "exam_name" => $examName,
+                            ];
                         }
-
-                        $subjectData[$subjectName]["exams"][$examID] = [
-                            "marks" => $marks,
-                            "grade" => $grade,
-                            "exam_name" => $examName,
-                        ];
                     }
                 }
+
+                foreach ($subjectData as $subjectID => &$data) {
+                    $subject = $data["subject"];
+                    $isDuo =
+                        (bool) ($subject->is_duo ?? false) &&
+                        ($subject->components?->count() ?? 0) > 0;
+                    if (!$isDuo) {
+                        continue;
+                    }
+                    foreach ($data["paper_rows"] as $examID => $rows) {
+                        $raw = 0.0;
+                        $max = 0;
+                        $any = false;
+                        $papers = [];
+                        foreach ($subject->components as $comp) {
+                            $compMax = max(1, (int) $comp->max_marks);
+                            $max += $compMax;
+                            $row = collect($rows)->first(
+                                fn($r) => (int) ($r->componentID ?? 0) ===
+                                    (int) $comp->componentID,
+                            );
+                            $paperMarks =
+                                $row &&
+                                $row->marks !== null &&
+                                $row->marks !== ""
+                                    ? (float) $row->marks
+                                    : null;
+                            if ($paperMarks !== null) {
+                                $raw += $paperMarks;
+                                $any = true;
+                            }
+                            $papers[] = [
+                                "componentID" => (int) $comp->componentID,
+                                "component_name" =>
+                                    $comp->component_name ?? "Paper",
+                                "marks" => $paperMarks,
+                                "max_marks" => $compMax,
+                            ];
+                        }
+                        if ($any && $max > 0) {
+                            $marks = round(($raw / $max) * 100, 2);
+                            $gradePoints = $this->calculateGradePoints(
+                                $marks,
+                                $schoolType,
+                                $className,
+                                $classID,
+                            );
+                            $data["exams"][$examID] = [
+                                "marks" => $marks,
+                                "grade" => $gradePoints["grade"],
+                                "exam_name" =>
+                                    $examsData[$examID]["exam_name"] ?? "N/A",
+                                "papers" => $papers,
+                            ];
+                        }
+                    }
+                }
+                unset($data);
 
                 // Calculate CA-aware average and overall grade for each subject
                 $subjects = [];
@@ -959,23 +1031,25 @@ class ResultManagementController extends Controller
                 $subjectCount = 0;
                 $effectiveExamCount = max(1, $effectiveExaminations->count());
 
-                foreach ($subjectData as $subjectName => $data) {
+                foreach ($subjectData as $subjectID => $data) {
+                    $subjectName = $data["subject_name"];
                     $slotCollect = $this->collectTermReportSlotMarksForSubject(
                         $data,
                         $effectiveExaminations,
                         $caDefinitionsByExam,
                     );
-                    $slotMarksList = $slotCollect["slot_marks"];
                     $subjectIncomplete = $slotCollect["is_incomplete"];
 
                     if ($subjectIncomplete) {
                         $subjects[] = [
                             "subject_name" => $subjectName,
+                            "subjectID" => $subjectID,
                             "exams" => $data["exams"],
                             "average" => null,
                             "grade" => "Incomplete",
                             "is_term_report" => true,
                             "is_incomplete" => true,
+                            "is_duo" => (bool) ($data["subject"]->is_duo ?? false),
                         ];
                         continue;
                     }
@@ -1023,11 +1097,13 @@ class ResultManagementController extends Controller
 
                     $subjects[] = [
                         "subject_name" => $subjectName,
+                        "subjectID" => $subjectID,
                         "exams" => $data["exams"],
                         "average" => $average,
                         "grade" => $overallGrade,
                         "is_term_report" => true,
                         "is_incomplete" => false,
+                        "is_duo" => (bool) ($data["subject"]->is_duo ?? false),
                     ];
 
                     $totalMarks += $average;
@@ -1050,9 +1126,16 @@ class ResultManagementController extends Controller
                     $examSubjectCount = 0;
                     $examSubjectPoints = [];
 
-                    foreach ($examResults as $result) {
-                        if ($result->marks !== null && $result->marks !== "") {
-                            $marks = (float) $result->marks;
+                    $collapsedExam = $this->collapseResultsToSubjectMarks(
+                        $examResults,
+                    );
+                    $defaultFailPoints = $this->isALevelClassName($className)
+                        ? 7
+                        : 5;
+
+                    foreach ($collapsedExam as $entry) {
+                        if ($entry["marks"] !== null && $entry["marks"] !== "") {
+                            $marks = (float) $entry["marks"];
                             $examTotalMarks += $marks;
                             $examSubjectCount++;
 
@@ -1064,9 +1147,12 @@ class ResultManagementController extends Controller
                                     $classID,
                                 );
                                 $examSubjectPoints[] = [
-                                    "points" => $gradePoints["points"] ?? 5,
+                                    "points" =>
+                                        $gradePoints["points"] ??
+                                        $defaultFailPoints,
                                     "marks" => $marks,
                                     "grade" => $gradePoints["grade"] ?? null,
+                                    "subjectID" => $entry["subjectID"],
                                 ];
                             }
                         }
@@ -1116,6 +1202,9 @@ class ResultManagementController extends Controller
                                     $examSubjectPoints,
                                     $className,
                                     $schoolType,
+                                    $this->getCombinationSubjectIdsForStudent(
+                                        $student,
+                                    ),
                                 );
                             $examGradeDivision = $this->calculateGradeDivision(
                                 $examTotalMarks,
@@ -1160,7 +1249,7 @@ class ResultManagementController extends Controller
 
                 $caResults = Result::where("studentID", $studentIDFilter)
                     ->whereIn("examID", $allInvolvedExams)
-                    ->with(["classSubject.subject", "examination"])
+                    ->with(["classSubject.subject.components", "examination"])
                     ->get();
                 $caResults = $this->filterResultsForStudentElection(
                     $caResults,
@@ -1168,41 +1257,83 @@ class ResultManagementController extends Controller
                     $electedClassSubjectIds,
                 );
 
+                // Collapse duo papers per exam first, then average (one total per subject)
+                $rawBySubject = [];
                 foreach ($caResults as $result) {
-                    $subjectName =
-                        $result->classSubject->subject->subject_name ?? "N/A";
-                    $examID = $result->examID;
-                    $examModel = $involvedExams[$examID] ?? null;
-                    $examName = $examModel ? $examModel->exam_name : "Unknown";
-                    if ($examModel && $examModel->exam_category === "test") {
-                        $examName .= " (CA)";
+                    $subject = $result->classSubject->subject ?? null;
+                    if (!$subject) {
+                        continue;
                     }
-
-                    if (!isset($subjectData[$subjectName])) {
-                        $subjectData[$subjectName] = [
-                            "subject_name" => $subjectName,
-                            "exams" => [],
-                            "marks_sum" => 0,
-                            "marks_count" => 0,
+                    $subjectID = (int) $subject->subjectID;
+                    if (!isset($rawBySubject[$subjectID])) {
+                        if (
+                            ($subject->is_duo ?? false) &&
+                            !$subject->relationLoaded("components")
+                        ) {
+                            $subject->load("components");
+                        }
+                        $rawBySubject[$subjectID] = [
+                            "subject" => $subject,
+                            "subject_name" => $subject->subject_name ?? "N/A",
+                            "by_exam" => [],
                         ];
                     }
+                    if ($result->marks === null || $result->marks === "") {
+                        continue;
+                    }
+                    $examID = $result->examID;
+                    if (!isset($rawBySubject[$subjectID]["by_exam"][$examID])) {
+                        $rawBySubject[$subjectID]["by_exam"][$examID] = collect();
+                    }
+                    $rawBySubject[$subjectID]["by_exam"][$examID]->push($result);
+                }
 
-                    if ($result->marks !== null && $result->marks !== "") {
-                        $marks = (float) $result->marks;
+                $subjectData = [];
+                foreach ($rawBySubject as $subjectID => $bundle) {
+                    $subject = $bundle["subject"];
+                    $subjectName = $bundle["subject_name"];
+                    $subjectData[$subjectID] = [
+                        "subject_name" => $subjectName,
+                        "exams" => [],
+                        "marks_sum" => 0,
+                        "marks_count" => 0,
+                        "is_duo" => (bool) ($subject->is_duo ?? false),
+                    ];
+
+                    foreach ($bundle["by_exam"] as $examID => $examRows) {
+                        $collapsed = $this->collapseResultsToSubjectMarks(
+                            $examRows,
+                        );
+                        $entry = $collapsed[0] ?? null;
+                        if (
+                            !$entry ||
+                            $entry["marks"] === null ||
+                            $entry["marks"] === ""
+                        ) {
+                            continue;
+                        }
+                        $marks = (float) $entry["marks"];
                         $gradePoints = $this->calculateGradePoints(
                             $marks,
                             $schoolType,
                             $className,
                             $classID,
                         );
-
-                        $subjectData[$subjectName]["exams"][] = [
+                        $examModel = $involvedExams[$examID] ?? null;
+                        $examName = $examModel
+                            ? $examModel->exam_name
+                            : "Unknown";
+                        if ($examModel && $examModel->exam_category === "test") {
+                            $examName .= " (CA)";
+                        }
+                        $subjectData[$subjectID]["exams"][] = [
                             "marks" => $marks,
-                            "grade" => $result->grade ?? $gradePoints["grade"],
+                            "grade" => $gradePoints["grade"],
                             "exam_name" => $examName,
+                            "papers" => $entry["papers"] ?? [],
                         ];
-                        $subjectData[$subjectName]["marks_sum"] += $marks;
-                        $subjectData[$subjectName]["marks_count"]++;
+                        $subjectData[$subjectID]["marks_sum"] += $marks;
+                        $subjectData[$subjectID]["marks_count"]++;
                     }
                 }
 
@@ -1211,14 +1342,15 @@ class ResultManagementController extends Controller
                 $subjectCount = 0;
                 $subjectPoints = [];
 
-                foreach ($subjectData as $subjectName => $data) {
+                foreach ($subjectData as $subjectID => $data) {
+                    if ($data["marks_count"] <= 0) {
+                        continue;
+                    }
                     $divisor =
                         count($allInvolvedExams) > 0
                             ? count($allInvolvedExams)
-                            : ($data["marks_count"] > 0
-                                ? $data["marks_count"]
-                                : 1);
-                    $average = round($data["marks_sum"] / $divisor, 2);
+                            : $data["marks_count"];
+                    $average = round($data["marks_sum"] / max(1, $divisor), 2);
                     if ($schoolType === "Secondary") {
                         $overallGrade = $this->getSecondaryHardcodedGrade(
                             $average,
@@ -1233,7 +1365,9 @@ class ResultManagementController extends Controller
                                 $className,
                             )
                             : null;
-                        $overallGrade = $gradeResult ? $gradeResult["grade"] : null;
+                        $overallGrade = $gradeResult
+                            ? $gradeResult["grade"]
+                            : null;
                         if (!$overallGrade) {
                             if ($average >= 75) {
                                 $overallGrade = "A";
@@ -1250,11 +1384,13 @@ class ResultManagementController extends Controller
                     }
 
                     $subjects[] = [
-                        "subject_name" => $subjectName,
-                        "exams" => $data["exams"], // Shows breakdown in View More
+                        "subject_name" => $data["subject_name"],
+                        "subjectID" => $subjectID,
+                        "exams" => $data["exams"],
                         "marks" => $average,
                         "grade" => $overallGrade,
                         "is_ca_averaged" => true,
+                        "is_duo" => $data["is_duo"] ?? false,
                     ];
 
                     $totalMarks += $average;
@@ -1268,47 +1404,58 @@ class ResultManagementController extends Controller
                             $classID,
                         );
                         $subjectPoints[] = [
-                            "points" => $avgGradePoints["points"] ?? 5,
+                            "points" =>
+                                $avgGradePoints["points"] ??
+                                ($this->isALevelClassName($className) ? 7 : 5),
                             "marks" => $average,
+                            "subjectID" => $subjectID,
                         ];
                     }
                 }
                 $averageMarks =
                     $subjectCount > 0 ? $totalMarks / $subjectCount : 0;
             } else {
-                // For exam: original logic
+                // For exam: collapse duo papers → % per subject
                 $totalMarks = 0;
                 $subjectCount = 0;
                 $subjects = [];
                 $subjectPoints = [];
 
-                foreach ($results as $result) {
-                    if ($result->marks !== null && $result->marks !== "") {
-                        $totalMarks += (float) $result->marks;
+                $collapsed = $this->collapseResultsToSubjectMarks($results);
+                $defaultFailPoints = $this->isALevelClassName($className) ? 7 : 5;
+
+                foreach ($collapsed as $entry) {
+                    $marks = $entry["marks"];
+                    if ($marks !== null && $marks !== "") {
+                        $totalMarks += (float) $marks;
                         $subjectCount++;
                     }
                     $gradePoints = $this->calculateGradePoints(
-                        $result->marks,
+                        $marks,
                         $schoolType,
                         $className,
                         $classID,
                     );
                     $subjects[] = [
-                        "subject_name" =>
-                            $result->classSubject->subject->subject_name ??
-                            "N/A",
-                        "marks" => $result->marks,
-                        "grade" => $result->grade ?? $gradePoints["grade"],
+                        "subject_name" => $entry["subject_name"],
+                        "subjectID" => $entry["subjectID"],
+                        "marks" => $marks,
+                        "grade" => $gradePoints["grade"],
+                        "is_duo" => $entry["is_duo"],
+                        "papers" => $entry["papers"] ?? [],
                     ];
 
                     if (
                         $schoolType === "Secondary" &&
-                        $result->marks !== null &&
-                        $result->marks !== ""
+                        $marks !== null &&
+                        $marks !== ""
                     ) {
                         $subjectPoints[] = [
-                            "points" => $gradePoints["points"] ?? 5,
-                            "marks" => (float) $result->marks,
+                            "points" =>
+                                $gradePoints["points"] ?? $defaultFailPoints,
+                            "marks" => (float) $marks,
+                            "grade" => $gradePoints["grade"] ?? null,
+                            "subjectID" => $entry["subjectID"],
                         ];
                     }
                 }
@@ -1340,11 +1487,15 @@ class ResultManagementController extends Controller
 
             $bestSevenGrades = [];
             $totalPoints = 0;
+            $combinationSubjectIds = $this->getCombinationSubjectIdsForStudent(
+                $student,
+            );
             if ($schoolType === "Secondary" && !empty($subjectPoints)) {
                 $divisionPick = $this->resolveSecondaryBestSubjectsForDivision(
                     $subjectPoints,
                     $className,
                     $schoolType,
+                    $combinationSubjectIds,
                 );
                 $totalPoints = $divisionPick["total_points"];
                 $bestSevenGrades = $divisionPick["grades"];
@@ -1400,24 +1551,43 @@ class ResultManagementController extends Controller
                 }
             }
 
-            // Get total students count and position for this student in their class
-            // Position should be calculated per class (not overall)
+            // Get total students count and position for this student in their class/stream
+            // Position should be calculated per stream (subclass) when available, else class
             $totalStudentsCount = 0;
             $studentPosition = 0;
 
-            // Get student's class ID
+            // Get student's class / stream IDs
             $studentClassID = null;
+            $studentSubclassID =
+                $student->subclassID ?? ($student->old_subclassID ?? null);
             if ($student->subclass && $student->subclass->class) {
                 $studentClassID = $student->subclass->class->classID;
+                $studentSubclassID =
+                    $studentSubclassID ?: $student->subclass->subclassID;
             } elseif ($student->oldSubclass && $student->oldSubclass->class) {
                 $studentClassID = $student->oldSubclass->class->classID;
+                $studentSubclassID =
+                    $studentSubclassID ?: $student->oldSubclass->subclassID;
             }
 
-            if ($studentClassID) {
-                // Get all students in the same class
-                $classStudents = Student::where("schoolID", $schoolID)
+            if ($studentClassID || $studentSubclassID) {
+                // Prefer same stream (e.g. FORM FIVE / A); fall back to whole class
+                $classStudentsQuery = Student::where("schoolID", $schoolID)
                     ->where("status", "Active")
-                    ->where(function ($query) use ($studentClassID) {
+                    ->with(["subclass.class", "oldSubclass.class"]);
+
+                if ($studentSubclassID) {
+                    $classStudentsQuery->where(function ($query) use (
+                        $studentSubclassID,
+                    ) {
+                        $query
+                            ->where("subclassID", $studentSubclassID)
+                            ->orWhere("old_subclassID", $studentSubclassID);
+                    });
+                } else {
+                    $classStudentsQuery->where(function ($query) use (
+                        $studentClassID,
+                    ) {
                         $query
                             ->whereHas("subclass", function ($q) use (
                                 $studentClassID,
@@ -1429,9 +1599,10 @@ class ResultManagementController extends Controller
                             ) {
                                 $q->where("classID", $studentClassID);
                             });
-                    })
-                    ->with(["subclass.class", "oldSubclass.class"])
-                    ->get();
+                    });
+                }
+
+                $classStudents = $classStudentsQuery->get();
 
                 // Get results for all students in this class
                 $classStudentsWithResults = [];
@@ -1454,20 +1625,33 @@ class ResultManagementController extends Controller
                     }
                 }
 
+                // Must use header academic-year IDs + all calendar years (O/A dual years).
+                // Passing only calendar_year (e.g. 2025) excludes exams stored as 2027.
+                $positionYearFilter = !empty($calendarYears)
+                    ? $calendarYears
+                    : $yearFilter;
+
                 if ($typeFilterForDetails === "report") {
                     $classResultsData = $this->getTermReport(
                         $classStudents,
                         $termFilter,
-                        $yearFilter,
+                        $positionYearFilter,
                         $schoolType,
+                        null,
+                        $schoolID,
+                        $academicYearIDs,
                     );
                 } else {
                     $classResultsData = $this->getExamResults(
                         $classStudents,
                         $termFilter,
-                        $yearFilter,
+                        $positionYearFilter,
                         $schoolType,
                         $caExamIDs,
+                        $weekFilter ?: null,
+                        null,
+                        $schoolID,
+                        $academicYearIDs,
                     );
                 }
 
@@ -1663,6 +1847,7 @@ class ResultManagementController extends Controller
             $responseData = [
                 "subjects" => $subjects,
                 "schoolType" => $schoolType,
+                "isALevel" => $this->isALevelClassName($className),
                 "student" => [
                     "studentID" => $student->studentID,
                     "first_name" => $student->first_name,
@@ -1750,9 +1935,55 @@ class ResultManagementController extends Controller
                 !empty($calendarYears) ? $calendarYears : $yearFilter,
             );
             if ($termFilter) {
-                $examQuery->where("term", $termFilter);
+                // Keep all_terms exams visible under any term; exact match for first/second
+                $examQuery->where(function ($q) use ($termFilter) {
+                    $q->where("term", $termFilter)
+                        ->orWhere("term", "all_terms")
+                        ->orWhere("term", "all")
+                        ->orWhere("term", "both")
+                        ->orWhereNull("term")
+                        ->orWhere("term", "");
+                });
             }
             $availableExams = $examQuery->get();
+
+            // Also merge exams that already have saved marks (same year/term scope)
+            $resultExamIds = Result::query()
+                ->whereHas("examination", function ($q) use ($schoolID) {
+                    $q->where("schoolID", $schoolID);
+                })
+                ->distinct()
+                ->pluck("examID")
+                ->filter()
+                ->values()
+                ->all();
+
+            if (!empty($resultExamIds)) {
+                $extra = Examination::where("schoolID", $schoolID)->whereIn(
+                    "examID",
+                    $resultExamIds,
+                );
+                $this->applyExaminationAcademicYearFilter(
+                    $extra,
+                    $academicYearIDs,
+                    !empty($calendarYears) ? $calendarYears : $yearFilter,
+                );
+                if ($termFilter) {
+                    $extra->where(function ($q) use ($termFilter) {
+                        $q->where("term", $termFilter)
+                            ->orWhere("term", "all_terms")
+                            ->orWhere("term", "all")
+                            ->orWhere("term", "both")
+                            ->orWhereNull("term")
+                            ->orWhere("term", "");
+                    });
+                }
+                $availableExams = $availableExams
+                    ->concat($extra->get())
+                    ->unique("examID")
+                    ->sortBy("start_date")
+                    ->values();
+            }
         }
 
         // Get Available Weeks if it's a test
@@ -1981,10 +2212,11 @@ class ResultManagementController extends Controller
         $students = $studentQuery
             ->with([
                 "subclass.class",
-                "subclass.combie",
+                "subclass.combie.subjects",
                 "subclass.teacher",
                 "parent",
                 "oldSubclass.class",
+                "oldSubclass.combie.subjects",
                 "oldSubclass.teacher",
             ])
             ->orderBy("first_name")
@@ -2135,9 +2367,36 @@ class ResultManagementController extends Controller
             }
         }
 
+        $isALevelView = false;
+        if ($schoolType === "Secondary") {
+            if ($classFilter) {
+                $filteredClass =
+                    ClassModel::find($classFilter) ?:
+                    $classes->first(function ($class) use ($classFilter) {
+                        return (string) $class->classID ===
+                            (string) $classFilter;
+                    });
+                $isALevelView = $this->isALevelClassName(
+                    $filteredClass->class_name ?? null,
+                );
+            }
+            if (!$isALevelView) {
+                foreach ($students as $student) {
+                    $cn =
+                        $student->subclass->class->class_name ??
+                        ($student->oldSubclass->class->class_name ?? null);
+                    if ($this->isALevelClassName($cn)) {
+                        $isALevelView = true;
+                        break;
+                    }
+                }
+            }
+        }
+
         return view("Admin.result_management", [
             "school" => $school,
             "schoolType" => $schoolType,
+            "isALevelView" => $isALevelView,
             "students" => $students,
             "resultsData" => $resultsData,
             "classes" => $classes,
@@ -2973,10 +3232,16 @@ class ResultManagementController extends Controller
         $userType = Session::get("user_type");
         $schoolID = Session::get("schoolID");
 
-        if (
-            ($userType !== "Admin" && !$this->hasPermission("view_results")) ||
-            !$schoolID
-        ) {
+        // Same audience as manageResults: Admin, or anyone with results permission,
+        // or Teacher/Staff already allowed to view the results board.
+        $allowed =
+            $schoolID &&
+            ($userType === "Admin" ||
+                $userType === "Teacher" ||
+                $userType === "Staff" ||
+                $this->hasPermission("view_results"));
+
+        if (!$allowed) {
             return response()->json(["error" => "Access denied"], 403);
         }
 
@@ -3001,9 +3266,12 @@ class ResultManagementController extends Controller
         $school = School::find($schoolID);
         $schoolType = strtolower($school->school_type ?? "secondary");
         $isPrimary = $schoolType === "primary";
+        $isALevel = (bool) $request->boolean("is_a_level");
         $gradeHeaders = $isPrimary
             ? ["A", "B", "C", "D", "E", "F"]
-            : ["A", "B", "C", "D", "F"];
+            : ($isALevel
+                ? ["A", "B", "C", "D", "E", "S", "F"]
+                : ["A", "B", "C", "D", "F"]);
 
         $rows = collect($request->input("rows", []))
             ->map(function ($row) use ($gradeHeaders) {
@@ -3036,7 +3304,7 @@ class ResultManagementController extends Controller
         }
 
         $rows = $rows
-            ->map(function ($row) use ($rankMap, $isPrimary) {
+            ->map(function ($row) use ($rankMap, $isPrimary, $isALevel) {
                 $overall = collect($row["grade_breakdown"])->sum("total");
                 $grade = $row["grade"];
                 $remarkText = "Incomplete";
@@ -3058,9 +3326,17 @@ class ResultManagementController extends Controller
                             $remarkClass = "remark-good";
                             $competency = "Grade C (Good)";
                         } elseif ($grade === "D") {
+                            $remarkText = $isALevel ? "Average" : "Satisfactory";
+                            $remarkClass = "remark-avg";
+                            $competency = "Grade D (" . $remarkText . ")";
+                        } elseif ($isALevel && $grade === "E") {
                             $remarkText = "Satisfactory";
                             $remarkClass = "remark-avg";
-                            $competency = "Grade D (Satisfactory)";
+                            $competency = "Grade E (Satisfactory)";
+                        } elseif ($isALevel && $grade === "S") {
+                            $remarkText = "Subsidiary";
+                            $remarkClass = "remark-avg";
+                            $competency = "Grade S (Subsidiary)";
                         } elseif ($grade === "F") {
                             $remarkText = "Fail";
                             $remarkClass = "remark-fail";
@@ -3090,6 +3366,7 @@ class ResultManagementController extends Controller
         $pdf = PDF::loadView("Admin.pdf.subject_performance_statistics_pdf", [
             "school" => $school,
             "schoolType" => $isPrimary ? "Primary" : "Secondary",
+            "isALevel" => $isALevel,
             "gradeHeaders" => $gradeHeaders,
             "rows" => $rows,
             "termLabel" => $request->input("term", "-"),
@@ -3313,12 +3590,37 @@ class ResultManagementController extends Controller
         $classID =
             $student->subclass->classID ??
             ($student->oldSubclass->classID ?? null);
+        $school = \App\Models\School::find($schoolID);
+        $schoolType = $school ? $school->school_type : "Secondary";
+
+        $resolveSmsGrade = function ($marks) use (
+            $schoolType,
+            $className,
+            $classID,
+        ) {
+            if ($marks === null || $marks === "") {
+                return "-";
+            }
+            if ($schoolType === "Secondary") {
+                return $this->getSecondaryHardcodedGrade($marks, $className)[
+                    "grade"
+                ] ?? "-";
+            }
+            $gradeRes = $this->getGradeFromDefinition(
+                $marks,
+                $classID,
+                $schoolType,
+                $className,
+            );
+            return $gradeRes["grade"] ?? "-";
+        };
 
         if ($subject) {
-            // Single subject mode
+            // Single subject mode (already a total from UI)
             $totalSum = (float) $marks;
+            $smsGrade = $grade ?: $resolveSmsGrade($marks);
             $formattedResults[] =
-                "{$subject}-(" . round($marks) . ")-({$grade})";
+                "{$subject}-(" . round($marks) . ")-({$smsGrade})";
             $resultsString = $formattedResults[0];
         } elseif ($type === "report") {
             // Term report: Average across exams in TermReportDefinition if available
@@ -3345,7 +3647,7 @@ class ResultManagementController extends Controller
 
             $results = Result::where("studentID", $studentID)
                 ->whereIn("examID", $examinations)
-                ->with("classSubject.subject")
+                ->with("classSubject.subject.components")
                 ->get();
 
             if ($results->isEmpty()) {
@@ -3358,31 +3660,42 @@ class ResultManagementController extends Controller
                 ]);
             }
 
-            $subjectData = [];
-            foreach ($results as $res) {
-                $sName = $res->classSubject->subject->subject_name ?? "N/A";
-                if (!isset($subjectData[$sName])) {
-                    $subjectData[$sName] = ["total" => 0, "count" => 0];
-                }
-                if ($res->marks !== null && $res->marks !== "") {
-                    $subjectData[$sName]["total"] += (float) $res->marks;
-                    $subjectData[$sName]["count"]++;
+            // Duo → one % total per subject (never send Paper 1/2 separately)
+            $byExam = $results->groupBy("examID");
+            $subjectAccum = [];
+            foreach ($byExam as $examRows) {
+                foreach (
+                    $this->collapseResultsToSubjectMarks($examRows)
+                    as $entry
+                ) {
+                    $sid = $entry["subjectID"];
+                    if (!isset($subjectAccum[$sid])) {
+                        $subjectAccum[$sid] = [
+                            "subject_name" => $entry["subject_name"],
+                            "total" => 0.0,
+                            "count" => 0,
+                        ];
+                    }
+                    if ($entry["marks"] !== null && $entry["marks"] !== "") {
+                        $subjectAccum[$sid]["total"] += (float) $entry["marks"];
+                        $subjectAccum[$sid]["count"]++;
+                    }
                 }
             }
 
-            foreach ($subjectData as $sName => $data) {
+            foreach ($subjectAccum as $data) {
                 $avgMarks =
                     $data["count"] > 0 ? $data["total"] / $data["count"] : 0;
                 $totalSum += $avgMarks;
-                $gradeRes = $this->getGradeFromDefinition($avgMarks, $classID);
-                $sGrade = $gradeRes["grade"] ?? "-";
+                $sGrade = $resolveSmsGrade($avgMarks);
                 $formattedResults[] =
-                    "{$sName}-(" . round($avgMarks) . ")-({$sGrade})";
+                    "{$data["subject_name"]}-(" .
+                    round($avgMarks) .
+                    ")-({$sGrade})";
             }
             $resultsString = implode("\n", $formattedResults);
         } else {
             // Multi-subject mode (Exam level)
-            // Check if this exam has CA defined
             $caDefinition = \App\Models\CaDefinition::where(
                 "schoolID",
                 $schoolID,
@@ -3410,7 +3723,9 @@ class ResultManagementController extends Controller
                 $allResultsQuery->where("test_week", $week);
             }
 
-            $results = $allResultsQuery->with("classSubject.subject")->get();
+            $results = $allResultsQuery
+                ->with("classSubject.subject.components")
+                ->get();
 
             if ($results->isEmpty()) {
                 \Log::warning(
@@ -3425,46 +3740,61 @@ class ResultManagementController extends Controller
             \Log::info(
                 "sendResultSms: Found " .
                     $results->count() .
-                    " subjects for student {$studentID}",
+                    " result rows for student {$studentID}",
             );
 
             if ($caDefinition && !empty($caDefinition->test_ids)) {
-                // Group by subject and average (CA support)
-                $subjectData = [];
-                foreach ($results as $res) {
-                    $sName = $res->classSubject->subject->subject_name ?? "N/A";
-                    if (!isset($subjectData[$sName])) {
-                        $subjectData[$sName] = ["total" => 0, "count" => 0];
-                    }
-                    if ($res->marks !== null && $res->marks !== "") {
-                        $subjectData[$sName]["total"] += (float) $res->marks;
-                        $subjectData[$sName]["count"]++;
+                $byExam = $results->groupBy("examID");
+                $subjectAccum = [];
+                foreach ($byExam as $examRows) {
+                    foreach (
+                        $this->collapseResultsToSubjectMarks($examRows)
+                        as $entry
+                    ) {
+                        $sid = $entry["subjectID"];
+                        if (!isset($subjectAccum[$sid])) {
+                            $subjectAccum[$sid] = [
+                                "subject_name" => $entry["subject_name"],
+                                "total" => 0.0,
+                                "count" => 0,
+                            ];
+                        }
+                        if (
+                            $entry["marks"] !== null &&
+                            $entry["marks"] !== ""
+                        ) {
+                            $subjectAccum[$sid]["total"] +=
+                                (float) $entry["marks"];
+                            $subjectAccum[$sid]["count"]++;
+                        }
                     }
                 }
 
-                foreach ($subjectData as $sName => $data) {
+                foreach ($subjectAccum as $data) {
                     $avgMarks =
                         $data["count"] > 0
                             ? $data["total"] / $data["count"]
                             : 0;
                     $totalSum += $avgMarks;
-                    $gradeRes = $this->getGradeFromDefinition(
-                        $avgMarks,
-                        $classID,
-                    );
-                    $sGrade = $gradeRes["grade"] ?? "-";
+                    $sGrade = $resolveSmsGrade($avgMarks);
                     $formattedResults[] =
-                        "{$sName}-(" . round($avgMarks) . ")-({$sGrade})";
+                        "{$data["subject_name"]}-(" .
+                        round($avgMarks) .
+                        ")-({$sGrade})";
                 }
             } else {
-                // Standard mode
-                foreach ($results as $res) {
-                    $sName = $res->classSubject->subject->subject_name ?? "N/A";
-                    $sMarks = $res->marks ?? 0;
-                    $sGrade = $res->grade ?? "-";
-                    $totalSum += (float) $sMarks;
+                // Standard exam: duo collapsed to one total %
+                foreach ($this->collapseResultsToSubjectMarks($results) as $entry) {
+                    if ($entry["marks"] === null || $entry["marks"] === "") {
+                        continue;
+                    }
+                    $sMarks = (float) $entry["marks"];
+                    $totalSum += $sMarks;
+                    $sGrade = $resolveSmsGrade($sMarks);
                     $formattedResults[] =
-                        "{$sName}-(" . round((float) $sMarks) . ")-({$sGrade})";
+                        "{$entry["subject_name"]}-(" .
+                        round($sMarks) .
+                        ")-({$sGrade})";
                 }
             }
             $resultsString = implode("\n", $formattedResults);
@@ -3498,7 +3828,6 @@ class ResultManagementController extends Controller
             $weekRange = $week;
         }
 
-        $school = \App\Models\School::find($schoolID);
         $schoolName = $school ? $school->school_name : "ShuleXpert";
 
         $weekLabel = $week;
@@ -3528,8 +3857,6 @@ class ResultManagementController extends Controller
             $termLabel = $term === "first_term" ? "TERM 1" : "TERM 2";
             $examNameContext = "RIPOTI YA {$termLabel} {$year}";
         }
-
-        $schoolType = $school ? $school->school_type : "Secondary";
 
         // Construct Premium SMS Format
         $msg = "";
@@ -3619,24 +3946,31 @@ class ResultManagementController extends Controller
                 $student->studentID,
             );
 
-            // Get examinations for this term and academic year (header)
+            // Get examinations for this term and academic year (header).
+            // When a specific examID is requested, skip year/term filters — identity
+            // is enough (avoids Position 0/0 when exam.year differs from header calendar year).
             $examinationsQuery = Examination::where("schoolID", $schoolID);
-            $this->applyExaminationAcademicYearFilter(
-                $examinationsQuery,
-                is_array($academicYearIDs) ? $academicYearIDs : [],
-                $year,
-            );
 
-            if ($term) {
-                $examinationsQuery->where("term", $term);
-            }
-
-            // Filter by specific exam if selected
             if ($examID) {
                 if (is_array($examID)) {
                     $examinationsQuery->whereIn("examID", $examID);
                 } else {
                     $examinationsQuery->where("examID", $examID);
+                }
+            } else {
+                $this->applyExaminationAcademicYearFilter(
+                    $examinationsQuery,
+                    is_array($academicYearIDs) ? $academicYearIDs : [],
+                    $year,
+                );
+
+                if ($term) {
+                    $examinationsQuery->where(function ($q) use ($term) {
+                        $q->where("term", $term)->orWhere(
+                            "term",
+                            "all_terms",
+                        );
+                    });
                 }
             }
 
@@ -3667,7 +4001,7 @@ class ResultManagementController extends Controller
                 }
 
                 $results = $resultsQuery
-                    ->with(["classSubject.subject", "examination"])
+                    ->with(["classSubject.subject.components", "examination"])
                     ->get();
                 $results = $this->filterResultsForStudentElection(
                     $results,
@@ -3733,7 +4067,7 @@ class ResultManagementController extends Controller
                     );
                     $results = Result::where("studentID", $student->studentID)
                         ->whereIn("examID", $allInvolvedExams)
-                        ->with(["classSubject.subject", "examination"])
+                        ->with(["classSubject.subject.components", "examination"])
                         ->get();
                     $results = $this->filterResultsForStudentElection(
                         $results,
@@ -3788,7 +4122,7 @@ class ResultManagementController extends Controller
                     }
 
                     $results = $resultsQuery
-                        ->with(["classSubject.subject", "examination"])
+                        ->with(["classSubject.subject.components", "examination"])
                         ->get();
                     $results = $this->filterResultsForStudentElection(
                         $results,
@@ -3907,6 +4241,7 @@ class ResultManagementController extends Controller
             $student->studentID,
         );
 
+        $filteredResults = collect();
         foreach ($results as $result) {
             if (
                 !$this->shouldIncludeResultForStudent(
@@ -3917,26 +4252,39 @@ class ResultManagementController extends Controller
             ) {
                 continue;
             }
+            $filteredResults->push($result);
+        }
 
-            if ($result->marks !== null && $result->marks !== "") {
-                $totalMarks += (float) $result->marks;
+        // Duo papers → one % per subject; non-duo keep marks as-is
+        $collapsed = $this->collapseResultsToSubjectMarks($filteredResults);
+        $defaultFailPoints = $this->isALevelClassName($className) ? 7 : 5;
+
+        foreach ($collapsed as $entry) {
+            $marks = $entry["marks"];
+            if ($marks !== null && $marks !== "") {
+                $totalMarks += (float) $marks;
                 $subjectCount++;
             } else {
                 $subjectCount++;
             }
+
             $gradePoints = $this->calculateGradePoints(
-                round((float) $result->marks, 2),
+                $marks !== null ? round((float) $marks, 2) : null,
                 $schoolType,
                 $className,
                 $classID,
             );
+
             $subjectsData[] = [
-                "subject_name" =>
-                    $result->classSubject->subject->subject_name ?? "N/A",
-                "marks" => $result->marks ?? "incomplete",
-                "grade" => $result->grade ?? $gradePoints["grade"],
+                "subject_name" => $entry["subject_name"],
+                "subjectID" => $entry["subjectID"],
+                "marks" => $marks !== null ? $marks : "incomplete",
+                "grade" => $gradePoints["grade"],
                 "points" => $gradePoints["points"],
-                "question_marks" => $result->question_details ?? [],
+                "remark" => $gradePoints["remark"] ?? null,
+                "is_duo" => $entry["is_duo"],
+                "papers" => $entry["papers"] ?? [],
+                "question_marks" => [],
             ];
         }
 
@@ -3950,10 +4298,14 @@ class ResultManagementController extends Controller
                     "marks" => (float) $s["marks"],
                     "points" => $s["points"],
                     "grade" => $s["grade"] ?? null,
+                    "subjectID" => $s["subjectID"] ?? null,
                 ];
             }
         }
 
+        $combinationSubjectIds = $this->getCombinationSubjectIdsForStudent(
+            $student,
+        );
         $bestSevenGrades = [];
         $allSubjectGrades = $this->extractSubjectGradesFromPointEntries(
             $marksPointsArray,
@@ -3963,9 +4315,18 @@ class ResultManagementController extends Controller
                 $marksPointsArray,
                 $className,
                 $schoolType,
+                $combinationSubjectIds,
             );
             $totalPoints = $divisionPick["total_points"];
             $bestSevenGrades = $divisionPick["grades"];
+        } elseif (
+            $schoolType === "Secondary" &&
+            $this->isALevelClassName($className) &&
+            !empty($combinationSubjectIds)
+        ) {
+            // All combination subjects missing → F×N
+            $totalPoints = count($combinationSubjectIds) * $defaultFailPoints;
+            $bestSevenGrades = array_fill(0, count($combinationSubjectIds), "F");
         }
 
         $gradeDivision =
@@ -4228,20 +4589,16 @@ class ResultManagementController extends Controller
                 $examTotalMarks = 0;
                 $examSubjectCount = 0;
 
-                foreach ($results as $result) {
+                // Collapse duo papers to one % per subject before exam average
+                $collapsedSubjects = $this->collapseResultsToSubjectMarks(
+                    $results,
+                );
+                foreach ($collapsedSubjects as $subjectEntry) {
                     if (
-                        !$this->shouldIncludeResultForStudent(
-                            $student->studentID,
-                            $result,
-                            $electedClassSubjectIds,
-                        )
+                        $subjectEntry["marks"] !== null &&
+                        $subjectEntry["marks"] !== ""
                     ) {
-                        continue;
-                    }
-
-                    if ($result->marks !== null && $result->marks !== "") {
-                        $marks = (float) $result->marks;
-                        $examTotalMarks += $marks;
+                        $examTotalMarks += (float) $subjectEntry["marks"];
                         $examSubjectCount++;
                     }
                 }
@@ -4301,7 +4658,7 @@ class ResultManagementController extends Controller
                         ? $examAveragesSum / count($effectiveExaminations)
                         : 0;
 
-                // NECTA division: one grade per subject (term average), then best 7 subjects
+                // NECTA division: one grade per subject (term average), then best 7 / A-Level combie 3
                 $allStudentResults = collect();
                 foreach ($examIDs as $examIdForDivision) {
                     $allStudentResults = $allStudentResults->merge(
@@ -4346,6 +4703,7 @@ class ResultManagementController extends Controller
                         $subjectPointEntries,
                         $className,
                         $schoolType,
+                        $this->getCombinationSubjectIdsForStudent($student),
                     );
                     $totalPoints = $divisionPick["total_points"];
                     $bestSevenGrades = $divisionPick["grades"];
@@ -4417,33 +4775,262 @@ class ResultManagementController extends Controller
     }
 
     /**
+     * Whether class is Form Five / Form Six (A-Level).
+     */
+    private function isALevelClassName(?string $className): bool
+    {
+        return app(SelectedAcademicYearService::class)->isALevelClassName(
+            $className,
+        );
+    }
+
+    /**
+     * Subclass dropdown / title label.
+     * A-Level: subclass only (e.g. "A"). O-Level: "FORM ONE A" (or "FORM ONE - A" for coordinator).
+     */
+    private function formatSubclassFilterDisplayName(
+        ?string $className,
+        ?string $subclassName,
+        bool $coordinatorStyle = false,
+    ): string {
+        $className = trim((string) $className);
+        $subclassName = trim((string) $subclassName);
+
+        if ($this->isALevelClassName($className)) {
+            return $subclassName !== "" ? $subclassName : $className;
+        }
+
+        if ($subclassName === "") {
+            return $className;
+        }
+
+        return $coordinatorStyle
+            ? $className . " - " . $subclassName
+            : $className . " " . $subclassName;
+    }
+
+    /**
+     * Excel STRM column: A-Level → subclass only; O-Level → stream_code (main + sub).
+     */
+    private function resolveBoardStreamLabel($student, ?string $fallbackClassName = null): string
+    {
+        $subclass = $student->subclass ?? ($student->oldSubclass ?? null);
+        if (!$subclass) {
+            return "";
+        }
+
+        // Always prefer the student's real main-class name (not board title which may be "A")
+        $className =
+            $subclass->class->class_name ??
+            ($student->oldSubclass->class->class_name ??
+                ($fallbackClassName ?? ""));
+
+        if ($this->isALevelClassName($className)) {
+            $name = trim((string) ($subclass->subclass_name ?? ""));
+            return $name !== ""
+                ? $name
+                : trim((string) ($subclass->stream_code ?? ""));
+        }
+
+        $code = trim((string) ($subclass->stream_code ?? ""));
+        if ($code !== "") {
+            return $code;
+        }
+
+        $sub = trim((string) ($subclass->subclass_name ?? ""));
+        return trim($className . ($sub !== "" ? " " . $sub : ""));
+    }
+
+    /**
+     * Subject IDs assigned to the student's subclass combination (max 3).
+     *
+     * @return list<int>
+     */
+    private function getCombinationSubjectIdsForStudent($student): array
+    {
+        if (!$student) {
+            return [];
+        }
+
+        $subclass = $student->subclass ?? ($student->oldSubclass ?? null);
+        if (!$subclass) {
+            return [];
+        }
+
+        if (!$subclass->relationLoaded("combie")) {
+            $subclass->load("combie.subjects");
+        } elseif (
+            $subclass->combie &&
+            !$subclass->combie->relationLoaded("subjects")
+        ) {
+            $subclass->combie->load("subjects");
+        }
+
+        $combie = $subclass->combie ?? null;
+        if (!$combie || !$combie->subjects) {
+            return [];
+        }
+
+        return $combie->subjects
+            ->pluck("subjectID")
+            ->map(fn($id) => (int) $id)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Collapse raw result rows to one marks value per subject.
+     * Duo subjects: (sum paper marks ÷ sum paper max) × 100.
+     *
+     * @return list<array{subjectID:int,subject_name:string,class_subjectID:mixed,marks:float|null,is_duo:bool}>
+     */
+    private function collapseResultsToSubjectMarks($results): array
+    {
+        $groups = [];
+
+        foreach ($results as $result) {
+            $cs = $result->classSubject ?? null;
+            $subject = $cs->subject ?? null;
+            if (!$subject) {
+                continue;
+            }
+
+            $sid = (int) $subject->subjectID;
+            if (!isset($groups[$sid])) {
+                if (
+                    ($subject->is_duo ?? false) &&
+                    !$subject->relationLoaded("components")
+                ) {
+                    $subject->load("components");
+                }
+                $groups[$sid] = [
+                    "subject" => $subject,
+                    "class_subjectID" => $result->class_subjectID,
+                    "rows" => collect(),
+                ];
+            }
+            $groups[$sid]["rows"]->push($result);
+        }
+
+        $out = [];
+        foreach ($groups as $sid => $group) {
+            $subject = $group["subject"];
+            $components = $subject->components ?? collect();
+            $isDuo =
+                (bool) ($subject->is_duo ?? false) && $components->count() > 0;
+
+            if ($isDuo) {
+                $raw = 0.0;
+                $max = 0;
+                $any = false;
+                $papers = [];
+                foreach ($components as $comp) {
+                    $compMax = max(1, (int) $comp->max_marks);
+                    $max += $compMax;
+                    $row = $group["rows"]->first(function ($r) use ($comp) {
+                        return (int) ($r->componentID ?? 0) ===
+                            (int) $comp->componentID &&
+                            $r->marks !== null &&
+                            $r->marks !== "";
+                    });
+                    $paperMarks = $row ? (float) $row->marks : null;
+                    if ($row) {
+                        $raw += $paperMarks;
+                        $any = true;
+                    }
+                    $papers[] = [
+                        "componentID" => (int) $comp->componentID,
+                        "component_name" =>
+                            $comp->component_name ?? "Paper",
+                        "marks" => $paperMarks,
+                        "max_marks" => $compMax,
+                    ];
+                }
+                $marks =
+                    $any && $max > 0
+                        ? round(($raw / $max) * 100, 2)
+                        : null;
+            } else {
+                $papers = [];
+                $marked = $group["rows"]->filter(
+                    fn($r) => $r->marks !== null && $r->marks !== "",
+                );
+                if ($marked->count() > 1) {
+                    $marks = round((float) $marked->avg("marks"), 2);
+                } elseif ($marked->count() === 1) {
+                    $marks = (float) $marked->first()->marks;
+                } else {
+                    $marks = null;
+                }
+            }
+
+            $out[] = [
+                "subjectID" => $sid,
+                "subject_name" => $subject->subject_name ?? "N/A",
+                "class_subjectID" => $group["class_subjectID"],
+                "marks" => $marks,
+                "is_duo" => $isDuo,
+                "papers" => $papers,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * Secondary schools: fixed letter grades (do not use grade_definitions).
-     * A 75–100, B 65–74, C 45–64, D 30–44, F 0–29
+     * O-Level: A 75–100 (1), B 65–74 (2), C 45–64 (3), D 30–44 (4), F 0–29 (5)
+     * A-Level (Form 5/6): A 80–100 (1), B 70–79 (2), C 60–69 (3), D 50–59 (4),
+     *   E 40–49 (5), S 35–39 (6), F 0–34 (7)
      */
     private function getSecondaryHardcodedGrade(
         $marks,
         ?string $className = null,
     ): array {
         if ($marks === null || $marks === "") {
-            return ["grade" => null, "points" => null];
+            return ["grade" => null, "points" => null, "remark" => null];
         }
 
         $marksNum = round((float) $marks, 2);
 
-        if ($marksNum >= 75) {
-            return ["grade" => "A", "points" => 1];
-        }
-        if ($marksNum >= 65) {
-            return ["grade" => "B", "points" => 2];
-        }
-        if ($marksNum >= 45) {
-            return ["grade" => "C", "points" => 3];
-        }
-        if ($marksNum >= 30) {
-            return ["grade" => "D", "points" => 4];
+        if ($this->isALevelClassName($className)) {
+            if ($marksNum >= 80) {
+                return ["grade" => "A", "points" => 1, "remark" => "Excellent"];
+            }
+            if ($marksNum >= 70) {
+                return ["grade" => "B", "points" => 2, "remark" => "Very Good"];
+            }
+            if ($marksNum >= 60) {
+                return ["grade" => "C", "points" => 3, "remark" => "Good"];
+            }
+            if ($marksNum >= 50) {
+                return ["grade" => "D", "points" => 4, "remark" => "Average"];
+            }
+            if ($marksNum >= 40) {
+                return ["grade" => "E", "points" => 5, "remark" => "Satisfactory"];
+            }
+            if ($marksNum >= 35) {
+                return ["grade" => "S", "points" => 6, "remark" => "Subsidiary"];
+            }
+
+            return ["grade" => "F", "points" => 7, "remark" => "Fail"];
         }
 
-        return ["grade" => "F", "points" => 5];
+        if ($marksNum >= 75) {
+            return ["grade" => "A", "points" => 1, "remark" => "Excellent"];
+        }
+        if ($marksNum >= 65) {
+            return ["grade" => "B", "points" => 2, "remark" => "Very Good"];
+        }
+        if ($marksNum >= 45) {
+            return ["grade" => "C", "points" => 3, "remark" => "Good"];
+        }
+        if ($marksNum >= 30) {
+            return ["grade" => "D", "points" => 4, "remark" => "Pass"];
+        }
+
+        return ["grade" => "F", "points" => 5, "remark" => "Fail"];
     }
 
     /**
@@ -4549,9 +5136,9 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * One grade-point entry per subject from term averages (NECTA: division = sum of best 7 subjects).
+     * One grade-point entry per subject from term averages (NECTA: O-Level best 7 / A-Level combie 3).
      *
-     * @return list<array{points: int, marks: float, grade: string}>
+     * @return list<array{points: int, marks: float, grade: string, subjectID?: int}>
      */
     private function buildTermReportSubjectPointEntries(
         $results,
@@ -4569,7 +5156,7 @@ class ResultManagementController extends Controller
             return [];
         }
 
-        // Group by subject name (matches individual student report / getSubjectDetails)
+        // Group by subjectID so duo papers can be aggregated per exam
         $subjectData = [];
         foreach ($results as $result) {
             if (
@@ -4582,28 +5169,91 @@ class ResultManagementController extends Controller
                 continue;
             }
 
-            $subjectName =
-                $result->classSubject->subject->subject_name ?? "N/A";
+            $subject = $result->classSubject->subject ?? null;
+            if (!$subject) {
+                continue;
+            }
+            $subjectID = (int) $subject->subjectID;
+            $subjectName = $subject->subject_name ?? "N/A";
 
-            if (!isset($subjectData[$subjectName])) {
-                $subjectData[$subjectName] = ["exams" => []];
+            if (!isset($subjectData[$subjectID])) {
+                if (
+                    ($subject->is_duo ?? false) &&
+                    !$subject->relationLoaded("components")
+                ) {
+                    $subject->load("components");
+                }
+                $subjectData[$subjectID] = [
+                    "subject" => $subject,
+                    "subject_name" => $subjectName,
+                    "exams" => [],
+                    "paper_rows" => [],
+                ];
             }
 
             if ($result->marks !== null && $result->marks !== "") {
-                $subjectData[$subjectName]["exams"][$result->examID] = [
-                    "marks" => (float) $result->marks,
-                ];
+                $examID = $result->examID;
+                $isDuo =
+                    (bool) ($subject->is_duo ?? false) &&
+                    ($subject->components?->count() ?? 0) > 0;
+
+                if ($isDuo) {
+                    if (!isset($subjectData[$subjectID]["paper_rows"][$examID])) {
+                        $subjectData[$subjectID]["paper_rows"][$examID] = [];
+                    }
+                    $subjectData[$subjectID]["paper_rows"][$examID][] = $result;
+                } else {
+                    $subjectData[$subjectID]["exams"][$examID] = [
+                        "marks" => (float) $result->marks,
+                    ];
+                }
             }
         }
 
+        // Convert duo paper rows → % per exam
+        foreach ($subjectData as $subjectID => &$data) {
+            $subject = $data["subject"];
+            $isDuo =
+                (bool) ($subject->is_duo ?? false) &&
+                ($subject->components?->count() ?? 0) > 0;
+            if (!$isDuo) {
+                continue;
+            }
+            foreach ($data["paper_rows"] as $examID => $rows) {
+                $raw = 0.0;
+                $max = 0;
+                $any = false;
+                foreach ($subject->components as $comp) {
+                    $max += max(1, (int) $comp->max_marks);
+                    $row = collect($rows)->first(
+                        fn($r) => (int) ($r->componentID ?? 0) ===
+                            (int) $comp->componentID,
+                    );
+                    if (
+                        $row &&
+                        $row->marks !== null &&
+                        $row->marks !== ""
+                    ) {
+                        $raw += (float) $row->marks;
+                        $any = true;
+                    }
+                }
+                if ($any && $max > 0) {
+                    $data["exams"][$examID] = [
+                        "marks" => round(($raw / $max) * 100, 2),
+                    ];
+                }
+            }
+        }
+        unset($data);
+
         $entries = [];
-        foreach ($subjectData as $data) {
+        foreach ($subjectData as $subjectID => $data) {
             $slotCollect = $this->collectTermReportSlotMarksForSubject(
                 $data,
                 $effectiveExaminations,
                 $caDefinitionsByExam,
             );
-            $slotMarksList = $slotCollect["slot_marks"];
 
             if ($slotCollect["is_incomplete"]) {
                 continue;
@@ -4616,9 +5266,11 @@ class ResultManagementController extends Controller
             }
 
             $entries[] = [
-                "points" => (int) ($gradeInfo["points"] ?? 5),
+                "points" => (int) ($gradeInfo["points"] ?? ($this->isALevelClassName($className) ? 7 : 5)),
                 "marks" => $average,
                 "grade" => $gradeInfo["grade"],
+                "subjectID" => (int) $subjectID,
+                "subject_name" => $data["subject_name"],
             ];
         }
 
@@ -4656,32 +5308,91 @@ class ResultManagementController extends Controller
                 continue;
             }
 
-            $subjectName =
-                $result->classSubject->subject->subject_name ?? "N/A";
+            $subject = $result->classSubject->subject ?? null;
+            if (!$subject) {
+                continue;
+            }
+            $subjectID = (int) $subject->subjectID;
+            $subjectName = $subject->subject_name ?? "N/A";
 
-            if (!isset($subjectData[$subjectName])) {
-                $subjectData[$subjectName] = ["exams" => []];
+            if (!isset($subjectData[$subjectID])) {
+                if (
+                    ($subject->is_duo ?? false) &&
+                    !$subject->relationLoaded("components")
+                ) {
+                    $subject->load("components");
+                }
+                $subjectData[$subjectID] = [
+                    "subject" => $subject,
+                    "subject_name" => $subjectName,
+                    "exams" => [],
+                    "paper_rows" => [],
+                ];
             }
 
             if ($result->marks !== null && $result->marks !== "") {
-                $subjectData[$subjectName]["exams"][$result->examID] = [
-                    "marks" => (float) $result->marks,
-                ];
+                $examID = $result->examID;
+                $isDuo =
+                    (bool) ($subject->is_duo ?? false) &&
+                    ($subject->components?->count() ?? 0) > 0;
+                if ($isDuo) {
+                    if (!isset($subjectData[$subjectID]["paper_rows"][$examID])) {
+                        $subjectData[$subjectID]["paper_rows"][$examID] = [];
+                    }
+                    $subjectData[$subjectID]["paper_rows"][$examID][] = $result;
+                } else {
+                    $subjectData[$subjectID]["exams"][$examID] = [
+                        "marks" => (float) $result->marks,
+                    ];
+                }
             }
         }
 
+        foreach ($subjectData as $subjectID => &$data) {
+            $subject = $data["subject"];
+            $isDuo =
+                (bool) ($subject->is_duo ?? false) &&
+                ($subject->components?->count() ?? 0) > 0;
+            if (!$isDuo) {
+                continue;
+            }
+            foreach ($data["paper_rows"] as $examID => $rows) {
+                $raw = 0.0;
+                $max = 0;
+                $any = false;
+                foreach ($subject->components as $comp) {
+                    $max += max(1, (int) $comp->max_marks);
+                    $row = collect($rows)->first(
+                        fn($r) => (int) ($r->componentID ?? 0) ===
+                            (int) $comp->componentID,
+                    );
+                    if ($row && $row->marks !== null && $row->marks !== "") {
+                        $raw += (float) $row->marks;
+                        $any = true;
+                    }
+                }
+                if ($any && $max > 0) {
+                    $data["exams"][$examID] = [
+                        "marks" => round(($raw / $max) * 100, 2),
+                    ];
+                }
+            }
+        }
+        unset($data);
+
         $summaries = [];
-        foreach ($subjectData as $subjectName => $data) {
+        foreach ($subjectData as $subjectID => $data) {
+            $subjectName = $data["subject_name"];
             $slotCollect = $this->collectTermReportSlotMarksForSubject(
                 $data,
                 $effectiveExaminations,
                 $caDefinitionsByExam,
             );
-            $slotMarksList = $slotCollect["slot_marks"];
 
             if ($slotCollect["is_incomplete"]) {
                 $summaries[] = [
                     "subject_name" => $subjectName,
+                    "subjectID" => $subjectID,
                     "marks" => null,
                     "grade" => "Incomplete",
                 ];
@@ -4724,6 +5435,7 @@ class ResultManagementController extends Controller
 
             $summaries[] = [
                 "subject_name" => $subjectName,
+                "subjectID" => $subjectID,
                 "marks" => round($average, 1),
                 "grade" => $grade,
             ];
@@ -4754,15 +5466,17 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * NECTA secondary: pick best subjects by points (O-Level 7, A-Level 3).
+     * NECTA secondary: O-Level best 7 subjects; A-Level = 3 combination subjects only.
      *
-     * @param  list<array{points: int, marks: float, grade?: string|null}>  $subjectPoints
+     * @param  list<array{points: int|float, marks: float, grade?: string|null, subjectID?: int|null}>  $subjectPoints
+     * @param  list<int>|null  $combinationSubjectIds  A-Level combie subject IDs (max 3)
      * @return array{total_points: int, grades: list<string>, counted_subjects: int}
      */
     private function resolveSecondaryBestSubjectsForDivision(
         array $subjectPoints,
         string $className,
         string $schoolType,
+        ?array $combinationSubjectIds = null,
     ): array {
         $empty = [
             "total_points" => 0,
@@ -4831,26 +5545,71 @@ class ResultManagementController extends Controller
             ];
         }
 
-        if (
-            in_array($classNameLower, [
-                "form_five",
-                "form_six",
-                "form_5",
-                "form_6",
-            ]) ||
-            preg_match("/form\s*(five|six|5|6)/i", $className)
-        ) {
+        if ($this->isALevelClassName($className)) {
+            $combinationSubjectIds = array_values(
+                array_filter(array_map("intval", $combinationSubjectIds ?? [])),
+            );
+
+            // Preferred: exactly the 3 (or fewer) combination subjects assigned to the stream
+            if (!empty($combinationSubjectIds)) {
+                $bySubjectId = [];
+                foreach ($subjectPoints as $entry) {
+                    $sid = (int) ($entry["subjectID"] ?? 0);
+                    if ($sid > 0) {
+                        $bySubjectId[$sid] = $entry;
+                    }
+                }
+
+                $totalPoints = 0;
+                $grades = [];
+                $counted = 0;
+                foreach ($combinationSubjectIds as $sid) {
+                    if (
+                        isset($bySubjectId[$sid]) &&
+                        isset($bySubjectId[$sid]["points"]) &&
+                        $bySubjectId[$sid]["points"] !== null
+                    ) {
+                        $totalPoints += (int) $bySubjectId[$sid]["points"];
+                        $g = strtoupper(
+                            trim((string) ($bySubjectId[$sid]["grade"] ?? "")),
+                        );
+                        if ($g !== "") {
+                            $grades[] = $g;
+                        }
+                        $counted++;
+                    } else {
+                        // Missing combination subject counts as F (7 points)
+                        $totalPoints += 7;
+                        $grades[] = "F";
+                    }
+                }
+
+                return [
+                    "total_points" => $totalPoints,
+                    "grades" => $grades,
+                    "counted_subjects" => $counted,
+                ];
+            }
+
+            // Fallback when no combie is assigned: best 3 grades (lowest points)
             usort($subjectPoints, function ($a, $b) {
                 if ($a["points"] != $b["points"]) {
-                    return $b["points"] <=> $a["points"];
+                    return $a["points"] <=> $b["points"];
                 }
                 return $b["marks"] <=> $a["marks"];
             });
 
-            $bestSubjects = array_slice($subjectPoints, 0, min(3, count($subjectPoints)));
+            $bestSubjects = array_slice(
+                $subjectPoints,
+                0,
+                min(3, count($subjectPoints)),
+            );
             $totalPoints = 0;
             foreach ($bestSubjects as $subject) {
                 $totalPoints += (int) $subject["points"];
+            }
+            if (count($bestSubjects) < 3) {
+                $totalPoints += (3 - count($bestSubjects)) * 7;
             }
 
             $grades = array_values(
@@ -5086,21 +5845,21 @@ class ResultManagementController extends Controller
                 ]) ||
                 preg_match("/form\s*(five|six|5|6)/i", $className)
             ) {
-                // A-Level Grading System (Secondary only)
-                if ($marksNum >= 75) {
-                    return ["grade" => "A", "points" => 5];
+                // A-Level Form 5/6 — A=1 … F=7
+                if ($marksNum >= 80) {
+                    return ["grade" => "A", "points" => 1];
                 } elseif ($marksNum >= 70) {
-                    return ["grade" => "B", "points" => 4];
+                    return ["grade" => "B", "points" => 2];
                 } elseif ($marksNum >= 60) {
                     return ["grade" => "C", "points" => 3];
                 } elseif ($marksNum >= 50) {
-                    return ["grade" => "D", "points" => 2];
+                    return ["grade" => "D", "points" => 4];
                 } elseif ($marksNum >= 40) {
-                    return ["grade" => "E", "points" => 1];
+                    return ["grade" => "E", "points" => 5];
                 } elseif ($marksNum >= 35) {
-                    return ["grade" => "S", "points" => 0.5];
+                    return ["grade" => "S", "points" => 6];
                 } else {
-                    return ["grade" => "F", "points" => 0];
+                    return ["grade" => "F", "points" => 7];
                 }
             }
         }
@@ -5110,17 +5869,19 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Sum best-subject points for Secondary (O-Level best 7, A-Level best 3).
+     * Sum subject points for Secondary (O-Level best 7, A-Level combination subjects).
      */
     private function computeTotalPointsFromSubjectEntries(
         array $subjectPoints,
         string $className,
         string $schoolType = "Secondary",
+        ?array $combinationSubjectIds = null,
     ): int {
         return $this->resolveSecondaryBestSubjectsForDivision(
             $subjectPoints,
             $className,
             $schoolType,
+            $combinationSubjectIds,
         )["total_points"];
     }
 
@@ -5177,35 +5938,26 @@ class ResultManagementController extends Controller
             return ["grade" => null, "division" => "0." . $totalPoints];
         } elseif (
             $schoolType === "Secondary" &&
-            (in_array($classNameLower, [
-                "form_five",
-                "form_six",
-                "form_5",
-                "form_6",
-            ]) ||
-                preg_match("/form\s*(five|six|5|6)/i", $className))
+            $this->isALevelClassName($className)
         ) {
-            // A-Level: Calculate division based on total points (Best 3 principal subjects)
-            // Points mapping: A=5, B=4, C=3, D=2, E=1, S=0.5, F=0
+            // A-Level Form 5/6: points from combination subjects only
+            // A=1, B=2, C=3, D=4, E=5, S=6, F=7
+            // Division I: 3–9, II: 10–12, III: 13–17, IV: 18–21, 0: 22–35
 
-            // Standard NECTA A-Level Thresholds (A=5 scale):
-            // Division I: 13 - 15
-            // Division II: 10 - 12
-            // Division III: 7 - 9
-            // Division IV: 3 - 6
-            // Division 0: 0 - 2
-
-            if ($totalPoints >= 13 && $totalPoints <= 15) {
+            if ($totalPoints >= 3 && $totalPoints <= 9) {
                 return ["grade" => null, "division" => "I." . $totalPoints];
-            } elseif ($totalPoints >= 10 && $totalPoints <= 12) {
-                return ["grade" => null, "division" => "II." . $totalPoints];
-            } elseif ($totalPoints >= 7 && $totalPoints <= 9) {
-                return ["grade" => null, "division" => "III." . $totalPoints];
-            } elseif ($totalPoints >= 3 && $totalPoints <= 6) {
-                return ["grade" => null, "division" => "IV." . $totalPoints];
-            } else {
-                return ["grade" => null, "division" => "0." . $totalPoints];
             }
+            if ($totalPoints >= 10 && $totalPoints <= 12) {
+                return ["grade" => null, "division" => "II." . $totalPoints];
+            }
+            if ($totalPoints >= 13 && $totalPoints <= 17) {
+                return ["grade" => null, "division" => "III." . $totalPoints];
+            }
+            if ($totalPoints >= 18 && $totalPoints <= 21) {
+                return ["grade" => null, "division" => "IV." . $totalPoints];
+            }
+
+            return ["grade" => null, "division" => "0." . $totalPoints];
         } else {
             // Primary or Secondary without division: Calculate grade from grade_definitions
             if ($classID && $averageMarks !== null && $averageMarks !== "") {
@@ -5355,10 +6107,11 @@ class ResultManagementController extends Controller
 
         $with = [
             "subclass.class",
-            "subclass.combie",
+            "subclass.combie.subjects",
             "subclass.teacher",
             "parent",
             "oldSubclass.class",
+            "oldSubclass.combie.subjects",
             "oldSubclass.teacher",
         ];
 
@@ -5628,6 +6381,52 @@ class ResultManagementController extends Controller
         }
         $title .= " - " . $yearFilter;
 
+        // Align filter keys with manageResults form (export sends classID/subclassID)
+        $filterClassID = $request->get("classID", "") ?: $request->get("class", "");
+        $filterSubclassID =
+            $request->get("subclassID", "") ?: $request->get("subclass", "");
+
+        // Title / overview scope: always class + subclass when filtered (e.g. FORM FIVE / A).
+        // Per-student "Class" cells may still show subclass-only for A-Level.
+        $filterScopeLabel = "";
+        if ($filterSubclassID) {
+            $scopeSub = Subclass::with("class")->find($filterSubclassID);
+            if ($scopeSub) {
+                $scopeMain =
+                    $scopeSub->class->class_name ??
+                    (ClassModel::find($filterClassID)?->class_name ?? "");
+                $scopeStream = trim((string) ($scopeSub->subclass_name ?? ""));
+                $filterScopeLabel =
+                    $scopeStream !== ""
+                        ? trim($scopeMain . " / " . $scopeStream)
+                        : $scopeMain;
+            }
+        } elseif ($filterClassID) {
+            $filterScopeLabel =
+                ClassModel::find($filterClassID)?->class_name ?? "";
+        }
+
+        if ($filterScopeLabel !== "") {
+            $title .= " — " . $filterScopeLabel;
+        }
+
+        // Exam index numbers (same sequence as Excel board / attendance)
+        $examNumbers = [];
+        $classIdsForExamNos = $students
+            ->map(function ($s) {
+                return $s->subclass->class->classID
+                    ?? ($s->oldSubclass->class->classID ?? null);
+            })
+            ->filter()
+            ->unique()
+            ->values();
+        foreach ($classIdsForExamNos as $cid) {
+            $examNumbers += $this->buildExamNumberMapForClass(
+                (int) $cid,
+                $school,
+            );
+        }
+
         // Prepare data for PDF
         $data = [
             "school" => $school,
@@ -5636,14 +6435,16 @@ class ResultManagementController extends Controller
             "resultsData" => $resultsData,
             "detailedSingleData" => $detailedSingleData,
             "detailedBulkData" => $detailedBulkData,
+            "examNumbers" => $examNumbers,
+            "filterScopeLabel" => $filterScopeLabel,
             "filters" => [
                 "term" => $termFilter,
                 "year" => $yearFilter,
                 "type" => $typeFilter,
                 "status" => $statusFilter,
                 "examID" => $examFilter,
-                "class" => $request->get("class", ""),
-                "subclass" => $request->get("subclass", ""),
+                "class" => $filterClassID,
+                "subclass" => $filterSubclassID,
                 "grade" => $request->get("grade", ""),
                 "gender" => $request->get("gender", ""),
             ],
@@ -5913,27 +6714,42 @@ class ResultManagementController extends Controller
     private function calculateClassGpaForExport(
         array $prepared,
         string $schoolType,
+        ?string $classNameHint = null,
     ): float {
-        $ptMapGPA =
-            $schoolType === "Primary"
-                ? ["A" => 5, "B" => 4, "C" => 3, "D" => 2, "E" => 1, "F" => 0]
-                : ["A" => 1, "B" => 2, "C" => 3, "D" => 4, "F" => 5];
-
         $classGpaSum = 0.0;
         $classGpaCount = 0;
 
         foreach ($prepared as $item) {
             $student = $item["student"];
             $row = $item["row"];
-            $className = "";
+            $className = $classNameHint ?? "";
             $classID = null;
             if ($student->subclass && $student->subclass->class) {
-                $className = $student->subclass->class->class_name ?? "";
+                $className = $student->subclass->class->class_name ?? $className;
                 $classID = $student->subclass->class->classID ?? null;
             } elseif ($student->oldSubclass && $student->oldSubclass->class) {
-                $className = $student->oldSubclass->class->class_name ?? "";
+                $className =
+                    $student->oldSubclass->class->class_name ?? $className;
                 $classID = $student->oldSubclass->class->classID ?? null;
             }
+
+            $rowIsALevel =
+                $schoolType === "Secondary" &&
+                $this->isALevelClassName($className);
+            $rowPtMap =
+                $schoolType === "Primary"
+                    ? ["A" => 5, "B" => 4, "C" => 3, "D" => 2, "E" => 1, "F" => 0]
+                    : ($rowIsALevel
+                        ? [
+                            "A" => 1,
+                            "B" => 2,
+                            "C" => 3,
+                            "D" => 4,
+                            "E" => 5,
+                            "S" => 6,
+                            "F" => 7,
+                        ]
+                        : ["A" => 1, "B" => 2, "C" => 3, "D" => 4, "F" => 5]);
 
             $stuPoints = 0;
             $stuSubCount = 0;
@@ -5944,8 +6760,8 @@ class ResultManagementController extends Controller
                     $className,
                     $classID,
                 );
-                if ($grade && isset($ptMapGPA[$grade])) {
-                    $stuPoints += $ptMapGPA[$grade];
+                if ($grade && isset($rowPtMap[$grade])) {
+                    $stuPoints += $rowPtMap[$grade];
                     $stuSubCount++;
                 }
             }
@@ -5961,6 +6777,222 @@ class ResultManagementController extends Controller
             : 0.0;
     }
 
+    /**
+     * Unique subjects assigned to a main class (all subclasses).
+     *
+     * @return list<array{subjectID:int,subject_name:string}>
+     */
+    private function getMainClassBoardSubjects(int $classID): array
+    {
+        if ($classID <= 0) {
+            return [];
+        }
+
+        $rows = ClassSubject::where("status", "Active")
+            ->where(function ($q) use ($classID) {
+                $q->where("classID", $classID)->orWhereHas(
+                    "subclass",
+                    function ($sq) use ($classID) {
+                        $sq->where("classID", $classID);
+                    },
+                );
+            })
+            ->with("subject")
+            ->get();
+
+        $byId = [];
+        foreach ($rows as $cs) {
+            $subject = $cs->subject;
+            if (!$subject) {
+                continue;
+            }
+            $sid = (int) $cs->subjectID;
+            if ($sid <= 0 || isset($byId[$sid])) {
+                continue;
+            }
+            $byId[$sid] = [
+                "subjectID" => $sid,
+                "subject_name" => (string) ($subject->subject_name ?? "N/A"),
+            ];
+        }
+
+        $list = array_values($byId);
+        usort(
+            $list,
+            fn($a, $b) => strcasecmp($a["subject_name"], $b["subject_name"]),
+        );
+
+        return $list;
+    }
+
+    /**
+     * Subject columns for Excel board. When multiple subclasses are included
+     * (e.g. Form Five all streams), use all main-class subjects.
+     *
+     * @param  list<array{student:mixed,row:array}>  $prepared
+     * @return list<array{subjectID:int,subject_name:string}>
+     */
+    private function resolveBoardSubjectColumns(
+        ?int $classID,
+        array $prepared,
+        bool $expandToMainClassSubjects,
+    ): array {
+        $byId = [];
+        $byName = [];
+
+        if ($expandToMainClassSubjects && $classID && $classID > 0) {
+            foreach ($this->getMainClassBoardSubjects($classID) as $subj) {
+                $byId[$subj["subjectID"]] = $subj;
+            }
+        }
+
+        foreach ($prepared as $item) {
+            foreach ($item["row"]["subjects"] ?? [] as $subj) {
+                $sid = (int) ($subj["subjectID"] ?? 0);
+                $name = trim((string) ($subj["subject_name"] ?? ""));
+                if ($name === "") {
+                    continue;
+                }
+                if ($sid > 0) {
+                    if (!isset($byId[$sid])) {
+                        $byId[$sid] = [
+                            "subjectID" => $sid,
+                            "subject_name" => $name,
+                        ];
+                    }
+                } else {
+                    $key = strtolower($name);
+                    if (!isset($byName[$key])) {
+                        $byName[$key] = [
+                            "subjectID" => 0,
+                            "subject_name" => $name,
+                        ];
+                    }
+                }
+            }
+        }
+
+        $list = array_merge(array_values($byId), array_values($byName));
+        usort(
+            $list,
+            fn($a, $b) => strcasecmp($a["subject_name"], $b["subject_name"]),
+        );
+
+        return $list;
+    }
+
+    /**
+     * @param  list<int>  $subclassIds
+     * @return array<int, array{core: list<int>, optional: array<int, list<int>>}>
+     */
+    private function buildOfferedSubjectMapBySubclass(array $subclassIds): array
+    {
+        $subclassIds = array_values(
+            array_unique(array_filter(array_map("intval", $subclassIds))),
+        );
+        if ($subclassIds === []) {
+            return [];
+        }
+
+        $rows = ClassSubject::where("status", "Active")
+            ->whereIn("subclassID", $subclassIds)
+            ->get([
+                "class_subjectID",
+                "subclassID",
+                "subjectID",
+                "student_status",
+            ]);
+
+        $optionalCsIds = $rows
+            ->filter(
+                fn($r) => strtolower((string) ($r->student_status ?? "")) ===
+                    "optional",
+            )
+            ->pluck("class_subjectID")
+            ->map(fn($id) => (int) $id)
+            ->all();
+
+        $electorsByCs = collect();
+        if ($optionalCsIds !== []) {
+            $electorsByCs = DB::table("subject_electors")
+                ->whereIn("classSubjectID", $optionalCsIds)
+                ->get()
+                ->groupBy("classSubjectID")
+                ->map(
+                    fn($group) => $group
+                        ->pluck("studentID")
+                        ->map(fn($id) => (int) $id)
+                        ->all(),
+                );
+        }
+
+        $map = [];
+        foreach ($subclassIds as $subclassID) {
+            $map[$subclassID] = [
+                "core" => [],
+                "optional" => [],
+            ];
+        }
+
+        foreach ($rows as $cs) {
+            $subclassID = (int) $cs->subclassID;
+            $subjectID = (int) $cs->subjectID;
+            if ($subclassID <= 0 || $subjectID <= 0) {
+                continue;
+            }
+            if (!isset($map[$subclassID])) {
+                $map[$subclassID] = ["core" => [], "optional" => []];
+            }
+
+            $isOptional =
+                strtolower((string) ($cs->student_status ?? "")) === "optional";
+            if ($isOptional) {
+                $map[$subclassID]["optional"][$subjectID] = $electorsByCs->get(
+                    (int) $cs->class_subjectID,
+                    [],
+                );
+            } else {
+                $map[$subclassID]["core"][] = $subjectID;
+            }
+        }
+
+        foreach ($map as $subclassID => $info) {
+            $map[$subclassID]["core"] = array_values(
+                array_unique($info["core"]),
+            );
+        }
+
+        return $map;
+    }
+
+    private function studentTakesBoardSubject(
+        $student,
+        int $subjectID,
+        array $offeredBySubclass,
+    ): bool {
+        if ($subjectID <= 0) {
+            return false;
+        }
+
+        $subclass = $student->subclass ?? ($student->oldSubclass ?? null);
+        $subclassID = $subclass ? (int) $subclass->subclassID : 0;
+        if ($subclassID <= 0 || !isset($offeredBySubclass[$subclassID])) {
+            return false;
+        }
+
+        $info = $offeredBySubclass[$subclassID];
+        if (in_array($subjectID, $info["core"] ?? [], true)) {
+            return true;
+        }
+
+        $optionalStudents = $info["optional"][$subjectID] ?? null;
+        if ($optionalStudents === null) {
+            return false;
+        }
+
+        return in_array((int) $student->studentID, $optionalStudents, true);
+    }
+
     private function populateBoardResultsSheet(
         Worksheet $sheet,
         string $className,
@@ -5971,9 +7003,11 @@ class ResultManagementController extends Controller
         string $schoolType,
         string $typeFilter,
         $examFilter,
+        $classID = null,
+        bool $forceExpandMainClassSubjects = false,
+        $school = null,
     ): void {
         $prepared = [];
-        $subjectNames = [];
 
         foreach ($classStudents as $student) {
             $row = $this->resolveStudentResultRow(
@@ -5984,13 +7018,6 @@ class ResultManagementController extends Controller
             );
             if (!$row) {
                 continue;
-            }
-
-            foreach ($row["subjects"] as $subj) {
-                $name = $subj["subject_name"] ?? "";
-                if ($name && !in_array($name, $subjectNames, true)) {
-                    $subjectNames[] = $name;
-                }
             }
 
             $divisionParts = $this->parseDivisionParts(
@@ -6006,7 +7033,34 @@ class ResultManagementController extends Controller
             ];
         }
 
-        sort($subjectNames);
+        $subclassIds = [];
+        foreach ($prepared as $item) {
+            $st = $item["student"];
+            $sub = $st->subclass ?? ($st->oldSubclass ?? null);
+            if ($sub && $sub->subclassID) {
+                $subclassIds[] = (int) $sub->subclassID;
+            }
+        }
+        $uniqueSubclassIds = array_values(array_unique($subclassIds));
+        $expandToMainClassSubjects =
+            $schoolType === "Secondary" &&
+            $classID &&
+            (int) $classID > 0 &&
+            ($forceExpandMainClassSubjects || count($uniqueSubclassIds) > 1);
+
+        $boardSubjects = $this->resolveBoardSubjectColumns(
+            $classID ? (int) $classID : null,
+            $prepared,
+            $expandToMainClassSubjects,
+        );
+        $subjectNames = array_map(
+            fn($s) => $s["subject_name"],
+            $boardSubjects,
+        );
+
+        $offeredBySubclass = $expandToMainClassSubjects
+            ? $this->buildOfferedSubjectMapBySubclass($uniqueSubclassIds)
+            : [];
 
         if ($schoolType === "Secondary") {
             usort($prepared, function ($a, $b) {
@@ -6036,12 +7090,25 @@ class ResultManagementController extends Controller
         }
         unset($item);
 
-        $fixedCols = 5; // S/N, Student Name, Exam No, Sex, Strm
         $subjectColSpan = 2; // Marks + Grade under each subject
-        $summaryCols = $schoolType === "Secondary" ? 4 : 3; // AVG+DIV+POINT+POST | AVG+GRADE+POST
-        $totalCols =
-            $fixedCols + count($subjectNames) * $subjectColSpan + $summaryCols;
+        // Leading: S/N, Name, Index No, Sex [, Point, Division for Secondary]
+        $leadingHeaders =
+            $schoolType === "Secondary"
+                ? ["S/N", "STUDENT NAME", "INDEX NO", "SEX", "POINT", "DIVISION"]
+                : ["S/N", "STUDENT NAME", "INDEX NO", "SEX"];
+        // Trailing after subjects
+        $trailingHeaders =
+            $schoolType === "Secondary"
+                ? ["AVG", "POST", "STRM"]
+                : ["AVG", "GRADE", "POST", "STRM"];
+        $fixedCols = count($leadingHeaders);
+        $summaryCols = count($trailingHeaders);
+        $subjectBlockCols = count($subjectNames) * $subjectColSpan;
+        $totalCols = $fixedCols + $subjectBlockCols + $summaryCols;
         $lastCol = Coordinate::stringFromColumnIndex(max(1, $totalCols));
+        // Titles merge across the full board (start → end of subjects + trailing)
+        $titleEndCol = max(1, $totalCols);
+        $titleEndLetter = Coordinate::stringFromColumnIndex($titleEndCol);
         $nameColLetter = Coordinate::stringFromColumnIndex(2);
 
         $perfHeader = [
@@ -6058,71 +7125,199 @@ class ResultManagementController extends Controller
             "GPA",
         ];
         $perfColCount = count($perfHeader);
-        // Summary table starts at SEX column (col 2) — not under EXAM NO (board layout)
-        $perfStartCol = 2;
-        $perfEndCol = $perfStartCol + $perfColCount - 1;
+        // Centre the performance overview under the full subject board width
+        $perfStartCol = max(
+            1,
+            (int) floor(($totalCols - $perfColCount) / 2) + 1,
+        );
+        $perfEndCol = min($totalCols, $perfStartCol + $perfColCount - 1);
+        if ($perfEndCol - $perfStartCol + 1 < $perfColCount) {
+            $perfStartCol = max(1, $totalCols - $perfColCount + 1);
+            $perfEndCol = $totalCols;
+        }
         $perfStartLetter = Coordinate::stringFromColumnIndex($perfStartCol);
         $perfEndLetter = Coordinate::stringFromColumnIndex($perfEndCol);
         $perfDataStartCol = $perfStartCol + 1; // REG. column (skip F/M/T label col)
-        $perfDataStartLetter = Coordinate::stringFromColumnIndex($perfDataStartCol);
+        $perfDataStartLetter = Coordinate::stringFromColumnIndex(
+            min($perfDataStartCol, $perfEndCol),
+        );
         $gpaCol = Coordinate::stringFromColumnIndex($perfEndCol);
 
-        // Title rows — centered over CLASS PERFORMANCE summary table (SEX through GPA)
-        $sheet->setCellValue("{$perfStartLetter}1", $titleLine);
-        $sheet->mergeCells("{$perfStartLetter}1:{$perfEndLetter}1");
+        // School header (keep style) — merge full width so it sits centred over subjects
+        $schoolName = strtoupper((string) ($school->school_name ?? "SCHOOL"));
+        $schoolAddress = trim((string) ($school->address ?? ""));
+        $schoolPhone = trim((string) ($school->phone ?? ""));
+        $schoolEmail = trim((string) ($school->email ?? ""));
+        $contactLine = trim(
+            ($schoolPhone !== "" ? "Phone: {$schoolPhone}" : "") .
+                ($schoolPhone !== "" && $schoolEmail !== "" ? "  |  " : "") .
+                ($schoolEmail !== "" ? "Email: {$schoolEmail}" : ""),
+        );
+
+        $sheet->setCellValue("A1", $schoolName);
+        $sheet->mergeCells("A1:{$titleEndLetter}1");
         $sheet
-            ->getStyle("{$perfStartLetter}1:{$perfEndLetter}1")
+            ->getStyle("A1:{$titleEndLetter}1")
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setTextRotation(0)
+            ->setWrapText(false);
         $sheet
-            ->getStyle("{$perfStartLetter}1:{$perfEndLetter}1")
+            ->getStyle("A1")
             ->getFont()
             ->setBold(true)
-            ->setSize(12);
+            ->setSize(14)
+            ->getColor()
+            ->setARGB("FF940000");
+        $sheet->getRowDimension(1)->setRowHeight(22);
 
-        $sheet->setCellValue("{$perfStartLetter}2", strtoupper($className));
-        $sheet->mergeCells("{$perfStartLetter}2:{$perfEndLetter}2");
+        $sheet->setCellValue("A2", $schoolAddress !== "" ? $schoolAddress : " ");
+        $sheet->mergeCells("A2:{$titleEndLetter}2");
         $sheet
-            ->getStyle("{$perfStartLetter}2:{$perfEndLetter}2")
+            ->getStyle("A2:{$titleEndLetter}2")
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
+            ->setTextRotation(0);
+        $sheet->getStyle("A2")->getFont()->setSize(10)->getColor()->setARGB("FF555555");
+
+        $sheet->setCellValue("A3", $contactLine !== "" ? $contactLine : " ");
+        $sheet->mergeCells("A3:{$titleEndLetter}3");
         $sheet
-            ->getStyle("{$perfStartLetter}2:{$perfEndLetter}2")
+            ->getStyle("A3:{$titleEndLetter}3")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setTextRotation(0);
+        $sheet->getStyle("A3")->getFont()->setSize(10)->getColor()->setARGB("FF555555");
+
+        // Exam title + class / CLASS PERFORMANCE — one bordered block, full board width,
+        // horizontal text, centred (merge removes internal column cells).
+        $titleBlockStart = 5;
+        $titleBlockEnd = 6;
+        $titleBlockRange = "A{$titleBlockStart}:{$titleEndLetter}{$titleBlockEnd}";
+
+        // Clear / unmerge leftover cells in the title band so merge is clean
+        foreach (array_keys($sheet->getMergeCells()) as $mergedRange) {
+            try {
+                [$rangeStart, $rangeEnd] = Coordinate::rangeBoundaries($mergedRange);
+                $mergeMinRow = (int) $rangeStart[1];
+                $mergeMaxRow = (int) $rangeEnd[1];
+                if (
+                    $mergeMaxRow >= $titleBlockStart &&
+                    $mergeMinRow <= $titleBlockEnd
+                ) {
+                    $sheet->unmergeCells($mergedRange);
+                }
+            } catch (\Throwable $e) {
+                // ignore invalid merge ranges
+            }
+        }
+        for ($r = $titleBlockStart; $r <= $titleBlockEnd; $r++) {
+            for ($c = 1; $c <= $titleEndCol; $c++) {
+                $sheet
+                    ->getCell(Coordinate::stringFromColumnIndex($c) . $r)
+                    ->setValue(null);
+            }
+        }
+
+        // Row 5: exam title (black) — merge A → last board column, horizontal
+        $sheet->setCellValue("A5", $titleLine);
+        $sheet->mergeCells("A5:{$titleEndLetter}5");
+        $sheet
+            ->getStyle("A5:{$titleEndLetter}5")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setTextRotation(0)
+            ->setWrapText(false);
+        $sheet
+            ->getStyle("A5")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setTextRotation(0)
+            ->setWrapText(false);
+        $sheet
+            ->getStyle("A5:{$titleEndLetter}5")
             ->getFont()
             ->setBold(true)
-            ->setSize(11);
+            ->setSize(11)
+            ->getColor()
+            ->setARGB("FF000000");
+        $sheet->getRowDimension(5)->setRowHeight(18);
 
-        $sheet->setCellValue("{$perfStartLetter}3", "CLASS PERFORMANCE");
-        $sheet->mergeCells("{$perfStartLetter}3:{$perfEndLetter}3");
+        // Row 6: class label — CLASS PERFORMANCE (horizontal). A-Level subclass → "FORM FIVE — PCM"
+        $classPerfLabel =
+            strtoupper(trim((string) $className)) . " — CLASS PERFORMANCE";
+        $sheet->setCellValue("A6", $classPerfLabel);
+        $sheet->mergeCells("A6:{$titleEndLetter}6");
         $sheet
-            ->getStyle("{$perfStartLetter}3:{$perfEndLetter}3")
+            ->getStyle("A6:{$titleEndLetter}6")
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setTextRotation(0)
+            ->setWrapText(false);
         $sheet
-            ->getStyle("{$perfStartLetter}3:{$perfEndLetter}3")
-            ->getFont()
-            ->setBold(true);
-
-        $perfRowStart = 5;
-        $sheet->fromArray([$perfHeader], null, "{$perfStartLetter}{$perfRowStart}");
-        $perfDataEndLetter = Coordinate::stringFromColumnIndex($perfEndCol - 1);
-        $sheet
-            ->getStyle("{$perfStartLetter}{$perfRowStart}:{$perfEndLetter}{$perfRowStart}")
+            ->getStyle("A6")
             ->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setTextRotation(0)
+            ->setWrapText(false);
         $sheet
-            ->getStyle("{$perfDataStartLetter}{$perfRowStart}:{$perfDataEndLetter}{$perfRowStart}")
+            ->getStyle("A6:{$titleEndLetter}6")
+            ->getFont()
+            ->setBold(true)
+            ->setSize(10)
+            ->getColor()
+            ->setARGB("FF940000");
+        $sheet->getRowDimension(6)->setRowHeight(18);
+
+        // Outer border around the merged title block (like the sample image)
+        $sheet
+            ->getStyle($titleBlockRange)
+            ->getBorders()
+            ->getOutline()
+            ->setBorderStyle(Border::BORDER_THIN)
+            ->getColor()
+            ->setARGB("FF333333");
+        $sheet
+            ->getStyle("A5:{$titleEndLetter}5")
+            ->getBorders()
+            ->getBottom()
+            ->setBorderStyle(Border::BORDER_THIN)
+            ->getColor()
+            ->setARGB("FF333333");
+        $sheet
+            ->getStyle($titleBlockRange)
             ->getFill()
             ->setFillType(Fill::FILL_SOLID)
             ->getStartColor()
-            ->setARGB("FFE8F4FC");
+            ->setARGB("FFFFFFFF");
+
+        $perfRowStart = 8;
+        $sheet->fromArray([$perfHeader], null, "{$perfStartLetter}{$perfRowStart}");
+        $perfDataEndLetter = Coordinate::stringFromColumnIndex(
+            max($perfStartCol, $perfEndCol - 1),
+        );
+        $sheet
+            ->getStyle("{$perfStartLetter}{$perfRowStart}:{$perfEndLetter}{$perfRowStart}")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setTextRotation(0);
+        $sheet
+            ->getStyle("{$perfStartLetter}{$perfRowStart}:{$perfEndLetter}{$perfRowStart}")
+            ->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setARGB("FFF0F0F0");
         $sheet
             ->getStyle("{$perfStartLetter}{$perfRowStart}:{$perfEndLetter}{$perfRowStart}")
             ->getFont()
-            ->setBold(true);
+            ->setBold(true)
+            ->getColor()
+            ->setARGB("FF940000");
 
         $stats = [
             "F" => [
@@ -6147,7 +7342,11 @@ class ResultManagementController extends Controller
             ],
         ];
 
-        $classGpa = $this->calculateClassGpaForExport($prepared, $schoolType);
+        $classGpa = $this->calculateClassGpaForExport(
+            $prepared,
+            $schoolType,
+            $className,
+        );
 
         foreach ($prepared as $item) {
             $student = $item["student"];
@@ -6182,6 +7381,7 @@ class ResultManagementController extends Controller
             }
         }
 
+        // Write F / M / T data rows (GPA column left empty — filled after merge)
         $writePerfRow = function ($label, $key) use (
             $sheet,
             $stats,
@@ -6242,45 +7442,24 @@ class ResultManagementController extends Controller
             $perfStartLetter . ($perfRowStart + 3),
         );
 
-        // GPA — merged vertically across F/M/T, centered in performance block
-        $gpaFirstRow = $perfRowStart + 1;
-        $gpaLastRow = $perfRowStart + 3;
-        $sheet->mergeCells("{$gpaCol}{$gpaFirstRow}:{$gpaCol}{$gpaLastRow}");
-        $sheet->setCellValue("{$gpaCol}{$gpaFirstRow}", $classGpa);
-        $sheet
-            ->getStyle("{$gpaCol}{$gpaFirstRow}")
-            ->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER);
-        $sheet
-            ->getStyle("{$gpaCol}{$gpaFirstRow}")
-            ->getNumberFormat()
-            ->setFormatCode("0.0");
-        $sheet->getStyle("{$gpaCol}{$gpaFirstRow}")->getFont()->setBold(true);
-
-        // Center-align F / M / T data
-        $sheet
-            ->getStyle(
-                "{$perfStartLetter}" .
-                    ($perfRowStart + 1) .
-                    ":{$perfEndLetter}" .
-                    ($perfRowStart + 3),
-            )
-            ->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-        // Summary table borders: full outline + vertical dividers; F/M grouped (no line between them)
         $perfLastRow = $perfRowStart + 3;
-        $perfRange = "{$perfStartLetter}{$perfRowStart}:{$perfEndLetter}{$perfLastRow}";
         $fRow = $perfRowStart + 1;
         $mRow = $perfRowStart + 2;
+        $tRow = $perfRowStart + 3;
+        $gpaFirstRow = $fRow;
+        $gpaLastRow = $tRow;
+        $gpaMergeRange = "{$gpaCol}{$gpaFirstRow}:{$gpaCol}{$gpaLastRow}";
+        $dataColsRange = "{$perfStartLetter}{$fRow}:{$perfDataEndLetter}{$tRow}";
+        $headerGpaCell = "{$gpaCol}{$perfRowStart}";
 
+        // Borders on SEX→I-III only (NOT GPA) so merge stays clean
         $sheet
-            ->getStyle($perfRange)
+            ->getStyle("{$perfStartLetter}{$perfRowStart}:{$perfDataEndLetter}{$perfLastRow}")
             ->getBorders()
             ->getAllBorders()
             ->setBorderStyle(Border::BORDER_THIN);
 
+        // Soft-group F/M (no line between them) for data cols
         $sheet
             ->getStyle("{$perfStartLetter}{$fRow}:{$perfDataEndLetter}{$fRow}")
             ->getBorders()
@@ -6292,7 +7471,55 @@ class ResultManagementController extends Controller
             ->getTop()
             ->setBorderStyle(Border::BORDER_NONE);
 
-        // GPA merged cell — no internal horizontal lines between F / M / T
+        // Center-align F / M / T data columns
+        $sheet
+            ->getStyle($dataColsRange)
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        // GPA — one merge across ALL data rows (F+M+T), value centred in the block
+        foreach ([$fRow, $mRow, $tRow] as $gpaClearRow) {
+            $sheet->setCellValue("{$gpaCol}{$gpaClearRow}", null);
+        }
+        try {
+            $sheet->unmergeCells($gpaMergeRange);
+        } catch (\Throwable $e) {
+            // not previously merged
+        }
+
+        $sheet->mergeCells($gpaMergeRange);
+        $sheet->setCellValue("{$gpaCol}{$gpaFirstRow}", $classGpa);
+        $sheet
+            ->getStyle($gpaMergeRange)
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setTextRotation(0)
+            ->setWrapText(false);
+        $sheet
+            ->getStyle("{$gpaCol}{$gpaFirstRow}")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setTextRotation(0);
+        $sheet
+            ->getStyle("{$gpaCol}{$gpaFirstRow}")
+            ->getNumberFormat()
+            ->setFormatCode("0.0");
+        $sheet->getStyle("{$gpaCol}{$gpaFirstRow}")->getFont()->setBold(true);
+
+        // GPA header + merged body: outline only (no internal F/M/T lines)
+        $sheet
+            ->getStyle($headerGpaCell)
+            ->getBorders()
+            ->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN);
+        $sheet
+            ->getStyle($gpaMergeRange)
+            ->getBorders()
+            ->getOutline()
+            ->setBorderStyle(Border::BORDER_THIN);
         $sheet
             ->getStyle("{$gpaCol}{$fRow}")
             ->getBorders()
@@ -6308,19 +7535,57 @@ class ResultManagementController extends Controller
             ->getBorders()
             ->getBottom()
             ->setBorderStyle(Border::BORDER_NONE);
+        $sheet
+            ->getStyle("{$gpaCol}{$tRow}")
+            ->getBorders()
+            ->getTop()
+            ->setBorderStyle(Border::BORDER_NONE);
 
-        // Student results table: subject name spans Marks + Grade columns
-        $subjectHeaderRow = $perfLastRow + 1;
+        // Centre overview island under the data board width (merge empty side cells;
+        // do NOT attach overview borders to the results table below).
+        if ($perfStartCol > 1) {
+            $leftEndLetter = Coordinate::stringFromColumnIndex(
+                $perfStartCol - 1,
+            );
+            for ($r = $perfRowStart; $r <= $perfLastRow; $r++) {
+                try {
+                    $sheet->mergeCells("A{$r}:{$leftEndLetter}{$r}");
+                } catch (\Throwable $e) {
+                    // already merged
+                }
+                $sheet
+                    ->getStyle("A{$r}:{$leftEndLetter}{$r}")
+                    ->getBorders()
+                    ->getAllBorders()
+                    ->setBorderStyle(Border::BORDER_NONE);
+            }
+        }
+        if ($perfEndCol < $totalCols) {
+            $rightStartLetter = Coordinate::stringFromColumnIndex(
+                $perfEndCol + 1,
+            );
+            for ($r = $perfRowStart; $r <= $perfLastRow; $r++) {
+                try {
+                    $sheet->mergeCells(
+                        "{$rightStartLetter}{$r}:{$titleEndLetter}{$r}",
+                    );
+                } catch (\Throwable $e) {
+                    // already merged
+                }
+                $sheet
+                    ->getStyle("{$rightStartLetter}{$r}:{$titleEndLetter}{$r}")
+                    ->getBorders()
+                    ->getAllBorders()
+                    ->setBorderStyle(Border::BORDER_NONE);
+            }
+        }
+
+        // Blank row between overview and student results (keep tables separate)
+        $subjectHeaderRow = $perfLastRow + 2;
         $subHeaderRow = $subjectHeaderRow + 1;
 
-        $summaryHeaders =
-            $schoolType === "Secondary"
-                ? ["AVG", "DIV", "POINT", "POST"]
-                : ["AVG", "GRADE", "POST"];
-
-        // Fixed columns (row 1 labels; merge down to sub-header row)
-        $fixedHeaders = ["S/N", "STUDENT NAME", "EXAM NO.", "SEX", "STRM"];
-        foreach ($fixedHeaders as $i => $label) {
+        // Leading columns (row 1 labels; merge down to sub-header row)
+        foreach ($leadingHeaders as $i => $label) {
             $col = $i + 1;
             $letter = Coordinate::stringFromColumnIndex($col);
             $sheet->setCellValue("{$letter}{$subjectHeaderRow}", $label);
@@ -6331,7 +7596,7 @@ class ResultManagementController extends Controller
 
         // Subject names — each merged across Marks + Grade
         $colIndex = $fixedCols + 1;
-        $maxVerticalLen = strlen("EXAM NO.");
+        $maxVerticalLen = strlen("INDEX NO");
         foreach ($subjectNames as $name) {
             $startLetter = Coordinate::stringFromColumnIndex($colIndex);
             $endLetter = Coordinate::stringFromColumnIndex($colIndex + 1);
@@ -6345,8 +7610,8 @@ class ResultManagementController extends Controller
             $colIndex += $subjectColSpan;
         }
 
-        // Summary columns — merge vertically across both header rows
-        foreach ($summaryHeaders as $label) {
+        // Trailing columns — merge vertically across both header rows
+        foreach ($trailingHeaders as $label) {
             $letter = Coordinate::stringFromColumnIndex($colIndex);
             $sheet->setCellValue("{$letter}{$subjectHeaderRow}", $label);
             $sheet->mergeCells(
@@ -6371,7 +7636,7 @@ class ResultManagementController extends Controller
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setWrapText(true);
 
-        // S/N, Student Name, Exam No — horizontal; SEX/STRM rotate
+        // S/N, Student Name, Index No — horizontal; SEX / POINT / DIVISION rotate
         for ($c = 1; $c <= 3; $c++) {
             $letter = Coordinate::stringFromColumnIndex($c);
             $sheet
@@ -6434,13 +7699,12 @@ class ResultManagementController extends Controller
 
         $dataRow = $subHeaderRow + 1;
         $serialNo = 0;
+        $notTakenCellRanges = [];
         foreach ($prepared as $item) {
             $serialNo++;
             $student = $item["student"];
             $row = $item["row"];
-            $stream =
-                $student->subclass->stream_code ??
-                ($student->oldSubclass->stream_code ?? "");
+            $stream = $this->resolveBoardStreamLabel($student, $className);
             $studentName = trim(
                 $student->first_name .
                     " " .
@@ -6450,24 +7714,66 @@ class ResultManagementController extends Controller
                     $student->last_name,
             );
 
+            // S/N, Name, Index No, Sex [, Point, Division]
             $line = [
                 $serialNo,
                 $studentName,
                 $examNumbers[$student->studentID] ?? "N/A",
                 $this->genderShort($student->gender),
-                $stream,
             ];
-
-            $subjectMap = [];
-            foreach ($row["subjects"] as $subj) {
-                $subjectMap[$subj["subject_name"] ?? ""] = $subj;
+            if ($schoolType === "Secondary") {
+                $line[] = $item["division_points"] !== ""
+                    ? $item["division_points"]
+                    : "-";
+                $line[] = $item["division_roman"] ?: "-";
             }
 
-            foreach ($subjectNames as $name) {
-                $subj = $subjectMap[$name] ?? null;
+            $subjectMapById = [];
+            $subjectMapByName = [];
+            foreach ($row["subjects"] as $subj) {
+                $sid = (int) ($subj["subjectID"] ?? 0);
+                $name = (string) ($subj["subject_name"] ?? "");
+                if ($sid > 0) {
+                    $subjectMapById[$sid] = $subj;
+                }
+                if ($name !== "") {
+                    $subjectMapByName[$name] = $subj;
+                }
+            }
+
+            $colIndex = $fixedCols + 1;
+            foreach ($boardSubjects as $boardSubj) {
+                $sid = (int) ($boardSubj["subjectID"] ?? 0);
+                $name = (string) ($boardSubj["subject_name"] ?? "");
+                $subj =
+                    ($sid > 0 ? $subjectMapById[$sid] ?? null : null) ??
+                    ($subjectMapByName[$name] ?? null);
+
+                // Not offered on this student's stream → whitesmoke empty cells
+                if (
+                    $expandToMainClassSubjects &&
+                    $subj === null &&
+                    !$this->studentTakesBoardSubject(
+                        $student,
+                        $sid,
+                        $offeredBySubclass,
+                    )
+                ) {
+                    $line[] = "";
+                    $line[] = "";
+                    $marksLetter = Coordinate::stringFromColumnIndex($colIndex);
+                    $gradeLetter = Coordinate::stringFromColumnIndex(
+                        $colIndex + 1,
+                    );
+                    $notTakenCellRanges[] = "{$marksLetter}{$dataRow}:{$gradeLetter}{$dataRow}";
+                    $colIndex += $subjectColSpan;
+                    continue;
+                }
+
                 if (!$subj) {
                     $line[] = "-";
                     $line[] = "-";
+                    $colIndex += $subjectColSpan;
                     continue;
                 }
                 $marks = $subj["marks"] ?? null;
@@ -6483,22 +7789,31 @@ class ResultManagementController extends Controller
                     $line[] = round((float) $marks);
                     $line[] = $grade !== "" ? $grade : "-";
                 }
+                $colIndex += $subjectColSpan;
             }
 
+            // Trailing: AVG, POST, STRM (Secondary) | AVG, GRADE, POST, STRM (Primary)
             $line[] = number_format((float) ($row["average_marks"] ?? 0), 0);
             if ($schoolType === "Secondary") {
-                $line[] = $item["division_roman"] ?: "-";
-                $line[] = $item["division_points"] !== ""
-                    ? $item["division_points"]
-                    : "-";
                 $line[] = $item["position"];
+                $line[] = $stream;
             } else {
                 $line[] = $row["grade"] ?? "-";
                 $line[] = $item["position"];
+                $line[] = $stream;
             }
 
             $sheet->fromArray([$line], null, "A{$dataRow}");
             $dataRow++;
+        }
+
+        foreach ($notTakenCellRanges as $range) {
+            $sheet
+                ->getStyle($range)
+                ->getFill()
+                ->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()
+                ->setARGB("FFF5F5F5");
         }
 
         $lastDataRow = $dataRow - 1;
@@ -6518,6 +7833,13 @@ class ResultManagementController extends Controller
                 ->setHorizontal(Alignment::HORIZONTAL_LEFT);
         }
 
+        $strmCol = $totalCols; // last trailing column is always STRM
+        $avgCol = $fixedCols + $subjectBlockCols + 1;
+        $postCol =
+            $schoolType === "Secondary"
+                ? $avgCol + 1
+                : $avgCol + 2; // Primary: AVG, GRADE, POST, STRM
+
         for ($c = 1; $c <= $totalCols; $c++) {
             $colLetter = Coordinate::stringFromColumnIndex($c);
             if ($c === 1) {
@@ -6526,6 +7848,11 @@ class ResultManagementController extends Controller
                 $sheet->getColumnDimension($colLetter)->setWidth(28);
             } elseif ($c === 3) {
                 $sheet->getColumnDimension($colLetter)->setWidth(18);
+            } elseif ($c === $strmCol) {
+                // Stream column — wider so FORM ONE A / stream labels fit
+                $sheet->getColumnDimension($colLetter)->setWidth(14);
+            } elseif ($c === $avgCol || $c === $postCol) {
+                $sheet->getColumnDimension($colLetter)->setWidth(6);
             } elseif ($c <= $fixedCols) {
                 $sheet->getColumnDimension($colLetter)->setWidth(5);
             } else {
@@ -6666,11 +7993,41 @@ class ResultManagementController extends Controller
             $sheetIndex = 0;
 
             foreach ($studentsByClass as $cid => $classStudents) {
-                $className =
+                $mainClassName =
                     $cid > 0
                         ? ClassModel::find($cid)?->class_name ?? "Class {$cid}"
                         : "Unknown Class";
-                $sheetTitle = preg_replace('/[\\\\\\/\\?\\*\\[\\]:]/', "", $className);
+                // Header label: A-Level + subclass filter → "FORM FIVE — PCM"
+                // (data STRM column stays subclass-only via resolveBoardStreamLabel)
+                $className = $mainClassName;
+                if ($option === "subclass" && $subclassID) {
+                    $exportSubclass = Subclass::with("class")->find($subclassID);
+                    if ($exportSubclass) {
+                        $mainName =
+                            $exportSubclass->class->class_name ?? $mainClassName;
+                        $subName = trim(
+                            (string) ($exportSubclass->subclass_name ?? ""),
+                        );
+                        if ($this->isALevelClassName($mainName)) {
+                            $className =
+                                $subName !== ""
+                                    ? strtoupper($mainName) .
+                                        " — " .
+                                        strtoupper($subName)
+                                    : strtoupper($mainName);
+                        } else {
+                            $className = $this->formatSubclassFilterDisplayName(
+                                $mainName,
+                                $subName,
+                            );
+                        }
+                    }
+                }
+                $sheetTitle = preg_replace(
+                    '/[\\\\\\/\\?\\*\\[\\]:]/',
+                    "",
+                    $className,
+                );
                 $sheetTitle = substr($sheetTitle, 0, 31) ?: "Results";
 
                 $sheet =
@@ -6699,6 +8056,11 @@ class ResultManagementController extends Controller
                     $schoolType,
                     $typeFilter,
                     $examFilter,
+                    $cid > 0 ? (int) $cid : null,
+                    // Form Five (etc.) all subclasses / whole main class export
+                    ($option === "class" && empty($subclassID)) ||
+                        (empty($subclassID) && !empty($classID)),
+                    $school,
                 );
 
                 $sheetIndex++;
@@ -7483,6 +8845,7 @@ class ResultManagementController extends Controller
                 $assignedSubjectIDs,
             )
                 ->where("status", "Active")
+                ->with("components")
                 ->get();
             $availableExams = Examination::whereIn("examID", $assignedExamIDs)
                 ->orderBy("created_at", "desc")
@@ -7509,6 +8872,7 @@ class ResultManagementController extends Controller
 
             $schoolSubjects = SchoolSubject::where("schoolID", $schoolID)
                 ->where("status", "Active")
+                ->with("components")
                 ->get();
 
             $availableExams = Examination::where("schoolID", $schoolID)
@@ -8078,6 +9442,13 @@ class ResultManagementController extends Controller
         if (!empty($yearIds)) {
             $query->where(function ($q) use ($yearIds, $calendarYears) {
                 $q->whereIn("academic_yearID", $yearIds);
+                foreach ($yearIds as $yearId) {
+                    $q->orWhereJsonContains("academic_year_ids", $yearId);
+                    $q->orWhereJsonContains(
+                        "academic_year_ids",
+                        (string) $yearId,
+                    );
+                }
                 if (!empty($calendarYears)) {
                     $q->orWhere(function ($q2) use ($calendarYears) {
                         $q2->whereNull("academic_yearID")->whereIn(

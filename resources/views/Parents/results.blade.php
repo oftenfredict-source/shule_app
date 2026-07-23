@@ -765,12 +765,57 @@ $(document).ready(function() {
         updateWizard();
     });
 
+    const getParentSubjectRemark = (grade, isSecondary, isALevel) => {
+        const g = String(grade || '').toUpperCase().trim();
+        if (!grade || g === 'N/A' || g === 'INCOMPLETE' || g === '-') {
+            return { text: 'Incomplete', cssClass: 'bg-inc' };
+        }
+        if (isSecondary) {
+            if (isALevel) {
+                const map = {
+                    A: 'Excellent', B: 'Very Good', C: 'Good',
+                    D: 'Average', E: 'Satisfactory', S: 'Subsidiary', F: 'Fail'
+                };
+                if (map[g]) {
+                    return { text: map[g], cssClass: g === 'F' ? 'bg-fail' : 'bg-pass' };
+                }
+            } else {
+                const map = {
+                    A: 'Excellent', B: 'Very Good', C: 'Good', D: 'Pass', F: 'Fail'
+                };
+                if (map[g]) {
+                    return { text: map[g], cssClass: g === 'F' ? 'bg-fail' : 'bg-pass' };
+                }
+            }
+            if (/^(I|II|III|IV)\./.test(g)) {
+                return { text: 'Pass', cssClass: 'bg-pass' };
+            }
+            return { text: 'Fail', cssClass: 'bg-fail' };
+        }
+        if (['A', 'B', 'C', 'D'].includes(g)) {
+            return { text: 'Pass', cssClass: 'bg-pass' };
+        }
+        return { text: 'Fail', cssClass: 'bg-fail' };
+    };
+
+    const formatPaperLines = (papers) => {
+        if (!papers || !papers.length) return '';
+        return papers.map(p => {
+            const pm = (p.marks !== null && p.marks !== undefined && p.marks !== '')
+                ? `${Math.round(parseFloat(p.marks))}/${p.max_marks || ''}`
+                : '-';
+            return `<li class="exam-sub-item px-3" style="opacity:.9;">${p.component_name || 'Paper'}: <strong>${pm}</strong></li>`;
+        }).join('');
+    };
+
     const renderResults = (data) => {
         // Handle "N/A" -> "Incomplete"
         const position = (data.position && data.position !== 'N/A') ? data.position : 'Incomplete';
         const grade = (data.overall_grade || data.overall_division || 'Incomplete');
-        const totalMarks = (data.total_marks !== null && data.total_marks !== undefined) ? parseFloat(data.total_marks).toFixed(0) : 'Incomplete';
-        const average = (data.average !== null && data.average !== undefined && data.average !== 0) ? parseFloat(data.average).toFixed(0) : 'Incomplete';
+        const totalMarks = (data.total_marks !== null && data.total_marks !== undefined && data.total_marks !== '-') ? parseFloat(data.total_marks).toFixed(0) : 'Incomplete';
+        const average = (data.average !== null && data.average !== undefined && data.average !== 0 && data.average !== '-') ? parseFloat(data.average).toFixed(0) : 'Incomplete';
+        const isSecondary = String(data.school_type || 'Secondary').toLowerCase() === 'secondary';
+        const isALevel = !!data.is_a_level;
 
         // Overview
         $('#overviewBody').html(`
@@ -813,25 +858,26 @@ $(document).ready(function() {
             const hasMarks = rawMarks !== null && rawMarks !== undefined && rawMarks !== '' && rawMarks !== '-';
             const marksVal = hasMarks ? parseFloat(rawMarks).toFixed(0) : 'Incomplete';
             const gradeText = hasMarks ? (res.grade || 'F') : 'Incomplete';
+            const remarkInfo = getParentSubjectRemark(gradeText, isSecondary, isALevel);
+            const remarkClass = remarkInfo.cssClass;
+            const remarkText = res.remark || remarkInfo.text;
 
-            // Determine remark class / text
-            let remarkClass = 'bg-fail'; 
-            let remarkText = 'Failed';
-            if (!hasMarks || gradeText === 'Incomplete') {
-                remarkClass = 'bg-inc';
-                remarkText = 'Incomplete';
-            } else if (['A', 'B', 'C', 'D'].includes(gradeText)) {
-                remarkClass = 'bg-pass';
-                remarkText = 'Pass';
+            let subjectCell = `<strong>${res.subject_name || 'N/A'}</strong>`;
+            if (res.is_duo && res.papers && res.papers.length) {
+                subjectCell += `<ul class="exam-sub-list mt-1">${formatPaperLines(res.papers)}</ul>`;
             }
 
             if (hasCa) {
                 bodyHtml += `
                     <tr>
-                        <td class="align-middle"><strong>${res.subject_name || 'N/A'}</strong></td>
+                        <td class="align-middle">${subjectCell}</td>
                         <td class="col-mtihani p-0">
                             <ul class="exam-sub-list">
-                                ${(res.exams || []).map(ex => `<li class="exam-sub-item px-3">${ex.exam_name}: <strong>${ex.marks ? parseFloat(ex.marks).toFixed(0) : '-'}</strong></li>`).join('')}
+                                ${(res.exams || []).map(ex => {
+                                    const exMarks = (ex.marks !== null && ex.marks !== undefined && ex.marks !== '')
+                                        ? parseFloat(ex.marks).toFixed(0) : '-';
+                                    return `<li class="exam-sub-item px-3">${ex.exam_name}: <strong>${exMarks}</strong></li>${formatPaperLines(ex.papers || [])}`;
+                                }).join('')}
                             </ul>
                         </td>
                         <td class="col-small align-middle"><strong>${marksVal}</strong></td>
@@ -842,7 +888,7 @@ $(document).ready(function() {
             } else {
                 bodyHtml += `
                     <tr>
-                        <td class="align-middle"><strong>${res.subject_name || 'N/A'}</strong></td>
+                        <td class="align-middle">${subjectCell}</td>
                         <td class="col-small align-middle"><strong>${marksVal}</strong></td>
                         <td class="col-small align-middle">${gradeText}</td>
                         <td class="col-small colored-remark ${remarkClass} align-middle">${remarkText}</td>

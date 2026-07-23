@@ -596,22 +596,17 @@
                                 </select>
                             </div>
                             <div class="col-md-3 mb-3">
-                                <label for="filter_year" class="form-label">
+                                <label class="form-label">
                                     <i class="bi bi-calendar"></i> Academic Year
                                 </label>
-                                <select class="form-control" id="filter_year" name="academic_yearID">
-                                    <option value="">All Academic Years</option>
-                                    @foreach($availableAcademicYears ?? [] as $ay)
-                                        @php
-                                            $ayLabel = $ay->year_name ?: $ay->year;
-                                            $filterIds = array_filter(array_map('intval', preg_split('/[,\s]+/', (string)($academicYearFilter ?? '')) ?: []));
-                                            $selected = in_array((int)$ay->academic_yearID, $filterIds, true);
-                                        @endphp
-                                        <option value="{{ $ay->academic_yearID }}" {{ $selected ? 'selected' : '' }}>
-                                            {{ $ayLabel }}{{ !empty($ay->is_current) ? ' (Current)' : '' }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                <input type="text" class="form-control" id="filter_year_display"
+                                       value="{{ $headerAcademicYearLabel ?? '—' }}" readonly
+                                       style="background-color: #e9ecef; font-weight: 600; cursor: not-allowed;"
+                                       title="Change O-Level / A-Level year from the header selector">
+                                @foreach(($selectedYearIds ?? []) as $hid)
+                                    <input type="hidden" name="header_academic_year_ids[]" value="{{ $hid }}">
+                                @endforeach
+                                <input type="hidden" id="filter_year" value="{{ implode(',', $selectedYearIds ?? []) }}">
                             </div>
                             <div class="col-md-2 mb-3 d-flex align-items-end">
                                 <button type="submit" class="btn btn-primary-custom w-100" title="Search Examinations">
@@ -619,7 +614,7 @@
                                 </button>
                             </div>
                         </div>
-                        @if(!empty($examCategoryFilter) || !empty($yearFilter) || !empty($termFilter))
+                        @if(!empty($examCategoryFilter) || !empty($termFilter))
                         <div class="row">
                             <div class="col-12">
                                 <a href="{{ route('manageExamination') }}" class="btn btn-sm btn-secondary">
@@ -915,10 +910,10 @@
                             <option value="second_term" {{ in_array(2, $closedTerms ?? []) ? 'disabled style="background-color: #f0f0f0; color: #999;"' : '' }}>
                                 Second Term @if(in_array(2, $closedTerms ?? [])) (Closed) @endif
                             </option>
-                            <option value="all_terms">All Terms (For Weekly/Monthly Tests)</option>
+                            <option value="all_terms">All Terms (Weekly/Monthly Tests only)</option>
                         </select>
                         <small class="form-text text-muted">
-                            <i class="bi bi-info-circle"></i> Select which term this examination is for. Closed terms are disabled.
+                            <i class="bi bi-info-circle"></i> Chagua First au Second Term. <strong>All Terms</strong> ni kwa Weekly/Monthly Tests tu.
                         </small>
                     </div>
 
@@ -966,13 +961,67 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="form-group">
-                                <label for="year">Academic Year <span class="text-danger">*</span></label>
-                                <input type="hidden" id="academic_yearID" name="academic_yearID" value="{{ $currentAcademicYearID ?? '' }}">
-                                <input type="text" class="form-control" id="year_display" value="{{ optional($currentAcademicYear ?? null)->year_name ?? optional($currentAcademicYear ?? null)->year ?? ($currentYear ?? date('Y')) }}" readonly style="background:#f5f5f5;">
-                                <input type="hidden" id="year" name="year" value="{{ $currentYear }}">
-                                <small class="text-muted">Uses the selected / current academic year from header</small>
+                                <label>Academic Year <span class="text-danger">*</span></label>
+                                @php
+                                    $createYears = $createExamAcademicYears ?? [];
+                                    $primaryCreateYear = collect($createYears)->firstWhere('level', 'o_level')
+                                        ?? collect($createYears)->first();
+                                    $oCreateYear = collect($createYears)->firstWhere('level', 'o_level');
+                                    $aCreateYear = collect($createYears)->firstWhere('level', 'a_level');
+                                    $hasDualYears = !empty($oCreateYear) && !empty($aCreateYear);
+                                @endphp
+                                @if(count($createYears) > 0)
+                                    <div class="exam-ay-from-header border rounded px-3 py-2" style="background:#fff;border-color:#d0d0d0 !important;">
+                                        <div class="d-flex flex-wrap align-items-center" style="gap:16px;">
+                                            @if($hasDualYears || !empty($oCreateYear))
+                                                <div class="d-inline-flex align-items-center" style="gap:8px;">
+                                                    <span style="font-size:11px;font-weight:700;color:#940000;text-transform:uppercase;letter-spacing:0.3px;">O-Level</span>
+                                                    <span class="form-control form-control-sm d-inline-block mb-0" style="width:auto;min-width:100px;font-weight:600;background:#f5f5f5;cursor:default;">
+                                                        {{ $oCreateYear['year_name'] ?? ($primaryCreateYear['year_name'] ?? '—') }}{{ !empty($oCreateYear['is_current']) ? ' ★' : '' }}
+                                                    </span>
+                                                </div>
+                                            @endif
+                                            @if(!empty($aCreateYear))
+                                                <div class="d-inline-flex align-items-center" style="gap:8px;">
+                                                    <span style="font-size:11px;font-weight:700;color:#940000;text-transform:uppercase;letter-spacing:0.3px;">A-Level</span>
+                                                    <span class="form-control form-control-sm d-inline-block mb-0" style="width:auto;min-width:100px;font-weight:600;background:#f5f5f5;cursor:default;">
+                                                        {{ $aCreateYear['year_name'] }}{{ !empty($aCreateYear['is_current']) ? ' ★' : '' }}
+                                                    </span>
+                                                </div>
+                                            @endif
+                                            @if(!$hasDualYears && empty($oCreateYear) && empty($aCreateYear) && !empty($primaryCreateYear))
+                                                <div class="d-inline-flex align-items-center" style="gap:8px;">
+                                                    <span style="font-size:11px;font-weight:700;color:#940000;text-transform:uppercase;letter-spacing:0.3px;">Year</span>
+                                                    <span class="form-control form-control-sm d-inline-block mb-0" style="width:auto;min-width:100px;font-weight:600;background:#f5f5f5;cursor:default;">
+                                                        {{ $primaryCreateYear['year_name'] }}{{ !empty($primaryCreateYear['is_current']) ? ' ★' : '' }}
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @foreach($createYears as $cy)
+                                            <input type="hidden" name="academic_year_ids[]" value="{{ $cy['academic_yearID'] }}">
+                                        @endforeach
+                                    </div>
+                                    <input type="hidden" id="academic_yearID" name="academic_yearID" value="{{ $primaryCreateYear['academic_yearID'] ?? '' }}">
+                                    <input type="hidden" id="year" name="year" value="{{ $primaryCreateYear['year'] ?? ($currentYear ?? date('Y')) }}">
+                                    <small class="text-muted">
+                                        Same Active years as header —
+                                        @if($hasDualYears)
+                                            this exam is for <strong>O-Level</strong> and <strong>A-Level</strong>
+                                        @else
+                                            this exam uses the Active academic year above
+                                        @endif.
+                                    </small>
+                                @else
+                                    <div class="alert alert-warning mb-0 py-2">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        No Active academic year in header. Set O-Level / A-Level year in the header first.
+                                    </div>
+                                    <input type="hidden" id="academic_yearID" name="academic_yearID" value="">
+                                    <input type="hidden" id="year" name="year" value="{{ $currentYear ?? date('Y') }}">
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -1280,10 +1329,10 @@
                             <option value="second_term" {{ in_array(2, $closedTerms ?? []) ? 'disabled style="background-color: #f0f0f0; color: #999;"' : '' }}>
                                 Second Term @if(in_array(2, $closedTerms ?? [])) (Closed) @endif
                             </option>
-                            <option value="all_terms">All Terms (For Weekly/Monthly Tests)</option>
+                            <option value="all_terms">All Terms (Weekly/Monthly Tests only)</option>
                         </select>
                         <small class="form-text text-muted">
-                            <i class="bi bi-info-circle"></i> Select which term this examination is for. Closed terms are disabled.
+                            <i class="bi bi-info-circle"></i> Chagua First au Second Term. <strong>All Terms</strong> ni kwa Weekly/Monthly Tests tu.
                         </small>
                     </div>
 
@@ -1848,9 +1897,8 @@ jQuery(document).ready(function($) {
             $('#student_shifting_status').prop('required', true);
         } else if (examCategory === 'test') {
             // Show test type selection dropdown
-            console.log('Showing test type group'); // Debugging
             $('#test_type_group').stop(true, true).show();
-            $('#test_type').prop('required', true).val('all_terms'); // Set default or reset
+            $('#test_type').prop('required', true).val(''); // Admin must pick type — do NOT default to all_terms
             
             // Hide exam name fields initially (will be shown based on test type)
             $('#exam_name_text_group').hide();
@@ -1858,9 +1906,9 @@ jQuery(document).ready(function($) {
             $('#exam_name').prop('required', false);
             $('#exam_name_type').prop('required', false);
             
-            // Show term selection
+            // Show term selection — leave empty so admin chooses First/Second (or All for weekly/monthly)
             $('#term_group').show();
-            $('#term').prop('required', true).val('all_terms');
+            $('#term').prop('required', true).val('');
             
             // Show except classes option, hide include classes
             $('#except_classes_group').show();
@@ -1914,7 +1962,13 @@ jQuery(document).ready(function($) {
         $('#exam_name_type').val('');
         
         // Handle Term Selection Visibility
+        // all_terms is intended for weekly/monthly tests; other tests must pick First/Second.
         if (testType === 'weekly_test' || testType === 'monthly_test') {
+             $('#term option[value="all_terms"]').show();
+             if (!$('#term').val()) {
+                 $('#term').val('all_terms');
+             }
+        } else if (testType === 'other_test') {
              $('#term option[value="all_terms"]').hide();
              if ($('#term').val() === 'all_terms') {
                  $('#term').val('');
@@ -2395,6 +2449,15 @@ jQuery(document).ready(function($) {
                 icon: 'error',
                 title: 'Access Denied',
                 text: 'You do not have permission to create examinations. You need examination_create permission.'
+            });
+            return false;
+        }
+
+        if (!$('#academic_yearID').val() && $('input[name="academic_year_ids[]"]').length === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Academic Year Required',
+                text: 'Set Active O-Level / A-Level academic year in the header first.'
             });
             return false;
         }
@@ -3621,7 +3684,7 @@ jQuery(document).ready(function($) {
         // Disable button and show loading
         btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Loading...');
 
-        // Get search filters
+        // Get search filters (academic year always from header — #filter_year is locked)
         const search = $('#search_exam_name').val() || '';
         const year = $('#filter_year').val() || '';
         const status = $('#filter_status').val() || '';
@@ -3641,6 +3704,7 @@ jQuery(document).ready(function($) {
                 page: nextPage,
                 per_page: 12,
                 search: search,
+                // Server ignores this and uses header years; kept for compatibility
                 academic_yearID: year,
                 status: status,
                 approval_status: approval,
@@ -5317,6 +5381,10 @@ window.loadExamPapers = function(examID, search = '', status = '', week = '') {
 
                         group.papers.forEach(function(paper) {
                             const subjectName = paper.class_subject?.subject?.subject_name || 'N/A';
+                            const componentName = paper.component_name || paper.component?.component_name || '';
+                            const subjectLabel = componentName
+                                ? `${subjectName} <span class="badge badge-danger" style="border-radius:0;background:#940000;font-size:0.7rem;">${componentName}</span>`
+                                : subjectName;
                             const teacherName = paper.teacher ? (paper.teacher.first_name + ' ' + paper.teacher.last_name) : 'N/A';
                             const className = paper.class_subject?.class?.class_name || 'N/A';
                             const subclassName = paper.class_subject?.subclass?.subclass_name || 'N/A';
@@ -5338,8 +5406,8 @@ window.loadExamPapers = function(examID, search = '', status = '', week = '') {
                                                 <i class="bi bi-file-earmark-text" style="color: #940000; font-size: 1rem;"></i>
                                             </div>
                                             <div style="min-width: 0;">
-                                                <div class="fw-bold text-truncate" style="font-size: 0.95rem; color: #222; max-width: 220px;">
-                                                    ${subjectName}
+                                                <div class="fw-bold text-truncate" style="font-size: 0.95rem; color: #222; max-width: 280px;">
+                                                    ${subjectLabel}
                                                 </div>
                                                 <div class="text-muted" style="font-size: 0.78rem;">
                                                     <i class="bi bi-person"></i> ${teacherName}
@@ -5367,6 +5435,7 @@ window.loadExamPapers = function(examID, search = '', status = '', week = '') {
                                                 <p class="mb-2" style="font-size: 0.88rem;">
                                                     <strong>Subject & Class:</strong> ${subjectName} - ${className} ${subclassName}<br>
                                                     <strong>Teacher:</strong> ${teacherName}<br>
+                                                    <strong>Year:</strong> ${paper.display_year || paper.examination?.display_year || paper.examination?.year || 'N/A'}<br>
                                                     ${paper.test_week ? `<strong>Week:</strong> ${paper.test_week}${paper.test_week_range ? ` (${paper.test_week_range})` : ''}<br>` : ''}
                                                     ${paper.test_date ? `<strong>Test Date:</strong> ${new Date(paper.test_date).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'})}<br>` : ''}
                                                     <strong>Type:</strong> <span class="badge badge-info">${paper.upload_type === 'upload' ? 'File Upload' : 'Created'}</span><br>

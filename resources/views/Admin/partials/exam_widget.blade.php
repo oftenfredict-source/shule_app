@@ -46,7 +46,7 @@
             <div class="pr-2">
                 <h6 class="mb-1 exam-widget-title">{{ $exam->exam_name }}</h6>
                 <small class="exam-widget-meta">
-                    @if($exam->term){{ ucfirst(str_replace('_', ' ', $exam->term)) }} • @endif{{ $exam->year }}
+                    @if($exam->term){{ ucfirst(str_replace('_', ' ', $exam->term)) }} • @endif{{ $exam->displayYearLabelAll() ?: $exam->year }}
                 </small>
             </div>
             @include('Admin.partials.exam_actions_dropdown', ['exam' => $exam])

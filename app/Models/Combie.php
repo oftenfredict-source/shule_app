@@ -34,4 +34,19 @@ class Combie extends Model
     {
         return $this->hasMany(Subclass::class, 'combieID', 'combieID');
     }
+
+    /** Main A-Level / custom combination subjects (max 3) */
+    public function subjects()
+    {
+        return $this->belongsToMany(
+            SchoolSubject::class,
+            'combie_subjects',
+            'combieID',
+            'subjectID',
+            'combieID',
+            'subjectID'
+        )->withPivot('sort_order')
+         ->withTimestamps()
+         ->orderBy('combie_subjects.sort_order');
+    }
 }

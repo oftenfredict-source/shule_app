@@ -312,11 +312,19 @@
                                     <hr class="my-2">
                                     <div class="mb-2">
                                         <small class="text-muted d-block">Period:</small>
+                                        @php
+                                            $cardStart = $permission->start_date
+                                                ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y')
+                                                : '—';
+                                            $cardEnd = $permission->end_date
+                                                ? \Carbon\Carbon::parse($permission->end_date)->format('j F Y')
+                                                : '—';
+                                        @endphp
                                         @if($permission->time_mode === 'days')
-                                            <i class="fa fa-calendar-alt text-primary-custom"></i> {{ $isStudentPerm ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y') : $permission->start_date->format('j F Y') }} - {{ $isStudentPerm ? \Carbon\Carbon::parse($permission->end_date)->format('j F Y') : $permission->end_date->format('j F Y') }}
+                                            <i class="fa fa-calendar-alt text-primary-custom"></i> {{ $cardStart }} - {{ $cardEnd }}
                                             <span class="badge badge-light border ml-1">{{ $permission->days_count }} days</span>
                                         @else
-                                            <i class="fa fa-clock text-primary-custom"></i> {{ $isStudentPerm ? \Carbon\Carbon::parse($permission->start_date)->format('j F Y') : $permission->start_date->format('j F Y') }} ({{ $permission->start_time }} - {{ $permission->end_time }})
+                                            <i class="fa fa-clock text-primary-custom"></i> {{ $cardStart }} ({{ $permission->start_time ?? '—' }} - {{ $permission->end_time ?? '—' }})
                                         @endif
                                     </div>
                                     <div>

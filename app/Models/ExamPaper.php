@@ -16,6 +16,7 @@ class ExamPaper extends Model
         'examID',
         'weekly_test_schedule_id',
         'class_subjectID',
+        'componentID',
         'teacherID',
         'file_path',
         'question_content',
@@ -51,6 +52,11 @@ class ExamPaper extends Model
         return $this->belongsTo(ClassSubject::class, 'class_subjectID', 'class_subjectID');
     }
 
+    public function component()
+    {
+        return $this->belongsTo(SchoolSubjectComponent::class, 'componentID', 'componentID');
+    }
+
     public function teacher()
     {
         return $this->belongsTo(Teacher::class, 'teacherID', 'id');
@@ -69,6 +75,25 @@ class ExamPaper extends Model
     public function approvalLogs()
     {
         return $this->hasMany(PaperApprovalLog::class, 'exam_paperID', 'exam_paperID');
+    }
+
+    /**
+     * Academic year label for this paper based on its class (Form 5/6 → A-Level year).
+     */
+    public function displayYearLabel(): string
+    {
+        if (! $this->examination) {
+            return '';
+        }
+
+        $className = null;
+        if ($this->classSubject) {
+            $className = $this->classSubject->class->class_name
+                ?? optional(optional($this->classSubject->subclass)->class)->class_name
+                ?? null;
+        }
+
+        return $this->examination->displayYearLabelForClass($className);
     }
 }
 

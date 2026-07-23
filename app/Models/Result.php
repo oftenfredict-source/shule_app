@@ -18,6 +18,7 @@ class Result extends Model
         'examID',
         'subclassID',
         'class_subjectID',
+        'componentID',
         'marks',
         'grade',
         'remark',
@@ -55,5 +56,10 @@ class Result extends Model
     public function classSubject()
     {
         return $this->belongsTo(ClassSubject::class, 'class_subjectID', 'class_subjectID');
+    }
+
+    public function component()
+    {
+        return $this->belongsTo(SchoolSubjectComponent::class, 'componentID', 'componentID');
     }
 }

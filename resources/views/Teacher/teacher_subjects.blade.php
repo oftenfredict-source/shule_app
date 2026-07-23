@@ -38,6 +38,41 @@
         opacity: 0.75;
         color: #607d8b;
     }
+
+    /* View Results + Add Results: visible branded scrollbar (like election modal) */
+    #viewResultsModal .modal-body,
+    #viewResultsModal #resultsModalBody,
+    #addEditResultsModal .modal-body,
+    #addEditResultsModal #addEditResultsModalBody {
+        max-height: 75vh !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        scrollbar-width: thin;
+        scrollbar-color: #940000 #f1f1f1;
+    }
+    #viewResultsModal .modal-body::-webkit-scrollbar,
+    #viewResultsModal #resultsModalBody::-webkit-scrollbar,
+    #addEditResultsModal .modal-body::-webkit-scrollbar,
+    #addEditResultsModal #addEditResultsModalBody::-webkit-scrollbar {
+        width: 8px !important;
+        display: block !important;
+    }
+    #viewResultsModal .modal-body::-webkit-scrollbar-track,
+    #viewResultsModal #resultsModalBody::-webkit-scrollbar-track,
+    #addEditResultsModal .modal-body::-webkit-scrollbar-track,
+    #addEditResultsModal #addEditResultsModalBody::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    #viewResultsModal .modal-body::-webkit-scrollbar-thumb,
+    #viewResultsModal #resultsModalBody::-webkit-scrollbar-thumb,
+    #addEditResultsModal .modal-body::-webkit-scrollbar-thumb,
+    #addEditResultsModal #addEditResultsModalBody::-webkit-scrollbar-thumb {
+        background: #940000;
+        border-radius: 4px;
+    }
+    body.modal-open {
+        overflow: hidden !important;
+    }
     .enrollment-inactive-row input,
     .enrollment-inactive-row button {
         pointer-events: none;
@@ -138,6 +173,56 @@
         font-size: 1.2rem;
         color: #333;
     }
+
+    /* Duo paper realtime pass/fail bullet (no A/B letter grades) */
+    .duo-marks-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+    }
+    .duo-marks-bullet {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #ced4da;
+        box-shadow: 0 0 0 2px rgba(0,0,0,0.04);
+        flex-shrink: 0;
+        display: inline-block;
+    }
+    .duo-marks-bullet.duo-state-pass {
+        background-color: #28a745 !important;
+        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.25) !important;
+    }
+    .duo-marks-bullet.duo-state-fail {
+        background-color: #dc3545 !important;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25) !important;
+    }
+    .duo-marks-bullet.duo-state-invalid {
+        background-color: #ffc107 !important;
+        box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.28) !important;
+    }
+    .duo-marks-label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: #6c757d;
+    }
+    .duo-marks-label.duo-state-pass { color: #28a745 !important; }
+    .duo-marks-label.duo-state-fail { color: #dc3545 !important; }
+    .duo-marks-label.duo-state-invalid { color: #b8860b !important; }
+    .marks-input.duo-marks-ok {
+        border-color: #28a745 !important;
+        box-shadow: 0 0 0 0.1rem rgba(40,167,69,0.15);
+    }
+    .marks-input.duo-marks-bad {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.1rem rgba(220,53,69,0.15);
+    }
+    .marks-input.duo-marks-warn {
+        border-color: #ffc107 !important;
+    }
 </style>
 
 <!-- Bootstrap Icons -->
@@ -221,7 +306,9 @@
                         <div class="col-md-6 col-lg-4 mb-4 subject-item"
                              data-subject-name="{{ $subjectName }}"
                              data-subject-code="{{ $subjectCode }}"
-                             data-class-name="{{ $className }}">
+                             data-class-name="{{ $className }}"
+                             data-main-class="{{ optional(optional($classSubject->subclass)->class)->class_name ?? optional($classSubject->class)->class_name }}"
+                             data-is-duo="{{ !empty($classSubject->is_duo_subject) ? '1' : '0' }}">
                             <div class="card subject-card border-0 h-100">
                                 <div class="card-body">
                                     <!-- Subject Icon and Name -->
@@ -230,9 +317,20 @@
                                         <div class="ml-3">
                                             <h5 class="card-title text-primary-custom mb-0">
                                                 {{ $classSubject->subject->subject_name ?? 'N/A' }}
+                                                @if(!empty($classSubject->is_duo_subject))
+                                                    <span class="badge badge-danger" style="border-radius:0;background:#940000;font-size:0.65rem;vertical-align:middle;">DUO</span>
+                                                @endif
                                             </h5>
                                             @if($classSubject->subject->subject_code)
                                                 <small class="text-muted">Code: {{ $classSubject->subject->subject_code }}</small>
+                                            @endif
+                                            @if(!empty($classSubject->is_duo_subject) && !empty($classSubject->my_assigned_papers) && $classSubject->my_assigned_papers->count())
+                                                <div class="mt-1">
+                                                    <small class="text-muted d-block">Your papers:</small>
+                                                    @foreach($classSubject->my_assigned_papers as $paper)
+                                                        <span class="badge badge-light border mr-1 mb-1" style="border-radius:0;">{{ $paper['component_name'] }}</span>
+                                                    @endforeach
+                                                </div>
                                             @endif
                                         </div>
                                     </div>
@@ -281,6 +379,16 @@
                                             <i class="bi bi-people-fill action-icon view-students" onclick="viewStudents({{ $classSubject->class_subjectID }})"></i>
                                             <small class="d-block text-muted mt-1">Students</small>
                                         </div>
+                                        @if(!empty($classSubject->is_duo_subject))
+                                        <div class="text-center mb-2" title="View Papers / Teachers">
+                                            <i class="bi bi-layers action-icon" style="color: #940000;"
+                                               onclick='viewDuoPapers(@json([
+                                                   "subject" => $classSubject->subject->subject_name ?? "Subject",
+                                                   "papers" => $classSubject->all_paper_teachers ?? []
+                                               ]))'></i>
+                                            <small class="d-block text-muted mt-1">Papers</small>
+                                        </div>
+                                        @endif
                                         <div class="text-center mb-2" title="Session Attendance">
                                             <i class="bi bi-clock-history action-icon" style="color: #17a2b8;" onclick="viewSessionAttendance({{ $classSubject->class_subjectID }})"></i>
                                             <small class="d-block text-muted mt-1">Session Attendance</small>
@@ -480,7 +588,7 @@
 </div>
 
 <!-- View Results Modal -->
-<div class="modal" id="viewResultsModal" role="dialog" aria-labelledby="viewResultsModalLabel" aria-hidden="true">
+<div class="modal" id="viewResultsModal" role="dialog" aria-labelledby="viewResultsModalLabel" aria-hidden="true" data-backdrop="static">
     <div class="modal-dialog modal-xl" role="document" style="max-width: 95%;">
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
@@ -491,19 +599,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" id="resultsModalBody" style="max-height: 80vh; overflow-y: scroll; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none;">
-                <style>
-                    #viewResultsModal .modal-body::-webkit-scrollbar {
-                        width: 0px;
-                        background: transparent;
-                    }
-                    #viewResultsModal .modal-body::-webkit-scrollbar-track {
-                        background: transparent;
-                    }
-                    #viewResultsModal .modal-body::-webkit-scrollbar-thumb {
-                        background: transparent;
-                    }
-                </style>
+            <div class="modal-body" id="resultsModalBody" style="max-height: 75vh; overflow-y: auto; overflow-x: hidden;">
                 <div class="text-center">
                     <div class="spinner-border text-primary-custom" role="status">
                         <span class="sr-only">Loading...</span>
@@ -600,76 +696,114 @@ function getResultsCacheKey() {
     const classSubjectID = jQuery('#class_subject_id').val();
     const examID = jQuery('#exam_id').val();
     const testWeek = jQuery('#test_week').val() || 'none';
+    // Duo papers must be isolated — without componentID, PHY1/PHY2 share one cache and restore wrong totals
+    const componentID = jQuery('#component_id').val() || window.selectedComponentID || '0';
     if (!classSubjectID || !examID) return null;
-    return `${RESULTS_CACHE_PREFIX}${classSubjectID}_${examID}_${testWeek}`;
+    return `${RESULTS_CACHE_PREFIX}${classSubjectID}_${examID}_${testWeek}_c${componentID}`;
+}
+
+function normalizeCacheMark(marks) {
+    if (marks === null || marks === undefined || marks === '') return '';
+    const n = parseFloat(marks);
+    if (isNaN(n)) return '';
+    return Number.isInteger(n) ? String(n) : String(n);
 }
 
 function saveMarkToCache(studentID, fieldKey, marks) {
     const key = getResultsCacheKey();
-    if (!key) return;
-    
+    if (!key || !studentID) return;
+
     let cache = JSON.parse(localStorage.getItem(key) || '{}');
     if (!cache[studentID]) cache[studentID] = {};
-    
-    cache[studentID][fieldKey] = marks;
+
+    const normalized = normalizeCacheMark(marks);
+    if (normalized === '') {
+        delete cache[studentID][fieldKey];
+        if (Object.keys(cache[studentID]).length === 0) {
+            delete cache[studentID];
+        }
+    } else {
+        cache[studentID][fieldKey] = normalized;
+    }
     localStorage.setItem(key, JSON.stringify(cache));
 }
 
 function restoreMarksFromCache() {
     const key = getResultsCacheKey();
     if (!key) return;
-    
+
     const cache = JSON.parse(localStorage.getItem(key) || '{}');
     if (Object.keys(cache).length === 0) return;
-    
+
     let restoredCount = 0;
-    
+    const studentsWithCachedMain = {};
+
     Object.keys(cache).forEach(studentID => {
-        const studentMarks = cache[studentID];
-        
-        // Restore Main Marks
-        if (studentMarks['main'] !== undefined) {
-            const $mainInput = jQuery(`#marks_${studentID}`);
-            if ($mainInput.length) {
-                $mainInput.val(studentMarks['main']);
-                autoCalculateGrade(studentID);
+        const studentMarks = cache[studentID] || {};
+
+        // 1) Restore question-level marks into memory first
+        Object.keys(studentMarks).forEach(qID => {
+            if (qID === 'main') return;
+            if (!examQuestionData.marksByStudent[studentID]) {
+                examQuestionData.marksByStudent[studentID] = {};
+            }
+            const qVal = normalizeCacheMark(studentMarks[qID]);
+            if (qVal === '') return;
+            examQuestionData.marksByStudent[studentID][qID] = qVal;
+
+            const $qInput = jQuery(`.question-mark-input[data-student="${studentID}"][data-question-id="${qID}"]`);
+            if ($qInput.length) {
+                $qInput.val(qVal);
+                const $optionalCheck = jQuery(`.optional-select[data-student="${studentID}"][data-question-id="${qID}"]`);
+                if ($optionalCheck.length && parseFloat(qVal) > 0) {
+                    $optionalCheck.prop('checked', true);
+                    $qInput.prop('disabled', false);
+                }
                 restoredCount++;
             }
+        });
+
+        // 2) Prefer explicit main total from cache (do NOT let question recalc overwrite it)
+        if (studentMarks['main'] !== undefined && studentMarks['main'] !== null && studentMarks['main'] !== '') {
+            const mainVal = normalizeCacheMark(studentMarks['main']);
+            const $mainInput = jQuery(`#marks_${studentID}`);
+            if ($mainInput.length && mainVal !== '') {
+                $mainInput.val(mainVal);
+                autoCalculateGrade(studentID);
+                studentsWithCachedMain[studentID] = true;
+                restoredCount++;
+            }
+        } else {
+            // No main cached — derive from question marks only
+            updateStudentTotal(studentID);
         }
-        
-        // Restore Question Marks
-        Object.keys(studentMarks).forEach(qID => {
-            if (qID !== 'main') {
-                if (!examQuestionData.marksByStudent[studentID]) {
-                    examQuestionData.marksByStudent[studentID] = {};
+    });
+
+    // Recalc totals only for students without an explicit cached main
+    if (typeof updateTotalsFromCache === 'function') {
+        if (!examQuestionData.marksByStudent) return;
+        Object.keys(examQuestionData.marksByStudent).forEach(function(studentID) {
+            if (studentsWithCachedMain[studentID]) return;
+            const questionMarks = examQuestionData.marksByStudent[studentID] || {};
+            let total = 0;
+            let hasMarks = false;
+            Object.keys(questionMarks).forEach(function(questionId) {
+                const value = parseFloat(questionMarks[questionId]);
+                if (!isNaN(value)) {
+                    total += value;
+                    hasMarks = true;
                 }
-                examQuestionData.marksByStudent[studentID][qID] = studentMarks[qID];
-                
-                const $qInput = jQuery(`.question-mark-input[data-student="${studentID}"][data-question-id="${qID}"]`);
-                if ($qInput.length) {
-                    $qInput.val(studentMarks[qID]);
-                    
-                    // Auto-check the optional box if it has marks
-                    const $optionalCheck = jQuery(`.optional-select[data-student="${studentID}"][data-question-id="${qID}"]`);
-                    if ($optionalCheck.length && studentMarks[qID] > 0) {
-                        $optionalCheck.prop('checked', true);
-                        $qInput.prop('disabled', false);
-                    }
-                    
-                    restoredCount++;
-                }
+            });
+            if (hasMarks) {
+                const displayTotal = Number.isInteger(total) ? total : total.toFixed(2);
+                jQuery(`#marks_${studentID}`).val(displayTotal);
+                autoCalculateGrade(studentID);
+                saveMarkToCache(studentID, 'main', displayTotal);
+                restoredCount++;
             }
         });
-        
-        // Update DOM inputs if they happen to be rendered
-        updateStudentTotal(studentID);
-    });
-    
-    // Recalculate all main totals from the cache object (crucial since DOM inputs might not be rendered yet)
-    if (typeof updateTotalsFromCache === 'function') {
-        updateTotalsFromCache();
     }
-    
+
     if (restoredCount > 0) {
         Swal.fire({
             toast: true,
@@ -692,20 +826,6 @@ jQuery(document).on('input', '.marks-input', function() {
     const studentID = jQuery(this).data('student');
     const marks = jQuery(this).val();
     saveMarkToCache(studentID, 'main', marks);
-});
-
-jQuery(document).on('input', '.question-mark-input', function() {
-    const studentID = jQuery(this).data('student');
-    const questionID = jQuery(this).data('question-id');
-    const marks = jQuery(this).val();
-    
-    if (!examQuestionData.marksByStudent[studentID]) {
-        examQuestionData.marksByStudent[studentID] = {};
-    }
-    examQuestionData.marksByStudent[studentID][questionID] = marks;
-    
-    updateStudentTotal(studentID);
-    saveMarkToCache(studentID, questionID, marks);
 });
 
 function showPremiumLoading(targetID, title = "Preparing Data...", detail = "Fetching information from server...") {
@@ -839,13 +959,32 @@ function showStudentPhoto(photoUrl, studentName) {
     });
 }
 
-// Calculate grade and remark from marks
+// Calculate grade and remark from marks (NON-duo subjects only)
+// Form Five / Form Six use A-Level NECTA scale; others keep O-Level scale
+function isALevelClassName(className) {
+    if (!className) return !!(window.currentResultIsALevel);
+    const n = String(className).toLowerCase().replace(/[\s\-]+/g, '_');
+    return n === 'form_five' || n === 'form_six' || n === 'form_5' || n === 'form_6'
+        || n.indexOf('form_five') !== -1 || n.indexOf('form_six') !== -1;
+}
+
 function calculateGradeAndRemark(marks) {
     if (!marks || marks === '' || isNaN(marks)) {
         return { grade: '', remark: '' };
     }
 
     const marksNum = parseFloat(marks);
+    const className = window.currentResultClassName || window.currentViewMainClass || '';
+
+    if (isALevelClassName(className)) {
+        if (marksNum >= 80) return { grade: 'A', remark: 'Excellent' };
+        if (marksNum >= 70) return { grade: 'B', remark: 'Very Good' };
+        if (marksNum >= 60) return { grade: 'C', remark: 'Good' };
+        if (marksNum >= 50) return { grade: 'D', remark: 'Average' };
+        if (marksNum >= 40) return { grade: 'E', remark: 'Satisfactory' };
+        if (marksNum >= 35) return { grade: 'S', remark: 'Subsidiary' };
+        return { grade: 'F', remark: 'Fail' };
+    }
 
     if (marksNum >= 75) {
         return { grade: 'A', remark: 'Excellent' };
@@ -860,6 +999,123 @@ function calculateGradeAndRemark(marks) {
     }
 }
 
+// Duo paper context: per-paper max marks, no A/B until combined formula later
+window.duoPaperContext = null;
+
+function isDuoResultMode() {
+    return !!(window.duoPaperContext && window.duoPaperContext.isDuo);
+}
+
+function getResultMarksMax() {
+    if (isDuoResultMode() && Number(window.duoPaperContext.maxMarks) > 0) {
+        return Number(window.duoPaperContext.maxMarks);
+    }
+    // Question format total for secondary may override display, but ceiling stays paper max for duo
+    if (isDuoResultMode()) {
+        return Number(examQuestionData.maxTotal) > 0 ? Number(examQuestionData.maxTotal) : 100;
+    }
+    return 100;
+}
+
+function getDuoDisplayMax() {
+    const paperMax = getResultMarksMax();
+    if (isDuoResultMode() && Number(examQuestionData.maxTotal) > 0) {
+        // Prefer paper max as the teacher-facing ceiling for duo
+        return paperMax;
+    }
+    return Number(examQuestionData.maxTotal) > 0 ? Number(examQuestionData.maxTotal) : paperMax;
+}
+
+/** Pass threshold for duo paper live indicator (ratio of paper max). Letter grades come later from totals. */
+function getDuoPassRatio() {
+    return 0.40;
+}
+
+function evaluateDuoPaperScore(marks) {
+    const max = Number(getResultMarksMax()) || 0;
+    if (marks === null || marks === undefined || marks === '' || isNaN(Number(marks))) {
+        return { state: 'empty', label: '', pct: 0, max: max };
+    }
+    const m = parseFloat(marks);
+    const pct = max > 0 ? (m / max) * 100 : 0;
+    if (m < 0 || (max > 0 && m > max)) {
+        return { state: 'invalid', label: 'Over max', pct: pct, max: max };
+    }
+    // No paper max yet → do not guess fail/pass
+    if (max <= 0) {
+        return { state: 'empty', label: '', pct: 0, max: max };
+    }
+    if ((m / max) >= getDuoPassRatio()) {
+        return { state: 'pass', label: 'Pass', pct: pct, max: max };
+    }
+    return { state: 'fail', label: 'Fail', pct: pct, max: max };
+}
+
+function updateDuoMarksIndicator(studentID, marks, $row = null) {
+    const $targetRow = $row || jQuery(`input[id="marks_${studentID}"], .marks-input[data-student="${studentID}"]`).closest('tr');
+    const $input = $targetRow.find(`.marks-input[data-student="${studentID}"]`);
+    const $wrap = $targetRow.find(`.duo-marks-status[data-student="${studentID}"]`);
+    if (!$wrap.length) return;
+
+    const $bullet = $wrap.find('.duo-marks-bullet');
+    const $label = $wrap.find('.duo-marks-label');
+    const evalResult = evaluateDuoPaperScore(marks);
+
+    // Cancel any pending debounce
+    const prevTimer = $wrap.data('duoBulletTimer');
+    if (prevTimer) {
+        clearTimeout(prevTimer);
+        $wrap.removeData('duoBulletTimer');
+    }
+
+    const resetIndicator = function() {
+        $input.removeClass('duo-marks-ok duo-marks-bad duo-marks-warn');
+        $bullet
+            .removeClass('duo-state-pass duo-state-fail duo-state-invalid is-pass is-fail is-invalid is-loading')
+            .css({ backgroundColor: '#ced4da', boxShadow: '0 0 0 2px rgba(0,0,0,0.04)' });
+        $label
+            .removeClass('duo-state-pass duo-state-fail duo-state-invalid is-pass is-fail is-invalid')
+            .css('color', '#6c757d')
+            .text('');
+    };
+
+    resetIndicator();
+
+    if (evalResult.state === 'empty') {
+        return;
+    }
+
+    // Apply immediately (no delayed race that mixes Pass text with Fail colour)
+    if (evalResult.state === 'pass') {
+        $bullet
+            .addClass('duo-state-pass')
+            .css({ backgroundColor: '#28a745', boxShadow: '0 0 0 3px rgba(40,167,69,0.25)' });
+        $label
+            .addClass('duo-state-pass')
+            .css('color', '#28a745')
+            .text('Pass');
+        $input.addClass('duo-marks-ok');
+    } else if (evalResult.state === 'fail') {
+        $bullet
+            .addClass('duo-state-fail')
+            .css({ backgroundColor: '#dc3545', boxShadow: '0 0 0 3px rgba(220,53,69,0.25)' });
+        $label
+            .addClass('duo-state-fail')
+            .css('color', '#dc3545')
+            .text('Fail');
+        $input.addClass('duo-marks-bad');
+    } else {
+        $bullet
+            .addClass('duo-state-invalid')
+            .css({ backgroundColor: '#ffc107', boxShadow: '0 0 0 3px rgba(255,193,7,0.28)' });
+        $label
+            .addClass('duo-state-invalid')
+            .css('color', '#b8860b')
+            .text('Max ' + evalResult.max);
+        $input.addClass('duo-marks-warn');
+    }
+}
+
 // Get grade cell class for styling
 function getGradeCellClass(grade) {
     if (!grade || grade === '' || grade.toLowerCase() === 'incomplete') {
@@ -868,7 +1124,9 @@ function getGradeCellClass(grade) {
     const gradeUpper = grade.toUpperCase();
     if (gradeUpper === 'A') {
         return 'bg-success text-white';
-    } else if (gradeUpper === 'E' || gradeUpper === 'F') {
+    } else if (gradeUpper === 'S') {
+        return 'bg-secondary text-white';
+    } else if (gradeUpper === 'E' || gradeUpper === 'F' || gradeUpper === 'S/F') {
         return 'bg-danger text-white';
     }
     return 'bg-info text-white';
@@ -897,8 +1155,11 @@ function loadExamQuestionData(classSubjectID, examID) {
         return;
     }
 
+    const componentID = jQuery('#component_id').val() || window.selectedComponentID || '';
+    const qs = componentID ? `?componentID=${encodeURIComponent(componentID)}` : '';
+
     jQuery.ajax({
-        url: `/get_exam_paper_question_data/${classSubjectID}/${examID}`,
+        url: `/get_exam_paper_question_data/${classSubjectID}/${examID}${qs}`,
         method: 'GET',
         success: function(response) {
             if (!response.success) {
@@ -911,6 +1172,13 @@ function loadExamQuestionData(classSubjectID, examID) {
             examQuestionData.optionalTotal = response.optional_total || 0;
             examQuestionData.optionalRanges = response.optional_ranges || [];
 
+            // Duo: keep paper max as the authoritative ceiling
+            if (isDuoResultMode()) {
+                if (response.paper_max_marks && Number(response.paper_max_marks) > 0) {
+                    window.duoPaperContext.maxMarks = Number(response.paper_max_marks);
+                }
+                jQuery('.marks-input').attr('max', getResultMarksMax());
+            }
             if (response.test_week) {
                 // Set the week value and hide the selection as it should be default from the paper
                 jQuery('#test_week_group').hide();
@@ -945,6 +1213,7 @@ function loadExamQuestionData(classSubjectID, examID) {
                 return;
             }
 
+            // Apply DB question totals first, then local cache overrides (per paper / component)
             updateTotalsFromCache();
 
             // Re-render any question detail rows that are already visible/loaded
@@ -968,6 +1237,7 @@ function loadExamQuestionData(classSubjectID, examID) {
                 });
                 updateStudentTotal(studentID);
             });
+            // Restore AFTER totals so cached main (e.g. 10) wins over wrong recalculation
             setTimeout(restoreMarksFromCache, 600);
         },
         error: function() {
@@ -1051,7 +1321,8 @@ function buildQuestionDetails(studentID) {
     html += `
         </div>
         <div class="text-muted small mt-2">
-            Total: <span class="student-question-total" data-student="${studentID}">0</span> / ${examQuestionData.maxTotal || 100}
+            Total: <span class="student-question-total" data-student="${studentID}">0</span> / ${getDuoDisplayMax()}
+            ${isDuoResultMode() ? `<span class="badge badge-light border ml-1">Paper max ${getResultMarksMax()}</span>` : ''}
         </div>
         ${examQuestionData.optionalTotal > 0 ? `
             <div class="text-muted small">
@@ -1139,7 +1410,13 @@ function updateStudentTotal(studentID) {
 
     if (hasMarks) {
         // Teacher has entered question-level marks — update the total
+        if (isDuoResultMode() && parseFloat(displayTotal) > getResultMarksMax()) {
+            $optionalWarning.text('Paper total exceeds max marks (' + getResultMarksMax() + ').').removeClass('d-none');
+        }
         $mainMarksInput.val(displayTotal);
+        $mainMarksInput.attr('max', getResultMarksMax());
+        // Keep local cache main total in sync (input event does not fire on .val())
+        saveMarkToCache(studentID, 'main', displayTotal);
         // Pass the row to autoCalculateGrade for precision
         autoCalculateGrade(studentID, $studentRow);
     }
@@ -1158,6 +1435,8 @@ function canEnterResultForStudent(student) {
 
 function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan) {
     let html = '';
+    const marksMax = getResultMarksMax();
+    const duoMode = isDuoResultMode();
     (students || []).forEach(function(student, index) {
         const canEnter = canEnterResultForStudent(student);
         const rowClass = canEnter ? '' : 'enrollment-inactive-row';
@@ -1167,12 +1446,31 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
         const disabledAttr = canEnter ? '' : 'disabled readonly';
         const marksReadonly = (!canEnter || isSecondarySchool) ? 'readonly' : '';
         const btnDisabled = canEnter ? '' : 'disabled';
+        const gradeCell = duoMode
+            ? `<div class="duo-marks-status" data-student="${student.studentID}">
+                    <span class="duo-marks-bullet" title="Paper score vs max"></span>
+                    <span class="duo-marks-label"></span>
+               </div>
+               <input type="hidden" class="grade-input" name="grade[${student.studentID}]" id="grade_${student.studentID}" data-student="${student.studentID}" value="">
+               <input type="hidden" class="remark-input" name="remark[${student.studentID}]" id="remark_${student.studentID}" data-student="${student.studentID}" value="">`
+            : `<input type="text" class="form-control form-control-sm grade-input"
+                           name="grade[${student.studentID}]"
+                           id="grade_${student.studentID}"
+                           data-student="${student.studentID}"
+                           placeholder="A, B, C..." readonly ${disabledAttr}>`;
+        const remarkCell = duoMode
+            ? `<small class="text-muted">No A/B yet<br><span style="font-size:0.7rem;">(paper total later)</span></small>`
+            : `<input type="text" class="form-control form-control-sm remark-input"
+                           name="remark[${student.studentID}]"
+                           id="remark_${student.studentID}"
+                           data-student="${student.studentID}"
+                           placeholder="Remark" readonly ${disabledAttr}>`;
 
         html += `
             <tr class="${rowClass}" data-can-enter="${canEnter ? 1 : 0}" data-enrollment-id="${student.enrollmentID || ''}">
                 <td>${index + 1}</td>
                 <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}${statusBadge}</td>
-                <td>${student.admission_number || 'N/A'}</td>
+                <td>${student.examination_number || student.admission_number || 'N/A'}</td>
                 <td class="text-center questions-column-cell" style="${isSecondarySchool ? '' : 'display:none;'}">
                     <button type="button" class="btn btn-sm btn-outline-primary toggle-question-btn" data-student="${student.studentID}" title="${canEnter ? 'Add result questions' : 'Not editable — enrollment not Active'}" ${btnDisabled}>
                         <i class="bi bi-list-check"></i>
@@ -1184,23 +1482,16 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
                            id="marks_${student.studentID}"
                            data-student="${student.studentID}"
                            data-can-enter="${canEnter ? 1 : 0}"
-                           step="0.01" min="0" max="100" placeholder="${canEnter ? '0.00' : '—'}"
+                           step="0.01" min="0" max="${marksMax}" placeholder="${canEnter ? '0.00' : '—'}"
                            oninput="autoCalculateGrade(${student.studentID})"
                            ${marksReadonly} ${disabledAttr}>
+                    ${duoMode ? `<small class="text-muted d-block">Max ${marksMax}</small>` : ''}
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm grade-input"
-                           name="grade[${student.studentID}]"
-                           id="grade_${student.studentID}"
-                           data-student="${student.studentID}"
-                           placeholder="A, B, C..." readonly ${disabledAttr}>
+                    ${gradeCell}
                 </td>
                 <td>
-                    <input type="text" class="form-control form-control-sm remark-input"
-                           name="remark[${student.studentID}]"
-                           id="remark_${student.studentID}"
-                           data-student="${student.studentID}"
-                           placeholder="Remark" readonly ${disabledAttr}>
+                    ${remarkCell}
                 </td>
             </tr>
             <tr class="question-details-row questions-detail-row d-none ${rowClass}" id="question_details_${student.studentID}" data-student="${student.studentID}">
@@ -1254,7 +1545,7 @@ function viewStudents(classSubjectID) {
                                 <tr>
                                     <th>#</th>
                                     <th>Photo</th>
-                                    <th>Admission No.</th>
+                                    <th>Index No.</th>
                                     <th>Name</th>
                                     <th>Class</th>
                                     <th>Enrollment</th>
@@ -1305,7 +1596,7 @@ function viewStudents(classSubjectID) {
                                      onclick="showStudentPhoto('${photoUrl.replace(/'/g, "\\'")}', '${studentName.replace(/'/g, "\\'")}')"
                                      onerror="this.src='${fallbackPhoto}'">
                             </td>
-                            <td><strong>${student.admission_number || 'N/A'}</strong></td>
+                            <td><strong>${student.examination_number || student.admission_number || 'N/A'}</strong></td>
                             <td>${studentName}${healthAlarmIcon}</td>
                             <td>${student.subclass ? (student.subclass.subclass_name || 'N/A') : 'N/A'}</td>
                             <td>${statusBadge}</td>
@@ -1351,38 +1642,74 @@ function viewStudents(classSubjectID) {
 function viewResults(classSubjectID) {
     // Get subject name and class from the card
     const card = jQuery(`i.view-results[onclick="viewResults(${classSubjectID})"]`).closest('.card');
-    const subjectName = card.find('.card-title').text().trim();
+    const item = card.closest('.subject-item');
+    const subjectName = card.find('.card-title').text().trim().replace(/\s*DUO\s*$/i, '').trim();
     const className = card.find('strong').first().text().trim();
+    const mainClassName = item.data('main-class') || className;
+    const isDuoSubject = String(item.data('is-duo')) === '1';
     
-    // Grab the teacher's name from Auth::user or session if possible, 
-    // but since we are in JS let's use the blade variable correctly.
     const teacherName = "{{ Auth::user()->name ?? 'N/A' }}";
     
     window.currentViewSubject = subjectName;
     window.currentViewClass = className;
+    window.currentViewMainClass = mainClassName;
     window.currentViewTeacher = teacherName;
+    window.currentViewIsDuo = isDuoSubject;
+    window.currentResultClassName = mainClassName;
 
     jQuery('#viewResultsModal').modal('show');
     jQuery('#viewResultsModalLabel').html(`<i class="bi bi-clipboard-check"></i> Results: ${subjectName} (${className})`);
     const loader = showPremiumLoading('resultsModalBody', "Preparing Results View...", "Fetching examination structure for this subject...");
 
-    // First get examinations for this subject
+    // First get examinations for this subject (for_view = include closed-entry exams with saved marks)
     jQuery.ajax({
-        url: '/get_examinations_for_subject/' + classSubjectID,
+        url: '/get_examinations_for_subject/' + classSubjectID + '?for_view=1',
         method: 'GET',
         success: function(examResponse) {
             loader.update(100, "Finalizing interface...");
             setTimeout(() => {
             if (examResponse.success && examResponse.examinations && examResponse.examinations.length > 0) {
-                // Show exam selector and filter options
+                const headerYearIds = (examResponse.header_academic_year_ids || []).map(Number).filter(Boolean);
+                const headerYearId = examResponse.header_academic_yearID || (headerYearIds[0] || null);
+                const headerYearLabel = examResponse.header_academic_year_label || '—';
+                window.currentViewIsALevel = !!(examResponse.is_a_level);
+                window.currentResultClassName = examResponse.class_name || mainClassName;
+                window.currentViewHeaderYearId = headerYearId;
+                window.currentViewHeaderYearIds = headerYearIds;
+
+                // Prefer server list as-is for view (already scoped). Only soft-filter if year ids present on exam.
+                let exams = examResponse.examinations;
+                if (headerYearIds.length) {
+                    const filtered = exams.filter(function(e) {
+                        const ids = (e.academic_year_ids || []).map(Number).filter(Boolean);
+                        if (ids.length) {
+                            return ids.some(function(id) { return headerYearIds.indexOf(id) !== -1; });
+                        }
+                        if (e.academic_yearID) {
+                            return headerYearIds.indexOf(Number(e.academic_yearID)) !== -1;
+                        }
+                        // Keep exams that may only be linked via saved results / missing year meta
+                        return true;
+                    });
+                    exams = filtered.length ? filtered : exams;
+                }
+
+                window.viewModalExams = exams;
+                window.viewModalAllExams = examResponse.examinations;
+                // Needed for weekly/monthly test week UI when viewing (Add Results also uses this cache)
+                window.examDataCache = window.examDataCache || {};
+                exams.forEach(function(exam) {
+                    if (exam && exam.examID) {
+                        window.examDataCache[exam.examID] = exam;
+                    }
+                });
+
                 let html = `
                     <div class="row mb-3">
                         <div class="col-md-3">
-                            <label><i class="bi bi-calendar-event"></i> Year:</label>
-                            <select class="form-control" id="view_year_filter" onchange="filterViewResultsOptions(${classSubjectID})">
-                                <option value="">All Years</option>
-                                ${getUniqueYears(examResponse.examinations)}
-                            </select>
+                            <label><i class="bi bi-calendar-event"></i> Academic Year:</label>
+                            <input type="text" class="form-control" id="view_year_display" value="${headerYearLabel}" readonly
+                                   style="background:#f8f9fa; font-weight:600; cursor:default;">
                         </div>
                         <div class="col-md-3">
                             <label><i class="bi bi-clock-history"></i> Term:</label>
@@ -1395,8 +1722,8 @@ function viewResults(classSubjectID) {
                         <div class="col-md-4">
                             <label><i class="bi bi-file-earmark-text"></i> Examination:</label>
                             <select class="form-control" id="examSelector" onchange="handleViewResultsExamSelection(${classSubjectID}, this.value)">
-                                <option value="">All Examinations</option>
-                                ${generateExamOptions(examResponse.examinations)}
+                                <option value="">Select Examination</option>
+                                ${generateExamOptions(exams, true)}
                             </select>
                         </div>
                          <div class="col-md-2 d-flex align-items-end">
@@ -1413,14 +1740,14 @@ function viewResults(classSubjectID) {
                             <option value="">All Weeks</option>
                         </select>
                     </div>
-                    <div id="resultsContent"></div>
+                    <div id="resultsContent">
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle"></i> Select an examination to view results.
+                        </div>
+                    </div>
                 `;
 
-                // Store all exams for filtering
-                window.viewModalExams = examResponse.examinations;
-
                 jQuery('#resultsModalBody').html(html);
-                loadResultsForExam(classSubjectID, '');
             } else {
                 jQuery('#resultsModalBody').html('<div class="alert alert-info">No examinations found for this subject.</div>');
             }
@@ -1437,15 +1764,49 @@ function viewResults(classSubjectID) {
     });
 }
 
+function resolveViewExamData(examID) {
+    if (!examID) return null;
+    if (window.examDataCache && window.examDataCache[examID]) {
+        return window.examDataCache[examID];
+    }
+    const fromList = (window.viewModalExams || []).find(function(e) {
+        return String(e.examID) === String(examID);
+    });
+    if (fromList) {
+        window.examDataCache = window.examDataCache || {};
+        window.examDataCache[examID] = fromList;
+        return fromList;
+    }
+    return null;
+}
+
+function isWeeklyOrMonthlyTestExam(examData) {
+    if (!examData || examData.exam_category !== 'test') return false;
+    const t = (examData.test_type || examData.exam_type || '').toLowerCase();
+    const name = (examData.exam_name || '').toLowerCase();
+    if (t === 'weekly_test' || t === 'monthly_test' || t === 'weekly' || t === 'monthly') return true;
+    return name.indexOf('weekly') !== -1 || name.indexOf('monthly') !== -1;
+}
+
+function isMonthlyTestExam(examData) {
+    if (!examData) return false;
+    const t = (examData.test_type || examData.exam_type || '').toLowerCase();
+    const name = (examData.exam_name || '').toLowerCase();
+    if (t === 'monthly_test' || t === 'monthly') return true;
+    return name.indexOf('monthly') !== -1;
+}
+
 function handleViewResultsExamSelection(classSubjectID, examID) {
     if (!examID) {
         jQuery('#view_test_week_group').hide();
-        loadResultsForExam(classSubjectID, '');
+        jQuery('#resultsContent').html(
+            '<div class="alert alert-info mb-0"><i class="bi bi-info-circle"></i> Select an examination to view results.</div>'
+        );
         return;
     }
 
-    const examData = window.examDataCache && window.examDataCache[examID];
-    if (examData && examData.exam_category === 'test') {
+    const examData = resolveViewExamData(examID);
+    if (isWeeklyOrMonthlyTestExam(examData)) {
         jQuery('#view_test_week_group').show();
         const $weekSelect = jQuery('#view_test_week');
         $weekSelect.empty().append('<option value="">All Periods</option>');
@@ -1453,7 +1814,7 @@ function handleViewResultsExamSelection(classSubjectID, examID) {
         const today = new Date();
         const currentYear = today.getFullYear();
 
-        if (examData.test_type === 'monthly_test') {
+        if (isMonthlyTestExam(examData)) {
             const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
             for (let i = 0; i < 12; i++) {
                 const periodVal = `Month of ${months[i]} ${currentYear}`;
@@ -1489,24 +1850,63 @@ function handleViewResultsExamSelection(classSubjectID, examID) {
         }
     } else {
         jQuery('#view_test_week_group').hide();
+        jQuery('#view_test_week').val('');
     }
 
     loadResultsForExam(classSubjectID, examID);
 }
 
 function loadResultsForExam(classSubjectID, examID, testWeek = null) {
-    let url = examID ? `/get_subject_results/${classSubjectID}/${examID}` : `/get_subject_results/${classSubjectID}`;
+    if (!examID) {
+        jQuery('#resultsContent').html(
+            '<div class="alert alert-info mb-0"><i class="bi bi-info-circle"></i> Select an examination to view results.</div>'
+        );
+        return;
+    }
+
+    let url = `/get_subject_results/${classSubjectID}/${examID}`;
     const data = {};
     if (testWeek) data.test_week = testWeek;
 
-    jQuery('#resultsContent').html('<div class="text-center"><div class="spinner-border text-primary-custom" role="status"></div></div>');
+    const loader = showPremiumLoading(
+        'resultsContent',
+        "Loading Student Results...",
+        "Fetching marks and grades for this examination..."
+    );
 
     jQuery.ajax({
         url: url,
         method: 'GET',
         data: data,
         success: function(response) {
+            loader.update(100, "Formatting student data...");
+            setTimeout(() => {
             if (response.success && response.results) {
+                if (response.class_name) {
+                    window.currentResultClassName = response.class_name;
+                    window.currentViewMainClass = response.class_name;
+                }
+                if (response.is_a_level !== undefined) {
+                    window.currentResultIsALevel = !!response.is_a_level;
+                }
+
+                if (response.available_test_weeks && response.available_test_weeks.length && jQuery('#view_test_week_group').is(':visible')) {
+                    const $weekSelect = jQuery('#view_test_week');
+                    const current = $weekSelect.val() || '';
+                    (response.available_test_weeks || []).forEach(function(w) {
+                        if (!w) return;
+                        if ($weekSelect.find('option').filter(function() { return jQuery(this).val() === w; }).length === 0) {
+                            $weekSelect.append(jQuery('<option></option>').attr('value', w).text(w));
+                        }
+                    });
+                    if (current) $weekSelect.val(current);
+                }
+
+                if (response.is_duo && response.duo_papers && response.duo_papers.length) {
+                    jQuery('#resultsContent').html(buildDuoResultsViewTable(response));
+                    return;
+                }
+
                 const baseUrl = '{{ asset("") }}';
                 let html = `
                     <div class="table-responsive">
@@ -1516,7 +1916,7 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
                                     <th>#</th>
                                     <th>Photo</th>
                                     <th>Student Name</th>
-                                    <th>Admission No.</th>
+                                    <th>Index No.</th>
                                     <th>Examination</th>
                                     ${response.has_ca ? '<th>Exam Marks</th><th>CA</th><th>Total</th><th>Avg</th>' : '<th>Marks</th>'}
                                     <th>Grade</th>
@@ -1530,7 +1930,6 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
                     const student = result.student || {};
                     const studentName = (student.first_name || '') + ' ' + (student.middle_name || '') + ' ' + (student.last_name || '');
 
-                    // Add red alarm icon if student has health conditions
                     let healthAlarmIcon = '';
                     if ((student.is_disabled && student.is_disabled == 1) ||
                         (student.has_epilepsy && student.has_epilepsy == 1) ||
@@ -1538,7 +1937,6 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
                         healthAlarmIcon = ' <i class="bi bi-exclamation-triangle-fill text-danger" title="Health Condition Alert"></i>';
                     }
 
-                    // Get student photo or default based on gender
                     let photoUrl = '';
                     if (student.photo) {
                         photoUrl = baseUrl + 'userImages/' + student.photo;
@@ -1549,7 +1947,6 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
                     }
                     const fallbackPhoto = student.gender === 'Female' ? baseUrl + 'images/female.png' : baseUrl + 'images/male.png';
 
-                    // Handle marks, grade, and remark
                     const examMarksValue = result.exam_marks !== undefined ? result.exam_marks : result.marks;
                     const marks = examMarksValue !== null && examMarksValue !== '' ? examMarksValue : null;
                     const caValue = response.has_ca ? (result.ca_marks !== undefined ? result.ca_marks : 0) : null;
@@ -1558,13 +1955,11 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
                     let grade = result.grade || '';
                     let remark = result.remark || '';
 
-                    // If marks not filled, show Incomplete
                     if (marks === null) {
                         grade = 'Incomplete';
                         remark = 'Incomplete';
                     }
 
-                    // Get grade cell class for styling
                     const gradeClass = getGradeCellClass(grade);
 
                     let marksColumnHtml = '';
@@ -1592,7 +1987,7 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
                                      onerror="this.src='${fallbackPhoto}'">
                             </td>
                             <td>${studentName || 'N/A'}${healthAlarmIcon}</td>
-                            <td>${student.admission_number || 'N/A'}</td>
+                            <td>${student.examination_number || result.examination_number || student.admission_number || 'N/A'}</td>
                             <td>
                                 ${result.examination ? result.examination.exam_name : 'N/A'}
                                 ${result.test_week ? `<br><small class="badge badge-info">${result.test_week}</small>` : ''}
@@ -1604,6 +1999,11 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
                     `;
                 });
 
+                if (!response.results.length) {
+                    const colSpan = response.has_ca ? 11 : 8;
+                    html += `<tr><td colspan="${colSpan}" class="text-center text-muted">No results found for this examination.</td></tr>`;
+                }
+
                 html += `
                             </tbody>
                         </table>
@@ -1614,6 +2014,7 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
             } else {
                 jQuery('#resultsContent').html('<div class="alert alert-info">No results found.</div>');
             }
+            }, 400);
         },
         error: function(xhr) {
             jQuery('#resultsContent').html('<div class="alert alert-danger">Error loading results.</div>');
@@ -1621,48 +2022,140 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
     });
 }
 
+function buildDuoResultsViewTable(response) {
+    const baseUrl = '{{ asset("") }}';
+    const papers = response.duo_papers || [];
+    const paperMaxTotal = response.paper_max_total || papers.reduce((s, p) => s + (Number(p.max_marks) || 0), 0);
+
+    let paperHeaders = papers.map(p =>
+        `<th>${p.component_name}${p.max_marks ? `<br><small>(/${p.max_marks})</small>` : ''}</th>`
+    ).join('');
+
+    let html = `
+        <div class="mb-2">
+            <small class="text-muted">
+                <i class="bi bi-info-circle"></i> Duo total =
+                student paper marks ÷ ${paperMaxTotal} (all papers max) × 100 → grade
+            </small>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="bg-primary-custom text-white">
+                    <tr>
+                        <th>#</th>
+                        <th>Photo</th>
+                        <th>Student Name</th>
+                        <th>Index No.</th>
+                        ${paperHeaders}
+                        <th>Total</th>
+                        <th>Grade</th>
+                        <th>Remark</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    if (!response.results.length) {
+        html += `<tr><td colspan="${6 + papers.length}" class="text-center text-muted">No results found for this examination.</td></tr>`;
+    }
+
+    response.results.forEach(function(result, index) {
+        const student = result.student || {};
+        const studentName = ((student.first_name || '') + ' ' + (student.middle_name || '') + ' ' + (student.last_name || '')).trim();
+        let photoUrl = student.photo
+            ? baseUrl + 'userImages/' + student.photo
+            : (student.gender === 'Female' ? baseUrl + 'images/female.png' : baseUrl + 'images/male.png');
+        const fallbackPhoto = student.gender === 'Female' ? baseUrl + 'images/female.png' : baseUrl + 'images/male.png';
+
+        const paperMarks = result.paper_marks || {};
+        let paperCells = papers.map(function(p) {
+            const cid = p.componentID;
+            const m = paperMarks[cid] !== undefined ? paperMarks[cid]
+                : (paperMarks[String(cid)] !== undefined ? paperMarks[String(cid)] : null);
+            return `<td><strong>${m !== null && m !== undefined ? m : '<span class="text-muted">-</span>'}</strong></td>`;
+        }).join('');
+
+        const totalPct = result.percentage !== null && result.percentage !== undefined
+            ? result.percentage
+            : null;
+        const rawTotal = result.student_raw_total;
+        const grade = result.grade || 'Incomplete';
+        const remark = result.remark || 'Incomplete';
+        const gradeClass = getGradeCellClass(grade);
+
+        html += `
+            <tr>
+                <td>${index + 1}</td>
+                <td>
+                    <img src="${photoUrl}" alt="Student Photo" class="rounded-circle"
+                         style="width: 50px; height: 50px; object-fit: cover; border: 2px solid #940000; cursor: pointer;"
+                         onclick="showStudentPhoto('${photoUrl.replace(/'/g, "\\'")}', '${studentName.replace(/'/g, "\\'")}')"
+                         onerror="this.src='${fallbackPhoto}'">
+                </td>
+                <td>${studentName || 'N/A'}</td>
+                <td>${student.examination_number || result.examination_number || student.admission_number || 'N/A'}</td>
+                ${paperCells}
+                <td>
+                    <strong>${totalPct !== null ? totalPct : '<span class="text-muted">-</span>'}</strong>
+                    ${rawTotal !== null && rawTotal !== undefined ? `<br><small class="text-muted">${rawTotal}/${paperMaxTotal}</small>` : ''}
+                </td>
+                <td><span class="badge ${gradeClass}" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;">${grade}</span></td>
+                <td>${remark}</td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table></div>`;
+    return html;
+}
+
 // Helper: Get Unique Years from exams
 function getUniqueYears(exams) {
-    let years = [...new Set(exams.map(e => e.year))];
-    years.sort((a, b) => b - a);
+    let years = [...new Set(exams.map(e => e.year_label || e.year))];
+    years.sort();
     return years.map(y => `<option value="${y}">${y}</option>`).join('');
 }
 
 // Helper: Generate Exam Options
-function generateExamOptions(exams) {
-    return exams
-        .filter(e => e.enter_result === true || e.enter_result === 1)
-        .map(e => `<option value="${e.examID}" data-year="${e.year}" data-term="${e.term}">${e.exam_name} (${e.year})</option>`)
+// forView=true → show all exams (including entry closed); Add Results keeps enter_result only
+function generateExamOptions(exams, forView = false) {
+    return (exams || [])
+        .filter(function(e) {
+            if (forView) return true;
+            return e.enter_result === true || e.enter_result === 1;
+        })
+        .map(function(e) {
+            const open = e.enter_result === true || e.enter_result === 1;
+            const closedTag = forView && !open ? ' — entry closed' : '';
+            return `<option value="${e.examID}" data-year="${e.year}" data-term="${e.term}">${e.exam_name} (${e.year_label || e.year})${closedTag}</option>`;
+        })
         .join('');
 }
 
-// Helper: Filter Exam Selector based on Year/Term
+// Helper: Filter Exam Selector based on Term (year locked to header)
+// Exams with term all_terms / empty always remain visible for any term filter.
+function examMatchesViewTerm(exam, term) {
+    if (!term) return true;
+    const t = (exam && exam.term) ? String(exam.term).toLowerCase() : '';
+    if (!t || t === 'all_terms' || t === 'all' || t === 'both') return true;
+    return t === String(term).toLowerCase();
+}
+
 function filterViewResultsOptions(classSubjectID) {
-    const year = jQuery('#view_year_filter').val();
     const term = jQuery('#view_term_filter').val();
     const selector = jQuery('#examSelector');
-    
-    selector.find('option').each(function() {
-        const opt = jQuery(this);
-        if (!opt.val()) return; // Skip "All"
-        
-        const optYear = opt.data('year');
-        const optTerm = opt.data('term');
-        
-        let show = true;
-        if (year && optYear != year) show = false;
-        if (term && optTerm != term) show = false;
-        
-        if (show) opt.show(); else opt.hide();
-    });
-    
-    // Reset selection if hidden
-    if (selector.find('option:selected').css('display') === 'none') {
-        selector.val('');
+    const exams = window.viewModalExams || [];
+
+    let filtered = exams;
+    if (term) {
+        filtered = filtered.filter(function(e) { return examMatchesViewTerm(e, term); });
     }
-    
-    // Trigger result reload
-    handleViewResultsExamSelection(classSubjectID, selector.val());
+
+    selector.html('<option value="">Select Examination</option>' + generateExamOptions(filtered, true));
+    jQuery('#view_test_week_group').hide();
+    jQuery('#resultsContent').html(
+        '<div class="alert alert-info mb-0"><i class="bi bi-info-circle"></i> Select an examination to view results.</div>'
+    );
 }
 
 // PDF Export Logic (jsPDF)
@@ -1726,186 +2219,14 @@ function exportResultsToPDF(classSubjectID) {
 
 // Removed checkExamStatusForAddEdit function - now only checking enter_result
 
-// Edit Results
+// Edit Results — reuse duo-aware Add Results flow
 function editResults(classSubjectID) {
-    jQuery('#addEditResultsModalLabel').html('<i class="bi bi-pencil-square"></i> Edit Results');
-    jQuery('#addEditResultsModal').modal('show');
-    const loader = showPremiumLoading('addEditResultsModalBody', "Checking Access...", "Verifying result-entry permissions for examinations...");
-
-    // Clear exam data cache when opening modal
-    window.examDataCache = {};
-    resetQuestionData();
-
-    // First check if there are any examinations with enter_result = true
-    jQuery.ajax({
-        url: '/get_examinations_for_subject/' + classSubjectID,
-        method: 'GET',
-        success: function(examsResponse) {
-            loader.update(40, "Verifying status...");
-            // Check if there are any examinations with enter_result = true
-            let hasEnterResultEnabled = false;
-            if (examsResponse.success && examsResponse.examinations && examsResponse.examinations.length > 0) {
-                hasEnterResultEnabled = examsResponse.examinations.some(function(exam) {
-                    return exam.enter_result === true || exam.enter_result === 1;
-                });
-            }
-
-            if (!hasEnterResultEnabled) {
-                jQuery('#addEditResultsModal').modal('hide');
-                Swal.fire({
-                    title: 'Access Denied!',
-                    text: 'You are not allowed to edit results. Result entry has been disabled for all examinations.',
-                    icon: 'error',
-                    confirmButtonColor: '#940000'
-                });
-                return;
-            }
-
-            // Get students, examinations, and existing results
-            loader.update(60, "Fetching students...");
-            jQuery.ajax({
-                url: '/get_subject_students/' + classSubjectID,
-                method: 'GET',
-                success: function(studentsResponse) {
-                    loader.update(80, "Fetching existing marks...");
-                    // Get all results for this subject
-                    jQuery.ajax({
-                        url: '/get_subject_results/' + classSubjectID,
-                        method: 'GET',
-                        success: function(resultsResponse) {
-                            loader.update(100, "Formatting interface...");
-                            setTimeout(() => {
-                            let html = `
-                                <form id="resultsForm">
-                                    <input type="hidden" id="class_subject_id" value="${classSubjectID}">
-                                    <div class="form-group">
-                                        <label>Select Examination <span class="text-danger">*</span></label>
-                                        <select class="form-control" id="exam_id" name="exam_id" required onchange="handleExamSelection(${classSubjectID}, this.value)">
-                                            <option value="">Select Examination</option>
-                            `;
-
-                            // Store exam data globally for use in handleExamSelection
-                            window.examDataCache = window.examDataCache || {};
-
-                            if (examsResponse.success && examsResponse.examinations) {
-                                examsResponse.examinations.forEach(function(exam) {
-                                    // Only show examinations where enter_result is true
-                                    if (exam.enter_result === true || exam.enter_result === 1) {
-                                        // Store exam data in cache
-                                        window.examDataCache[exam.examID] = exam;
-
-                                        const statusText = exam.status === 'awaiting_results' ? ' (Awaiting Results)' :
-                                                          exam.status === 'ongoing' ? ' (Ongoing)' : ' (Results Available)';
-                                        const termClosedText = exam.is_term_closed ? ' (Term Closed - Not Editable)' : '';
-                                        const disabledAttr = exam.is_term_closed ? 'disabled style="background-color: #f0f0f0; color: #999;"' : '';
-                                        html += `<option value="${exam.examID}" data-status="${exam.status}" data-term-closed="${exam.is_term_closed}" data-enter-result="${exam.enter_result}" ${disabledAttr}>${exam.exam_name} (${exam.year})${statusText}${termClosedText}</option>`;
-                                    }
-                                });
-                            }
-
-                            html += `
-                                        </select>
-                                        <small class="text-muted d-block mt-2">
-                                            <i class="bi bi-info-circle"></i> Only examinations with "Enter Result" enabled can be edited.
-                                        </small>
-                                    </div>
-                                    ${isSecondarySchool ? `
-                                        <div class="alert alert-warning mt-3">
-                                            <i class="bi bi-exclamation-triangle"></i>
-                                            Question-based results are enabled. Excel import/export is disabled.
-                                        </div>
-                                    ` : `
-                                        <div class="alert alert-info mt-3">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <i class="bi bi-file-earmark-excel"></i>
-                                                    <strong>Excel Import/Export:</strong> Download template, fill in results, then upload.
-                                                </div>
-                                                <div>
-                                                    <button type="button" class="btn btn-sm btn-outline-info" onclick="fillRandomPrimaryResults()" id="fillRandomBtn" disabled>
-                                                        <i class="bi bi-dice-5"></i> Fill Random
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-success" onclick="downloadExcelTemplate(${classSubjectID})" id="downloadExcelBtn" disabled>
-                                                        <i class="bi bi-download"></i> Download Excel Template
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-primary" onclick="showUploadExcelModal(${classSubjectID})" id="uploadExcelBtn" disabled>
-                                                        <i class="bi bi-upload"></i> Upload Excel
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `}
-                                    <div class="table-responsive mt-3">
-                                        <table class="table table-hover">
-                                            <thead class="bg-primary-custom text-white">
-                                                <tr>
-                                                    <th>#</th>
-                                                    <th>Student Name</th>
-                                                    <th>Admission No.</th>
-                                                    <th class="text-center questions-column-header" style="${isSecondarySchool ? '' : 'display:none;'}"><i class="bi bi-list-check"></i></th>
-                                                    <th>Marks</th>
-                                                    <th>Grade</th>
-                                                    <th>Remark</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="resultsTableBody">
-                            `;
-
-                            if (studentsResponse.success && studentsResponse.students) {
-                                html += buildResultStudentRowsHtml(studentsResponse.students, isSecondarySchool, questionColspan);
-                            } else {
-                                html += `<tr><td colspan="${questionColspan}" class="text-center text-muted">No enrolled students for the selected academic year.</td></tr>`;
-                            }
-
-                            html += `
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-primary-custom">
-                                            <i class="bi bi-check-circle"></i> Update Results
-                                        </button>
-                                    </div>
-                                </form>
-                            `;
-
-                                jQuery('#addEditResultsModalBody').html(html);
-                                }, 400); // end of setTimeout
-                            },
-                        error: function(xhr) {
-                            Swal.fire({
-                                title: 'Error!',
-                                text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load results',
-                                icon: 'error',
-                                confirmButtonColor: '#940000'
-                            });
-                        }
-                    });
-                },
-                error: function(xhr) {
-                    if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.error_code === 'no_active_enrollments') {
-                        handleNoActiveEnrollments(xhr);
-                        return;
-                    }
-                    Swal.fire({
-                        title: 'Error!',
-                        text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load students',
-                        icon: 'error',
-                        confirmButtonColor: '#940000'
-                    });
-                }
-            });
-        },
-        error: function(xhr) {
-            Swal.fire({
-                title: 'Error!',
-                text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to load examinations',
-                icon: 'error',
-                confirmButtonColor: '#940000'
-            });
-        }
-    });
+    const item = jQuery(`.subject-item`).has(`[onclick*="editResults(${classSubjectID})"]`).first();
+    if (item.length) {
+        window.currentResultClassName = item.data('main-class') || '';
+        window.currentResultIsALevel = isALevelClassName(window.currentResultClassName);
+    }
+    addResults(classSubjectID, true);
 }
 
 function loadExistingResults(classSubjectID, examID, testWeek = null) {
@@ -1917,6 +2238,8 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
 
     const data = {};
     if (testWeek) data.test_week = testWeek;
+    const componentID = jQuery('#component_id').val() || window.selectedComponentID || '';
+    if (componentID) data.componentID = componentID;
 
     jQuery.ajax({
         url: `/get_subject_results/${classSubjectID}/${examID}`,
@@ -1924,6 +2247,13 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
         data: data,
         success: function(response) {
             if (response.success && response.results) {
+                if (response.class_name) {
+                    window.currentResultClassName = response.class_name;
+                }
+                if (response.is_a_level !== undefined) {
+                    window.currentResultIsALevel = !!response.is_a_level;
+                }
+
                 // Clear all inputs first, scoped to the results table
                 jQuery('#resultsTableBody .marks-input, #resultsTableBody .grade-input, #resultsTableBody .remark-input').val('');
 
@@ -1987,6 +2317,21 @@ function autoCalculateGrade(studentID, $row = null) {
     const remarkInput = $targetRow.find(`.remark-input[data-student="${studentID}"]`);
 
     const marks = marksInput.val();
+    const marksMax = getResultMarksMax();
+    marksInput.attr('max', marksMax);
+
+    // Duo subjects: no A/B — live pass/fail bullet vs paper max only
+    if (isDuoResultMode()) {
+        gradeInput.val('');
+        remarkInput.val('');
+        if (marks !== '' && marks !== null && !isNaN(marks) && parseFloat(marks) > marksMax) {
+            marksInput.val(marksMax);
+            updateDuoMarksIndicator(studentID, marksMax, $targetRow);
+            return;
+        }
+        updateDuoMarksIndicator(studentID, marks, $targetRow);
+        return;
+    }
 
     if (marks && marks !== '' && !isNaN(marks)) {
         const result = calculateGradeAndRemark(marks);
@@ -1998,20 +2343,132 @@ function autoCalculateGrade(studentID, $row = null) {
     }
 }
 
-// Add Results
+// View duo papers + teachers on a subject card
+function viewDuoPapers(payload) {
+    const subject = (payload && payload.subject) ? payload.subject : 'Subject';
+    const papers = (payload && payload.papers) ? payload.papers : [];
+    let rows = '';
+    if (!papers.length) {
+        rows = '<tr><td colspan="3" class="text-center text-muted">No papers found.</td></tr>';
+    } else {
+        papers.forEach(function(p, i) {
+            const me = p.is_me ? ' <span class="badge badge-success" style="border-radius:0;">You</span>' : '';
+            rows += `<tr>
+                <td>${i + 1}</td>
+                <td><strong>${p.component_name || 'Paper'}</strong>${p.max_marks ? ' <small class="text-muted">(' + p.max_marks + ' marks)</small>' : ''}</td>
+                <td>${p.teacher_name || 'Not assigned'}${me}</td>
+            </tr>`;
+        });
+    }
+    Swal.fire({
+        title: subject + ' — Papers',
+        html: `<div class="table-responsive text-left">
+            <table class="table table-sm table-bordered mb-0">
+                <thead class="thead-light">
+                    <tr><th>#</th><th>Paper</th><th>Teacher</th></tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`,
+        width: 560,
+        confirmButtonColor: '#940000',
+        confirmButtonText: 'Close'
+    });
+}
+
+// Add Results — for duo subjects, pick paper BEFORE exam
 function addResults(classSubjectID, isEdit = false) {
     const modalTitle = isEdit ? 'Edit Results' : 'Add Results';
+    const item = jQuery(`.subject-item`).has(`[onclick*="addResults(${classSubjectID})"], [onclick*="editResults(${classSubjectID})"]`).first();
+    if (item.length) {
+        window.currentResultClassName = item.data('main-class') || '';
+        window.currentResultIsALevel = isALevelClassName(window.currentResultClassName);
+    }
+
     jQuery('#addEditResultsModalLabel').html(`<i class="bi bi-${isEdit ? 'pencil' : 'plus-circle'}"></i> ${modalTitle}`);
     jQuery('#addEditResultsModal').modal('show');
-    
-    // Show Premium Progress Bar
-    const loader = showPremiumLoading('addEditResultsModalBody', "Preparing Details...", "Fetching student lists and examinations...");
 
-    // Clear exam data cache when opening modal
+    const loader = showPremiumLoading('addEditResultsModalBody', "Preparing Details...", "Checking assigned papers...");
     window.examDataCache = {};
     resetQuestionData();
+    window.selectedComponentID = null;
+    window.duoPaperContext = null;
 
-    // Get students and examinations for this subject
+    jQuery.ajax({
+        url: '/get_class_subject_papers/' + classSubjectID,
+        method: 'GET',
+        success: function(paperResponse) {
+            loader.update(40, "Loading papers...");
+            const isDuo = !!(paperResponse && paperResponse.success && paperResponse.is_duo);
+            const myPapers = (paperResponse && paperResponse.my_papers) ? paperResponse.my_papers : [];
+
+            if (isDuo && myPapers.length > 0) {
+                let paperOptions = '<option value="">Select paper...</option>';
+                myPapers.forEach(function(p) {
+                    if (!p.componentID) return;
+                    paperOptions += `<option value="${p.componentID}" data-max-marks="${p.max_marks || 0}">${p.component_name}${p.max_marks ? ' (' + p.max_marks + ' marks)' : ''}</option>`;
+                });
+
+                const paperHtml = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-layers"></i>
+                        <strong>${paperResponse.subject_name || 'Subject'}</strong> is a DUO subject.
+                        Select your assigned paper before choosing an examination.
+                        <br><small>Marks max = that paper's marks. No A/B here — only Pass/Fail colour vs paper total.</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Select Paper <span class="text-danger">*</span></label>
+                        <select class="form-control" id="component_id_picker">
+                            ${paperOptions}
+                        </select>
+                        <small class="text-muted d-block mt-2">Only papers assigned to you are listed.</small>
+                    </div>
+                    <div id="duoResultsContinueArea"></div>
+                `;
+                jQuery('#addEditResultsModalBody').html(paperHtml);
+
+                jQuery('#component_id_picker').off('change').on('change', function() {
+                    const componentID = jQuery(this).val();
+                    window.selectedComponentID = componentID || null;
+                    if (!componentID) {
+                        window.duoPaperContext = null;
+                        jQuery('#duoResultsContinueArea').html('');
+                        return;
+                    }
+                    const $opt = jQuery(this).find('option:selected');
+                    const paperName = $opt.text();
+                    const maxMarks = parseInt($opt.data('max-marks'), 10) || 0;
+                    window.duoPaperContext = {
+                        isDuo: true,
+                        componentID: componentID,
+                        maxMarks: maxMarks > 0 ? maxMarks : 100,
+                        paperName: paperName
+                    };
+                    loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, '#duoResultsContinueArea');
+                });
+                return;
+            }
+
+            // Non-duo or no paper list — existing flow
+            window.duoPaperContext = null;
+            loadAddResultsExamForm(classSubjectID, isEdit, null, null, '#addEditResultsModalBody');
+        },
+        error: function() {
+            // Fallback if papers endpoint fails
+            window.duoPaperContext = null;
+            loadAddResultsExamForm(classSubjectID, isEdit, null, null, '#addEditResultsModalBody');
+        }
+    });
+}
+
+function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, targetSelector) {
+    const $target = jQuery(targetSelector || '#addEditResultsModalBody');
+    const loader = showPremiumLoading(
+        targetSelector === '#duoResultsContinueArea' ? 'duoResultsContinueArea' : 'addEditResultsModalBody',
+        "Preparing Details...",
+        "Fetching student lists and examinations..."
+    );
+
     jQuery.ajax({
         url: '/get_subject_students/' + classSubjectID,
         method: 'GET',
@@ -2022,33 +2479,44 @@ function addResults(classSubjectID, isEdit = false) {
                 method: 'GET',
                 success: function(examsResponse) {
                     loader.update(100, "Finalizing interface...");
-                    
-                    // Small delay to let user see 100%
+                    if (examsResponse.class_name) {
+                        window.currentResultClassName = examsResponse.class_name;
+                    }
+                    if (examsResponse.is_a_level !== undefined) {
+                        window.currentResultIsALevel = !!examsResponse.is_a_level;
+                    }
+
                     setTimeout(() => {
+                    const paperBanner = componentID ? `
+                        <div class="alert alert-success py-2">
+                            <i class="bi bi-check-circle"></i> Entering results for paper:
+                            <strong>${paperName || ('#' + componentID)}</strong>
+                            ${isDuoResultMode() ? ` &nbsp;|&nbsp; <strong>Max marks: ${getResultMarksMax()}</strong> <small class="text-muted">(no A/B — Pass/Fail colour only)</small>` : ''}
+                        </div>` : '';
+
                     let html = `
                         <form id="resultsForm">
                             <input type="hidden" id="class_subject_id" value="${classSubjectID}">
+                            <input type="hidden" id="component_id" name="component_id" value="${componentID || ''}">
+                            ${paperBanner}
                             <div class="form-group">
                                 <label>Select Examination <span class="text-danger">*</span></label>
                                 <select class="form-control" id="exam_id" name="exam_id" required onchange="handleExamSelection(${classSubjectID}, this.value)">
                                     <option value="">Select Examination</option>
                     `;
 
-                    // Store exam data globally for use in handleExamSelection
                     window.examDataCache = window.examDataCache || {};
 
                     if (examsResponse.success && examsResponse.examinations) {
                         examsResponse.examinations.forEach(function(exam) {
-                            // Only show examinations where enter_result is true
                             if (exam.enter_result === true || exam.enter_result === 1) {
-                                // Store exam data in cache
                                 window.examDataCache[exam.examID] = exam;
 
                                 const statusText = exam.status === 'awaiting_results' ? ' (Awaiting Results)' :
                                                   exam.status === 'ongoing' ? ' (Ongoing)' : ' (Results Available)';
                                 const termClosedText = exam.is_term_closed ? ' (Term Closed - Not Editable)' : '';
                                 const disabledAttr = exam.is_term_closed ? 'disabled style="background-color: #f0f0f0; color: #999;"' : '';
-                                html += `<option value="${exam.examID}" data-status="${exam.status}" data-term-closed="${exam.is_term_closed}" data-enter-result="${exam.enter_result}" ${disabledAttr}>${exam.exam_name} (${exam.year})${statusText}${termClosedText}</option>`;
+                                html += `<option value="${exam.examID}" data-status="${exam.status}" data-term-closed="${exam.is_term_closed}" data-enter-result="${exam.enter_result}" ${disabledAttr}>${exam.exam_name} (${exam.year_label || exam.year})${statusText}${termClosedText}</option>`;
                             }
                         });
                     }
@@ -2059,13 +2527,10 @@ function addResults(classSubjectID, isEdit = false) {
                                     <i class="bi bi-info-circle"></i> Only examinations with "Enter Result" enabled can be used.
                                 </small>
                             </div>
-                            <!-- Auto-selected Week Display -->
                             <div id="test_week_display_group" style="display: none;" class="alert alert-info py-2 mb-3">
                                 <strong><i class="bi bi-calendar-event"></i> Recording Results for:</strong>
                                 <span id="selected_week_label" class="ml-1"></span>
                             </div>
-
-                            <!-- Week selection for Weekly Tests -->
                             <div class="form-group" id="test_week_group" style="display: none;">
                                 <label for="test_week">Select Week <span class="text-danger">*</span></label>
                                 <select class="form-control" id="test_week" name="test_week">
@@ -2109,7 +2574,7 @@ function addResults(classSubjectID, isEdit = false) {
                                         <tr>
                                             <th>#</th>
                                             <th>Student Name</th>
-                                            <th>Admission No.</th>
+                                            <th>Index No.</th>
                                              <th class="text-center questions-column-header" style="${isSecondarySchool ? '' : 'display:none;'}"><i class="bi bi-list-check"></i></th>
                                             <th>Marks</th>
                                             <th>Grade</th>
@@ -2138,8 +2603,8 @@ function addResults(classSubjectID, isEdit = false) {
                         </form>
                     `;
 
-                    jQuery('#addEditResultsModalBody').html(html);
-                    }, 400); // end of setTimeout
+                    $target.html(html);
+                    }, 400);
                 },
                 error: function(xhr) {
                     Swal.fire({
@@ -2165,6 +2630,7 @@ function addResults(classSubjectID, isEdit = false) {
         }
     });
 }
+
 
 // Form submission for results
 jQuery(document).on('submit', '#resultsForm', function(e) {
@@ -2320,11 +2786,26 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
                 autoCalculateGrade(studentID);
             }
 
+            // Duo only: paper total must not exceed that paper's max marks
+            if (isDuoResultMode()) {
+                const paperMax = getResultMarksMax();
+                if (parseFloat(total) > paperMax) {
+                    hasValidationError = true;
+                    Swal.fire({
+                        title: 'Error!',
+                        text: `Duo paper marks cannot exceed ${paperMax} (paper max) for student ${studentID}.`,
+                        icon: 'error',
+                        confirmButtonColor: '#940000'
+                    });
+                    return false;
+                }
+            }
+
             results.push({
                 studentID: studentID,
                 marks: total,
-                grade: jQuery(`.grade-input[data-student="${studentID}"]`).val() || null,
-                remark: jQuery(`.remark-input[data-student="${studentID}"]`).val() || null,
+                grade: isDuoResultMode() ? null : (jQuery(`.grade-input[data-student="${studentID}"]`).val() || null),
+                remark: isDuoResultMode() ? null : (jQuery(`.remark-input[data-student="${studentID}"]`).val() || null),
                 question_marks: questionPayload.length > 0 ? questionPayload : null
             });
         });
@@ -2334,6 +2815,7 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
         }
     } else {
         // Scope each loop to the resultsForm to avoid picking up stale DOM elements
+        let duoMarksInvalid = false;
         jQuery('#resultsForm .marks-input').each(function() {
             if (jQuery(this).data('can-enter') === 0 || jQuery(this).prop('disabled')) {
                 return; // Skip non-Active enrollments
@@ -2344,14 +2826,30 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
             const remark = jQuery(`.remark-input[data-student="${studentID}"]`).val();
 
             if (marks || grade || remark) {
+                if (isDuoResultMode() && marks !== '' && marks !== null && !isNaN(marks)) {
+                    const paperMax = getResultMarksMax();
+                    if (parseFloat(marks) > paperMax) {
+                        duoMarksInvalid = true;
+                        Swal.fire({
+                            title: 'Error!',
+                            text: `Duo paper marks cannot exceed ${paperMax} (paper max).`,
+                            icon: 'error',
+                            confirmButtonColor: '#940000'
+                        });
+                        return false;
+                    }
+                }
                 results.push({
                     studentID: studentID,
                     marks: marks || null,
-                    grade: grade || null,
-                    remark: remark || null
+                    grade: isDuoResultMode() ? null : (grade || null),
+                    remark: isDuoResultMode() ? null : (remark || null)
                 });
             }
         });
+        if (duoMarksInvalid) {
+            return;
+        }
     }
 
     if (results.length === 0) {
@@ -2379,6 +2877,7 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
         data: {
             class_subjectID: classSubjectID,
             examID: examID,
+            componentID: jQuery('#component_id').val() || window.selectedComponentID || null,
             test_week: jQuery('#test_week').val(),
             results: JSON.stringify(results) // Stringify to bypass PHP max_input_vars limit
         },
@@ -2727,8 +3226,10 @@ jQuery(document).on('input', '.question-mark-input', function() {
 
     if ($input.val() === '') {
         delete examQuestionData.marksByStudent[studentID][questionId];
+        saveMarkToCache(studentID, questionId, '');
     } else {
         examQuestionData.marksByStudent[studentID][questionId] = $input.val();
+        saveMarkToCache(studentID, questionId, $input.val());
     }
 
     updateStudentTotal(studentID);
@@ -2957,7 +3458,7 @@ function loadStudentsForElection(classSubjectID, subclassID) {
                         html += '<tr>';
                         html += '<th>#</th>';
                         html += '<th>Student Name</th>';
-                        html += '<th>Admission No</th>';
+                        html += '<th>Index No</th>';
                         html += '<th style="text-align: center;">Election</th>';
                         html += '</tr>';
                         html += '</thead>';
@@ -2968,7 +3469,7 @@ function loadStudentsForElection(classSubjectID, subclassID) {
                             html += '<tr data-student-id="' + student.studentID + '">';
                             html += '<td>' + (index + 1) + '</td>';
                             html += '<td>' + student.first_name + ' ' + (student.middle_name ? student.middle_name + ' ' : '') + student.last_name + '</td>';
-                            html += '<td>' + (student.admission_number || 'N/A') + '</td>';
+                            html += '<td>' + (student.examination_number || student.admission_number || 'N/A') + '</td>';
                             html += '<td style="text-align: center;">';
                             if (isElected) {
                                 html += '<button class="btn btn-sm btn-danger deselect-student-btn" ';

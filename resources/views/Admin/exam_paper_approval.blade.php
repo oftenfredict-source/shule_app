@@ -239,11 +239,26 @@
                                 <td>{{ $index + 1 }}</td>
                                 <td>
                                     <div class="font-weight-bold">{{ $log->examPaper->examination->exam_name ?? 'N/A' }}</div>
-                                    <div class="small text-muted">{{ $log->examPaper->examination->year }} - {{ $log->examPaper->examination->term }}</div>
+                                    <div class="small text-muted">{{ $log->examPaper->displayYearLabel() }} - {{ $log->examPaper->examination->term }}</div>
                                 </td>
                                 <td>
-                                    <div class="text-primary-custom">{{ $log->examPaper->classSubject->subject->subject_name ?? 'N/A' }}</div>
+                                    <div class="text-primary-custom">
+                                        {{ $log->examPaper->classSubject->subject->subject_name ?? 'N/A' }}
+                                        @if(!empty($log->examPaper->componentID) && $log->examPaper->component)
+                                            <span class="badge badge-danger ml-1" style="border-radius:0;background:#940000;">
+                                                {{ $log->examPaper->component->component_name }}
+                                            </span>
+                                        @endif
+                                    </div>
                                     <div class="small text-muted">{{ ($log->examPaper->classSubject->class->class_name ?? '') }} {{ ($log->examPaper->classSubject->subclass->subclass_name ?? 'N/A') }}</div>
+                                    <div class="small text-muted">
+                                        <i class="bi bi-journal-text"></i>
+                                        {{ $log->examPaper->examination->exam_name ?? 'Exam' }}
+                                        @php $paperYearLabel = $log->examPaper->displayYearLabel(); @endphp
+                                        @if($paperYearLabel !== '')
+                                            ({{ $paperYearLabel }})
+                                        @endif
+                                    </div>
                                 </td>
                                 <td>
                                     {{ $log->examPaper->teacher->first_name ?? '' }} {{ $log->examPaper->teacher->last_name ?? '' }}
@@ -356,10 +371,15 @@
                                     <td>{{ $index + 1 }}</td>
                                     <td>
                                         <div class="font-weight-bold">{{ $log->examPaper->examination->exam_name ?? 'N/A' }}</div>
-                                        <div class="small text-muted">{{ $log->examPaper->examination->year }} - {{ $log->examPaper->examination->term }}</div>
+                                        <div class="small text-muted">{{ $log->examPaper->displayYearLabel() }} - {{ $log->examPaper->examination->term }}</div>
                                     </td>
                                     <td>
-                                        <div class="text-primary-custom">{{ $log->examPaper->classSubject->subject->subject_name ?? 'N/A' }}</div>
+                                        <div class="text-primary-custom">
+                                            {{ $log->examPaper->classSubject->subject->subject_name ?? 'N/A' }}
+                                            @if($log->examPaper->component)
+                                                <span class="badge badge-info ml-1">{{ $log->examPaper->component->component_name }}</span>
+                                            @endif
+                                        </div>
                                         <div class="small text-muted">{{ ($log->examPaper->classSubject->class->class_name ?? '') }} {{ ($log->examPaper->classSubject->subclass->subclass_name ?? 'N/A') }}</div>
                                     </td>
                                     <td>

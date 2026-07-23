@@ -535,7 +535,7 @@
                                 <option value="">All Exams</option>
                                 @if($examinations)
                                     @foreach($examinations as $exam)
-                                        <option value="{{ $exam->examID }}">{{ $exam->exam_name }} ({{ $exam->year }})</option>
+                                        <option value="{{ $exam->examID }}">{{ $exam->exam_name }} ({{ $exam->displayYearLabelAll() }})</option>
                                     @endforeach
                                 @endif
                             </select>
@@ -589,7 +589,7 @@
                                                         @if($exam->term)
                                                             - {{ ucfirst(str_replace('_', ' ', $exam->term)) }}
                                                         @endif
-                                                        ({{ $exam->year }})
+                                                        ({{ $exam->displayYearLabelAll() }})
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -659,20 +659,37 @@
                                                     $className = $subject->class->class_name ?? '';
                                                     $subclassName = $subject->subclass ? $subject->subclass->subclass_name : '';
                                                     $classDisplay = trim($className . ' ' . $subclassName);
-                                                @endphp
-                                                @php
+                                                    $isDuo = !empty($subject->is_duo_subject);
+                                                    $duoPapers = $subject->my_duo_papers ?? collect();
                                                     $subjectClassId = $subject->subclass
                                                         ? ($subject->subclass->classID ?? null)
                                                         : ($subject->classID ?? ($subject->class->classID ?? null));
+                                                    $subjectOptionLabel = $subjectName
+                                                        . ($isDuo ? ' [DUO]' : '')
+                                                        . ($classDisplay !== '' ? ' (' . $classDisplay . ')' : '');
                                                 @endphp
                                                 <option value="{{ $subject->class_subjectID }}"
                                                         data-class-id="{{ $subjectClassId }}"
                                                         data-subject-id="{{ $subject->subjectID }}"
-                                                        data-subclass-id="{{ $subject->subclass ? $subject->subclass->subclassID : '' }}">
-                                                    {{ $subjectName }}@if($classDisplay) ({{ $classDisplay }})@endif
+                                                        data-subclass-id="{{ $subject->subclass ? $subject->subclass->subclassID : '' }}"
+                                                        data-is-duo="{{ $isDuo ? '1' : '0' }}"
+                                                        data-duo-papers="{{ json_encode($duoPapers) }}">
+                                                    {{ $subjectOptionLabel }}
                                                 </option>
                                             @endforeach
                                         </select>
+                                    </div>
+                                </div>
+
+                                <div class="row" id="duo_paper_container" style="display: none;">
+                                    <div class="col-md-12 mb-3">
+                                        <label for="component_id" class="form-label">
+                                            <i class="bi bi-layers"></i> Select Duo Paper <span class="text-danger">*</span>
+                                        </label>
+                                        <select class="form-control" id="component_id" name="componentID">
+                                            <option value="">Select paper (e.g. PHY1)...</option>
+                                        </select>
+                                        <small class="form-text text-muted">Only papers assigned to you are listed.</small>
                                     </div>
                                 </div>
 
@@ -703,7 +720,7 @@
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <div>
                                                     <h6 class="mb-1 text-primary-custom">
-                                                        <i class="bi bi-list-check"></i> Question Formats & Marks (Total 100)
+                                                        <i class="bi bi-list-check"></i> Question Formats & Marks (Total <span class="format-expected-total-label">100</span>)
                                                     </h6>
                                                     <button type="button" class="btn btn-sm btn-outline-primary add-optional-range" data-target="#question-rows-main">
                                                         <i class="bi bi-plus-circle"></i> Add optional range
@@ -714,11 +731,11 @@
                                                 </button>
                                             </div>
                                             <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-main"></div>
-                                            <div id="question-rows-main"></div>
+                                            <div id="question-rows-main" data-expected-total="100"></div>
 
                                             <div class="mt-2 text-muted small">
                                                 <small class="text-muted">
-                                                    Total Marks: <span class="total-marks" data-total-for="#question-rows-main">0</span>/100
+                                                    Total Marks: <span class="total-marks" data-total-for="#question-rows-main">0</span>/<span class="format-total-max" data-total-for="#question-rows-main">100</span>
                                                 </small>
                                                 <div class="text-danger small mt-1 marks-warning d-none" data-warning-for="#question-rows-main"></div>
                                             </div>
@@ -772,7 +789,14 @@
                                         <h6 class="mb-2" style="font-weight: bold;">
                                             <i class="bi bi-journal-bookmark text-primary-custom"></i>
                                             {{ $slot->examination->exam_name }}
-                                            <small class="text-muted">({{ $slot->examination->year }})</small>
+                                            @php
+                                                $slotClassName = $slot->classSubject->class->class_name
+                                                    ?? optional(optional($slot->classSubject->subclass)->class)->class_name;
+                                                $slotYearLabel = $slot->examination
+                                                    ? $slot->examination->displayYearLabelForClass($slotClassName)
+                                                    : '';
+                                            @endphp
+                                            <small class="text-muted">({{ $slotYearLabel }})</small>
                                         </h6>
 
                                         <!-- Subject -->
@@ -845,11 +869,14 @@
                             $status      = $paper->status;
                             $examName    = e($paper->examination->exam_name ?? 'N/A');
                             $subjectName = e($paper->classSubject->subject->subject_name ?? 'N/A');
+                            if ($paper->component) {
+                                $subjectName .= ' <span class="badge badge-info">' . e($paper->component->component_name) . '</span>';
+                            }
                             $uploadType  = e(ucfirst($paper->upload_type));
                             $paperId     = $paper->exam_paperID;
                             $examId      = $paper->examID;
                             $term        = e($paper->examination->term ?? '');
-                            $year        = e($paper->examination->year ?? '');
+                            $year        = e($paper->displayYearLabel());
                             $testWeek    = e($paper->test_week ?? '');
                             $testDate    = $paper->test_date ? \Carbon\Carbon::parse($paper->test_date)->format('M d, Y') : '';
                             $submitDate  = $paper->created_at->format('M d, Y H:i');
@@ -1028,7 +1055,7 @@
                                         @if($exam->term)
                                             - {{ ucfirst(str_replace('_', ' ', $exam->term)) }}
                                         @endif
-                                        ({{ $exam->year }})
+                                        ({{ $exam->displayYearLabelAll() }})
                                     </option>
                                 @endforeach
                             </select>
@@ -1055,20 +1082,32 @@
                                     $className = $subject->class->class_name ?? '';
                                     $subclassName = $subject->subclass ? $subject->subclass->subclass_name : '';
                                     $classDisplay = trim($className . ' ' . $subclassName);
-                                @endphp
-                                @php
+                                    $isDuo = !empty($subject->is_duo_subject);
+                                    $duoPapers = $subject->my_duo_papers ?? collect();
                                     $subjectClassId = $subject->subclass
                                         ? ($subject->subclass->classID ?? null)
                                         : ($subject->classID ?? ($subject->class->classID ?? null));
+                                    $subjectOptionLabel = $subjectName
+                                        . ($isDuo ? ' [DUO]' : '')
+                                        . ($classDisplay !== '' ? ' (' . $classDisplay . ')' : '');
                                 @endphp
                                 <option value="{{ $subject->class_subjectID }}"
                                         data-class-id="{{ $subjectClassId }}"
                                         data-subject-id="{{ $subject->subjectID }}"
-                                        data-subclass-id="{{ $subject->subclass ? $subject->subclass->subclassID : '' }}">
-                                    {{ $subjectName }}@if($classDisplay) ({{ $classDisplay }})@endif
+                                        data-subclass-id="{{ $subject->subclass ? $subject->subclass->subclassID : '' }}"
+                                        data-is-duo="{{ $isDuo ? '1' : '0' }}"
+                                        data-duo-papers="{{ json_encode($duoPapers) }}">
+                                    {{ $subjectOptionLabel }}
                                 </option>
                             @endforeach
                         </select>
+                    </div>
+                    <div class="form-group" id="modal_duo_paper_container" style="display: none;">
+                        <label for="modal_component_id">Select Duo Paper <span class="text-danger">*</span></label>
+                        <select class="form-control" id="modal_component_id" name="componentID">
+                            <option value="">Select paper (e.g. PHY1)...</option>
+                        </select>
+                        <small class="form-text text-muted">Only papers assigned to you are listed.</small>
                     </div>
                     <div class="form-group">
                         <label for="modal_exam_file">Exam Paper File <span class="text-danger">*</span></label>
@@ -1089,7 +1128,7 @@
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <div>
                                         <h6 class="mb-1 text-primary-custom">
-                                            <i class="bi bi-list-check"></i> Question Formats & Marks (Total 100)
+                                            <i class="bi bi-list-check"></i> Question Formats & Marks (Total <span class="format-expected-total-label">100</span>)
                                         </h6>
                                         <button type="button" class="btn btn-sm btn-outline-primary add-optional-range" data-target="#question-rows-modal">
                                             <i class="bi bi-plus-circle"></i> Add optional range
@@ -1100,11 +1139,11 @@
                                     </button>
                                 </div>
                                 <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-modal"></div>
-                                <div id="question-rows-modal"></div>
+                                <div id="question-rows-modal" data-expected-total="100"></div>
 
                                 <div class="mt-2 text-muted small">
                                     <small class="text-muted">
-                                        Total Marks: <span class="total-marks" data-total-for="#question-rows-modal">0</span>/100
+                                        Total Marks: <span class="total-marks" data-total-for="#question-rows-modal">0</span>/<span class="format-total-max" data-total-for="#question-rows-modal">100</span>
                                     </small>
                                     <div class="text-danger small mt-1 marks-warning d-none" data-warning-for="#question-rows-modal"></div>
                                 </div>
@@ -1149,7 +1188,7 @@
                                 <option value="">Select Examination</option>
                                 @foreach($examinations as $exam)
                                     <option value="{{ $exam->examID }}" data-allow-no-format="{{ $exam->allow_no_format ? '1' : '0' }}">
-                                        {{ $exam->exam_name }} ({{ $exam->year }})
+                                        {{ $exam->exam_name }} ({{ $exam->displayYearLabelAll() }})
                                     </option>
                                 @endforeach
                             </select>
@@ -1234,7 +1273,7 @@
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div>
                                         <h6 class="mb-1 text-primary-custom">
-                                            <i class="bi bi-list-check"></i> Question Formats & Marks (Total 100)
+                                            <i class="bi bi-list-check"></i> Question Formats & Marks (Total <span class="format-expected-total-label">100</span>)
                                         </h6>
                                         <button type="button" class="btn btn-sm btn-outline-primary add-optional-range" data-target="#question-rows-edit-unified">
                                             <i class="bi bi-plus-circle"></i> Add optional range
@@ -1245,10 +1284,10 @@
                                     </button>
                                 </div>
                                 <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-edit-unified"></div>
-                                <div id="question-rows-edit-unified"></div>
+                                <div id="question-rows-edit-unified" data-expected-total="100"></div>
                                 <div class="mt-3 border-top pt-2">
                                     <small class="text-muted">
-                                        Total Marks: <span class="total-marks" id="edit_total_marks_display" data-total-for="#question-rows-edit-unified">0</span>/100
+                                        Total Marks: <span class="total-marks" id="edit_total_marks_display" data-total-for="#question-rows-edit-unified">0</span>/<span class="format-total-max" data-total-for="#question-rows-edit-unified">100</span>
                                     </small>
                                     <div class="text-danger small mt-1 marks-warning d-none" data-warning-for="#question-rows-edit-unified" id="edit_marks_warning"></div>
                                 </div>
@@ -1301,7 +1340,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div>
                                     <h6 class="mb-1 text-primary-custom">
-                                        <i class="bi bi-list-check"></i> Question Formats & Marks (Total 100)
+                                        <i class="bi bi-list-check"></i> Question Formats & Marks (Total <span class="format-expected-total-label">100</span>)
                                     </h6>
                                     <button type="button" class="btn btn-sm btn-outline-primary add-optional-range" data-target="#question-rows-edit">
                                         <i class="bi bi-plus-circle"></i> Add optional range
@@ -1312,10 +1351,10 @@
                                 </button>
                             </div>
                             <div class="optional-ranges-wrapper" data-wrapper-for="#question-rows-edit"></div>
-                            <div id="question-rows-edit"></div>
+                            <div id="question-rows-edit" data-expected-total="100"></div>
                             <div class="mt-2">
                                 <small class="text-muted">
-                                    Total Marks: <span class="total-marks" data-total-for="#question-rows-edit">0</span>/100
+                                    Total Marks: <span class="total-marks" data-total-for="#question-rows-edit">0</span>/<span class="format-total-max" data-total-for="#question-rows-edit">100</span>
                                 </small>
                                 <div class="text-danger small mt-1 marks-warning d-none" data-warning-for="#question-rows-edit"></div>
                             </div>
@@ -1449,8 +1488,51 @@ jQuery(document).ready(function($) {
     let existingExamPapers = [];
     const isSecondarySchool = @json(strtolower($schoolType ?? 'Secondary')) === 'secondary';
 
+    function getExpectedFormatTotal(targetId) {
+        const id = targetId && String(targetId).startsWith('#') ? targetId : `#${targetId || ''}`;
+        const $container = $(id);
+        const fromData = parseInt($container.data('expected-total'), 10);
+        if (!isNaN(fromData) && fromData > 0) {
+            return fromData;
+        }
+        return 100;
+    }
+
+    function setExpectedFormatTotal(targetId, total) {
+        const id = targetId && String(targetId).startsWith('#') ? targetId : `#${targetId}`;
+        const expected = Math.max(1, parseInt(total, 10) || 100);
+        const $container = $(id);
+        $container.attr('data-expected-total', expected).data('expected-total', expected);
+
+        const $card = $container.closest('.card');
+        $card.find('.format-expected-total-label').text(expected);
+        $(`.format-total-max[data-total-for="${id}"]`).text(expected);
+        $container.find('.question-marks').attr('max', expected);
+        $(`.optional-ranges-wrapper[data-wrapper-for="${id}"] .optional-total-input`).attr('max', Math.max(1, expected - 1));
+        if ($container.find('.question-row').length) {
+            updateTotalMarks($container);
+        }
+    }
+
+    function resolveUploadExpectedTotal(isModal) {
+        const $paperSelect = isModal ? $('#modal_component_id') : $('#component_id');
+        if ($paperSelect.length && $paperSelect.is(':visible') && $paperSelect.val()) {
+            const max = parseInt($paperSelect.find('option:selected').data('max-marks'), 10);
+            if (!isNaN(max) && max > 0) {
+                return max;
+            }
+        }
+        return 100;
+    }
+
+    function syncUploadFormatTotal(isModal) {
+        const target = isModal ? '#question-rows-modal' : '#question-rows-main';
+        setExpectedFormatTotal(target, resolveUploadExpectedTotal(isModal));
+    }
+
     function buildQuestionRow(targetId) {
         const optionalOptions = buildOptionalRangeOptions(targetId);
+        const expectedTotal = getExpectedFormatTotal(targetId);
         return `
             <div class="form-row align-items-end question-row">
                 <div class="col-md-1 mb-2">
@@ -1463,7 +1545,7 @@ jQuery(document).ready(function($) {
                 </div>
                 <div class="col-md-3 mb-2">
                     <label class="form-label">Marks</label>
-                    <input type="number" class="form-control question-marks" name="question_marks[]" min="1" max="100" required>
+                    <input type="number" class="form-control question-marks" name="question_marks[]" min="1" max="${expectedTotal}" required>
                 </div>
                 <div class="col-md-1 mb-2">
                     <label class="form-label">Opt</label>
@@ -1519,6 +1601,7 @@ jQuery(document).ready(function($) {
 
     function updateTotalMarks($container) {
         const targetId = '#' + $container.attr('id');
+        const expectedTotal = getExpectedFormatTotal(targetId);
         const $totalEl = $(`.total-marks[data-total-for="${targetId}"]`);
         const $warningEl = $(`.marks-warning[data-warning-for="${targetId}"]`);
         const optionalTotals = getOptionalTotals(targetId);
@@ -1539,10 +1622,11 @@ jQuery(document).ready(function($) {
 
         const requiredTotal = total;
         const optionalTotalSum = Object.values(optionalTotals).reduce((sum, val) => sum + val, 0);
-        const requiredMax = 100 - optionalTotalSum;
+        const requiredMax = expectedTotal - optionalTotalSum;
         const overallTotal = requiredTotal + optionalTotalSum;
 
         $totalEl.text(overallTotal);
+        $(`.format-total-max[data-total-for="${targetId}"]`).text(expectedTotal);
 
         const optionalRangeMismatch = Object.keys(optionalTotals).some(function(range) {
             const rangeTotal = optionalTotals[range];
@@ -1550,16 +1634,16 @@ jQuery(document).ready(function($) {
             return sum < rangeTotal;
         });
 
-        if (optionalTotalSum > 100) {
-            $warningEl.text('Optional range totals exceed 100. Reduce optional totals.').removeClass('d-none');
+        if (optionalTotalSum > expectedTotal) {
+            $warningEl.text(`Optional range totals exceed ${expectedTotal}. Reduce optional totals.`).removeClass('d-none');
         } else if (optionalRangeMismatch) {
             $warningEl.text('Optional range total is less than the range total marks.').removeClass('d-none');
         } else if (requiredTotal > requiredMax) {
             $warningEl.text('Required questions exceed allowed total. Reduce required marks.').removeClass('d-none');
-        } else if (overallTotal > 100) {
-            $warningEl.text('Marks exceed 100. Please reduce marks.').removeClass('d-none');
-        } else if (overallTotal < 100) {
-            $warningEl.text('Marks are less than 100. Add questions or update marks.').removeClass('d-none');
+        } else if (overallTotal > expectedTotal) {
+            $warningEl.text(`Marks exceed ${expectedTotal}. Please reduce marks.`).removeClass('d-none');
+        } else if (overallTotal < expectedTotal) {
+            $warningEl.text(`Marks are less than ${expectedTotal}. Add questions or update marks.`).removeClass('d-none');
         } else {
             $warningEl.addClass('d-none').text('');
         }
@@ -1607,12 +1691,13 @@ jQuery(document).ready(function($) {
         const $wrapper = $(`.optional-ranges-wrapper[data-wrapper-for="${targetId}"]`);
         const existing = $wrapper.find('.optional-range-item').length;
         const rangeNumber = existing + 1;
+        const expectedTotal = getExpectedFormatTotal(targetId);
         const html = `
             <div class="form-row align-items-end mb-2 optional-range-item" data-wrapper-for="${targetId}" data-range-number="${rangeNumber}">
                 <div class="col-md-4">
                     <label class="form-label">Optional Range ${rangeNumber} Total Marks</label>
-                    <input type="number" class="form-control optional-total-input" min="1" max="100" placeholder="e.g. 45">
-                    <div class="text-danger small optional-total-error d-none">Optional totals exceed 100.</div>
+                    <input type="number" class="form-control optional-total-input" min="1" max="${Math.max(1, expectedTotal - 1)}" placeholder="e.g. 45">
+                    <div class="text-danger small optional-total-error d-none">Optional totals exceed ${expectedTotal}.</div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Required Questions</label>
@@ -1620,7 +1705,7 @@ jQuery(document).ready(function($) {
                     <div class="text-danger small optional-required-error d-none">Required count exceeds optional questions.</div>
                 </div>
                 <div class="col-md-4">
-                    <small class="text-muted">Questions in Opt ${rangeNumber} can exceed this total, but only this value counts toward 100.</small>
+                    <small class="text-muted">Questions in Opt ${rangeNumber} can exceed this total, but only this value counts toward ${expectedTotal}.</small>
                 </div>
                 <div class="col-md-1 text-right">
                     <button type="button" class="btn btn-sm btn-danger remove-optional-range" title="Remove">
@@ -1684,6 +1769,28 @@ jQuery(document).ready(function($) {
         }
     }
 
+    function parseDuoPapersFromOption($option) {
+        let papers = $option.attr('data-duo-papers');
+        try {
+            papers = papers ? JSON.parse(papers) : [];
+        } catch (e) {
+            papers = [];
+        }
+        return Array.isArray(papers) ? papers : [];
+    }
+
+    function isPaperAlreadyUploaded(classSubjectID, componentID) {
+        return existingExamPapers.some(function(paper) {
+            if (String(paper.class_subjectID) !== String(classSubjectID) || paper.status === 'rejected') {
+                return false;
+            }
+            if (componentID === null || componentID === undefined || componentID === '') {
+                return !paper.componentID;
+            }
+            return String(paper.componentID) === String(componentID);
+        });
+    }
+
     function applyExistingUploadStatus(selectId) {
         const $select = $(selectId);
         $select.find('option').each(function(index) {
@@ -1697,17 +1804,45 @@ jQuery(document).ready(function($) {
             }
 
             const classSubjectID = String($option.val());
-            const already = existingExamPapers.find(paper => String(paper.class_subjectID) === classSubjectID && paper.status !== 'rejected');
+            const isDuo = $option.data('is-duo') == 1 || $option.data('is-duo') === true;
+            const duoPapers = parseDuoPapersFromOption($option);
             const allowed = $option.data('allowed') !== false;
 
-            if (already) {
-                $option.text(`${originalText} - Already uploaded`);
-                $option.prop('disabled', true).addClass('text-muted');
+            if (isDuo && duoPapers.length) {
+                const uploadedCount = duoPapers.filter(function(p) {
+                    return isPaperAlreadyUploaded(classSubjectID, p.componentID);
+                }).length;
+                const allDone = uploadedCount === duoPapers.length;
+
+                if (allDone) {
+                    $option.text(`${originalText} - All papers uploaded`);
+                    $option.prop('disabled', true).addClass('text-muted');
+                } else if (uploadedCount > 0) {
+                    $option.text(`${originalText} - ${uploadedCount}/${duoPapers.length} papers uploaded`);
+                    $option.removeClass('text-muted');
+                    if (allowed && !$option.prop('hidden')) {
+                        $option.prop('disabled', false);
+                    }
+                } else {
+                    $option.text(originalText);
+                    $option.removeClass('text-muted');
+                    if (allowed && !$option.prop('hidden')) {
+                        $option.prop('disabled', false);
+                    }
+                }
             } else {
-                $option.text(originalText);
-                $option.removeClass('text-muted');
-                if (allowed && !$option.prop('hidden')) {
-                    $option.prop('disabled', false);
+                const already = isPaperAlreadyUploaded(classSubjectID, null)
+                    || existingExamPapers.find(paper => String(paper.class_subjectID) === classSubjectID && paper.status !== 'rejected');
+
+                if (already) {
+                    $option.text(`${originalText} - Already uploaded`);
+                    $option.prop('disabled', true).addClass('text-muted');
+                } else {
+                    $option.text(originalText);
+                    $option.removeClass('text-muted');
+                    if (allowed && !$option.prop('hidden')) {
+                        $option.prop('disabled', false);
+                    }
                 }
             }
         });
@@ -1715,6 +1850,13 @@ jQuery(document).ready(function($) {
         const selectedOption = $select.find('option:selected');
         if (selectedOption.length && selectedOption.prop('disabled')) {
             $select.val('');
+        }
+
+        // Refresh duo paper options if a subject is currently selected
+        if ($select.is('#class_subject') || $select.is('#test_subject')) {
+            updateDuoPaperSelect(false);
+        } else if ($select.is('#modal_class_subject')) {
+            updateDuoPaperSelect(true);
         }
     }
 
@@ -1970,7 +2112,7 @@ jQuery(document).ready(function($) {
 
                                     let subjectExists = false;
                                     subjectResponse.subjects.forEach(function(subject) {
-                                        $subjectSelect.append(`<option value="${subject.class_subjectID}">${subject.subject_name} - ${subject.class_display}</option>`);
+                                        appendScheduledSubjectOption($subjectSelect, subject);
                                         if (subject.class_subjectID == selectedSubject) subjectExists = true;
                                     });
 
@@ -1981,6 +2123,7 @@ jQuery(document).ready(function($) {
                                         $subjectSelect.append(`<option value="${selectedSubject}">${fullSubjectDisplay}</option>`);
                                         $subjectSelect.val(selectedSubject);
                                     }
+                                    updateDuoPaperSelect(false);
                                 }
                             }
                         });
@@ -2027,6 +2170,8 @@ jQuery(document).ready(function($) {
             $('#test_period').html('<option value="">Select Period</option>');
             $('#test_subject').html('<option value="">Select a period first</option>');
         }
+
+        updateDuoPaperSelect(false);
 
         const allowNoFormat = $(this).find('option:selected').data('allow-no-format') == '1';
         if (allowNoFormat) {
@@ -2091,6 +2236,25 @@ jQuery(document).ready(function($) {
     }
 
     // Function to load scheduled subjects for a specific test period
+    function appendScheduledSubjectOption($subjectSelect, subject) {
+        const duoLabel = subject.is_duo ? ' [DUO]' : '';
+        const classLabel = subject.class_display || subject.class_name || '';
+        const dayTime = (subject.day || subject.time)
+            ? ` - ${subject.day || ''} ${subject.time || ''}`.trim()
+            : '';
+        const label = classLabel
+            ? `${subject.subject_name}${duoLabel} (${classLabel})${dayTime}`
+            : `${subject.subject_name}${duoLabel}${dayTime}`;
+
+        const $opt = $('<option></option>')
+            .val(subject.class_subjectID)
+            .text(label)
+            .attr('data-subject-id', subject.subjectID || '')
+            .attr('data-is-duo', subject.is_duo ? '1' : '0')
+            .attr('data-duo-papers', JSON.stringify(subject.duo_papers || []));
+        $subjectSelect.append($opt);
+    }
+
     function loadScheduledSubjects(examID, testWeek) {
         $.ajax({
             url: '/get_scheduled_subjects',
@@ -2108,9 +2272,10 @@ jQuery(document).ready(function($) {
                         $subjectSelect.html('<option value="">No subjects scheduled for this period</option>');
                     } else {
                         response.subjects.forEach(function(subject) {
-                            $subjectSelect.append(`<option value="${subject.class_subjectID}">${subject.subject_name} (${subject.class_name}) - ${subject.day} ${subject.time}</option>`);
+                            appendScheduledSubjectOption($subjectSelect, subject);
                         });
                     }
+                    updateDuoPaperSelect(false);
                 }
             },
             error: function(xhr) {
@@ -2135,10 +2300,59 @@ jQuery(document).ready(function($) {
 
     $('#class_subject').on('change', function() {
         refreshExistingUploadOptions(false);
+        updateDuoPaperSelect(false);
+    });
+
+    $('#test_subject').on('change', function() {
+        updateDuoPaperSelect(false);
     });
 
     $('#modal_class_subject').on('change', function() {
         refreshExistingUploadOptions(true);
+        updateDuoPaperSelect(true);
+    });
+
+    function updateDuoPaperSelect(isModal) {
+        const isTestMode = !isModal && $('#test_fields_container').is(':visible');
+        const $subjectSelect = isModal
+            ? $('#modal_class_subject')
+            : (isTestMode ? $('#test_subject') : $('#class_subject'));
+        const $paperWrap = isModal ? $('#modal_duo_paper_container') : $('#duo_paper_container');
+        const $paperSelect = isModal ? $('#modal_component_id') : $('#component_id');
+        const $opt = $subjectSelect.find('option:selected');
+        const classSubjectID = $opt.val();
+        const isDuo = $opt.data('is-duo') == 1 || $opt.data('is-duo') === true;
+        const papers = parseDuoPapersFromOption($opt);
+
+        $paperSelect.empty().append('<option value="">Select paper (e.g. PHY1)...</option>');
+        if (isDuo && papers.length) {
+            papers.forEach(function(p) {
+                const marks = p.max_marks ? ' (' + p.max_marks + ' marks)' : '';
+                const already = classSubjectID && isPaperAlreadyUploaded(classSubjectID, p.componentID);
+                const label = already
+                    ? `${p.component_name}${marks} - Already uploaded`
+                    : `${p.component_name}${marks}`;
+                const $paperOpt = $(`<option value="${p.componentID}" data-max-marks="${p.max_marks || 100}">${label}</option>`);
+                if (already) {
+                    $paperOpt.prop('disabled', true);
+                }
+                $paperSelect.append($paperOpt);
+            });
+            $paperWrap.show();
+            $paperSelect.prop('required', true);
+        } else {
+            $paperWrap.hide();
+            $paperSelect.prop('required', false).val('');
+        }
+        syncUploadFormatTotal(isModal);
+    }
+
+    $(document).on('change', '#component_id', function() {
+        syncUploadFormatTotal(false);
+    });
+
+    $(document).on('change', '#modal_component_id', function() {
+        syncUploadFormatTotal(true);
     });
 
     function toggleFileRequirement(isModal, useExisting) {
@@ -2225,6 +2439,20 @@ jQuery(document).ready(function($) {
             return;
         }
 
+        const $subjectSelect = isModal
+            ? $('#modal_class_subject')
+            : (isTestMode ? $('#test_subject') : $('#class_subject'));
+        const $selectedOpt = $subjectSelect.find('option:selected');
+        const isDuo = $selectedOpt.data('is-duo') == 1 || $selectedOpt.data('is-duo') === true;
+        const componentID = isModal
+            ? $('#modal_component_id').val()
+            : $('#component_id').val();
+
+        if (isDuo && !componentID) {
+            Swal.fire('Error', 'Please select which duo paper you are uploading (e.g. PHY1).', 'error');
+            return;
+        }
+
         const fileInput = isModal ? $('#modal_exam_file')[0] : $('#exam_file')[0];
         if (!existingUploadId && fileInput.files.length === 0) {
             Swal.fire('Error', 'Please select a file to upload', 'error');
@@ -2243,6 +2471,7 @@ jQuery(document).ready(function($) {
                 return parseInt($(this).val(), 10);
             }).get();
             const targetId = isModal ? '#question-rows-modal' : '#question-rows-main';
+            const expectedTotal = getExpectedFormatTotal(targetId);
             const optionalTotals = getOptionalTotals(targetId);
             const optionalRequiredCounts = getOptionalRequiredCounts(targetId);
 
@@ -2302,13 +2531,13 @@ jQuery(document).ready(function($) {
                 return;
             }
 
-            if (requiredTotal > (100 - optionalTotalSum)) {
+            if (requiredTotal > (expectedTotal - optionalTotalSum)) {
                 Swal.fire('Error', 'Required questions exceed allowed total', 'error');
                 return;
             }
 
-            if ((requiredTotal + optionalTotalSum) !== 100) {
-                Swal.fire('Error', 'Required total + optional totals must be exactly 100', 'error');
+            if ((requiredTotal + optionalTotalSum) !== expectedTotal) {
+                Swal.fire('Error', `Required total + optional totals must be exactly ${expectedTotal}`, 'error');
                 return;
             }
         }
@@ -2316,6 +2545,9 @@ jQuery(document).ready(function($) {
         const formData = new FormData();
         formData.append('examID', examID);
         formData.append('class_subjectID', classSubjectID);
+        if (componentID) {
+            formData.append('componentID', componentID);
+        }
         formData.append('upload_type', 'upload');
         if (fileInput.files.length > 0) {
             formData.append('file', fileInput.files[0]);
@@ -2546,6 +2778,7 @@ jQuery(document).ready(function($) {
                     const $rangeWrapper = $('.optional-ranges-wrapper[data-wrapper-for="#question-rows-edit-unified"]');
                     $container.empty();
                     $rangeWrapper.empty();
+                    setExpectedFormatTotal('#question-rows-edit-unified', response.paper_max_marks || 100);
 
                     // 1. First add all optional ranges if any
                     if (response.optional_ranges && response.optional_ranges.length > 0) {
@@ -2609,6 +2842,7 @@ jQuery(document).ready(function($) {
         if ($('#edit_question-format-container').is(':visible')) {
             const $container = $('#question-rows-edit-unified');
             const targetId = '#question-rows-edit-unified';
+            const expectedTotal = getExpectedFormatTotal(targetId);
             
             const descriptions = $container.find('.question-description').map(function() { return $(this).val().trim(); }).get();
             const marks = $container.find('.question-marks').map(function() { return $(this).val(); }).get();
@@ -2618,6 +2852,33 @@ jQuery(document).ready(function($) {
             
             const optionalTotals = getOptionalTotals(targetId);
             const optionalRequiredCounts = getOptionalRequiredCounts(targetId);
+
+            let requiredTotal = 0;
+            let optionalSumByRange = {};
+            for (let i = 0; i < marks.length; i++) {
+                const markValue = parseInt(marks[i], 10);
+                if (isNaN(markValue) || markValue <= 0) {
+                    Swal.fire('Error', 'Please enter valid marks for each question', 'error');
+                    return;
+                }
+                if (optionals[i] > 0) {
+                    optionalSumByRange[optionals[i]] = (optionalSumByRange[optionals[i]] || 0) + markValue;
+                } else {
+                    requiredTotal += markValue;
+                }
+            }
+            const optionalTotalSum = Object.values(optionalTotals).reduce((sum, val) => sum + val, 0);
+            const optionalRangeMismatch = Object.keys(optionalTotals).some(function(range) {
+                return (optionalSumByRange[range] || 0) < optionalTotals[range];
+            });
+            if (optionalRangeMismatch) {
+                Swal.fire('Error', 'Optional range total must be at least the range total marks', 'error');
+                return;
+            }
+            if (requiredTotal > (expectedTotal - optionalTotalSum) || (requiredTotal + optionalTotalSum) !== expectedTotal) {
+                Swal.fire('Error', `Required total + optional totals must be exactly ${expectedTotal}`, 'error');
+                return;
+            }
 
             // Append Arrays to FormData
             descriptions.forEach(function(d) { formData.append('question_descriptions[]', d); });
@@ -2862,6 +3123,8 @@ jQuery(document).ready(function($) {
                             return;
                         }
 
+                        setExpectedFormatTotal('#question-rows-edit', response.paper_max_marks || 100);
+
                         const ranges = response.optional_ranges || [];
                         ranges.forEach(function(range) {
                             addOptionalRange('#question-rows-edit');
@@ -2905,6 +3168,7 @@ jQuery(document).ready(function($) {
         }).get();
         const optionalTotals = getOptionalTotals('#question-rows-edit');
         const optionalRequiredCounts = getOptionalRequiredCounts('#question-rows-edit');
+        const expectedTotal = getExpectedFormatTotal('#question-rows-edit');
 
         if (descriptions.length === 0) {
             Swal.fire('Error', 'Please add at least one question format', 'error');
@@ -2944,13 +3208,13 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        if (requiredTotal > (100 - optionalTotalSum)) {
+        if (requiredTotal > (expectedTotal - optionalTotalSum)) {
             Swal.fire('Error', 'Required questions exceed allowed total', 'error');
             return;
         }
 
-        if ((requiredTotal + optionalTotalSum) !== 100) {
-            Swal.fire('Error', 'Required total + optional totals must be exactly 100', 'error');
+        if ((requiredTotal + optionalTotalSum) !== expectedTotal) {
+            Swal.fire('Error', `Required total + optional totals must be exactly ${expectedTotal}`, 'error');
             return;
         }
 
@@ -3036,11 +3300,14 @@ jQuery(document).ready(function($) {
     $(document).on('input', '.optional-total-input', function() {
         const $wrapper = $(this).closest('.optional-range-item');
         const target = $wrapper.data('wrapper-for');
+        const expectedTotal = getExpectedFormatTotal(target);
         const optionalTotals = getOptionalTotals(target);
         const optionalTotalSum = Object.values(optionalTotals).reduce((sum, val) => sum + val, 0);
-        const hasError = optionalTotalSum > 100;
+        const hasError = optionalTotalSum > expectedTotal;
 
-        $(`.optional-range-item[data-wrapper-for="${target}"] .optional-total-error`).toggleClass('d-none', !hasError);
+        $(`.optional-range-item[data-wrapper-for="${target}"] .optional-total-error`)
+            .text(`Optional totals exceed ${expectedTotal}.`)
+            .toggleClass('d-none', !hasError);
         $(`.optional-range-item[data-wrapper-for="${target}"] .optional-total-input`).toggleClass('is-invalid', hasError);
         updateTotalMarks($(target));
     });
@@ -3087,7 +3354,8 @@ jQuery(document).ready(function($) {
         refreshOptionalRangeSelects(target);
         const optionalTotals = getOptionalTotals(target);
         const optionalTotalSum = Object.values(optionalTotals).reduce((sum, val) => sum + val, 0);
-        const hasError = optionalTotalSum > 100;
+        const expectedTotal = getExpectedFormatTotal(target);
+        const hasError = optionalTotalSum > expectedTotal;
         $(`.optional-range-item[data-wrapper-for="${target}"] .optional-total-error`).toggleClass('d-none', !hasError);
         $(`.optional-range-item[data-wrapper-for="${target}"] .optional-total-input`).toggleClass('is-invalid', hasError);
         updateTotalMarks($(target));

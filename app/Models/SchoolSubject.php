@@ -17,10 +17,12 @@ class SchoolSubject extends Model
         'subject_name',
         'subject_code',
         'status',
+        'is_duo',
     ];
 
     protected $casts = [
         'status' => 'string',
+        'is_duo' => 'boolean',
     ];
 
     // Relationships
@@ -37,5 +39,13 @@ class SchoolSubject extends Model
     public function departments()
     {
         return $this->belongsToMany(Department::class, 'department_subjects', 'subjectID', 'departmentID');
+    }
+
+    /** A-Level multi-paper parts e.g. PHY1, PHY2, PHY3 */
+    public function components()
+    {
+        return $this->hasMany(SchoolSubjectComponent::class, 'subjectID', 'subjectID')
+            ->orderBy('sort_order')
+            ->orderBy('componentID');
     }
 }
