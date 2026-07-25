@@ -5741,12 +5741,20 @@ class ManageStudentController extends Controller
 
         $spreadsheet->setActiveSheetIndex(0);
 
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $fileName = 'Student_Upload_Template.xlsx';
-        $tempPath = storage_path('app/public/' . $fileName);
-        $writer->save($tempPath);
 
-        return response()->download($tempPath)->deleteFileAfterSend(true);
+        // Stream directly — avoids Permission denied on storage/app/public
+        return response()->streamDownload(
+            function () use ($spreadsheet) {
+                $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+                $writer->save('php://output');
+            },
+            $fileName,
+            [
+                'Content-Type' =>
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ],
+        );
     }
 
     public function uploadStudents(Request $request)
