@@ -3388,97 +3388,19 @@ $(function() {
         days.forEach(function(day) {
             // Regular sessions
             $(`#sessions-${classIndex}-${day} .session-form-row`).each(function() {
-                const row = $(this);
-                const subjectID = row.find('.session-subject').val();
-                const sessionTypeID = row.find('.session-type-select').val();
-                const sessionTypeName = row.find('.session-type-select option:selected').text().toLowerCase();
-                const isFreeSession = sessionTypeName.includes('free');
-                const startTime = row.find('.session-start-time').val();
-                const endTime = row.find('.session-end-time').val();
-                const teacherID = row.find('.session-teacher-id').val();
-
-                // For free sessions, subject and teacher are not required
-                if (isFreeSession) {
-                    if (sessionTypeID && startTime && endTime) {
-                        timetables.push({
-                            subclassID: subclassID,
-                            class_subjectID: null,
-                            subjectID: null,
-                            teacherID: null,
-                            session_typeID: sessionTypeID,
-                            day: day,
-                            start_time: startTime,
-                            end_time: endTime,
-                            is_prepo: 0
-                        });
-                    } else {
-                        hasErrors = true;
-                    }
-                } else {
-                    // For non-free sessions, subject and teacher are required
-                    if (subjectID && sessionTypeID && startTime && endTime && teacherID) {
-                        timetables.push({
-                            subclassID: subclassID,
-                            class_subjectID: subjectID,
-                            subjectID: null,
-                            teacherID: teacherID,
-                            session_typeID: sessionTypeID,
-                            day: day,
-                            start_time: startTime,
-                            end_time: endTime,
-                            is_prepo: 0
-                        });
-                    } else {
-                        hasErrors = true;
-                    }
+                const collected = collectSessionData($(this), subclassID, day, false);
+                if (!pushCollectedSessions(timetables, null, day, collected)) {
+                    hasErrors = true;
+                    validateSessionInputs($(this), classIndex, day);
                 }
             });
 
             // Prepo sessions
             $(`#prepo-${classIndex}-${day} .session-form-row`).each(function() {
-                const row = $(this);
-                const subjectID = row.find('.session-subject').val();
-                const sessionTypeID = row.find('.session-type-select').val();
-                const sessionTypeName = row.find('.session-type-select option:selected').text().toLowerCase();
-                const isFreeSession = sessionTypeName.includes('free');
-                const startTime = row.find('.session-start-time').val();
-                const endTime = row.find('.session-end-time').val();
-                const teacherID = row.find('.session-teacher-id').val();
-
-                // For free sessions, subject and teacher are not required
-                if (isFreeSession) {
-                    if (sessionTypeID && startTime && endTime) {
-                        timetables.push({
-                            subclassID: subclassID,
-                            class_subjectID: null,
-                            subjectID: null,
-                            teacherID: null,
-                            session_typeID: sessionTypeID,
-                            day: day,
-                            start_time: startTime,
-                            end_time: endTime,
-                            is_prepo: 1
-                        });
-                    } else {
-                        hasErrors = true;
-                    }
-                } else {
-                    // For non-free sessions, subject and teacher are required
-                    if (subjectID && sessionTypeID && startTime && endTime && teacherID) {
-                        timetables.push({
-                            subclassID: subclassID,
-                            class_subjectID: subjectID,
-                            subjectID: null,
-                            teacherID: teacherID,
-                            session_typeID: sessionTypeID,
-                            day: day,
-                            start_time: startTime,
-                            end_time: endTime,
-                            is_prepo: 1
-                        });
-                    } else {
-                        hasErrors = true;
-                    }
+                const collected = collectSessionData($(this), subclassID, day, true);
+                if (!pushCollectedSessions(timetables, null, day, collected)) {
+                    hasErrors = true;
+                    validateSessionInputs($(this), classIndex, day);
                 }
             });
         });
@@ -3656,52 +3578,96 @@ $(function() {
                     sessionTypesMap[typeID] = st;
                 });
             }
-            
-            // Load sessions for each day - use unique key to prevent duplicates
+
+            // Group parallel Optional subjects that share the same period
+            const periodGroups = {};
+            const periodOrder = [];
             sessions.forEach(function(session) {
-                // Create unique key for this session
                 const sessionKey = `${session.day}-${session.start_time}-${session.end_time}-${session.class_subjectID || session.subjectID}-${session.teacherID}-${session.is_prepo ? 'prepo' : 'regular'}`;
-                
-                // Skip if already loaded
                 if (loadedSessions.has(sessionKey)) {
-                    console.log('Skipping duplicate session:', sessionKey);
                     return;
                 }
-                
                 loadedSessions.add(sessionKey);
-                
-                const day = session.day;
-                const isPrepo = session.is_prepo == 1 || session.is_prepo === true;
-                
-                // Get session type
-                const sessionTypeID = session.session_typeID;
+
+                const periodKey = [
+                    session.day,
+                    session.start_time,
+                    session.end_time,
+                    session.session_typeID,
+                    session.is_prepo ? 1 : 0
+                ].join('|');
+
+                if (!periodGroups[periodKey]) {
+                    periodGroups[periodKey] = [];
+                    periodOrder.push(periodKey);
+                }
+                periodGroups[periodKey].push(session);
+            });
+
+            periodOrder.forEach(function(periodKey) {
+                const group = periodGroups[periodKey];
+                const first = group[0];
+                const day = first.day;
+                const isPrepo = first.is_prepo == 1 || first.is_prepo === true;
+                const sessionTypeID = first.session_typeID;
                 const sessionType = sessionTypesMap[sessionTypeID];
                 const sessionTypeName = sessionType ? (sessionType.name || sessionType.type || '').toLowerCase() : '';
                 const isFreeSession = sessionTypeName.includes('free');
-                
+
                 if (!sessionType) {
-                    console.warn('Session type not found for session:', session);
-                    return; // Skip if session type not found
+                    console.warn('Session type not found for session:', first);
+                    return;
                 }
 
-                // Get subject ID
-                const subjectID = session.class_subjectID || session.subjectID;
-                const subject = subjectsMap[subjectID];
-                
-                if (!subject && !isFreeSession) {
-                    console.warn('Subject not found for non-free session:', session);
-                    return; // Skip if subject not found and not a free session
+                const subjectEntries = [];
+                let allOptional = group.length > 0;
+
+                group.forEach(function(session) {
+                    const subjectID = session.class_subjectID || session.subjectID;
+                    const subject = subjectsMap[subjectID];
+                    if (!subject && !isFreeSession) {
+                        allOptional = false;
+                        return;
+                    }
+                    if (subject && subject.student_status !== 'Optional') {
+                        allOptional = false;
+                    }
+                    subjectEntries.push({
+                        subjectID: subjectID,
+                        teacherID: session.teacherID,
+                        teacherName: session.teacher_name || session.teacherName || ''
+                    });
+                });
+
+                // Merge into one period card only when 2+ Optional subjects share the slot
+                if (!isFreeSession && group.length > 1 && allOptional && subjectEntries.length === group.length) {
+                    const sessionCounter = Date.now() + Math.random() + Math.random();
+                    renderSessionFormWithData(classIndex, day, isPrepo, subjects, sessionTypes, definition, sessionCounter, {
+                        subjects: subjectEntries,
+                        sessionTypeID: sessionTypeID,
+                        startTime: first.start_time,
+                        endTime: first.end_time
+                    });
+                    return;
                 }
-                
-                // Add session form with data
-                const sessionCounter = Date.now() + Math.random() + Math.random(); // More unique
-                renderSessionFormWithData(classIndex, day, isPrepo, subjects, sessionTypes, definition, sessionCounter, {
-                    subjectID: subjectID,
-                    sessionTypeID: sessionTypeID,
-                    startTime: session.start_time,
-                    endTime: session.end_time,
-                    teacherID: session.teacherID,
-                    teacherName: session.teacher_name || session.teacherName || ''
+
+                // Otherwise render each session as its own card
+                group.forEach(function(session) {
+                    const subjectID = session.class_subjectID || session.subjectID;
+                    const subject = subjectsMap[subjectID];
+                    if (!subject && !isFreeSession) {
+                        console.warn('Subject not found for non-free session:', session);
+                        return;
+                    }
+                    const sessionCounter = Date.now() + Math.random() + Math.random();
+                    renderSessionFormWithData(classIndex, day, isPrepo, subjects, sessionTypes, definition, sessionCounter, {
+                        subjectID: subjectID,
+                        sessionTypeID: session.session_typeID,
+                        startTime: session.start_time,
+                        endTime: session.end_time,
+                        teacherID: session.teacherID,
+                        teacherName: session.teacher_name || session.teacherName || ''
+                    });
                 });
             });
         }, 200);
@@ -3718,13 +3684,33 @@ $(function() {
             `<option value="${st.session_typeID || st.id}" data-minutes="${st.minutes}">${st.name || st.type} (${st.minutes} min)</option>`
         ).join('');
 
-        // Note: Subjects can now be selected multiple times (no restrictions)
+        // Support single subject (legacy) or multiple optional subjects in one period
+        const subjectEntries = sessionData.subjects && sessionData.subjects.length
+            ? sessionData.subjects
+            : [{
+                subjectID: sessionData.subjectID,
+                teacherID: sessionData.teacherID,
+                teacherName: sessionData.teacherName
+            }];
 
-        const subjectOptions = subjects.length > 0 ? subjects.map(subj => {
-            const subjectID = subj.class_subjectID || subj.subjectID;
-            const selected = subjectID == sessionData.subjectID ? 'selected' : '';
-            return `<option value="${subjectID}" ${selected} data-teacher-id="${subj.teacherID || ''}" data-teacher-name="${subj.teacher_name || 'Not Assigned'}">${subj.subject_name || subj.name}</option>`;
-        }).join('') : '<option value="">No subjects available</option>';
+        let subjectPairsHtml = '';
+        if (subjects.length > 0) {
+            const selectedIds = subjectEntries.map(e => String(e.subjectID || '')).filter(Boolean);
+            subjectEntries.forEach(function(entry, idx) {
+                const excludeIds = selectedIds.filter(id => id !== String(entry.subjectID || ''));
+                subjectPairsHtml += buildSubjectPairHtml(
+                    subjects,
+                    entry.subjectID,
+                    idx > 0,
+                    excludeIds,
+                    idx > 0
+                );
+                // Prefer saved teacher name/id over subject defaults
+                // Applied after append below
+            });
+        } else {
+            subjectPairsHtml = `<div class="session-subject-pair mb-2"><select class="form-control session-subject" required><option value="">No subjects available</option></select></div>`;
+        }
 
         // Get session start/end times from definition
         const sessionStart = definition ? definition.session_start_time : '08:00';
@@ -3739,13 +3725,18 @@ $(function() {
         const sessionHtml = `
             <div class="card mb-2 session-form-row" data-session-id="${sessionCounter}" data-is-prepo="${isPrepo}">
                 <div class="card-body">
-                    <div class="row align-items-end">
-                        <div class="col-md-3">
+                    <div class="row align-items-start">
+                        <div class="col-md-4 session-subjects-col">
                             <label>Subject <span class="text-danger">*</span></label>
-                            <select class="form-control session-subject" required>
-                                <option value="">Select Subject</option>
-                                ${subjectOptions}
-                            </select>
+                            <div class="session-subject-pairs">
+                                ${subjectPairsHtml}
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary add-optional-to-period mt-1" style="display:none;">
+                                <i class="bi bi-plus-circle"></i> Add optional subject to this period
+                            </button>
+                            <small class="text-info optional-period-hint d-none d-block mt-1">
+                                <i class="bi bi-info-circle"></i> Optional subjects can share one period (e.g. Physics &amp; History).
+                            </small>
                         </div>
                         <div class="col-md-2">
                             <label>Session Type <span class="text-danger">*</span></label>
@@ -3765,15 +3756,9 @@ $(function() {
                                    value="${initialEndTime}" required>
                         </div>
                         <div class="col-md-2">
-                            <label>Teacher</label>
-                            <input type="hidden" class="session-teacher-id" value="${sessionData.teacherID || ''}">
-                            <input type="text" class="form-control session-teacher-display" readonly 
-                                   placeholder="Select subject first" value="${sessionData.teacherName || ''}">
-                            <small class="text-muted session-teacher-info"></small>
-                        </div>
-                        <div class="col-md-1">
-                            <button type="button" class="btn btn-sm btn-danger remove-session" data-class-index="${classIndex}" data-day="${day}">
-                                <i class="bi bi-trash"></i>
+                            <label>&nbsp;</label>
+                            <button type="button" class="btn btn-sm btn-danger remove-session d-block" data-class-index="${classIndex}" data-day="${day}">
+                                <i class="bi bi-trash"></i> Remove
                             </button>
                         </div>
                     </div>
@@ -3790,22 +3775,24 @@ $(function() {
 
         const sessionRow = container.find(`.session-form-row[data-session-id="${sessionCounter}"]`);
 
-        // Set selected values immediately (DOM is ready after append)
-        if (sessionData.subjectID) {
-            sessionRow.find('.session-subject').val(sessionData.subjectID);
-        }
+        // Apply saved teacher info per pair
+        sessionRow.find('.session-subject-pair').each(function(idx) {
+            const entry = subjectEntries[idx];
+            if (!entry) return;
+            if (entry.subjectID) {
+                $(this).find('.session-subject').val(entry.subjectID);
+            }
+            if (entry.teacherID) {
+                $(this).find('.session-teacher-id').val(entry.teacherID);
+            }
+            if (entry.teacherName) {
+                $(this).find('.session-teacher-display').val(entry.teacherName);
+                $(this).find('.session-teacher-info').text('Assigned to this subject');
+            }
+        });
         
         if (sessionData.sessionTypeID) {
             sessionRow.find('.session-type-select').val(sessionData.sessionTypeID);
-        }
-        
-        // Set teacher info immediately
-        if (sessionData.teacherID) {
-            sessionRow.find('.session-teacher-id').val(sessionData.teacherID);
-        }
-        if (sessionData.teacherName) {
-            sessionRow.find('.session-teacher-display').val(sessionData.teacherName);
-            sessionRow.find('.session-teacher-info').text('Assigned to this subject');
         }
         
         // Set times immediately
@@ -3826,18 +3813,20 @@ $(function() {
             const isFreeSession = sessionTypeName.includes('free');
             
             if (isFreeSession) {
-                // For free sessions, hide subject and teacher fields
-                const rowElement = sessionRow.find('.row').first();
-                const subjectCol = rowElement.children('.col-md-3').first();
-                const teacherCol = rowElement.children('.col-md-2').eq(3);
-                subjectCol.hide();
-                teacherCol.hide();
+                sessionRow.find('.session-subjects-col').hide();
                 sessionRow.find('.session-subject').removeAttr('required');
                 sessionRow.find('.session-teacher-id').removeAttr('required');
             }
             
-            if (sessionData.subjectID && !isFreeSession) {
-                sessionRow.find('.session-subject').trigger('change');
+            refreshOptionalPeriodControls(sessionRow);
+            updateAllSubjectDropdowns(classIndex);
+
+            if (!isFreeSession) {
+                sessionRow.find('.session-subject').each(function() {
+                    if ($(this).val()) {
+                        $(this).trigger('change');
+                    }
+                });
             }
             if (sessionData.sessionTypeID) {
                 sessionRow.find('.session-type-select').trigger('change');
@@ -3847,31 +3836,7 @@ $(function() {
 
     // Attach event handlers for session form
     function attachSessionEventHandlers(sessionRow, classIndex, day, isPrepo, definition) {
-        // Auto-display teacher when subject is selected
-        sessionRow.find('.session-subject').off('change').on('change', function() {
-            const selectedOption = $(this).find('option:selected');
-            const teacherID = selectedOption.data('teacher-id');
-            const teacherName = selectedOption.data('teacher-name');
-            
-            const currentSessionRow = $(this).closest('.session-form-row');
-            
-            if (teacherID && teacherName) {
-                currentSessionRow.find('.session-teacher-id').val(teacherID);
-                currentSessionRow.find('.session-teacher-display').val(teacherName);
-                currentSessionRow.find('.session-teacher-info').text('Assigned to this subject');
-                
-                const classIdx = currentSessionRow.closest('.day-timetable').data('class-index');
-                const dayName = currentSessionRow.closest('.day-timetable').data('day');
-                validateTeacherConflict(currentSessionRow, classIdx, dayName);
-            } else {
-                currentSessionRow.find('.session-teacher-id').val('');
-                currentSessionRow.find('.session-teacher-display').val('');
-                currentSessionRow.find('.session-teacher-info').text('');
-            }
-            
-            const classIdx = currentSessionRow.closest('.day-timetable').data('class-index');
-            updateAllSubjectDropdowns(classIdx);
-        });
+        bindSubjectPairEvents(sessionRow, classIndex, day);
 
         // Auto-calculate end time when session type changes
         sessionRow.find('.session-type-select').off('change').on('change', function() {
@@ -3879,29 +3844,21 @@ $(function() {
             const sessionTypeName = selectedOption.text().toLowerCase();
             const isFreeSession = sessionTypeName.includes('free');
             
-            // Show/hide subject and teacher fields based on session type
-            // Subject is in first col-md-3, Teacher is in col-md-2 after Session Type, Start Time, End Time
-            const rowElement = sessionRow.find('.row').first();
-            const subjectCol = rowElement.children('.col-md-3').first();
-            const teacherCol = rowElement.children('.col-md-2').eq(3);
+            const subjectsCol = sessionRow.find('.session-subjects-col');
             
             if (isFreeSession) {
-                // Hide subject and teacher for free sessions
-                subjectCol.hide();
-                teacherCol.hide();
-                // Remove required attribute
+                subjectsCol.hide();
                 sessionRow.find('.session-subject').removeAttr('required');
                 sessionRow.find('.session-teacher-id').removeAttr('required');
-                // Clear values
                 sessionRow.find('.session-subject').val('');
                 sessionRow.find('.session-teacher-id').val('');
                 sessionRow.find('.session-teacher-display').val('');
+                sessionRow.find('.add-optional-to-period').hide();
+                sessionRow.find('.optional-period-hint').addClass('d-none').hide();
             } else {
-                // Show subject and teacher for non-free sessions
-                subjectCol.show();
-                teacherCol.show();
-                // Add required attribute
+                subjectsCol.show();
                 sessionRow.find('.session-subject').attr('required', 'required');
+                refreshOptionalPeriodControls(sessionRow);
             }
             
             const startTime = sessionRow.find('.session-start-time').val();
@@ -4472,7 +4429,8 @@ $(function() {
                         name: subj.subject_name,
                         subject_name: subj.subject_name,
                         teacherID: subj.teacherID,
-                        teacher_name: subj.teacher_name
+                        teacher_name: subj.teacher_name,
+                        student_status: subj.student_status || null
                     }));
                     $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('subjects', subjectsData);
                     $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('subclassID', subclassID);
@@ -4487,6 +4445,111 @@ $(function() {
             error: function(xhr) {
                 console.error('Error loading subjects:', xhr);
             }
+        });
+    }
+
+    // Build subject <option> list (supports Optional filter / exclude already-picked in period)
+    function buildSubjectOptionsHtml(subjects, selectedId, excludeIds, onlyOptional) {
+        excludeIds = (excludeIds || []).map(String);
+        let options = '<option value="">Select Subject</option>';
+        subjects.forEach(function(subj) {
+            const subjectID = String(subj.class_subjectID || subj.subjectID);
+            if (excludeIds.includes(subjectID) && subjectID !== String(selectedId || '')) {
+                return;
+            }
+            if (onlyOptional && subj.student_status !== 'Optional') {
+                return;
+            }
+            const selected = subjectID == String(selectedId || '') ? 'selected' : '';
+            const status = subj.student_status || '';
+            const statusLabel = status === 'Optional' ? ' [Optional]' : (status === 'Required' ? ' [Required]' : '');
+            const name = subj.subject_name || subj.name || 'N/A';
+            options += `<option value="${subjectID}" ${selected} data-teacher-id="${subj.teacherID || ''}" data-teacher-name="${subj.teacher_name || 'Not Assigned'}" data-student-status="${status}">${name}${statusLabel}</option>`;
+        });
+        return options;
+    }
+
+    function getSubjectStatusFromData(subjects, subjectID) {
+        if (!subjectID) return null;
+        const found = (subjects || []).find(s => String(s.class_subjectID || s.subjectID) === String(subjectID));
+        return found ? (found.student_status || null) : null;
+    }
+
+    function buildSubjectPairHtml(subjects, selectedId, onlyOptional, excludeIds, showRemove) {
+        const options = buildSubjectOptionsHtml(subjects, selectedId, excludeIds, onlyOptional);
+        const selectedSubj = (subjects || []).find(s => String(s.class_subjectID || s.subjectID) === String(selectedId || ''));
+        const teacherID = selectedSubj ? (selectedSubj.teacherID || '') : '';
+        const teacherName = selectedSubj ? (selectedSubj.teacher_name || '') : '';
+        return `
+            <div class="session-subject-pair mb-2 pb-2" style="border-bottom: 1px dashed #dee2e6;">
+                <select class="form-control session-subject" required>
+                    ${options}
+                </select>
+                <input type="hidden" class="session-teacher-id" value="${teacherID}">
+                <input type="text" class="form-control form-control-sm mt-1 session-teacher-display" readonly
+                       placeholder="Select subject first" value="${teacherName}">
+                <small class="text-muted session-teacher-info">${teacherName ? 'Assigned to this subject' : ''}</small>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-optional-subject mt-1" ${showRemove ? '' : 'style="display:none;"'}>
+                    <i class="bi bi-x-circle"></i> Remove
+                </button>
+            </div>
+        `;
+    }
+
+    function refreshOptionalPeriodControls(sessionRow) {
+        const classIndex = sessionRow.closest('.day-timetable').data('class-index');
+        const subjects = $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('subjects') || [];
+        const pairs = sessionRow.find('.session-subject-pair');
+        const firstSelect = pairs.first().find('.session-subject');
+        const firstStatus = firstSelect.find('option:selected').data('student-status')
+            || getSubjectStatusFromData(subjects, firstSelect.val());
+        const addBtn = sessionRow.find('.add-optional-to-period');
+        const hint = sessionRow.find('.optional-period-hint');
+
+        if (firstStatus === 'Optional' && firstSelect.val()) {
+            addBtn.show();
+            hint.removeClass('d-none').show();
+        } else {
+            addBtn.hide();
+            hint.addClass('d-none').hide();
+            // Keep only the first pair if subject is Required / empty
+            if (firstStatus !== 'Optional') {
+                pairs.slice(1).remove();
+            }
+        }
+
+        sessionRow.find('.session-subject-pair').each(function(idx) {
+            $(this).find('.remove-optional-subject').toggle(idx > 0);
+        });
+    }
+
+    function bindSubjectPairEvents(sessionRow, classIndex, day) {
+        sessionRow.find('.session-subject').off('change.optionalPair').on('change.optionalPair', function() {
+            const selectedOption = $(this).find('option:selected');
+            const teacherID = selectedOption.data('teacher-id');
+            const teacherName = selectedOption.data('teacher-name');
+            const pair = $(this).closest('.session-subject-pair');
+            const currentSessionRow = $(this).closest('.session-form-row');
+            const status = selectedOption.data('student-status');
+
+            if (teacherID && teacherName) {
+                pair.find('.session-teacher-id').val(teacherID);
+                pair.find('.session-teacher-display').val(teacherName);
+                pair.find('.session-teacher-info').text('Assigned to this subject');
+            } else {
+                pair.find('.session-teacher-id').val('');
+                pair.find('.session-teacher-display').val('');
+                pair.find('.session-teacher-info').text('');
+            }
+
+            // If first subject changed away from Optional, drop extra pairs
+            if (pair.is(currentSessionRow.find('.session-subject-pair').first()) && status !== 'Optional') {
+                currentSessionRow.find('.session-subject-pair').slice(1).remove();
+            }
+
+            refreshOptionalPeriodControls(currentSessionRow);
+            validateTeacherConflict(currentSessionRow, classIndex, day);
+            updateAllSubjectDropdowns(classIndex);
         });
     }
 
@@ -4524,48 +4587,32 @@ $(function() {
 
     // Update all subject dropdowns for a class (when new session is added or subject is changed)
     // Note: Subjects can now be selected multiple times (even on same day) - no restrictions
+    // Extra picks inside one period must be Optional only
     function updateAllSubjectDropdowns(classIndex) {
         const subjects = $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('subjects') || [];
         
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
         
         days.forEach(function(day) {
-            // Update regular session dropdowns
-            $(`#sessions-${classIndex}-${day} .session-subject`).each(function() {
-                const currentValue = $(this).val();
-                
-                // Rebuild options (no restrictions - subjects can be selected multiple times)
-                let options = '<option value="">Select Subject</option>';
-                subjects.forEach(function(subj) {
-                    const subjectID = subj.class_subjectID || subj.subjectID;
-                    const selected = subjectID == currentValue ? 'selected' : '';
-                    options += `<option value="${subjectID}" ${selected} data-teacher-id="${subj.teacherID || ''}" data-teacher-name="${subj.teacher_name || 'Not Assigned'}">${subj.subject_name || subj.name}</option>`;
-                });
-                
-                $(this).html(options);
-            });
+            [`#sessions-${classIndex}-${day}`, `#prepo-${classIndex}-${day}`].forEach(function(selector) {
+                $(`${selector} .session-form-row`).each(function() {
+                    const sessionRow = $(this);
+                    const selectedInPeriod = [];
+                    sessionRow.find('.session-subject').each(function() {
+                        if ($(this).val()) selectedInPeriod.push(String($(this).val()));
+                    });
 
-            // Update prepo session dropdowns
-            $(`#prepo-${classIndex}-${day} .session-subject`).each(function() {
-                const currentValue = $(this).val();
-                
-                // Rebuild options (no restrictions - subjects can be selected multiple times)
-                let options = '<option value="">Select Subject</option>';
-                subjects.forEach(function(subj) {
-                    const subjectID = subj.class_subjectID || subj.subjectID;
-                    const selected = subjectID == currentValue ? 'selected' : '';
-                    options += `<option value="${subjectID}" ${selected} data-teacher-id="${subj.teacherID || ''}" data-teacher-name="${subj.teacher_name || 'Not Assigned'}">${subj.subject_name || subj.name}</option>`;
+                    sessionRow.find('.session-subject-pair').each(function(pairIdx) {
+                        const select = $(this).find('.session-subject');
+                        const currentValue = select.val();
+                        const onlyOptional = pairIdx > 0;
+                        const excludeIds = selectedInPeriod.filter(id => id !== String(currentValue || ''));
+                        select.html(buildSubjectOptionsHtml(subjects, currentValue, excludeIds, onlyOptional));
+                        if (currentValue) {
+                            select.val(currentValue);
+                        }
+                    });
                 });
-                
-                const wasSelected = $(this).val(); // Store current selection
-                $(this).html(options);
-                
-                // Restore selection and trigger teacher display if subject was selected
-                if (wasSelected) {
-                    $(this).val(wasSelected);
-                    // Trigger change to display teacher
-                    $(this).trigger('change');
-                }
             });
         });
     }
@@ -4628,6 +4675,65 @@ $(function() {
         addSessionForm(classIndex, day, isPrepo, subjects, sessionTypes, timetableDefinition, breakEndTime);
     });
 
+    // Add another Optional subject into the same period card
+    $(document).on('click', '.add-optional-to-period', function() {
+        const sessionRow = $(this).closest('.session-form-row');
+        const classIndex = sessionRow.closest('.day-timetable').data('class-index');
+        const day = sessionRow.closest('.day-timetable').data('day');
+        const subjects = $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('subjects') || [];
+        const selectedInPeriod = [];
+        sessionRow.find('.session-subject').each(function() {
+            if ($(this).val()) selectedInPeriod.push(String($(this).val()));
+        });
+
+        const firstStatus = sessionRow.find('.session-subject-pair').first()
+            .find('.session-subject option:selected').data('student-status');
+        if (firstStatus !== 'Optional') {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Optional subjects only',
+                    text: 'You can only add more subjects to this period when the first subject is Optional.'
+                });
+            }
+            return;
+        }
+
+        const availableOptional = subjects.filter(s =>
+            s.student_status === 'Optional' &&
+            !selectedInPeriod.includes(String(s.class_subjectID || s.subjectID))
+        );
+        if (availableOptional.length === 0) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'No more optional subjects',
+                    text: 'All optional subjects for this class are already in this period.'
+                });
+            }
+            return;
+        }
+
+        sessionRow.find('.session-subject-pairs').append(
+            buildSubjectPairHtml(subjects, null, true, selectedInPeriod, true)
+        );
+        bindSubjectPairEvents(sessionRow, classIndex, day);
+        refreshOptionalPeriodControls(sessionRow);
+        updateAllSubjectDropdowns(classIndex);
+    });
+
+    $(document).on('click', '.remove-optional-subject', function() {
+        const pair = $(this).closest('.session-subject-pair');
+        const sessionRow = pair.closest('.session-form-row');
+        const classIndex = sessionRow.closest('.day-timetable').data('class-index');
+        if (sessionRow.find('.session-subject-pair').length <= 1) {
+            return;
+        }
+        pair.remove();
+        refreshOptionalPeriodControls(sessionRow);
+        updateAllSubjectDropdowns(classIndex);
+    });
+
     // Add session form
     function addSessionForm(classIndex, day, isPrepo, subjects, sessionTypes, definition, breakEndTime) {
         const sessionCounter = Date.now();
@@ -4653,12 +4759,9 @@ $(function() {
         const selectedSubjects = $(`.class-timetable-form[data-class-index="${classIndex}"]`).data('selectedSubjects') || [];
         const selectedSubjectIDs = selectedSubjects.map(s => s.class_subjectID || s.subjectID);
 
-        // Note: Subjects can now be selected multiple times (no restrictions)
-
-        const subjectOptions = subjects.length > 0 ? subjects.map(subj => {
-            const subjectID = subj.class_subjectID || subj.subjectID;
-            return `<option value="${subjectID}" data-teacher-id="${subj.teacherID || ''}" data-teacher-name="${subj.teacher_name || 'Not Assigned'}">${subj.subject_name || subj.name}</option>`;
-        }).join('') : '<option value="">No subjects available</option>';
+        const subjectPairHtml = subjects.length > 0
+            ? buildSubjectPairHtml(subjects, null, false, [], false)
+            : `<div class="session-subject-pair mb-2"><select class="form-control session-subject" required><option value="">No subjects available</option></select></div>`;
 
         // Get session start/end times from definition
         const sessionStart = definition ? definition.session_start_time : '08:00';
@@ -4672,13 +4775,18 @@ $(function() {
         const sessionHtml = `
             <div class="card mb-2 session-form-row" data-session-id="${sessionCounter}" data-is-prepo="${isPrepo}" data-break-end-time="${breakEndTime || ''}">
                 <div class="card-body">
-                    <div class="row align-items-end">
-                        <div class="col-md-3">
+                    <div class="row align-items-start">
+                        <div class="col-md-4 session-subjects-col">
                             <label>Subject <span class="text-danger">*</span></label>
-                            <select class="form-control session-subject" required>
-                                <option value="">Select Subject</option>
-                                ${subjectOptions}
-                            </select>
+                            <div class="session-subject-pairs">
+                                ${subjectPairHtml}
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary add-optional-to-period mt-1" style="display:none;">
+                                <i class="bi bi-plus-circle"></i> Add optional subject to this period
+                            </button>
+                            <small class="text-info optional-period-hint d-none d-block mt-1">
+                                <i class="bi bi-info-circle"></i> Optional subjects can share one period (e.g. Physics &amp; History).
+                            </small>
                         </div>
                         <div class="col-md-2">
                             <label>Session Type <span class="text-danger">*</span></label>
@@ -4698,15 +4806,9 @@ $(function() {
                                    value="${isPrepo ? prepoEnd : sessionEnd}" required>
                         </div>
                         <div class="col-md-2">
-                            <label>Teacher</label>
-                            <input type="hidden" class="session-teacher-id" value="">
-                            <input type="text" class="form-control session-teacher-display" readonly 
-                                   placeholder="Select subject first" value="">
-                            <small class="text-muted session-teacher-info"></small>
-                        </div>
-                        <div class="col-md-1">
-                            <button type="button" class="btn btn-sm btn-danger remove-session" data-class-index="${classIndex}" data-day="${day}">
-                                <i class="bi bi-trash"></i>
+                            <label>&nbsp;</label>
+                            <button type="button" class="btn btn-sm btn-danger remove-session d-block" data-class-index="${classIndex}" data-day="${day}">
+                                <i class="bi bi-trash"></i> Remove
                             </button>
                         </div>
                     </div>
@@ -4725,33 +4827,7 @@ $(function() {
         const sessionRow = container.find(`.session-form-row[data-session-id="${sessionCounter}"]`);
 
         // Auto-display teacher when subject is selected - use event delegation to ensure it works for all sessions
-        sessionRow.find('.session-subject').off('change').on('change', function() {
-            const selectedOption = $(this).find('option:selected');
-            const teacherID = selectedOption.data('teacher-id');
-            const teacherName = selectedOption.data('teacher-name');
-            
-            // Get the session row for this specific subject select
-            const currentSessionRow = $(this).closest('.session-form-row');
-            
-            if (teacherID && teacherName) {
-                currentSessionRow.find('.session-teacher-id').val(teacherID);
-                currentSessionRow.find('.session-teacher-display').val(teacherName);
-                currentSessionRow.find('.session-teacher-info').text('Assigned to this subject');
-                
-                // Validate teacher conflicts
-                const classIdx = currentSessionRow.closest('.day-timetable').data('class-index');
-                const dayName = currentSessionRow.closest('.day-timetable').data('day');
-                validateTeacherConflict(currentSessionRow, classIdx, dayName);
-            } else {
-                currentSessionRow.find('.session-teacher-id').val('');
-                currentSessionRow.find('.session-teacher-display').val('');
-                currentSessionRow.find('.session-teacher-info').text('');
-            }
-            
-            // Update all subject dropdowns to reflect new selection
-            const classIdx = currentSessionRow.closest('.day-timetable').data('class-index');
-            updateAllSubjectDropdowns(classIdx);
-        });
+        bindSubjectPairEvents(sessionRow, classIndex, day);
 
         // Auto-calculate start time based on previous sessions or break end time
         if (breakEndTime && !isPrepo) {
@@ -4767,29 +4843,21 @@ $(function() {
             const sessionTypeName = selectedOption.text().toLowerCase();
             const isFreeSession = sessionTypeName.includes('free');
             
-            // Show/hide subject and teacher fields based on session type
-            // Subject is in first col-md-3, Teacher is in col-md-2 after Session Type, Start Time, End Time
-            const rowElement = sessionRow.find('.row').first();
-            const subjectCol = rowElement.children('.col-md-3').first();
-            const teacherCol = rowElement.children('.col-md-2').eq(3);
+            const subjectsCol = sessionRow.find('.session-subjects-col');
             
             if (isFreeSession) {
-                // Hide subject and teacher for free sessions
-                subjectCol.hide();
-                teacherCol.hide();
-                // Remove required attribute
+                subjectsCol.hide();
                 sessionRow.find('.session-subject').removeAttr('required');
                 sessionRow.find('.session-teacher-id').removeAttr('required');
-                // Clear values
                 sessionRow.find('.session-subject').val('');
                 sessionRow.find('.session-teacher-id').val('');
                 sessionRow.find('.session-teacher-display').val('');
+                sessionRow.find('.add-optional-to-period').hide();
+                sessionRow.find('.optional-period-hint').addClass('d-none').hide();
             } else {
-                // Show subject and teacher for non-free sessions
-                subjectCol.show();
-                teacherCol.show();
-                // Add required attribute
+                subjectsCol.show();
                 sessionRow.find('.session-subject').attr('required', 'required');
+                refreshOptionalPeriodControls(sessionRow);
             }
             
             // Check if this is an "after break" session
@@ -4868,6 +4936,7 @@ $(function() {
         
         // Update all dropdowns when session is added
         updateAllSubjectDropdowns(classIndex);
+        refreshOptionalPeriodControls(sessionRow);
     }
 
     // Calculate session start time based on previous sessions
@@ -4939,111 +5008,115 @@ $(function() {
 
     // Validate teacher conflict - only check same day and overlapping times
     function validateTeacherConflict(sessionRow, classIndex, day) {
-        const teacherID = sessionRow.find('.session-teacher-id').val();
         const startTime = sessionRow.find('.session-start-time').val();
         const endTime = sessionRow.find('.session-end-time').val();
         const errorDiv = sessionRow.find('.session-validation-error');
         
-        if (!teacherID || !startTime || !endTime) {
+        if (!startTime || !endTime) {
             return;
         }
 
-        // Only check conflicts on the SAME DAY
+        const teacherIDs = [];
+        sessionRow.find('.session-teacher-id').each(function() {
+            const tid = $(this).val();
+            if (tid) teacherIDs.push(String(tid));
+        });
+
+        if (teacherIDs.length === 0) {
+            return;
+        }
+
         let hasConflict = false;
         let conflictMessages = [];
 
+        // Same teacher twice in one optional period
+        const seenTeachers = new Set();
+        teacherIDs.forEach(function(tid) {
+            if (seenTeachers.has(tid)) {
+                hasConflict = true;
+                conflictMessages.push('Same teacher cannot teach two subjects in the same period');
+            }
+            seenTeachers.add(tid);
+        });
+
+        function collectTeachers($row) {
+            const ids = [];
+            $row.find('.session-teacher-id').each(function() {
+                if ($(this).val()) ids.push(String($(this).val()));
+            });
+            return ids;
+        }
+
+        function timesOverlap(aStart, aEnd, bStart, bEnd) {
+            return (aStart >= bStart && aStart < bEnd) ||
+                (aEnd > bStart && aEnd <= bEnd) ||
+                (aStart <= bStart && aEnd >= bEnd);
+        }
+
+        function teachersOverlap(listA, listB) {
+            return listA.some(function(tid) { return listB.includes(tid); });
+        }
+
         // Check regular sessions on the same day
         $(`#sessions-${classIndex}-${day} .session-form-row`).each(function() {
-            if ($(this)[0] === sessionRow[0]) return; // Skip self
-            
-            const otherTeacherID = $(this).find('.session-teacher-id').val();
+            if ($(this)[0] === sessionRow[0]) return;
+            const otherTeachers = collectTeachers($(this));
             const otherStart = $(this).find('.session-start-time').val();
             const otherEnd = $(this).find('.session-end-time').val();
-            
-            if (otherTeacherID == teacherID && otherStart && otherEnd) {
-                // Check if times overlap
-                if ((startTime >= otherStart && startTime < otherEnd) ||
-                    (endTime > otherStart && endTime <= otherEnd) ||
-                    (startTime <= otherStart && endTime >= otherEnd)) {
-                    hasConflict = true;
-                    const conflictMsg = `Teacher has a session on ${day} from ${otherStart} to ${otherEnd}`;
-                    // Only add if not already in array (avoid duplicates)
-                    if (!conflictMessages.includes(conflictMsg)) {
-                        conflictMessages.push(conflictMsg);
-                    }
-                }
+            if (otherTeachers.length && otherStart && otherEnd &&
+                teachersOverlap(teacherIDs, otherTeachers) &&
+                timesOverlap(startTime, endTime, otherStart, otherEnd)) {
+                hasConflict = true;
+                const conflictMsg = `Teacher has a session on ${day} from ${otherStart} to ${otherEnd}`;
+                if (!conflictMessages.includes(conflictMsg)) conflictMessages.push(conflictMsg);
             }
         });
 
         // Check prepo sessions on the same day
         $(`#prepo-${classIndex}-${day} .session-form-row`).each(function() {
-            if ($(this)[0] === sessionRow[0]) return; // Skip self
-            
-            const otherTeacherID = $(this).find('.session-teacher-id').val();
+            if ($(this)[0] === sessionRow[0]) return;
+            const otherTeachers = collectTeachers($(this));
             const otherStart = $(this).find('.session-start-time').val();
             const otherEnd = $(this).find('.session-end-time').val();
-            
-            if (otherTeacherID == teacherID && otherStart && otherEnd) {
-                // Check if times overlap
-                if ((startTime >= otherStart && startTime < otherEnd) ||
-                    (endTime > otherStart && endTime <= otherEnd) ||
-                    (startTime <= otherStart && endTime >= otherEnd)) {
-                    hasConflict = true;
-                    const conflictMsg = `Teacher has a prepo session on ${day} from ${otherStart} to ${otherEnd}`;
-                    // Only add if not already in array (avoid duplicates)
-                    if (!conflictMessages.includes(conflictMsg)) {
-                        conflictMessages.push(conflictMsg);
-                    }
-                }
+            if (otherTeachers.length && otherStart && otherEnd &&
+                teachersOverlap(teacherIDs, otherTeachers) &&
+                timesOverlap(startTime, endTime, otherStart, otherEnd)) {
+                hasConflict = true;
+                const conflictMsg = `Teacher has a prepo session on ${day} from ${otherStart} to ${otherEnd}`;
+                if (!conflictMessages.includes(conflictMsg)) conflictMessages.push(conflictMsg);
             }
         });
 
-        // Also check other classes on the same day (teacher might teach multiple classes)
+        // Also check other classes on the same day
         $('.class-timetable-form').each(function() {
             const otherClassIndex = $(this).data('class-index');
-            if (otherClassIndex == classIndex) return; // Skip current class
+            if (otherClassIndex == classIndex) return;
             
-            // Check regular sessions
             $(`#sessions-${otherClassIndex}-${day} .session-form-row`).each(function() {
-                const otherTeacherID = $(this).find('.session-teacher-id').val();
+                const otherTeachers = collectTeachers($(this));
                 const otherStart = $(this).find('.session-start-time').val();
                 const otherEnd = $(this).find('.session-end-time').val();
-                
-                if (otherTeacherID == teacherID && otherStart && otherEnd) {
-                    // Check if times overlap
-                    if ((startTime >= otherStart && startTime < otherEnd) ||
-                        (endTime > otherStart && endTime <= otherEnd) ||
-                        (startTime <= otherStart && endTime >= otherEnd)) {
-                        hasConflict = true;
-                        const otherSubclass = $(`.subclass-select[data-class-index="${otherClassIndex}"] option:selected`).text();
-                        const conflictMsg = `Teacher has a session in ${otherSubclass} on ${day} from ${otherStart} to ${otherEnd}`;
-                        // Only add if not already in array (avoid duplicates)
-                        if (!conflictMessages.includes(conflictMsg)) {
-                            conflictMessages.push(conflictMsg);
-                        }
-                    }
+                if (otherTeachers.length && otherStart && otherEnd &&
+                    teachersOverlap(teacherIDs, otherTeachers) &&
+                    timesOverlap(startTime, endTime, otherStart, otherEnd)) {
+                    hasConflict = true;
+                    const otherSubclass = $(`.subclass-select[data-class-index="${otherClassIndex}"] option:selected`).text();
+                    const conflictMsg = `Teacher has a session in ${otherSubclass} on ${day} from ${otherStart} to ${otherEnd}`;
+                    if (!conflictMessages.includes(conflictMsg)) conflictMessages.push(conflictMsg);
                 }
             });
 
-            // Check prepo sessions
             $(`#prepo-${otherClassIndex}-${day} .session-form-row`).each(function() {
-                const otherTeacherID = $(this).find('.session-teacher-id').val();
+                const otherTeachers = collectTeachers($(this));
                 const otherStart = $(this).find('.session-start-time').val();
                 const otherEnd = $(this).find('.session-end-time').val();
-                
-                if (otherTeacherID == teacherID && otherStart && otherEnd) {
-                    // Check if times overlap
-                    if ((startTime >= otherStart && startTime < otherEnd) ||
-                        (endTime > otherStart && endTime <= otherEnd) ||
-                        (startTime <= otherStart && endTime >= otherEnd)) {
-                        hasConflict = true;
-                        const otherSubclass = $(`.subclass-select[data-class-index="${otherClassIndex}"] option:selected`).text();
-                        const conflictMsg = `Teacher has a prepo session in ${otherSubclass} on ${day} from ${otherStart} to ${otherEnd}`;
-                        // Only add if not already in array (avoid duplicates)
-                        if (!conflictMessages.includes(conflictMsg)) {
-                            conflictMessages.push(conflictMsg);
-                        }
-                    }
+                if (otherTeachers.length && otherStart && otherEnd &&
+                    teachersOverlap(teacherIDs, otherTeachers) &&
+                    timesOverlap(startTime, endTime, otherStart, otherEnd)) {
+                    hasConflict = true;
+                    const otherSubclass = $(`.subclass-select[data-class-index="${otherClassIndex}"] option:selected`).text();
+                    const conflictMsg = `Teacher has a prepo session in ${otherSubclass} on ${day} from ${otherStart} to ${otherEnd}`;
+                    if (!conflictMessages.includes(conflictMsg)) conflictMessages.push(conflictMsg);
                 }
             });
         });
@@ -5058,7 +5131,7 @@ $(function() {
             // Split by <br> and filter out old teacher conflict messages
             const lines = currentHtml.split('<br>').filter(function(line) {
                 const trimmed = line.trim();
-                return trimmed && !trimmed.includes('Teacher has a session') && !trimmed.includes('Teacher has a prepo session');
+                return trimmed && !trimmed.includes('Teacher has a session') && !trimmed.includes('Teacher has a prepo session') && !trimmed.includes('Same teacher cannot teach two subjects');
             });
             
             // Combine non-conflict messages with new conflict messages
@@ -5075,7 +5148,7 @@ $(function() {
             if (currentHtml) {
                 const filtered = currentHtml.split('<br>').filter(function(line) {
                     const trimmed = line.trim();
-                    return trimmed && !trimmed.includes('Teacher has a session') && !trimmed.includes('Teacher has a prepo session');
+                    return trimmed && !trimmed.includes('Teacher has a session') && !trimmed.includes('Teacher has a prepo session') && !trimmed.includes('Same teacher cannot teach two subjects');
                 }).join('<br>');
                 
                 // Only update if content actually changed (prevent infinite loop)
@@ -5221,11 +5294,8 @@ $(function() {
                 
                 // Collect regular sessions
                 $(`#sessions-${classIndex}-${day} .session-form-row`).each(function() {
-                    const session = collectSessionData($(this), subclassID, day, false);
-                    if (session) {
-                        timetables.push(session);
-                        sessionsByDay[day].push(session);
-                    } else {
+                    const collected = collectSessionData($(this), subclassID, day, false);
+                    if (!pushCollectedSessions(timetables, sessionsByDay, day, collected)) {
                         hasErrors = true;
                         validateSessionInputs($(this), classIndex, day);
                     }
@@ -5233,11 +5303,8 @@ $(function() {
                 
                 // Collect prepo sessions
                 $(`#prepo-${classIndex}-${day} .session-form-row`).each(function() {
-                    const session = collectSessionData($(this), subclassID, day, true);
-                    if (session) {
-                        timetables.push(session);
-                        sessionsByDay[day].push(session);
-                    } else {
+                    const collected = collectSessionData($(this), subclassID, day, true);
+                    if (!pushCollectedSessions(timetables, sessionsByDay, day, collected)) {
                         hasErrors = true;
                         validateSessionInputs($(this), classIndex, day);
                     }
@@ -5342,36 +5409,43 @@ $(function() {
 
     // Validate session inputs and show inline errors
     function validateSessionInputs(row, classIndex, day) {
-        const subjectSelect = row.find('.session-subject');
         const sessionTypeSelect = row.find('.session-type-select');
         const sessionTypeName = sessionTypeSelect.find('option:selected').text().toLowerCase();
         const isFreeSession = sessionTypeName.includes('free');
         const startTimeInput = row.find('.session-start-time');
         const endTimeInput = row.find('.session-end-time');
-        const teacherInput = row.find('.session-teacher-id');
         const errorDiv = row.find('.session-validation-error');
         
         let errors = [];
         
         // Clear previous validation classes
-        subjectSelect.removeClass('is-invalid');
+        row.find('.session-subject').removeClass('is-invalid');
         sessionTypeSelect.removeClass('is-invalid');
         startTimeInput.removeClass('is-invalid');
         endTimeInput.removeClass('is-invalid');
-        teacherInput.removeClass('is-invalid');
         row.find('.session-teacher-display').removeClass('is-invalid');
         
         // Validate each field
         // For free sessions, subject and teacher are not required
         if (!isFreeSession) {
-            if (!subjectSelect.val()) {
-                subjectSelect.addClass('is-invalid');
-                errors.push('Subject is required');
-            }
-            
-            if (!teacherInput.val()) {
-                row.find('.session-teacher-display').addClass('is-invalid');
-                errors.push('Teacher is required (select subject first)');
+            const statuses = [];
+            row.find('.session-subject-pair').each(function() {
+                const subjectSelect = $(this).find('.session-subject');
+                const teacherInput = $(this).find('.session-teacher-id');
+                if (!subjectSelect.val()) {
+                    subjectSelect.addClass('is-invalid');
+                    errors.push('Subject is required');
+                } else {
+                    statuses.push(subjectSelect.find('option:selected').data('student-status'));
+                }
+                if (!teacherInput.val()) {
+                    $(this).find('.session-teacher-display').addClass('is-invalid');
+                    errors.push('Teacher is required (select subject first)');
+                }
+            });
+
+            if (row.find('.session-subject-pair').length > 1 && statuses.some(s => s !== 'Optional')) {
+                errors.push('Only Optional subjects can share the same period');
             }
         }
         
@@ -5392,28 +5466,26 @@ $(function() {
         
         // Show errors
         if (errors.length > 0) {
-            errorDiv.html('<strong>Please fill in:</strong><br>' + errors.join('<br>')).show();
+            errorDiv.html('<strong>Please fill in:</strong><br>' + [...new Set(errors)].join('<br>')).show();
         } else {
             errorDiv.hide();
         }
     }
 
-    // Collect session data
+    // Collect session data — one period card may yield multiple Optional subjects
     function collectSessionData(row, subclassID, day, isPrepo) {
-        const subjectID = row.find('.session-subject').val();
         const sessionTypeID = row.find('.session-type-select').val();
         const sessionTypeName = row.find('.session-type-select option:selected').text().toLowerCase();
         const isFreeSession = sessionTypeName.includes('free');
         const startTime = row.find('.session-start-time').val();
         const endTime = row.find('.session-end-time').val();
-        const teacherID = row.find('.session-teacher-id').val(); // Changed from session-teacher
 
         // For free sessions, subject and teacher are not required
         if (isFreeSession) {
             if (!sessionTypeID || !startTime || !endTime) {
                 return null;
             }
-            return {
+            return [{
                 subclassID: subclassID,
                 class_subjectID: null,
                 subjectID: null,
@@ -5423,13 +5495,29 @@ $(function() {
                 end_time: endTime,
                 teacherID: null,
                 is_prepo: isPrepo ? 1 : 0
-            };
-        } else {
-            // For non-free sessions, subject and teacher are required
-            if (!subjectID || !sessionTypeID || !startTime || !endTime || !teacherID) {
-                return null;
+            }];
+        }
+
+        if (!sessionTypeID || !startTime || !endTime) {
+            return null;
+        }
+
+        const results = [];
+        let hasIncomplete = false;
+        const statuses = [];
+
+        row.find('.session-subject-pair').each(function() {
+            const subjectID = $(this).find('.session-subject').val();
+            const teacherID = $(this).find('.session-teacher-id').val();
+            const status = $(this).find('.session-subject option:selected').data('student-status');
+
+            if (!subjectID || !teacherID) {
+                hasIncomplete = true;
+                return false;
             }
-            return {
+
+            statuses.push(status || null);
+            results.push({
                 subclassID: subclassID,
                 class_subjectID: subjectID,
                 subjectID: null,
@@ -5439,8 +5527,35 @@ $(function() {
                 end_time: endTime,
                 teacherID: teacherID,
                 is_prepo: isPrepo ? 1 : 0
-            };
+            });
+        });
+
+        if (hasIncomplete || results.length === 0) {
+            return null;
         }
+
+        // Multiple subjects in one period must all be Optional
+        if (results.length > 1 && statuses.some(s => s !== 'Optional')) {
+            row.find('.session-validation-error')
+                .html('<strong>Only Optional subjects can share the same period.</strong>')
+                .show();
+            return null;
+        }
+
+        return results;
+    }
+
+    function pushCollectedSessions(timetables, sessionsByDay, day, collected) {
+        if (!collected) {
+            return false;
+        }
+        collected.forEach(function(session) {
+            timetables.push(session);
+            if (sessionsByDay && day) {
+                sessionsByDay[day].push(session);
+            }
+        });
+        return true;
     }
 
     // Initialize: show exam form by default

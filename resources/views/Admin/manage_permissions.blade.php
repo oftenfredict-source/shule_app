@@ -1121,23 +1121,40 @@
         fetch(form.action, {
             method: 'POST',
             headers: {
+                'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
             body: formData
         })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                Swal.fire({ icon: 'success', title: 'Success', text: data.message, confirmButtonColor: '#940000' });
-                $(form.closest('.modal')).modal('hide');
-                submitAdminFilters();
-            } else {
-                Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Operation failed.', confirmButtonColor: '#940000' });
+        .then(async (res) => {
+            let data = null;
+            try {
+                data = await res.json();
+            } catch (e) {
+                throw new Error(res.status === 419
+                    ? 'Session expired. Please refresh the page and try again.'
+                    : 'Server returned an invalid response (' + res.status + ').');
             }
+            if (!res.ok || !data.success) {
+                const msg = (data && (data.message || (data.errors && Object.values(data.errors).flat()[0])))
+                    || 'Operation failed.';
+                throw new Error(msg);
+            }
+            return data;
         })
-        .catch(() => {
-            Swal.fire({ icon: 'error', title: 'Error', text: 'An unexpected error occurred.', confirmButtonColor: '#940000' });
+        .then(data => {
+            Swal.fire({ icon: 'success', title: 'Success', text: data.message, confirmButtonColor: '#940000' });
+            $(form.closest('.modal')).modal('hide');
+            submitAdminFilters();
+        })
+        .catch((err) => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: (err && err.message) ? err.message : 'An unexpected error occurred.',
+                confirmButtonColor: '#940000'
+            });
         })
         .finally(() => {
             if (internalLoading) internalLoading.style.display = 'none';

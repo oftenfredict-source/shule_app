@@ -3718,7 +3718,7 @@ class AdminController extends Controller
     {
         $user = Session::get("user_type");
         $schoolID = Session::get("schoolID");
-        $userID = Session::get("userID");
+        $userID = Session::get("userID") ?: Session::get("id");
 
         if (!$user || !in_array($user, ["Admin", "Teacher", "Staff"])) {
             if ($request->ajax() || $request->expectsJson()) {
@@ -3732,181 +3732,95 @@ class AdminController extends Controller
                 ->with("error", "Unauthorized access");
         }
 
-        $validated = $request->validate([
-            "permissionID" => "required",
-            "admin_response" => "required|string",
-            "admin_attachment" =>
-                "nullable|file|mimes:pdf,jpg,jpeg,png|max:2048",
-            "is_student_permission" => 'nullable|in:1,0,true,false,"1","0"',
-        ]);
-
-        $isStudentPermission = in_array(
-            $request->input("is_student_permission"),
-            [1, "1", true, "true"],
-            true,
-        );
-
-        if ($isStudentPermission) {
-            // Handle student permission approval
-            $permission = DB::table("student_permissions")
-                ->where("schoolID", $schoolID)
-                ->where("id", $validated["permissionID"])
-                ->first();
-
-            if (!$permission) {
-                return response()->json(
-                    ["success" => false, "message" => "Permission not found"],
-                    404,
-                );
-            }
-
-            // Check if there's an approval chain
-            $chain = DB::table("permission_approval_chains")
-                ->where("schoolID", $schoolID)
-                ->where("permission_type", "student")
-                ->orderBy("approval_order")
-                ->get();
-
-            // If Admin is in the approval chain, check if they are at the current approval step
-            if ($user === "Admin" && $chain->isNotEmpty()) {
-                $adminStep = $chain->where("is_admin", true)->first();
-                if (
-                    $adminStep &&
-                    $adminStep->approval_order !==
-                        $permission->current_approval_order
-                ) {
-                    return response()->json(
-                        [
-                            "success" => false,
-                            "message" =>
-                                "This permission is not at your approval step in the chain.",
-                        ],
-                        403,
-                    );
-                }
-            }
-
-            $isFinalApproval = true;
-            $nextOrder = $permission->current_approval_order + 1;
-
-            if ($chain->isNotEmpty()) {
-                $maxOrder = $chain->max("approval_order");
-                if ($permission->current_approval_order < $maxOrder) {
-                    $isFinalApproval = false;
-                }
-            }
-
-            $attachmentPath = $permission->attachment;
-            if ($request->hasFile("admin_attachment")) {
-                $attachmentPath = $request
-                    ->file("admin_attachment")
-                    ->store("permission_admin_attachments", "public");
-            }
-
-            $currentApprover = $this->getApprovalChainStepName(
-                $schoolID,
-                "student",
-                $permission->current_approval_order,
-            );
-            $approvedOrder = $permission->current_approval_order;
-            $nextApprover = $this->getApprovalChainStepName(
-                $schoolID,
-                "student",
-                $nextOrder,
-            );
-
-            // Log the approval for the current step
-            DB::table("permission_approval_logs")->insert([
-                "permissionID" => $permission->id,
-                "permission_type" => "student",
-                "approver_id" => $userID,
-                "approver_role" => $user,
-                "approval_order" => $approvedOrder,
-                "status" => "approved",
-                "admin_response" => $validated["admin_response"],
-                "created_at" => now(),
-                "updated_at" => now(),
+        try {
+            $validated = $request->validate([
+                "permissionID" => "required",
+                "admin_response" => "required|string",
+                "admin_attachment" =>
+                    "nullable|file|mimes:pdf,jpg,jpeg,png|max:2048",
+                "is_student_permission" => "nullable|in:1,0,true,false",
             ]);
 
-            if ($isFinalApproval) {
-                DB::table("student_permissions")
-                    ->where("id", $permission->id)
-                    ->update([
-                        "status" => "approved",
-                        "reason_description" => $validated["admin_response"],
-                        "updated_at" => now(),
-                        "is_chain_completed" => true,
-                        "attachment" => $attachmentPath,
-                    ]);
+            $isStudentPermission = in_array(
+                $request->input("is_student_permission"),
+                [1, "1", true, "true"],
+                true,
+            );
 
-                $this->notifyStudentPermissionRequester(
-                    $permission,
-                    "approved",
-                    $currentApprover,
-                    $validated["admin_response"],
+            if ($isStudentPermission) {
+                return $this->approveStudentPermissionRequest(
+                    $request,
+                    $validated,
+                    $schoolID,
+                    $user,
+                    $userID,
                 );
-                $this->notifyStudentPermissionParent(
-                    $permission,
-                    "approved",
-                    $currentApprover,
-                    $validated["admin_response"],
-                );
-            } else {
-                DB::table("student_permissions")
-                    ->where("id", $permission->id)
-                    ->update([
-                        "current_approval_order" => $nextOrder,
-                        "updated_at" => now(),
-                    ]);
-
-                $this->notifyStudentPermissionRequester(
-                    $permission,
-                    "intermediary_approved",
-                    $currentApprover,
-                    $validated["admin_response"],
-                    $nextApprover,
-                );
-                $this->notifyStudentPermissionParent(
-                    $permission,
-                    "intermediary_approved",
-                    $currentApprover,
-                    $validated["admin_response"],
-                    $nextApprover,
-                );
-
-                // Notify next approver
-                $permission->current_approval_order = $nextOrder;
-                $this->notifyNextApprover($permission, true);
             }
 
-            return response()->json([
-                "success" => true,
-                "message" => $isFinalApproval
-                    ? "Student permission approved successfully."
-                    : "Student permission moved to next approval stage.",
+            return $this->approveTeacherStaffPermissionRequest(
+                $request,
+                $validated,
+                $schoolID,
+                $user,
+                $userID,
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error("approvePermission failed: " . $e->getMessage(), [
+                "trace" => $e->getTraceAsString(),
             ]);
+
+            $message = \App\Support\SafeErrorMessage::from(
+                $e,
+                "Failed to approve permission. Please try again.",
+            );
+
+            if (
+                str_contains(strtolower($e->getMessage()), "permission denied")
+                || str_contains(strtolower($e->getMessage()), "failed to open stream")
+            ) {
+                $message =
+                    "Server cannot save the attachment (storage permission). Approve without a file, or fix storage/app/public permissions.";
+            }
+
+            return response()->json(
+                ["success" => false, "message" => $message],
+                500,
+            );
+        }
+    }
+
+    private function approveStudentPermissionRequest(
+        Request $request,
+        array $validated,
+        $schoolID,
+        $user,
+        $userID,
+    ) {
+        $permission = DB::table("student_permissions")
+            ->where("schoolID", $schoolID)
+            ->where("id", $validated["permissionID"])
+            ->first();
+
+        if (!$permission) {
+            return response()->json(
+                ["success" => false, "message" => "Permission not found"],
+                404,
+            );
         }
 
-        // Handle teacher/staff permission approval (existing logic)
-        $permission = PermissionRequest::where("schoolID", $schoolID)
-            ->where("permissionID", $validated["permissionID"])
-            ->firstOrFail();
-
-        // Check if there's an approval chain
         $chain = DB::table("permission_approval_chains")
             ->where("schoolID", $schoolID)
-            ->where("permission_type", $permission->requester_type)
+            ->where("permission_type", "student")
             ->orderBy("approval_order")
             ->get();
 
-        // If Admin is in the approval chain, check if they are at the current approval step
+        $currentOrder = (int) ($permission->current_approval_order ?: 1);
+
         if ($user === "Admin" && $chain->isNotEmpty()) {
             $adminStep = $chain->where("is_admin", true)->first();
-            if (
-                $adminStep &&
-                $adminStep->approval_order !==
-                    $permission->current_approval_order
-            ) {
+            if ($adminStep && (int) $adminStep->approval_order !== $currentOrder) {
                 return response()->json(
                     [
                         "success" => false,
@@ -3919,31 +3833,203 @@ class AdminController extends Controller
         }
 
         $isFinalApproval = true;
-        $nextOrder = $permission->current_approval_order + 1;
+        $nextOrder = $currentOrder + 1;
 
         if ($chain->isNotEmpty()) {
-            $maxOrder = $chain->max("approval_order");
-            if ($permission->current_approval_order < $maxOrder) {
+            $maxOrder = (int) $chain->max("approval_order");
+            if ($currentOrder < $maxOrder) {
+                $isFinalApproval = false;
+            }
+        }
+
+        $attachmentPath = $permission->attachment;
+        if ($request->hasFile("admin_attachment")) {
+            try {
+                $attachmentPath = $request
+                    ->file("admin_attachment")
+                    ->store("permission_admin_attachments", "public");
+            } catch (\Throwable $e) {
+                Log::warning("Permission attachment store failed: " . $e->getMessage());
+                return response()->json(
+                    [
+                        "success" => false,
+                        "message" =>
+                            "Could not save attachment (storage permission). Try again without a file.",
+                    ],
+                    500,
+                );
+            }
+        }
+
+        $currentApprover = $this->getApprovalChainStepName(
+            $schoolID,
+            "student",
+            $currentOrder,
+        );
+        $nextApprover = $this->getApprovalChainStepName(
+            $schoolID,
+            "student",
+            $nextOrder,
+        );
+
+        $this->insertPermissionApprovalLog([
+            "permissionID" => $permission->id,
+            "permission_type" => "student",
+            "approver_id" => $userID,
+            "approver_role" => $user,
+            "approval_order" => $currentOrder,
+            "status" => "approved",
+            "admin_response" => $validated["admin_response"],
+            "created_at" => now(),
+            "updated_at" => now(),
+        ]);
+
+        if ($isFinalApproval) {
+            DB::table("student_permissions")
+                ->where("id", $permission->id)
+                ->update([
+                    "status" => "approved",
+                    "reason_description" => $validated["admin_response"],
+                    "updated_at" => now(),
+                    "is_chain_completed" => true,
+                    "attachment" => $attachmentPath,
+                ]);
+
+            $this->safeNotify(function () use (
+                $permission,
+                $currentApprover,
+                $validated,
+            ) {
+                $this->notifyStudentPermissionRequester(
+                    $permission,
+                    "approved",
+                    $currentApprover,
+                    $validated["admin_response"],
+                );
+                $this->notifyStudentPermissionParent(
+                    $permission,
+                    "approved",
+                    $currentApprover,
+                    $validated["admin_response"],
+                );
+            });
+        } else {
+            DB::table("student_permissions")
+                ->where("id", $permission->id)
+                ->update([
+                    "current_approval_order" => $nextOrder,
+                    "updated_at" => now(),
+                ]);
+
+            $permission->current_approval_order = $nextOrder;
+
+            $this->safeNotify(function () use (
+                $permission,
+                $currentApprover,
+                $validated,
+                $nextApprover,
+            ) {
+                $this->notifyStudentPermissionRequester(
+                    $permission,
+                    "intermediary_approved",
+                    $currentApprover,
+                    $validated["admin_response"],
+                    $nextApprover,
+                );
+                $this->notifyStudentPermissionParent(
+                    $permission,
+                    "intermediary_approved",
+                    $currentApprover,
+                    $validated["admin_response"],
+                    $nextApprover,
+                );
+                $this->notifyNextApprover($permission, true);
+            });
+        }
+
+        return response()->json([
+            "success" => true,
+            "message" => $isFinalApproval
+                ? "Student permission approved successfully."
+                : "Student permission moved to next approval stage.",
+        ]);
+    }
+
+    private function approveTeacherStaffPermissionRequest(
+        Request $request,
+        array $validated,
+        $schoolID,
+        $user,
+        $userID,
+    ) {
+        $permission = PermissionRequest::where("schoolID", $schoolID)
+            ->where("permissionID", $validated["permissionID"])
+            ->first();
+
+        if (!$permission) {
+            return response()->json(
+                ["success" => false, "message" => "Permission not found"],
+                404,
+            );
+        }
+
+        $chain = DB::table("permission_approval_chains")
+            ->where("schoolID", $schoolID)
+            ->where("permission_type", $permission->requester_type)
+            ->orderBy("approval_order")
+            ->get();
+
+        $currentOrder = (int) ($permission->current_approval_order ?: 1);
+
+        if ($user === "Admin" && $chain->isNotEmpty()) {
+            $adminStep = $chain->where("is_admin", true)->first();
+            if ($adminStep && (int) $adminStep->approval_order !== $currentOrder) {
+                return response()->json(
+                    [
+                        "success" => false,
+                        "message" =>
+                            "This permission is not at your approval step in the chain.",
+                    ],
+                    403,
+                );
+            }
+        }
+
+        $isFinalApproval = true;
+        $nextOrder = $currentOrder + 1;
+
+        if ($chain->isNotEmpty()) {
+            $maxOrder = (int) $chain->max("approval_order");
+            if ($currentOrder < $maxOrder) {
                 $isFinalApproval = false;
             }
         }
 
         $attachmentPath = $permission->admin_attachment_path;
         if ($request->hasFile("admin_attachment")) {
-            $attachmentPath = $request
-                ->file("admin_attachment")
-                ->store("permission_admin_attachments", "public");
+            try {
+                $attachmentPath = $request
+                    ->file("admin_attachment")
+                    ->store("permission_admin_attachments", "public");
+            } catch (\Throwable $e) {
+                Log::warning("Permission attachment store failed: " . $e->getMessage());
+                return response()->json(
+                    [
+                        "success" => false,
+                        "message" =>
+                            "Could not save attachment (storage permission). Try again without a file.",
+                    ],
+                    500,
+                );
+            }
         }
 
-        // Get current approver role name for SMS
         $currentApprover =
             DB::table("permission_approval_chains")
                 ->where("schoolID", $schoolID)
                 ->where("permission_type", $permission->requester_type)
-                ->where("approval_order", $permission->current_approval_order)
+                ->where("approval_order", $currentOrder)
                 ->value("role_name") ?? "System Admin";
-
-        $approvedOrder = $permission->current_approval_order;
 
         if ($isFinalApproval) {
             DB::table("permission_requests")
@@ -3957,13 +4043,18 @@ class AdminController extends Controller
                     "admin_attachment_path" => $attachmentPath,
                 ]);
 
-            // Notify Requester (Final)
-            $this->notifyRequester(
+            $this->safeNotify(function () use (
                 $permission,
-                "approved",
                 $currentApprover,
-                $validated["admin_response"],
-            );
+                $validated,
+            ) {
+                $this->notifyRequester(
+                    $permission,
+                    "approved",
+                    $currentApprover,
+                    $validated["admin_response"],
+                );
+            });
         } else {
             DB::table("permission_requests")
                 ->where("permissionID", $permission->permissionID)
@@ -3972,10 +4063,8 @@ class AdminController extends Controller
                     "admin_response" => $validated["admin_response"],
                 ]);
 
-            // Refresh model for notifications
             $permission = PermissionRequest::find($permission->permissionID);
 
-            // Get next approver role name
             $nextApprover =
                 DB::table("permission_approval_chains")
                     ->where("schoolID", $schoolID)
@@ -3983,26 +4072,29 @@ class AdminController extends Controller
                     ->where("approval_order", $nextOrder)
                     ->value("role_name") ?? "System Admin";
 
-            // Notify Requester (Intermediary)
-            $this->notifyRequester(
+            $this->safeNotify(function () use (
                 $permission,
-                "intermediary_approved",
                 $currentApprover,
-                $validated["admin_response"],
+                $validated,
                 $nextApprover,
-            );
-
-            // Notify Next Approver
-            $this->notifyNextApprover($permission);
+            ) {
+                $this->notifyRequester(
+                    $permission,
+                    "intermediary_approved",
+                    $currentApprover,
+                    $validated["admin_response"],
+                    $nextApprover,
+                );
+                $this->notifyNextApprover($permission);
+            });
         }
 
-        // Log the approval
-        DB::table("permission_approval_logs")->insert([
+        $this->insertPermissionApprovalLog([
             "permissionID" => $permission->permissionID,
             "permission_type" => $permission->requester_type ?? "teacher",
             "approver_id" => $userID,
             "approver_role" => $user,
-            "approval_order" => $approvedOrder,
+            "approval_order" => $currentOrder,
             "status" => "approved",
             "admin_response" => $validated["admin_response"],
             "created_at" => now(),
@@ -4017,9 +4109,31 @@ class AdminController extends Controller
                     : "Permission moved to next approval stage.",
             ]);
         }
+
         return redirect()
             ->back()
             ->with("success", "Permission approved successfully.");
+    }
+
+    private function insertPermissionApprovalLog(array $data): void
+    {
+        if (
+            !Schema::hasColumn("permission_approval_logs", "permission_type")
+            && array_key_exists("permission_type", $data)
+        ) {
+            unset($data["permission_type"]);
+        }
+
+        DB::table("permission_approval_logs")->insert($data);
+    }
+
+    private function safeNotify(callable $callback): void
+    {
+        try {
+            $callback();
+        } catch (\Throwable $e) {
+            Log::warning("Permission notification failed: " . $e->getMessage());
+        }
     }
 
     private function notifyRequester(
@@ -4331,17 +4445,21 @@ class AdminController extends Controller
 
         $phones = [];
         if ($approver->role_id) {
-            // New way: via teacher_id
-            $teacherPhones = DB::table("role_user")
-                ->join("teachers", "role_user.teacher_id", "=", "teachers.id")
-                ->where("role_user.role_id", $approver->role_id)
-                ->where("teachers.schoolID", $schoolID)
-                ->whereNotNull("teachers.phone_number")
-                ->pluck("teachers.phone_number")
-                ->toArray();
+            $teacherPhones = [];
+            $legacyTeacherPhones = [];
+            $hasTeacherId = Schema::hasColumn("role_user", "teacher_id");
 
-            // Old way: via user_id matched by email or employee number
-            $legacyTeacherPhones = DB::table("role_user")
+            if ($hasTeacherId) {
+                $teacherPhones = DB::table("role_user")
+                    ->join("teachers", "role_user.teacher_id", "=", "teachers.id")
+                    ->where("role_user.role_id", $approver->role_id)
+                    ->where("teachers.schoolID", $schoolID)
+                    ->whereNotNull("teachers.phone_number")
+                    ->pluck("teachers.phone_number")
+                    ->toArray();
+            }
+
+            $legacyQuery = DB::table("role_user")
                 ->join("users", "role_user.user_id", "=", "users.id")
                 ->join("teachers", function ($join) {
                     $join
@@ -4349,14 +4467,18 @@ class AdminController extends Controller
                         ->orOn("users.name", "=", "teachers.employee_number");
                 })
                 ->where("role_user.role_id", $approver->role_id)
-                ->whereNull("role_user.teacher_id")
                 ->where("teachers.schoolID", $schoolID)
-                ->whereNotNull("teachers.phone_number")
+                ->whereNotNull("teachers.phone_number");
+
+            if ($hasTeacherId) {
+                $legacyQuery->whereNull("role_user.teacher_id");
+            }
+
+            $legacyTeacherPhones = $legacyQuery
                 ->pluck("teachers.phone_number")
                 ->toArray();
 
-            // Staff with roles (via user_id)
-            $staffPhones = DB::table("role_user")
+            $staffQuery = DB::table("role_user")
                 ->join("users", "role_user.user_id", "=", "users.id")
                 ->join("other_staff", function ($join) {
                     $join
@@ -4368,9 +4490,14 @@ class AdminController extends Controller
                         );
                 })
                 ->where("role_user.role_id", $approver->role_id)
-                ->whereNull("role_user.teacher_id")
                 ->where("other_staff.schoolID", $schoolID)
-                ->whereNotNull("other_staff.phone_number")
+                ->whereNotNull("other_staff.phone_number");
+
+            if ($hasTeacherId) {
+                $staffQuery->whereNull("role_user.teacher_id");
+            }
+
+            $staffPhones = $staffQuery
                 ->pluck("other_staff.phone_number")
                 ->toArray();
 
@@ -4417,7 +4544,7 @@ class AdminController extends Controller
     {
         $user = Session::get("user_type");
         $schoolID = Session::get("schoolID");
-        $userID = Session::get("id");
+        $userID = Session::get("userID") ?: Session::get("id");
 
         if (!$user || !in_array($user, ["Admin", "Teacher", "Staff"])) {
             if ($request->ajax() || $request->expectsJson()) {
@@ -4431,23 +4558,71 @@ class AdminController extends Controller
                 ->with("error", "Unauthorized access");
         }
 
-        $validated = $request->validate([
-            "permissionID" => "required",
-            "admin_response" => "required|string",
-            "is_student_permission" => 'nullable|in:1,0,true,false,"1","0"',
-        ]);
+        try {
+            $validated = $request->validate([
+                "permissionID" => "required",
+                "admin_response" => "required|string",
+                "is_student_permission" => "nullable|in:1,0,true,false",
+            ]);
 
-        $isStudentPermission = in_array(
-            $request->input("is_student_permission"),
-            [1, "1", true, "true"],
-            true,
-        );
+            $isStudentPermission = in_array(
+                $request->input("is_student_permission"),
+                [1, "1", true, "true"],
+                true,
+            );
 
-        if ($isStudentPermission) {
-            // Handle student permission rejection
-            $permission = DB::table("student_permissions")
-                ->where("schoolID", $schoolID)
-                ->where("id", $validated["permissionID"])
+            if ($isStudentPermission) {
+                $permission = DB::table("student_permissions")
+                    ->where("schoolID", $schoolID)
+                    ->where("id", $validated["permissionID"])
+                    ->first();
+
+                if (!$permission) {
+                    return response()->json(
+                        ["success" => false, "message" => "Permission not found"],
+                        404,
+                    );
+                }
+
+                DB::table("student_permissions")
+                    ->where("id", $permission->id)
+                    ->update([
+                        "status" => "rejected",
+                        "reason_description" => $validated["admin_response"],
+                        "updated_at" => now(),
+                    ]);
+
+                $this->insertPermissionApprovalLog([
+                    "permissionID" => $permission->id,
+                    "permission_type" => "student",
+                    "approver_id" => $userID,
+                    "approver_role" => $user,
+                    "approval_order" =>
+                        (int) ($permission->current_approval_order ?: 1),
+                    "status" => "rejected",
+                    "admin_response" => $validated["admin_response"],
+                    "created_at" => now(),
+                    "updated_at" => now(),
+                ]);
+
+                $this->safeNotify(function () use ($permission, $validated) {
+                    $student = \App\Models\Student::find($permission->student_id);
+                    if ($student && $student->parent) {
+                        (new SmsService())->sendSms(
+                            $student->parent->phone,
+                            "Ruksa ya mwanafunzi {$student->first_name} {$student->last_name} imekataliwa. Sababu: {$validated["admin_response"]}",
+                        );
+                    }
+                });
+
+                return response()->json([
+                    "success" => true,
+                    "message" => "Student permission rejected successfully.",
+                ]);
+            }
+
+            $permission = PermissionRequest::where("schoolID", $schoolID)
+                ->where("permissionID", $validated["permissionID"])
                 ->first();
 
             if (!$permission) {
@@ -4457,110 +4632,77 @@ class AdminController extends Controller
                 );
             }
 
-            DB::table("student_permissions")
-                ->where("id", $permission->id)
-                ->update([
-                    "status" => "rejected",
-                    "reason_description" => $validated["admin_response"],
-                    "updated_at" => now(),
-                ]);
+            $permission->update([
+                "status" => "rejected",
+                "admin_response" => $validated["admin_response"],
+                "reviewed_at" => now(),
+                "is_read_by_requester" => false,
+            ]);
 
-            // Log the rejection
-            DB::table("permission_approval_logs")->insert([
-                "permissionID" => $permission->id,
-                "permission_type" => "student",
+            $this->insertPermissionApprovalLog([
+                "permissionID" => $permission->permissionID,
+                "permission_type" => $permission->requester_type ?? "teacher",
                 "approver_id" => $userID,
                 "approver_role" => $user,
-                "approval_order" => $permission->current_approval_order,
+                "approval_order" =>
+                    (int) ($permission->current_approval_order ?: 1),
                 "status" => "rejected",
                 "admin_response" => $validated["admin_response"],
                 "created_at" => now(),
                 "updated_at" => now(),
             ]);
 
-            // Notify requester
-            $student = \App\Models\Student::find($permission->student_id);
-            if ($student && $student->parent) {
-                $smsService = new SmsService();
-                $smsService->sendSms(
-                    $student->parent->phone,
-                    "Ruksa ya mwanafunzi {$student->first_name} {$student->last_name} imekataliwa. Sababu: {$validated["admin_response"]}",
+            $currentApprover =
+                DB::table("permission_approval_chains")
+                    ->where("schoolID", $schoolID)
+                    ->where("permission_type", $permission->requester_type)
+                    ->where(
+                        "approval_order",
+                        (int) ($permission->current_approval_order ?: 1),
+                    )
+                    ->value("role_name") ?? "System Admin";
+
+            $this->safeNotify(function () use (
+                $permission,
+                $currentApprover,
+                $validated,
+            ) {
+                $this->notifyRequester(
+                    $permission,
+                    "rejected",
+                    $currentApprover,
+                    $validated["admin_response"],
                 );
+            });
+
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    "success" => true,
+                    "message" => "Permission rejected successfully.",
+                ]);
             }
 
-            return response()->json([
-                "success" => true,
-                "message" => "Student permission rejected successfully.",
+            return redirect()
+                ->back()
+                ->with("success", "Permission rejected successfully.");
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error("rejectPermission failed: " . $e->getMessage(), [
+                "trace" => $e->getTraceAsString(),
             ]);
+
+            return response()->json(
+                [
+                    "success" => false,
+                    "message" => \App\Support\SafeErrorMessage::from(
+                        $e,
+                        "Failed to reject permission. Please try again.",
+                    ),
+                ],
+                500,
+            );
         }
-
-        // Handle teacher/staff permission rejection (existing logic)
-        $permission = PermissionRequest::where("schoolID", $schoolID)
-            ->where("permissionID", $validated["permissionID"])
-            ->firstOrFail();
-
-        // If it's a chain approval, check if this user is the current approver
-        $chainExists = DB::table("permission_approval_chains")
-            ->where("schoolID", $schoolID)
-            ->where("permission_type", $permission->requester_type)
-            ->exists();
-
-        if ($chainExists && $user !== "Admin") {
-            $currentStep = DB::table("permission_approval_chains")
-                ->where("schoolID", $schoolID)
-                ->where("permission_type", $permission->requester_type)
-                ->where("approval_order", $permission->current_approval_order)
-                ->first();
-
-            // Logic to check if current user matches role/position (simplified for now)
-            // In a real scenario, you'd check Spatie roles or profession_id
-        }
-
-        $permission->update([
-            "status" => "rejected",
-            "admin_response" => $validated["admin_response"],
-            "reviewed_at" => now(),
-            "is_read_by_requester" => false,
-        ]);
-
-        // Log the rejection
-        DB::table("permission_approval_logs")->insert([
-            "permissionID" => $permission->permissionID,
-            "permission_type" => $permission->requester_type ?? "teacher",
-            "approver_id" => $userID,
-            "approver_role" => $user,
-            "approval_order" => $permission->current_approval_order,
-            "status" => "rejected",
-            "admin_response" => $validated["admin_response"],
-            "created_at" => now(),
-            "updated_at" => now(),
-        ]);
-
-        // Get current rejector role name for SMS
-        $currentApprover =
-            DB::table("permission_approval_chains")
-                ->where("schoolID", $schoolID)
-                ->where("permission_type", $permission->requester_type)
-                ->where("approval_order", $permission->current_approval_order)
-                ->value("role_name") ?? "System Admin";
-
-        // Notify Requester
-        $this->notifyRequester(
-            $permission,
-            "rejected",
-            $currentApprover,
-            $validated["admin_response"],
-        );
-
-        if ($request->ajax() || $request->expectsJson()) {
-            return response()->json([
-                "success" => true,
-                "message" => "Permission rejected successfully.",
-            ]);
-        }
-        return redirect()
-            ->back()
-            ->with("success", "Permission rejected successfully.");
     }
 
     public function viewPermissionApprovalChainSettings(Request $request)

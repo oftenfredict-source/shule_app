@@ -277,6 +277,7 @@ class TimeTableController extends Controller
                     'subject_code' => $cs->subject->subject_code ?? '',
                     'teacherID' => $cs->teacherID,
                     'teacher_name' => $cs->teacher ? ($cs->teacher->first_name . ' ' . $cs->teacher->last_name) : 'Not Assigned',
+                    'student_status' => $cs->student_status ?? null,
                 ];
             });
 
@@ -3663,6 +3664,58 @@ class TimeTableController extends Controller
         }
     }
 
+    /**
+     * Parallel periods (same subclass + day + start/end) are allowed only when
+     * every subject in that slot is Optional (student_status).
+     */
+    private function validateOptionalParallelSessions(array $timetables): ?string
+    {
+        $groups = [];
+
+        foreach ($timetables as $session) {
+            // Free sessions (no subject) are fine alone; skip grouping with subjects
+            $classSubjectID = $session['class_subjectID'] ?? null;
+            if (!$classSubjectID) {
+                continue;
+            }
+
+            $key = implode('|', [
+                $session['subclassID'] ?? '',
+                $session['day'] ?? '',
+                $session['start_time'] ?? '',
+                $session['end_time'] ?? '',
+                (string) ($session['is_prepo'] ?? 0),
+            ]);
+
+            $groups[$key][] = $classSubjectID;
+        }
+
+        foreach ($groups as $classSubjectIDs) {
+            $uniqueIds = array_values(array_unique($classSubjectIDs));
+            if (count($uniqueIds) < 2) {
+                continue;
+            }
+
+            $statuses = DB::table('class_subjects')
+                ->whereIn('class_subjectID', $uniqueIds)
+                ->pluck('student_status', 'class_subjectID');
+
+            $names = DB::table('class_subjects')
+                ->join('school_subjects', 'class_subjects.subjectID', '=', 'school_subjects.subjectID')
+                ->whereIn('class_subjects.class_subjectID', $uniqueIds)
+                ->pluck('school_subjects.subject_name', 'class_subjects.class_subjectID');
+
+            foreach ($uniqueIds as $id) {
+                if (($statuses[$id] ?? null) !== 'Optional') {
+                    $subjectName = $names[$id] ?? 'Subject';
+                    return "Only Optional subjects can share the same period. \"{$subjectName}\" is not Optional. Please put Required subjects in their own periods.";
+                }
+            }
+        }
+
+        return null;
+    }
+
     // Save class session timetables
     public function saveClassSessionTimetables(Request $request)
     {
@@ -3699,6 +3752,13 @@ class TimeTableController extends Controller
 
             // Get unique subclass IDs from timetables
             $subclassIDs = array_unique(array_column($timetables, 'subclassID'));
+
+            // Validate parallel (same day/time) subjects: only Optional subjects may share a period
+            $overlapError = $this->validateOptionalParallelSessions($timetables);
+            if ($overlapError) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'error' => $overlapError]);
+            }
             
             // Delete existing timetables for these subclasses before inserting new ones
             foreach ($subclassIDs as $subclassID) {

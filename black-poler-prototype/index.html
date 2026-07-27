@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Black POLER — UI/UX Prototype · iPhone 16</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <!-- Icon definitions -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V7a3 3 0 0 1 6 0v1"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 19.5c1.8-3.2 4.2-4.5 7-4.5s5.2 1.3 7 4.5"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9z"/><path d="M10 19a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M5 18.5 4 21l3-1.2A9 9 0 1 0 5 18.5z"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20z"/></symbol>
+    <symbol id="i-comment" viewBox="0 0 24 24"><path d="M6 18h-.5A2.5 2.5 0 0 1 3 15.5v-7A2.5 2.5 0 0 1 5.5 6h13A2.5 2.5 0 0 1 21 8.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3v-3z"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.6M8.2 13.2l7.6 4.6"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4h10v17l-5-3-5 3V4z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m4 12 16-8-6 16-2-6-8-2z"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6 9 12l6 6"/></symbol>
+    <symbol id="i-signal" viewBox="0 0 24 24"><path d="M4 16h2v4H4zm5-4h2v8H9zm5-4h2v12h-2zm5-4h2v16h-2z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M5 12.5a9 9 0 0 1 14 0M8 15.5a5 5 0 0 1 8 0"/><circle cx="12" cy="19" r="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-battery" viewBox="0 0 24 24"><rect x="3" y="8" width="16" height="10" rx="2"/><path d="M21 11v4"/><rect x="5" y="10" width="10" height="6" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3v11H4V8z"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></symbol>
+    <symbol id="i-shirt" viewBox="0 0 24 24"><path d="M8 4 4 7v4l3-1v10h10V10l3 1V7l-4-3-2 3h-2L8 4z"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="7" cy="18" r="2.5"/><circle cx="17" cy="16" r="2.5"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.4 6.2L21 10l-5 4.2L17.5 21 12 17.5 6.5 21 8 14.2 3 10l6.6-.8L12 3z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="m9 18-5 2V7l5-2 6 2 5-2v13l-5 2-6-2z"/><path d="M9 5v13M15 7v13"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M4.2 6.2l1.4 1.4M18.4 16.4l1.4 1.4M3 12h2M19 12h2M4.2 17.8l1.4-1.4M18.4 7.6l1.4-1.4"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+    <symbol id="i-apple" viewBox="0 0 24 24"><path d="M16.5 13c0 3.2 2.6 4.4 2.6 4.4s-2.1 5.6-5 5.6c-1.3 0-2.2-.8-3.6-.8s-2.4.8-3.6.8c-2.8 0-6.2-5-6.2-9.3C.7 9.4 3.4 7 5.9 7c1.4 0 2.7.9 3.6.9S12 7 13.5 7c1.1 0 2.5.4 3.5 1.2-3 1.7-2.5 6.1-.5 4.8zM14.2 5.2A3.5 3.5 0 0 0 15 2a3.7 3.7 0 0 0-3.2 1.8 3.3 3.3 0 0 0-.8 2.9 3 3 0 0 0 3.2-1.5z"/></symbol>
+    <symbol id="i-google" viewBox="0 0 24 24"><path d="M12 11.5v3.3h5.1c-.2 1.3-1.6 3.9-5.1 3.9A5.9 5.9 0 1 1 12 6.1a5.7 5.7 0 0 1 4 1.6l2.3-2.2A9 9 0 1 0 12 21c5.2 0 8.6-3.6 8.6-8.7 0-.6 0-1-.1-1.5H12z"/></symbol>
+    <symbol id="i-shoe" viewBox="0 0 24 24"><path d="M4 15c2-1 4-1.5 7-1 2 .3 4 .2 6-.8l3 1.3v2.5H4v-2z"/><path d="M5 14.2c.5-3 2-6 4.5-7.2"/></symbol>
+    <symbol id="i-lens" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path d="m3 17 2-10 5 5 2-7 2 7 5-5 2 10H3z"/></symbol>
+  </svg>
+
+  <header class="deck-bar no-print">
+    <div class="deck-brand">
+      <div class="deck-mark">BP</div>
+      <div>
+        <h1>Black POLER</h1>
+        <p>UI/UX Prototype · iPhone 16</p>
+      </div>
+    </div>
+    <nav class="deck-nav no-print" aria-label="Sections">
+      <a href="#cover">Cover</a>
+      <a href="#auth">Onboarding</a>
+      <a href="#core">Core</a>
+      <a href="#hubs">Hubs</a>
+      <a href="#shop">Shop</a>
+      <a href="#community">Community</a>
+    </nav>
+    <div class="deck-actions">
+      <div class="lang-wrap">
+        <label data-i18n-lang-label>Language</label>
+        <select id="langSelect" aria-label="Language">
+          <option value="en">English</option>
+          <option value="sw">Kiswahili</option>
+          <option value="fr">Français</option>
+        </select>
+      </div>
+      <button class="btn-deck gold" id="btnPrint" type="button" data-i18n="printPdf">Export PDF</button>
+    </div>
+  </header>
+
+  <!-- COVER -->
+  <section class="cover" id="cover">
+    <div class="smoke"><div class="blob"></div></div>
+    <div class="cover-inner">
+      <div class="cover-logo">BP</div>
+      <h1 data-i18n="coverTitle">Black POLER</h1>
+      <p class="tagline" data-i18n="coverTag">The House of the Uni Gent.</p>
+      <p class="desc" data-i18n="coverDesc">A premium fashion & lifestyle social platform for university gentlemen and style-conscious creatives — where fashion, culture, music, and identity meet.</p>
+      <div class="meta-row">
+        <span class="meta-pill">Luxury</span>
+        <span class="meta-pill">Streetwear</span>
+        <span class="meta-pill">Modern African Fashion</span>
+        <span class="meta-pill">iPhone 16 Mockups</span>
+      </div>
+      <div class="flow-strip">
+        <span>Splash</span><span>→</span>
+        <span>Onboarding</span><span>→</span>
+        <span>Sign Up</span><span>→</span>
+        <span>Interests</span><span>→</span>
+        <span>Home</span><span>→</span>
+        <span>Explore</span><span>→</span>
+        <span>Marketplace</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- IDENTITY -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <div class="badge-sec">Brand System</div>
+        <h2>Identity</h2>
+        <p>Pink gradient atmosphere with smoke depth — balanced by black, white, and gold for a luxury streetwear presence.</p>
+      </div>
+    </div>
+    <div class="identity">
+      <div class="id-card">
+        <h4 data-i18n="colors">Color System</h4>
+        <div class="swatches">
+          <div class="swatch" style="background:#e11d62" title="Pink"></div>
+          <div class="swatch" style="background:#f45d8a" title="Rose"></div>
+          <div class="swatch" style="background:#0b0b0c" title="Black"></div>
+          <div class="swatch" style="background:#fbfbfc" title="White"></div>
+          <div class="swatch" style="background:#c9a54a" title="Gold"></div>
+        </div>
+      </div>
+      <div class="id-card">
+        <h4 data-i18n="typography">Typography</h4>
+        <p data-i18n="typoText">Century Gothic — clean, modern, premium.</p>
+      </div>
+      <div class="id-card">
+        <h4 data-i18n="style">Style</h4>
+        <p data-i18n="styleText">Luxury × Streetwear × Modern African Fashion</p>
+      </div>
+      <div class="id-card">
+        <h4 data-i18n="mission">Mission</h4>
+        <p data-i18n="missionText">Inspire confidence, class, and creativity across Africa’s leading university fashion community.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== AUTH FLOW ========== -->
+  <section class="section" id="auth">
+    <div class="section-head">
+      <div>
+        <div class="badge-sec">01 · Onboarding</div>
+        <h2 data-i18n="secAuth">Account Opening Flow</h2>
+        <p data-i18n="secAuthSub">From first launch to a personalized Home Feed.</p>
+      </div>
+    </div>
+    <div class="phones">
+
+      <!-- Splash -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="center-pad">
+              <div style="width:88px;height:88px;border-radius:24px;background:linear-gradient(145deg,#ff93b5,#e11d62);display:grid;place-items:center;font-size:28px;font-weight:700;letter-spacing:.08em;box-shadow:0 20px 50px rgba(225,29,98,.45)">BP</div>
+              <div class="brand-word">Black POLER</div>
+              <p class="tag-sm" data-i18n="splashTag">The House of the Uni Gent.</p>
+              <div style="margin-top:48px;width:36px;height:36px;border:2px solid rgba(255,147,181,.35);border-top-color:#f45d8a;border-radius:50%;animation:spin 1s linear infinite"></div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Splash</div>
+      </div>
+
+      <!-- Onboarding 1 -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body" style="padding:0">
+              <div style="height:420px;margin:12px 16px 0;border-radius:24px;overflow:hidden;position:relative">
+                <img src="assets/images/streetwear.png" alt="Streetwear" style="width:100%;height:100%;object-fit:cover"/>
+                <div style="position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(11,11,12,.92))"></div>
+              </div>
+              <div style="padding:18px 28px calc(34px + 12px);text-align:center">
+                <h3 style="font-size:22px;letter-spacing:.04em;margin-bottom:8px">Discover Fashion & Lifestyle</h3>
+                <p class="muted" style="font-size:13px;line-height:1.5;margin-bottom:8px">Trends, outfits, and creators curated for the Uni Gent.</p>
+                <div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div>
+                <button class="btn btn-primary" data-i18n="next">Continue</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Onboarding · 01</div>
+      </div>
+
+      <!-- Onboarding 2 -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body" style="padding:0">
+              <div style="height:420px;margin:12px 16px 0;border-radius:24px;overflow:hidden;position:relative">
+                <img src="assets/images/music.png" alt="Music" style="width:100%;height:100%;object-fit:cover"/>
+                <div style="position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(11,11,12,.92))"></div>
+              </div>
+              <div style="padding:18px 28px calc(34px + 12px);text-align:center">
+                <h3 style="font-size:22px;letter-spacing:.04em;margin-bottom:8px">Connect with Creators & Brands</h3>
+                <p class="muted" style="font-size:13px;line-height:1.5;margin-bottom:8px">Artists, models, photographers, and labels in one house.</p>
+                <div class="dots"><span class="dot"></span><span class="dot on"></span><span class="dot"></span></div>
+                <button class="btn btn-primary" data-i18n="next">Continue</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Onboarding · 02</div>
+      </div>
+
+      <!-- Onboarding 3 -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body" style="padding:0">
+              <div style="height:420px;margin:12px 16px 0;border-radius:24px;overflow:hidden;position:relative">
+                <img src="assets/images/sneakers.png" alt="Sneakers" style="width:100%;height:100%;object-fit:cover"/>
+                <div style="position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(11,11,12,.92))"></div>
+              </div>
+              <div style="padding:18px 28px calc(34px + 12px);text-align:center">
+                <h3 style="font-size:22px;letter-spacing:.04em;margin-bottom:8px">Shop, Share & Express Yourself</h3>
+                <p class="muted" style="font-size:13px;line-height:1.5;margin-bottom:8px">Marketplace drops, community posts, and your signature style.</p>
+                <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot on"></span></div>
+                <button class="btn btn-gold" data-i18n="getStarted">Get Started</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Onboarding · 03</div>
+      </div>
+
+      <!-- Welcome -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="center-pad" style="justify-content:flex-end;padding-bottom:48px">
+              <div style="width:72px;height:72px;border-radius:20px;background:linear-gradient(145deg,#ff93b5,#be124f);display:grid;place-items:center;font-weight:700;font-size:22px;margin-bottom:auto;margin-top:80px;box-shadow:0 16px 40px rgba(225,29,98,.4)">BP</div>
+              <h3 style="font-size:24px;letter-spacing:.06em;margin-bottom:8px" data-i18n="welcome">Welcome to Black POLER</h3>
+              <p class="muted" style="font-size:13px;margin-bottom:24px">Join Africa’s university fashion house.</p>
+              <div class="social-row">
+                <button class="btn btn-primary" data-i18n="signUp">Sign Up</button>
+                <button class="btn btn-outline" data-i18n="logIn">Log In</button>
+                <div class="divider">or</div>
+                <button class="btn btn-ghost"><svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5"><use href="#i-google"/></svg> <span data-i18n="google">Continue with Google</span></button>
+                <button class="btn btn-ghost"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><use href="#i-apple"/></svg> <span data-i18n="apple">Continue with Apple</span></button>
+                <button class="btn btn-ghost" style="opacity:.7" data-i18n="guest">Continue as Guest</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Welcome</div>
+      </div>
+
+      <!-- Sign Up -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3 data-i18n="signUp">Sign Up</h3>
+                <div style="width:36px"></div>
+              </div>
+              <div class="scroll-area">
+                <div class="field"><label>Full Name</label><input value="Hassani Mwinyi" readonly/></div>
+                <div class="field"><label>Username</label><input value="@hassani" readonly/></div>
+                <div class="field"><label>Email</label><input value="hassani@campus.ac.tz" readonly/></div>
+                <div class="field"><label>Password</label><input type="password" value="••••••••" readonly/></div>
+                <div class="field"><label>Confirm Password</label><input type="password" value="••••••••" readonly/></div>
+                <button class="btn btn-primary" style="margin-top:8px" data-i18n="createAccount">Create Account</button>
+                <p class="muted" style="text-align:center;font-size:11px;margin-top:14px;line-height:1.5">By continuing you agree to our Terms & Privacy Policy.</p>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Sign Up</div>
+      </div>
+
+      <!-- OTP -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="center-pad">
+              <div style="width:56px;height:56px;border-radius:16px;background:rgba(244,93,138,.15);border:1px solid rgba(244,93,138,.35);display:grid;place-items:center;margin-bottom:20px">
+                <svg width="26" height="26" viewBox="0 0 24 24" stroke="#ff93b5" fill="none" stroke-width="1.7"><use href="#i-spark"/></svg>
+              </div>
+              <h3 style="font-size:20px;margin-bottom:8px" data-i18n="verifyTitle">Enter Verification Code</h3>
+              <p class="muted" style="font-size:13px" data-i18n="verifySub">We sent a 6-digit code to your email.</p>
+              <div class="otp-boxes"><span>4</span><span>8</span><span>2</span><span>9</span><span>1</span><span>6</span></div>
+              <button class="btn btn-primary" data-i18n="verify">Verify</button>
+              <p class="muted" style="margin-top:16px;font-size:12px">Resend code in <span class="pink-text">0:42</span></p>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Verify OTP</div>
+      </div>
+
+      <!-- Complete Profile -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3 data-i18n="completeProfile">Complete Profile</h3>
+                <div style="width:36px"></div>
+              </div>
+              <div class="scroll-area" style="text-align:center">
+                <div style="position:relative;width:96px;height:96px;margin:8px auto 18px">
+                  <img class="avatar lg" src="assets/images/streetwear.png" alt="Profile" style="width:96px;height:96px"/>
+                  <span style="position:absolute;right:0;bottom:0;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#f45d8a,#be124f);display:grid;place-items:center;border:2px solid #0b0b0c">
+                    <svg width="14" height="14" viewBox="0 0 24 24" stroke="#fff" fill="none" stroke-width="2"><use href="#i-camera"/></svg>
+                  </span>
+                </div>
+                <div class="field" style="text-align:left"><label>Bio</label><textarea readonly>Uni Gent · Dar · Style over noise.</textarea></div>
+                <div class="field" style="text-align:left"><label>University</label><input value="University of Dar es Salaam" readonly/></div>
+                <div class="field" style="text-align:left"><label>Country</label><input value="Tanzania" readonly/></div>
+                <div class="field" style="text-align:left"><label>City</label><input value="Dar es Salaam" readonly/></div>
+                <button class="btn btn-primary" data-i18n="next">Continue</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Complete Profile</div>
+      </div>
+
+      <!-- Interests -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar" style="flex-direction:column;align-items:flex-start;gap:4px">
+                <h3 style="font-size:18px" data-i18n="interestsTitle">What inspires your style?</h3>
+                <p class="muted" style="font-size:12px" data-i18n="interestsSub">Select interests to personalize your feed.</p>
+              </div>
+              <div class="scroll-area">
+                <div class="interest-grid">
+                  <div class="interest selected"><img src="assets/images/streetwear.png" alt=""/><span>Streetwear</span><div class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div></div>
+                  <div class="interest selected"><img src="assets/images/luxury.png" alt=""/><span>Luxury</span><div class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div></div>
+                  <div class="interest selected"><img src="assets/images/sneakers.png" alt=""/><span>Sneakers</span><div class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div></div>
+                  <div class="interest selected"><img src="assets/images/music.png" alt=""/><span>Music</span><div class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div></div>
+                  <div class="interest selected"><img src="assets/images/photography.png" alt=""/><span>Photography</span><div class="check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div></div>
+                  <div class="interest"><img src="assets/images/streetwear.png" alt="" style="filter:saturate(.6)"/><span>Modeling</span></div>
+                  <div class="interest"><img src="assets/images/luxury.png" alt="" style="filter:brightness(.7)"/><span>Designers</span></div>
+                  <div class="interest"><img src="assets/images/music.png" alt="" style="filter:hue-rotate(20deg)"/><span>African Fashion</span></div>
+                </div>
+                <button class="btn btn-gold" data-i18n="next">Continue</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Select Interests</div>
+      </div>
+
+      <!-- Account Type -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar" style="flex-direction:column;align-items:flex-start">
+                <h3 data-i18n="accountType">Choose Account Type</h3>
+                <p class="muted" style="font-size:12px;margin-top:4px">You can request verification later.</p>
+              </div>
+              <div class="scroll-area">
+                <div class="type-list">
+                  <div class="type-item selected"><div class="type-icon"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg></div><div><strong>Fashion Enthusiast</strong><small>Discover & share style</small></div></div>
+                  <div class="type-item"><div class="type-icon"><svg viewBox="0 0 24 24"><use href="#i-spark"/></svg></div><div><strong>Creator</strong><small>Content & influence</small></div></div>
+                  <div class="type-item"><div class="type-icon"><svg viewBox="0 0 24 24"><use href="#i-mic"/></svg></div><div><strong>Artist</strong><small>Music & performance</small></div></div>
+                  <div class="type-item"><div class="type-icon"><svg viewBox="0 0 24 24"><use href="#i-camera"/></svg></div><div><strong>Photographer</strong><small>Visual storytelling</small></div></div>
+                  <div class="type-item"><div class="type-icon"><svg viewBox="0 0 24 24"><use href="#i-shirt"/></svg></div><div><strong>Fashion Designer</strong><small>Collections & craft</small></div></div>
+                  <div class="type-item"><div class="type-icon"><svg viewBox="0 0 24 24"><use href="#i-star"/></svg></div><div><strong>Model</strong><small>Portfolio & casting</small></div></div>
+                  <div class="type-item"><div class="type-icon"><svg viewBox="0 0 24 24"><use href="#i-crown"/></svg></div><div><strong>Brand / Business</strong><small>Shop & collaborate</small></div></div>
+                </div>
+                <button class="btn btn-primary" data-i18n="next">Continue</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Account Type</div>
+      </div>
+
+      <!-- Follow Suggested -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar" style="flex-direction:column;align-items:flex-start">
+                <h3 data-i18n="followTitle">Follow Suggested Accounts</h3>
+                <p class="muted" style="font-size:12px;margin-top:4px">Build your circle from day one.</p>
+              </div>
+              <div class="scroll-area">
+                <div class="follow-row">
+                  <img class="avatar" src="assets/images/streetwear.png" alt=""/>
+                  <div class="meta"><strong>Amina Style <span class="verified"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></strong><small>Creator · Streetwear</small></div>
+                  <button class="btn btn-sm btn-primary" data-i18n="follow">Follow</button>
+                </div>
+                <div class="follow-row">
+                  <img class="avatar" src="assets/images/music.png" alt=""/>
+                  <div class="meta"><strong>DJ Nuru <span class="verified"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></strong><small>Artist · Music</small></div>
+                  <button class="btn btn-sm btn-primary" data-i18n="follow">Follow</button>
+                </div>
+                <div class="follow-row">
+                  <img class="avatar" src="assets/images/photography.png" alt=""/>
+                  <div class="meta"><strong>Lens by Kai</strong><small>Photographer</small></div>
+                  <button class="btn btn-sm btn-outline" data-i18n="follow">Follow</button>
+                </div>
+                <div class="follow-row">
+                  <img class="avatar" src="assets/images/luxury.png" alt=""/>
+                  <div class="meta"><strong>Black POLER <span class="verified"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></strong><small>Brand · Official</small></div>
+                  <button class="btn btn-sm btn-gold" data-i18n="following">Following</button>
+                </div>
+                <div class="follow-row">
+                  <img class="avatar" src="assets/images/sneakers.png" alt=""/>
+                  <div class="meta"><strong>Sole Archive</strong><small>Sneakers · Marketplace</small></div>
+                  <button class="btn btn-sm btn-primary" data-i18n="follow">Follow</button>
+                </div>
+                <button class="btn btn-primary" style="margin-top:16px" data-i18n="next">Continue</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Follow Suggested</div>
+      </div>
+
+    </div>
+  </section>
+  <!-- ========== CORE ========== -->
+  <section class="section" id="core">
+    <div class="section-head">
+      <div>
+        <div class="badge-sec">02 · Core App</div>
+        <h2 data-i18n="secMain">Core Experience</h2>
+        <p data-i18n="secMainSub">Social discovery, creators, and daily engagement.</p>
+      </div>
+    </div>
+    <div class="phones">
+
+      <!-- Home Feed -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body" style="padding-top:54px">
+              <div class="topbar">
+                <h3 style="letter-spacing:.14em">POLER</h3>
+                <div class="row-icons">
+                  <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-heart"/></svg></button>
+                  <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-chat"/></svg></button>
+                </div>
+              </div>
+              <div class="stories">
+                <div class="story"><div class="avatar story" style="background:linear-gradient(135deg,#c9a54a,#f45d8a);padding:2px;border-radius:50%"><div style="width:100%;height:100%;border-radius:50%;background:#0b0b0c;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 24 24" stroke="#ff93b5" fill="none" stroke-width="2"><use href="#i-plus"/></svg></div></div><span>Your story</span></div>
+                <div class="story"><img class="avatar story" src="assets/images/streetwear.png" alt=""/><span>Amina</span></div>
+                <div class="story"><img class="avatar story" src="assets/images/music.png" alt=""/><span>Nuru</span></div>
+                <div class="story"><img class="avatar story" src="assets/images/photography.png" alt=""/><span>Kai</span></div>
+                <div class="story"><img class="avatar story" src="assets/images/luxury.png" alt=""/><span>POLER</span></div>
+              </div>
+              <div class="scroll-area" style="padding-top:0">
+                <article class="post">
+                  <div class="post-head">
+                    <img class="avatar sm" src="assets/images/streetwear.png" alt=""/>
+                    <div class="meta"><strong>Amina Style <span class="verified"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></strong><small>Streetwear · 2h</small></div>
+                    <svg width="18" height="18" viewBox="0 0 24 24" stroke="#8a8490" fill="none" stroke-width="2"><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/></svg>
+                  </div>
+                  <img class="post-media" src="assets/images/streetwear.png" alt="Streetwear look"/>
+                  <div class="post-actions">
+                    <div class="left">
+                      <svg viewBox="0 0 24 24"><use href="#i-heart"/></svg>
+                      <svg viewBox="0 0 24 24"><use href="#i-comment"/></svg>
+                      <svg viewBox="0 0 24 24"><use href="#i-share"/></svg>
+                    </div>
+                    <svg viewBox="0 0 24 24"><use href="#i-bookmark"/></svg>
+                  </div>
+                  <p class="post-caption"><strong>12.4k likes</strong><br/><strong>amina.style</strong> Yellow puffer season. Campus energy. #Streetwear</p>
+                </article>
+                <article class="post">
+                  <div class="post-head">
+                    <img class="avatar sm" src="assets/images/sneakers.png" alt=""/>
+                    <div class="meta"><strong>Sole Archive</strong><small>Sneakers · 5h</small></div>
+                  </div>
+                  <img class="post-media" src="assets/images/sneakers.png" alt="Sneakers"/>
+                  <div class="post-actions">
+                    <div class="left"><svg viewBox="0 0 24 24"><use href="#i-heart"/></svg><svg viewBox="0 0 24 24"><use href="#i-comment"/></svg><svg viewBox="0 0 24 24"><use href="#i-share"/></svg></div>
+                    <svg viewBox="0 0 24 24"><use href="#i-bookmark"/></svg>
+                  </div>
+                  <p class="post-caption"><strong>sole.archive</strong> Cream mules just dropped. Related: Sneakers</p>
+                </article>
+              </div>
+              <nav class="tabbar">
+                <div class="tab active"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg><span data-i18n="home">Home</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><span data-i18n="explore">Explore</span></div>
+                <div class="tab create"><div class="create-pill"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></div><span data-i18n="create">Create</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-bag"/></svg><span data-i18n="market">Shop</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg><span data-i18n="profile">Profile</span></div>
+              </nav>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Home Feed</div>
+      </div>
+
+      <!-- Explore -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body" style="padding-top:54px">
+              <div class="topbar"><h3 data-i18n="explore">Explore</h3>
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-filter"/></svg></button>
+              </div>
+              <div class="search-pill"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><span data-i18n="search">Search fashion, creators, brands…</span></div>
+              <div class="chip-row">
+                <span class="chip active"><svg viewBox="0 0 24 24"><use href="#i-spark"/></svg> <span data-i18n="forYou">For You</span></span>
+                <span class="chip"><svg viewBox="0 0 24 24"><use href="#i-shirt"/></svg> Streetwear</span>
+                <span class="chip"><svg viewBox="0 0 24 24"><use href="#i-crown"/></svg> Luxury</span>
+                <span class="chip"><svg viewBox="0 0 24 24"><use href="#i-shoe"/></svg> Sneakers</span>
+                <span class="chip"><svg viewBox="0 0 24 24"><use href="#i-music"/></svg> Music</span>
+                <span class="chip"><svg viewBox="0 0 24 24"><use href="#i-lens"/></svg> Photography</span>
+              </div>
+              <div class="scroll-area" style="padding-top:0">
+                <div class="explore-grid">
+                  <div class="tile wide"><img src="assets/images/luxury.png" alt="Luxury"/><div class="cap">Luxury · Lifestyle</div></div>
+                  <div class="tile"><img src="assets/images/streetwear.png" alt="Streetwear"/><div class="cap">Streetwear</div></div>
+                  <div class="tile"><img src="assets/images/sneakers.png" alt="Sneakers"/><div class="cap">Sneakers</div></div>
+                  <div class="tile"><img src="assets/images/music.png" alt="Music"/><div class="cap">Music</div></div>
+                  <div class="tile"><img src="assets/images/photography.png" alt="Photography"/><div class="cap">Photography</div></div>
+                </div>
+              </div>
+              <nav class="tabbar">
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg><span data-i18n="home">Home</span></div>
+                <div class="tab active"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><span data-i18n="explore">Explore</span></div>
+                <div class="tab create"><div class="create-pill"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></div><span data-i18n="create">Create</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-bag"/></svg><span data-i18n="market">Shop</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg><span data-i18n="profile">Profile</span></div>
+              </nav>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Explore</div>
+      </div>
+
+      <!-- Search -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3>Search</h3>
+                <div style="width:36px"></div>
+              </div>
+              <div class="search-pill" style="border-color:rgba(244,93,138,.45)"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><span style="color:#fff">streetwear</span></div>
+              <div class="chip-row">
+                <span class="chip active">Posts</span>
+                <span class="chip">People</span>
+                <span class="chip">Brands</span>
+                <span class="chip">Products</span>
+              </div>
+              <div class="scroll-area">
+                <div class="follow-row"><img class="avatar" src="assets/images/streetwear.png" alt=""/><div class="meta"><strong>Streetwear Campus</strong><small>Tag · 28.1k posts</small></div><svg width="16" height="16" viewBox="0 0 24 24" stroke="#8a8490" fill="none" stroke-width="1.7"><use href="#i-chevron"/></svg></div>
+                <div class="follow-row"><img class="avatar" src="assets/images/sneakers.png" alt=""/><div class="meta"><strong>Sneaker Culture TZ</strong><small>Community</small></div><svg width="16" height="16" viewBox="0 0 24 24" stroke="#8a8490" fill="none" stroke-width="1.7"><use href="#i-chevron"/></svg></div>
+                <p class="muted" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:14px 0 8px" data-i18n="related">Related</p>
+                <div class="explore-grid">
+                  <div class="tile"><img src="assets/images/streetwear.png" alt=""/><div class="cap">Streetwear</div></div>
+                  <div class="tile"><img src="assets/images/sneakers.png" alt=""/><div class="cap">Sneakers</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Search</div>
+      </div>
+
+      <!-- Profile -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body" style="padding-top:54px">
+              <div class="topbar">
+                <h3>@hassani</h3>
+                <div class="row-icons">
+                  <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-bell"/></svg></button>
+                  <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-settings"/></svg></button>
+                </div>
+              </div>
+              <div class="scroll-area" style="padding:0">
+                <div class="profile-hero">
+                  <img class="avatar lg" src="assets/images/streetwear.png" alt="" style="margin:0 auto"/>
+                  <h3 style="margin-top:12px;font-size:18px;display:flex;align-items:center;justify-content:center;gap:6px">Hassani Mwinyi</h3>
+                  <p class="muted" style="font-size:12px;margin-top:4px">Uni Gent · UDSM · Dar es Salaam</p>
+                  <p style="font-size:12px;margin-top:8px;line-height:1.45;max-width:260px;margin-left:auto;margin-right:auto">Building quiet luxury with campus edge.</p>
+                  <div class="stats">
+                    <div><strong>48</strong><span>Posts</span></div>
+                    <div><strong>2.1k</strong><span>Followers</span></div>
+                    <div><strong>312</strong><span>Following</span></div>
+                  </div>
+                  <div style="display:flex;gap:8px;justify-content:center">
+                    <button class="btn btn-sm btn-outline">Edit Profile</button>
+                    <button class="btn btn-sm btn-ghost"><svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.7"><use href="#i-share"/></svg></button>
+                  </div>
+                </div>
+                <div class="tabs-seg">
+                  <button class="on">Photos</button>
+                  <button>Videos</button>
+                  <button>Saved</button>
+                </div>
+                <div class="explore-grid" style="padding:0 18px 16px">
+                  <div class="tile"><img src="assets/images/streetwear.png" alt=""/></div>
+                  <div class="tile"><img src="assets/images/sneakers.png" alt=""/></div>
+                  <div class="tile"><img src="assets/images/luxury.png" alt=""/></div>
+                  <div class="tile"><img src="assets/images/photography.png" alt=""/></div>
+                </div>
+              </div>
+              <nav class="tabbar">
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg><span data-i18n="home">Home</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><span data-i18n="explore">Explore</span></div>
+                <div class="tab create"><div class="create-pill"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></div><span data-i18n="create">Create</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-bag"/></svg><span data-i18n="market">Shop</span></div>
+                <div class="tab active"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg><span data-i18n="profile">Profile</span></div>
+              </nav>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">User Profile</div>
+      </div>
+
+      <!-- Notifications -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3 data-i18n="notifications">Notifications</h3>
+                <div style="width:36px"></div>
+              </div>
+              <div class="scroll-area">
+                <div class="notif-item"><img class="avatar sm" src="assets/images/streetwear.png" alt=""/><div><p><strong>Amina Style</strong> liked your post.</p><small>2m ago</small></div></div>
+                <div class="notif-item"><img class="avatar sm" src="assets/images/music.png" alt=""/><div><p><strong>DJ Nuru</strong> started following you.</p><small>18m ago</small></div></div>
+                <div class="notif-item"><img class="avatar sm" src="assets/images/luxury.png" alt=""/><div><p><strong>Black POLER</strong> dropped a limited collection.</p><small>1h ago</small></div></div>
+                <div class="notif-item"><img class="avatar sm" src="assets/images/photography.png" alt=""/><div><p><strong>Lens by Kai</strong> tagged you in Photography.</p><small>3h ago</small></div></div>
+                <div class="notif-item"><img class="avatar sm" src="assets/images/sneakers.png" alt=""/><div><p>Your saved item <strong>Gola Mules</strong> is back in stock.</p><small>Yesterday</small></div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Notifications</div>
+      </div>
+
+      <!-- Create Post -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3>New Post</h3>
+                <button class="btn btn-sm btn-primary" style="width:auto">Share</button>
+              </div>
+              <div class="scroll-area">
+                <div style="border-radius:18px;overflow:hidden;height:280px;margin-bottom:14px;border:1px solid rgba(255,255,255,.08)">
+                  <img src="assets/images/photography.png" alt="Photography" style="width:100%;height:100%;object-fit:cover"/>
+                </div>
+                <div class="field"><label>Caption</label><textarea readonly>Studio night. Related: Photography</textarea></div>
+                <div class="field"><label>Tags</label><input value="#Photography #UniGent" readonly/></div>
+                <div class="set-row" style="border-radius:12px;border:1px solid rgba(255,255,255,.08)"><span>Add location</span><svg viewBox="0 0 24 24"><use href="#i-map"/></svg></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Create Post</div>
+      </div>
+
+    </div>
+  </section>
+  <!-- ========== HUBS ========== -->
+  <section class="section" id="hubs">
+    <div class="section-head">
+      <div>
+        <div class="badge-sec">03 · Hubs</div>
+        <h2 data-i18n="secHubs">Hubs & Profiles</h2>
+        <p data-i18n="secHubsSub">Dedicated spaces for brands, artists, and models.</p>
+      </div>
+    </div>
+    <div class="phones">
+
+      <!-- Brand Page -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3>Brand</h3>
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-share"/></svg></button>
+              </div>
+              <div class="scroll-area" style="padding:0">
+                <div class="hub-banner"><img src="assets/images/luxury.png" alt="Luxury"/><div class="overlay"><h4>Black POLER <span class="verified" style="display:inline-flex;vertical-align:middle"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></h4><p>Official Brand · Luxury × Streetwear</p></div></div>
+                <div style="padding:0 18px 16px">
+                  <div class="stats" style="justify-content:space-around;margin-top:0">
+                    <div><strong>186</strong><span>Posts</span></div>
+                    <div><strong>94k</strong><span>Followers</span></div>
+                    <div><strong>42</strong><span>Products</span></div>
+                  </div>
+                  <div style="display:flex;gap:8px;margin-bottom:14px">
+                    <button class="btn btn-sm btn-gold" style="flex:1" data-i18n="following">Following</button>
+                    <button class="btn btn-sm btn-outline" style="flex:1">Shop</button>
+                    <button class="btn btn-sm btn-ghost"><svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.7"><use href="#i-chat"/></svg></button>
+                  </div>
+                  <div class="tabs-seg" style="margin:0 0 12px">
+                    <button class="on">Collections</button>
+                    <button>Posts</button>
+                    <button>About</button>
+                  </div>
+                  <div class="market-grid">
+                    <div class="product-card"><img src="assets/images/streetwear.png" alt=""/><div class="info"><strong>Puffer Drop 01</strong><span class="price">TZS 185,000</span></div></div>
+                    <div class="product-card"><img src="assets/images/sneakers.png" alt=""/><div class="info"><strong>Cream Mules</strong><span class="price">TZS 220,000</span></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Brand Page</div>
+      </div>
+
+      <!-- Artist Hub -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3>Artist Hub</h3>
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-share"/></svg></button>
+              </div>
+              <div class="scroll-area" style="padding:0">
+                <div class="hub-banner"><img src="assets/images/music.png" alt="Music"/><div class="overlay"><h4>DJ Nuru <span class="verified" style="display:inline-flex"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></h4><p>Artist · Afro-house · Dar</p></div></div>
+                <div style="padding:0 18px 16px">
+                  <div style="display:flex;gap:8px;margin-bottom:14px">
+                    <button class="btn btn-sm btn-primary" style="flex:1" data-i18n="follow">Follow</button>
+                    <button class="btn btn-sm btn-outline" style="flex:1">Message</button>
+                  </div>
+                  <div style="padding:12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:12px;display:flex;gap:12px;align-items:center">
+                    <div style="width:48px;height:48px;border-radius:12px;overflow:hidden;flex-shrink:0"><img src="assets/images/music.png" alt="" style="width:100%;height:100%;object-fit:cover"/></div>
+                    <div style="flex:1"><strong style="font-size:13px">Midnight Runway</strong><p class="muted" style="font-size:11px">Latest single · Related: Music</p></div>
+                    <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f45d8a,#be124f);display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M8 6v12l10-6z"/></svg></div>
+                  </div>
+                  <div class="event-card">
+                    <div class="event-date"><strong>12</strong><span>Aug</span></div>
+                    <div><h4>Campus Night Live</h4><p>UDSM · Tickets available</p></div>
+                  </div>
+                  <p class="muted" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:8px 0" data-i18n="related">Related</p>
+                  <div class="explore-grid">
+                    <div class="tile"><img src="assets/images/music.png" alt=""/><div class="cap">Music</div></div>
+                    <div class="tile"><img src="assets/images/streetwear.png" alt=""/><div class="cap">Collab Fit</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Artist Hub</div>
+      </div>
+
+      <!-- Models Hub -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3>Models Hub</h3>
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-share"/></svg></button>
+              </div>
+              <div class="scroll-area" style="padding:0">
+                <div class="hub-banner" style="height:180px"><img src="assets/images/streetwear.png" alt="Model"/><div class="overlay"><h4>Zuri N. <span class="verified" style="display:inline-flex"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></h4><p>Model · 178cm · Dar / Nairobi</p></div></div>
+                <div style="padding:0 18px 16px">
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+                    <div style="padding:10px;border-radius:12px;background:rgba(255,255,255,.04);text-align:center;border:1px solid rgba(255,255,255,.08)"><strong style="font-size:14px">178</strong><p class="muted" style="font-size:10px">Height</p></div>
+                    <div style="padding:10px;border-radius:12px;background:rgba(255,255,255,.04);text-align:center;border:1px solid rgba(255,255,255,.08)"><strong style="font-size:14px">4y</strong><p class="muted" style="font-size:10px">Experience</p></div>
+                    <div style="padding:10px;border-radius:12px;background:rgba(255,255,255,.04);text-align:center;border:1px solid rgba(255,255,255,.08)"><strong style="font-size:14px">12</strong><p class="muted" style="font-size:10px">Castings</p></div>
+                  </div>
+                  <div style="display:flex;gap:8px;margin-bottom:14px">
+                    <button class="btn btn-sm btn-primary" style="flex:1">Contact</button>
+                    <button class="btn btn-sm btn-outline" style="flex:1">Portfolio</button>
+                  </div>
+                  <div class="tabs-seg" style="margin:0 0 12px"><button class="on">Portfolio</button><button>Castings</button><button>Collabs</button></div>
+                  <div class="explore-grid">
+                    <div class="tile"><img src="assets/images/streetwear.png" alt=""/><div class="cap">Streetwear</div></div>
+                    <div class="tile"><img src="assets/images/photography.png" alt=""/><div class="cap">Photography</div></div>
+                    <div class="tile wide"><img src="assets/images/luxury.png" alt=""/><div class="cap">Luxury editorial</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Models Hub</div>
+      </div>
+
+      <!-- Photographer Profile -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3>Photographer</h3>
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-share"/></svg></button>
+              </div>
+              <div class="scroll-area" style="padding:0">
+                <div class="hub-banner"><img src="assets/images/photography.png" alt="Photography"/><div class="overlay"><h4>Lens by Kai</h4><p>Photographer · Fashion & Editorial</p></div></div>
+                <div style="padding:0 18px 16px">
+                  <button class="btn btn-sm btn-primary" style="width:100%;margin-bottom:14px">Book Session</button>
+                  <p class="muted" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px" data-i18n="related">Related · Photography</p>
+                  <div class="explore-grid">
+                    <div class="tile wide"><img src="assets/images/photography.png" alt=""/><div class="cap">Photography</div></div>
+                    <div class="tile"><img src="assets/images/streetwear.png" alt=""/><div class="cap">Lookbook</div></div>
+                    <div class="tile"><img src="assets/images/luxury.png" alt=""/><div class="cap">Campaign</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Photographer</div>
+      </div>
+
+    </div>
+  </section>
+  <!-- ========== MARKETPLACE ========== -->
+  <section class="section" id="shop">
+    <div class="section-head">
+      <div>
+        <div class="badge-sec">04 · Commerce</div>
+        <h2 data-i18n="secShop">Marketplace & Commerce</h2>
+        <p data-i18n="secShopSub">Collections, drops, cart, and checkout.</p>
+      </div>
+    </div>
+    <div class="phones">
+
+      <!-- Marketplace -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body" style="padding-top:54px">
+              <div class="topbar">
+                <h3 data-i18n="market">Shop</h3>
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-bag"/></svg></button>
+              </div>
+              <div class="search-pill"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><span>Search products & drops…</span></div>
+              <div class="chip-row">
+                <span class="chip active">All</span>
+                <span class="chip">Streetwear</span>
+                <span class="chip">Sneakers</span>
+                <span class="chip">Luxury</span>
+                <span class="chip">Accessories</span>
+              </div>
+              <div class="scroll-area" style="padding-top:0">
+                <div style="border-radius:18px;overflow:hidden;height:140px;margin-bottom:12px;position:relative;border:1px solid rgba(255,255,255,.08)">
+                  <img src="assets/images/luxury.png" alt="" style="width:100%;height:100%;object-fit:cover"/>
+                  <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.75),transparent);display:flex;flex-direction:column;justify-content:center;padding:16px">
+                    <span class="gold-text" style="font-size:10px;letter-spacing:.12em;text-transform:uppercase">Limited Drop</span>
+                    <strong style="font-size:16px;margin-top:4px">Uni Gent Capsule</strong>
+                  </div>
+                </div>
+                <div class="market-grid">
+                  <div class="product-card"><img src="assets/images/sneakers.png" alt="Sneakers"/><div class="info"><strong>Gola Mules</strong><span class="price">TZS 220,000</span></div></div>
+                  <div class="product-card"><img src="assets/images/streetwear.png" alt="Streetwear"/><div class="info"><strong>Yellow Puffer</strong><span class="price">TZS 185,000</span></div></div>
+                  <div class="product-card"><img src="assets/images/luxury.png" alt="Luxury"/><div class="info"><strong>Night Drive Cap</strong><span class="price">TZS 45,000</span></div></div>
+                  <div class="product-card"><img src="assets/images/music.png" alt="Merch"/><div class="info"><strong>Artist Merch Tee</strong><span class="price">TZS 55,000</span></div></div>
+                </div>
+              </div>
+              <nav class="tabbar">
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg><span data-i18n="home">Home</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><span data-i18n="explore">Explore</span></div>
+                <div class="tab create"><div class="create-pill"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></div><span data-i18n="create">Create</span></div>
+                <div class="tab active"><svg viewBox="0 0 24 24"><use href="#i-bag"/></svg><span data-i18n="market">Shop</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg><span data-i18n="profile">Profile</span></div>
+              </nav>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Marketplace</div>
+      </div>
+
+      <!-- Product Details -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body" style="padding:0">
+              <div style="position:relative;height:360px">
+                <img src="assets/images/sneakers.png" alt="Sneakers" style="width:100%;height:100%;object-fit:cover"/>
+                <div style="position:absolute;top:54px;left:14px;right:14px;display:flex;justify-content:space-between">
+                  <button class="icon-btn" style="background:rgba(0,0,0,.45)"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                  <button class="icon-btn" style="background:rgba(0,0,0,.45)"><svg viewBox="0 0 24 24"><use href="#i-bookmark"/></svg></button>
+                </div>
+              </div>
+              <div class="scroll-area" style="padding-top:16px;padding-bottom:16px">
+                <p class="muted" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase">Black POLER · Related: Sneakers</p>
+                <h3 style="font-size:20px;margin:6px 0">Cream Stripe Mules</h3>
+                <p class="gold-text" style="font-size:18px;font-weight:700;margin-bottom:10px">TZS 220,000</p>
+                <p style="font-size:12px;line-height:1.5;color:rgba(255,255,255,.75);margin-bottom:14px">Backless trainer silhouette. Gum sole. Limited campus drop.</p>
+                <p class="muted" style="font-size:11px;margin-bottom:8px">Size</p>
+                <div class="chip-row" style="padding:0 0 14px">
+                  <span class="chip">40</span><span class="chip active">41</span><span class="chip">42</span><span class="chip">43</span><span class="chip">44</span>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-outline" style="flex:1" data-i18n="addCart">Add to Cart</button>
+                  <button class="btn btn-gold" style="flex:1" data-i18n="buyNow">Buy Now</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Product Details</div>
+      </div>
+
+      <!-- Cart -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3 data-i18n="cart">Cart</h3>
+                <div style="width:36px"></div>
+              </div>
+              <div class="scroll-area">
+                <div class="cart-line">
+                  <img src="assets/images/sneakers.png" alt="Sneakers"/>
+                  <div class="meta">
+                    <strong>Cream Stripe Mules</strong>
+                    <p class="muted" style="font-size:11px">Size 41 · Related: Sneakers</p>
+                    <p class="gold-text" style="font-size:13px;margin-top:4px">TZS 220,000</p>
+                    <div class="qty"><span>−</span>1<span>+</span></div>
+                  </div>
+                </div>
+                <div class="cart-line">
+                  <img src="assets/images/streetwear.png" alt="Streetwear"/>
+                  <div class="meta">
+                    <strong>Yellow Puffer</strong>
+                    <p class="muted" style="font-size:11px">Size M · Related: Streetwear</p>
+                    <p class="gold-text" style="font-size:13px;margin-top:4px">TZS 185,000</p>
+                    <div class="qty"><span>−</span>1<span>+</span></div>
+                  </div>
+                </div>
+                <div style="margin-top:18px;padding:14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+                  <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span class="muted">Subtotal</span><span>TZS 405,000</span></div>
+                  <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span class="muted">Delivery</span><span>TZS 8,000</span></div>
+                  <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)"><span>Total</span><span class="gold-text">TZS 413,000</span></div>
+                </div>
+                <button class="btn btn-primary" style="margin-top:16px" data-i18n="checkout">Checkout</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Cart</div>
+      </div>
+
+      <!-- Checkout -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3 data-i18n="checkout">Checkout</h3>
+                <div style="width:36px"></div>
+              </div>
+              <div class="scroll-area">
+                <div class="field"><label>Delivery Address</label><input value="Mikocheni, Dar es Salaam" readonly/></div>
+                <div class="field"><label>Phone</label><input value="+255 712 000 000" readonly/></div>
+                <p class="muted" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:8px 0">Payment</p>
+                <div class="type-item selected" style="margin-bottom:8px"><div class="type-icon"><svg viewBox="0 0 24 24"><use href="#i-spark"/></svg></div><div><strong>Mobile Money</strong><small>M-Pesa / Tigo Pesa</small></div></div>
+                <div class="type-item" style="margin-bottom:8px"><div class="type-icon"><svg viewBox="0 0 24 24"><use href="#i-crown"/></svg></div><div><strong>Card</strong><small>Visa / Mastercard</small></div></div>
+                <div class="type-item" style="margin-bottom:16px"><div class="type-icon"><svg viewBox="0 0 24 24"><use href="#i-bag"/></svg></div><div><strong>Cash on Delivery</strong><small>Pay when you receive</small></div></div>
+                <button class="btn btn-gold">Place Order · TZS 413,000</button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Checkout</div>
+      </div>
+
+    </div>
+  </section>
+  <!-- ========== COMMUNITY ========== -->
+  <section class="section" id="community">
+    <div class="section-head">
+      <div>
+        <div class="badge-sec">05 · Community</div>
+        <h2 data-i18n="secComm">Community & Connectivity</h2>
+        <p data-i18n="secCommSub">Events, messaging, notifications, and settings.</p>
+      </div>
+    </div>
+    <div class="phones">
+
+      <!-- Events -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <h3 data-i18n="events">Events</h3>
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-calendar"/></svg></button>
+              </div>
+              <div class="chip-row">
+                <span class="chip active">Upcoming</span>
+                <span class="chip">Fashion</span>
+                <span class="chip">Campus</span>
+                <span class="chip">Music</span>
+              </div>
+              <div class="scroll-area" style="padding-top:0">
+                <div class="event-card">
+                  <div class="event-date"><strong>02</strong><span>Aug</span></div>
+                  <div><h4>Black POLER Runway Night</h4><p>Hyatt · Dar · Tickets from TZS 25k</p></div>
+                </div>
+                <div class="event-card">
+                  <div class="event-date"><strong>12</strong><span>Aug</span></div>
+                  <div><h4>Campus Night Live</h4><p>UDSM · Related: Music</p></div>
+                </div>
+                <div class="event-card">
+                  <div class="event-date"><strong>20</strong><span>Aug</span></div>
+                  <div><h4>Pop-up: Sneaker Archive</h4><p>Masaki · Related: Sneakers</p></div>
+                </div>
+                <div style="border-radius:16px;overflow:hidden;height:160px;position:relative;margin-top:8px;border:1px solid rgba(255,255,255,.08)">
+                  <img src="assets/images/music.png" alt="" style="width:100%;height:100%;object-fit:cover"/>
+                  <div style="position:absolute;inset:0;background:linear-gradient(transparent,rgba(0,0,0,.8));display:flex;align-items:flex-end;padding:14px">
+                    <div><strong>Featured Performance</strong><p class="muted" style="font-size:11px">Artist Hub · Music</p></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Events</div>
+      </div>
+
+      <!-- Chat List -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <h3 data-i18n="messages">Messages</h3>
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
+              </div>
+              <div class="search-pill"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg><span>Search conversations…</span></div>
+              <div class="scroll-area" style="padding-top:0">
+                <div class="chat-item">
+                  <img class="avatar" src="assets/images/luxury.png" alt=""/>
+                  <div class="meta"><strong>Black POLER <span class="verified"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></strong><p>Your order is being packed.</p></div>
+                  <span class="time">2m</span>
+                </div>
+                <div class="chat-item">
+                  <img class="avatar" src="assets/images/photography.png" alt=""/>
+                  <div class="meta"><strong>Lens by Kai</strong><p>Studio is free Thursday.</p></div>
+                  <span class="time">1h</span>
+                </div>
+                <div class="chat-item">
+                  <img class="avatar" src="assets/images/streetwear.png" alt=""/>
+                  <div class="meta"><strong>Zuri N. <span class="verified"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span></strong><p>Can we collab on the lookbook?</p></div>
+                  <span class="time">3h</span>
+                </div>
+                <div class="chat-item">
+                  <img class="avatar" src="assets/images/music.png" alt=""/>
+                  <div class="meta"><strong>DJ Nuru</strong><p>Guest list confirmed.</p></div>
+                  <span class="time">Yesterday</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Chat List</div>
+      </div>
+
+      <!-- Chat Screen -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body" style="padding-top:54px">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <div style="display:flex;align-items:center;gap:8px;flex:1">
+                  <img class="avatar sm" src="assets/images/photography.png" alt=""/>
+                  <div><strong style="font-size:13px">Lens by Kai</strong><p class="muted" style="font-size:10px">Photographer · Online</p></div>
+                </div>
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-spark"/></svg></button>
+              </div>
+              <div class="scroll-area" style="display:flex;flex-direction:column;justify-content:flex-end">
+                <div class="bubble-row them"><div class="bubble">Hey Hassani — saw your Streetwear post. Want a collab shoot?</div></div>
+                <div class="bubble-row me"><div class="bubble">Absolutely. Related: Photography + Streetwear.</div></div>
+                <div class="bubble-row them"><div class="bubble">Studio is free Thursday evening. I’ll send moodboard.</div></div>
+                <div class="bubble-row me"><div class="bubble">Perfect. I’ll bring the yellow puffer look.</div></div>
+              </div>
+              <div class="composer">
+                <input value="Sounds good — see you then." readonly/>
+                <div class="send-btn"><svg viewBox="0 0 24 24"><use href="#i-send"/></svg></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Chat Screen</div>
+      </div>
+
+      <!-- Settings -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3 data-i18n="settings">Settings</h3>
+                <div style="width:36px"></div>
+              </div>
+              <div class="scroll-area">
+                <div class="settings-group">
+                  <h4>Account</h4>
+                  <div class="set-row"><span>Edit profile</span><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></div>
+                  <div class="set-row"><span>Request verification</span><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></div>
+                  <div class="set-row"><span>Favorite brands</span><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></div>
+                </div>
+                <div class="settings-group">
+                  <h4>Preferences</h4>
+                  <div class="set-row"><span>Language</span><span class="muted" style="font-size:12px">English</span></div>
+                  <div class="set-row"><span>Push notifications</span><div class="toggle on"></div></div>
+                  <div class="set-row"><span>Private account</span><div class="toggle"></div></div>
+                </div>
+                <div class="settings-group">
+                  <h4>Support</h4>
+                  <div class="set-row"><span>Help center</span><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></div>
+                  <div class="set-row"><span>Terms & privacy</span><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></div>
+                  <div class="set-row" style="color:#ff93b5"><span>Log out</span><svg viewBox="0 0 24 24"><use href="#i-chevron"/></svg></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Settings · Language</div>
+      </div>
+
+      <!-- Login -->
+      <div class="phone-wrap">
+        <div class="iphone"><div class="iphone-inner">
+          <div class="dynamic-island"></div>
+          <div class="screen">
+            <div class="screen-bg"></div>
+            <div class="smoke"><div class="blob"></div></div>
+            <div class="status-bar"><span class="time">9:41</span><span class="status-icons"><svg viewBox="0 0 24 24"><use href="#i-signal"/></svg><svg viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg viewBox="0 0 24 24"><use href="#i-battery"/></svg></span></div>
+            <div class="screen-body">
+              <div class="topbar">
+                <button class="icon-btn"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+                <h3 data-i18n="logIn">Log In</h3>
+                <div style="width:36px"></div>
+              </div>
+              <div class="scroll-area">
+                <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(145deg,#ff93b5,#be124f);display:grid;place-items:center;font-weight:700;margin:12px auto 24px;box-shadow:0 12px 32px rgba(225,29,98,.4)">BP</div>
+                <div class="field"><label>Email or Username</label><input value="@hassani" readonly/></div>
+                <div class="field"><label>Password</label><input type="password" value="••••••••" readonly/></div>
+                <p class="pink-text" style="font-size:12px;text-align:right;margin-bottom:16px">Forgot password?</p>
+                <button class="btn btn-primary" data-i18n="logIn">Log In</button>
+                <div class="divider">or</div>
+                <button class="btn btn-ghost" style="margin-bottom:8px"><svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5"><use href="#i-google"/></svg> <span data-i18n="google">Continue with Google</span></button>
+                <button class="btn btn-ghost"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><use href="#i-apple"/></svg> <span data-i18n="apple">Continue with Apple</span></button>
+              </div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-label">Log In</div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="footer-note">
+    <p data-i18n="footer">Black POLER UI/UX Prototype · iPhone 16 · Presentation Deck</p>
+    <p style="margin-top:8px;opacity:.7">The House of the Uni Gent.</p>
+  </footer>
+
+  <style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+  <script src="js/app.js"></script>
+</body>
+</html>
