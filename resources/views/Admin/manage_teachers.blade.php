@@ -1412,7 +1412,7 @@
                                                     '13. Fingerprint Settings' => 'fingerprint',
                                                     '14. Task Management' => 'task',
                                                     '15. SMS Information' => 'sms',
-                                                    '16. Subject Analysis' => 'subject_analysis',
+                                                    '16. Topic Analysis' => 'subject_analysis',
                                                     '17. Teacher Management' => 'teacher',
                                                     '18. Printing Unit' => 'printing_unit',
                                                     '19. Watchman' => 'watchman',
@@ -2149,7 +2149,7 @@
                                    id="searchPermissionCategory"
                                    placeholder="Search by category name (e.g., Examination, Class, Timetable...)">
                             <small class="text-muted">
-                                <i class="bi bi-info-circle"></i> Type to filter categories. Categories: Examination, Classes, Subject, Result, Attendance, Student, Parent, Timetable, Fees, Accommodation, Library, Calendar, Fingerprint, Task, SMS, Subject Analysis, Printing Unit, Watchman, School Visitors, Scheme of Work, Lesson Plans, Academic Years, School, Sponsor, Student ID Card, HR, Teacher Duty, Feedback, Staff Feedback, Performance, Accountant, Goal, Department, Staff
+                                <i class="bi bi-info-circle"></i> Type to filter categories. Categories: Examination, Classes, Subject, Result, Attendance, Student, Parent, Timetable, Fees, Accommodation, Library, Calendar, Fingerprint, Task, SMS, Topic Analysis, Printing Unit, Watchman, School Visitors, Scheme of Work, Lesson Plans, Academic Years, School, Sponsor, Student ID Card, HR, Teacher Duty, Feedback, Staff Feedback, Performance, Accountant, Goal, Department, Staff
                             </small>
                         </div>
                         <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto;" id="permissionsContainer">
@@ -2171,7 +2171,7 @@
                                     '13. Fingerprint Settings' => 'fingerprint',
                                     '14. Task Management' => 'task',
                                     '15. SMS Information' => 'sms',
-                                    '16. Subject Analysis' => 'subject_analysis',
+                                    '16. Topic Analysis' => 'subject_analysis',
                                     '17. Teacher Management' => 'teacher',
                                     '18. Printing Unit' => 'printing_unit',
                                     '19. Watchman' => 'watchman',
@@ -2394,7 +2394,7 @@
                                    id="searchEditPermissionCategory"
                                    placeholder="Search by category name (e.g., Examination, Class, Timetable...)">
                             <small class="text-muted">
-                                <i class="bi bi-info-circle"></i> Type to filter categories. Categories: Examination, Classes, Subject, Result, Attendance, Student, Parent, Timetable, Fees, Accommodation, Library, Calendar, Fingerprint, Task, SMS, Subject Analysis, Printing Unit, Watchman, School Visitors, Scheme of Work, Lesson Plans, Academic Years, School, Sponsor, Student ID Card, HR, Teacher Duty, Feedback, Staff Feedback, Performance, Accountant, Goal, Department, Staff
+                                <i class="bi bi-info-circle"></i> Type to filter categories. Categories: Examination, Classes, Subject, Result, Attendance, Student, Parent, Timetable, Fees, Accommodation, Library, Calendar, Fingerprint, Task, SMS, Topic Analysis, Printing Unit, Watchman, School Visitors, Scheme of Work, Lesson Plans, Academic Years, School, Sponsor, Student ID Card, HR, Teacher Duty, Feedback, Staff Feedback, Performance, Accountant, Goal, Department, Staff
                             </small>
                         </div>
                         <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto;" id="editPermissionsContainer">
@@ -5294,7 +5294,7 @@
                             'Fingerprint Settings': 'fingerprint',
                             'Task Management': 'task',
                             'SMS Information': 'sms',
-                            'Subject Analysis': 'subject_analysis',
+                            'Topic Analysis': 'subject_analysis',
                             'Teacher Management': 'teacher',
                             'Printing Unit': 'printing_unit',
                             'Watchman': 'watchman',

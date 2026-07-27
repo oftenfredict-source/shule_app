@@ -567,6 +567,14 @@ Route::get("super-admin/system-logs/data", [
     SuperAdminController::class,
     "getSystemLogsData",
 ])->name("superadmin.system_logs.data");
+Route::get("super-admin/system-logs/visitors/data", [
+    SuperAdminController::class,
+    "getWebVisitorsData",
+])->name("superadmin.system_logs.visitors_data");
+Route::get("super-admin/system-logs/visitors/details", [
+    SuperAdminController::class,
+    "getWebVisitorDetails",
+])->name("superadmin.system_logs.visitors_details");
 Route::get("super-admin/system-logs/details/{id}", [
     SuperAdminController::class,
     "getLogDetails",
@@ -579,6 +587,10 @@ Route::post("super-admin/system-logs/unblock-ip", [
     SuperAdminController::class,
     "unblockIp",
 ])->name("superadmin.system_logs.unblock_ip");
+Route::post("super-admin/system-logs/login-photo-capture", [
+    SuperAdminController::class,
+    "updateLoginPhotoCaptureSetting",
+])->name("superadmin.system_logs.login_photo_capture");
 
 // login Routes
 Route::get("login", [Auth::class, "login"])->name("login");

@@ -18,9 +18,6 @@
     <article id="{{ $slug ? ('team-member-' . $slug) : null }}" class="sx-team-card {{ $isLead ? 'sx-team-card--lead' : '' }} sx-team-card--{{ $variant }}" itemscope itemtype="https://schema.org/Person">
         <div class="sx-team-card__glow" aria-hidden="true"></div>
         <div class="sx-team-card__inner">
-            @if($isLead)
-                <span class="sx-team-badge"><i class="fa fa-star" aria-hidden="true"></i> Senior Developer</span>
-            @endif
             <div class="sx-team-card__frame">
                 <div class="sx-team-card__ring" aria-hidden="true"></div>
                 <div class="sx-team-card__photo">

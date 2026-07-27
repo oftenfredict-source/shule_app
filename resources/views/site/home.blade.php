@@ -72,12 +72,30 @@
             <div class="menu-content pb-70 col-lg-8">
                 <div class="title text-center">
                     <h1 class="mb-10">Modules that power your school</h1>
-                    <p>Every major ShuleXpert capability — mapped from the live system your school already runs on.</p>
+                    <p>Start with <strong>Lesson Plans</strong> and <strong>Scheme of Work</strong> — plus fees, exams, attendance and more from the live ShuleXpert system.</p>
                 </div>
             </div>
         </div>
         <div class="row sx-modules-grid">
-            @foreach(array_slice($modules, 0, 8) as $module)
+            @php
+                $homeFeaturedSlugs = [
+                    'lesson-plans',
+                    'scheme-of-work',
+                    'fees-payments',
+                    'attendance-biometric',
+                    'exams-results',
+                    'topic-analysis',
+                    'parent-portal',
+                    'timetable-academics',
+                ];
+                $homeModules = collect($modules)
+                    ->keyBy('slug')
+                    ->only($homeFeaturedSlugs)
+                    ->filter()
+                    ->values()
+                    ->all();
+            @endphp
+            @foreach($homeModules as $module)
                 <div class="col-lg-3 col-md-6 col-12 sx-module-col">
                     <div class="sx-module-card">
                         <div class="thumb thumb-icon" aria-hidden="true">

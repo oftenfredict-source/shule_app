@@ -16,6 +16,8 @@ use App\Models\StaffProfession;
 use App\Models\SystemAlert;
 use App\Models\User;
 use App\Models\UserLog;
+use App\Models\SystemSetting;
+use App\Models\WebVisitor;
 use App\Models\UserActivity;
 use App\Models\BlockedIp;
 use App\Models\Bank;
@@ -1465,7 +1467,40 @@ class SuperAdminController extends Controller
     public function systemLogs()
     {
         if ($resp = $this->ensureSuperAdmin()) return $resp;
-        return view('SuperAdmin.system_logs');
+
+        $loginPhotoCaptureEnabled = SystemSetting::isLoginPhotoCaptureEnabled();
+        $loginLogsToday = UserLog::whereDate('login_at', today())->count();
+        $webVisitorsToday = WebVisitor::whereDate('visited_at', today())->count();
+
+        return view('SuperAdmin.system_logs', compact(
+            'loginPhotoCaptureEnabled',
+            'loginLogsToday',
+            'webVisitorsToday'
+        ));
+    }
+
+    public function updateLoginPhotoCaptureSetting(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) return $resp;
+
+        $validator = Validator::make($request->all(), [
+            'enabled' => 'required|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        $enabled = $request->boolean('enabled');
+        SystemSetting::setValue('login_photo_capture_enabled', $enabled ? '1' : '0');
+
+        return response()->json([
+            'success' => true,
+            'enabled' => $enabled,
+            'message' => $enabled
+                ? 'Login photo capture enabled.'
+                : 'Login photo capture disabled.',
+        ]);
     }
 
     public function getSystemLogsData(Request $request)
@@ -1474,6 +1509,7 @@ class SuperAdminController extends Controller
 
         $query = UserLog::with('school');
         $recordsTotal = UserLog::count();
+        $todayCount = UserLog::whereDate('login_at', today())->count();
 
         if ($request->start_date) {
             $query->whereDate('login_at', '>=', $request->start_date);
@@ -1553,7 +1589,177 @@ class SuperAdminController extends Controller
             'draw' => (int) $request->input('draw', 1),
             'recordsTotal' => $recordsTotal,
             'recordsFiltered' => $recordsFiltered,
+            'todayCount' => $todayCount,
             'data' => $data,
+        ]);
+    }
+
+    public function getWebVisitorsData(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) return $resp;
+
+        $todayCount = WebVisitor::whereDate('visited_at', today())->count();
+        $recordsTotal = (int) WebVisitor::query()->distinct()->count('ip_address');
+
+        $base = WebVisitor::query();
+
+        if ($request->start_date) {
+            $base->whereDate('visited_at', '>=', $request->start_date);
+        }
+        if ($request->end_date) {
+            $base->whereDate('visited_at', '<=', $request->end_date);
+        }
+
+        $search = trim((string) ($request->username ?: $request->input('search.value', '')));
+        if ($search !== '') {
+            $base->where(function ($q) use ($search) {
+                $q->where('page_name', 'like', "%{$search}%")
+                    ->orWhere('page_url', 'like', "%{$search}%")
+                    ->orWhere('ip_address', 'like', "%{$search}%")
+                    ->orWhere('browser', 'like', "%{$search}%")
+                    ->orWhere('os', 'like', "%{$search}%")
+                    ->orWhere('device_type', 'like', "%{$search}%")
+                    ->orWhere('city', 'like', "%{$search}%")
+                    ->orWhere('country', 'like', "%{$search}%")
+                    ->orWhere('region', 'like', "%{$search}%");
+            });
+        }
+
+        $grouped = (clone $base)
+            ->select('ip_address')
+            ->selectRaw('COUNT(*) as pages_count')
+            ->selectRaw('MAX(visited_at) as last_visited')
+            ->selectRaw('MAX(id) as latest_id')
+            ->groupBy('ip_address');
+
+        $recordsFiltered = (clone $grouped)->get()->count();
+
+        $orderColumnIndex = (int) $request->input('order.0.column', 5);
+        $orderDirection = strtolower((string) $request->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $orderMap = [
+            0 => 'ip_address',
+            1 => 'last_visited',
+            2 => 'pages_count',
+            3 => 'last_visited',
+            4 => 'last_visited',
+            5 => 'last_visited',
+        ];
+        $orderColumn = $orderMap[$orderColumnIndex] ?? 'last_visited';
+
+        $start = max(0, (int) $request->input('start', 0));
+        $length = (int) $request->input('length', 10);
+        if ($length <= 0) {
+            $length = 10;
+        }
+        $length = min($length, 100);
+
+        $rows = $grouped
+            ->orderBy($orderColumn, $orderDirection)
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $latestIds = $rows->pluck('latest_id')->filter()->values();
+        $latestById = WebVisitor::whereIn('id', $latestIds)->get()->keyBy('id');
+
+        $data = $rows->map(function ($row) use ($latestById) {
+            $latest = $latestById->get($row->latest_id);
+            $location = $latest ? $latest->locationLabel() : 'Unknown location';
+
+            return [
+                'id' => $row->latest_id,
+                'ip_address' => $row->ip_address,
+                'page_name' => $latest->page_name ?? 'Unknown page',
+                'page_url' => $latest->page_url ?? '',
+                'pages_count' => (int) $row->pages_count,
+                'device_type' => $latest->device_type ?? 'Unknown',
+                'browser' => $latest->browser ?? '-',
+                'os' => $latest->os ?? '-',
+                'city' => $latest->city ?? null,
+                'region' => $latest->region ?? null,
+                'country' => $latest->country ?? null,
+                'location' => $location,
+                'visited_at' => $row->last_visited,
+            ];
+        })->values();
+
+        return response()->json([
+            'draw' => (int) $request->input('draw', 1),
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'todayCount' => $todayCount,
+            'data' => $data,
+        ]);
+    }
+
+    public function getWebVisitorDetails(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) return $resp;
+
+        $ip = trim((string) $request->input('ip_address', ''));
+        if ($ip === '') {
+            return response()->json(['success' => false, 'message' => 'IP address is required'], 422);
+        }
+
+        $pages = WebVisitor::where('ip_address', $ip)
+            ->orderByDesc('visited_at')
+            ->limit(200)
+            ->get();
+
+        if ($pages->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Visitor not found'], 404);
+        }
+
+        $latest = $pages->first();
+
+        // Backfill location if missing
+        if (!$latest->latitude && !$latest->country) {
+            $geo = WebVisitor::resolveIpLocation($ip);
+            if (!empty($geo['country']) || !empty($geo['latitude'])) {
+                WebVisitor::where('ip_address', $ip)
+                    ->whereNull('country')
+                    ->update([
+                        'country' => $geo['country'],
+                        'region' => $geo['region'],
+                        'city' => $geo['city'],
+                        'latitude' => $geo['latitude'],
+                        'longitude' => $geo['longitude'],
+                    ]);
+
+                $latest->country = $geo['country'];
+                $latest->region = $geo['region'];
+                $latest->city = $geo['city'];
+                $latest->latitude = $geo['latitude'];
+                $latest->longitude = $geo['longitude'];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'ip_address' => $ip,
+                'device_type' => $latest->device_type,
+                'browser' => $latest->browser,
+                'os' => $latest->os,
+                'country' => $latest->country,
+                'region' => $latest->region,
+                'city' => $latest->city,
+                'latitude' => $latest->latitude,
+                'longitude' => $latest->longitude,
+                'location' => $latest->locationLabel(),
+                'pages_count' => $pages->count(),
+                'first_visit' => optional($pages->last())->visited_at,
+                'last_visit' => optional($latest)->visited_at,
+                'pages' => $pages->map(function ($page) {
+                    return [
+                        'id' => $page->id,
+                        'page_name' => $page->page_name,
+                        'page_url' => $page->page_url,
+                        'referer' => $page->referer,
+                        'visited_at' => $page->visited_at,
+                    ];
+                })->values(),
+            ],
         ]);
     }
 

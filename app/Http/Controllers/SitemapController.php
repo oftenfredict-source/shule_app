@@ -6,21 +6,43 @@ use App\Services\OnlineApplicationApplyTokenService;
 
 class SitemapController extends Controller
 {
+    /**
+     * Higher priority for modules that drive search intent / conversions.
+     */
+    private const MODULE_PRIORITIES = [
+        'lesson-plans' => '1.0',
+        'scheme-of-work' => '0.99',
+        'student-management' => '0.85',
+        'online-admission' => '0.85',
+        'fees-payments' => '0.9',
+        'attendance-biometric' => '0.9',
+        'exams-results' => '0.9',
+        'topic-analysis' => '0.88',
+        'parent-portal' => '0.88',
+        'timetable-academics' => '0.85',
+        'sms-communication' => '0.82',
+        'student-id-cards' => '0.8',
+        'character-assessment' => '0.8',
+        'library' => '0.8',
+        'accountant' => '0.8',
+        'teacher-portal' => '0.8',
+    ];
+
     public function index(OnlineApplicationApplyTokenService $applyTokens)
     {
         $static = [
-            ['/', 'daily', '1.0'],
-            ['/about', 'monthly', '0.9'],
-            ['/team', 'monthly', '0.9'],
-            ['/services', 'monthly', '0.9'],
-            ['/modules', 'weekly', '0.9'],
-            ['/pricing', 'weekly', '0.95'],
-            ['/faq', 'monthly', '0.85'],
-            ['/download', 'weekly', '0.9'],
-            ['/contact', 'monthly', '0.85'],
-            ['/online-application', 'daily', '0.95'],
-            ['/online-application/account/register', 'monthly', '0.85'],
-            ['/online-application/account/login', 'monthly', '0.85'],
+            ['/', 'daily', '0.95'],
+            ['/about', 'monthly', '0.85'],
+            ['/team', 'weekly', '0.85'],
+            ['/services', 'monthly', '0.85'],
+            ['/modules', 'daily', '0.96'],
+            ['/pricing', 'weekly', '0.9'],
+            ['/faq', 'monthly', '0.8'],
+            ['/download', 'weekly', '0.85'],
+            ['/contact', 'monthly', '0.8'],
+            ['/online-application', 'daily', '0.9'],
+            ['/online-application/account/register', 'monthly', '0.8'],
+            ['/online-application/account/login', 'monthly', '0.8'],
         ];
 
         $urls = [];
@@ -34,11 +56,12 @@ class SitemapController extends Controller
         }
 
         foreach (array_keys(SiteController::modules()) as $slug) {
+            $priority = self::MODULE_PRIORITIES[$slug] ?? '0.72';
             $urls[] = [
                 'loc' => $applyTokens->publicAbsoluteUrl('/modules/' . $slug),
                 'lastmod' => now()->toAtomString(),
-                'changefreq' => 'weekly',
-                'priority' => '0.7',
+                'changefreq' => in_array($slug, ['lesson-plans', 'scheme-of-work'], true) ? 'daily' : 'weekly',
+                'priority' => $priority,
             ];
         }
 

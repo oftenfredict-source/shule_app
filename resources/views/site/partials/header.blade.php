@@ -1,12 +1,12 @@
 @php
     $headerModules = array_values(\App\Http\Controllers\SiteController::modules());
     $megaFeaturedSlugs = [
+        'lesson-plans',
+        'scheme-of-work',
         'fees-payments',
         'attendance-biometric',
         'exams-results',
         'parent-portal',
-        'sms-communication',
-        'student-management',
     ];
     $megaFeatured = collect($headerModules)
         ->filter(fn ($module) => in_array($module['slug'], $megaFeaturedSlugs, true))

@@ -35,7 +35,7 @@
 <div class="container-fluid mt-4 subject-analysis-wrapper">
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body bg-primary-custom text-white rounded">
-            <h4 class="mb-0"><i class="fa fa-line-chart"></i> Subject Analysis</h4>
+            <h4 class="mb-0"><i class="fa fa-line-chart"></i> Topic Analysis</h4>
         </div>
     </div>
 
@@ -51,7 +51,7 @@
             @if(empty($hasSelectedAcademicYear))
                 <div class="alert alert-warning mb-0">
                     <i class="fa fa-exclamation-triangle"></i>
-                    Select an academic year in the header before running subject analysis.
+                    Select an academic year in the header before running topic analysis.
                     Only students with <strong>Active</strong> enrollment in that year are included.
                 </div>
             @else
@@ -123,7 +123,7 @@
                     <div class="mb-4">
                         <i class="fa fa-file-pdf-o fa-3x text-danger animate-pulse"></i>
                     </div>
-                    <h5 class="mb-4" style="color: #940000; font-weight: bold;">Generating Subject Analysis Report</h5>
+                    <h5 class="mb-4" style="color: #940000; font-weight: bold;">Generating Topic Analysis Report</h5>
                     <div class="progress mb-2" style="height: 12px; border-radius: 6px;">
                         <div id="pdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" 
                             role="progressbar" style="width: 0%;"></div>
@@ -230,7 +230,7 @@
                             <div class="card-body p-3">
                                 <label class="mb-2">Send Comment to Teacher</label>
                                 <div class="input-group">
-                                    <textarea class="form-control subject-comment-text" rows="2" placeholder="Write comment based on subject performance..."></textarea>
+                                    <textarea class="form-control subject-comment-text" rows="2" placeholder="Write comment based on topic / question performance..."></textarea>
                                     <div class="input-group-append">
                                         <button
                                             class="btn btn-primary-custom send-subject-comment"

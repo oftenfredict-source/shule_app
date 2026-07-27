@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             ForcePasswordChange::class,
             \App\Http\Middleware\LogUserActivity::class,
+            \App\Http\Middleware\LogWebVisitor::class,
         ]);
 
         $middleware->api(append: [

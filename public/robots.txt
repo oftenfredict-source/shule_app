@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Allow: /about
+Allow: /team
 Allow: /services
 Allow: /modules
 Allow: /pricing
@@ -13,12 +14,18 @@ Allow: /css/
 Allow: /template/
 Allow: /favicon.ico
 Allow: /site.webmanifest
+Allow: /sitemap.xml
 
 Disallow: /admin
 Disallow: /AdminDashboard
+Disallow: /TeacherDashboard
+Disallow: /StaffDashboard
+Disallow: /ParentDashboard
 Disallow: /super-admin
 Disallow: /api/
 Disallow: /storage/
+Disallow: /login
+Disallow: /logout
 
 Sitemap: https://shulexpert.com/sitemap.xml
 Sitemap: https://test.shulexpert.com/sitemap.xml

@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use App\Models\UserLog;
 use App\Models\BlockedIp;
+use App\Models\SystemSetting;
 use Jenssegers\Agent\Agent;
 use Illuminate\Support\Facades\Storage;
 
@@ -55,7 +56,7 @@ class Auth extends Controller
         }
 
         $photoPath = null;
-        if ($request->filled('photo_data')) {
+        if (SystemSetting::isLoginPhotoCaptureEnabled() && $request->filled('photo_data')) {
             $data = $request->input('photo_data');
             if (preg_match('/^data:image\/(\w+);base64,/', $data, $type)) {
                 $data = substr($data, strpos($data, ',') + 1);
@@ -348,7 +349,9 @@ class Auth extends Controller
             }
         }
 
-        return view('login');
+        return view('login', [
+            'loginPhotoCaptureEnabled' => SystemSetting::isLoginPhotoCaptureEnabled(),
+        ]);
     }
 
     /**

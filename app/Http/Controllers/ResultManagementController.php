@@ -3150,7 +3150,7 @@ class ResultManagementController extends Controller
                 ->back()
                 ->with(
                     "error",
-                    "Select an academic year in the header before exporting subject analysis.",
+                    "Select an academic year in the header before exporting topic analysis.",
                 );
         }
 
@@ -3206,7 +3206,7 @@ class ResultManagementController extends Controller
             "school" => $school,
             "selectedExam" => $selectedExam,
             "groupedAnalysis" => $groupedAnalysis,
-            "title" => "Subject Analysis - " . $selectedExam->exam_name,
+            "title" => "Topic Analysis - " . $selectedExam->exam_name,
             "academicYearLabel" => $yearCtx["label"] ?? null,
         ];
 

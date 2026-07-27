@@ -31,11 +31,19 @@
     <meta property="og:url" content="{{ $canonical }}">
     <meta property="og:site_name" content="ShuleXpert">
     <meta property="og:image" content="{{ $ogImage }}">
+    <meta property="og:image:alt" content="{{ $seo['image_alt'] ?? $pageTitle }}">
+    @if(!empty($seo['modified_time']))
+    <meta property="og:updated_time" content="{{ $seo['modified_time'] }}">
+    <meta property="article:modified_time" content="{{ $seo['modified_time'] }}">
+    @endif
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ $pageTitle }}">
     <meta name="twitter:description" content="{{ $pageDesc }}">
     <meta name="twitter:image" content="{{ $ogImage }}">
+    <meta name="twitter:image:alt" content="{{ $seo['image_alt'] ?? $pageTitle }}">
+    <link rel="alternate" hreflang="en" href="{{ $canonical }}">
+    <link rel="alternate" hreflang="x-default" href="{{ $canonical }}">
 
     @include('includes.site_favicon')
 

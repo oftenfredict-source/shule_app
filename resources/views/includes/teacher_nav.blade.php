@@ -1204,7 +1204,7 @@
                                 @endif
 
                                 @if($hasSubjectAnalysisPermission)
-                                    <li><a href="{{ route('admin.subject_analysis') }}" class="nav-link"><i class="fa fa-line-chart"></i> Subject Analysis</a></li>
+                                    <li><a href="{{ route('admin.subject_analysis') }}" class="nav-link"><i class="fa fa-line-chart"></i> Topic Analysis</a></li>
                                 @endif
 
                                 @if($hasClassesPermission)

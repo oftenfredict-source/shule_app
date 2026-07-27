@@ -23,7 +23,7 @@
             <div class="menu-content pb-70 col-lg-8">
                 <div class="title text-center">
                     <h1 class="mb-10">Complete ShuleXpert module suite</h1>
-                    <p>Each module below reflects a live capability in the ShuleXpert system.</p>
+                    <p>Each module below reflects a live capability in the ShuleXpert system — including dedicated <strong>Lesson Plans</strong> and <strong>Scheme of Work</strong> modules, plus fees, exams, topic analysis, attendance, timetable, library, SMS and school operations.</p>
                 </div>
             </div>
         </div>
@@ -49,10 +49,30 @@
 
 @push('schema')
 @php
+    $modulesUrl = url('/modules');
+    $collection = [
+        '@context' => 'https://schema.org',
+        '@type' => 'CollectionPage',
+        '@id' => $modulesUrl . '#webpage',
+        'url' => $modulesUrl,
+        'name' => 'ShuleXpert Modules',
+        'description' => 'Complete list of ShuleXpert school management modules by EmCa Techonology.',
+        'inLanguage' => 'en-TZ',
+        'isPartOf' => [
+            '@type' => 'WebSite',
+            'name' => 'ShuleXpert',
+            'url' => url('/'),
+        ],
+        'mainEntity' => ['@id' => $modulesUrl . '#itemlist'],
+    ];
+
     $itemList = [
         '@context' => 'https://schema.org',
         '@type' => 'ItemList',
+        '@id' => $modulesUrl . '#itemlist',
         'name' => 'ShuleXpert Modules',
+        'numberOfItems' => count($modules),
+        'itemListOrder' => 'https://schema.org/ItemListOrderAscending',
         'itemListElement' => collect($modules)->values()->map(function ($m, $i) {
             return [
                 '@type' => 'ListItem',
@@ -60,9 +80,20 @@
                 'name' => $m['title'],
                 'url' => url('/modules/' . $m['slug']),
                 'description' => $m['short'],
+                'item' => [
+                    '@type' => 'Service',
+                    'name' => $m['title'],
+                    'description' => $m['short'],
+                    'url' => url('/modules/' . $m['slug']),
+                    'provider' => [
+                        '@type' => 'Organization',
+                        'name' => 'ShuleXpert',
+                    ],
+                ],
             ];
         })->all(),
     ];
 @endphp
+<script type="application/ld+json">{!! json_encode($collection, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}</script>
 <script type="application/ld+json">{!! json_encode($itemList, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) !!}</script>
 @endpush

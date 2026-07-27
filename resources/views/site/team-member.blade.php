@@ -33,9 +33,6 @@
                 <div class="sx-member-hero__photo">
                     <img src="{{ asset($member['image']) }}" alt="{{ $name }} — {{ $role }} at EmCa Techonology" width="480" height="480">
                 </div>
-                @if(!empty($member['featured']))
-                    <span class="sx-member-hero__badge"><i class="fa fa-star"></i> Senior Developer</span>
-                @endif
             </div>
 
             <div class="sx-member-hero__copy">
@@ -80,18 +77,22 @@
 
 <section class="sx-member-body">
     <div class="container">
-        <div class="row">
-            <div class="col-lg-7 mb-4">
+        <div class="row g-3">
+            <div class="col-lg-7">
                 <article class="sx-member-panel">
                     <h2>About {{ $name }}</h2>
                     <p class="sx-member-lead">{{ $member['bio'] }}</p>
                     <div class="sx-member-bio">
-                        {!! nl2br(e($member['more_bio'] ?? '')) !!}
+                        @foreach(preg_split("/\n\s*\n/", trim($member['more_bio'] ?? '')) as $para)
+                            @if(trim($para) !== '')
+                                <p>{!! nl2br(e(trim($para))) !!}</p>
+                            @endif
+                        @endforeach
                     </div>
                 </article>
 
                 @if(!empty($member['projects']))
-                    <article class="sx-member-panel mt-4">
+                    <article class="sx-member-panel mt-3">
                         <h2>Key projects</h2>
                         <ul class="sx-member-projects">
                             @foreach($member['projects'] as $project)
@@ -102,7 +103,7 @@
                 @endif
             </div>
 
-            <div class="col-lg-5 mb-4">
+            <div class="col-lg-5">
                 <aside class="sx-member-panel sx-member-panel--cta">
                     <h2>Let’s talk</h2>
                     <p>Need ShuleXpert, a custom school system, or a mobile app? Reach {{ $name }} directly — we build software that schools and organisations rely on.</p>
@@ -121,7 +122,7 @@
                 </aside>
 
                 @if(!empty($member['social']))
-                    <aside class="sx-member-panel mt-4">
+                    <aside class="sx-member-panel mt-3">
                         <h2>Connect</h2>
                         <div class="sx-member-social">
                             @foreach($member['social'] as $social)
@@ -184,7 +185,7 @@
 .sx-member-hero {
     position: relative;
     overflow: hidden;
-    padding: 110px 0 48px;
+    padding: 88px 0 28px;
     color: #fff;
     background:
         linear-gradient(145deg, #1a0610 0%, #3a0a14 35%, #940000 70%, #5c0000 100%);
@@ -225,19 +226,19 @@
 .sx-member-hero .container { position: relative; z-index: 2; }
 .sx-member-crumb {
     display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-    margin-bottom: 28px; font-size: 13px; color: rgba(255,255,255,0.75);
+    margin-bottom: 16px; font-size: 13px; color: rgba(255,255,255,0.75);
 }
 .sx-member-crumb a { color: #ffc9c9; }
 .sx-member-crumb a:hover { color: #fff; }
 .sx-member-hero__grid {
     display: grid;
-    grid-template-columns: minmax(220px, 340px) 1fr;
-    gap: 40px;
-    align-items: center;
+    grid-template-columns: minmax(200px, 280px) 1fr;
+    gap: 28px;
+    align-items: start;
 }
-.sx-member-hero__photo-wrap { position: relative; justify-self: center; }
+.sx-member-hero__photo-wrap { position: relative; justify-self: center; margin-bottom: 8px; }
 .sx-member-hero__ring {
-    position: absolute; inset: -14px;
+    position: absolute; inset: -10px;
     border-radius: 50%;
     background: conic-gradient(from 0deg, #ffc9c9, #940000, #fff, #c43a3a, #ffc9c9);
     animation: sxTeamRingSpin 10s linear infinite;
@@ -245,12 +246,12 @@
 }
 .sx-member-hero__photo {
     position: relative;
-    width: min(320px, 78vw);
-    height: min(320px, 78vw);
+    width: min(240px, 70vw);
+    height: min(240px, 70vw);
     border-radius: 50%;
     overflow: hidden;
-    border: 5px solid rgba(255,255,255,0.85);
-    box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+    border: 4px solid rgba(255,255,255,0.85);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
     background: #2a0a12;
 }
 .sx-member-hero__photo img {
@@ -268,21 +269,21 @@
 }
 .sx-member-eyebrow {
     text-transform: uppercase; letter-spacing: 0.18em;
-    font-size: 11px; font-weight: 700; color: #ffc9c9; margin-bottom: 10px;
+    font-size: 11px; font-weight: 700; color: #ffc9c9; margin-bottom: 6px;
 }
 .sx-member-hero__copy h1 {
-    font-size: clamp(32px, 5vw, 52px);
-    font-weight: 800; line-height: 1.1; margin: 0 0 8px;
+    font-size: clamp(28px, 4.5vw, 44px);
+    font-weight: 800; line-height: 1.1; margin: 0 0 6px;
     background: linear-gradient(120deg, #fff 0%, #ffc9c9 50%, #fff 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.sx-member-role { font-size: 18px; font-weight: 700; color: #ffd6d6; margin-bottom: 12px; }
-.sx-member-tagline { font-size: 16px; color: rgba(255,255,255,0.88); max-width: 540px; margin-bottom: 22px; }
-.sx-member-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.sx-member-role { font-size: 17px; font-weight: 700; color: #ffd6d6; margin-bottom: 8px; }
+.sx-member-tagline { font-size: 15px; color: rgba(255,255,255,0.88); max-width: 540px; margin-bottom: 14px; }
+.sx-member-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .sx-member-actions--stack { flex-direction: column; }
 .sx-member-btn {
     display: inline-flex; align-items: center; gap: 8px;
-    padding: 12px 18px; font-weight: 700; font-size: 14px;
+    padding: 10px 14px; font-weight: 700; font-size: 13px;
     border: 2px solid transparent; text-decoration: none !important;
     transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
@@ -306,7 +307,7 @@
 
 .sx-member-body {
     position: relative;
-    padding: 40px 0 56px;
+    padding: 24px 0 40px;
     background:
         radial-gradient(ellipse at 0% 0%, rgba(148,0,0,0.12) 0%, transparent 42%),
         radial-gradient(ellipse at 100% 20%, rgba(196,58,58,0.1) 0%, transparent 40%),
@@ -315,8 +316,8 @@
 .sx-member-panel {
     background: linear-gradient(160deg, #ffffff 0%, #fff8f8 100%);
     border: 1px solid #f0dada;
-    padding: 28px;
-    box-shadow: 0 18px 40px rgba(148,0,0,0.06);
+    padding: 18px 20px;
+    box-shadow: 0 12px 28px rgba(148,0,0,0.05);
 }
 .sx-member-panel--side {
     background: linear-gradient(160deg, #fff 0%, #fdeeee 100%);
@@ -326,20 +327,23 @@
     color: #fff; border: none;
 }
 .sx-member-panel--cta h2 { color: #fff; }
-.sx-member-panel--cta p { color: rgba(255,255,255,0.9); }
+.sx-member-panel--cta p { color: rgba(255,255,255,0.9); margin-bottom: 12px; }
 .sx-member-panel h2 {
-    color: #940000; font-size: 22px; font-weight: 800; margin-bottom: 14px;
+    color: #940000; font-size: 20px; font-weight: 800; margin-bottom: 10px;
 }
-.sx-member-lead { font-size: 17px; color: #444; font-weight: 600; margin-bottom: 16px; }
-.sx-member-bio { color: #555; line-height: 1.7; white-space: pre-line; }
+.sx-member-lead { font-size: 15px; color: #444; font-weight: 600; margin-bottom: 10px; }
+.sx-member-bio { color: #555; line-height: 1.55; }
+.sx-member-bio p { margin: 0 0 10px; }
+.sx-member-bio p:last-child { margin-bottom: 0; }
 .sx-member-projects { list-style: none; padding: 0; margin: 0; }
 .sx-member-projects li {
-    position: relative; padding: 12px 12px 12px 28px;
+    position: relative; padding: 8px 8px 8px 24px;
     border-bottom: 1px dashed #f0dada; color: #444;
 }
+.sx-member-projects li:last-child { border-bottom: none; }
 .sx-member-projects li::before {
-    content: ""; position: absolute; left: 0; top: 18px;
-    width: 10px; height: 10px; border-radius: 50%;
+    content: ""; position: absolute; left: 0; top: 14px;
+    width: 8px; height: 8px; border-radius: 50%;
     background: linear-gradient(135deg, #ed9999, #940000);
 }
 .sx-member-skills {
@@ -360,28 +364,28 @@
 }
 .sx-member-social a:hover { background: #940000; color: #fff !important; }
 .sx-member-social a:hover i { color: #fff !important; }
-.sx-member-others { margin-top: 48px; }
-.sx-member-others h2 { color: #940000; font-weight: 800; margin-bottom: 18px; }
+.sx-member-others { margin-top: 28px; }
+.sx-member-others h2 { color: #940000; font-weight: 800; margin-bottom: 12px; font-size: 20px; }
 .sx-member-other-card {
-    display: flex; gap: 14px; align-items: center;
-    padding: 14px; background: #fff; border: 1px solid #f0dada;
+    display: flex; gap: 12px; align-items: center;
+    padding: 12px; background: #fff; border: 1px solid #f0dada;
     text-decoration: none !important; color: inherit;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .sx-member-other-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 14px 30px rgba(148,0,0,0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(148,0,0,0.1);
 }
 .sx-member-other-card img {
-    width: 64px; height: 64px; border-radius: 50%; object-fit: cover;
+    width: 52px; height: 52px; border-radius: 50%; object-fit: cover;
     border: 2px solid #940000;
 }
 .sx-member-other-card strong { display: block; color: #333; }
 .sx-member-other-card span { color: #777; font-size: 13px; }
 
 @media (max-width: 991px) {
-    .sx-member-hero { padding-top: 110px; padding-bottom: 36px; }
-    .sx-member-hero__grid { grid-template-columns: 1fr; text-align: center; }
+    .sx-member-hero { padding-top: 88px; padding-bottom: 24px; }
+    .sx-member-hero__grid { grid-template-columns: 1fr; text-align: center; gap: 18px; }
     .sx-member-tagline { margin-left: auto; margin-right: auto; }
     .sx-member-actions, .sx-member-meta { justify-content: center; align-items: center; }
     .sx-member-meta { text-align: left; }
