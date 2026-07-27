@@ -1470,7 +1470,7 @@ class SuperAdminController extends Controller
 
         $loginPhotoCaptureEnabled = SystemSetting::isLoginPhotoCaptureEnabled();
         $loginLogsToday = UserLog::whereDate('login_at', today())->count();
-        $webVisitorsToday = WebVisitor::whereDate('visited_at', today())->count();
+        $webVisitorsToday = WebVisitor::uniqueIpCountForDate(today());
 
         return view('SuperAdmin.system_logs', compact(
             'loginPhotoCaptureEnabled',
@@ -1598,8 +1598,13 @@ class SuperAdminController extends Controller
     {
         if ($resp = $this->ensureSuperAdmin()) return $resp;
 
-        $todayCount = WebVisitor::whereDate('visited_at', today())->count();
-        $recordsTotal = (int) WebVisitor::query()->distinct()->count('ip_address');
+        // Today = unique IPs that visited (not page-hit count)
+        $todayCount = WebVisitor::uniqueIpCountForDate(today());
+        $recordsTotal = (int) WebVisitor::query()
+            ->whereNotNull('ip_address')
+            ->where('ip_address', '!=', '')
+            ->distinct()
+            ->count('ip_address');
 
         $base = WebVisitor::query();
 
@@ -1616,6 +1621,7 @@ class SuperAdminController extends Controller
                 $q->where('page_name', 'like', "%{$search}%")
                     ->orWhere('page_url', 'like', "%{$search}%")
                     ->orWhere('ip_address', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
                     ->orWhere('browser', 'like', "%{$search}%")
                     ->orWhere('os', 'like', "%{$search}%")
                     ->orWhere('device_type', 'like', "%{$search}%")
@@ -1630,19 +1636,23 @@ class SuperAdminController extends Controller
             ->selectRaw('COUNT(*) as pages_count')
             ->selectRaw('MAX(visited_at) as last_visited')
             ->selectRaw('MAX(id) as latest_id')
+            ->selectRaw('MAX(CASE WHEN email IS NOT NULL AND email != "" THEN email END) as email')
+            ->whereNotNull('ip_address')
+            ->where('ip_address', '!=', '')
             ->groupBy('ip_address');
 
         $recordsFiltered = (clone $grouped)->get()->count();
 
-        $orderColumnIndex = (int) $request->input('order.0.column', 5);
+        $orderColumnIndex = (int) $request->input('order.0.column', 6);
         $orderDirection = strtolower((string) $request->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
         $orderMap = [
             0 => 'ip_address',
-            1 => 'last_visited',
-            2 => 'pages_count',
-            3 => 'last_visited',
+            1 => 'email',
+            2 => 'last_visited',
+            3 => 'pages_count',
             4 => 'last_visited',
             5 => 'last_visited',
+            6 => 'last_visited',
         ];
         $orderColumn = $orderMap[$orderColumnIndex] ?? 'last_visited';
 
@@ -1669,6 +1679,7 @@ class SuperAdminController extends Controller
             return [
                 'id' => $row->latest_id,
                 'ip_address' => $row->ip_address,
+                'email' => $row->email ?: ($latest->email ?? null),
                 'page_name' => $latest->page_name ?? 'Unknown page',
                 'page_url' => $latest->page_url ?? '',
                 'pages_count' => (int) $row->pages_count,
@@ -1734,10 +1745,14 @@ class SuperAdminController extends Controller
             }
         }
 
+        $emails = $pages->pluck('email')->filter()->unique()->values();
+
         return response()->json([
             'success' => true,
             'data' => [
                 'ip_address' => $ip,
+                'email' => $emails->first(),
+                'emails' => $emails,
                 'device_type' => $latest->device_type,
                 'browser' => $latest->browser,
                 'os' => $latest->os,
@@ -1755,6 +1770,7 @@ class SuperAdminController extends Controller
                         'id' => $page->id,
                         'page_name' => $page->page_name,
                         'page_url' => $page->page_url,
+                        'email' => $page->email,
                         'referer' => $page->referer,
                         'visited_at' => $page->visited_at,
                     ];

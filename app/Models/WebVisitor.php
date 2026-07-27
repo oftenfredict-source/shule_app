@@ -12,6 +12,7 @@ class WebVisitor extends Model
 
     protected $fillable = [
         'ip_address',
+        'email',
         'page_url',
         'page_name',
         'route_name',
@@ -39,6 +40,74 @@ class WebVisitor extends Model
         $parts = array_filter([$this->city, $this->region, $this->country]);
 
         return $parts ? implode(', ', $parts) : 'Unknown location';
+    }
+
+    /**
+     * Remember visitor email in cookie/session and backfill rows for this IP.
+     */
+    public static function rememberVisitorEmail(?string $email, ?string $ip = null): void
+    {
+        $email = strtolower(trim((string) $email));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        try {
+            session(['sx_visitor_email' => $email]);
+            cookie()->queue(cookie('sx_visitor_email', $email, 60 * 24 * 90)); // 90 days
+        } catch (\Throwable $e) {
+            // ignore cookie/session failures
+        }
+
+        if ($ip && $ip !== 'unknown') {
+            try {
+                static::where('ip_address', $ip)
+                    ->where(function ($q) {
+                        $q->whereNull('email')->orWhere('email', '');
+                    })
+                    ->update(['email' => $email]);
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
+    }
+
+    /**
+     * Resolve known visitor email from request cookie/session (if any).
+     */
+    public static function resolveVisitorEmail($request = null): ?string
+    {
+        $request = $request ?: request();
+
+        $candidates = [
+            $request->cookie('sx_visitor_email'),
+            session('sx_visitor_email'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            $email = strtolower(trim((string) $candidate));
+            if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return $email;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Unique IP count for a date (defaults to today).
+     */
+    public static function uniqueIpCountForDate($date = null): int
+    {
+        $query = static::query()->whereNotNull('ip_address')->where('ip_address', '!=', '');
+
+        if ($date) {
+            $query->whereDate('visited_at', $date);
+        } else {
+            $query->whereDate('visited_at', today());
+        }
+
+        return (int) $query->distinct()->count('ip_address');
     }
 
     public static function friendlyPageName(?string $routeName, string $path): string

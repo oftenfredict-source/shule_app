@@ -49,9 +49,11 @@ class LogWebVisitor
             }
 
             $geo = WebVisitor::resolveIpLocation($ip);
+            $email = WebVisitor::resolveVisitorEmail($request);
 
             WebVisitor::create([
                 'ip_address' => $ip,
+                'email' => $email,
                 'page_url' => mb_substr($request->fullUrl(), 0, 500),
                 'page_name' => WebVisitor::friendlyPageName($routeName, $path),
                 'route_name' => $routeName,

@@ -69,7 +69,7 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link py-3" id="web-visitors-tab" data-bs-toggle="tab" data-bs-target="#web-visitors-pane" type="button" role="tab">
                         <i class="bx bx-globe me-1"></i> Web Visitors
-                        <span class="badge bg-secondary ms-2" id="visitorsTodayBadge">Today: {{ (int) ($webVisitorsToday ?? 0) }}</span>
+                        <span class="badge bg-secondary ms-2" id="visitorsTodayBadge">Today: {{ (int) ($webVisitorsToday ?? 0) }} IP(s)</span>
                     </button>
                 </li>
             </ul>
@@ -100,6 +100,7 @@
                             <thead class="bg-light">
                                 <tr>
                                     <th>IP Address</th>
+                                    <th>Email</th>
                                     <th>Location</th>
                                     <th>Pages</th>
                                     <th>Last Page</th>
@@ -204,6 +205,7 @@
                             </div>
                         </div>
                         <h6 class="fw-bold mb-1 text-center" id="visitorIpLabel">-</h6>
+                        <p class="text-muted small mb-2 text-center" id="visitorEmailLabel">No email captured</p>
                         <p class="text-muted small mb-4 text-center" id="visitorLocationLabel">Unknown location</p>
                         <div class="small">
                             <p class="mb-1 text-muted">Device</p>
@@ -292,11 +294,10 @@
     }
 
     function updateTodayBadge(type, count) {
-        const label = 'Today: ' + (count ?? 0);
         if (type === 'login') {
-            $('#loginTodayBadge').text(label);
+            $('#loginTodayBadge').text('Today: ' + (count ?? 0));
         } else {
-            $('#visitorsTodayBadge').text(label);
+            $('#visitorsTodayBadge').text('Today: ' + (count ?? 0) + ' IP(s)');
         }
     }
 
@@ -406,7 +407,7 @@
             deferRender: true,
             responsive: true,
             pageLength: 10,
-            order: [[5, 'desc']],
+            order: [[6, 'desc']],
             searchDelay: 500,
             ajax: {
                 url: "{{ route('superadmin.system_logs.visitors_data') }}",
@@ -422,6 +423,16 @@
                     data: 'ip_address',
                     render: function(ip) {
                         return `<span class="fw-bold">${ip || '-'}</span>`;
+                    }
+                },
+                {
+                    data: 'email',
+                    orderable: true,
+                    render: function(email) {
+                        if (!email) {
+                            return `<span class="text-muted small">—</span>`;
+                        }
+                        return `<a href="mailto:${email}" class="small fw-semibold text-danger">${email}</a>`;
                     }
                 },
                 {
@@ -478,7 +489,7 @@
             ],
             language: {
                 search: "_INPUT_",
-                searchPlaceholder: "Quick search..."
+                searchPlaceholder: "Search IP / email / page..."
             }
         });
 
@@ -502,6 +513,11 @@
 
             const data = res.data;
             $('#visitorIpLabel').text(data.ip_address || '-');
+            if (data.email) {
+                $('#visitorEmailLabel').html('<i class="bx bx-envelope me-1"></i><a href="mailto:' + data.email + '" class="text-danger fw-semibold">' + data.email + '</a>');
+            } else {
+                $('#visitorEmailLabel').text('No email captured');
+            }
             $('#visitorLocationLabel').text(data.location || 'Unknown location');
             $('#visitorDevice').text(data.device_type || 'Unknown');
             $('#visitorBrowserOs').text((data.browser || '-') + ' / ' + (data.os || '-'));
@@ -577,8 +593,8 @@
 
     function syncFilterLabels() {
         if (activeMainTab === 'visitors') {
-            $('#filterSearchLabel').text('Page / IP');
-            $('#filter_username').attr('placeholder', 'Search page or IP...');
+            $('#filterSearchLabel').text('IP / Email / Page');
+            $('#filter_username').attr('placeholder', 'Search IP, email or page...');
         } else {
             $('#filterSearchLabel').text('User / Username');
             $('#filter_username').attr('placeholder', 'Search by name...');

@@ -970,6 +970,8 @@ class SiteController extends Controller
             'message' => $request->message,
         ]);
 
+        \App\Models\WebVisitor::rememberVisitorEmail($request->email, $request->ip());
+
         return back()->with('success', 'Asante! Ujumbe wako umepokelewa. Tutawasiliana nawe hivi karibuni.');
     }
 }
