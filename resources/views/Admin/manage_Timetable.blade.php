@@ -358,6 +358,33 @@
     </div>
 </div>
 
+<!-- Timetable PDF download progress (same UX as fees structure) -->
+<div class="modal fade" id="timetablePdfProgressModal" data-backdrop="static" tabindex="-1" style="z-index: 10000;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 0 !important;">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-4">
+                    <i class="bi bi-file-pdf text-danger" style="font-size: 3rem; animation: timetablePdfPulse 1.5s infinite;"></i>
+                </div>
+                <h5 class="mb-4" style="color: #940000; font-weight: bold; font-family: 'Century Gothic', sans-serif;">Generating Session Timetable PDF</h5>
+                <div class="progress mb-2" style="height: 12px; border-radius: 0 !important;">
+                    <div id="timetablePdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger"
+                        role="progressbar" style="width: 0%; border-radius: 0 !important;"></div>
+                </div>
+                <div id="timetablePdfProgressPercent" class="font-weight-bold text-muted" style="font-size: 14px;">0%</div>
+                <p class="mt-3 text-muted small">Tafadhali subiri kidogo wakati tunaandaa PDF ya timetable...</p>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    @keyframes timetablePdfPulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.7; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+</style>
+
 <!-- Create Timetable Modal -->
 <div class="modal fade" id="createTimetableModal" tabindex="-1" role="dialog" aria-labelledby="createTimetableModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl" role="document" style="max-width: 95%;">
@@ -2578,260 +2605,88 @@ $(function() {
         }
     }
 
-    // Export Timetable to PDF
+    // Export Timetable to PDF (server-side like fees structure: logo, watermark, progress)
     function exportTimetableToPdf(data, subclassID) {
-        if (typeof window.jspdf === 'undefined') {
+        if (!subclassID) {
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'PDF export library not loaded'
+                    icon: 'warning',
+                    title: 'No Class Selected',
+                    text: 'Please load a timetable first'
                 });
             }
             return;
         }
 
-        try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('landscape', 'mm', 'a4');
-            
-            // Get subclass name
-            const subclassSelect = $('#view_session_subclass_select');
-            const subclassName = subclassSelect.find('option:selected').text() || 'Class';
-            
-            // Get school name
-            const schoolName = '{{ $school_details->school_name ?? "School" }}';
-            
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const centerX = pageWidth / 2;
-            
-            // Header
-            doc.setFontSize(18);
-            doc.setFont('helvetica', 'bold');
-            doc.text(schoolName.toUpperCase(), centerX, 15, { align: 'center' });
-            
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'normal');
-            doc.text('Session Timetable - ' + subclassName, centerX, 22, { align: 'center' });
-            
-            // Definition info
-            let yPos = 30;
-            doc.setFontSize(10);
-            doc.text('Session Time: ' + data.definition.session_start_time + ' - ' + data.definition.session_end_time, 14, yPos);
-            
-            if (data.definition.has_prepo) {
-                yPos += 5;
-                doc.text('Prepo Time: ' + data.definition.prepo_start_time + ' - ' + data.definition.prepo_end_time, 14, yPos);
-            }
-            
-            if (data.break_times && data.break_times.length > 0) {
-                yPos += 5;
-                let breakText = 'Break Times: ';
-                data.break_times.forEach(function(bt, index) {
-                    breakText += 'Break ' + (index + 1) + ': ' + bt.start_time + ' - ' + bt.end_time;
-                    if (index < data.break_times.length - 1) breakText += ', ';
-                });
-                doc.text(breakText, 14, yPos);
-            }
-            
-            yPos += 10;
-            
-            // Prepare table data (same logic as display)
-            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-            const regularSessionsByDay = {};
-            const prepoSessionsByDay = {};
-            
-            days.forEach(function(day) {
-                regularSessionsByDay[day] = {};
-                prepoSessionsByDay[day] = {};
-            });
-            
-            data.sessions.forEach(function(session) {
-                const day = session.day;
-                const timeKey = session.start_time + '-' + session.end_time;
-                const isPrepo = session.is_prepo == 1 || session.is_prepo === true;
-                
-                const targetSessions = isPrepo ? prepoSessionsByDay[day] : regularSessionsByDay[day];
-                
-                if (!targetSessions[timeKey]) {
-                    targetSessions[timeKey] = [];
-                }
-                
-                targetSessions[timeKey].push({
-                    subject: session.subject_name || 'N/A',
-                    teacher: session.teacher_name || 'N/A',
-                    class: (session.class_name || '') + ' ' + (session.subclass_name || ''),
-                    is_prepo: isPrepo
-                });
-            });
-            
-            // Get all unique time slots
-            const regularTimeSlots = new Set();
-            days.forEach(function(day) {
-                Object.keys(regularSessionsByDay[day]).forEach(function(timeKey) {
-                    regularTimeSlots.add(timeKey);
-                });
-            });
-            
-            if (data.break_times && data.break_times.length > 0) {
-                data.break_times.forEach(function(bt) {
-                    regularTimeSlots.add(bt.start_time + '-' + bt.end_time + '-BREAK');
-                });
-            }
-            
-            const sortedRegularTimeSlots = Array.from(regularTimeSlots).sort(function(a, b) {
-                const aStart = a.replace('-BREAK', '').split('-')[0];
-                const bStart = b.replace('-BREAK', '').split('-')[0];
-                return aStart.localeCompare(bStart);
-            });
-            
-            // Build table data
-            const tableData = [];
-            
-            sortedRegularTimeSlots.forEach(function(timeSlot) {
-                if (timeSlot.includes('-BREAK')) {
-                    const [startTime, endTime] = timeSlot.replace('-BREAK', '').split('-');
-                    tableData.push([startTime + ' - ' + endTime, 'BREAK TIME', 'BREAK TIME', 'BREAK TIME', 'BREAK TIME', 'BREAK TIME']);
-                } else {
-                    const [startTime, endTime] = timeSlot.split('-');
-                    const row = [startTime + ' - ' + endTime];
-                    
-                    days.forEach(function(day) {
-                        const sessions = regularSessionsByDay[day][timeSlot] || [];
-                        if (sessions.length > 0) {
-                            let cellText = '';
-                            const uniqueSessions = [];
-                            const seenSubjects = new Set();
-                            
-                            sessions.forEach(function(session) {
-                                const sessionKey = session.subject + '-' + session.teacher;
-                                if (!seenSubjects.has(sessionKey)) {
-                                    seenSubjects.add(sessionKey);
-                                    uniqueSessions.push(session);
-                                }
-                            });
-                            
-                            uniqueSessions.forEach(function(session, index) {
-                                if (index > 0) cellText += '\n';
-                                cellText += session.subject + '\n' + session.teacher + '\n' + session.class;
-                            });
-                            row.push(cellText);
-                        } else {
-                            row.push('');
-                        }
-                    });
-                    tableData.push(row);
-                }
-            });
-            
-            // Prepo sessions if any
-            const prepoTimeSlots = new Set();
-            if (data.definition.has_prepo) {
-                days.forEach(function(day) {
-                    Object.keys(prepoSessionsByDay[day]).forEach(function(timeKey) {
-                        prepoTimeSlots.add(timeKey);
-                    });
-                });
-            }
-            
-            const sortedPrepoTimeSlots = Array.from(prepoTimeSlots).sort(function(a, b) {
-                const aStart = a.split('-')[0];
-                const bStart = b.split('-')[0];
-                return aStart.localeCompare(bStart);
-            });
-            
-            if (sortedPrepoTimeSlots.length > 0) {
-                tableData.push([]);
-                tableData.push(['PREPO SESSION', '', '', '', '', '']);
-                
-                sortedPrepoTimeSlots.forEach(function(timeSlot) {
-                    const [startTime, endTime] = timeSlot.split('-');
-                    const row = [startTime + ' - ' + endTime];
-                    
-                    days.forEach(function(day) {
-                        const sessions = prepoSessionsByDay[day][timeSlot] || [];
-                        if (sessions.length > 0) {
-                            let cellText = '';
-                            const uniqueSessions = [];
-                            const seenSubjects = new Set();
-                            
-                            sessions.forEach(function(session) {
-                                const sessionKey = session.subject + '-' + session.teacher;
-                                if (!seenSubjects.has(sessionKey)) {
-                                    seenSubjects.add(sessionKey);
-                                    uniqueSessions.push(session);
-                                }
-                            });
-                            
-                            uniqueSessions.forEach(function(session, index) {
-                                if (index > 0) cellText += '\n';
-                                cellText += 'Prepo ' + session.subject + '\n' + session.teacher + '\n' + session.class;
-                            });
-                            row.push(cellText);
-                        } else {
-                            row.push('');
-                        }
-                    });
-                    tableData.push(row);
-                });
-            }
-            
-            // Add table
-            doc.autoTable({
-                startY: yPos,
-                head: [['TIME', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']],
-                body: tableData,
-                theme: 'striped',
-                headStyles: { fillColor: [148, 0, 0], textColor: [255, 255, 255], fontStyle: 'bold' },
-                styles: { fontSize: 8, cellPadding: 2 },
-                columnStyles: {
-                    0: { cellWidth: 30, fontStyle: 'bold' },
-                    1: { cellWidth: 50 },
-                    2: { cellWidth: 50 },
-                    3: { cellWidth: 50 },
-                    4: { cellWidth: 50 },
-                    5: { cellWidth: 50 }
-                },
-                didDrawPage: function (data) {
-                    // Footer
-                    const pageHeight = doc.internal.pageSize.getHeight();
-                    doc.setFontSize(8);
-                    doc.setTextColor(128, 128, 128);
-                    doc.text('Generated on ' + new Date().toLocaleString(), centerX, pageHeight - 10, { align: 'center' });
-                    doc.setTextColor(148, 0, 0);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('Powered by: EmCa Technologies LTD', centerX, pageHeight - 5, { align: 'center' });
-                }
-            });
-            
-            // Generate filename
-            const fileName = 'Session_Timetable_' + subclassName.replace(/\s+/g, '_') + '_' + new Date().toISOString().split('T')[0] + '.pdf';
-            
-            // Save PDF
-            doc.save(fileName);
-            
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Exported!',
-                    text: 'Timetable exported to PDF successfully',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-            }
-        } catch (error) {
-            console.error('Error exporting to PDF:', error);
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Export Failed',
-                    text: 'Failed to export timetable to PDF: ' + error.message
-                });
-            }
-        }
-    }
+        const subclassSelect = $('#view_session_subclass_select');
+        const subclassName = subclassSelect.find('option:selected').text() || 'Class';
+        const safeName = subclassName.replace(/\s+/g, '_').replace(/[^\w\-]+/g, '');
 
+        $('#timetablePdfProgressModal').modal('show');
+        $('#timetablePdfProgressBar').css('width', '0%');
+        $('#timetablePdfProgressPercent').text('0%');
+
+        let progress = 0;
+        const interval = setInterval(function() {
+            if (progress < 95) {
+                progress += 2 + Math.random() * 5;
+                if (progress > 95) progress = 95;
+                $('#timetablePdfProgressBar').css('width', progress + '%');
+                $('#timetablePdfProgressPercent').text(Math.round(progress) + '%');
+            }
+        }, 300);
+
+        const url = '{{ route("admin.export_session_timetable_pdf") }}?subclassID=' + encodeURIComponent(subclassID);
+
+        fetch(url, {
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/pdf,application/json'
+            }
+        })
+            .then(function(response) {
+                if (!response.ok) {
+                    return response.json().catch(function() { return {}; }).then(function(err) {
+                        throw new Error(err.error || err.message || ('Server error: ' + response.status));
+                    });
+                }
+                return response.blob();
+            })
+            .then(function(blob) {
+                clearInterval(interval);
+                $('#timetablePdfProgressBar').css('width', '100%');
+                $('#timetablePdfProgressPercent').text('100%');
+
+                setTimeout(function() {
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = downloadUrl;
+                    a.download = 'Session_Timetable_' + safeName + '_' + new Date().toISOString().slice(0, 10) + '.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(downloadUrl);
+                    document.body.removeChild(a);
+
+                    setTimeout(function() {
+                        $('#timetablePdfProgressModal').modal('hide');
+                    }, 500);
+                }, 400);
+            })
+            .catch(function(error) {
+                clearInterval(interval);
+                $('#timetablePdfProgressModal').modal('hide');
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Export Failed',
+                        text: error.message || 'Failed to generate timetable PDF',
+                        confirmButtonColor: '#940000'
+                    });
+                }
+                console.error('Timetable PDF Export Error:', error);
+            });
+    }
     // Handle Shuffle Session Timetable button
     $('#shuffleSessionTimetableBtn').on('click', function() {
         if (!currentSubclassID) {
@@ -3421,16 +3276,18 @@ $(function() {
         const originalText = btn.html();
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Updating...');
 
-        // Send update request
+        // Send update request as JSON (avoids max_input_vars truncating large timetables)
         $.ajax({
             url: '/admin/save-class-session-timetables',
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             },
-            data: {
+            data: JSON.stringify({
                 timetables: timetables
-            },
+            }),
             success: function(response) {
                 btn.prop('disabled', false).html(originalText);
                 
@@ -3680,7 +3537,7 @@ $(function() {
 
     // Render session form with pre-filled data
     function renderSessionFormWithData(classIndex, day, isPrepo, subjects, sessionTypes, definition, sessionCounter, sessionData) {
-        const sessionTypeOptions = sessionTypes.map(st => 
+        const sessionTypeOptions = (Array.isArray(sessionTypes) ? sessionTypes : Object.values(sessionTypes || {})).map(st => 
             `<option value="${st.session_typeID || st.id}" data-minutes="${st.minutes}">${st.name || st.type} (${st.minutes} min)</option>`
         ).join('');
 
@@ -4751,8 +4608,8 @@ $(function() {
 
     // Render session form
     function renderSessionForm(classIndex, day, isPrepo, subjects, sessionTypes, definition, sessionCounter, breakEndTime) {
-        const sessionTypeOptions = sessionTypes.map(st => 
-            `<option value="${st.session_typeID}" data-minutes="${st.minutes}">${st.name} (${st.minutes} min)</option>`
+        const sessionTypeOptions = (Array.isArray(sessionTypes) ? sessionTypes : Object.values(sessionTypes || {})).map(st => 
+            `<option value="${st.session_typeID || st.id}" data-minutes="${st.minutes}">${st.name || st.type} (${st.minutes} min)</option>`
         ).join('');
 
         // Get selected subjects for this subclass from DB
@@ -5374,9 +5231,11 @@ $(function() {
             url: '/admin/save-class-session-timetables',
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
             },
-            data: { timetables: timetables },
+            data: JSON.stringify({ timetables: timetables }),
             success: function(response) {
                 if (response.success) {
                     if (typeof Swal !== 'undefined') {
@@ -5474,8 +5333,10 @@ $(function() {
 
     // Collect session data — one period card may yield multiple Optional subjects
     function collectSessionData(row, subclassID, day, isPrepo) {
-        const sessionTypeID = row.find('.session-type-select').val();
-        const sessionTypeName = row.find('.session-type-select option:selected').text().toLowerCase();
+        // Prefer the period's own session-type select (not definition-step selects)
+        const sessionTypeSelect = row.find('select.session-type-select').first();
+        const sessionTypeID = sessionTypeSelect.val();
+        const sessionTypeName = sessionTypeSelect.find('option:selected').text().toLowerCase();
         const isFreeSession = sessionTypeName.includes('free');
         const startTime = row.find('.session-start-time').val();
         const endTime = row.find('.session-end-time').val();
@@ -5489,7 +5350,7 @@ $(function() {
                 subclassID: subclassID,
                 class_subjectID: null,
                 subjectID: null,
-                session_typeID: sessionTypeID,
+                session_typeID: String(sessionTypeID),
                 day: day,
                 start_time: startTime,
                 end_time: endTime,
@@ -5521,7 +5382,7 @@ $(function() {
                 subclassID: subclassID,
                 class_subjectID: subjectID,
                 subjectID: null,
-                session_typeID: sessionTypeID,
+                session_typeID: String(sessionTypeID),
                 day: day,
                 start_time: startTime,
                 end_time: endTime,

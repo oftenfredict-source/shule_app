@@ -125,11 +125,18 @@
         <div class="col-12">
             <!-- Page Header -->
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body sessions-hero">
-                    <h4 class="mb-0">
-                        <i class="bi bi-clock-history"></i> My Sessions
-                    </h4>
-                    <small>View and manage your weekly teaching sessions</small>
+                <div class="card-body sessions-hero d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="bi bi-clock-history"></i> My Sessions
+                        </h4>
+                        <small>View and manage your weekly teaching sessions</small>
+                    </div>
+                    @if(!isset($message))
+                    <button type="button" class="btn btn-danger btn-sm mt-2 mt-md-0" id="downloadMySessionsPdfBtn" style="border-radius:0 !important; font-weight:700;">
+                        <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                    </button>
+                    @endif
                 </div>
             </div>
 
@@ -534,6 +541,35 @@
     </div>
 </div>
 
+</div>
+
+<!-- My Sessions PDF download progress (same UX as fees structure) -->
+<div class="modal fade" id="mySessionsPdfProgressModal" data-backdrop="static" tabindex="-1" style="z-index: 10000;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 0 !important;">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-4">
+                    <i class="bi bi-file-pdf text-danger" style="font-size: 3rem; animation: mySessionsPdfPulse 1.5s infinite;"></i>
+                </div>
+                <h5 class="mb-4" style="color: #940000; font-weight: bold; font-family: 'Century Gothic', sans-serif;">Generating My Sessions PDF</h5>
+                <div class="progress mb-2" style="height: 12px; border-radius: 0 !important;">
+                    <div id="mySessionsPdfProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger"
+                        role="progressbar" style="width: 0%; border-radius: 0 !important;"></div>
+                </div>
+                <div id="mySessionsPdfProgressPercent" class="font-weight-bold text-muted" style="font-size: 14px;">0%</div>
+                <p class="mt-3 text-muted small">Tafadhali subiri kidogo wakati tunaandaa PDF ya sessions zako...</p>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    @keyframes mySessionsPdfPulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.7; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+</style>
+
 @include('includes.footer')
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap4.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -541,12 +577,96 @@
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap4.min.js"></script>
 <script>
 // Define global functions that will use jQuery when available
-let currentWeekOffset = 0;
+let currentWeekOffset = {{ (int) ($weekOffset ?? 0) }};
 
 window.changeWeek = function(offset) {
     currentWeekOffset = offset === 0 ? 0 : currentWeekOffset + offset;
     window.location.href = '{{ route("teacher.mySessions") }}?week=' + currentWeekOffset;
 };
+
+window.downloadMySessionsPdf = function() {
+    function run() {
+        if (typeof jQuery === 'undefined') {
+            setTimeout(run, 50);
+            return;
+        }
+
+        $('#mySessionsPdfProgressModal').modal('show');
+        $('#mySessionsPdfProgressBar').css('width', '0%');
+        $('#mySessionsPdfProgressPercent').text('0%');
+
+        let progress = 0;
+        const interval = setInterval(function() {
+            if (progress < 95) {
+                progress += 2 + Math.random() * 5;
+                if (progress > 95) progress = 95;
+                $('#mySessionsPdfProgressBar').css('width', progress + '%');
+                $('#mySessionsPdfProgressPercent').text(Math.round(progress) + '%');
+            }
+        }, 300);
+
+        const url = '{{ route("teacher.mySessions.pdf") }}?week=' + encodeURIComponent(currentWeekOffset);
+
+        fetch(url, {
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/pdf,application/json'
+            }
+        })
+            .then(function(response) {
+                if (!response.ok) {
+                    return response.json().catch(function() { return {}; }).then(function(err) {
+                        throw new Error(err.error || err.message || ('Server error: ' + response.status));
+                    });
+                }
+                return response.blob();
+            })
+            .then(function(blob) {
+                clearInterval(interval);
+                $('#mySessionsPdfProgressBar').css('width', '100%');
+                $('#mySessionsPdfProgressPercent').text('100%');
+
+                setTimeout(function() {
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = downloadUrl;
+                    a.download = 'My_Sessions_' + new Date().toISOString().slice(0, 10) + '.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(downloadUrl);
+                    document.body.removeChild(a);
+
+                    setTimeout(function() {
+                        $('#mySessionsPdfProgressModal').modal('hide');
+                    }, 500);
+                }, 400);
+            })
+            .catch(function(error) {
+                clearInterval(interval);
+                $('#mySessionsPdfProgressModal').modal('hide');
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Export Failed',
+                        text: error.message || 'Failed to generate sessions PDF',
+                        confirmButtonColor: '#940000'
+                    });
+                }
+                console.error('My Sessions PDF Export Error:', error);
+            });
+    }
+    run();
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('downloadMySessionsPdfBtn');
+    if (btn) {
+        btn.addEventListener('click', function() {
+            window.downloadMySessionsPdf();
+        });
+    }
+});
 
 // Store current session data for modal
 let currentSessionData = {};

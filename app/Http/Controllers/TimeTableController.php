@@ -17,10 +17,12 @@ use App\Models\ExamPaper;
 use App\Models\WeeklyTestSchedule;
 use App\Models\ExamHallSupervisor;
 use App\Services\SmsService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class TimeTableController extends Controller
@@ -3751,7 +3753,13 @@ class TimeTableController extends Controller
             DB::beginTransaction();
 
             // Get unique subclass IDs from timetables
-            $subclassIDs = array_unique(array_column($timetables, 'subclassID'));
+            $subclassIDs = array_values(array_unique(array_filter(array_map(function ($row) {
+                return is_array($row) ? ($row['subclassID'] ?? null) : null;
+            }, $timetables))));
+
+            if (empty($subclassIDs)) {
+                return response()->json(['success' => false, 'error' => 'No valid class/subclass found in timetable data.']);
+            }
 
             // Validate parallel (same day/time) subjects: only Optional subjects may share a period
             $overlapError = $this->validateOptionalParallelSessions($timetables);
@@ -3771,21 +3779,43 @@ class TimeTableController extends Controller
             // Group timetables by teacher for SMS
             $teacherTimetables = [];
             
-            foreach ($timetables as $timetable) {
+            foreach ($timetables as $index => $timetable) {
+                if (!is_array($timetable)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Invalid timetable row at position ' . ($index + 1) . '.',
+                    ]);
+                }
+
+                $sessionTypeID = $timetable['session_typeID'] ?? $timetable['sessionTypeID'] ?? null;
+                $subclassID = $timetable['subclassID'] ?? null;
+                $day = $timetable['day'] ?? null;
+                $startTime = $timetable['start_time'] ?? $timetable['startTime'] ?? null;
+                $endTime = $timetable['end_time'] ?? $timetable['endTime'] ?? null;
+
+                if (!$sessionTypeID || !$subclassID || !$day || !$startTime || !$endTime) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Each period needs class, session type, day, start time and end time. Please check all sessions and try again.',
+                    ]);
+                }
+
                 // For free sessions, teacherID can be null
                 $teacherID = $timetable['teacherID'] ?? null;
                 
                 DB::table('class_session_timetables')->insert([
                     'schoolID' => $schoolID,
                     'definitionID' => $definition->definitionID,
-                    'subclassID' => $timetable['subclassID'],
+                    'subclassID' => $subclassID,
                     'class_subjectID' => $timetable['class_subjectID'] ?? null,
                     'subjectID' => $timetable['subjectID'] ?? null,
                     'teacherID' => $teacherID,
-                    'session_typeID' => $timetable['session_typeID'],
-                    'day' => $timetable['day'],
-                    'start_time' => $timetable['start_time'],
-                    'end_time' => $timetable['end_time'],
+                    'session_typeID' => $sessionTypeID,
+                    'day' => $day,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
                     'is_prepo' => $timetable['is_prepo'] ?? 0,
                     'created_at' => now(),
                     'updated_at' => now()
@@ -3796,7 +3826,13 @@ class TimeTableController extends Controller
                     if (!isset($teacherTimetables[$teacherID])) {
                         $teacherTimetables[$teacherID] = [];
                     }
-                    $teacherTimetables[$teacherID][] = $timetable;
+                    $teacherTimetables[$teacherID][] = array_merge($timetable, [
+                        'session_typeID' => $sessionTypeID,
+                        'subclassID' => $subclassID,
+                        'day' => $day,
+                        'start_time' => $startTime,
+                        'end_time' => $endTime,
+                    ]);
                 }
             }
 
@@ -4085,6 +4121,132 @@ class TimeTableController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error getting session timetable: ' . $e->getMessage());
             return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Download session timetable PDF (school logo, watermark, professional layout).
+     */
+    public function exportSessionTimetablePdf(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            $subclassID = $request->input('subclassID');
+
+            if (!$schoolID || !$subclassID) {
+                return response()->json(['success' => false, 'error' => 'School ID and Subclass ID required'], 422);
+            }
+
+            $school = DB::table('schools')->where('schoolID', $schoolID)->first();
+            if (!$school) {
+                return response()->json(['success' => false, 'error' => 'School not found'], 404);
+            }
+
+            $definition = DB::table('session_timetable_definitions')
+                ->where('schoolID', $schoolID)
+                ->first();
+
+            if (!$definition) {
+                return response()->json(['success' => false, 'error' => 'Timetable definition not found'], 404);
+            }
+
+            $breakTimes = DB::table('break_times')
+                ->where('definitionID', $definition->definitionID)
+                ->orderBy('start_time')
+                ->get();
+
+            $sessions = DB::table('class_session_timetables')
+                ->leftJoin('class_subjects', 'class_session_timetables.class_subjectID', '=', 'class_subjects.class_subjectID')
+                ->leftJoin('school_subjects', 'class_subjects.subjectID', '=', 'school_subjects.subjectID')
+                ->leftJoin('teachers', 'class_session_timetables.teacherID', '=', 'teachers.id')
+                ->leftJoin('session_types', 'class_session_timetables.session_typeID', '=', 'session_types.session_typeID')
+                ->where('class_session_timetables.definitionID', $definition->definitionID)
+                ->where('class_session_timetables.subclassID', $subclassID)
+                ->select(
+                    'class_session_timetables.class_subjectID',
+                    'class_session_timetables.subjectID',
+                    'class_session_timetables.teacherID',
+                    'class_session_timetables.day',
+                    'class_session_timetables.start_time',
+                    'class_session_timetables.end_time',
+                    'class_session_timetables.is_prepo',
+                    'school_subjects.subject_name',
+                    'session_types.type as session_type',
+                    'session_types.name as session_type_name',
+                    DB::raw("CONCAT(COALESCE(teachers.first_name,''), ' ', COALESCE(teachers.last_name,'')) as teacher_name")
+                )
+                ->orderBy('class_session_timetables.day')
+                ->orderBy('class_session_timetables.start_time')
+                ->get()
+                ->map(function ($session) {
+                    $isFree = false;
+                    if (
+                        ($session->session_type && strtolower($session->session_type) === 'free')
+                        || ($session->session_type_name && stripos(strtolower($session->session_type_name), 'free') !== false)
+                        || (!$session->class_subjectID && !$session->subjectID && !$session->teacherID)
+                    ) {
+                        $isFree = true;
+                    }
+
+                    return [
+                        'day' => $session->day,
+                        'start_time' => $session->start_time,
+                        'end_time' => $session->end_time,
+                        'is_prepo' => $session->is_prepo,
+                        'subject_name' => $isFree ? 'FREE' : ($session->subject_name ?? 'N/A'),
+                        'teacher_name' => $isFree ? 'FREE' : trim($session->teacher_name ?? 'N/A'),
+                    ];
+                })
+                ->values()
+                ->all();
+
+            $subclass = DB::table('subclasses')
+                ->join('classes', 'subclasses.classID', '=', 'classes.classID')
+                ->where('subclasses.subclassID', $subclassID)
+                ->select('classes.class_name', 'subclasses.subclass_name')
+                ->first();
+
+            if (!$subclass) {
+                return response()->json(['success' => false, 'error' => 'Class not found'], 404);
+            }
+
+            $classLabel = trim(($subclass->class_name ?? '') . ' ' . ($subclass->subclass_name ?? ''));
+            $reportTitle = 'SESSION TIMETABLE — ' . strtoupper($classLabel);
+            $safeName = preg_replace('/[^\w\-]+/', '_', preg_replace('/\s+/', '_', $classLabel)) ?: 'Class';
+            $filename = 'Session_Timetable_' . $safeName . '_' . date('Ymd') . '.pdf';
+
+            $data = [
+                'school' => $school,
+                'subclass' => $subclass,
+                'definition' => $definition,
+                'breakTimes' => $breakTimes,
+                'sessions' => $sessions,
+                'reportTitle' => $reportTitle,
+                'title' => $reportTitle,
+            ];
+
+            try {
+                $pdf = Pdf::loadView('Admin.pdf.session_timetable_pdf', $data);
+                $pdf->setOptions([
+                    'isRemoteEnabled' => true,
+                    'isHtml5ParserEnabled' => true,
+                    'chroot' => base_path(),
+                ]);
+                $pdf->setPaper('A4', 'landscape');
+                return $pdf->download($filename);
+            } catch (\Exception $e) {
+                $dompdf = new \Dompdf\Dompdf();
+                $html = view('Admin.pdf.session_timetable_pdf', $data)->render();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'landscape');
+                $dompdf->render();
+                return response()->streamDownload(function () use ($dompdf) {
+                    echo $dompdf->output();
+                }, $filename, ['Content-Type' => 'application/pdf']);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error exporting session timetable PDF: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => 'Failed to generate PDF: ' . $e->getMessage()], 500);
         }
     }
 

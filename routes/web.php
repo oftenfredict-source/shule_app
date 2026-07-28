@@ -1092,6 +1092,10 @@ Route::get("teacher/my-sessions", [
     TeachersController::class,
     "mySessions",
 ])->name("teacher.mySessions");
+Route::get("teacher/my-sessions/pdf", [
+    TeachersController::class,
+    "exportMySessionsPdf",
+])->name("teacher.mySessions.pdf");
 Route::get("teacher/suggestions", [
     TeachersController::class,
     "manageTeacherFeedback",
@@ -3391,6 +3395,10 @@ Route::get("admin/get-session-timetable", [
     TimeTableController::class,
     "getSessionTimetable",
 ])->name("get_session_timetable");
+Route::get("admin/export-session-timetable-pdf", [
+    TimeTableController::class,
+    "exportSessionTimetablePdf",
+])->name("admin.export_session_timetable_pdf");
 Route::post("admin/save-class-session-timetables", [
     TimeTableController::class,
     "saveClassSessionTimetables",

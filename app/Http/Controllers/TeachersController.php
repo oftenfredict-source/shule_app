@@ -14011,7 +14011,7 @@ class TeachersController extends Controller
     /**
      * Display My Sessions page for teacher
      */
-    public function mySessions()
+    public function mySessions(Request $request)
     {
         $user = Session::get("user_type");
         if (!$user || $user !== "Teacher") {
@@ -14026,6 +14026,8 @@ class TeachersController extends Controller
         if (!$teacherID || !$schoolID) {
             return redirect()->route("login")->with("error", "Session expired");
         }
+
+        $weekOffset = (int) $request->input("week", 0);
 
         // Get active session timetable definition
         $definition = DB::table("session_timetable_definitions")
@@ -14042,14 +14044,18 @@ class TeachersController extends Controller
                     "Thursday",
                     "Friday",
                 ],
+                "weekOffset" => $weekOffset,
                 "message" =>
                     "No timetable definition found. Please contact admin.",
             ]);
         }
 
-        // Get all sessions for this teacher for current week
-        $currentDate = Carbon::now();
-        $startOfWeek = $currentDate->copy()->startOfWeek(Carbon::MONDAY);
+        // Get all sessions for this teacher for selected week
+        $currentDate = Carbon::now(config("app.timezone"));
+        $startOfWeek = $currentDate
+            ->copy()
+            ->startOfWeek(Carbon::MONDAY)
+            ->addWeeks($weekOffset);
 
         $sessions = ClassSessionTimetable::with([
             "subclass.class",
@@ -14072,7 +14078,7 @@ class TeachersController extends Controller
             $sessionsByDay[$day] = $sessions->where("day", $day)->values();
         }
 
-        // Get holidays and events for current week
+        // Get holidays and events for selected week
         $weekStart = $startOfWeek->format("Y-m-d");
         $weekEnd = $startOfWeek->copy()->endOfWeek()->format("Y-m-d");
 
@@ -14121,8 +14127,153 @@ class TeachersController extends Controller
                 "startOfWeek",
                 "holidayDates",
                 "definition",
+                "weekOffset",
             ),
         );
+    }
+
+    /**
+     * Download teacher weekly sessions PDF (fee-structure style layout).
+     */
+    public function exportMySessionsPdf(Request $request)
+    {
+        $user = Session::get("user_type");
+        if (!$user || $user !== "Teacher") {
+            return response()->json(["error" => "Unauthorized access"], 403);
+        }
+
+        $teacherID = Session::get("teacherID");
+        $schoolID = Session::get("schoolID");
+
+        if (!$teacherID || !$schoolID) {
+            return response()->json(["error" => "Session expired"], 401);
+        }
+
+        try {
+            $weekOffset = (int) $request->input("week", 0);
+
+            $school = School::where("schoolID", $schoolID)->first();
+            $teacher = Teacher::where("id", $teacherID)
+                ->where("schoolID", $schoolID)
+                ->first();
+
+            if (!$school || !$teacher) {
+                return response()->json(["error" => "Teacher or school not found"], 404);
+            }
+
+            $definition = DB::table("session_timetable_definitions")
+                ->where("schoolID", $schoolID)
+                ->first();
+
+            if (!$definition) {
+                return response()->json(["error" => "No timetable definition found"], 404);
+            }
+
+            $startOfWeek = Carbon::now(config("app.timezone"))
+                ->startOfWeek(Carbon::MONDAY)
+                ->addWeeks($weekOffset);
+            $endOfWeek = $startOfWeek->copy()->endOfWeek();
+            $weekLabel = $startOfWeek->format("d M Y") . " – " . $endOfWeek->format("d M Y");
+
+            $teacherName = trim(($teacher->first_name ?? "") . " " . ($teacher->last_name ?? ""));
+            $days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+            $sessions = ClassSessionTimetable::with([
+                "subclass.class",
+                "subject",
+                "classSubject.subject",
+            ])
+                ->where("teacherID", $teacherID)
+                ->where("definitionID", $definition->definitionID)
+                ->orderByRaw(
+                    "FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')",
+                )
+                ->orderBy("start_time")
+                ->get();
+
+            $byDay = [];
+            foreach ($days as $day) {
+                $byDay[$day] = $sessions->where("day", $day)->values();
+            }
+
+            $rows = [];
+            foreach ($days as $dayIndex => $day) {
+                $daySessions = $byDay[$day];
+                $dayDate = $startOfWeek->copy()->addDays($dayIndex);
+                $count = $daySessions->count();
+                if ($count === 0) {
+                    continue;
+                }
+
+                foreach ($daySessions as $i => $session) {
+                    $subjectName = "N/A";
+                    if ($session->classSubject && $session->classSubject->subject) {
+                        $subjectName = $session->classSubject->subject->subject_name ?? "N/A";
+                    } elseif ($session->subject) {
+                        $subjectName = $session->subject->subject_name ?? "N/A";
+                    }
+
+                    $classLabel = "—";
+                    if ($session->subclass) {
+                        $className = $session->subclass->class->class_name ?? "";
+                        $stream = $session->subclass->subclass_name ?? "";
+                        $classLabel = trim($className . " " . $stream) ?: "—";
+                    }
+
+                    $startLabel = Carbon::parse($session->start_time)->format("h:i A");
+                    $endLabel = Carbon::parse($session->end_time)->format("h:i A");
+
+                    $rows[] = [
+                        "day" => $day,
+                        "date_label" => $dayDate->format("d M Y"),
+                        "time_label" => $startLabel . " – " . $endLabel,
+                        "class_label" => $classLabel,
+                        "subject_name" => $subjectName,
+                        "is_prepo" => (bool) $session->is_prepo,
+                        "is_first_of_day" => $i === 0,
+                        "day_rowspan" => $count,
+                    ];
+                }
+            }
+
+            $reportTitle = "TEACHER SESSIONS — " . strtoupper($teacherName) . " | " . strtoupper($weekLabel);
+            $safeTeacher = preg_replace('/[^\w\-]+/', '_', preg_replace('/\s+/', '_', $teacherName)) ?: 'Teacher';
+            $filename = 'My_Sessions_' . $safeTeacher . '_' . $startOfWeek->format('Ymd') . '.pdf';
+
+            $data = [
+                "school" => $school,
+                "teacherName" => $teacherName,
+                "weekLabel" => $weekLabel,
+                "rows" => $rows,
+                "reportTitle" => $reportTitle,
+                "title" => $reportTitle,
+            ];
+
+            try {
+                $pdf = PDF::loadView("Teacher.pdf.my_sessions_pdf", $data);
+                $pdf->setOptions([
+                    "isRemoteEnabled" => true,
+                    "isHtml5ParserEnabled" => true,
+                    "chroot" => base_path(),
+                ]);
+                $pdf->setPaper("A4", "portrait");
+                return $pdf->download($filename);
+            } catch (\Exception $e) {
+                $dompdf = new Dompdf();
+                $html = view("Teacher.pdf.my_sessions_pdf", $data)->render();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper("A4", "portrait");
+                $dompdf->render();
+                return response()->streamDownload(function () use ($dompdf) {
+                    echo $dompdf->output();
+                }, $filename, ["Content-Type" => "application/pdf"]);
+            }
+        } catch (\Exception $e) {
+            Log::error("Error exporting teacher my sessions PDF: " . $e->getMessage());
+            return response()->json([
+                "error" => "Failed to generate PDF: " . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
