@@ -3391,6 +3391,10 @@ Route::get("admin/get-all-subclasses-with-timetables", [
     TimeTableController::class,
     "getAllSubclassesWithTimetables",
 ])->name("get_all_subclasses_with_timetables");
+Route::get("admin/class-session-teacher-conflicts", [
+    TimeTableController::class,
+    "getClassSessionTeacherConflicts",
+])->name("admin.class_session_teacher_conflicts");
 Route::get("admin/get-session-timetable", [
     TimeTableController::class,
     "getSessionTimetable",

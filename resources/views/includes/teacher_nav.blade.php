@@ -510,15 +510,36 @@
                 <!-- Profile -->
                 <li class="text-center mt-3 mb-2">
                     @php
-                        // Get teacher profile image dynamically (fallback if file missing → no 404)
-                        $defaultTeacherImg = (isset($teacher) && $teacher && ($teacher->gender ?? '') == 'Female')
+                        // Same photo logic as Teacher/profile.blade.php
+                        $navPhotoTeacher = (isset($teacher) && $teacher) ? $teacher : null;
+                        if (
+                            !$navPhotoTeacher
+                            && Session::get('user_type') === 'Teacher'
+                            && Session::get('teacherID')
+                        ) {
+                            $navPhotoTeacher = \App\Models\Teacher::find(Session::get('teacherID'));
+                        }
+                        $defaultTeacherImg = (($navPhotoTeacher->gender ?? '') === 'Female')
                             ? asset('images/female.png')
                             : asset('images/male.png');
                         $imgPath = $defaultTeacherImg;
-                        if (isset($teacher) && $teacher && !empty($teacher->image)) {
-                            $teacherImageFile = public_path('userImages/' . $teacher->image);
-                            if (is_file($teacherImageFile)) {
-                                $imgPath = asset('userImages/' . $teacher->image);
+                        if ($navPhotoTeacher && !empty($navPhotoTeacher->image)) {
+                            $rawImg = ltrim((string) $navPhotoTeacher->image, '/');
+                            if (preg_match('#^https?://#i', $rawImg)) {
+                                $imgPath = $rawImg;
+                            } elseif (str_starts_with($rawImg, 'userImages/')) {
+                                $imgPath = asset($rawImg);
+                            } else {
+                                $imgPath = asset('userImages/' . $rawImg);
+                            }
+                            // Bust cache after profile photo change
+                            if (!empty($navPhotoTeacher->updated_at)) {
+                                $ts = $navPhotoTeacher->updated_at instanceof \Carbon\Carbon
+                                    ? $navPhotoTeacher->updated_at->timestamp
+                                    : strtotime((string) $navPhotoTeacher->updated_at);
+                                if ($ts) {
+                                    $imgPath .= (str_contains($imgPath, '?') ? '&' : '?') . 'v=' . $ts;
+                                }
                             }
                         }
                     @endphp
@@ -544,7 +565,7 @@
                         }
                     @endphp
                     <div class="sidebar-profile">
-                        <img src="{{ $imgPath }}" alt="Teacher" class="profile-image" onerror="this.onerror=null; this.src='{{ $defaultTeacherImg }}';">
+                        <img src="{{ $imgPath }}" alt="Profile Image" class="profile-image" onerror="this.onerror=null;this.src='{{ $defaultTeacherImg }}';">
                         <div class="profile-meta text-left">
                             <div class="profile-role">User Type</div>
                             <div class="profile-name">{{ $teacherRoleName }}</div>
@@ -1428,18 +1449,40 @@
                     <div class="user-area dropdown float-right">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             @php
-                                $defaultHeaderTeacherImg = (isset($teacher) && $teacher && ($teacher->gender ?? '') == 'Female')
+                                // Same photo logic as Teacher/profile.blade.php (and sidebar)
+                                $headerPhotoTeacher = (isset($teacher) && $teacher) ? $teacher : null;
+                                if (
+                                    !$headerPhotoTeacher
+                                    && Session::get('user_type') === 'Teacher'
+                                    && Session::get('teacherID')
+                                ) {
+                                    $headerPhotoTeacher = \App\Models\Teacher::find(Session::get('teacherID'));
+                                }
+                                $defaultHeaderTeacherImg = (($headerPhotoTeacher->gender ?? '') === 'Female')
                                     ? asset('images/female.png')
                                     : asset('images/male.png');
                                 $headerImgPath = $defaultHeaderTeacherImg;
-                                if (isset($teacher) && $teacher && !empty($teacher->image)) {
-                                    $headerTeacherFile = public_path('userImages/' . $teacher->image);
-                                    if (is_file($headerTeacherFile)) {
-                                        $headerImgPath = asset('userImages/' . $teacher->image);
+                                if ($headerPhotoTeacher && !empty($headerPhotoTeacher->image)) {
+                                    $rawHeaderImg = ltrim((string) $headerPhotoTeacher->image, '/');
+                                    if (preg_match('#^https?://#i', $rawHeaderImg)) {
+                                        $headerImgPath = $rawHeaderImg;
+                                    } elseif (str_starts_with($rawHeaderImg, 'userImages/')) {
+                                        $headerImgPath = asset($rawHeaderImg);
+                                    } else {
+                                        $headerImgPath = asset('userImages/' . $rawHeaderImg);
+                                    }
+                                    if (!empty($headerPhotoTeacher->updated_at)) {
+                                        $ts = $headerPhotoTeacher->updated_at instanceof \Carbon\Carbon
+                                            ? $headerPhotoTeacher->updated_at->timestamp
+                                            : strtotime((string) $headerPhotoTeacher->updated_at);
+                                        if ($ts) {
+                                            $headerImgPath .= (str_contains($headerImgPath, '?') ? '&' : '?')
+                                                . 'v=' . $ts;
+                                        }
                                     }
                                 }
                             @endphp
-                            <img class="user-avatar rounded-circle" src="{{ $headerImgPath }}" alt="User Avatar" style="width: 40px; height: 40px; object-fit: cover;" onerror="this.onerror=null; this.src='{{ $defaultHeaderTeacherImg }}';">
+                            <img class="user-avatar rounded-circle" src="{{ $headerImgPath }}" alt="Profile Image" style="width: 40px; height: 40px; object-fit: cover;" onerror="this.onerror=null;this.src='{{ $defaultHeaderTeacherImg }}';">
                         </a>
 
                         <div class="user-menu dropdown-menu">

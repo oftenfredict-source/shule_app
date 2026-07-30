@@ -582,7 +582,10 @@ $(document).ready(function() {
                 contentType: false,
                 success: function(response) {
                     if (response.success) {
-                        $('#profileDisplayImg').attr('src', response.image_url);
+                        const url = response.image_url + (response.image_url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + Date.now();
+                        $('#profileDisplayImg').attr('src', url);
+                        // Keep sidebar + header in sync (same display as profile)
+                        $('.sidebar-profile img.profile-image, .user-area img.user-avatar').attr('src', url);
                         Swal.fire('Success!', response.message, 'success');
                     } else {
                         Swal.fire('Error!', response.message, 'error');

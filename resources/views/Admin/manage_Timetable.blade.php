@@ -143,7 +143,43 @@
                 </div>
             </div>
 
+            <!-- School-wide teacher session conflicts (already-created timetables) -->
+            <div id="teacherSessionConflictAlert"
+                 class="alert alert-danger mb-3 d-none"
+                 role="button"
+                 style="cursor: pointer; border-radius: 0 !important;"
+                 title="Tap to view conflicting sessions">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <strong id="teacherSessionConflictAlertText">Teachers meet with session conflict — tap to view</strong>
+            </div>
 
+            <!-- Teacher session conflicts modal -->
+            <div class="modal fade" id="teacherSessionConflictsModal" tabindex="-1" role="dialog" aria-labelledby="teacherSessionConflictsModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+                    <div class="modal-content" style="border-radius: 0 !important;">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title" id="teacherSessionConflictsModalLabel">
+                                <i class="bi bi-exclamation-triangle"></i> Teacher Session Conflicts
+                            </h5>
+                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted small mb-3">These teachers have overlapping class sessions at the same time. Resolve by editing one of the conflicting class timetables.</p>
+                            <div id="teacherSessionConflictsList">
+                                <div class="text-center text-muted py-4">Loading…</div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-outline-danger" id="refreshTeacherConflictsBtn">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- View Timetables Tabs -->
             <div class="card border-0 shadow-sm">
@@ -1187,6 +1223,83 @@ $(function() {
 
     // Load subclasses with timetables on page load
     loadSubclassesWithTimetables();
+    loadTeacherSessionConflicts();
+
+    // ---- Teacher session conflicts (school-wide, already saved) ----
+    let teacherSessionConflictsCache = [];
+
+    function loadTeacherSessionConflicts() {
+        $.ajax({
+            url: '{{ route("admin.class_session_teacher_conflicts") }}',
+            method: 'GET',
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(res) {
+                if (!res || !res.success) {
+                    $('#teacherSessionConflictAlert').addClass('d-none');
+                    teacherSessionConflictsCache = [];
+                    return;
+                }
+                teacherSessionConflictsCache = res.conflicts || [];
+                const n = res.teachers_with_conflicts || 0;
+                if (n > 0) {
+                    const label = n === 1
+                        ? '1 teacher meets with session conflict — tap to view'
+                        : (n + ' teachers meet with session conflict — tap to view');
+                    $('#teacherSessionConflictAlertText').text(label);
+                    $('#teacherSessionConflictAlert').removeClass('d-none');
+                } else {
+                    $('#teacherSessionConflictAlert').addClass('d-none');
+                }
+            },
+            error: function() {
+                $('#teacherSessionConflictAlert').addClass('d-none');
+            }
+        });
+    }
+
+    function renderTeacherSessionConflictsModal(conflicts) {
+        const $box = $('#teacherSessionConflictsList');
+        if (!conflicts || !conflicts.length) {
+            $box.html('<div class="alert alert-success mb-0">No teacher session conflicts found.</div>');
+            return;
+        }
+        let html = '';
+        conflicts.forEach(function(c) {
+            html += '<div class="card mb-3 border-danger" style="border-radius:0 !important;">';
+            html += '<div class="card-header bg-light py-2"><strong>' + (c.teacher_name || 'Teacher') + '</strong>';
+            html += ' <span class="badge badge-danger">' + (c.day || '') + '</span></div>';
+            html += '<div class="card-body p-0"><table class="table table-sm table-striped mb-0">';
+            html += '<thead><tr><th>Class</th><th>Subject</th><th>Time</th></tr></thead><tbody>';
+            (c.sessions || []).forEach(function(s) {
+                const cls = [s.class_name, s.subclass_name].filter(Boolean).join(' / ');
+                const time = String(s.start_time || '').substring(0, 5) + ' – ' + String(s.end_time || '').substring(0, 5);
+                html += '<tr><td>' + (cls || 'N/A') + '</td><td>' + (s.subject_name || 'N/A') + '</td><td>' + time + '</td></tr>';
+            });
+            html += '</tbody></table></div></div>';
+        });
+        $box.html(html);
+    }
+
+    $(document).on('click', '#teacherSessionConflictAlert', function() {
+        renderTeacherSessionConflictsModal(teacherSessionConflictsCache);
+        $('#teacherSessionConflictsModal').modal('show');
+    });
+    $(document).on('click', '#refreshTeacherConflictsBtn', function() {
+        $('#teacherSessionConflictsList').html('<div class="text-center text-muted py-4">Refreshing…</div>');
+        $.ajax({
+            url: '{{ route("admin.class_session_teacher_conflicts") }}',
+            method: 'GET',
+            success: function(res) {
+                teacherSessionConflictsCache = (res && res.conflicts) ? res.conflicts : [];
+                renderTeacherSessionConflictsModal(teacherSessionConflictsCache);
+                loadTeacherSessionConflicts();
+            }
+        });
+    });
+
+    $('a[data-toggle="tab"][href="#class-timetable"]').on('shown.bs.tab', function() {
+        loadTeacherSessionConflicts();
+    });
     
     // Open create timetable modal
     $('#createTimetableBtn').on('click', function() {
@@ -3217,8 +3330,6 @@ $(function() {
         const timetables = [];
         let hasErrors = false;
         
-        // Clear all previous validation errors
-        $('.session-validation-error').hide().html('');
         $('.form-control').removeClass('is-invalid');
         $('.form-select').removeClass('is-invalid');
         $('.day-timetable').removeClass('border-danger');
@@ -3274,69 +3385,93 @@ $(function() {
         // Show loading
         const btn = $(this);
         const originalText = btn.html();
-        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Updating...');
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Checking...');
 
-        // Send update request as JSON (avoids max_input_vars truncating large timetables)
-        $.ajax({
-            url: '/admin/save-class-session-timetables',
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            data: JSON.stringify({
-                timetables: timetables
-            }),
-            success: function(response) {
+        revalidateAllTeacherConflicts().then(function() {
+            if (hasVisibleTeacherConflictErrors()) {
                 btn.prop('disabled', false).html(originalText);
-                
-                if (response.success) {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Updated!',
-                            text: response.message || 'Timetable updated successfully',
-                            timer: 2000,
-                            showConfirmButton: false
-                        }).then(function() {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Teacher session conflict',
+                        text: 'This teacher already has a session at this time. Fix the red alerts before updating.'
+                    });
+                }
+                return;
+            }
+
+            btn.html('<span class="spinner-border spinner-border-sm"></span> Updating...');
+
+            // Send update request as JSON (avoids max_input_vars truncating large timetables)
+            $.ajax({
+                url: '/admin/save-class-session-timetables',
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    timetables: timetables
+                }),
+                success: function(response) {
+                    btn.prop('disabled', false).html(originalText);
+                    
+                    if (response.success) {
+                        loadTeacherSessionConflicts();
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Updated!',
+                                text: response.message || 'Timetable updated successfully',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(function() {
+                                $('#createTimetableModal').modal('hide');
+                                resetEditMode();
+                                
+                                // Reload the timetable display
+                                if (currentSubclassID) {
+                                    // Set the select to current subclass and trigger load
+                                    $('#view_session_subclass_select').val(currentSubclassID);
+                                    $('#loadSessionTimetableBtn').click();
+                                }
+                            });
+                        } else {
                             $('#createTimetableModal').modal('hide');
                             resetEditMode();
-                            
-                            // Reload the timetable display
-                            if (currentSubclassID) {
-                                // Set the select to current subclass and trigger load
-                                $('#view_session_subclass_select').val(currentSubclassID);
-                                $('#loadSessionTimetableBtn').click();
-                            }
-                        });
+                        }
                     } else {
-                        $('#createTimetableModal').modal('hide');
-                        resetEditMode();
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.error || 'Failed to update timetable'
+                            });
+                        }
+                        if (response.error_code === 'teacher_session_conflict') {
+                            loadTeacherSessionConflicts();
+                        }
                     }
-                } else {
+                },
+                error: function(xhr) {
+                    btn.prop('disabled', false).html(originalText);
+                    let errorMsg = xhr.responseJSON?.error || 'Failed to update timetable';
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({
                             icon: 'error',
                             title: 'Error',
-                            text: response.error || 'Failed to update timetable'
+                            text: errorMsg
                         });
                     }
+                    if (xhr.responseJSON?.error_code === 'teacher_session_conflict') {
+                        loadTeacherSessionConflicts();
+                    }
                 }
-            },
-            error: function(xhr) {
-                btn.prop('disabled', false).html(originalText);
-                let errorMsg = xhr.responseJSON?.error || 'Failed to update timetable';
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: errorMsg
-                    });
-                }
-            }
+            });
         });
     });
+
 
     // Reset edit mode
     function resetEditMode() {
@@ -3789,6 +3924,7 @@ $(function() {
                             showConfirmButton: false
                         });
                     }
+                    loadTeacherSessionConflicts();
                     // Clear display
                     $('#sessionTimetableDisplay').hide();
                     $('#sessionTimetableEmpty').html(
@@ -4863,7 +4999,110 @@ $(function() {
         }
     }
 
-    // Validate teacher conflict - only check same day and overlapping times
+    // Validate teacher conflict - DOM (open forms) + debounced DB (already-saved sessions)
+    var teacherConflictDbTimers = {};
+
+    function isTeacherConflictMessage(line) {
+        const t = (line || '').trim();
+        return t.includes('Teacher has a session')
+            || t.includes('Teacher has a prepo session')
+            || t.includes('Same teacher cannot teach two subjects')
+            || t.includes('already has a session at this time');
+    }
+
+    function applyTeacherConflictMessages(errorDiv, conflictMessages) {
+        const uniqueConflictMessages = [...new Set(conflictMessages)];
+        let currentHtml = errorDiv.html() || '';
+        const lines = currentHtml.split('<br>').filter(function(line) {
+            const trimmed = line.trim();
+            return trimmed && !isTeacherConflictMessage(trimmed);
+        });
+
+        if (uniqueConflictMessages.length > 0) {
+            const allMessages = [...lines, ...uniqueConflictMessages];
+            const finalHtml = allMessages.join('<br>');
+            if (errorDiv.html() !== finalHtml) {
+                errorDiv.html(finalHtml).show();
+            }
+            errorDiv.data('teacher-conflict', true);
+        } else {
+            const filtered = lines.join('<br>');
+            if (errorDiv.html() !== filtered) {
+                if (filtered.trim()) {
+                    errorDiv.html(filtered).show();
+                } else {
+                    errorDiv.hide().html('');
+                }
+            }
+            errorDiv.data('teacher-conflict', false);
+        }
+    }
+
+    function checkTeacherConflictAgainstDb(sessionRow, classIndex, day) {
+        const startTime = sessionRow.find('.session-start-time').val();
+        const endTime = sessionRow.find('.session-end-time').val();
+        const errorDiv = sessionRow.find('.session-validation-error');
+        const subclassID = $(`.subclass-select[data-class-index="${classIndex}"]`).val()
+            || (typeof editingSubclassID !== 'undefined' ? editingSubclassID : null);
+
+        const teacherIDs = [];
+        sessionRow.find('.session-teacher-id').each(function() {
+            if ($(this).val()) teacherIDs.push(String($(this).val()));
+        });
+
+        if (!startTime || !endTime || teacherIDs.length === 0) {
+            return Promise.resolve(false);
+        }
+
+        const checks = teacherIDs.map(function(tid) {
+            return $.ajax({
+                url: '{{ route("admin.class_session_teacher_conflicts") }}',
+                method: 'GET',
+                data: {
+                    teacherID: tid,
+                    day: day,
+                    start_time: startTime,
+                    end_time: endTime,
+                    excludeSubclassID: subclassID || ''
+                }
+            }).then(function(res) {
+                if (res && res.success && res.has_conflict) {
+                    const first = (res.conflicts && res.conflicts[0]) ? res.conflicts[0] : null;
+                    let detail = '';
+                    if (first && first.sessions && first.sessions[0]) {
+                        const s = first.sessions[0];
+                        const cls = [s.class_name, s.subclass_name].filter(Boolean).join(' / ');
+                        detail = ' (' + (cls || 'another class') + ', '
+                            + String(s.start_time || '').substring(0, 5) + '–'
+                            + String(s.end_time || '').substring(0, 5) + ')';
+                    }
+                    return 'This teacher already has a session at this time' + detail;
+                }
+                return null;
+            }).catch(function() { return null; });
+        });
+
+        return Promise.all(checks).then(function(msgs) {
+            const dbMsgs = msgs.filter(Boolean);
+            // Merge with existing DOM conflict lines
+            let currentHtml = errorDiv.html() || '';
+            const keep = currentHtml.split('<br>').filter(function(line) {
+                const trimmed = line.trim();
+                return trimmed && !trimmed.includes('already has a session at this time');
+            });
+            const domConflicts = keep.filter(isTeacherConflictMessage);
+            const nonConflict = keep.filter(function(l) { return !isTeacherConflictMessage(l); });
+            const allConflict = [...domConflicts, ...dbMsgs];
+            applyTeacherConflictMessages(errorDiv, allConflict.length ? allConflict : []);
+            // restore non-conflict messages
+            if (nonConflict.length) {
+                const merged = [...nonConflict, ...(allConflict.length ? allConflict : [])].join('<br>');
+                errorDiv.html(merged).show();
+            }
+            return dbMsgs.length > 0 || domConflicts.length > 0;
+        });
+    }
+
     function validateTeacherConflict(sessionRow, classIndex, day) {
         const startTime = sessionRow.find('.session-start-time').val();
         const endTime = sessionRow.find('.session-end-time').val();
@@ -4880,6 +5119,8 @@ $(function() {
         });
 
         if (teacherIDs.length === 0) {
+            // Clear teacher conflict messages if teacher cleared
+            applyTeacherConflictMessages(errorDiv, []);
             return;
         }
 
@@ -4944,7 +5185,7 @@ $(function() {
             }
         });
 
-        // Also check other classes on the same day
+        // Also check other classes on the same day (open forms)
         $('.class-timetable-form').each(function() {
             const otherClassIndex = $(this).data('class-index');
             if (otherClassIndex == classIndex) return;
@@ -4978,46 +5219,43 @@ $(function() {
             });
         });
 
-        // Get unique conflict messages (avoid duplicates)
-        const uniqueConflictMessages = [...new Set(conflictMessages)];
-        
-        if (hasConflict && uniqueConflictMessages.length > 0) {
-            // Get current HTML to preserve non-conflict messages
-            let currentHtml = errorDiv.html() || '';
-            
-            // Split by <br> and filter out old teacher conflict messages
-            const lines = currentHtml.split('<br>').filter(function(line) {
-                const trimmed = line.trim();
-                return trimmed && !trimmed.includes('Teacher has a session') && !trimmed.includes('Teacher has a prepo session') && !trimmed.includes('Same teacher cannot teach two subjects');
-            });
-            
-            // Combine non-conflict messages with new conflict messages
-            const allMessages = [...lines, ...uniqueConflictMessages];
-            const finalHtml = allMessages.join('<br>');
-            
-            // Only update if content actually changed (prevent infinite loop)
-            if (errorDiv.html() !== finalHtml) {
-                errorDiv.html(finalHtml).show();
-            }
-        } else {
-            // Remove teacher conflict messages if no conflict
-            let currentHtml = errorDiv.html();
-            if (currentHtml) {
-                const filtered = currentHtml.split('<br>').filter(function(line) {
-                    const trimmed = line.trim();
-                    return trimmed && !trimmed.includes('Teacher has a session') && !trimmed.includes('Teacher has a prepo session') && !trimmed.includes('Same teacher cannot teach two subjects');
-                }).join('<br>');
-                
-                // Only update if content actually changed (prevent infinite loop)
-                if (errorDiv.html() !== filtered) {
-                    if (filtered.trim()) {
-                        errorDiv.html(filtered).show();
-                    } else {
-                        errorDiv.hide();
-                    }
-                }
-            }
+        applyTeacherConflictMessages(errorDiv, hasConflict ? conflictMessages : []);
+
+        // Debounced DB check against already-saved sessions in other classes
+        const rowKey = classIndex + '-' + day + '-' + (sessionRow.data('row-index') || sessionRow.index());
+        if (teacherConflictDbTimers[rowKey]) {
+            clearTimeout(teacherConflictDbTimers[rowKey]);
         }
+        teacherConflictDbTimers[rowKey] = setTimeout(function() {
+            checkTeacherConflictAgainstDb(sessionRow, classIndex, day);
+        }, 300);
+    }
+
+    function revalidateAllTeacherConflicts() {
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        const promises = [];
+        $('.class-timetable-form').each(function() {
+            const classIndex = $(this).data('class-index');
+            days.forEach(function(day) {
+                $(`#sessions-${classIndex}-${day} .session-form-row, #prepo-${classIndex}-${day} .session-form-row`).each(function() {
+                    const $row = $(this);
+                    validateTeacherConflict($row, classIndex, day);
+                    promises.push(checkTeacherConflictAgainstDb($row, classIndex, day));
+                });
+            });
+        });
+        return Promise.all(promises);
+    }
+
+    function hasVisibleTeacherConflictErrors() {
+        let found = false;
+        $('.session-validation-error:visible').each(function() {
+            if (isTeacherConflictMessage($(this).html() || '') || $(this).data('teacher-conflict')) {
+                found = true;
+                return false;
+            }
+        });
+        return found;
     }
 
     // Calculate end time from start time and minutes
@@ -5100,7 +5338,7 @@ $(function() {
             errorDiv.html((currentHtml ? currentHtml + '<br>' : '') + errors.join('<br>')).show();
         } else {
             // Only hide if no teacher conflict errors
-            const teacherConflict = errorDiv.html().includes('Teacher has a session');
+            const teacherConflict = isTeacherConflictMessage(errorDiv.html() || '');
             if (!teacherConflict) {
                 errorDiv.hide();
             }
@@ -5117,12 +5355,12 @@ $(function() {
         const timetables = [];
         let hasErrors = false;
         
-        // Clear all previous validation errors
-        $('.session-validation-error').hide().html('');
+        // Clear field/day errors (keep teacher conflict lines until revalidation)
         $('.form-control').removeClass('is-invalid');
         $('.form-select').removeClass('is-invalid');
         $('.subclass-select').removeClass('is-invalid');
         $('.day-timetable').removeClass('border-danger');
+        $('.day-timetable .card-header .text-danger').remove();
 
         $('.class-timetable-form').each(function() {
             const classIndex = $(this).data('class-index');
@@ -5195,12 +5433,6 @@ $(function() {
                                 dayCard.find('.card-header').append('<small class="text-danger d-block mt-1"><i class="bi bi-exclamation-triangle"></i> Sessions end time (' + maxEndTime + ') exceeds definition end time (' + timetableDefinition.session_end_time + ')</small>');
                             }
                         }
-                        
-                        // Check if sessions end before definition end time (optional warning, not blocking)
-                        if (maxEndTime && timetableDefinition.session_end_time && maxEndTime < timetableDefinition.session_end_time) {
-                            // This is just a warning, not blocking
-                            // User can still submit if they want
-                        }
                     }
                 }
             });
@@ -5225,44 +5457,73 @@ $(function() {
 
         const btn = $('#saveAllTimetablesBtn');
         const originalHtml = btn.html();
-        btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Saving...');
+        btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Checking conflicts...');
 
-        $.ajax({
-            url: '/admin/save-class-session-timetables',
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            data: JSON.stringify({ timetables: timetables }),
-            success: function(response) {
-                if (response.success) {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: response.message || 'All timetables saved successfully!'
-                        });
-                    }
-                } else {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: response.error || 'Failed to save timetables'
-                        });
-                    }
-                }
+        revalidateAllTeacherConflicts().then(function() {
+            if (hasVisibleTeacherConflictErrors()) {
                 btn.prop('disabled', false).html(originalHtml);
-            },
-            error: function(xhr) {
-                let errorMsg = xhr.responseJSON?.error || 'Failed to save timetables';
+                const firstConflict = $('.session-validation-error:visible').filter(function() {
+                    return isTeacherConflictMessage($(this).html() || '');
+                }).first();
+                if (firstConflict.length) {
+                    $('html, body').animate({ scrollTop: firstConflict.offset().top - 100 }, 500);
+                }
                 if (typeof Swal !== 'undefined') {
-                    Swal.fire({ icon: 'error', title: 'Error', text: errorMsg });
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Teacher session conflict',
+                        text: 'This teacher already has a session at this time. Fix the red alerts before saving.'
+                    });
                 }
-                btn.prop('disabled', false).html(originalHtml);
+                return;
             }
+
+            btn.html('<i class="bi bi-hourglass-split"></i> Saving...');
+
+            $.ajax({
+                url: '/admin/save-class-session-timetables',
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({ timetables: timetables }),
+                success: function(response) {
+                    if (response.success) {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: response.message || 'All timetables saved successfully!'
+                            });
+                        }
+                        loadTeacherSessionConflicts();
+                    } else {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.error || 'Failed to save timetables'
+                            });
+                        }
+                        if (response.error_code === 'teacher_session_conflict') {
+                            loadTeacherSessionConflicts();
+                        }
+                    }
+                    btn.prop('disabled', false).html(originalHtml);
+                },
+                error: function(xhr) {
+                    let errorMsg = xhr.responseJSON?.error || 'Failed to save timetables';
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ icon: 'error', title: 'Error', text: errorMsg });
+                    }
+                    if (xhr.responseJSON?.error_code === 'teacher_session_conflict') {
+                        loadTeacherSessionConflicts();
+                    }
+                    btn.prop('disabled', false).html(originalHtml);
+                }
+            });
         });
     }
 

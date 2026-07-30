@@ -3667,6 +3667,373 @@ class TimeTableController extends Controller
     }
 
     /**
+     * School-wide (or filtered) teacher double-booking conflicts for class sessions.
+     * Query: teacherID, day, start_time, end_time, excludeSubclassID (optional for realtime form check).
+     */
+    public function getClassSessionTeacherConflicts(Request $request)
+    {
+        try {
+            $schoolID = Session::get('schoolID');
+            if (!$schoolID) {
+                return response()->json(['success' => false, 'error' => 'School ID required'], 400);
+            }
+
+            $teacherID = $request->input('teacherID');
+            $day = $request->input('day');
+            $startTime = $request->input('start_time') ?: $request->input('start');
+            $endTime = $request->input('end_time') ?: $request->input('end');
+            $excludeSubclassID = $request->input('excludeSubclassID');
+
+            $conflicts = $this->findTeacherSessionConflicts(
+                (int) $schoolID,
+                $excludeSubclassID ? [(int) $excludeSubclassID] : null,
+                null,
+                $teacherID ? (int) $teacherID : null,
+                $day ? (string) $day : null,
+                $startTime ? (string) $startTime : null,
+                $endTime ? (string) $endTime : null,
+            );
+
+            $teacherIds = collect($conflicts)->pluck('teacherID')->unique()->values()->all();
+
+            return response()->json([
+                'success' => true,
+                'conflict_count' => count($conflicts),
+                'teachers_with_conflicts' => count($teacherIds),
+                'has_conflict' => count($conflicts) > 0,
+                'conflicts' => $conflicts,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error scanning teacher session conflicts: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Normalize HH:MM or HH:MM:SS to comparable "HH:MM:SS".
+     */
+    private function normalizeSessionTime(?string $time): string
+    {
+        $time = trim((string) $time);
+        if ($time === '') {
+            return '';
+        }
+        if (preg_match('/^\d{1,2}:\d{2}$/', $time)) {
+            return $time . ':00';
+        }
+        if (preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $time)) {
+            return $time;
+        }
+        return $time;
+    }
+
+    private function sessionTimesOverlap(string $aStart, string $aEnd, string $bStart, string $bEnd): bool
+    {
+        $aStart = $this->normalizeSessionTime($aStart);
+        $aEnd = $this->normalizeSessionTime($aEnd);
+        $bStart = $this->normalizeSessionTime($bStart);
+        $bEnd = $this->normalizeSessionTime($bEnd);
+        if ($aStart === '' || $aEnd === '' || $bStart === '' || $bEnd === '') {
+            return false;
+        }
+        return ($aStart >= $bStart && $aStart < $bEnd)
+            || ($aEnd > $bStart && $aEnd <= $bEnd)
+            || ($aStart <= $bStart && $aEnd >= $bEnd);
+    }
+
+    /**
+     * Find teacher double-bookings for class session timetables.
+     *
+     * @param  list<int>|null  $excludeSubclassIDs  DB rows for these subclasses are ignored (replaced by $incomingSessions)
+     * @param  list<array>|null  $incomingSessions  Proposed sessions (same shape as save payload)
+     * @return list<array{teacherID:int,teacher_name:string,day:string,sessions:list<array>}>
+     */
+    private function findTeacherSessionConflicts(
+        int $schoolID,
+        ?array $excludeSubclassIDs = null,
+        ?array $incomingSessions = null,
+        ?int $filterTeacherID = null,
+        ?string $filterDay = null,
+        ?string $filterStart = null,
+        ?string $filterEnd = null,
+    ): array {
+        $definition = DB::table('session_timetable_definitions')
+            ->where('schoolID', $schoolID)
+            ->first();
+
+        if (!$definition) {
+            return [];
+        }
+
+        $excludeSubclassIDs = array_values(array_unique(array_filter(array_map(
+            'intval',
+            $excludeSubclassIDs ?? []
+        ))));
+
+        $query = DB::table('class_session_timetables as cst')
+            ->leftJoin('teachers as t', 'cst.teacherID', '=', 't.id')
+            ->leftJoin('subclasses as sc', 'cst.subclassID', '=', 'sc.subclassID')
+            ->leftJoin('classes as c', 'sc.classID', '=', 'c.classID')
+            ->leftJoin('school_subjects as ss', 'cst.subjectID', '=', 'ss.subjectID')
+            ->where('cst.schoolID', $schoolID)
+            ->where('cst.definitionID', $definition->definitionID)
+            ->whereNotNull('cst.teacherID')
+            ->select(
+                'cst.session_timetableID',
+                'cst.teacherID',
+                'cst.subclassID',
+                'cst.day',
+                'cst.start_time',
+                'cst.end_time',
+                'cst.is_prepo',
+                'cst.subjectID',
+                DB::raw("TRIM(CONCAT(COALESCE(t.first_name,''),' ',COALESCE(t.last_name,''))) as teacher_name"),
+                'c.class_name',
+                'sc.subclass_name',
+                'ss.subject_name'
+            );
+
+        if (!empty($excludeSubclassIDs)) {
+            $query->whereNotIn('cst.subclassID', $excludeSubclassIDs);
+        }
+
+        if ($filterTeacherID) {
+            $query->where('cst.teacherID', $filterTeacherID);
+        }
+
+        $rows = $query->get()->map(function ($row) {
+            return [
+                'session_timetableID' => $row->session_timetableID,
+                'teacherID' => (int) $row->teacherID,
+                'teacher_name' => trim((string) ($row->teacher_name ?? '')) ?: 'Teacher #' . $row->teacherID,
+                'subclassID' => (int) $row->subclassID,
+                'day' => (string) $row->day,
+                'start_time' => $this->normalizeSessionTime((string) $row->start_time),
+                'end_time' => $this->normalizeSessionTime((string) $row->end_time),
+                'is_prepo' => (int) ($row->is_prepo ?? 0),
+                'class_name' => (string) ($row->class_name ?? ''),
+                'subclass_name' => (string) ($row->subclass_name ?? ''),
+                'subject_name' => (string) ($row->subject_name ?? 'Free / N/A'),
+            ];
+        })->all();
+
+        // Merge incoming proposed sessions (for save validation / realtime with form data)
+        if (!empty($incomingSessions)) {
+            $subclassCache = [];
+            $subjectCache = [];
+            $teacherCache = [];
+
+            foreach ($incomingSessions as $session) {
+                if (!is_array($session)) {
+                    continue;
+                }
+                $tid = $session['teacherID'] ?? null;
+                if (!$tid) {
+                    continue;
+                }
+                $tid = (int) $tid;
+                if ($filterTeacherID && $tid !== $filterTeacherID) {
+                    continue;
+                }
+
+                $subclassID = (int) ($session['subclassID'] ?? 0);
+                $day = (string) ($session['day'] ?? '');
+                $start = $this->normalizeSessionTime((string) ($session['start_time'] ?? $session['startTime'] ?? ''));
+                $end = $this->normalizeSessionTime((string) ($session['end_time'] ?? $session['endTime'] ?? ''));
+                if (!$subclassID || $day === '' || $start === '' || $end === '') {
+                    continue;
+                }
+
+                if (!isset($subclassCache[$subclassID])) {
+                    $sub = DB::table('subclasses as sc')
+                        ->leftJoin('classes as c', 'sc.classID', '=', 'c.classID')
+                        ->where('sc.subclassID', $subclassID)
+                        ->select('c.class_name', 'sc.subclass_name')
+                        ->first();
+                    $subclassCache[$subclassID] = [
+                        'class_name' => $sub->class_name ?? '',
+                        'subclass_name' => $sub->subclass_name ?? '',
+                    ];
+                }
+
+                $subjectID = $session['subjectID'] ?? null;
+                $subjectName = 'Free / N/A';
+                if ($subjectID) {
+                    if (!isset($subjectCache[$subjectID])) {
+                        $subjectCache[$subjectID] = DB::table('school_subjects')
+                            ->where('subjectID', $subjectID)
+                            ->value('subject_name') ?: 'N/A';
+                    }
+                    $subjectName = $subjectCache[$subjectID];
+                }
+
+                if (!isset($teacherCache[$tid])) {
+                    $t = Teacher::find($tid);
+                    $teacherCache[$tid] = $t
+                        ? trim(($t->first_name ?? '') . ' ' . ($t->last_name ?? ''))
+                        : 'Teacher #' . $tid;
+                }
+
+                $rows[] = [
+                    'session_timetableID' => null,
+                    'teacherID' => $tid,
+                    'teacher_name' => $teacherCache[$tid] ?: 'Teacher #' . $tid,
+                    'subclassID' => $subclassID,
+                    'day' => $day,
+                    'start_time' => $start,
+                    'end_time' => $end,
+                    'is_prepo' => (int) ($session['is_prepo'] ?? 0),
+                    'class_name' => $subclassCache[$subclassID]['class_name'],
+                    'subclass_name' => $subclassCache[$subclassID]['subclass_name'],
+                    'subject_name' => $subjectName,
+                ];
+            }
+        }
+
+        // Optional single-slot filter (realtime): keep only rows that overlap the queried slot for that teacher/day
+        if ($filterTeacherID && $filterDay && $filterStart && $filterEnd) {
+            $fStart = $this->normalizeSessionTime($filterStart);
+            $fEnd = $this->normalizeSessionTime($filterEnd);
+            $rows = array_values(array_filter($rows, function ($r) use ($filterTeacherID, $filterDay, $fStart, $fEnd) {
+                if ((int) $r['teacherID'] !== $filterTeacherID) {
+                    return false;
+                }
+                if (strcasecmp((string) $r['day'], (string) $filterDay) !== 0) {
+                    return false;
+                }
+                return $this->sessionTimesOverlap($r['start_time'], $r['end_time'], $fStart, $fEnd);
+            }));
+        }
+
+        // Group by teacher + day and find overlapping pairs
+        $byTeacherDay = [];
+        foreach ($rows as $row) {
+            $key = $row['teacherID'] . '|' . strtolower($row['day']);
+            $byTeacherDay[$key][] = $row;
+        }
+
+        $conflicts = [];
+        foreach ($byTeacherDay as $group) {
+            if (count($group) < 2) {
+                // Realtime single-slot check: one existing session overlapping proposed slot is enough
+                if ($filterTeacherID && $filterDay && $filterStart && $filterEnd && count($group) >= 1) {
+                    // Need at least 2 overlapping sessions to be a "conflict" for school scan;
+                    // for slot check, any other session overlapping the proposed window means conflict.
+                    // If only one row and it's the proposed slot itself with no other, not a conflict —
+                    // but we can't distinguish proposed-only. Callers should pass excludeSubclassID.
+                    // If group has 1 row after filter, it's an existing DB session overlapping the slot → conflict.
+                    $teacher = $group[0];
+                    $conflicts[] = [
+                        'teacherID' => (int) $teacher['teacherID'],
+                        'teacher_name' => $teacher['teacher_name'],
+                        'day' => $teacher['day'],
+                        'sessions' => array_map(function ($s) {
+                            return [
+                                'session_timetableID' => $s['session_timetableID'],
+                                'class_name' => $s['class_name'],
+                                'subclass_name' => $s['subclass_name'],
+                                'subject_name' => $s['subject_name'],
+                                'start_time' => $s['start_time'],
+                                'end_time' => $s['end_time'],
+                                'is_prepo' => $s['is_prepo'],
+                                'subclassID' => $s['subclassID'],
+                            ];
+                        }, $group),
+                    ];
+                }
+                continue;
+            }
+
+            $n = count($group);
+            $conflictedIndexes = [];
+            for ($i = 0; $i < $n; $i++) {
+                for ($j = $i + 1; $j < $n; $j++) {
+                    // Same subclass + same start/end + optional parallel is OK (different subjects, same teacher rare)
+                    // Still a conflict if same teacher is in two overlapping periods (even optional parallel —
+                    // validateTeacherConflict already blocks same teacher twice in one period)
+                    if ($this->sessionTimesOverlap(
+                        $group[$i]['start_time'],
+                        $group[$i]['end_time'],
+                        $group[$j]['start_time'],
+                        $group[$j]['end_time']
+                    )) {
+                        // Allow exact same period only if same subclass AND same start/end (optional parallel teaching —
+                        // but same teacher twice is still conflict). Different subjects same teacher same time = conflict.
+                        $conflictedIndexes[$i] = true;
+                        $conflictedIndexes[$j] = true;
+                    }
+                }
+            }
+
+            if (empty($conflictedIndexes)) {
+                continue;
+            }
+
+            $sessions = [];
+            foreach (array_keys($conflictedIndexes) as $idx) {
+                $s = $group[$idx];
+                $sessions[] = [
+                    'session_timetableID' => $s['session_timetableID'],
+                    'class_name' => $s['class_name'],
+                    'subclass_name' => $s['subclass_name'],
+                    'subject_name' => $s['subject_name'],
+                    'start_time' => $s['start_time'],
+                    'end_time' => $s['end_time'],
+                    'is_prepo' => $s['is_prepo'],
+                    'subclassID' => $s['subclassID'],
+                ];
+            }
+
+            // Sort by start time for display
+            usort($sessions, function ($a, $b) {
+                return strcmp($a['start_time'], $b['start_time']);
+            });
+
+            $conflicts[] = [
+                'teacherID' => (int) $group[0]['teacherID'],
+                'teacher_name' => $group[0]['teacher_name'],
+                'day' => $group[0]['day'],
+                'sessions' => $sessions,
+            ];
+        }
+
+        // Sort conflicts by teacher name then day
+        usort($conflicts, function ($a, $b) {
+            $cmp = strcasecmp($a['teacher_name'], $b['teacher_name']);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            return strcasecmp($a['day'], $b['day']);
+        });
+
+        return $conflicts;
+    }
+
+    /**
+     * Build human-readable error from teacher conflict groups.
+     */
+    private function formatTeacherConflictError(array $conflicts): string
+    {
+        if (empty($conflicts)) {
+            return 'Teacher session conflict detected.';
+        }
+        $parts = [];
+        foreach (array_slice($conflicts, 0, 5) as $c) {
+            $sessions = $c['sessions'] ?? [];
+            $labels = [];
+            foreach (array_slice($sessions, 0, 3) as $s) {
+                $classLabel = trim(($s['class_name'] ?? '') . ' ' . ($s['subclass_name'] ?? ''));
+                $labels[] = ($s['subject_name'] ?? 'Session')
+                    . ($classLabel !== '' ? " ({$classLabel})" : '')
+                    . ' ' . substr($s['start_time'], 0, 5) . '-' . substr($s['end_time'], 0, 5);
+            }
+            $parts[] = ($c['teacher_name'] ?? 'Teacher') . ' on ' . ($c['day'] ?? '') . ': ' . implode('; ', $labels);
+        }
+        $extra = count($conflicts) > 5 ? ' (+' . (count($conflicts) - 5) . ' more)' : '';
+        return 'This teacher already has a session at this time. ' . implode(' | ', $parts) . $extra;
+    }
+
+    /**
      * Parallel periods (same subclass + day + start/end) are allowed only when
      * every subject in that slot is Optional (student_status).
      */
@@ -3766,6 +4133,22 @@ class TimeTableController extends Controller
             if ($overlapError) {
                 DB::rollBack();
                 return response()->json(['success' => false, 'error' => $overlapError]);
+            }
+
+            // Reject teacher double-booking (vs other classes + within this payload)
+            $teacherConflicts = $this->findTeacherSessionConflicts(
+                (int) $schoolID,
+                array_map('intval', $subclassIDs),
+                $timetables
+            );
+            if (!empty($teacherConflicts)) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => $this->formatTeacherConflictError($teacherConflicts),
+                    'conflicts' => $teacherConflicts,
+                    'error_code' => 'teacher_session_conflict',
+                ]);
             }
             
             // Delete existing timetables for these subclasses before inserting new ones
