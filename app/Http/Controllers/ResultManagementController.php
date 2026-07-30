@@ -923,6 +923,13 @@ class ResultManagementController extends Controller
                         $subjectData[$subjectID] = [
                             "subject" => $subject,
                             "subject_name" => $subjectName,
+                            "class_subjectID" =>
+                                (int) ($result->class_subjectID ?? 0),
+                            "student_status" =>
+                                $result->classSubject->student_status ?? null,
+                            "is_optional" => $this->isOptionalStudentStatus(
+                                $result->classSubject->student_status ?? null,
+                            ),
                             "exams" => [],
                             "paper_rows" => [],
                         ];
@@ -1044,6 +1051,10 @@ class ResultManagementController extends Controller
                         $subjects[] = [
                             "subject_name" => $subjectName,
                             "subjectID" => $subjectID,
+                            "class_subjectID" =>
+                                (int) ($data["class_subjectID"] ?? 0),
+                            "student_status" => $data["student_status"] ?? null,
+                            "is_optional" => !empty($data["is_optional"]),
                             "exams" => $data["exams"],
                             "average" => null,
                             "grade" => "Incomplete",
@@ -1098,6 +1109,10 @@ class ResultManagementController extends Controller
                     $subjects[] = [
                         "subject_name" => $subjectName,
                         "subjectID" => $subjectID,
+                        "class_subjectID" =>
+                            (int) ($data["class_subjectID"] ?? 0),
+                        "student_status" => $data["student_status"] ?? null,
+                        "is_optional" => !empty($data["is_optional"]),
                         "exams" => $data["exams"],
                         "average" => $average,
                         "grade" => $overallGrade,
@@ -1439,6 +1454,10 @@ class ResultManagementController extends Controller
                     $subjects[] = [
                         "subject_name" => $entry["subject_name"],
                         "subjectID" => $entry["subjectID"],
+                        "class_subjectID" =>
+                            (int) ($entry["class_subjectID"] ?? 0),
+                        "student_status" => $entry["student_status"] ?? null,
+                        "is_optional" => !empty($entry["is_optional"]),
                         "marks" => $marks,
                         "grade" => $gradePoints["grade"],
                         "is_duo" => $entry["is_duo"],
@@ -1843,6 +1862,39 @@ class ResultManagementController extends Controller
                         : asset("placeholder/male.png");
                 $studentPhoto = $placeholderPath;
             }
+
+            $studentSubclassIDForElection =
+                $student->subclassID ??
+                ($student->old_subclassID ??
+                    ($student->subclass->subclassID ??
+                        ($student->oldSubclass->subclassID ?? null)));
+
+            $subjects = $this->filterSubjectPayloadForStudentElection(
+                $subjects,
+                (int) $studentIDFilter,
+                $studentSubclassIDForElection
+                    ? (int) $studentSubclassIDForElection
+                    : null,
+                $electedClassSubjectIds,
+            );
+            $subjectCount = count($subjects);
+            // Recalculate totals after dropping unelected election subjects
+            $totalMarks = 0;
+            $scoredCount = 0;
+            foreach ($subjects as $s) {
+                if (!empty($s["is_incomplete"])) {
+                    continue;
+                }
+                if (isset($s["average"]) && $s["average"] !== null && $s["average"] !== "") {
+                    $totalMarks += (float) $s["average"];
+                    $scoredCount++;
+                } elseif (isset($s["marks"]) && $s["marks"] !== null && $s["marks"] !== "" && $s["marks"] !== "incomplete") {
+                    $totalMarks += (float) $s["marks"];
+                    $scoredCount++;
+                }
+            }
+            $averageMarks = $scoredCount > 0 ? $totalMarks / $scoredCount : 0;
+            $subjectCount = $scoredCount > 0 ? $scoredCount : count($subjects);
 
             $responseData = [
                 "subjects" => $subjects,
@@ -2610,6 +2662,11 @@ class ResultManagementController extends Controller
             ->all();
     }
 
+    private function isOptionalStudentStatus(?string $studentStatus): bool
+    {
+        return strtolower(trim((string) ($studentStatus ?? ""))) === "optional";
+    }
+
     /**
      * @param  list<int>|null  $electedClassSubjectIds
      */
@@ -2622,7 +2679,7 @@ class ResultManagementController extends Controller
             return false;
         }
 
-        if (strtolower(trim((string) ($classSubject->student_status ?? ""))) !== "optional") {
+        if (!$this->isOptionalStudentStatus($classSubject->student_status ?? null)) {
             return true;
         }
 
@@ -2645,9 +2702,17 @@ class ResultManagementController extends Controller
         $result,
         ?array $electedClassSubjectIds = null,
     ): bool {
+        $classSubject = $result->classSubject ?? null;
+        if (!$classSubject && !empty($result->class_subjectID)) {
+            $classSubject = ClassSubject::find($result->class_subjectID);
+            if ($classSubject) {
+                $result->setRelation("classSubject", $classSubject);
+            }
+        }
+
         return $this->shouldIncludeClassSubjectForStudent(
             $studentID,
-            $result->classSubject ?? null,
+            $classSubject,
             $electedClassSubjectIds,
         );
     }
@@ -2678,6 +2743,101 @@ class ResultManagementController extends Controller
                 );
             })
             ->values();
+    }
+
+    /**
+     * Final safety net for individual report / modal subject rows.
+     * Drops Optional (election) subjects the student did not elect — never display them.
+     *
+     * @param  list<array<string, mixed>>  $subjects
+     * @param  list<int>|null  $electedClassSubjectIds
+     * @return list<array<string, mixed>>
+     */
+    private function filterSubjectPayloadForStudentElection(
+        array $subjects,
+        int $studentID,
+        ?int $subclassID = null,
+        ?array $electedClassSubjectIds = null,
+    ): array {
+        if ($subjects === []) {
+            return [];
+        }
+
+        $electedClassSubjectIds ??= $this->getElectedClassSubjectIdsForStudent(
+            $studentID,
+        );
+
+        $optionalSubjectIds = [];
+        if ($subclassID) {
+            $optionalSubjectIds = ClassSubject::where("subclassID", $subclassID)
+                ->where("status", "Active")
+                ->get(["class_subjectID", "subjectID", "student_status"])
+                ->filter(
+                    fn($cs) => $this->isOptionalStudentStatus(
+                        $cs->student_status ?? null,
+                    ),
+                )
+                ->pluck("subjectID")
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        $electedSubjectIds = [];
+        if ($optionalSubjectIds !== [] && $electedClassSubjectIds !== []) {
+            $electedSubjectIds = ClassSubject::whereIn(
+                "class_subjectID",
+                $electedClassSubjectIds,
+            )
+                ->pluck("subjectID")
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        $filtered = [];
+        foreach ($subjects as $subj) {
+            $subjectID = (int) ($subj["subjectID"] ?? 0);
+            $classSubjectID = (int) ($subj["class_subjectID"] ?? 0);
+            $isOptional = !empty($subj["is_optional"]);
+
+            if (!$isOptional && $subjectID > 0 && $optionalSubjectIds !== []) {
+                $isOptional = in_array($subjectID, $optionalSubjectIds, true);
+            }
+
+            if (
+                !$isOptional &&
+                $classSubjectID > 0 &&
+                isset($subj["student_status"])
+            ) {
+                $isOptional = $this->isOptionalStudentStatus(
+                    (string) $subj["student_status"],
+                );
+            }
+
+            if ($isOptional) {
+                $elected = false;
+                if ($classSubjectID > 0) {
+                    $elected = in_array(
+                        $classSubjectID,
+                        $electedClassSubjectIds,
+                        true,
+                    );
+                } elseif ($subjectID > 0) {
+                    $elected = in_array($subjectID, $electedSubjectIds, true);
+                }
+
+                if (!$elected) {
+                    continue; // unelected election subject — hide completely
+                }
+            }
+
+            $filtered[] = $subj;
+        }
+
+        return array_values($filtered);
     }
 
     /**
@@ -4278,6 +4438,9 @@ class ResultManagementController extends Controller
             $subjectsData[] = [
                 "subject_name" => $entry["subject_name"],
                 "subjectID" => $entry["subjectID"],
+                "class_subjectID" => (int) ($entry["class_subjectID"] ?? 0),
+                "student_status" => $entry["student_status"] ?? null,
+                "is_optional" => !empty($entry["is_optional"]),
                 "marks" => $marks !== null ? $marks : "incomplete",
                 "grade" => $gradePoints["grade"],
                 "points" => $gradePoints["points"],
@@ -4286,6 +4449,25 @@ class ResultManagementController extends Controller
                 "papers" => $entry["papers"] ?? [],
                 "question_marks" => [],
             ];
+        }
+
+        $subjectsData = $this->filterSubjectPayloadForStudentElection(
+            $subjectsData,
+            (int) $student->studentID,
+            (int) ($student->subclassID ?? ($student->old_subclassID ?? 0)) ?:
+            null,
+            $electedClassSubjectIds,
+        );
+        // Recount after election filter (unelected optionals must not affect totals)
+        $totalMarks = 0;
+        $subjectCount = 0;
+        foreach ($subjectsData as $s) {
+            if (($s["marks"] ?? null) !== "incomplete" && $s["marks"] !== null && $s["marks"] !== "") {
+                $totalMarks += (float) $s["marks"];
+                $subjectCount++;
+            } elseif (($s["marks"] ?? null) === "incomplete") {
+                $subjectCount++;
+            }
         }
 
         $averageMarks = $subjectCount > 0 ? $totalMarks / $subjectCount : 0;
@@ -4907,6 +5089,7 @@ class ResultManagementController extends Controller
                 $groups[$sid] = [
                     "subject" => $subject,
                     "class_subjectID" => $result->class_subjectID,
+                    "student_status" => $cs->student_status ?? null,
                     "rows" => collect(),
                 ];
             }
@@ -4969,6 +5152,10 @@ class ResultManagementController extends Controller
                 "subjectID" => $sid,
                 "subject_name" => $subject->subject_name ?? "N/A",
                 "class_subjectID" => $group["class_subjectID"],
+                "student_status" => $group["student_status"] ?? null,
+                "is_optional" => $this->isOptionalStudentStatus(
+                    $group["student_status"] ?? null,
+                ),
                 "marks" => $marks,
                 "is_duo" => $isDuo,
                 "papers" => $papers,
@@ -6326,6 +6513,51 @@ class ResultManagementController extends Controller
             return isset($resultsData[$student->studentID]);
         });
 
+        // Never show unelected Optional (election) subjects on individual / list PDF payloads
+        foreach ($students as $student) {
+            $sid = (int) $student->studentID;
+            if (!isset($resultsData[$sid])) {
+                continue;
+            }
+            $subclassID =
+                $student->subclassID ??
+                ($student->old_subclassID ??
+                    ($student->subclass->subclassID ??
+                        ($student->oldSubclass->subclassID ?? null)));
+            $electedIds = $this->getElectedClassSubjectIdsForStudent($sid);
+
+            if ($typeFilter === "exam" && is_array($resultsData[$sid])) {
+                foreach ($resultsData[$sid] as $idx => $examRow) {
+                    if (
+                        isset($examRow["subjects"]) &&
+                        is_array($examRow["subjects"])
+                    ) {
+                        $resultsData[$sid][$idx]["subjects"] =
+                            $this->filterSubjectPayloadForStudentElection(
+                                $examRow["subjects"],
+                                $sid,
+                                $subclassID ? (int) $subclassID : null,
+                                $electedIds,
+                            );
+                        $resultsData[$sid][$idx]["subject_count"] = count(
+                            $resultsData[$sid][$idx]["subjects"],
+                        );
+                    }
+                }
+            } elseif (
+                isset($resultsData[$sid]["subjects"]) &&
+                is_array($resultsData[$sid]["subjects"])
+            ) {
+                $resultsData[$sid]["subjects"] =
+                    $this->filterSubjectPayloadForStudentElection(
+                        $resultsData[$sid]["subjects"],
+                        $sid,
+                        $subclassID ? (int) $subclassID : null,
+                        $electedIds,
+                    );
+            }
+        }
+
         if ($students->isEmpty()) {
             return response(
                 "No results found for the selected filters.",
@@ -6344,6 +6576,31 @@ class ResultManagementController extends Controller
             $res = $this->index($reqClone);
             if ($res instanceof \Illuminate\Http\JsonResponse) {
                 $detailedSingleData = json_decode($res->content(), true);
+                if (
+                    is_array($detailedSingleData) &&
+                    isset($detailedSingleData["subjects"]) &&
+                    is_array($detailedSingleData["subjects"])
+                ) {
+                    $detailStudent = $students->firstWhere(
+                        "studentID",
+                        (int) $studentID,
+                    );
+                    $detailSubclassID =
+                        $detailStudent->subclassID ??
+                        ($detailStudent->old_subclassID ??
+                            ($detailStudent->subclass->subclassID ??
+                                ($detailStudent->oldSubclass->subclassID ??
+                                    null)));
+                    $detailedSingleData["subjects"] =
+                        $this->filterSubjectPayloadForStudentElection(
+                            $detailedSingleData["subjects"],
+                            (int) $studentID,
+                            $detailSubclassID ? (int) $detailSubclassID : null,
+                        );
+                    $detailedSingleData["subjectCount"] = count(
+                        $detailedSingleData["subjects"],
+                    );
+                }
             }
         } elseif ($option === "bulk_single" && count($students) > 0) {
             foreach ($students as $student) {
@@ -6354,10 +6611,29 @@ class ResultManagementController extends Controller
                 ]);
                 $res = $this->index($reqClone);
                 if ($res instanceof \Illuminate\Http\JsonResponse) {
-                    $detailedBulkData[$student->studentID] = json_decode(
-                        $res->content(),
-                        true,
-                    );
+                    $bulkPayload = json_decode($res->content(), true);
+                    if (
+                        is_array($bulkPayload) &&
+                        isset($bulkPayload["subjects"]) &&
+                        is_array($bulkPayload["subjects"])
+                    ) {
+                        $bulkSubclassID =
+                            $student->subclassID ??
+                            ($student->old_subclassID ??
+                                ($student->subclass->subclassID ??
+                                    ($student->oldSubclass->subclassID ??
+                                        null)));
+                        $bulkPayload["subjects"] =
+                            $this->filterSubjectPayloadForStudentElection(
+                                $bulkPayload["subjects"],
+                                (int) $student->studentID,
+                                $bulkSubclassID ? (int) $bulkSubclassID : null,
+                            );
+                        $bulkPayload["subjectCount"] = count(
+                            $bulkPayload["subjects"],
+                        );
+                    }
+                    $detailedBulkData[$student->studentID] = $bulkPayload;
                 }
             }
         }

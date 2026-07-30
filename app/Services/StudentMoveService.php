@@ -43,6 +43,7 @@ class StudentMoveService
     {
         $n = $this->normalizeClassName($className);
         return in_array($n, [
+            'pre_form_one',
             'form_one', 'form_1',
             'form_two', 'form_2',
             'form_three', 'form_3',
@@ -158,6 +159,7 @@ class StudentMoveService
         }
 
         $map = [
+            'pre_form_one' => 'form_one',
             'form_one' => 'form_two',
             'form_1' => 'form_two',
             'form_two' => 'form_three',
@@ -1078,6 +1080,7 @@ class StudentMoveService
             'standard_5' => 9,
             'standard_6' => 10,
             'standard_7' => 11,
+            'pre_form_one' => 19,
             'form_one' => 20,
             'form_1' => 20,
             'form_two' => 21,

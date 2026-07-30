@@ -946,6 +946,9 @@ class ManageSubjectController extends Controller
                     $teacherID = $subjectData['teacherID'] ?? null;
                     $status = $subjectData['status'] ?? 'Active';
                     $studentStatus = $subjectData['student_status'] ?? null;
+                    if ($studentStatus === null || $studentStatus === '') {
+                        $studentStatus = 'Required';
+                    }
 
                     // Determine if this is a new subject
                     $isNewSubject = ($subjectID === '__new_subject__' || $subjectID === null) && !empty($newSubjectName);

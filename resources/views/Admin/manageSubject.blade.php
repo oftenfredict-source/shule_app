@@ -711,14 +711,13 @@
                                 </select>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Student Status</label>
-                                <select name="subjects[0][student_status]" class="form-select student-status-select">
-                                    <option value="">Select Student Status (Optional)</option>
-                                    <option value="Required">Required - All students must take this subject</option>
-                                    <option value="Optional">Optional - Students can choose to take this subject</option>
+                                <label class="form-label fw-bold">Student Status <span class="text-danger">*</span></label>
+                                <select name="subjects[0][student_status]" class="form-select student-status-select" required>
+                                    <option value="Required" selected>Required - All students must take this subject</option>
+                                    <option value="Optional">Optional - Students can elect (election) this subject</option>
                                 </select>
                                 <small class="text-muted">
-                                    <i class="bi bi-info-circle"></i> This determines if this subject is mandatory or optional for students. If Optional, students can elect to take it.
+                                    <i class="bi bi-info-circle"></i> <strong>Optional</strong> = election subject. Students who do not elect it will not see it on individual result reports.
                                 </small>
                             </div>
                         </div>
@@ -1381,14 +1380,13 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Student Status</label>
-                        <select name="subjects[${rowIndex}][student_status]" class="form-select student-status-select">
-                            <option value="">Select Student Status (Optional)</option>
-                            <option value="Required"${studentStatus === 'Required' ? ' selected' : ''}>Required - All students must take this subject</option>
-                            <option value="Optional"${studentStatus === 'Optional' ? ' selected' : ''}>Optional - Students can choose to take this subject</option>
+                        <label class="form-label fw-bold">Student Status <span class="text-danger">*</span></label>
+                        <select name="subjects[${rowIndex}][student_status]" class="form-select student-status-select" required>
+                            <option value="Required"${!studentStatus || studentStatus === 'Required' ? ' selected' : ''}>Required - All students must take this subject</option>
+                            <option value="Optional"${studentStatus === 'Optional' ? ' selected' : ''}>Optional - Students can elect (election) this subject</option>
                         </select>
                         <small class="text-muted">
-                            <i class="bi bi-info-circle"></i> This determines if this subject is mandatory or optional for students.
+                            <i class="bi bi-info-circle"></i> <strong>Optional</strong> = election subject. Unelected students will not see it on individual reports.
                         </small>
                     </div>
                 </div>`;
@@ -2536,7 +2534,7 @@
                     || $row.find('.subject-select-value').val()
                     || '';
                 const status = $row.find('.status-select').val() || 'Active';
-                const studentStatus = $row.find('.student-status-select').val() || null;
+                const studentStatus = $row.find('.student-status-select').val() || 'Required';
                 const isDuo = $row.find('.duo-papers-wrap').length > 0
                     || $row.attr('data-is-duo') === '1';
 

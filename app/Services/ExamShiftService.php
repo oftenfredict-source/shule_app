@@ -356,6 +356,8 @@ class ExamShiftService
                 'standard_4' => 'standard_5', 'standard_5' => 'standard_6', 'standard_6' => 'standard_7',
             ]
             : [
+                // pre_form_one must be checked before form_one (str_contains)
+                'pre_form_one' => 'form_one',
                 'form_one' => 'form_two', 'form_1' => 'form_two',
                 'form_two' => 'form_three', 'form_2' => 'form_three',
                 'form_three' => 'form_four', 'form_3' => 'form_four',

@@ -430,6 +430,7 @@
                                 <select name="class_name" id="add_class_name_select" class="form-control" required>
                                     <option value="">Select Class</option>
                                     @if(isset($school_details) && $school_details->school_type == 'Secondary')
+                                        <option value="PRE FORM ONE" {{ in_array('PRE FORM ONE', $existingClassNames ?? []) ? 'disabled style="background-color: #e9ecef; color: #6c757d;"' : '' }}>PRE FORM ONE @if(in_array('PRE FORM ONE', $existingClassNames ?? [])) (Already Exists) @endif</option>
                                         <option value="FORM ONE" {{ in_array('FORM ONE', $existingClassNames ?? []) ? 'disabled style="background-color: #e9ecef; color: #6c757d;"' : '' }}>FORM ONE @if(in_array('FORM ONE', $existingClassNames ?? [])) (Already Exists) @endif</option>
                                         <option value="FORM TWO" {{ in_array('FORM TWO', $existingClassNames ?? []) ? 'disabled style="background-color: #e9ecef; color: #6c757d;"' : '' }}>FORM TWO @if(in_array('FORM TWO', $existingClassNames ?? [])) (Already Exists) @endif</option>
                                         <option value="FORM THREE" {{ in_array('FORM THREE', $existingClassNames ?? []) ? 'disabled style="background-color: #e9ecef; color: #6c757d;"' : '' }}>FORM THREE @if(in_array('FORM THREE', $existingClassNames ?? [])) (Already Exists) @endif</option>
@@ -1284,7 +1285,8 @@
                         <select name="class_name" id="edit_class_name" class="form-control" required>
                             <option value="">Select Class</option>
                             @if(isset($school_details) && $school_details->school_type == 'Secondary')
-                            <option value="FORM ONE" data-original-value="FORM ONE">FORM ONE</option>
+                                <option value="PRE FORM ONE" data-original-value="PRE FORM ONE">PRE FORM ONE</option>
+                                <option value="FORM ONE" data-original-value="FORM ONE">FORM ONE</option>
                                 <option value="FORM TWO" data-original-value="FORM TWO">FORM TWO</option>
                                 <option value="FORM THREE" data-original-value="FORM THREE">FORM THREE</option>
                                 <option value="FORM FOUR" data-original-value="FORM FOUR">FORM FOUR</option>

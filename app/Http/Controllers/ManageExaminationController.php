@@ -4063,6 +4063,8 @@ class ManageExaminationController extends Controller
 
         if ($schoolType === 'Secondary') {
             $classSequence = [
+                'pre_form_1' => 'form_1',
+                'pre_form_one' => 'form_1',
                 'form_1' => 'form_2',
                 'form_one' => 'form_2',
                 'form_2' => 'form_3',

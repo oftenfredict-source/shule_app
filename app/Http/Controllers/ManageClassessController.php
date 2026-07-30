@@ -320,7 +320,8 @@ class ManageClassessController extends Controller
                 }
                 return 100;
             }
-            // Secondary
+            // Secondary — Pre Form One before Form One
+            if (str_contains($name, 'pre') && str_contains($name, 'one')) return 0;
             if (str_contains($name, 'one')) return 1;
             if (str_contains($name, 'two')) return 2;
             if (str_contains($name, 'three')) return 3;
@@ -3669,6 +3670,7 @@ class ManageClassessController extends Controller
                 if ($schoolType === 'Secondary') {
                     // For secondary: Check next class level (e.g., Form Three → Form Four)
                     $classProgression = [
+                        'pre_form_one' => 'form_one',
                         'form_one' => 'form_two',
                         'form_two' => 'form_three',
                         'form_three' => 'form_four',
