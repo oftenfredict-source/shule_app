@@ -1163,32 +1163,21 @@ window.assignTask = function(sessionTimetableID, date, startTime, endTime) {
 };
 
 window.openLessonPlan = function(sessionTimetableID, day, startTime, endTime, subjectName, className, date) {
-    // Gate: require Active enrollments for header year before opening lesson plan
-    $.get('{{ route("teacher.get_session_attendance_stats") }}', {
-        session_timetableID: sessionTimetableID,
-        date: date
-    }).done(function(res) {
-        if (res.success === false || res.error_code === 'no_academic_year' || res.error_code === 'no_active_enrollments') {
+    // Native fetch — do not depend on jQuery being ready (onclick can fire before $ loads)
+    function showNotAllowed(msg) {
+        if (typeof Swal !== 'undefined' && Swal.fire) {
             Swal.fire({
                 title: 'Not allowed',
-                text: res.error || res.message || 'Select an academic year with Active enrollments before creating a lesson plan.',
+                text: msg,
                 icon: 'warning',
                 confirmButtonColor: '#940000'
             });
-            return;
+        } else {
+            alert(msg);
         }
+    }
 
-        const registeredTotal = res.data?.registered_total ?? res.registered_total ?? null;
-        if (registeredTotal === 0) {
-            Swal.fire({
-                title: 'Not allowed',
-                text: 'No Active enrollments for this class in the selected academic year. Lesson plan is blocked.',
-                icon: 'warning',
-                confirmButtonColor: '#940000'
-            });
-            return;
-        }
-
+    function goToLessonPlan() {
         const params = new URLSearchParams({
             session_timetableID: sessionTimetableID,
             day: day,
@@ -1200,14 +1189,49 @@ window.openLessonPlan = function(sessionTimetableID, day, startTime, endTime, su
             auto_open: 'true'
         });
         window.location.href = '{{ route("teacher.lessonPlans") }}?' + params.toString();
-    }).fail(function(xhr) {
-        const msg = xhr.responseJSON?.error || xhr.responseJSON?.message || 'Cannot open lesson plan for this session.';
-        Swal.fire({
-            title: 'Not allowed',
-            text: msg,
-            icon: 'warning',
-            confirmButtonColor: '#940000'
+    }
+
+    const statsUrl = new URL('{{ route("teacher.get_session_attendance_stats") }}', window.location.origin);
+    statsUrl.searchParams.set('session_timetableID', sessionTimetableID);
+    statsUrl.searchParams.set('date', date);
+
+    fetch(statsUrl.toString(), {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(function(res) {
+        return res.json().then(function(data) {
+            return { ok: res.ok, status: res.status, data: data };
+        }).catch(function() {
+            return { ok: res.ok, status: res.status, data: {} };
         });
+    })
+    .then(function(result) {
+        const res = result.data || {};
+        if (!result.ok || res.success === false || res.error_code === 'no_academic_year' || res.error_code === 'no_active_enrollments') {
+            showNotAllowed(
+                res.error || res.message || 'Select an academic year with Active enrollments before creating a lesson plan.'
+            );
+            return;
+        }
+
+        const registeredTotal = (res.data && res.data.registered_total != null)
+            ? res.data.registered_total
+            : (res.registered_total != null ? res.registered_total : null);
+        if (registeredTotal === 0) {
+            showNotAllowed('No Active enrollments for this class in the selected academic year. Lesson plan is blocked.');
+            return;
+        }
+
+        goToLessonPlan();
+    })
+    .catch(function(err) {
+        console.error('openLessonPlan failed:', err);
+        showNotAllowed('Cannot open lesson plan for this session.');
     });
 };
 
