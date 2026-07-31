@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SmsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class SiteController extends Controller
 {
@@ -952,6 +956,177 @@ class SiteController extends Controller
         ]);
     }
 
+    /**
+     * Normalize TZ phone to 255XXXXXXXXX (12 digits).
+     */
+    private function normalizeContactPhone(?string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if ($digits === '') {
+            return null;
+        }
+
+        if (str_starts_with($digits, '255')) {
+            $digits = substr($digits, 3);
+        }
+        if (str_starts_with($digits, '0')) {
+            $digits = substr($digits, 1);
+        }
+
+        $digits = '255' . $digits;
+
+        // Tanzania mobile: 255 + 9 digits (usually starting with 6 or 7)
+        if (!preg_match('/^255[67]\d{8}$/', $digits)) {
+            return null;
+        }
+
+        return $digits;
+    }
+
+    private function maskPhone(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone);
+        if (strlen($digits) < 8) {
+            return $digits;
+        }
+
+        return substr($digits, 0, 6) . '****' . substr($digits, -2);
+    }
+
+    public function contactSendOtp(Request $request)
+    {
+        $ipKey = 'contact-otp-ip:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($ipKey, 5)) {
+            $seconds = RateLimiter::availableIn($ipKey);
+            return response()->json([
+                'success' => false,
+                'message' => "Too many OTP requests. Try again in {$seconds} seconds.",
+            ], 429);
+        }
+
+        $phone = $this->normalizeContactPhone($request->input('phone'));
+        if (!$phone) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Enter a valid Tanzania mobile number starting with 255 (e.g. 2557XXXXXXXX).',
+            ], 422);
+        }
+
+        $phoneKey = 'contact-otp-phone:' . $phone;
+        if (RateLimiter::tooManyAttempts($phoneKey, 3)) {
+            $seconds = RateLimiter::availableIn($phoneKey);
+            return response()->json([
+                'success' => false,
+                'message' => "OTP already sent recently. Wait {$seconds} seconds before requesting again.",
+            ], 429);
+        }
+
+        RateLimiter::hit($ipKey, 60);
+        RateLimiter::hit($phoneKey, 120);
+
+        $otp = (string) random_int(100000, 999999);
+        $token = (string) Str::uuid();
+
+        session([
+            'contact_otp' => [
+                'token' => $token,
+                'code_hash' => Hash::make($otp),
+                'expires_at' => time() + (10 * 60),
+                'phone' => $phone,
+                'verified' => false,
+                'attempts' => 0,
+            ],
+        ]);
+        session()->forget('contact_otp_verified');
+
+        $msg = "ShuleXpert Contact OTP: {$otp}. Use this code to send your contact request. Do not share. Expires in 10 minutes.";
+        $smsResult = (new SmsService())->sendSms($phone, $msg);
+
+        if (is_array($smsResult) && isset($smsResult['success']) && !$smsResult['success']) {
+            session()->forget('contact_otp');
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send OTP SMS. Please try again shortly.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP sent to ' . $this->maskPhone($phone),
+            'otp_token' => $token,
+            'phone' => $phone,
+            'masked_phone' => $this->maskPhone($phone),
+        ]);
+    }
+
+    public function contactVerifyOtp(Request $request)
+    {
+        $request->validate([
+            'otp' => 'required|string|min:4|max:10',
+            'otp_token' => 'required|string|max:100',
+            'phone' => 'required|string|max:30',
+        ]);
+
+        $phone = $this->normalizeContactPhone($request->input('phone'));
+        $pending = session('contact_otp');
+
+        if (!$pending || !$phone) {
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP session expired. Please request a new OTP.',
+            ], 401);
+        }
+
+        if ((string) ($pending['token'] ?? '') !== (string) $request->otp_token) {
+            return response()->json(['success' => false, 'message' => 'Invalid OTP session.'], 401);
+        }
+
+        if ((string) ($pending['phone'] ?? '') !== $phone) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Phone number does not match the OTP session. Request a new OTP.',
+            ], 401);
+        }
+
+        if (empty($pending['expires_at']) || time() > (int) $pending['expires_at']) {
+            session()->forget(['contact_otp', 'contact_otp_verified']);
+            return response()->json(['success' => false, 'message' => 'OTP expired. Please request a new OTP.'], 401);
+        }
+
+        $attempts = (int) ($pending['attempts'] ?? 0);
+        if ($attempts >= 5) {
+            session()->forget(['contact_otp', 'contact_otp_verified']);
+            return response()->json([
+                'success' => false,
+                'message' => 'Too many incorrect attempts. Request a new OTP.',
+            ], 429);
+        }
+
+        $otp = preg_replace('/\s+/', '', (string) $request->otp);
+        if (!Hash::check($otp, (string) ($pending['code_hash'] ?? ''))) {
+            $pending['attempts'] = $attempts + 1;
+            session(['contact_otp' => $pending]);
+            return response()->json(['success' => false, 'message' => 'Incorrect OTP.'], 401);
+        }
+
+        $pending['verified'] = true;
+        $pending['verified_at'] = time();
+        session([
+            'contact_otp' => $pending,
+            'contact_otp_verified' => [
+                'phone' => $phone,
+                'token' => $pending['token'],
+                'expires_at' => time() + (30 * 60),
+            ],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Phone verified. You can now send your message.',
+            'phone' => $phone,
+        ]);
+    }
+
     public function contactSubmit(Request $request)
     {
         $request->validate([
@@ -960,17 +1135,52 @@ class SiteController extends Controller
             'phone' => 'required|string|max:30',
             'subject' => 'required|string|max:200',
             'message' => 'required|string|max:5000',
+            'otp_token' => 'required|string|max:100',
         ]);
+
+        $phone = $this->normalizeContactPhone($request->input('phone'));
+        if (!$phone) {
+            return back()
+                ->withInput()
+                ->withErrors(['phone' => 'Enter a valid Tanzania mobile number starting with 255.']);
+        }
+
+        $verified = session('contact_otp_verified');
+        $pending = session('contact_otp');
+
+        $ok = $verified
+            && ($verified['phone'] ?? null) === $phone
+            && (string) ($verified['token'] ?? '') === (string) $request->otp_token
+            && !empty($verified['expires_at'])
+            && time() <= (int) $verified['expires_at']
+            && !empty($pending['verified']);
+
+        if (!$ok) {
+            return back()
+                ->withInput()
+                ->withErrors(['phone' => 'Thibitisha namba yako ya simu kwa OTP kabla ya kutuma ujumbe.']);
+        }
+
+        // Extra guard: one contact submission per verified phone/IP window
+        $submitKey = 'contact-submit:' . $request->ip() . ':' . $phone;
+        if (RateLimiter::tooManyAttempts($submitKey, 2)) {
+            return back()
+                ->withInput()
+                ->withErrors(['message' => 'Too many contact requests. Please wait a few minutes and try again.']);
+        }
+        RateLimiter::hit($submitKey, 600);
 
         \App\Models\CustomerRequest::create([
             'name' => $request->name,
             'email' => $request->email,
-            'phone' => $request->phone,
+            'phone' => $phone,
             'subject' => $request->subject,
             'message' => $request->message,
         ]);
 
         \App\Models\WebVisitor::rememberVisitorEmail($request->email, $request->ip());
+
+        session()->forget(['contact_otp', 'contact_otp_verified']);
 
         return back()->with('success', 'Asante! Ujumbe wako umepokelewa. Tutawasiliana nawe hivi karibuni.');
     }

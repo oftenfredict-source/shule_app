@@ -235,7 +235,15 @@ Route::get("/pricing", [SiteController::class, "pricing"])->name("pricing");
 Route::get("/faq", [SiteController::class, "faq"])->name("site.faq");
 Route::get("/download", [SiteController::class, "download"])->name("site.download");
 Route::get("/contact", [SiteController::class, "contact"])->name("site.contact");
-Route::post("/contact", [SiteController::class, "contactSubmit"])->name("site.contact.submit");
+Route::post("/contact/send-otp", [SiteController::class, "contactSendOtp"])
+    ->middleware("throttle:5,1")
+    ->name("site.contact.send_otp");
+Route::post("/contact/verify-otp", [SiteController::class, "contactVerifyOtp"])
+    ->middleware("throttle:10,1")
+    ->name("site.contact.verify_otp");
+Route::post("/contact", [SiteController::class, "contactSubmit"])
+    ->middleware("throttle:3,10")
+    ->name("site.contact.submit");
 
 // Browser auto-requests /favicon.ico — serve round ShuleXpert logo
 Route::get("/favicon.ico", function () {
