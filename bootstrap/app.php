@@ -21,9 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             ForcePasswordChange::class,
-            \App\Http\Middleware\LogUserActivity::class,
+            // Temporarily disabled during live 504 incident (DB write after every request).
+            // \App\Http\Middleware\LogUserActivity::class,
             // LogWebVisitor disabled: sync/geo IP was exhausting PHP workers → live 504s.
-            // Re-enable only after queueing visitor logs off the request lifecycle.
             // \App\Http\Middleware\LogWebVisitor::class,
         ]);
 

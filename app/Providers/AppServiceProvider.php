@@ -31,6 +31,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('*', function ($view) {
+        // View::composer('*') runs for EVERY Blade include. Without memoization,
+        // one page can re-run heavy teacher/admin DB queries dozens of times and
+        // exhaust PHP-FPM / MySQL → live 504 Gateway Timeout.
+        static $shared = null;
+        if (is_array($shared)) {
+            $view->with($shared);
+            return;
+        }
+
         $school = Session::get('schoolID');
         $schoolID = null;
         $school_details = null;
@@ -355,7 +364,7 @@ class AppServiceProvider extends ServiceProvider
            // Keep empty context if academic years table is unavailable
        }
 
-       $view->with([
+       $shared = [
     'role'   => $role,
     'teacherPermissions' => $teacherPermissions ?? collect(),
     'teacherPermissionsByCategory' => $teacherPermissionsByCategory ?? collect(),
@@ -371,7 +380,8 @@ class AppServiceProvider extends ServiceProvider
     'teacherNotifications' => $teacherNotifications ?? collect(),
     'headerAcademicYear' => $headerAcademicYear,
     'selectedAcademicYearIDs' => $headerAcademicYear['selected_year_ids'] ?? [],
-]);
+];
+       $view->with($shared);
 
     });
     }
