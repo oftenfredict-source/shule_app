@@ -169,28 +169,45 @@ class WebVisitor extends Model
             return $empty;
         }
 
-        return Cache::remember("web_visitor_geo_{$ip}", now()->addHours(24), function () use ($ip, $empty) {
-            try {
-                $response = Http::timeout(3)->get("https://ipapi.co/{$ip}/json/");
-                if (!$response->successful()) {
-                    return $empty;
-                }
+        $cacheKey = "web_visitor_geo_{$ip}";
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
 
-                $data = $response->json();
-                if (!is_array($data) || !empty($data['error'])) {
-                    return $empty;
-                }
+        try {
+            // Fail fast — never block PHP workers on slow/rate-limited geo APIs.
+            $response = Http::connectTimeout(1)
+                ->timeout(2)
+                ->get("https://ipapi.co/{$ip}/json/");
 
-                return [
-                    'country' => $data['country_name'] ?? null,
-                    'region' => $data['region'] ?? null,
-                    'city' => $data['city'] ?? null,
-                    'latitude' => isset($data['latitude']) ? (float) $data['latitude'] : null,
-                    'longitude' => isset($data['longitude']) ? (float) $data['longitude'] : null,
-                ];
-            } catch (\Throwable $e) {
+            if (!$response->successful()) {
+                Cache::put($cacheKey, $empty, now()->addMinutes(30));
+
                 return $empty;
             }
-        });
+
+            $data = $response->json();
+            if (!is_array($data) || !empty($data['error'])) {
+                Cache::put($cacheKey, $empty, now()->addMinutes(30));
+
+                return $empty;
+            }
+
+            $resolved = [
+                'country' => $data['country_name'] ?? null,
+                'region' => $data['region'] ?? null,
+                'city' => $data['city'] ?? null,
+                'latitude' => isset($data['latitude']) ? (float) $data['latitude'] : null,
+                'longitude' => isset($data['longitude']) ? (float) $data['longitude'] : null,
+            ];
+            Cache::put($cacheKey, $resolved, now()->addHours(24));
+
+            return $resolved;
+        } catch (\Throwable $e) {
+            Cache::put($cacheKey, $empty, now()->addMinutes(30));
+
+            return $empty;
+        }
     }
 }

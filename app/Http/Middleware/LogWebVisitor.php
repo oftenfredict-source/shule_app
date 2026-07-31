@@ -16,6 +16,8 @@ class LogWebVisitor
     {
         $response = $next($request);
 
+        // Capture request data now; log AFTER the response is sent so the
+        // gateway never waits on geo-IP HTTP (ipapi.co was causing live 504s).
         try {
             if (!$this->shouldLog($request, $response)) {
                 return $response;
@@ -48,12 +50,9 @@ class LogWebVisitor
                 $os = $agent->platform() ?: 'Unknown';
             }
 
-            $geo = WebVisitor::resolveIpLocation($ip);
-            $email = WebVisitor::resolveVisitorEmail($request);
-
-            WebVisitor::create([
+            $payload = [
                 'ip_address' => $ip,
-                'email' => $email,
+                'email' => WebVisitor::resolveVisitorEmail($request),
                 'page_url' => mb_substr($request->fullUrl(), 0, 500),
                 'page_name' => WebVisitor::friendlyPageName($routeName, $path),
                 'route_name' => $routeName,
@@ -62,13 +61,25 @@ class LogWebVisitor
                 'browser' => $browser,
                 'os' => $os,
                 'user_agent' => mb_substr((string) $request->userAgent(), 0, 1000),
-                'country' => $geo['country'] ?? null,
-                'region' => $geo['region'] ?? null,
-                'city' => $geo['city'] ?? null,
-                'latitude' => $geo['latitude'] ?? null,
-                'longitude' => $geo['longitude'] ?? null,
-                'visited_at' => now(),
-            ]);
+            ];
+
+            // afterResponse flushes to the client (fastcgi_finish_request) before geo-IP HTTP,
+            // so reverse proxies never wait on ipapi.co — that was causing live 504s.
+            dispatch(function () use ($payload) {
+                try {
+                    $geo = WebVisitor::resolveIpLocation($payload['ip_address']);
+                    WebVisitor::create(array_merge($payload, [
+                        'country' => $geo['country'] ?? null,
+                        'region' => $geo['region'] ?? null,
+                        'city' => $geo['city'] ?? null,
+                        'latitude' => $geo['latitude'] ?? null,
+                        'longitude' => $geo['longitude'] ?? null,
+                        'visited_at' => now(),
+                    ]));
+                } catch (\Throwable $e) {
+                    // Never break the site for visitor logging
+                }
+            })->afterResponse();
         } catch (\Throwable $e) {
             // Never break the site for visitor logging
         }
