@@ -169,6 +169,9 @@ class WebVisitor extends Model
             return $empty;
         }
 
+        // Hard-disable external geo lookups (were blocking PHP workers / causing live 504s).
+        return $empty;
+
         $cacheKey = "web_visitor_geo_{$ip}";
         $cached = Cache::get($cacheKey);
         if (is_array($cached)) {

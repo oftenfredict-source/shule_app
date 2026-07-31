@@ -22,7 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             ForcePasswordChange::class,
             \App\Http\Middleware\LogUserActivity::class,
-            \App\Http\Middleware\LogWebVisitor::class,
+            // LogWebVisitor disabled: sync/geo IP was exhausting PHP workers → live 504s.
+            // Re-enable only after queueing visitor logs off the request lifecycle.
+            // \App\Http\Middleware\LogWebVisitor::class,
         ]);
 
         $middleware->api(append: [
