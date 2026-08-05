@@ -2000,29 +2000,11 @@ class ManageExaminationController extends Controller
             $examData['except_class_ids'] = $exam->except_class_ids ?? [];
             $examData['academic_yearID'] = $exam->academic_yearID;
             $examData['academic_year_ids'] = $exam->academic_year_ids ?? ($exam->academic_yearID ? [(int) $exam->academic_yearID] : []);
-            $yearLabels = [];
-            $idsForLabels = $examData['academic_year_ids'];
-            if (!empty($idsForLabels)) {
-                $years = AcademicYear::whereIn('academic_yearID', $idsForLabels)->get()->keyBy('academic_yearID');
-                $yearService = app(SelectedAcademicYearService::class);
-                foreach ($idsForLabels as $yid) {
-                    $ay = $years->get($yid);
-                    if (!$ay) {
-                        continue;
-                    }
-                    $level = $yearService->isALevelYear($ay) ? 'A-Level' : 'O-Level';
-                    $yearLabels[] = $level . ' — ' . ($ay->year_name ?: $ay->year);
-                }
-            }
-            $examData['academic_year_labels'] = $yearLabels;
-            if (!empty($yearLabels)) {
-                $examData['academic_year_name'] = implode(' · ', $yearLabels);
-            } elseif ($exam->academic_yearID) {
-                $ay = AcademicYear::find($exam->academic_yearID);
-                $examData['academic_year_name'] = $ay ? ($ay->year_name ?: $ay->year) : $exam->year;
-            } else {
-                $examData['academic_year_name'] = $exam->year;
-            }
+            $displayLabel = $exam->displayYearLabelAll();
+            $examData['academic_year_name'] = $displayLabel !== ''
+                ? $displayLabel
+                : ($exam->year ?? '');
+            $examData['academic_year_labels'] = $displayLabel !== '' ? [$displayLabel] : [];
             // Derive include_class_ids for special exams using existing results
             $examData['include_class_ids'] = [];
             if (($exam->exam_category ?? '') === 'special_exams') {

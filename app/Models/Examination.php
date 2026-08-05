@@ -147,11 +147,15 @@ class Examination extends Model
 
     /**
      * All linked year labels (for exam lists without a class context).
-     * Dual: "O-Level 2027 · A-Level 2026/2027"
+     * Dual schools (Form 5/6): "O-Level 2027 · A-Level 2026/2027"
+     * O-only / no Form 5–6: plain year like header (e.g. "2026") — no O/A prefixes.
      */
     public function displayYearLabelAll(bool $withLevelPrefix = true): string
     {
         $yearService = app(\App\Services\SelectedAcademicYearService::class);
+        $schoolID = (int) ($this->schoolID ?? 0);
+        $hasALevel = $schoolID > 0 && $yearService->schoolHasALevelClasses($schoolID);
+
         $linkedIds = $this->linkedAcademicYearIds();
         if ($linkedIds === []) {
             return (string) ($this->year ?? '');
@@ -167,6 +171,19 @@ class Examination extends Model
                 }
             }
             return (string) ($this->year ?? '');
+        }
+
+        // School has no Form Five / Six → show one label like header (no O-Level / A-Level)
+        if (!$hasALevel) {
+            $pick = $years->first(fn ($y) => ! $yearService->isALevelYear($y));
+            if (!$pick && $this->academic_yearID) {
+                $pick = $years->firstWhere('academic_yearID', (int) $this->academic_yearID);
+            }
+            if (!$pick) {
+                $pick = $years->first();
+            }
+
+            return (string) ($pick->year_name ?: $pick->year ?: $this->year);
         }
 
         $o = $years->first(fn ($y) => ! $yearService->isALevelYear($y));

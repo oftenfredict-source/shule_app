@@ -8538,12 +8538,11 @@ class ResultManagementController extends Controller
             $siblingIds = AcademicYear::where("schoolID", $schoolID)
                 ->get()
                 ->filter(function ($ay) use ($yearService, $calendarYears) {
-                    return !empty(
-                        array_intersect(
-                            $yearService->extractCalendarYearsFromAcademicYear($ay),
-                            $calendarYears,
-                        ),
+                    $overlap = array_intersect(
+                        $yearService->extractCalendarYearsFromAcademicYear($ay),
+                        $calendarYears,
                     );
+                    return !empty($overlap);
                 })
                 ->pluck("academic_yearID")
                 ->map(fn ($id) => (int) $id)
