@@ -8516,9 +8516,53 @@ class ResultManagementController extends Controller
         $term = $request->term;
         $year = $request->year;
 
-        $exams = Examination::where("schoolID", $schoolID)
-            ->where("year", $year)
-            ->where("term", $term)
+        $yearService = app(SelectedAcademicYearService::class);
+        $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
+        $academicYearIDs = $this->expandRelatedAcademicYearIds(
+            (int) $schoolID,
+            $yearCtx["academic_year_ids"],
+        );
+        $calendarYears = $yearCtx["calendar_years"] ?? [];
+        if ($year) {
+            $calendarYears = array_values(
+                array_unique(
+                    array_merge(
+                        array_map("intval", (array) $calendarYears),
+                        [(int) $year],
+                    ),
+                ),
+            );
+        }
+        // Also expand from the modal calendar year so slash AYs (2025/2026) match year=2026
+        if (!empty($calendarYears)) {
+            $siblingIds = AcademicYear::where("schoolID", $schoolID)
+                ->get()
+                ->filter(function ($ay) use ($yearService, $calendarYears) {
+                    return !empty(
+                        array_intersect(
+                            $yearService->extractCalendarYearsFromAcademicYear($ay),
+                            $calendarYears,
+                        ),
+                    );
+                })
+                ->pluck("academic_yearID")
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            $academicYearIDs = array_values(
+                array_unique(array_merge($academicYearIDs, $siblingIds)),
+            );
+        }
+
+        $examQuery = Examination::where("schoolID", $schoolID)->where(
+            "term",
+            $term,
+        );
+        $this->applyExaminationAcademicYearFilter(
+            $examQuery,
+            $academicYearIDs,
+            $calendarYears,
+        );
+        $exams = $examQuery
             ->orderBy("start_date", "asc")
             ->get(["examID", "exam_name"]);
 
@@ -8535,8 +8579,21 @@ class ResultManagementController extends Controller
         $year = $request->year;
         $term = $request->term;
         $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
-        $academicYearIDs = $yearCtx["academic_year_ids"];
-        $calendarYear = $year ?: $yearCtx["calendar_year"];
+        $academicYearIDs = $this->expandRelatedAcademicYearIds(
+            (int) $schoolID,
+            $yearCtx["academic_year_ids"],
+        );
+        $calendarYears = $yearCtx["calendar_years"] ?? [];
+        if ($year) {
+            $calendarYears = array_values(
+                array_unique(
+                    array_merge(
+                        array_map("intval", (array) $calendarYears),
+                        [(int) $year],
+                    ),
+                ),
+            );
+        }
 
         $examQuery = Examination::where("schoolID", $schoolID)
             ->where("term", $term)
@@ -8545,7 +8602,7 @@ class ResultManagementController extends Controller
         $this->applyExaminationAcademicYearFilter(
             $examQuery,
             $academicYearIDs,
-            $calendarYear,
+            $calendarYears,
         );
 
         $exams = $examQuery->get(["examID", "exam_name"]);
@@ -8559,8 +8616,21 @@ class ResultManagementController extends Controller
         $year = $request->year;
         $term = $request->term;
         $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
-        $academicYearIDs = $yearCtx["academic_year_ids"];
-        $calendarYear = $year ?: $yearCtx["calendar_year"];
+        $academicYearIDs = $this->expandRelatedAcademicYearIds(
+            (int) $schoolID,
+            $yearCtx["academic_year_ids"],
+        );
+        $calendarYears = $yearCtx["calendar_years"] ?? [];
+        if ($year) {
+            $calendarYears = array_values(
+                array_unique(
+                    array_merge(
+                        array_map("intval", (array) $calendarYears),
+                        [(int) $year],
+                    ),
+                ),
+            );
+        }
 
         $examQuery = Examination::where("schoolID", $schoolID)
             ->where("term", $term)
@@ -8569,7 +8639,7 @@ class ResultManagementController extends Controller
         $this->applyExaminationAcademicYearFilter(
             $examQuery,
             $academicYearIDs,
-            $calendarYear,
+            $calendarYears,
         );
 
         $exams = $examQuery->get(["examID", "exam_name", "end_date"]);

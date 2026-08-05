@@ -65,14 +65,16 @@ class SelectedAcademicYearService
 
         if (!$hasALevel) {
             $selectedId = (int) (Session::get(self::SESSION_O_LEVEL) ?: Session::get(self::SESSION_PRIMARY));
-            $selected = $oLevelYears->firstWhere('academic_yearID', $selectedId)
-                ?: $years->firstWhere('academic_yearID', $selectedId);
+            // O-only / Primary-style secondary: slash year names (2025/2026) are calendars,
+            // NOT A-Level tracks — keep them selectable so exams bound to those AYs appear.
+            $pool = $years;
+            $selected = $pool->firstWhere('academic_yearID', $selectedId);
 
             return [
                 'mode' => 'secondary_o_only',
                 'has_a_level' => false,
                 'years' => $years,
-                'o_level_years' => $oLevelYears->isNotEmpty() ? $oLevelYears : $years,
+                'o_level_years' => $pool,
                 'a_level_years' => collect(),
                 'selected_academic_yearID' => $selectedId ?: null,
                 'selected_o_level_academic_yearID' => $selectedId ?: null,
@@ -241,7 +243,8 @@ class SelectedAcademicYearService
 
         if (!$hasALevel) {
             $current = (int) (Session::get(self::SESSION_O_LEVEL) ?: Session::get(self::SESSION_PRIMARY));
-            $pool = $oLevelYears->isNotEmpty() ? $oLevelYears : $allYears;
+            // O-only: all school years are valid (slash names are not A-Level tracks here)
+            $pool = $allYears;
             if ($current && $pool->contains('academic_yearID', $current)) {
                 return;
             }
@@ -298,5 +301,136 @@ class SelectedAcademicYearService
             'selected_a_level_year' => null,
             'selected_year_ids' => [],
         ];
+    }
+
+    /**
+     * Pull every 20xx token from academic year.year + year_name (e.g. 2025/2026 → [2025, 2026]).
+     */
+    public function extractCalendarYearsFromAcademicYear(?AcademicYear $year): array
+    {
+        if (!$year) {
+            return [];
+        }
+
+        $blob = trim(
+            (string) ($year->year ?? '') .
+                ' ' .
+                (string) ($year->year_name ?? ''),
+        );
+        if ($blob === '') {
+            return [];
+        }
+
+        preg_match_all('/(20\d{2})/', $blob, $matches);
+        $found = array_map('intval', $matches[1] ?? []);
+        if (empty($found) && is_numeric($year->year ?? null)) {
+            $found[] = (int) $year->year;
+        }
+
+        return array_values(array_unique(array_filter($found, fn ($y) => $y >= 2000)));
+    }
+
+    /**
+     * Header may select AY id for "2026" while exams still use sibling "2025/2026".
+     * Expand to all school AYs that share any calendar year token with the selection.
+     */
+    public function expandRelatedAcademicYearIds(int $schoolID, array $yearIds): array
+    {
+        $yearIds = array_values(array_filter(array_map('intval', $yearIds)));
+        if (empty($yearIds)) {
+            return [];
+        }
+
+        $selected = AcademicYear::where('schoolID', $schoolID)
+            ->whereIn('academic_yearID', $yearIds)
+            ->get();
+        if ($selected->isEmpty()) {
+            return $yearIds;
+        }
+
+        $calendarYears = [];
+        foreach ($selected as $y) {
+            foreach ($this->extractCalendarYearsFromAcademicYear($y) as $cal) {
+                $calendarYears[] = $cal;
+            }
+        }
+        $calendarYears = array_values(array_unique(array_filter($calendarYears)));
+        if (empty($calendarYears)) {
+            return $yearIds;
+        }
+
+        $related = [];
+        foreach (AcademicYear::where('schoolID', $schoolID)->get() as $candidate) {
+            $cals = $this->extractCalendarYearsFromAcademicYear($candidate);
+            if (!empty(array_intersect($cals, $calendarYears))) {
+                $related[] = (int) $candidate->academic_yearID;
+            }
+        }
+
+        $merged = array_values(array_unique(array_merge($yearIds, $related)));
+
+        return !empty($merged) ? $merged : $yearIds;
+    }
+
+    /**
+     * Calendar years covered by the given academic_yearIDs (for exam.year fallback).
+     */
+    public function calendarYearsForAcademicYearIds(int $schoolID, array $yearIds): array
+    {
+        $yearIds = array_values(array_filter(array_map('intval', $yearIds)));
+        if (empty($yearIds)) {
+            return [];
+        }
+
+        $calendarYears = [];
+        foreach (
+            AcademicYear::where('schoolID', $schoolID)
+                ->whereIn('academic_yearID', $yearIds)
+                ->get() as $y
+        ) {
+            foreach ($this->extractCalendarYearsFromAcademicYear($y) as $cal) {
+                $calendarYears[] = $cal;
+            }
+        }
+
+        return array_values(array_unique(array_filter($calendarYears)));
+    }
+
+    /**
+     * Apply examination academic-year filter: primary ID, JSON academic_year_ids, calendar year fallback.
+     * Aligns manageExamination with manageResults so single-AY schools still see slash-year exams.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $query
+     * @param  int|array|null  $calendarYear
+     */
+    public function applyExaminationAcademicYearFilter($query, array $yearIds, $calendarYear = null)
+    {
+        $yearIds = array_values(array_filter(array_map('intval', $yearIds)));
+        $calendarYears = [];
+        if (is_array($calendarYear)) {
+            $calendarYears = array_values(array_filter(array_map('intval', $calendarYear)));
+        } elseif ($calendarYear) {
+            $calendarYears = [(int) $calendarYear];
+        }
+
+        if (!empty($yearIds)) {
+            $query->where(function ($q) use ($yearIds, $calendarYears) {
+                $q->whereIn('academic_yearID', $yearIds);
+                foreach ($yearIds as $yearId) {
+                    $q->orWhereJsonContains('academic_year_ids', $yearId);
+                    $q->orWhereJsonContains('academic_year_ids', (string) $yearId);
+                }
+                if (!empty($calendarYears)) {
+                    $q->orWhere(function ($q2) use ($calendarYears) {
+                        $q2->whereNull('academic_yearID')->whereIn('year', $calendarYears);
+                    });
+                    $q->orWhereIn('year', $calendarYears);
+                }
+            });
+        } elseif (!empty($calendarYears)) {
+            $query->whereIn('year', $calendarYears);
+        }
+
+        return $query;
     }
 }

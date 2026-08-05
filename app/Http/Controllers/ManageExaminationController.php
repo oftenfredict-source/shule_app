@@ -527,9 +527,11 @@ class ManageExaminationController extends Controller
             $query->where('exam_name', 'like', '%'.$search.'%');
         }
 
-        $filterYearIds = $selectedYearIds;
-        if (!empty($filterYearIds)) {
-            $this->applyExaminationAcademicYearFilter($query, $filterYearIds);
+        // Expand sibling AYs (e.g. header "2026" ↔ exams on "2025/2026") + calendar year fallback
+        $filterYearIds = $yearService->expandRelatedAcademicYearIds((int) $schoolID, $selectedYearIds);
+        $filterCalendarYears = $yearService->calendarYearsForAcademicYearIds((int) $schoolID, $filterYearIds);
+        if (!empty($filterYearIds) || !empty($filterCalendarYears)) {
+            $yearService->applyExaminationAcademicYearFilter($query, $filterYearIds, $filterCalendarYears);
         } elseif (! empty($yearFilter)) {
             $query->where('year', $yearFilter);
         }
@@ -865,9 +867,14 @@ class ManageExaminationController extends Controller
         $approvalFilter = $request->get('approval_status', '');
         $examTypeFilter = $request->get('exam_type', '');
 
-        // Always filter by header academic years (O-Level + A-Level)
-        $selectedIds = app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID);
-        $filterYearIds = array_values(array_filter(array_map('intval', $selectedIds)));
+        // Always filter by header academic years (expand siblings + calendar fallback)
+        $yearService = app(SelectedAcademicYearService::class);
+        $selectedIds = $yearService->selectedYearIds((int) $schoolID);
+        $filterYearIds = $yearService->expandRelatedAcademicYearIds(
+            (int) $schoolID,
+            array_values(array_filter(array_map('intval', $selectedIds))),
+        );
+        $filterCalendarYears = $yearService->calendarYearsForAcademicYearIds((int) $schoolID, $filterYearIds);
 
         // Build query
         $query = Examination::where('schoolID', $schoolID);
@@ -877,8 +884,8 @@ class ManageExaminationController extends Controller
             $query->where('exam_name', 'like', '%'.$search.'%');
         }
 
-        if (!empty($filterYearIds)) {
-            $this->applyExaminationAcademicYearFilter($query, $filterYearIds);
+        if (!empty($filterYearIds) || !empty($filterCalendarYears)) {
+            $yearService->applyExaminationAcademicYearFilter($query, $filterYearIds, $filterCalendarYears);
         } elseif (! empty($yearFilter)) {
             $query->where('year', $yearFilter);
         }
@@ -7687,21 +7694,16 @@ class ManageExaminationController extends Controller
     }
 
     /**
-     * Filter examinations by any linked academic year (primary or academic_year_ids JSON).
+     * Filter examinations by linked academic year (primary / JSON / calendar fallback).
+     * Delegates to SelectedAcademicYearService so manageExamination matches manageResults.
      */
-    private function applyExaminationAcademicYearFilter($query, array $filterYearIds): void
+    private function applyExaminationAcademicYearFilter($query, array $filterYearIds, $calendarYear = null): void
     {
-        $filterYearIds = array_values(array_filter(array_map('intval', $filterYearIds)));
-        if ($filterYearIds === []) {
-            return;
-        }
-
-        $query->where(function ($q) use ($filterYearIds) {
-            $q->whereIn('academic_yearID', $filterYearIds);
-            foreach ($filterYearIds as $yearId) {
-                $q->orWhereJsonContains('academic_year_ids', $yearId);
-            }
-        });
+        app(SelectedAcademicYearService::class)->applyExaminationAcademicYearFilter(
+            $query,
+            $filterYearIds,
+            $calendarYear,
+        );
     }
 
     /**

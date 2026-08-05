@@ -9404,8 +9404,9 @@ $(document).ready(function() {
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label font-weight-bold">Select Year <span class="text-danger">*</span></label>
                                     <select class="form-control" name="year" id="defYear" required>
-                                        @for($i = date('Y'); $i >= 2020; $i--)
-                                            <option value="{{ $i }}" {{ $i == date('Y') ? 'selected' : '' }}>{{ $i }}</option>
+                                        @php $defYearSelected = (int) ($filters['year'] ?? date('Y')); @endphp
+                                        @for($i = date('Y') + 1; $i >= 2020; $i--)
+                                            <option value="{{ $i }}" {{ $i == $defYearSelected ? 'selected' : '' }}>{{ $i }}</option>
                                         @endfor
                                     </select>
                                 </div>
@@ -9550,8 +9551,9 @@ $(document).ready(function() {
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label font-weight-bold">Year</label>
                                     <select class="form-control" name="year" id="caYear" required>
-                                        @for($i = date('Y'); $i >= 2020; $i--)
-                                            <option value="{{ $i }}" {{ $i == date('Y') ? 'selected' : '' }}>{{ $i }}</option>
+                                        @php $caYearSelected = (int) ($filters['year'] ?? date('Y')); @endphp
+                                        @for($i = date('Y') + 1; $i >= 2020; $i--)
+                                            <option value="{{ $i }}" {{ $i == $caYearSelected ? 'selected' : '' }}>{{ $i }}</option>
                                         @endfor
                                     </select>
                                 </div>
@@ -10445,7 +10447,7 @@ $(document).ready(function() {
     function resetReportForm() {
         $('#reportDefID').val('');
         $('#reportDefinitionForm')[0].reset();
-        $('#defYear').val(new Date().getFullYear());
+        $('#defYear').val($('#year').val() || new Date().getFullYear());
         $('#defTerm').val('first_term');
         $('#btnCancelEditReport').addClass('d-none');
         $('#btnSaveReportDef').html('<i class="bi bi-save"></i> Save Definition');

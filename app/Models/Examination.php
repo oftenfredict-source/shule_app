@@ -60,15 +60,31 @@ class Examination extends Model
 
     /**
      * Linked academic years for this exam (O-Level and/or A-Level).
+     * Ignores orphan IDs in academic_year_ids (deleted AYs) and falls back to academic_yearID.
      */
     public function linkedAcademicYearIds(): array
     {
         $ids = array_values(array_filter(array_map('intval', (array) ($this->academic_year_ids ?? []))));
-        if ($ids === [] && $this->academic_yearID) {
-            $ids = [(int) $this->academic_yearID];
+        if ($this->academic_yearID) {
+            $ids[] = (int) $this->academic_yearID;
+        }
+        $ids = array_values(array_unique($ids));
+
+        if ($ids === []) {
+            return [];
         }
 
-        return $ids;
+        // Drop deleted / missing academic years (e.g. stale JSON [17] after AY was removed)
+        $existing = AcademicYear::whereIn('academic_yearID', $ids)
+            ->pluck('academic_yearID')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($existing !== []) {
+            return array_values(array_unique($existing));
+        }
+
+        return $this->academic_yearID ? [(int) $this->academic_yearID] : [];
     }
 
     /**
@@ -143,6 +159,13 @@ class Examination extends Model
 
         $years = AcademicYear::whereIn('academic_yearID', $linkedIds)->get();
         if ($years->isEmpty()) {
+            // Last resort: primary FK then legacy calendar year column
+            if ($this->academic_yearID) {
+                $ay = AcademicYear::find($this->academic_yearID);
+                if ($ay) {
+                    return (string) ($ay->year_name ?: $ay->year);
+                }
+            }
             return (string) ($this->year ?? '');
         }
 
