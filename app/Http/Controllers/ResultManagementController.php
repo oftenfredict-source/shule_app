@@ -29,6 +29,7 @@ use App\Models\TeacherResultAssignment;
 use App\Models\School;
 use App\Models\SubjectElector;
 use App\Models\StudentEnrollment;
+use App\Models\Payment;
 use App\Services\SmsService;
 use App\Services\SelectedAcademicYearService;
 use App\Services\StudentEnrollmentService;
@@ -1570,10 +1571,13 @@ class ResultManagementController extends Controller
                 }
             }
 
-            // Get total students count and position for this student in their class/stream
-            // Position should be calculated per stream (subclass) when available, else class
+            // Nafasi: mchepuo = subclass/stream; kidato = whole main class
             $totalStudentsCount = 0;
             $studentPosition = 0;
+            $subclassPosition = null;
+            $subclassTotal = 0;
+            $classPosition = null;
+            $classTotal = 0;
 
             // Get student's class / stream IDs
             $studentClassID = null;
@@ -1590,20 +1594,12 @@ class ResultManagementController extends Controller
             }
 
             if ($studentClassID || $studentSubclassID) {
-                // Prefer same stream (e.g. FORM FIVE / A); fall back to whole class
+                // Prefer whole main class pool (kidato); subclass rank derived from it
                 $classStudentsQuery = Student::where("schoolID", $schoolID)
                     ->where("status", "Active")
                     ->with(["subclass.class", "oldSubclass.class"]);
 
-                if ($studentSubclassID) {
-                    $classStudentsQuery->where(function ($query) use (
-                        $studentSubclassID,
-                    ) {
-                        $query
-                            ->where("subclassID", $studentSubclassID)
-                            ->orWhere("old_subclassID", $studentSubclassID);
-                    });
-                } else {
+                if ($studentClassID) {
                     $classStudentsQuery->where(function ($query) use (
                         $studentClassID,
                     ) {
@@ -1619,12 +1615,17 @@ class ResultManagementController extends Controller
                                 $q->where("classID", $studentClassID);
                             });
                     });
+                } else {
+                    $classStudentsQuery->where(function ($query) use (
+                        $studentSubclassID,
+                    ) {
+                        $query
+                            ->where("subclassID", $studentSubclassID)
+                            ->orWhere("old_subclassID", $studentSubclassID);
+                    });
                 }
 
                 $classStudents = $classStudentsQuery->get();
-
-                // Get results for all students in this class
-                $classStudentsWithResults = [];
 
                 // Handle CA Definitions for exam filtering
                 $caExamIDs = $examFilter;
@@ -1644,8 +1645,6 @@ class ResultManagementController extends Controller
                     }
                 }
 
-                // Must use header academic-year IDs + all calendar years (O/A dual years).
-                // Passing only calendar_year (e.g. 2025) excludes exams stored as 2027.
                 $positionYearFilter = !empty($calendarYears)
                     ? $calendarYears
                     : $yearFilter;
@@ -1674,180 +1673,164 @@ class ResultManagementController extends Controller
                     );
                 }
 
+                $classStudentsWithResults = [];
                 foreach ($classStudents as $classStudent) {
-                    if (isset($classResultsData[$classStudent->studentID])) {
-                        $studentResultData =
-                            $classResultsData[$classStudent->studentID];
-                        if ($typeFilterForDetails === "report") {
-                            $classStudentsWithResults[] = [
-                                "student" => $classStudent,
-                                "average_marks" =>
-                                    $studentResultData["average_marks"] ?? 0,
-                                "total_marks" =>
-                                    $studentResultData["total_marks"] ?? 0,
-                                "total_points" =>
-                                    $studentResultData["total_points"] ?? 9999,
-                            ];
-                        } else {
-                            // Find specific exam in results
-                            foreach ($studentResultData as $er) {
-                                if ($er["exam"]->examID == $examFilter) {
-                                    $classStudentsWithResults[] = [
-                                        "student" => $classStudent,
-                                        "total_marks" =>
-                                            $er["total_marks"] ?? 0,
-                                        "total_points" =>
-                                            $er["total_points"] ?? 9999,
-                                        "best_seven_total_marks" =>
-                                            $er["best_seven_total_marks"] ?? 0,
-                                    ];
-                                    break;
-                                }
+                    if (!isset($classResultsData[$classStudent->studentID])) {
+                        continue;
+                    }
+                    $studentResultData =
+                        $classResultsData[$classStudent->studentID];
+                    if ($typeFilterForDetails === "report") {
+                        $classStudentsWithResults[] = [
+                            "student" => $classStudent,
+                            "average_marks" =>
+                                $studentResultData["average_marks"] ?? 0,
+                            "total_marks" =>
+                                $studentResultData["total_marks"] ?? 0,
+                            "total_points" =>
+                                $studentResultData["total_points"] ?? 9999,
+                            "division" =>
+                                $studentResultData["division"] ?? null,
+                            "grade" => $studentResultData["grade"] ?? null,
+                        ];
+                    } else {
+                        foreach ($studentResultData as $er) {
+                            if (
+                                isset($er["exam"]) &&
+                                (int) ($er["exam"]->examID ?? 0) ===
+                                    (int) $examFilter
+                            ) {
+                                $classStudentsWithResults[] = [
+                                    "student" => $classStudent,
+                                    "total_marks" => $er["total_marks"] ?? 0,
+                                    "total_points" =>
+                                        $er["total_points"] ?? 9999,
+                                    "best_seven_total_marks" =>
+                                        $er["best_seven_total_marks"] ?? 0,
+                                    "division" => $er["division"] ?? null,
+                                    "grade" => $er["grade"] ?? null,
+                                ];
+                                break;
                             }
                         }
                     }
                 }
 
-                $totalStudentsCount = count($classStudentsWithResults);
-
-                // Sort students by performance (same logic as in frontend)
-                if ($typeFilterForDetails === "report") {
-                    // For term report: sort by average (descending for primary, by grade then average for secondary)
-                    if ($schoolType === "Secondary") {
-                        usort($classStudentsWithResults, function ($a, $b) {
-                            // Sort by grade order (A is best), then by average
-                            $gradeOrder = [
-                                "A" => 1,
-                                "B" => 2,
-                                "C" => 3,
-                                "D" => 4,
-                                "E" => 5,
-                                "F" => 6,
-                            ];
-                            // Calculate grade for average using grade_definitions
-                            $avgA = $a["average_marks"] ?? 0;
-                            $avgB = $b["average_marks"] ?? 0;
-
-                            // Get classID for students
-                            $classIDA = null;
-                            $classIDB = null;
-                            if (isset($a["student"])) {
-                                if (
-                                    $a["student"]->subclass &&
-                                    $a["student"]->subclass->class
-                                ) {
-                                    $classIDA =
-                                        $a["student"]->subclass->class
-                                            ->classID ?? null;
-                                } elseif (
-                                    $a["student"]->oldSubclass &&
-                                    $a["student"]->oldSubclass->class
-                                ) {
-                                    $classIDA =
-                                        $a["student"]->oldSubclass->class
-                                            ->classID ?? null;
-                                }
-                            }
-                            if (isset($b["student"])) {
-                                if (
-                                    $b["student"]->subclass &&
-                                    $b["student"]->subclass->class
-                                ) {
-                                    $classIDB =
-                                        $b["student"]->subclass->class
-                                            ->classID ?? null;
-                                } elseif (
-                                    $b["student"]->oldSubclass &&
-                                    $b["student"]->oldSubclass->class
-                                ) {
-                                    $classIDB =
-                                        $b["student"]->oldSubclass->class
-                                            ->classID ?? null;
-                                }
-                            }
-
-                            $gradeResultA = $classIDA
-                                ? $this->getGradeFromDefinition(
-                                    $avgA,
-                                    $classIDA,
-                                )
-                                : null;
-                            $gradeResultB = $classIDB
-                                ? $this->getGradeFromDefinition(
-                                    $avgB,
-                                    $classIDB,
-                                )
-                                : null;
-                            $gradeA =
-                                $gradeResultA["grade"] ??
-                                ($avgA >= 75
-                                    ? "A"
-                                    : ($avgA >= 65
-                                        ? "B"
-                                        : ($avgA >= 45
-                                            ? "C"
-                                            : ($avgA >= 30
-                                                ? "D"
-                                                : "F"))));
-                            $gradeB =
-                                $gradeResultB["grade"] ??
-                                ($avgB >= 75
-                                    ? "A"
-                                    : ($avgB >= 65
-                                        ? "B"
-                                        : ($avgB >= 45
-                                            ? "C"
-                                            : ($avgB >= 30
-                                                ? "D"
-                                                : "F"))));
-                            $orderA = $gradeOrder[$gradeA] ?? 999;
-                            $orderB = $gradeOrder[$gradeB] ?? 999;
-
-                            if ($orderA != $orderB) {
-                                return $orderA <=> $orderB; // Lower number = better grade
-                            }
-                            return $b["average_marks"] <=> $a["average_marks"]; // Higher average = better
-                        });
-                    } else {
-                        // Primary: Sort by average descending
-                        usort($classStudentsWithResults, function ($a, $b) {
-                            return $b["average_marks"] <=> $a["average_marks"];
-                        });
-                    }
-                } else {
-                    // For exam: original sorting logic
-                    if ($schoolType === "Secondary") {
-                        usort($classStudentsWithResults, function ($a, $b) {
-                            // First sort by total points (ascending - lower is better)
-                            if ($a["total_points"] != $b["total_points"]) {
-                                return $a["total_points"] <=>
-                                    $b["total_points"];
-                            }
-                            // If points are equal, sort by total marks descending (higher marks = better)
-                            return $b["total_marks"] <=> $a["total_marks"];
-                        });
-                    } else {
-                        // Primary: Sort by total marks descending
-                        usort($classStudentsWithResults, function ($a, $b) {
-                            return $b["total_marks"] <=> $a["total_marks"];
-                        });
-                    }
-                }
-
-                // Find position of current student
-                foreach (
-                    $classStudentsWithResults
-                    as $index => $classStudentData
+                $sortRankList = function (array &$list) use (
+                    $typeFilterForDetails,
+                    $schoolType,
                 ) {
-                    if (
-                        $classStudentData["student"]->studentID ==
-                        $studentIDFilter
-                    ) {
-                        $studentPosition = $index + 1;
-                        break;
+                    if ($typeFilterForDetails === "report") {
+                        if ($schoolType === "Secondary") {
+                            usort($list, function ($a, $b) {
+                                $divOrder = [
+                                    "I" => 1,
+                                    "II" => 2,
+                                    "III" => 3,
+                                    "IV" => 4,
+                                    "0" => 5,
+                                ];
+                                preg_match(
+                                    '/^([0IVX]+)\./',
+                                    (string) ($a["division"] ?? ""),
+                                    $mA,
+                                );
+                                preg_match(
+                                    '/^([0IVX]+)\./',
+                                    (string) ($b["division"] ?? ""),
+                                    $mB,
+                                );
+                                $rankA = $divOrder[$mA[1] ?? ""] ?? 999;
+                                $rankB = $divOrder[$mB[1] ?? ""] ?? 999;
+                                if ($rankA != $rankB) {
+                                    return $rankA <=> $rankB;
+                                }
+                                $ptA = $a["total_points"] ?? 9999;
+                                $ptB = $b["total_points"] ?? 9999;
+                                if ($ptA != $ptB) {
+                                    return $ptA <=> $ptB;
+                                }
+                                return ($b["average_marks"] ?? 0) <=>
+                                    ($a["average_marks"] ?? 0);
+                            });
+                        } else {
+                            usort($list, function ($a, $b) {
+                                return ($b["average_marks"] ?? 0) <=>
+                                    ($a["average_marks"] ?? 0);
+                            });
+                        }
+                    } elseif ($schoolType === "Secondary") {
+                        usort($list, function ($a, $b) {
+                            if (
+                                ($a["total_points"] ?? 9999) !=
+                                ($b["total_points"] ?? 9999)
+                            ) {
+                                return ($a["total_points"] ?? 9999) <=>
+                                    ($b["total_points"] ?? 9999);
+                            }
+                            if (
+                                ($a["best_seven_total_marks"] ?? 0) !=
+                                ($b["best_seven_total_marks"] ?? 0)
+                            ) {
+                                return ($b["best_seven_total_marks"] ?? 0) <=>
+                                    ($a["best_seven_total_marks"] ?? 0);
+                            }
+                            return ($b["total_marks"] ?? 0) <=>
+                                ($a["total_marks"] ?? 0);
+                        });
+                    } else {
+                        usort($list, function ($a, $b) {
+                            return ($b["total_marks"] ?? 0) <=>
+                                ($a["total_marks"] ?? 0);
+                        });
                     }
+                };
+
+                $findRank = function (array $list, $sid) {
+                    foreach ($list as $index => $row) {
+                        if (
+                            (int) ($row["student"]->studentID ?? 0) ===
+                            (int) $sid
+                        ) {
+                            return $index + 1;
+                        }
+                    }
+                    return null;
+                };
+
+                // Kidato = whole main class
+                $kidatoList = $classStudentsWithResults;
+                $sortRankList($kidatoList);
+                $classTotal = count($kidatoList);
+                $classPosition = $findRank($kidatoList, $studentIDFilter);
+
+                // Mchepuo = same subclass/stream only
+                $mchepuoList = $classStudentsWithResults;
+                if ($studentSubclassID) {
+                    $mchepuoList = array_values(
+                        array_filter(
+                            $classStudentsWithResults,
+                            function ($row) use ($studentSubclassID) {
+                                $st = $row["student"];
+                                $sid =
+                                    $st->subclassID ??
+                                    ($st->old_subclassID ??
+                                        ($st->subclass->subclassID ??
+                                            ($st->oldSubclass->subclassID ??
+                                                null)));
+                                return (int) $sid === (int) $studentSubclassID;
+                            },
+                        ),
+                    );
                 }
-                $totalStudentsCount = count($classStudentsWithResults);
+                $sortRankList($mchepuoList);
+                $subclassTotal = count($mchepuoList);
+                $subclassPosition = $findRank($mchepuoList, $studentIDFilter);
+
+                // Back-compat: position defaults to mchepuo (board stream view)
+                $studentPosition = $subclassPosition ?? ($classPosition ?? 0);
+                $totalStudentsCount =
+                    $subclassTotal > 0 ? $subclassTotal : $classTotal;
             }
 
             // Get student photo path or placeholder
@@ -1926,14 +1909,21 @@ class ResultManagementController extends Controller
                 "totalMarks" => $totalMarks,
                 "averageMarks" => $averageMarks,
                 "subjectCount" => $subjectCount,
+                "totalPoints" => $totalPoints,
                 "grade" =>
                     $typeFilterForDetails === "report" &&
                     $schoolType === "Secondary"
                         ? ($gradeDivision["division"] ?? $calculatedOverallGrade)
                         : $calculatedOverallGrade,
+                "gradeLetter" => $calculatedOverallGrade,
                 "division" => $gradeDivision["division"] ?? null,
                 "totalStudentsCount" => $totalStudentsCount,
                 "position" => $studentPosition,
+                // Nafasi (mchepuo) = subclass; Nafasi (kidato) = main class
+                "subclassPosition" => $subclassPosition,
+                "subclassTotal" => $subclassTotal,
+                "classPosition" => $classPosition,
+                "classTotal" => $classTotal,
             ];
 
             // For term report, include exams data
@@ -3746,7 +3736,9 @@ class ResultManagementController extends Controller
         $userType = Session::get("user_type");
 
         $totalSum = 0;
+        $summaryTotal = null;
         $formattedResults = [];
+        $results = collect();
         $classID =
             $student->subclass->classID ??
             ($student->oldSubclass->classID ?? null);
@@ -3758,7 +3750,7 @@ class ResultManagementController extends Controller
             $className,
             $classID,
         ) {
-            if ($marks === null || $marks === "") {
+            if ($marks === null || $marks === "" || $marks === "incomplete") {
                 return "-";
             }
             if ($schoolType === "Secondary") {
@@ -3775,42 +3767,96 @@ class ResultManagementController extends Controller
             return $gradeRes["grade"] ?? "-";
         };
 
-        if ($subject) {
-            // Single subject mode (already a total from UI)
+        $appendSubjectsToSms = function (array $subjects) use (
+            &$formattedResults,
+            &$totalSum,
+            $resolveSmsGrade,
+        ) {
+            foreach ($subjects as $subj) {
+                if (!is_array($subj)) {
+                    continue;
+                }
+                $name = trim((string) ($subj["subject_name"] ?? ""));
+                if ($name === "" || strtoupper($name) === "EXAMS") {
+                    continue;
+                }
+                $rawMarks = $subj["marks"] ?? null;
+                if (
+                    $rawMarks === null ||
+                    $rawMarks === "" ||
+                    $rawMarks === "incomplete"
+                ) {
+                    continue;
+                }
+                $sMarks = (float) $rawMarks;
+                $totalSum += $sMarks;
+                $sGrade =
+                    !empty($subj["grade"]) && $subj["grade"] !== "-"
+                        ? $subj["grade"]
+                        : $resolveSmsGrade($sMarks);
+                $formattedResults[] =
+                    "{$name}-(" . round($sMarks) . ")-({$sGrade})";
+            }
+        };
+
+        // Prefer exact subject lines from filtered manageResults board
+        $subjectsPayload = $request->input("subjects");
+        if (is_string($subjectsPayload)) {
+            $decoded = json_decode($subjectsPayload, true);
+            $subjectsPayload = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($subjectsPayload)) {
+            $subjectsPayload = [];
+        }
+
+        $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
+        $academicYearIDs = $this->expandRelatedAcademicYearIds(
+            (int) $schoolID,
+            $yearCtx["academic_year_ids"] ?? [],
+        );
+        $calendarYears = !empty($yearCtx["calendar_years"])
+            ? $yearCtx["calendar_years"]
+            : ($year ? [(int) $year] : []);
+        $yearForQuery = !empty($calendarYears) ? $calendarYears : $year;
+
+        if ($subject && ($marks !== null && $marks !== "")) {
+            // Single subject mode (weekly subject table)
             $totalSum = (float) $marks;
+            $summaryTotal = $totalSum;
             $smsGrade = $grade ?: $resolveSmsGrade($marks);
             $formattedResults[] =
-                "{$subject}-(" . round($marks) . ")-({$smsGrade})";
+                "{$subject}-(" . round((float) $marks) . ")-({$smsGrade})";
             $resultsString = $formattedResults[0];
-        } elseif ($type === "report") {
-            // Term report: Average across exams in TermReportDefinition if available
-            $reportDefinition = TermReportDefinition::where(
-                "schoolID",
-                $schoolID,
-            )
-                ->where("year", $year)
-                ->where("term", $term)
-                ->first();
-
-            $examinationsQuery = Examination::where("schoolID", $schoolID)
-                ->where("year", $year)
-                ->where("term", $term);
-
-            if ($reportDefinition && !empty($reportDefinition->exam_ids)) {
-                $examinationsQuery->whereIn(
-                    "examID",
-                    $reportDefinition->exam_ids,
+        } elseif (!empty($subjectsPayload)) {
+            $appendSubjectsToSms($subjectsPayload);
+            if ($request->filled("totalMarks") && $request->input("totalMarks") !== "") {
+                $summaryTotal = (float) str_replace(
+                    ",",
+                    "",
+                    (string) $request->input("totalMarks"),
                 );
+            } elseif ($type === "report" && count($formattedResults) > 0) {
+                $summaryTotal = $totalSum / count($formattedResults);
+            } else {
+                $summaryTotal = $totalSum;
             }
-
-            $examinations = $examinationsQuery->pluck("examID");
-
-            $results = Result::where("studentID", $studentID)
-                ->whereIn("examID", $examinations)
-                ->with("classSubject.subject.components")
-                ->get();
-
-            if ($results->isEmpty()) {
+            $resultsString = implode("\n", $formattedResults);
+        } elseif ($type === "report") {
+            // Fallback: same aggregation as term-report board (AY expand + definition + CA)
+            $reportData = $this->getTermReport(
+                collect([$student]),
+                $term,
+                $yearForQuery,
+                $schoolType,
+                null,
+                $schoolID,
+                $academicYearIDs,
+            );
+            $studentReport = $reportData[$studentID] ?? null;
+            if (
+                !$studentReport ||
+                empty($studentReport["subjects"])
+            ) {
                 \Illuminate\Support\Facades\Log::warning(
                     "sendResultSms: No results found for student {$studentID} in term {$term} / year {$year}",
                 );
@@ -3819,75 +3865,79 @@ class ResultManagementController extends Controller
                     "error" => "No results found for this term",
                 ]);
             }
+            $appendSubjectsToSms($studentReport["subjects"]);
+            $summaryTotal = (float) ($studentReport["average_marks"] ?? $totalSum);
+            if (
+                empty($request->input("division")) &&
+                !empty($studentReport["division"])
+            ) {
+                $request->merge(["division" => $studentReport["division"]]);
+            }
+            $resultsString = implode("\n", $formattedResults);
+        } else {
+            // Fallback: same exam/CA aggregation as exam board
+            $examIdsForSms = $examID ? [$examID] : null;
+            if ($examID) {
+                $caDefinition = CaDefinition::where("schoolID", $schoolID)
+                    ->where("examID", $examID)
+                    ->first();
+                if ($caDefinition && !empty($caDefinition->test_ids)) {
+                    $examIdsForSms = array_values(
+                        array_unique(
+                            array_merge(
+                                [$examID],
+                                (array) $caDefinition->test_ids,
+                            ),
+                        ),
+                    );
+                }
+            }
 
-            // Duo → one % total per subject (never send Paper 1/2 separately)
-            $byExam = $results->groupBy("examID");
-            $subjectAccum = [];
-            foreach ($byExam as $examRows) {
-                foreach (
-                    $this->collapseResultsToSubjectMarks($examRows)
-                    as $entry
-                ) {
-                    $sid = $entry["subjectID"];
-                    if (!isset($subjectAccum[$sid])) {
-                        $subjectAccum[$sid] = [
-                            "subject_name" => $entry["subject_name"],
-                            "total" => 0.0,
-                            "count" => 0,
-                        ];
-                    }
-                    if ($entry["marks"] !== null && $entry["marks"] !== "") {
-                        $subjectAccum[$sid]["total"] += (float) $entry["marks"];
-                        $subjectAccum[$sid]["count"]++;
+            $examResultsData = $this->getExamResults(
+                collect([$student]),
+                $term,
+                $yearForQuery,
+                $schoolType,
+                $examIdsForSms,
+                $week && $week !== "all" ? $week : null,
+                null,
+                $schoolID,
+                $academicYearIDs,
+            );
+
+            $studentExamRow = $examResultsData[$studentID] ?? null;
+            // getExamResults may return keyed by exam or a flat subjects payload
+            $subjectsFromExam = [];
+            $examTotalMarks = null;
+            $examDivision = null;
+            if (is_array($studentExamRow)) {
+                if (isset($studentExamRow["subjects"])) {
+                    $subjectsFromExam = $studentExamRow["subjects"];
+                    $examTotalMarks = $studentExamRow["total_marks"] ?? null;
+                    $examDivision = $studentExamRow["division"] ?? null;
+                } else {
+                    foreach ($studentExamRow as $row) {
+                        if (!is_array($row)) {
+                            continue;
+                        }
+                        if (
+                            $examID &&
+                            isset($row["exam"]) &&
+                            (int) ($row["exam"]->examID ?? 0) !== (int) $examID
+                        ) {
+                            continue;
+                        }
+                        if (!empty($row["subjects"])) {
+                            $subjectsFromExam = $row["subjects"];
+                            $examTotalMarks = $row["total_marks"] ?? null;
+                            $examDivision = $row["division"] ?? null;
+                            break;
+                        }
                     }
                 }
             }
 
-            foreach ($subjectAccum as $data) {
-                $avgMarks =
-                    $data["count"] > 0 ? $data["total"] / $data["count"] : 0;
-                $totalSum += $avgMarks;
-                $sGrade = $resolveSmsGrade($avgMarks);
-                $formattedResults[] =
-                    "{$data["subject_name"]}-(" .
-                    round($avgMarks) .
-                    ")-({$sGrade})";
-            }
-            $resultsString = implode("\n", $formattedResults);
-        } else {
-            // Multi-subject mode (Exam level)
-            $caDefinition = \App\Models\CaDefinition::where(
-                "schoolID",
-                $schoolID,
-            )
-                ->where("examID", $examID)
-                ->first();
-
-            $allExamIds = [$examID];
-            if ($caDefinition && !empty($caDefinition->test_ids)) {
-                $allExamIds = array_unique(
-                    array_merge([$examID], $caDefinition->test_ids),
-                );
-            }
-
-            $allResultsQuery = Result::where("studentID", $studentID)->whereIn(
-                "examID",
-                $allExamIds,
-            );
-
-            if (
-                $week &&
-                $week !== "all" &&
-                (!$caDefinition || empty($caDefinition->test_ids))
-            ) {
-                $allResultsQuery->where("test_week", $week);
-            }
-
-            $results = $allResultsQuery
-                ->with("classSubject.subject.components")
-                ->get();
-
-            if ($results->isEmpty()) {
+            if (empty($subjectsFromExam)) {
                 \Log::warning(
                     "sendResultSms: No results found for student {$studentID}. ExamID: {$examID}, Week: {$week}, UserType: {$userType}",
                 );
@@ -3897,67 +3947,24 @@ class ResultManagementController extends Controller
                 ]);
             }
 
-            \Log::info(
-                "sendResultSms: Found " .
-                    $results->count() .
-                    " result rows for student {$studentID}",
-            );
-
-            if ($caDefinition && !empty($caDefinition->test_ids)) {
-                $byExam = $results->groupBy("examID");
-                $subjectAccum = [];
-                foreach ($byExam as $examRows) {
-                    foreach (
-                        $this->collapseResultsToSubjectMarks($examRows)
-                        as $entry
-                    ) {
-                        $sid = $entry["subjectID"];
-                        if (!isset($subjectAccum[$sid])) {
-                            $subjectAccum[$sid] = [
-                                "subject_name" => $entry["subject_name"],
-                                "total" => 0.0,
-                                "count" => 0,
-                            ];
-                        }
-                        if (
-                            $entry["marks"] !== null &&
-                            $entry["marks"] !== ""
-                        ) {
-                            $subjectAccum[$sid]["total"] +=
-                                (float) $entry["marks"];
-                            $subjectAccum[$sid]["count"]++;
-                        }
-                    }
-                }
-
-                foreach ($subjectAccum as $data) {
-                    $avgMarks =
-                        $data["count"] > 0
-                            ? $data["total"] / $data["count"]
-                            : 0;
-                    $totalSum += $avgMarks;
-                    $sGrade = $resolveSmsGrade($avgMarks);
-                    $formattedResults[] =
-                        "{$data["subject_name"]}-(" .
-                        round($avgMarks) .
-                        ")-({$sGrade})";
-                }
-            } else {
-                // Standard exam: duo collapsed to one total %
-                foreach ($this->collapseResultsToSubjectMarks($results) as $entry) {
-                    if ($entry["marks"] === null || $entry["marks"] === "") {
-                        continue;
-                    }
-                    $sMarks = (float) $entry["marks"];
-                    $totalSum += $sMarks;
-                    $sGrade = $resolveSmsGrade($sMarks);
-                    $formattedResults[] =
-                        "{$entry["subject_name"]}-(" .
-                        round($sMarks) .
-                        ")-({$sGrade})";
-                }
+            $appendSubjectsToSms($subjectsFromExam);
+            $summaryTotal =
+                $examTotalMarks !== null ? (float) $examTotalMarks : $totalSum;
+            if (empty($request->input("division")) && $examDivision) {
+                $request->merge(["division" => $examDivision]);
             }
             $resultsString = implode("\n", $formattedResults);
+        }
+
+        if (empty($formattedResults) || empty($resultsString)) {
+            return response()->json([
+                "success" => false,
+                "error" => "No clear subject results to send for this student",
+            ]);
+        }
+
+        if ($summaryTotal === null) {
+            $summaryTotal = $totalSum;
         }
 
         // Get week range
@@ -4026,7 +4033,8 @@ class ResultManagementController extends Controller
         $msg .= "MZAZI WA {$studentName},\n";
         $msg .= "YAFUATAYO NI MATOKEO YA {$studentName} KATIKA {$examNameContext}.\n";
 
-        $summary = "JUMLA: " . round($totalSum);
+        $summaryLabel = $type === "report" ? "WASTANI" : "JUMLA";
+        $summary = "{$summaryLabel}: " . round((float) $summaryTotal);
         if ($schoolType === "Secondary" && $division) {
             $summary .= " | DIV: {$division}";
         }
@@ -6703,6 +6711,13 @@ class ResultManagementController extends Controller
             );
         }
 
+        // Fee summary for ADA block on individual PDF (same year as header / view_payments)
+        $studentFeeSummaries = $this->buildStudentFeeSummariesForReport(
+            $students->pluck("studentID")->map(fn($id) => (int) $id)->all(),
+            (int) $schoolID,
+            is_array($academicYearIDs) ? $academicYearIDs : [],
+        );
+
         // Prepare data for PDF
         $data = [
             "school" => $school,
@@ -6713,6 +6728,7 @@ class ResultManagementController extends Controller
             "detailedBulkData" => $detailedBulkData,
             "examNumbers" => $examNumbers,
             "filterScopeLabel" => $filterScopeLabel,
+            "studentFeeSummaries" => $studentFeeSummaries,
             "filters" => [
                 "term" => $termFilter,
                 "year" => $yearFilter,
@@ -7401,25 +7417,24 @@ class ResultManagementController extends Controller
             "GPA",
         ];
         $perfColCount = count($perfHeader);
-        // Centre the performance overview under the full subject board width
-        $perfStartCol = max(
-            1,
-            (int) floor(($totalCols - $perfColCount) / 2) + 1,
-        );
-        $perfEndCol = min($totalCols, $perfStartCol + $perfColCount - 1);
-        if ($perfEndCol - $perfStartCol + 1 < $perfColCount) {
-            $perfStartCol = max(1, $totalCols - $perfColCount + 1);
-            $perfEndCol = $totalCols;
+        // Centre overview island (SEX → GPA) under the full board — like the title
+        if ($totalCols > $perfColCount) {
+            $perfStartCol = (int) floor(($totalCols - $perfColCount) / 2) + 1;
+        } else {
+            $perfStartCol = 1;
         }
+        $perfEndCol = $perfStartCol + $perfColCount - 1;
         $perfStartLetter = Coordinate::stringFromColumnIndex($perfStartCol);
         $perfEndLetter = Coordinate::stringFromColumnIndex($perfEndCol);
+        // School name / contact / title: always centre across FULL student board width
+        $headerEndLetter = $titleEndLetter;
         $perfDataStartCol = $perfStartCol + 1; // REG. column (skip F/M/T label col)
         $perfDataStartLetter = Coordinate::stringFromColumnIndex(
             min($perfDataStartCol, $perfEndCol),
         );
         $gpaCol = Coordinate::stringFromColumnIndex($perfEndCol);
 
-        // School header (keep style) — merge full width so it sits centred over subjects
+        // School header — merge + centre across full results board
         $schoolName = strtoupper((string) ($school->school_name ?? "SCHOOL"));
         $schoolAddress = trim((string) ($school->address ?? ""));
         $schoolPhone = trim((string) ($school->phone ?? ""));
@@ -7431,9 +7446,9 @@ class ResultManagementController extends Controller
         );
 
         $sheet->setCellValue("A1", $schoolName);
-        $sheet->mergeCells("A1:{$titleEndLetter}1");
+        $sheet->mergeCells("A1:{$headerEndLetter}1");
         $sheet
-            ->getStyle("A1:{$titleEndLetter}1")
+            ->getStyle("A1:{$headerEndLetter}1")
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
@@ -7449,28 +7464,39 @@ class ResultManagementController extends Controller
         $sheet->getRowDimension(1)->setRowHeight(22);
 
         $sheet->setCellValue("A2", $schoolAddress !== "" ? $schoolAddress : " ");
-        $sheet->mergeCells("A2:{$titleEndLetter}2");
+        $sheet->mergeCells("A2:{$headerEndLetter}2");
         $sheet
-            ->getStyle("A2:{$titleEndLetter}2")
+            ->getStyle("A2:{$headerEndLetter}2")
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setTextRotation(0);
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setTextRotation(0)
+            ->setWrapText(false);
         $sheet->getStyle("A2")->getFont()->setSize(10)->getColor()->setARGB("FF555555");
+        $sheet->getRowDimension(2)->setRowHeight(16);
 
         $sheet->setCellValue("A3", $contactLine !== "" ? $contactLine : " ");
-        $sheet->mergeCells("A3:{$titleEndLetter}3");
+        $sheet->mergeCells("A3:{$headerEndLetter}3");
         $sheet
-            ->getStyle("A3:{$titleEndLetter}3")
+            ->getStyle("A3:{$headerEndLetter}3")
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setTextRotation(0);
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setTextRotation(0)
+            ->setWrapText(false);
         $sheet->getStyle("A3")->getFont()->setSize(10)->getColor()->setARGB("FF555555");
+        $sheet->getRowDimension(3)->setRowHeight(16);
 
-        // Exam title + class / CLASS PERFORMANCE — one bordered block, full board width,
-        // horizontal text, centred (merge removes internal column cells).
-        $titleBlockStart = 5;
-        $titleBlockEnd = 6;
-        $titleBlockRange = "A{$titleBlockStart}:{$titleEndLetter}{$titleBlockEnd}";
+        // Title band: one horizontal line — centred across full board width
+        // e.g. "FIRST TERM REPORT RESULTS 2026, FORM THREE — CLASS PERFORMANCE"
+        $classPerfLabel =
+            strtoupper(trim((string) $className)) . " — CLASS PERFORMANCE";
+        $titleCombined =
+            rtrim(trim((string) $titleLine), ".") . ", " . $classPerfLabel;
+
+        $titleBlockStart = 4;
+        $titleBlockEnd = 4;
+        $titleBlockRange = "A{$titleBlockStart}:{$headerEndLetter}{$titleBlockEnd}";
 
         // Clear / unmerge leftover cells in the title band so merge is clean
         foreach (array_keys($sheet->getMergeCells()) as $mergedRange) {
@@ -7488,80 +7514,42 @@ class ResultManagementController extends Controller
                 // ignore invalid merge ranges
             }
         }
-        for ($r = $titleBlockStart; $r <= $titleBlockEnd; $r++) {
-            for ($c = 1; $c <= $titleEndCol; $c++) {
-                $sheet
-                    ->getCell(Coordinate::stringFromColumnIndex($c) . $r)
-                    ->setValue(null);
-            }
+        for ($c = 1; $c <= $titleEndCol; $c++) {
+            $sheet
+                ->getCell(Coordinate::stringFromColumnIndex($c) . $titleBlockStart)
+                ->setValue(null);
         }
 
-        // Row 5: exam title (black) — merge A → last board column, horizontal
-        $sheet->setCellValue("A5", $titleLine);
-        $sheet->mergeCells("A5:{$titleEndLetter}5");
+        $sheet->setCellValue("A{$titleBlockStart}", $titleCombined);
+        $sheet->mergeCells($titleBlockRange);
         $sheet
-            ->getStyle("A5:{$titleEndLetter}5")
+            ->getStyle($titleBlockRange)
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setTextRotation(0)
             ->setWrapText(false);
         $sheet
-            ->getStyle("A5")
+            ->getStyle("A{$titleBlockStart}")
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setTextRotation(0)
             ->setWrapText(false);
         $sheet
-            ->getStyle("A5:{$titleEndLetter}5")
+            ->getStyle($titleBlockRange)
             ->getFont()
             ->setBold(true)
             ->setSize(11)
             ->getColor()
             ->setARGB("FF000000");
-        $sheet->getRowDimension(5)->setRowHeight(18);
+        $sheet->getRowDimension($titleBlockStart)->setRowHeight(20);
 
-        // Row 6: class label — CLASS PERFORMANCE (horizontal). A-Level subclass → "FORM FIVE — PCM"
-        $classPerfLabel =
-            strtoupper(trim((string) $className)) . " — CLASS PERFORMANCE";
-        $sheet->setCellValue("A6", $classPerfLabel);
-        $sheet->mergeCells("A6:{$titleEndLetter}6");
-        $sheet
-            ->getStyle("A6:{$titleEndLetter}6")
-            ->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER)
-            ->setTextRotation(0)
-            ->setWrapText(false);
-        $sheet
-            ->getStyle("A6")
-            ->getAlignment()
-            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
-            ->setVertical(Alignment::VERTICAL_CENTER)
-            ->setTextRotation(0)
-            ->setWrapText(false);
-        $sheet
-            ->getStyle("A6:{$titleEndLetter}6")
-            ->getFont()
-            ->setBold(true)
-            ->setSize(10)
-            ->getColor()
-            ->setARGB("FF940000");
-        $sheet->getRowDimension(6)->setRowHeight(18);
-
-        // Outer border around the merged title block (like the sample image)
+        // Outer border around the title (like the sample image)
         $sheet
             ->getStyle($titleBlockRange)
             ->getBorders()
             ->getOutline()
-            ->setBorderStyle(Border::BORDER_THIN)
-            ->getColor()
-            ->setARGB("FF333333");
-        $sheet
-            ->getStyle("A5:{$titleEndLetter}5")
-            ->getBorders()
-            ->getBottom()
             ->setBorderStyle(Border::BORDER_THIN)
             ->getColor()
             ->setARGB("FF333333");
@@ -7572,7 +7560,8 @@ class ResultManagementController extends Controller
             ->getStartColor()
             ->setARGB("FFFFFFFF");
 
-        $perfRowStart = 8;
+        // Compact: performance table starts on next row (no blank spacer)
+        $perfRowStart = $titleBlockEnd + 1;
         $sheet->fromArray([$perfHeader], null, "{$perfStartLetter}{$perfRowStart}");
         $perfDataEndLetter = Coordinate::stringFromColumnIndex(
             max($perfStartCol, $perfEndCol - 1),
@@ -7857,7 +7846,7 @@ class ResultManagementController extends Controller
         }
 
         // Blank row between overview and student results (keep tables separate)
-        $subjectHeaderRow = $perfLastRow + 2;
+        $subjectHeaderRow = $perfLastRow + 1;
         $subHeaderRow = $subjectHeaderRow + 1;
 
         // Leading columns (row 1 labels; merge down to sub-header row)
@@ -9649,6 +9638,63 @@ class ResultManagementController extends Controller
                 ($permission->result_button_status ? "enabled" : "disabled") .
                 " globally.",
         ]);
+    }
+
+    /**
+     * Fee snapshot for individual PDF ADA block (aligned with view_payments).
+     * Ada = current-year expected fees (amount_required − debt).
+     * Madeni = outstanding balance on current-year bill(s).
+     *
+     * @param  list<int>  $studentIds
+     * @param  list<int>  $academicYearIDs
+     * @return array<int, array{ada: float|null, madeni: float|null, has_bill: bool}>
+     */
+    private function buildStudentFeeSummariesForReport(
+        array $studentIds,
+        int $schoolID,
+        array $academicYearIDs,
+    ): array {
+        $studentIds = array_values(
+            array_unique(array_filter(array_map("intval", $studentIds))),
+        );
+        $yearIds = array_values(
+            array_unique(array_filter(array_map("intval", $academicYearIDs))),
+        );
+        $out = [];
+        foreach ($studentIds as $sid) {
+            $out[$sid] = [
+                "ada" => null,
+                "madeni" => null,
+                "has_bill" => false,
+            ];
+        }
+        if (empty($studentIds) || empty($yearIds) || $schoolID <= 0) {
+            return $out;
+        }
+
+        $payments = Payment::where("schoolID", $schoolID)
+            ->whereIn("studentID", $studentIds)
+            ->whereIn("academic_yearID", $yearIds)
+            ->get(["studentID", "amount_required", "debt", "balance"]);
+
+        $byStudent = $payments->groupBy("studentID");
+        foreach ($byStudent as $sid => $rows) {
+            $ada = 0.0;
+            $madeni = 0.0;
+            foreach ($rows as $p) {
+                $required = (float) ($p->amount_required ?? 0);
+                $debt = (float) ($p->debt ?? 0);
+                $ada += max(0, $required - $debt);
+                $madeni += max(0, (float) ($p->balance ?? 0));
+            }
+            $out[(int) $sid] = [
+                "ada" => $ada,
+                "madeni" => $madeni,
+                "has_bill" => true,
+            ];
+        }
+
+        return $out;
     }
 
     /**

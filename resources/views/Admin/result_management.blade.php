@@ -1610,6 +1610,9 @@
                                         'className' => $displayName,
                                         'examName' => $selectedExam->exam_name,
                                         'year' => $filters['year'] ?? date('Y'),
+                                        'type' => $filters['type'] ?? 'exam',
+                                        'term' => $filters['term'] ?? '',
+                                        'examID' => $filters['examID'] ?? ($selectedExam->examID ?? ''),
                                         'totalStudents' => $totalStudents,
                                         'maleCount' => $maleCount,
                                         'femaleCount' => $femaleCount,
@@ -2730,7 +2733,9 @@
                                                     'grade' => $grade,
                                                     'division' => $division,
                                                     'average_marks' => $studentReport['average_marks'],
-                                                    'exams' => $studentReport['exams'] ?? []
+                                                    'exams' => $studentReport['exams'] ?? [],
+                                                    // Needed by Subject Performance Statistics (term report)
+                                                    'subjects' => $studentReport['subjects'] ?? [],
                                                 ];
                                             }
                                         }
@@ -2807,7 +2812,8 @@
                                         $subclassID = $student->subclassID ?? $student->oldSubclassID ?? null;
                                         
                                         $expectedSubjects = $allClassSubjects[$subclassID] ?? collect();
-                                        $studentSubjects = $reportStudent['subjects'] ?? [];
+                                        $studentSubjects = $reportStudent['subjects']
+                                            ?? ($reportStudent['report']['subjects'] ?? []);
                                         $resultsBySubjectId = collect($studentSubjects)->keyBy('subjectID')->toArray();
                                         $resultsBySubjectName = collect($studentSubjects)->keyBy('subject_name')->toArray();
                                         $seenSubjectIds = [];
@@ -2838,7 +2844,8 @@
                                             $res = ($subjectID && isset($resultsBySubjectId[$subjectID]))
                                                 ? $resultsBySubjectId[$subjectID]
                                                 : ($resultsBySubjectName[$subjectName] ?? null);
-                                            $marksNum = $res['marks'] ?? null;
+                                            // Term summaries store average in "marks"; some payloads use "average"
+                                            $marksNum = $res['marks'] ?? ($res['average'] ?? null);
                                             $subjectGrade = $res['grade'] ?? 'Incomplete';
                                             
                                             if ($marksNum === null || $marksNum === '' || strtoupper((string)$subjectGrade) === 'INCOMPLETE') {
@@ -3045,6 +3052,8 @@
                                         'className' => $allClassesSelected ? 'ALL CLASSES' : ($subclassDisplayName ?: ($selectedClass ? $selectedClass->class_name : 'N/A')),
                                         'examName' => 'Term Report (' . $termName . ')',
                                         'year' => $filters['year'] ?? date('Y'),
+                                        'type' => 'report',
+                                        'term' => $filters['term'] ?? '',
                                         'totalStudents' => $totalStudents,
                                         'maleCount' => $maleCount,
                                         'femaleCount' => $femaleCount,
@@ -3095,10 +3104,19 @@
                                                 'studentName' => trim($st->first_name . ' ' . ($st->middle_name ?? '') . ' ' . $st->last_name),
                                                 'parentPhone' => $pPhone,
                                                 'className' => $s['class_name'] ?? 'N/A',
-                                                'totalMarks' => number_format($s['average_marks'], 1), // In report view, total shows average
+                                                // Report board shows average — keep numeric for SMS summary
+                                                'totalMarks' => round((float) ($s['average_marks'] ?? 0), 1),
                                                 'grade' => $s['grade'] ?? null,
                                                 'division' => $s['division'] ?? null,
-                                                'subjects' => [['subject_name' => 'EXAMS', 'marks' => '', 'grade' => $examsSummary]], // Store summary in grade
+                                                // Same subject rows as the filtered term-report board (for SMS)
+                                                'subjects' => array_values(array_map(function ($subj) {
+                                                    return [
+                                                        'subject_name' => $subj['subject_name'] ?? 'N/A',
+                                                        'marks' => $subj['marks'] ?? null,
+                                                        'grade' => $subj['grade'] ?? null,
+                                                    ];
+                                                }, $s['subjects'] ?? [])),
+                                                'examsSummary' => $examsSummary,
                                                 'position' => $s['position'] ?? null
                                             ];
                                         }, $reportStudents),
@@ -9867,6 +9885,9 @@ $(document).ready(function() {
     let stopSmsRequest = false;
     const schoolName = window.detailedViewData ? (window.detailedViewData.schoolName || 'Academic Results') : 'Academic Results';
 
+    // Full board rows for SMS (subjects/totals match filtered blade data)
+    window._smsBoardByStudent = {};
+
     function openSmsModal(title, studentsData, context = {}) {
         $('#modalContextLabel').text(title);
         
@@ -9877,6 +9898,7 @@ $(document).ready(function() {
         
         const list = $('#parentSmsList');
         list.empty();
+        window._smsBoardByStudent = {};
 
         studentsData.forEach(student => {
             const studentId = student.studentID;
@@ -9887,6 +9909,30 @@ $(document).ready(function() {
             if (!phone || ['null', 'undefined', 'n/a'].includes(phone.toLowerCase())) phone = '';
             
             if (studentId) {
+                // Prefer single-subject payload when sending from weekly subject table
+                let subjectsForSms = Array.isArray(student.subjects) ? student.subjects : [];
+                if (student.subject || context.subject) {
+                    subjectsForSms = [{
+                        subject_name: student.subject || context.subject,
+                        marks: student.marks,
+                        grade: student.grade
+                    }];
+                }
+
+                window._smsBoardByStudent[String(studentId)] = {
+                    subjects: subjectsForSms,
+                    totalMarks: student.totalMarks != null ? student.totalMarks : (student.marks != null ? student.marks : ''),
+                    division: student.division || '',
+                    position: student.position || '',
+                    grade: student.grade || '',
+                    week: context.week || '',
+                    examID: context.examID || student.examID || '',
+                    type: context.type || '',
+                    term: context.term || '',
+                    year: context.year || '',
+                    totalStudentsCount: context.totalCount || studentsData.length
+                };
+
                 const randomId = Math.random().toString(36).substr(2, 5);
                 const checkboxId = `check_${studentId}_${randomId}`;
                 const disabledAttr = phone ? '' : 'disabled="disabled"';
@@ -9968,11 +10014,12 @@ $(document).ready(function() {
         }
         
         openSmsModal(`${examName} - ${className}`, students, {
-            examID: $('#examID').val(),
+            examID: $('#examID').val() || data.examID || '',
             week: $('#week').val(),
-            type: $('#type').val(),
-            term: $('#term').val(),
-            year: $('#year').val()
+            type: $('#type').val() || data.type || '',
+            term: $('#term').val() || data.term || '',
+            year: $('#year').val() || data.year || '',
+            totalCount: data.totalStudents || students.length
         });
     });
 
@@ -10028,7 +10075,11 @@ $(document).ready(function() {
         
         openSmsModal(`All Subjects - Week ${week}`, students, {
             week: week,
-            examID: examID
+            examID: examID,
+            type: $('#type').val() || data.type || 'exam',
+            term: $('#term').val() || data.term || '',
+            year: $('#year').val() || data.year || '',
+            totalCount: data.totalStudents || students.length
         });
     });
 
@@ -10092,19 +10143,24 @@ $(document).ready(function() {
             row.addClass('bg-warning-light'); // Highlight the active row
             statusCol.html('<div class="spinner-border spinner-border-sm text-primary" role="status"></div> <span class="small text-primary font-weight-bold">Sending...</span>');
             
+            const studentId = String(row.data('student-id'));
+            const board = (window._smsBoardByStudent && window._smsBoardByStudent[studentId]) || {};
             const data = {
-                studentID: row.data('student-id'),
+                studentID: studentId,
                 subject: row.data('subject'),
                 marks: row.data('marks'),
-                grade: row.data('grade'),
-                week: row.data('week'),
-                examID: row.data('exam-id'),
-                type: row.data('type'),
-                term: row.data('term'),
-                year: row.data('year'),
-                division: row.data('division'),
-                position: row.data('position'),
-                totalStudentsCount: row.data('total-count'),
+                grade: row.data('grade') || board.grade || '',
+                week: row.data('week') || board.week || '',
+                examID: row.data('exam-id') || board.examID || '',
+                type: row.data('type') || board.type || '',
+                term: row.data('term') || board.term || '',
+                year: row.data('year') || board.year || '',
+                division: row.data('division') || board.division || '',
+                position: row.data('position') || board.position || '',
+                totalStudentsCount: row.data('total-count') || board.totalStudentsCount || '',
+                totalMarks: board.totalMarks != null ? board.totalMarks : '',
+                // Exact subject lines as filtered on manageResults board
+                subjects: JSON.stringify(Array.isArray(board.subjects) ? board.subjects : []),
                 _token: $('meta[name="csrf-token"]').attr('content')
             };
 
