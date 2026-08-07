@@ -6036,9 +6036,33 @@ $(document).ready(function() {
     // SERVER-SIDE PDF DOWNLOAD HELPER (DomPDF via fetch blob)
     // Validates real PDF bytes before saving — avoids corrupt .pdf files
     // =========================================================
-    function askPdfWatermarkOption() {
+    function askPdfDownloadOptions(opts) {
+        opts = opts || {};
+        var showNameMode = !!opts.showNameMode;
         if (typeof Swal === 'undefined') {
-            return Promise.resolve({ isConfirmed: true, value: '1' });
+            return Promise.resolve({
+                isConfirmed: true,
+                value: { watermark: '1', name_mode: 'both' }
+            });
+        }
+        var nameModeHtml = '';
+        if (showNameMode) {
+            nameModeHtml =
+                '<div class="mt-3 pt-2" style="border-top:1px solid #eee;">' +
+                    '<div class="font-weight-bold mb-2" style="font-size:0.95rem;">Student column</div>' +
+                    '<div class="form-check">' +
+                        '<input class="form-check-input" type="radio" name="sxPdfNameMode" id="sxPdfNameBoth" value="both" checked style="cursor:pointer;">' +
+                        '<label class="form-check-label" for="sxPdfNameBoth" style="cursor:pointer;">With name and index number</label>' +
+                    '</div>' +
+                    '<div class="form-check">' +
+                        '<input class="form-check-input" type="radio" name="sxPdfNameMode" id="sxPdfNameOnly" value="name" style="cursor:pointer;">' +
+                        '<label class="form-check-label" for="sxPdfNameOnly" style="cursor:pointer;">With name only</label>' +
+                    '</div>' +
+                    '<div class="form-check">' +
+                        '<input class="form-check-input" type="radio" name="sxPdfNameMode" id="sxPdfIndexOnly" value="index" style="cursor:pointer;">' +
+                        '<label class="form-check-label" for="sxPdfIndexOnly" style="cursor:pointer;">With index number only</label>' +
+                    '</div>' +
+                '</div>';
         }
         return Swal.fire({
             title: 'Download PDF',
@@ -6051,6 +6075,7 @@ $(document).ready(function() {
                         '</label>' +
                     '</div>' +
                     '<p class="text-muted small mt-2 mb-0">Default is with watermark. Uncheck to export without ShuleXpert watermark.</p>' +
+                    nameModeHtml +
                 '</div>',
             icon: 'question',
             showCancelButton: true,
@@ -6060,17 +6085,39 @@ $(document).ready(function() {
             focusConfirm: false,
             preConfirm: function() {
                 var el = document.getElementById('sxPdfWatermark');
-                return el && el.checked ? '1' : '0';
+                var mode = 'both';
+                if (showNameMode) {
+                    var checked = document.querySelector('input[name="sxPdfNameMode"]:checked');
+                    mode = checked ? checked.value : 'both';
+                }
+                return {
+                    watermark: el && el.checked ? '1' : '0',
+                    name_mode: mode
+                };
             }
         });
     }
 
-    function serverDownloadPDF(params, filename) {
+    /** @deprecated use askPdfDownloadOptions — kept for bulk_single callers that expect string watermark */
+    function askPdfWatermarkOption() {
+        return askPdfDownloadOptions({ showNameMode: false }).then(function(result) {
+            if (!result.isConfirmed) {
+                return result;
+            }
+            return {
+                isConfirmed: true,
+                value: (result.value && result.value.watermark) ? result.value.watermark : '1'
+            };
+        });
+    }
+
+    function serverDownloadPDF(params, filename, downloadOpts) {
         if (window._sxPdfDownloading) {
             return;
         }
 
-        askPdfWatermarkOption().then(function(result) {
+        downloadOpts = downloadOpts || {};
+        askPdfDownloadOptions(downloadOpts).then(function(result) {
             if (!result.isConfirmed) {
                 return;
             }
@@ -6087,7 +6134,11 @@ $(document).ready(function() {
                     cleanParams[k] = params[k];
                 }
             });
-            cleanParams.watermark = result.value; // '1' or '0'
+            var optVal = result.value || {};
+            cleanParams.watermark = optVal.watermark != null ? optVal.watermark : '1';
+            if (downloadOpts.showNameMode) {
+                cleanParams.name_mode = optVal.name_mode || 'both';
+            }
 
             const queryString = new URLSearchParams(cleanParams).toString();
             const url = '{{ route("admin.download_results_pdf") }}?' + queryString;
@@ -6135,29 +6186,28 @@ $(document).ready(function() {
                     throw new Error(msg);
                 }
 
-                const blob = new Blob([resultFetch.buf], { type: 'application/pdf' });
-                const blobUrl = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = blobUrl;
-                a.download = safeName;
-                document.body.appendChild(a);
-                a.click();
+                const blob = new Blob([bytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = safeName;
+                document.body.appendChild(link);
+                link.click();
                 setTimeout(function() {
-                    window.URL.revokeObjectURL(blobUrl);
-                    if (a.parentNode) document.body.removeChild(a);
-                }, 400);
+                    URL.revokeObjectURL(link.href);
+                    link.remove();
+                }, 1500);
+
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'success',
                         title: 'Downloaded',
-                        timer: 1400,
+                        text: safeName,
+                        timer: 1800,
                         showConfirmButton: false
                     });
                 }
             })
             .catch(function(err) {
-                console.error(err);
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'error',
@@ -6170,7 +6220,9 @@ $(document).ready(function() {
             })
             .finally(function() {
                 window._sxPdfDownloading = false;
-                if (btn && originalHtml) btn.prop('disabled', false).html(originalHtml);
+                if (btn && originalHtml != null) {
+                    btn.prop('disabled', false).html(originalHtml);
+                }
             });
         });
     }
@@ -6968,7 +7020,7 @@ $(document).ready(function() {
         const typeName = params.type === 'report' ? 'Term_Report' : 'Exam_Results';
         const filename = 'Students_' + typeName + '_' + (term ? term + '_' : '') + year + '.pdf';
 
-        serverDownloadPDF(params, filename);
+        serverDownloadPDF(params, filename, { showNameMode: true });
     });
 
     // Function to export detailed view PDF

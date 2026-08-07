@@ -421,8 +421,12 @@
             <thead>
                 <tr>
                     <th class="sn-h" style="width:3%;">S/N</th>
-                    <th class="name-h" style="width:12%;">STUDENT NAME</th>
-                    <th class="index-h" style="width:9%;">INDEX NO</th>
+                    @if($board['showName'] ?? true)
+                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '12%' : '18%' }};">STUDENT NAME</th>
+                    @endif
+                    @if($board['showIndex'] ?? true)
+                        <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};">INDEX NO</th>
+                    @endif
                     <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
                     @if(!empty($board['showStream']))
                         <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
@@ -443,8 +447,12 @@
                 @foreach($board['rows'] as $r)
                     <tr>
                         <td>{{ $r['sn'] }}</td>
-                        <td class="name-cell">{{ $r['name'] }}</td>
-                        <td>{{ $r['index'] }}</td>
+                        @if($board['showName'] ?? true)
+                            <td class="name-cell">{{ $r['name'] }}</td>
+                        @endif
+                        @if($board['showIndex'] ?? true)
+                            <td>{{ $r['index'] }}</td>
+                        @endif
                         <td>{{ $r['sex'] }}</td>
                         @if(!empty($board['showStream']))
                             <td class="stream-cell">{{ $r['stream'] ?? '' }}</td>

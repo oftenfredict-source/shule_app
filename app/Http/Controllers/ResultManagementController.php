@@ -6937,6 +6937,10 @@ class ResultManagementController extends Controller
         // Board payloads for class / all / subclass Export All (Excel-like landscape PDF)
         $boardClasses = [];
         $useBoardPdf = !in_array($option, ["single", "bulk_single"], true);
+        $nameMode = strtolower(trim((string) $request->get("name_mode", "both")));
+        if (!in_array($nameMode, ["both", "name", "index"], true)) {
+            $nameMode = "both";
+        }
         if ($useBoardPdf && $students->isNotEmpty()) {
             $titleLine = $this->buildBoardTitleLine(
                 $typeFilter,
@@ -6999,6 +7003,7 @@ class ResultManagementController extends Controller
                     $examFilter,
                     $cid > 0 ? $cid : null,
                     $option === "class" || $option === "all",
+                    $nameMode,
                 );
                 if ($payload) {
                     $boardClasses[] = $payload;
@@ -7608,6 +7613,7 @@ class ResultManagementController extends Controller
         $examFilter,
         $classID = null,
         bool $forceExpandMainClassSubjects = false,
+        string $nameMode = "both",
     ): ?array {
         $prepared = [];
         foreach ($classStudents as $student) {
@@ -7689,15 +7695,31 @@ class ResultManagementController extends Controller
         $isALevelClass = $this->isALevelClassName($className);
         // O-Level (Form 1–4) / Primary: no STREAM column. A-Level only: COMBINATION.
         $streamHeader = $isALevelClass ? "COMBINATION" : null;
+        $showName = $nameMode !== "index";
+        $showIndex = $nameMode !== "name";
         if ($schoolType === "Secondary") {
-            $leadingHeaders = ["S/N", "STUDENT NAME", "INDEX NO", "SEX"];
+            $leadingHeaders = ["S/N"];
+            if ($showName) {
+                $leadingHeaders[] = "STUDENT NAME";
+            }
+            if ($showIndex) {
+                $leadingHeaders[] = "INDEX NO";
+            }
+            $leadingHeaders[] = "SEX";
             if ($isALevelClass) {
                 $leadingHeaders[] = $streamHeader;
             }
             $leadingHeaders[] = "POINT";
             $leadingHeaders[] = "DIVISION";
         } else {
-            $leadingHeaders = ["S/N", "STUDENT NAME", "INDEX NO", "SEX"];
+            $leadingHeaders = ["S/N"];
+            if ($showName) {
+                $leadingHeaders[] = "STUDENT NAME";
+            }
+            if ($showIndex) {
+                $leadingHeaders[] = "INDEX NO";
+            }
+            $leadingHeaders[] = "SEX";
         }
         $trailingHeaders =
             $schoolType === "Secondary"
@@ -7799,13 +7821,16 @@ class ResultManagementController extends Controller
         foreach ($prepared as $item) {
             $student = $item["student"];
             $row = $item["row"];
-            $studentName = trim(
-                $student->first_name .
-                    " " .
-                    ($student->middle_name
-                        ? $student->middle_name . " "
-                        : "") .
-                    $student->last_name,
+            $studentName = mb_strtoupper(
+                trim(
+                    $student->first_name .
+                        " " .
+                        ($student->middle_name
+                            ? $student->middle_name . " "
+                            : "") .
+                        $student->last_name,
+                ),
+                "UTF-8",
             );
             $subjectMapById = [];
             $subjectMapByName = [];
@@ -7921,6 +7946,9 @@ class ResultManagementController extends Controller
             "schoolType" => $schoolType,
             "isALevel" => $isALevelClass,
             "showStream" => $isALevelClass,
+            "showName" => $showName,
+            "showIndex" => $showIndex,
+            "nameMode" => $nameMode,
             "streamHeader" => $streamHeader,
             "leadingHeaders" => $leadingHeaders,
             "trailingHeaders" => $trailingHeaders,
@@ -8693,13 +8721,16 @@ class ResultManagementController extends Controller
             $serialNo++;
             $student = $item["student"];
             $row = $item["row"];
-            $studentName = trim(
-                $student->first_name .
-                    " " .
-                    ($student->middle_name
-                        ? $student->middle_name . " "
-                        : "") .
-                    $student->last_name,
+            $studentName = mb_strtoupper(
+                trim(
+                    $student->first_name .
+                        " " .
+                        ($student->middle_name
+                            ? $student->middle_name . " "
+                            : "") .
+                        $student->last_name,
+                ),
+                "UTF-8",
             );
 
             // S/N, Name, Index No, Sex [, COMBIE for A-Level] [, Point, Division]
