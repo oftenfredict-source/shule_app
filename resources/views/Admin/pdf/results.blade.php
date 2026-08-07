@@ -618,12 +618,12 @@
         .sig-table { width: 100%; margin-top: 18px; border-collapse: collapse; page-break-inside: avoid; table-layout: fixed; }
         .sig-table td { border: none; padding: 0; vertical-align: bottom; width: 50%; }
         .stamp-cell { text-align: center; vertical-align: middle; }
-        .stamp-cell img { max-width: 120px; max-height: 120px; opacity: 0.9; }
+        .stamp-cell img { max-width: 180px; max-height: 180px; opacity: 0.95; }
         .sign-cell { text-align: center; padding-bottom: 5px; }
-        .school-signature-img { height: 48px; margin-bottom: 4px; }
-        .school-signature-img img { max-width: 160px; max-height: 48px; }
-        .sig-line   { border-top: 2px solid #940000; width: 160px; margin: 0 auto; display: block; }
-        .sig-label  { font-size: 8.5px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase; }
+        .school-signature-img { height: 72px; margin-bottom: 6px; }
+        .school-signature-img img { max-width: 220px; max-height: 72px; }
+        .sig-line   { border-top: 2px solid #940000; width: 180px; margin: 0 auto; display: block; }
+        .sig-label  { font-size: 9px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase; }
 
         .footer {
             position: fixed;
@@ -1485,18 +1485,14 @@
             </td>
             <td>
                 <div class="orm-title">Sahihi</div>
-                <div style="min-height:42px; margin-bottom:4px;">
-                    @if($schoolSignBase64)
-                        <img src="{{ $schoolSignBase64 }}" alt="Sahihi" style="max-height:38px; max-width:150px;">
-                    @endif
-                </div>
+                <div style="min-height:42px; margin-bottom:4px;"></div>
                 <div class="sig-dot-line"></div>
                 <div class="orm-sign-label">Mkuu wa Shule</div>
             </td>
         </tr>
     </table>
 
-    {{-- Stamp (left) + Signature (right) — both must show on individual PDF --}}
+    {{-- Stamp (left) + Signature (right) — single place only --}}
     @if($schoolStampBase64 || $schoolSignBase64)
     <table class="sig-table">
         <tr>
