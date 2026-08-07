@@ -109,9 +109,10 @@
         width: 16%;
     }
     table.board-perf {
-        width: auto;
-        margin: 0 auto 12px auto;
+        width: 100%;
+        margin: 0 0 12px 0;
         border-collapse: collapse;
+        table-layout: fixed;
         font-size: 9px;
     }
     table.board-perf th, table.board-perf td {

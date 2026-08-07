@@ -5035,8 +5035,9 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Board STREAM/COMBIE: A-Level → combination name; O-Level → subclass only (A, B, C).
-     * Never show main class (e.g. FORM THREE) — that is already on the filter / title.
+     * Board STREAM/COMBIE column:
+     * - A-Level → combination / subclass name only (unchanged)
+     * - O-Level → stream_code, else "CLASS + subclass" (original)
      */
     private function resolveBoardStreamLabel($student, ?string $fallbackClassName = null): string
     {
@@ -5045,22 +5046,11 @@ class ResultManagementController extends Controller
             return "";
         }
 
-        if (
-            !$subclass->relationLoaded("class") &&
-            method_exists($subclass, "class")
-        ) {
-            try {
-                $subclass->load("class");
-            } catch (\Throwable $e) {
-                // ignore
-            }
-        }
-
-        $className = trim(
-            (string) ($subclass->class->class_name ??
-                ($student->oldSubclass->class->class_name ??
-                    ($fallbackClassName ?? ""))),
-        );
+        // Always prefer the student's real main-class name (not board title which may be "A")
+        $className =
+            $subclass->class->class_name ??
+            ($student->oldSubclass->class->class_name ??
+                ($fallbackClassName ?? ""));
 
         if ($this->isALevelClassName($className)) {
             $name = trim((string) ($subclass->subclass_name ?? ""));
@@ -5069,77 +5059,13 @@ class ResultManagementController extends Controller
                 : trim((string) ($subclass->stream_code ?? ""));
         }
 
-        return $this->extractOLevelSubclassOnly($subclass, $className);
-    }
-
-    /**
-     * O-Level / Primary stream cell: subclass letter only (A, B, C).
-     * Strips main class from values like "FORM THREE A" / stream_code.
-     */
-    private function extractOLevelSubclassOnly($subclass, string $className): string
-    {
-        // Words that are class ordinals — never treat as stream letter
-        $blocked = [
-            "ONE",
-            "TWO",
-            "THREE",
-            "FOUR",
-            "FIVE",
-            "SIX",
-            "SEVEN",
-            "FORM",
-            "STANDARD",
-            "STD",
-            "GRADE",
-        ];
-
-        $candidates = [
-            trim((string) ($subclass->subclass_name ?? "")),
-            trim((string) ($subclass->stream_code ?? "")),
-        ];
-
-        foreach ($candidates as $raw) {
-            if ($raw === "") {
-                continue;
-            }
-            // Already just A / B / C
-            if (
-                preg_match('/^[A-Za-z0-9]{1,3}$/', $raw) &&
-                !in_array(strtoupper($raw), $blocked, true)
-            ) {
-                return strtoupper($raw);
-            }
+        $code = trim((string) ($subclass->stream_code ?? ""));
+        if ($code !== "") {
+            return $code;
         }
 
-        $classNorm = strtoupper(preg_replace('/[\s\-_]+/', " ", $className));
-        foreach ($candidates as $raw) {
-            if ($raw === "") {
-                continue;
-            }
-            $cand = strtoupper(preg_replace('/[\s\-_]+/', " ", $raw));
-
-            // "FORM THREE A" with class "FORM THREE" → "A"
-            if ($classNorm !== "" && str_starts_with($cand, $classNorm)) {
-                $rest = trim(substr($cand, strlen($classNorm)), " -_\t");
-                if (
-                    $rest !== "" &&
-                    preg_match('/^[A-Z0-9]{1,3}$/', $rest) &&
-                    !in_array($rest, $blocked, true)
-                ) {
-                    return $rest;
-                }
-            }
-
-            // Trailing token that is a real stream letter (not THREE/FOUR/…)
-            if (preg_match('/\b([A-Z0-9]{1,3})$/', $cand, $m)) {
-                $tok = $m[1];
-                if (!in_array($tok, $blocked, true)) {
-                    return $tok;
-                }
-            }
-        }
-
-        return "";
+        $sub = trim((string) ($subclass->subclass_name ?? ""));
+        return trim($className . ($sub !== "" ? " " . $sub : ""));
     }
 
     /**
