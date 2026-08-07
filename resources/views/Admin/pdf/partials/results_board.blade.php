@@ -424,7 +424,9 @@
                     <th class="name-h" style="width:12%;">STUDENT NAME</th>
                     <th class="index-h" style="width:9%;">INDEX NO</th>
                     <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
-                    <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'STREAM') !!}</th>
+                    @if(!empty($board['showStream']))
+                        <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
+                    @endif
                     @if($isSecondary)
                         <th class="v">{!! pdfBoardVerticalLabel('POINT') !!}</th>
                         <th class="v">{!! pdfBoardVerticalLabel('DIVISION') !!}</th>
@@ -444,7 +446,9 @@
                         <td class="name-cell">{{ $r['name'] }}</td>
                         <td>{{ $r['index'] }}</td>
                         <td>{{ $r['sex'] }}</td>
-                        <td class="stream-cell">{{ $r['stream'] }}</td>
+                        @if(!empty($board['showStream']))
+                            <td class="stream-cell">{{ $r['stream'] ?? '' }}</td>
+                        @endif
                         @if($isSecondary)
                             <td>{{ $r['point'] }}</td>
                             <td>{{ $r['division'] }}</td>

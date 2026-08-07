@@ -7687,19 +7687,18 @@ class ResultManagementController extends Controller
         unset($item);
 
         $isALevelClass = $this->isALevelClassName($className);
-        $streamHeader = $isALevelClass ? "COMBINATION" : "STREAM";
-        $leadingHeaders =
-            $schoolType === "Secondary"
-                ? [
-                    "S/N",
-                    "STUDENT NAME",
-                    "INDEX NO",
-                    "SEX",
-                    $streamHeader,
-                    "POINT",
-                    "DIVISION",
-                ]
-                : ["S/N", "STUDENT NAME", "INDEX NO", "SEX", "STREAM"];
+        // O-Level (Form 1–4) / Primary: no STREAM column. A-Level only: COMBINATION.
+        $streamHeader = $isALevelClass ? "COMBINATION" : null;
+        if ($schoolType === "Secondary") {
+            $leadingHeaders = ["S/N", "STUDENT NAME", "INDEX NO", "SEX"];
+            if ($isALevelClass) {
+                $leadingHeaders[] = $streamHeader;
+            }
+            $leadingHeaders[] = "POINT";
+            $leadingHeaders[] = "DIVISION";
+        } else {
+            $leadingHeaders = ["S/N", "STUDENT NAME", "INDEX NO", "SEX"];
+        }
         $trailingHeaders =
             $schoolType === "Secondary"
                 ? ["AVERAGE", "POSITION"]
@@ -7800,7 +7799,6 @@ class ResultManagementController extends Controller
         foreach ($prepared as $item) {
             $student = $item["student"];
             $row = $item["row"];
-            $stream = $this->resolveBoardStreamLabel($student, $className);
             $studentName = trim(
                 $student->first_name .
                     " " .
@@ -7873,12 +7871,11 @@ class ResultManagementController extends Controller
                 }
             }
 
-            $rows[] = [
+            $rowOut = [
                 "sn" => $item["position"],
                 "name" => $studentName,
                 "index" => $examNumbers[$student->studentID] ?? "N/A",
                 "sex" => $this->genderShort($student->gender),
-                "stream" => $stream,
                 "point" =>
                     $item["division_points"] !== ""
                         ? $item["division_points"]
@@ -7892,6 +7889,13 @@ class ResultManagementController extends Controller
                 "grade" => $row["grade"] ?? "-",
                 "position" => $item["position"],
             ];
+            if ($isALevelClass) {
+                $rowOut["stream"] = $this->resolveBoardStreamLabel(
+                    $student,
+                    $className,
+                );
+            }
+            $rows[] = $rowOut;
         }
 
         $subjectStats = $this->buildSubjectStatsForBoardExport(
@@ -7916,6 +7920,7 @@ class ResultManagementController extends Controller
             "titleCombined" => $titleCombined,
             "schoolType" => $schoolType,
             "isALevel" => $isALevelClass,
+            "showStream" => $isALevelClass,
             "streamHeader" => $streamHeader,
             "leadingHeaders" => $leadingHeaders,
             "trailingHeaders" => $trailingHeaders,
@@ -8025,28 +8030,20 @@ class ResultManagementController extends Controller
 
         $subjectColSpan = 2; // Marks + Grade under each subject
         $isALevelClass = $this->isALevelClassName($className);
-        $streamHeader = $isALevelClass ? "COMBIE" : "STREAM";
+        // O-Level (Form 1–4) / Primary: no STREAM. A-Level only: COMBIE.
+        $streamHeader = $isALevelClass ? "COMBIE" : null;
 
-        // Leading: S/N, Name, Index No, Sex, Stream/Combie [, Point, Division for Secondary]
-        // Full labels (rotated vertically where abbreviated before)
-        $leadingHeaders =
-            $schoolType === "Secondary"
-                ? [
-                    "S/N",
-                    "STUDENT NAME",
-                    "INDEX NO",
-                    "SEX",
-                    $streamHeader,
-                    "POINT",
-                    "DIVISION",
-                ]
-                : [
-                    "S/N",
-                    "STUDENT NAME",
-                    "INDEX NO",
-                    "SEX",
-                    "STREAM",
-                ];
+        // Leading: S/N, Name, Index No, Sex [, COMBIE for A-Level] [, Point, Division for Secondary]
+        if ($schoolType === "Secondary") {
+            $leadingHeaders = ["S/N", "STUDENT NAME", "INDEX NO", "SEX"];
+            if ($isALevelClass) {
+                $leadingHeaders[] = $streamHeader;
+            }
+            $leadingHeaders[] = "POINT";
+            $leadingHeaders[] = "DIVISION";
+        } else {
+            $leadingHeaders = ["S/N", "STUDENT NAME", "INDEX NO", "SEX"];
+        }
         // Trailing after subjects (full names, vertical)
         $trailingHeaders =
             $schoolType === "Secondary"
@@ -8696,7 +8693,6 @@ class ResultManagementController extends Controller
             $serialNo++;
             $student = $item["student"];
             $row = $item["row"];
-            $stream = $this->resolveBoardStreamLabel($student, $className);
             $studentName = trim(
                 $student->first_name .
                     " " .
@@ -8706,14 +8702,16 @@ class ResultManagementController extends Controller
                     $student->last_name,
             );
 
-            // S/N, Name, Index No, Sex, Stream/Combie [, Point, Division]
+            // S/N, Name, Index No, Sex [, COMBIE for A-Level] [, Point, Division]
             $line = [
                 $serialNo,
                 $studentName,
                 $examNumbers[$student->studentID] ?? "N/A",
                 $this->genderShort($student->gender),
-                $stream,
             ];
+            if ($isALevelClass) {
+                $line[] = $this->resolveBoardStreamLabel($student, $className);
+            }
             if ($schoolType === "Secondary") {
                 $line[] = $item["division_points"] !== ""
                     ? $item["division_points"]
@@ -8824,8 +8822,8 @@ class ResultManagementController extends Controller
                 ->setHorizontal(Alignment::HORIZONTAL_LEFT);
         }
 
-        // STREAM/COMBIE is column 5 (after SEX); AVERAGE / POSITION at end
-        $strmCol = 5;
+        // COMBIE is column 5 (after SEX) for A-Level only; AVERAGE / POSITION at end
+        $strmCol = $isALevelClass ? 5 : 0;
         $avgCol = $fixedCols + $subjectBlockCols + 1;
         $postCol =
             $schoolType === "Secondary"
@@ -8840,8 +8838,8 @@ class ResultManagementController extends Controller
                 $sheet->getColumnDimension($colLetter)->setWidth(28);
             } elseif ($c === 3) {
                 $sheet->getColumnDimension($colLetter)->setWidth(18);
-            } elseif ($c === $strmCol) {
-                // Stream / Combie — wider so labels fit
+            } elseif ($strmCol > 0 && $c === $strmCol) {
+                // Combie — wider so labels fit
                 $sheet->getColumnDimension($colLetter)->setWidth(14);
             } elseif ($c === $avgCol || $c === $postCol) {
                 $sheet->getColumnDimension($colLetter)->setWidth(8);
