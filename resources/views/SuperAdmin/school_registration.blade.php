@@ -154,6 +154,26 @@
                                     <input type="file" id="school_logo" name="school_logo" class="form-control" accept="image/*">
                                     <div class="help">Max file size 2MB (JPG, PNG).</div>
                                 </div>
+                                <div class="col-md-12">
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" id="is_under_organization" name="is_under_organization" value="1" {{ old('is_under_organization') ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-bold small" for="is_under_organization">IS UNDER ORGANIZATION?</label>
+                                        <div class="help">e.g. diocese / church / trust. When On, organization logo appears above school logo on result exports (name is not printed).</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-12" id="organizationFieldsWrap" style="{{ old('is_under_organization') ? '' : 'display:none;' }}">
+                                    <div class="row g-3 p-3 border rounded bg-light">
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="organization_name">Organization Name</label>
+                                            <input type="text" id="organization_name" name="organization_name" class="form-control" value="{{ old('organization_name') }}" placeholder="e.g. Roman Catholic Diocese">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label" for="organization_logo">Organization Logo</label>
+                                            <input type="file" id="organization_logo" name="organization_logo" class="form-control" accept="image/*">
+                                            <div class="help">Max 2MB (JPG, PNG).</div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="col-md-6">
                                     <label class="form-label required" for="login_status">Login Access</label>
                                     <select id="login_status" name="login_status" class="form-select" required>
@@ -197,6 +217,14 @@
 
                                 loginStatus.addEventListener('change', toggleReason);
                                 toggleReason(); // Run on load
+
+                                const orgToggle = document.getElementById('is_under_organization');
+                                const orgWrap = document.getElementById('organizationFieldsWrap');
+                                if (orgToggle && orgWrap) {
+                                    orgToggle.addEventListener('change', function() {
+                                        orgWrap.style.display = this.checked ? '' : 'none';
+                                    });
+                                }
                             });
                         </script>
                         @endpush

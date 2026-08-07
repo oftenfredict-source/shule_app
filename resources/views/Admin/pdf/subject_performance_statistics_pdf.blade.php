@@ -47,6 +47,13 @@
         $schoolLogoBase64  = getSmartBase64PdfSubjectStats($school->school_logo ?? '');
         $schoolStampBase64 = getSmartBase64PdfSubjectStats($school->school_stamp ?? '');
         $schoolSignBase64  = getSmartBase64PdfSubjectStats($school->school_signature ?? '');
+        $underOrg = !empty($school->is_under_organization);
+        $orgLogoBase64 = ($underOrg && !empty($school->organization_logo))
+            ? getSmartBase64PdfSubjectStats($school->organization_logo)
+            : null;
+        $orgName = ($underOrg && !empty(trim((string) ($school->organization_name ?? ''))))
+            ? strtoupper(trim((string) $school->organization_name))
+            : null;
     @endphp
     <style>
         @page { margin: 10mm 8mm 12mm 8mm; }
@@ -69,9 +76,18 @@
         }
 
         /* ── HEADER ─────────────────── */
-        .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #940000; padding-bottom: 10px; }
-        .logo { max-height: 60px; margin-bottom: 5px; }
+        .header { margin-bottom: 12px; border-bottom: 2px solid #940000; padding-bottom: 10px; text-align: center; }
+        .header-table { width: auto; max-width: 78%; margin: 0 auto; border-collapse: collapse; }
+        .header-table td { border: none; padding: 0; vertical-align: middle; }
+        .logo-side { width: 64px; }
+        .logo-side img { display: block; max-height: 56px; max-width: 62px; border: none; outline: none; margin: 0; }
+        .logo-side.left { text-align: left; padding-right: 10px; }
+        .logo-side.right { text-align: right; padding-left: 10px; }
+        .logo-side.right img { margin-left: auto; }
+        .header-center { text-align: center; padding: 0 4px; }
         .school-name { font-size: 18px; font-weight: bold; color: #940000; text-transform: uppercase; }
+        .org-name { font-size: 13px; font-weight: bold; color: #555; text-transform: uppercase; margin-bottom: 3px; }
+        .school-sub { font-size: 11px; color: #555; margin: 1px 0; }
         .report-title { font-size: 14px; font-weight: bold; margin-top: 10px; background: #f8f9fa; padding: 5px; color: #940000; text-transform: uppercase; }
         .report-subtitle { font-size: 11px; font-weight: bold; margin-top: 4px; color: #555; text-transform: uppercase; }
 
@@ -92,6 +108,11 @@
         .remark-avg { background: #ffe8d6; color: #a04000; }
         .remark-fail { background: #f8d7da; color: #721c24; }
         .remark-inc { background: #d1ecf1; color: #0c5460; }
+        table.report td.remark-cell,
+        .legend td {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
 
         /* ── TABLE ─────────────────── */
         table.report { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 20px; }
@@ -138,12 +159,30 @@
     @endphp
 
     <div class="header">
-        @if($schoolLogoBase64)
-            <img src="{{ $schoolLogoBase64 }}" class="logo" alt="School Logo">
-        @endif
-        <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
-        <div>{{ $school->address ?? '' }}</div>
-        <div>Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+        <table class="header-table">
+            <tr>
+                <td class="logo-side left">
+                    @if($orgLogoBase64)
+                        <img src="{{ $orgLogoBase64 }}" alt="Organization Logo">
+                    @elseif($schoolLogoBase64)
+                        <img src="{{ $schoolLogoBase64 }}" alt="School Logo">
+                    @endif
+                </td>
+                <td class="header-center">
+                    @if($orgName)
+                        <div class="org-name">{{ $orgName }}</div>
+                    @endif
+                    <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
+                    <div class="school-sub">{{ $school->address ?? '' }}</div>
+                    <div class="school-sub">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+                </td>
+                <td class="logo-side right">
+                    @if($orgLogoBase64 && $schoolLogoBase64)
+                        <img src="{{ $schoolLogoBase64 }}" alt="School Logo">
+                    @endif
+                </td>
+            </tr>
+        </table>
         <div class="report-title">SUBJECTS PERFORMANCE SUMMARY</div>
         <div class="report-subtitle">{{ $displayClass }}</div>
     </div>

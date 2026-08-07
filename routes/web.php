@@ -2938,6 +2938,10 @@ Route::get("get_exams_for_term_list", [
     ResultManagementController::class,
     "getExamsForTerm",
 ])->name("get_exams_for_term_list");
+Route::get("check_report_definition_exists", [
+    ResultManagementController::class,
+    "checkReportDefinitionExists",
+])->name("check_report_definition_exists");
 
 // CA Definitions
 Route::post("save_ca_definition", [

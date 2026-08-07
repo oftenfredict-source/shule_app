@@ -27,6 +27,9 @@ class School extends Model
         'phone',
         'established_year',
         'school_logo',
+        'is_under_organization',
+        'organization_name',
+        'organization_logo',
         'school_stamp',
         'school_signature',
         'status',
@@ -36,6 +39,10 @@ class School extends Model
         'senderID',
         'login_status',
         'suspension_reason',
+    ];
+
+    protected $casts = [
+        'is_under_organization' => 'boolean',
     ];
 
     public function teachers()

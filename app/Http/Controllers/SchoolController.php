@@ -139,47 +139,30 @@ class SchoolController extends Controller
             'phone' => 'nullable|string|max:20|unique:schools,phone,' . $schoolID . ',schoolID',
             'established_year' => 'nullable|integer|min:1900|max:' . date('Y'),
             'school_logo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'is_under_organization' => 'nullable|boolean',
+            'organization_name' => 'nullable|string|max:255',
+            'organization_logo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'status' => 'required|in:Active,Inactive',
         ]);
 
+        $validated['is_under_organization'] = $request->boolean('is_under_organization');
+        if (!$validated['is_under_organization']) {
+            $validated['organization_name'] = null;
+        }
+
         // Handle logo upload
         if ($request->hasFile('school_logo')) {
-            // Determine upload path - Robust strategy for Main Domain and Subdomains
-            $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
-            $uploadPath = $scriptDir . '/logos';
-            
-            // If scriptDir/logos doesn't exist or isn't writable, fallback to other common paths
-            if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
-                $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/logos' : null;
-                if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
-                    $uploadPath = $docRootPath;
-                } else {
-                    $uploadPath = public_path('logos');
-                }
-            }
+            $validated['school_logo'] = $this->uploadSchoolLogoFile(
+                $request->file('school_logo'),
+                $school->school_logo,
+            );
+        }
 
-            if (!file_exists($uploadPath)) {
-                @mkdir($uploadPath, 0755, true);
-            }
-
-            // Delete old logo if exists - check multiple potential paths
-            if ($school->school_logo) {
-                $possibleOldPaths = [
-                    $uploadPath . '/' . basename($school->school_logo),
-                    public_path($school->school_logo),
-                    $_SERVER['DOCUMENT_ROOT'] . '/' . $school->school_logo,
-                ];
-                foreach ($possibleOldPaths as $oldPath) {
-                    if ($oldPath && file_exists($oldPath)) {
-                        @unlink($oldPath);
-                    }
-                }
-            }
-            
-            $logo = $request->file('school_logo');
-            $filename = time() . '_' . $logo->getClientOriginalName();
-            $logo->move($uploadPath, $filename);
-            $validated['school_logo'] = 'logos/' . $filename;
+        if ($request->hasFile('organization_logo') && $validated['is_under_organization']) {
+            $validated['organization_logo'] = $this->uploadSchoolLogoFile(
+                $request->file('organization_logo'),
+                $school->organization_logo,
+            );
         }
 
         $school->update($validated);
@@ -189,6 +172,46 @@ class SchoolController extends Controller
             'message' => 'Taarifa za shule zimesasishwa kwa mafanikio',
             'school' => $school
         ]);
+    }
+
+    /**
+     * Upload a logo into public/logos (same strategy as school_logo).
+     */
+    private function uploadSchoolLogoFile($logo, ?string $oldPath = null): string
+    {
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+        $uploadPath = $scriptDir . '/logos';
+
+        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/logos' : null;
+            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            } else {
+                $uploadPath = public_path('logos');
+            }
+        }
+
+        if (!file_exists($uploadPath)) {
+            @mkdir($uploadPath, 0755, true);
+        }
+
+        if ($oldPath) {
+            $possibleOldPaths = [
+                $uploadPath . '/' . basename($oldPath),
+                public_path($oldPath),
+                ($_SERVER['DOCUMENT_ROOT'] ?? '') . '/' . $oldPath,
+            ];
+            foreach ($possibleOldPaths as $p) {
+                if ($p && file_exists($p)) {
+                    @unlink($p);
+                }
+            }
+        }
+
+        $filename = time() . '_' . $logo->getClientOriginalName();
+        $logo->move($uploadPath, $filename);
+
+        return 'logos/' . $filename;
     }
     
     public function get_school_details()

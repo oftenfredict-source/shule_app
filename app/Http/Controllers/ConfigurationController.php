@@ -49,6 +49,9 @@ class ConfigurationController extends Controller
         'phone' => 'nullable|string|max:20|unique:schools,phone',
         'established_year' => 'nullable|integer|min:1900|max:' . date('Y'),
         'school_logo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        'is_under_organization' => 'nullable|boolean',
+        'organization_name' => 'nullable|string|max:255',
+        'organization_logo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         'status' => 'required|in:Active,Inactive',
         'environment' => 'nullable|in:Demo,Live',
         'two_factor_enabled' => 'nullable|boolean',
@@ -62,6 +65,10 @@ class ConfigurationController extends Controller
     }
 
     $validated['two_factor_enabled'] = (bool)($request->input('two_factor_enabled', false));
+    $validated['is_under_organization'] = (bool)($request->input('is_under_organization', false));
+    if (!$validated['is_under_organization']) {
+        $validated['organization_name'] = null;
+    }
     $password = 'Admin@3345';
     if ($request->hasFile('school_logo')) {
         // Determine upload path - Robust strategy for Main Domain and Subdomains
@@ -86,6 +93,26 @@ class ConfigurationController extends Controller
         $filename = time() . '_' . $logo->getClientOriginalName();
         $logo->move($uploadPath, $filename);
         $validated['school_logo'] = 'logos/' . $filename;
+    }
+
+    if ($request->hasFile('organization_logo') && $validated['is_under_organization']) {
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
+        $uploadPath = $scriptDir . '/logos';
+        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/logos' : null;
+            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            } else {
+                $uploadPath = public_path('logos');
+            }
+        }
+        if (!file_exists($uploadPath)) {
+            @mkdir($uploadPath, 0755, true);
+        }
+        $logo = $request->file('organization_logo');
+        $filename = time() . '_org_' . $logo->getClientOriginalName();
+        $logo->move($uploadPath, $filename);
+        $validated['organization_logo'] = 'logos/' . $filename;
     }
 
     School::create($validated);

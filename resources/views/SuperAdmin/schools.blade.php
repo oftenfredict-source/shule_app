@@ -322,6 +322,23 @@
                                     <input type="checkbox" class="form-check-input" id="e_must_change_password" name="must_change_default_password" value="1">
                                     <label class="form-check-label fw-bold" for="e_must_change_password">Must Change Default Password</label>
                                 </div>
+                                <div class="form-check form-switch mt-2">
+                                    <input type="checkbox" class="form-check-input" id="e_under_org" name="is_under_organization" value="1">
+                                    <label class="form-check-label fw-bold" for="e_under_org">Is under organization?</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row" id="e_org_fields" style="display:none;">
+                            <div class="col-md-6 mb-3">
+                                <label class="fw-bold small">ORGANIZATION NAME</label>
+                                <input type="text" class="form-control" name="organization_name" id="e_org_name" placeholder="e.g. Roman Catholic Diocese">
+                            </div>
+                            <div class="col-md-6 mb-3 text-center">
+                                <label class="fw-bold small">ORGANIZATION LOGO</label>
+                                <div class="asset-preview-sm mx-auto mb-2 border">
+                                    <img id="p_org_logo" src="">
+                                </div>
+                                <input type="file" class="form-control form-control-sm" name="organization_logo" onchange="readURL(this, 'p_org_logo')">
                             </div>
                         </div>
                         <hr>
@@ -450,6 +467,14 @@
             $('#e_sender').val(s.senderID);
             $('#e_2fa').prop('checked', s.two_factor_enabled == 1);
             $('#e_must_change_password').prop('checked', s.must_change_default_password == 1);
+            $('#e_under_org').prop('checked', s.is_under_organization == 1 || s.is_under_organization === true);
+            $('#e_org_name').val(s.organization_name || '');
+            $('#p_org_logo').attr('src', s.org_logo_url || '');
+            if (s.is_under_organization == 1 || s.is_under_organization === true) {
+                $('#e_org_fields').show();
+            } else {
+                $('#e_org_fields').hide();
+            }
             $('#e_login_status').val(s.login_status == 0 ? '0' : '1');
             $('#e_suspension_reason').val(s.suspension_reason || '');
             
@@ -464,6 +489,14 @@
             $('#p_logo').attr('src', b.data('logo-url') || PLACEHOLDER_LOGO);
             $('#p_stamp').attr('src', b.data('stamp-url') || '');
             $('#p_sign').attr('src', b.data('sign-url') || '');
+        });
+
+        $(document).on('change', '#e_under_org', function() {
+            if ($(this).is(':checked')) {
+                $('#e_org_fields').slideDown();
+            } else {
+                $('#e_org_fields').slideUp();
+            }
         });
 
         $(document).on('change', '#e_login_status', function() {
@@ -484,7 +517,13 @@
             $.ajax({
                 url: '{{ route("superadmin.schools.update_comprehensive") }}',
                 type: 'POST',
-                data: new FormData(this),
+                data: (function() {
+                    const fd = new FormData(document.getElementById('editForm'));
+                    if (!$('#e_under_org').is(':checked')) {
+                        fd.set('is_under_organization', '0');
+                    }
+                    return fd;
+                })(),
                 processData: false, contentType: false,
                 headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 success: function(res) {

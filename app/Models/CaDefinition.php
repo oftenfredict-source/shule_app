@@ -17,11 +17,16 @@ class CaDefinition extends Model
         'term',
         'examID',
         'test_ids',
+        'use_percent_division',
+        'exam_weights',
+        'level_scope',
         'created_by',
     ];
 
     protected $casts = [
         'test_ids' => 'array',
+        'exam_weights' => 'array',
+        'use_percent_division' => 'boolean',
         'year' => 'integer',
         'examID' => 'integer',
     ];

@@ -35,6 +35,28 @@
         color: #940000 !important;
     }
 
+    /* Student details modal — wider so subject tables fit */
+    #studentDetailsModal .modal-dialog {
+        max-width: min(1140px, 96vw);
+        width: 96%;
+        margin: 1.2rem auto;
+    }
+    #studentDetailsModal .modal-body {
+        max-height: calc(100vh - 160px);
+        overflow-y: auto;
+    }
+    #studentDetailsModal .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    @media (max-width: 768px) {
+        #studentDetailsModal .modal-dialog {
+            max-width: 98vw;
+            width: 98%;
+            margin: 0.5rem auto;
+        }
+    }
+
     .enrollment-status-pill {
         display: inline-block;
         padding: 0.25rem 0.55rem;
@@ -3089,7 +3111,7 @@
                                             if (isset($s['exams']) && count($s['exams']) > 0) {
                                                 $eParts = [];
                                                 foreach ($s['exams'] as $ex) {
-                                                    $eName = strtoupper($ex['exam']->exam_name ?? 'N/A');
+                                                    $eName = strtoupper($ex['exam_label'] ?? ($ex['exam']->exam_name ?? 'N/A'));
                                                     $eAvg = number_format($ex['average'] ?? 0, 1);
                                                     $eGrade = $ex['grade'] ?? 'N/A';
                                                     $eParts[] = $eName . ': ' . $eAvg . '-' . $eGrade;
@@ -3589,7 +3611,7 @@
                                                                 if (isset($reportStudent['exams']) && count($reportStudent['exams']) > 0) {
                                                                     $examStrings = [];
                                                                     foreach ($reportStudent['exams'] as $examData) {
-                                                                        $examName = strtoupper($examData['exam']->exam_name ?? 'N/A');
+                                                                        $examName = strtoupper($examData['exam_label'] ?? ($examData['exam']->exam_name ?? 'N/A'));
                                                                         $examAvg = number_format($examData['average'] ?? 0, 1);
                                                                         $examGrade = $schoolType === 'Secondary'
                                                                             ? ($examData['division'] ?? $examData['grade'] ?? 'N/A')
@@ -3705,7 +3727,7 @@
                                                     <tbody>
                                                         @foreach($resultsData[$student->studentID] as $examResult)
                                                             <tr>
-                                                                <td>{{ $examResult['exam']->exam_name ?? 'N/A' }}</td>
+                                                                <td>{{ $examResult['exam_label'] ?? ($examResult['exam']->exam_name ?? 'N/A') }}</td>
                                                                 <td>{{ $examResult['exam']->start_date ?? 'N/A' }}</td>
                                                                 @if($schoolType === 'Primary')
                                                                     <td><strong>{{ is_numeric($examResult['total_marks']) ? number_format($examResult['total_marks'], 0) : $examResult['total_marks'] }}</strong></td>
@@ -3796,7 +3818,7 @@
 
 <!-- Modal for Student Details -->
 <div class="modal fade" id="studentDetailsModal" tabindex="-1" role="dialog" aria-labelledby="studentDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title" id="studentDetailsModalLabel">
@@ -6319,18 +6341,20 @@ $(document).ready(function() {
         // Get school info
         const schoolName = '{{ $school->school_name ?? "School" }}';
         const schoolLogo = '{{ $school->school_logo ? asset($school->school_logo) : "" }}';
+        const orgLogo = '{{ (!empty($school->is_under_organization) && !empty($school->organization_logo)) ? asset($school->organization_logo) : "" }}';
+        const orgName = @json((!empty($school->is_under_organization) && !empty(trim((string)($school->organization_name ?? '')))) ? strtoupper(trim((string)$school->organization_name)) : '');
         const schoolStamp = '{{ $school->school_stamp ? asset($school->school_stamp) : "" }}';
         const schoolSignature = '{{ $school->school_signature ? asset($school->school_signature) : "" }}';
 
         if (type === 'pdf') {
-            downloadStudentPDF(studentRow, studentID, filters, schoolName, schoolLogo, schoolStamp, schoolSignature, teacherName, teacherSignature);
+            downloadStudentPDF(studentRow, studentID, filters, schoolName, schoolLogo, schoolStamp, schoolSignature, teacherName, teacherSignature, orgLogo, orgName);
         } else {
             downloadStudentExcel(studentRow, studentID, filters, schoolName);
         }
     });
 
     // Function to download student PDF using JavaScript
-    async function downloadStudentPDF(studentRow, studentID, filters, schoolName, schoolLogo, schoolStamp, schoolSignature) {
+    async function downloadStudentPDF(studentRow, studentID, filters, schoolName, schoolLogo, schoolStamp, schoolSignature, teacherName, teacherSignature, orgLogo, orgName) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -6348,8 +6372,9 @@ $(document).ready(function() {
             });
         };
 
-        // Preload all images
-        const [logoImg, stampImg, signImg, teacherSignImg] = await Promise.all([
+        // Preload all images (org logo above school logo when under organization)
+        const [orgImg, logoImg, stampImg, signImg, teacherSignImg] = await Promise.all([
+            loadImage(orgLogo || ''),
             loadImage(schoolLogo),
             loadImage(schoolStamp),
             loadImage(schoolSignature),
@@ -6368,19 +6393,36 @@ $(document).ready(function() {
         doc.text("ShuleXpert", pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
         doc.restoreGraphicsState();
         
-        // 1. HEADER (Logo and School Name)
+        // 1. HEADER (Org logo → School logo, then School Name)
+        let logoStackBottom = yPos - 5;
+        let logoY = yPos - 5;
+        if (orgImg) {
+            const orgWidth = 18;
+            const orgHeight = (orgImg.height * orgWidth) / orgImg.width;
+            doc.addImage(orgImg, 'PNG', 14, logoY, orgWidth, orgHeight);
+            logoY += orgHeight + 2;
+            logoStackBottom = logoY;
+        }
         if (logoImg) {
             const logoWidth = 22;
             const logoHeight = (logoImg.height * logoWidth) / logoImg.width;
-            doc.addImage(logoImg, 'PNG', 14, yPos - 5, logoWidth, logoHeight);
+            doc.addImage(logoImg, 'PNG', 14, logoY, logoWidth, logoHeight);
+            logoStackBottom = logoY + logoHeight;
         }
 
-        // School name header (centered)
+        // School name header (centered) — org name above school name when under organization
+        if (orgName) {
+            doc.setFontSize(11);
+            doc.setTextColor(85, 85, 85);
+            doc.setFont('helvetica', 'bold');
+            doc.text(orgName, pageWidth / 2, yPos, { align: 'center' });
+            yPos += 7;
+        }
         doc.setFontSize(20);
         doc.setTextColor(148, 0, 0);
         doc.setFont('helvetica', 'bold');
         doc.text(schoolName, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 10;
+        yPos = Math.max(yPos + 10, logoStackBottom + 4);
 
         // Get student name and details
         let studentName = '';
@@ -6899,7 +6941,9 @@ $(document).ready(function() {
         const doc = new jsPDF('l', 'mm', 'a4'); // Landscape orientation
         
         const schoolName = '{{ $school->school_name ?? "School" }}';
-        const schoolLogo = '{{ $school->school_logo ?? "" }}';
+        const schoolLogo = '{{ $school->school_logo ? asset($school->school_logo) : "" }}';
+        const orgLogo = '{{ (!empty($school->is_under_organization) && !empty($school->organization_logo)) ? asset($school->organization_logo) : "" }}';
+        const orgName = @json((!empty($school->is_under_organization) && !empty(trim((string)($school->organization_name ?? '')))) ? strtoupper(trim((string)$school->organization_name)) : '');
         const schoolType = '{{ $schoolType ?? "Secondary" }}';
         const pageWidth = doc.internal.pageSize.getWidth();
         let yPos = 15;
@@ -6918,31 +6962,43 @@ $(document).ready(function() {
         doc.setGState(new doc.GState({opacity: 0.08}));
         doc.text("ShuleXpert", pageWidth / 2, pageHeight / 2, { align: 'center', angle: 45 });
         doc.restoreGraphicsState();
-        
-        // Load and add school logo (if available)
-        if (schoolLogo) {
-            try {
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.src = schoolLogo;
-                img.onload = function() {
-                    const imgWidth = 30;
-                    const imgHeight = (img.height * imgWidth) / img.width;
-                    doc.addImage(img, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-                    yPos += imgHeight + 5;
-                    continuePDFGeneration();
-                };
-                img.onerror = function() {
-                    continuePDFGeneration();
-                };
-            } catch (e) {
-                continuePDFGeneration();
+
+        const loadLogoImage = (url) => new Promise((resolve) => {
+            if (!url) { resolve(null); return; }
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = url.startsWith('http') || url.startsWith('/') ? url : '{{ asset("") }}' + url;
+        });
+
+        Promise.all([loadLogoImage(orgLogo), loadLogoImage(schoolLogo)]).then(function(imgs) {
+            const orgImg = imgs[0];
+            const logoImg = imgs[1];
+            if (orgImg) {
+                const imgWidth = 26;
+                const imgHeight = (orgImg.height * imgWidth) / orgImg.width;
+                doc.addImage(orgImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+                yPos += imgHeight + 3;
             }
-        } else {
+            if (logoImg) {
+                const imgWidth = 30;
+                const imgHeight = (logoImg.height * imgWidth) / logoImg.width;
+                doc.addImage(logoImg, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+                yPos += imgHeight + 5;
+            }
             continuePDFGeneration();
-        }
+        });
         
         function continuePDFGeneration() {
+            // Org name above school name
+            if (orgName) {
+                doc.setFontSize(11);
+                doc.setTextColor(85, 85, 85);
+                doc.setFont('helvetica', 'bold');
+                doc.text(orgName, pageWidth / 2, yPos, { align: 'center' });
+                yPos += 7;
+            }
             // School name (centered)
             doc.setFontSize(18);
             doc.setTextColor(148, 0, 0);
@@ -7931,6 +7987,8 @@ $(document).ready(function() {
         
         const schoolName = '{{ $school->school_name ?? "School" }}';
         const schoolLogo = '{{ $school->school_logo ? asset($school->school_logo) : "" }}';
+        const orgLogo = '{{ (!empty($school->is_under_organization) && !empty($school->organization_logo)) ? asset($school->organization_logo) : "" }}';
+        const orgName = @json((!empty($school->is_under_organization) && !empty(trim((string)($school->organization_name ?? '')))) ? strtoupper(trim((string)$school->organization_name)) : '');
         const schoolStamp = '{{ $school->school_stamp ? asset($school->school_stamp) : "" }}';
         const schoolSignature = '{{ $school->school_signature ? asset($school->school_signature) : "" }}';
         const teacherName = studentData.teacher ? studentData.teacher.name : 'N/A';
@@ -7949,6 +8007,7 @@ $(document).ready(function() {
         };
         
         // Preload all images
+        const orgLogoPromise = orgLogo ? loadImage(orgLogo) : Promise.resolve(null);
         const logoPromise = schoolLogo ? loadImage(schoolLogo) : Promise.resolve(null);
         const stampPromise = schoolStamp ? loadImage(schoolStamp) : Promise.resolve(null);
         const schoolSignPromise = schoolSignature ? loadImage(schoolSignature) : Promise.resolve(null);
@@ -7957,18 +8016,27 @@ $(document).ready(function() {
             (studentData.gender === 'Female' ? '{{ asset("images/female.png") }}' : '{{ asset("images/male.png") }}');
         const studentImagePromise = loadImage(studentImagePath);
         
-        Promise.all([logoPromise, studentImagePromise, stampPromise, schoolSignPromise, teacherSignPromise]).then(function(images) {
-            const logoImg = images[0];
-            const studentImg = images[1];
-            const stampImg = images[2];
-            const schoolSignImg = images[3];
-            const teacherSignImg = images[4];
+        Promise.all([orgLogoPromise, logoPromise, studentImagePromise, stampPromise, schoolSignPromise, teacherSignPromise]).then(function(images) {
+            const orgImg = images[0];
+            const logoImg = images[1];
+            const studentImg = images[2];
+            const stampImg = images[3];
+            const schoolSignImg = images[4];
+            const teacherSignImg = images[5];
             let yPos = 15;
             
-            // Add school logo (left)
+            // Org logo above school logo (left) — no org name
+            let leftLogoY = yPos;
+            if (orgImg) {
+                const orgW = logoWidth * 0.85;
+                const orgH = (orgImg.height * orgW) / orgImg.width;
+                doc.addImage(orgImg, 'PNG', 15, leftLogoY, orgW, orgH);
+                leftLogoY += orgH + 2;
+            }
             if (logoImg) {
                 const logoActualHeight = (logoImg.height * logoWidth) / logoImg.width;
-                doc.addImage(logoImg, 'PNG', 15, yPos, logoWidth, logoActualHeight);
+                doc.addImage(logoImg, 'PNG', 15, leftLogoY, logoWidth, logoActualHeight);
+                leftLogoY += logoActualHeight;
             }
             
             // Add student image (right) or placeholder
@@ -7977,12 +8045,23 @@ $(document).ready(function() {
                 doc.addImage(studentImg, 'PNG', pageWidth - 15 - studentImageWidth, yPos, studentImageWidth, studentActualHeight);
             }
             
-            // School name (center, between logo and image)
-            doc.setFontSize(16);
-            doc.setTextColor(148, 0, 0);
-            doc.setFont('helvetica', 'bold');
-            doc.text(schoolName, pageWidth / 2, yPos + 10, { align: 'center' });
-            yPos += 20;
+            // School name (center, between logo and image) — org name above
+            if (orgName) {
+                doc.setFontSize(10);
+                doc.setTextColor(85, 85, 85);
+                doc.setFont('helvetica', 'bold');
+                doc.text(orgName, pageWidth / 2, yPos + 6, { align: 'center' });
+                doc.setFontSize(16);
+                doc.setTextColor(148, 0, 0);
+                doc.setFont('helvetica', 'bold');
+                doc.text(schoolName, pageWidth / 2, yPos + 14, { align: 'center' });
+            } else {
+                doc.setFontSize(16);
+                doc.setTextColor(148, 0, 0);
+                doc.setFont('helvetica', 'bold');
+                doc.text(schoolName, pageWidth / 2, yPos + 10, { align: 'center' });
+            }
+            yPos = Math.max(yPos + 20, leftLogoY + 4);
             
             // Exam name + "STUDENT RESULT"
             doc.setFontSize(14);
@@ -8346,6 +8425,10 @@ $(document).ready(function() {
         const doc = new jsPDF('p', 'mm', 'a4');
         
         const schoolName = '{{ $school->school_name ?? "School" }}';
+        const schoolLogo = '{{ $school->school_logo ? asset($school->school_logo) : "" }}';
+        const orgLogo = '{{ (!empty($school->is_under_organization) && !empty($school->organization_logo)) ? asset($school->organization_logo) : "" }}';
+        const orgName = @json((!empty($school->is_under_organization) && !empty(trim((string)($school->organization_name ?? '')))) ? strtoupper(trim((string)$school->organization_name)) : '');
+        const schoolStamp = '{{ $school->school_stamp ? asset($school->school_stamp) : "" }}';
         const schoolSignature = '{{ $school->school_signature ? asset($school->school_signature) : "" }}';
         const teacherName = reportStudentData.teacher ? reportStudentData.teacher.name : 'N/A';
         const teacherSignature = reportStudentData.teacher ? reportStudentData.teacher.signature : null;
@@ -8360,6 +8443,7 @@ $(document).ready(function() {
         // Load images asynchronously using Promise
         const loadImage = function(src) {
             return new Promise(function(resolve, reject) {
+                if (!src) { resolve(null); return; }
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
                 img.onload = function() {
@@ -8373,6 +8457,7 @@ $(document).ready(function() {
         };
         
         // Load all images
+        const orgLogoPromise = orgLogo ? loadImage(orgLogo) : Promise.resolve(null);
         const logoPromise = schoolLogo ? loadImage(schoolLogo) : Promise.resolve(null);
         const stampPromise = schoolStamp ? loadImage(schoolStamp) : Promise.resolve(null);
         const schoolSignPromise = schoolSignature ? loadImage(schoolSignature) : Promise.resolve(null);
@@ -8381,17 +8466,26 @@ $(document).ready(function() {
             (reportStudentData.gender === 'Female' ? '{{ asset("images/female.png") }}' : '{{ asset("images/male.png") }}');
         const studentImagePromise = loadImage(studentImagePath);
         
-        Promise.all([logoPromise, studentImagePromise, stampPromise, schoolSignPromise, teacherSignPromise]).then(function(images) {
-            const logoImg = images[0];
-            const studentImg = images[1];
-            const stampImg = images[2];
-            const schoolSignImg = images[3];
-            const teacherSignImg = images[4];
+        Promise.all([orgLogoPromise, logoPromise, studentImagePromise, stampPromise, schoolSignPromise, teacherSignPromise]).then(function(images) {
+            const orgImg = images[0];
+            const logoImg = images[1];
+            const studentImg = images[2];
+            const stampImg = images[3];
+            const schoolSignImg = images[4];
+            const teacherSignImg = images[5];
             
-            // Add school logo (left)
+            // Org logo above school logo (left)
+            let leftLogoY = yPos;
+            if (orgImg) {
+                const orgW = logoWidth * 0.85;
+                const orgH = (orgImg.height * orgW) / orgImg.width;
+                doc.addImage(orgImg, 'PNG', 15, leftLogoY, orgW, orgH);
+                leftLogoY += orgH + 2;
+            }
             if (logoImg) {
                 const logoActualHeight = (logoImg.height * logoWidth) / logoImg.width;
-                doc.addImage(logoImg, 'PNG', 15, yPos, logoWidth, logoActualHeight);
+                doc.addImage(logoImg, 'PNG', 15, leftLogoY, logoWidth, logoActualHeight);
+                leftLogoY += logoActualHeight;
             }
             
             // Add student image (right) or placeholder
@@ -8400,12 +8494,23 @@ $(document).ready(function() {
                 doc.addImage(studentImg, 'PNG', pageWidth - 15 - studentImageWidth, yPos, studentImageWidth, studentActualHeight);
             }
             
-            // School name (center, between logo and image)
-            doc.setFontSize(16);
-            doc.setTextColor(148, 0, 0);
-            doc.setFont('helvetica', 'bold');
-            doc.text(schoolName, pageWidth / 2, yPos + 10, { align: 'center' });
-            yPos += 20;
+            // School name (center, between logo and image) — org name above
+            if (orgName) {
+                doc.setFontSize(10);
+                doc.setTextColor(85, 85, 85);
+                doc.setFont('helvetica', 'bold');
+                doc.text(orgName, pageWidth / 2, yPos + 6, { align: 'center' });
+                doc.setFontSize(16);
+                doc.setTextColor(148, 0, 0);
+                doc.setFont('helvetica', 'bold');
+                doc.text(schoolName, pageWidth / 2, yPos + 14, { align: 'center' });
+            } else {
+                doc.setFontSize(16);
+                doc.setTextColor(148, 0, 0);
+                doc.setFont('helvetica', 'bold');
+                doc.text(schoolName, pageWidth / 2, yPos + 10, { align: 'center' });
+            }
+            yPos = Math.max(yPos + 20, leftLogoY + 4);
             
             // Term name + "STUDENT REPORT"
             doc.setFontSize(14);
@@ -9418,6 +9523,19 @@ $(document).ready(function() {
                         <form id="reportDefinitionForm">
                             @csrf
                             <input type="hidden" name="id" id="reportDefID">
+                            @if(!empty($schoolHasALevel))
+                            <div class="mb-3">
+                                <label class="form-label font-weight-bold">Applies To <span class="text-danger">*</span></label>
+                                <select class="form-control" name="level_scope" id="defLevelScope">
+                                    <option value="all">All Classes</option>
+                                    <option value="o_level">O Level</option>
+                                    <option value="a_level">A Level</option>
+                                </select>
+                                <small class="text-muted">Form Five / Six use A Level definitions; other secondary classes use O Level. “All” applies to every class.</small>
+                            </div>
+                            @else
+                            <input type="hidden" name="level_scope" id="defLevelScope" value="all">
+                            @endif
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label font-weight-bold">Select Year <span class="text-danger">*</span></label>
@@ -9436,6 +9554,19 @@ $(document).ready(function() {
                                     </select>
                                 </div>
                             </div>
+                            <div id="reportDefStatusFeedback" class="mb-3 small"></div>
+
+                            <div class="d-flex align-items-center justify-content-between mb-3 p-3 border rounded bg-light">
+                                <div>
+                                    <div class="font-weight-bold">Percent Division</div>
+                                    <small class="text-muted">Off = equal average. On = assign % contribution per exam (must total 100%).</small>
+                                </div>
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="defPercentSwitch">
+                                    <label class="custom-control-label" for="defPercentSwitch">Enable</label>
+                                </div>
+                            </div>
+                            <div id="reportPercentRemaining" class="alert alert-warning py-2 d-none mb-3"></div>
 
                             <div class="card mb-4 border-warning">
                                 <div class="card-header bg-warning-light d-flex justify-content-between align-items-center">
@@ -9444,7 +9575,7 @@ $(document).ready(function() {
                                         <i class="bi bi-arrow-clockwise"></i> Refresh Exams
                                     </button>
                                 </div>
-                                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                                <div class="card-body" style="max-height: 340px; overflow-y: auto;">
                                     <div id="examsListContainer" class="exams-list-grid">
                                         <div class="text-center py-4 text-muted">
                                             <i class="bi bi-search d-block mb-2" style="font-size: 2rem;"></i>
@@ -9495,13 +9626,14 @@ $(document).ready(function() {
                                         <th width="30"></th>
                                         <th>Year</th>
                                         <th>Term</th>
+                                        <th>Level</th>
                                         <th>Exams</th>
                                         <th width="120">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="reportDefinitionsList">
                                     <tr>
-                                        <td colspan="5" class="text-center py-3 text-muted">Loading definitions...</td>
+                                        <td colspan="6" class="text-center py-3 text-muted">Loading definitions...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -9547,8 +9679,8 @@ $(document).ready(function() {
             </div>
             <div class="modal-body">
                 <div class="alert alert-info border-0 shadow-sm mb-4">
-                    <i class="bi bi-info-circle-fill"></i> <strong>How it works:</strong> Define which <strong>Tests</strong> should be combined with a <strong>School Exam</strong> (like Midterm) to get an average score. 
-                    Calculated as: <code>(Exam Marks + Test1 Marks + Test2 Marks...) / Total Exams</code>
+                    <i class="bi bi-info-circle-fill"></i> <strong>How it works:</strong> Define which <strong>Tests</strong> combine with a <strong>School Exam</strong>.
+                    Default: equal share. Turn on <strong>Percent Division</strong> to set each part’s contribution (must total 100%).
                 </div>
 
                 <ul class="nav nav-tabs nav-fill mb-4" id="caTabs" role="tablist">
@@ -9565,6 +9697,18 @@ $(document).ready(function() {
                     <div class="tab-pane fade show active" id="define-ca" role="tabpanel">
                         <form id="caDefinitionForm">
                             @csrf
+                            @if(!empty($schoolHasALevel))
+                            <div class="mb-3">
+                                <label class="form-label font-weight-bold">Applies To <span class="text-danger">*</span></label>
+                                <select class="form-control" name="level_scope" id="caLevelScope">
+                                    <option value="all">All Classes</option>
+                                    <option value="o_level">O Level</option>
+                                    <option value="a_level">A Level</option>
+                                </select>
+                            </div>
+                            @else
+                            <input type="hidden" name="level_scope" id="caLevelScope" value="all">
+                            @endif
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label font-weight-bold">Year</label>
@@ -9592,11 +9736,30 @@ $(document).ready(function() {
                             </div>
 
                             <div id="caTestsContainer" style="display: none;">
+                                <div class="d-flex align-items-center justify-content-between mb-3 p-3 border rounded bg-light">
+                                    <div>
+                                        <div class="font-weight-bold">Percent Division</div>
+                                        <small class="text-muted">Off = equal share for exam + tests. On = set % for main exam and each test (total 100%).</small>
+                                    </div>
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" id="caPercentSwitch">
+                                        <label class="custom-control-label" for="caPercentSwitch">Enable</label>
+                                    </div>
+                                </div>
+                                <div id="caPercentRemaining" class="alert alert-warning py-2 d-none mb-3"></div>
+                                <div id="caMainExamWeightRow" class="mb-3 d-none">
+                                    <label class="font-weight-bold mb-1">Main exam contribution %</label>
+                                    <div class="input-group" style="max-width: 220px;">
+                                        <input type="number" min="0" max="100" step="0.1" class="form-control ca-weight-input" id="caMainExamWeight" placeholder="%">
+                                        <div class="input-group-append"><span class="input-group-text">%</span></div>
+                                    </div>
+                                </div>
+
                                 <div class="card mb-4 border-info">
                                     <div class="card-header bg-info-light d-flex justify-content-between align-items-center">
                                         <h6 class="mb-0 font-weight-bold text-info"><i class="bi bi-check2-square"></i> Choose Tests for CA</h6>
                                     </div>
-                                    <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                                    <div class="card-body" style="max-height: 280px; overflow-y: auto;">
                                         <div id="caTestsList" class="exams-list-grid">
                                             <!-- populated via ajax -->
                                         </div>
@@ -10478,6 +10641,38 @@ $(document).ready(function() {
 
     // Store definitions in JS for easy edit/expand
     let termReportDefinitions = [];
+    let reportExamWeightSeed = {};
+
+    function isReportPercentOn() {
+        return $('#defPercentSwitch').is(':checked');
+    }
+
+    function updateReportPercentRemaining() {
+        const box = $('#reportPercentRemaining');
+        if (!isReportPercentOn()) {
+            box.addClass('d-none').text('');
+            $('.report-weight-wrap').addClass('d-none');
+            return;
+        }
+        $('.report-weight-wrap').removeClass('d-none');
+        let sum = 0;
+        $('.exam-id-checkbox:checked').each(function() {
+            const id = $(this).val();
+            const val = parseFloat($('.report-weight-input[data-exam-id="' + id + '"]').val());
+            if (!isNaN(val)) sum += val;
+        });
+        const remaining = Math.round((100 - sum) * 100) / 100;
+        if (Math.abs(remaining) < 0.05) {
+            box.removeClass('d-none alert-warning').addClass('alert-success')
+                .html('<i class="bi bi-check-circle"></i> Percent total is 100%. Ready to save.');
+        } else if (remaining > 0) {
+            box.removeClass('d-none alert-success').addClass('alert-warning')
+                .html('<i class="bi bi-exclamation-triangle"></i> Remaining <strong>' + remaining + '%</strong> — please select exam / assign %.');
+        } else {
+            box.removeClass('d-none alert-success').addClass('alert-warning')
+                .html('<i class="bi bi-exclamation-triangle"></i> Over by <strong>' + Math.abs(remaining) + '%</strong> — reduce some percents (must total 100%).');
+        }
+    }
 
     // Open Modal
     $('#btnDefineReport').on('click', function() {
@@ -10485,12 +10680,82 @@ $(document).ready(function() {
         resetReportForm();
         loadReportDefinitions();
         loadExamsForDefinition();
+        checkReportDefinitionExists();
     });
 
-    // Handle Year/Term change in modal
-    $('#defYear, #defTerm').on('change', function() {
+    // Handle Year/Term/Level change in modal
+    $('#defYear, #defTerm, #defLevelScope').on('change', function() {
         loadExamsForDefinition();
+        checkReportDefinitionExists();
     });
+
+    let reportDefConflict = false; // true when year/term/level already has a definition
+
+    function checkReportDefinitionExists() {
+        const year = $('#defYear').val();
+        const term = $('#defTerm').val();
+        const level = $('#defLevelScope').val() || 'all';
+        const excludeId = $('#reportDefID').val() || '';
+        const box = $('#reportDefStatusFeedback');
+        reportDefConflict = false;
+
+        if (!year || !term) {
+            box.html('');
+            return;
+        }
+
+        box.html('<span class="text-muted"><span class="spinner-border spinner-border-sm"></span> Checking definition...</span>');
+
+        $.ajax({
+            url: "{{ route('check_report_definition_exists') }}",
+            type: 'GET',
+            data: {
+                year: year,
+                term: term,
+                level_scope: level,
+                exclude_id: excludeId
+            },
+            success: function(response) {
+                if (!response.success) {
+                    box.html('');
+                    return;
+                }
+                if (response.exists) {
+                    reportDefConflict = true;
+                    box.html(
+                        '<span class="text-danger font-weight-bold"><i class="bi bi-exclamation-triangle-fill"></i> ' +
+                        (response.message || 'Report already defined for this term / year.') +
+                        ' Go to <strong>View/Filter Reports</strong> and use <strong>Edit</strong>. Cannot save a duplicate.</span>'
+                    );
+                } else if (excludeId) {
+                    box.html('<span class="text-info font-weight-bold"><i class="bi bi-pencil"></i> Editing existing report definition for this term / year.</span>');
+                } else {
+                    box.html('<span class="text-success"><i class="bi bi-check-circle"></i> No report defined yet for this term / year — available to define.</span>');
+                }
+            },
+            error: function() {
+                box.html('');
+            }
+        });
+    }
+
+    $('#defPercentSwitch').on('change', function() {
+        updateReportPercentRemaining();
+    });
+
+    $(document).on('change', '.exam-id-checkbox', function() {
+        const id = $(this).val();
+        const wrap = $('.report-weight-wrap[data-exam-id="' + id + '"]');
+        if ($(this).is(':checked') && isReportPercentOn()) {
+            wrap.removeClass('d-none');
+        } else if (!$(this).is(':checked')) {
+            wrap.find('input').val('');
+            wrap.addClass('d-none');
+        }
+        updateReportPercentRemaining();
+    });
+
+    $(document).on('input', '.report-weight-input', updateReportPercentRemaining);
 
     // Filter Apply
     $('#btnApplyReportFilter').on('click', loadReportDefinitions);
@@ -10505,6 +10770,12 @@ $(document).ready(function() {
         $('#reportDefinitionForm')[0].reset();
         $('#defYear').val($('#year').val() || new Date().getFullYear());
         $('#defTerm').val('first_term');
+        $('#defLevelScope').val('all');
+        $('#defPercentSwitch').prop('checked', false);
+        reportExamWeightSeed = {};
+        reportDefConflict = false;
+        $('#reportPercentRemaining').addClass('d-none').text('');
+        $('#reportDefStatusFeedback').html('');
         $('#btnCancelEditReport').addClass('d-none');
         $('#btnSaveReportDef').html('<i class="bi bi-save"></i> Save Definition');
     }
@@ -10528,14 +10799,24 @@ $(document).ready(function() {
                     let html = '';
                     response.data.forEach(function(exam) {
                         const isChecked = selectedIds.includes(String(exam.examID)) || selectedIds.includes(Number(exam.examID)) ? 'checked' : '';
+                        const seed = reportExamWeightSeed[String(exam.examID)] ?? reportExamWeightSeed[exam.examID] ?? '';
                         html += `
-                            <label class="exam-checkbox-item d-flex align-items-center mb-0">
-                                <input type="checkbox" name="exam_ids[]" value="${exam.examID}" class="mr-2 exam-id-checkbox" ${isChecked}>
-                                <span class="text-dark small font-weight-bold">${exam.exam_name}</span>
+                            <label class="exam-checkbox-item d-block mb-0">
+                                <div class="d-flex align-items-center">
+                                    <input type="checkbox" name="exam_ids[]" value="${exam.examID}" class="mr-2 exam-id-checkbox" ${isChecked}>
+                                    <span class="text-dark small font-weight-bold">${exam.exam_name}</span>
+                                </div>
+                                <div class="report-weight-wrap mt-2 ${(!isReportPercentOn() || !isChecked) ? 'd-none' : ''}" data-exam-id="${exam.examID}">
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" min="0" max="100" step="0.1" class="form-control report-weight-input" data-exam-id="${exam.examID}" value="${seed}" placeholder="%">
+                                        <div class="input-group-append"><span class="input-group-text">%</span></div>
+                                    </div>
+                                </div>
                             </label>
                         `;
                     });
                     container.html(html);
+                    updateReportPercentRemaining();
                 } else {
                     container.html('<div class="text-center py-4 text-muted">No exams found for this term.</div>');
                 }
@@ -10548,13 +10829,48 @@ $(document).ready(function() {
         e.preventDefault();
         
         const examIds = [];
+        const examWeights = {};
         $('.exam-id-checkbox:checked').each(function() {
-            examIds.push($(this).val());
+            const id = $(this).val();
+            examIds.push(id);
+            if (isReportPercentOn()) {
+                const w = parseFloat($('.report-weight-input[data-exam-id="' + id + '"]').val());
+                examWeights[id] = isNaN(w) ? null : w;
+            }
         });
         
         if (examIds.length === 0) {
             Swal.fire('Selection Required', 'Please choose at least one exam.', 'warning');
             return;
+        }
+
+        if (reportDefConflict) {
+            Swal.fire(
+                'Already Defined',
+                'Report for this term / year is already defined. Open View/Filter Reports and use Edit on that definition.',
+                'error'
+            );
+            return;
+        }
+
+        if (isReportPercentOn()) {
+            let sum = 0;
+            let missing = false;
+            examIds.forEach(function(id) {
+                if (examWeights[id] === null || examWeights[id] === undefined) missing = true;
+                else sum += examWeights[id];
+            });
+            if (missing) {
+                Swal.fire('Percent Required', 'Assign a percent for every selected exam.', 'warning');
+                return;
+            }
+            if (Math.abs(sum - 100) > 0.05) {
+                const rem = Math.round((100 - sum) * 100) / 100;
+                Swal.fire('Percent Total', rem > 0
+                    ? ('Remaining ' + rem + '% — please select exam / assign %.')
+                    : ('Percents must total 100% (currently ' + sum + '%).'), 'warning');
+                return;
+            }
         }
         
         const btn = $('#btnSaveReportDef');
@@ -10568,7 +10884,10 @@ $(document).ready(function() {
                 id: $('#reportDefID').val(),
                 year: $('#defYear').val(),
                 term: $('#defTerm').val(),
-                exam_ids: examIds
+                level_scope: $('#defLevelScope').val() || 'all',
+                use_percent_division: isReportPercentOn() ? 1 : 0,
+                exam_ids: examIds,
+                exam_weights: examWeights
             },
             success: function(response) {
                 if (response.success) {
@@ -10586,13 +10905,19 @@ $(document).ready(function() {
         });
     });
 
+    function levelScopeLabel(scope) {
+        if (scope === 'a_level') return 'A Level';
+        if (scope === 'o_level') return 'O Level';
+        return 'All';
+    }
+
     // Load List
     function loadReportDefinitions() {
         const tbody = $('#reportDefinitionsList');
         const filterYear = $('#filterReportYear').val();
         const filterTerm = $('#filterReportTerm').val();
         
-        tbody.html('<tr><td colspan="5" class="text-center py-3"><div class="spinner-border spinner-border-sm"></div> Loading...</td></tr>');
+        tbody.html('<tr><td colspan="6" class="text-center py-3"><div class="spinner-border spinner-border-sm"></div> Loading...</td></tr>');
 
         $.ajax({
             url: "{{ route('get_report_definitions') }}",
@@ -10606,6 +10931,7 @@ $(document).ready(function() {
                         const termLabel = def.term === 'first_term' ? 'First Term' : 'Second Term';
                         const count = Array.isArray(def.exam_ids) ? def.exam_ids.length : 0;
                         const examNamesStr = (def.exam_names || []).join(', ');
+                        const pctBadge = def.use_percent_division ? '<span class="badge badge-warning ml-1">%</span>' : '';
                         
                         html += `
                             <tr>
@@ -10616,6 +10942,7 @@ $(document).ready(function() {
                                 </td>
                                 <td class="font-weight-bold">${def.year}</td>
                                 <td><span class="badge badge-info">${termLabel}</span></td>
+                                <td><span class="badge badge-secondary">${levelScopeLabel(def.level_scope)}</span>${pctBadge}</td>
                                 <td><span class="badge badge-light border">${count} Exams</span></td>
                                 <td>
                                     <div class="btn-group">
@@ -10629,7 +10956,7 @@ $(document).ready(function() {
                                 </td>
                             </tr>
                             <tr class="def-details d-none bg-light" id="def-details-${index}">
-                                <td colspan="5">
+                                <td colspan="6">
                                     <div class="p-2 small">
                                         <strong>Selected Exams:</strong><br>
                                         <span class="text-muted italic">${examNamesStr || 'No names found'}</span>
@@ -10640,7 +10967,7 @@ $(document).ready(function() {
                     });
                     tbody.html(html);
                 } else {
-                    tbody.html('<tr><td colspan="5" class="text-center py-3 text-muted">No report definitions found.</td></tr>');
+                    tbody.html('<tr><td colspan="6" class="text-center py-3 text-muted">No report definitions found.</td></tr>');
                 }
             }
         });
@@ -10669,11 +10996,15 @@ $(document).ready(function() {
         $('#reportDefID').val(def.id);
         $('#defYear').val(def.year);
         $('#defTerm').val(def.term);
+        $('#defLevelScope').val(def.level_scope || 'all');
+        $('#defPercentSwitch').prop('checked', !!def.use_percent_division);
+        reportExamWeightSeed = def.exam_weights || {};
         $('#btnCancelEditReport').removeClass('d-none');
         $('#btnSaveReportDef').html('<i class="bi bi-check-circle"></i> Update Definition');
         
         loadExamsForDefinition(def.exam_ids || []);
         $('#define-report-tab').tab('show');
+        checkReportDefinitionExists();
     });
 
     // Delete
@@ -10711,9 +11042,50 @@ $(document).ready(function() {
     // CA Definition Module
     // ==========================================
 
+    let caTestWeightSeed = {};
+
+    function isCaPercentOn() {
+        return $('#caPercentSwitch').is(':checked');
+    }
+
+    function updateCaPercentUI() {
+        const on = isCaPercentOn();
+        $('#caMainExamWeightRow').toggleClass('d-none', !on);
+        $('.ca-test-weight-wrap').toggleClass('d-none', !on);
+        const box = $('#caPercentRemaining');
+        if (!on) {
+            box.addClass('d-none').text('');
+            return;
+        }
+        let sum = 0;
+        const mainW = parseFloat($('#caMainExamWeight').val());
+        if (!isNaN(mainW)) sum += mainW;
+        $('.ca-test-checkbox:checked').each(function() {
+            const id = $(this).val();
+            const w = parseFloat($('.ca-test-weight-input[data-exam-id="' + id + '"]').val());
+            if (!isNaN(w)) sum += w;
+        });
+        const remaining = Math.round((100 - sum) * 100) / 100;
+        if (Math.abs(remaining) < 0.05) {
+            box.removeClass('d-none alert-warning').addClass('alert-success')
+                .html('<i class="bi bi-check-circle"></i> Percent total is 100%. Ready to save.');
+        } else if (remaining > 0) {
+            box.removeClass('d-none alert-success').addClass('alert-warning')
+                .html('<i class="bi bi-exclamation-triangle"></i> Remaining <strong>' + remaining + '%</strong> — please select exam / assign %.');
+        } else {
+            box.removeClass('d-none alert-success').addClass('alert-warning')
+                .html('<i class="bi bi-exclamation-triangle"></i> Over by <strong>' + Math.abs(remaining) + '%</strong> — must total 100%.');
+        }
+    }
+
     // Open Modal
     $('#btnDefineCA').on('click', function() {
         $('#caDefinitionModal').modal('show');
+        $('#caPercentSwitch').prop('checked', false);
+        caTestWeightSeed = {};
+        $('#caMainExamWeight').val('');
+        $('#caLevelScope').val('all');
+        updateCaPercentUI();
         loadSchoolExamsForCa();
         loadCaDefinitions();
     });
@@ -10721,6 +11093,12 @@ $(document).ready(function() {
     // Handle Year/Term change
     $('#caYear, #caTerm').on('change', function() {
         loadSchoolExamsForCa();
+    });
+
+    $('#caPercentSwitch').on('change', updateCaPercentUI);
+    $(document).on('input', '#caMainExamWeight, .ca-test-weight-input', updateCaPercentUI);
+    $(document).on('change', '.ca-test-checkbox', function() {
+        updateCaPercentUI();
     });
 
     // Load school exams
@@ -10767,15 +11145,20 @@ $(document).ready(function() {
         $.ajax({
             url: "{{ route('check_exam_ca_exists') }}",
             type: 'GET',
-            data: { examID: examID },
+            data: { examID: examID, level_scope: $('#caLevelScope').val() || 'all' },
             success: function(response) {
                 if (response.success && response.exists) {
-                    $('#caStatusFeedback').html('<span class="text-danger font-weight-bold"><i class="bi bi-exclamation-triangle-fill"></i> This exam already defined CA. Saving will overwrite it.</span>');
+                    $('#caStatusFeedback').html('<span class="text-danger font-weight-bold"><i class="bi bi-exclamation-triangle-fill"></i> This exam already defined CA for this level. Saving will overwrite it.</span>');
                 } else {
                     $('#caStatusFeedback').html('<span class="text-success small"><i class="bi bi-check-circle"></i> Exam available for CA definition</span>');
                 }
             }
         });
+
+        // Prefill main exam weight if editing
+        if (caTestWeightSeed[String(examID)] != null) {
+            $('#caMainExamWeight').val(caTestWeightSeed[String(examID)]);
+        }
 
         // 2. Load Tests for the term
         loadTestsForCa();
@@ -10797,11 +11180,18 @@ $(document).ready(function() {
                 if (response.success && response.data.length > 0) {
                     let html = '';
                     response.data.forEach(function(test) {
+                        const seed = caTestWeightSeed[String(test.examID)] ?? '';
                         html += `
-                            <label class="exam-checkbox-item d-flex align-items-center mb-0 border-info-light">
-                                <input type="checkbox" name="test_ids[]" value="${test.examID}" class="mr-2 ca-test-checkbox">
-                                <div>
+                            <label class="exam-checkbox-item d-block mb-0 border-info-light">
+                                <div class="d-flex align-items-center">
+                                    <input type="checkbox" name="test_ids[]" value="${test.examID}" class="mr-2 ca-test-checkbox">
                                     <div class="text-dark small font-weight-bold">${test.exam_name}</div>
+                                </div>
+                                <div class="ca-test-weight-wrap mt-2 ${isCaPercentOn() ? '' : 'd-none'}">
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" min="0" max="100" step="0.1" class="form-control ca-test-weight-input" data-exam-id="${test.examID}" value="${seed}" placeholder="%">
+                                        <div class="input-group-append"><span class="input-group-text">%</span></div>
+                                    </div>
                                 </div>
                             </label>
                         `;
@@ -10815,6 +11205,7 @@ $(document).ready(function() {
                             }
                         });
                     }
+                    updateCaPercentUI();
                 } else {
                     container.html('<div class="col-12 text-center py-3 text-muted">No tests found for this term.</div>');
                 }
@@ -10827,13 +11218,43 @@ $(document).ready(function() {
         e.preventDefault();
         
         const testIds = [];
+        const examWeights = {};
         $('.ca-test-checkbox:checked').each(function() {
-            testIds.push($(this).val());
+            const id = $(this).val();
+            testIds.push(id);
+            if (isCaPercentOn()) {
+                const w = parseFloat($('.ca-test-weight-input[data-exam-id="' + id + '"]').val());
+                examWeights[id] = isNaN(w) ? null : w;
+            }
         });
         
         if (testIds.length === 0) {
             Swal.fire('Required', 'Please choose at least one test to include in CA.', 'warning');
             return;
+        }
+
+        const mainExamId = $('#caMainExam').val();
+        if (isCaPercentOn()) {
+            const mainW = parseFloat($('#caMainExamWeight').val());
+            examWeights[mainExamId] = isNaN(mainW) ? null : mainW;
+            let sum = 0;
+            let missing = examWeights[mainExamId] === null;
+            if (!missing) sum += examWeights[mainExamId];
+            testIds.forEach(function(id) {
+                if (examWeights[id] === null || examWeights[id] === undefined) missing = true;
+                else sum += examWeights[id];
+            });
+            if (missing) {
+                Swal.fire('Percent Required', 'Assign % for the main exam and every selected test.', 'warning');
+                return;
+            }
+            if (Math.abs(sum - 100) > 0.05) {
+                const rem = Math.round((100 - sum) * 100) / 100;
+                Swal.fire('Percent Total', rem > 0
+                    ? ('Remaining ' + rem + '% — please select exam / assign %.')
+                    : ('Percents must total 100% (currently ' + sum + '%).'), 'warning');
+                return;
+            }
         }
         
         const btn = $('#btnSaveCaDef');
@@ -10847,8 +11268,11 @@ $(document).ready(function() {
                 _token: "{{ csrf_token() }}",
                 year: $('#caYear').val(),
                 term: $('#caTerm').val(),
-                examID: $('#caMainExam').val(),
-                test_ids: testIds
+                examID: mainExamId,
+                test_ids: testIds,
+                level_scope: $('#caLevelScope').val() || 'all',
+                use_percent_division: isCaPercentOn() ? 1 : 0,
+                exam_weights: examWeights
             },
             success: function(response) {
                 if (response.success) {
@@ -10883,11 +11307,14 @@ $(document).ready(function() {
                     response.data.forEach(function(def) {
                         const testList = def.test_names ? def.test_names.join(', ') : 'None';
                         const defJson = encodeURIComponent(JSON.stringify(def));
+                        const level = levelScopeLabel(def.level_scope);
+                        const pct = def.use_percent_division ? ' · %' : '';
+                        const mainLabel = def.main_exam_label || (def.main_exam ? def.main_exam.exam_name : 'N/A');
                         html += `
                             <tr>
                                 <td>
-                                    <div class="font-weight-bold">${def.main_exam.exam_name}</div>
-                                    <small class="text-muted">${def.year} - ${def.term === 'first_term' ? 'Term 1' : 'Term 2'}</small>
+                                    <div class="font-weight-bold">${mainLabel}</div>
+                                    <small class="text-muted">${def.year} - ${def.term === 'first_term' ? 'Term 1' : 'Term 2'} · ${level}${pct}</small>
                                 </td>
                                 <td><span class="small">${testList}</span></td>
                                 <td class="text-center">
@@ -10922,11 +11349,17 @@ $(document).ready(function() {
         // Populate specific year and term from definition
         $('#caYear').val(def.year);
         $('#caTerm').val(def.term);
+        $('#caLevelScope').val(def.level_scope || 'all');
+        $('#caPercentSwitch').prop('checked', !!def.use_percent_division);
+        caTestWeightSeed = def.exam_weights || {};
         
         $('#caStatusFeedback').html('<span class="text-info font-weight-bold"><i class="bi bi-pencil"></i> Editing CA definition...</span>');
         
         // Trigger select initialization but set exam once loaded
         loadSchoolExamsForCa(def.examID, function() {
+            if (caTestWeightSeed[String(def.examID)] != null) {
+                $('#caMainExamWeight').val(caTestWeightSeed[String(def.examID)]);
+            }
             // Callback: load matching tests and auto-check those previously assigned
             const testIds = def.test_ids.map(id => parseInt(id, 10));
             loadTestsForCa(testIds);

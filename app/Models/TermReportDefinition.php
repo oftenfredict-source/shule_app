@@ -16,11 +16,16 @@ class TermReportDefinition extends Model
         'year',
         'term',
         'exam_ids',
+        'use_percent_division',
+        'exam_weights',
+        'level_scope',
         'created_by',
     ];
 
     protected $casts = [
         'exam_ids' => 'array',
+        'exam_weights' => 'array',
+        'use_percent_division' => 'boolean',
         'year' => 'integer',
     ];
 

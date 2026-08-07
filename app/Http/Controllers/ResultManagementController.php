@@ -48,6 +48,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 
 class ResultManagementController extends Controller
 {
@@ -754,16 +755,33 @@ class ResultManagementController extends Controller
 
             // Removed view permissions validation as requested
 
+            // Get class name and classID early (needed for A/O level definition lookup)
+            $className = "";
+            $classID = null;
+            if ($student->subclass && $student->subclass->class) {
+                $className = $student->subclass->class->class_name ?? "";
+                $classID = $student->subclass->class->classID ?? null;
+            } elseif ($student->oldSubclass && $student->oldSubclass->class) {
+                $className = $student->oldSubclass->class->class_name ?? "";
+                $classID = $student->oldSubclass->class->classID ?? null;
+            }
+
             // Get results for this student
+            $reportDefinition = null;
+            $reportUsePercent = false;
+            $reportExamWeights = [];
             if ($typeFilterForDetails === "report") {
                 // For term report: get only exams defined in TermReportDefinition if available
-                $reportDefinition = TermReportDefinition::where(
-                    "schoolID",
+                $reportDefinition = $this->resolveTermReportDefinition(
                     $schoolID,
-                )
-                    ->where("year", $yearFilter)
-                    ->where("term", $termFilter)
-                    ->first();
+                    $yearFilter,
+                    $termFilter,
+                    $className,
+                );
+                $reportUsePercent = (bool) ($reportDefinition?->use_percent_division ?? false);
+                $reportExamWeights = is_array($reportDefinition?->exam_weights ?? null)
+                    ? $reportDefinition->exam_weights
+                    : [];
 
                 $examinationsQuery = Examination::where("schoolID", $schoolID)
                     ->where("year", $yearFilter)
@@ -807,38 +825,20 @@ class ResultManagementController extends Controller
                 $electedClassSubjectIds,
             );
 
-            // Get class name and classID
-            $className = "";
-            $classID = null;
-            if ($student->subclass && $student->subclass->class) {
-                $className = $student->subclass->class->class_name ?? "";
-                $classID = $student->subclass->class->classID ?? null;
-            } elseif ($student->oldSubclass && $student->oldSubclass->class) {
-                $className = $student->oldSubclass->class->class_name ?? "";
-                $classID = $student->oldSubclass->class->classID ?? null;
-            }
-
             // Process results differently for exam vs term report
             $examsData = []; // Initialize outside if block for use in response
             $caDefinition = null;
             if ($typeFilterForDetails === "exam" && $examFilter) {
-                $caDefinition = CaDefinition::where("examID", $examFilter)
-                    ->where("schoolID", $schoolID)
-                    ->first();
+                $caDefinition = $this->resolveCaDefinition(
+                    $schoolID,
+                    $examFilter,
+                    $className,
+                );
             }
 
             if ($typeFilterForDetails === "report") {
                 // For term report: group by subject and collect exam results
                 $subjectData = [];
-
-                // Check for report definition to filter exams
-                $reportDefinition = TermReportDefinition::where(
-                    "schoolID",
-                    $schoolID,
-                )
-                    ->where("year", $yearFilter)
-                    ->where("term", $termFilter)
-                    ->first();
 
                 // Get only exams for the term that are in the definition (if exists)
                 $examinationsQuery = Examination::where("schoolID", $schoolID)
@@ -864,8 +864,18 @@ class ResultManagementController extends Controller
                 foreach ($examinations as $exam) {
                     $examsData[$exam->examID] = [
                         "examID" => $exam->examID,
-                        "exam_name" => $exam->exam_name,
+                        "exam_name" => $this->formatExamLabelWithWeight(
+                            $exam->exam_name,
+                            $exam->examID,
+                            $reportExamWeights,
+                            $reportUsePercent,
+                        ),
                         "start_date" => $exam->start_date,
+                        "weight_percent" => $reportUsePercent
+                            ? ($reportExamWeights[$exam->examID] ??
+                                $reportExamWeights[(string) $exam->examID] ??
+                                null)
+                            : null,
                     ];
                 }
 
@@ -1019,6 +1029,8 @@ class ResultManagementController extends Controller
                         $data,
                         $examinations,
                         $caDefinitionsByExam,
+                        $reportUsePercent,
+                        $reportExamWeights,
                     );
                     $subjectIncomplete = $slotCollect["is_incomplete"];
 
@@ -1229,6 +1241,10 @@ class ResultManagementController extends Controller
                     [$examFilter],
                     $caDefinition->test_ids,
                 );
+                $useCaPercent = (bool) ($caDefinition->use_percent_division ?? false);
+                $caWeights = is_array($caDefinition->exam_weights ?? null)
+                    ? $caDefinition->exam_weights
+                    : [];
                 $involvedExams = Examination::whereIn(
                     "examID",
                     $allInvolvedExams,
@@ -1285,6 +1301,7 @@ class ResultManagementController extends Controller
                     $subjectData[$subjectID] = [
                         "subject_name" => $subjectName,
                         "exams" => [],
+                        "marks_by_exam" => [],
                         "marks_sum" => 0,
                         "marks_count" => 0,
                         "is_duo" => (bool) ($subject->is_duo ?? false),
@@ -1316,12 +1333,19 @@ class ResultManagementController extends Controller
                         if ($examModel && $examModel->exam_category === "test") {
                             $examName .= " (CA)";
                         }
+                        $examName = $this->formatExamLabelWithWeight(
+                            $examName,
+                            $examID,
+                            $caWeights,
+                            $useCaPercent,
+                        );
                         $subjectData[$subjectID]["exams"][] = [
                             "marks" => $marks,
                             "grade" => $gradePoints["grade"],
                             "exam_name" => $examName,
                             "papers" => $entry["papers"] ?? [],
                         ];
+                        $subjectData[$subjectID]["marks_by_exam"][$examID] = $marks;
                         $subjectData[$subjectID]["marks_sum"] += $marks;
                         $subjectData[$subjectID]["marks_count"]++;
                     }
@@ -1336,11 +1360,21 @@ class ResultManagementController extends Controller
                     if ($data["marks_count"] <= 0) {
                         continue;
                     }
-                    $divisor =
-                        count($allInvolvedExams) > 0
-                            ? count($allInvolvedExams)
-                            : $data["marks_count"];
-                    $average = round($data["marks_sum"] / max(1, $divisor), 2);
+                    if ($useCaPercent && !empty($caWeights)) {
+                        $average = round(
+                            $this->computePercentWeightedTotal(
+                                $data["marks_by_exam"],
+                                $caWeights,
+                            ),
+                            2,
+                        );
+                    } else {
+                        $divisor =
+                            count($allInvolvedExams) > 0
+                                ? count($allInvolvedExams)
+                                : $data["marks_count"];
+                        $average = round($data["marks_sum"] / max(1, $divisor), 2);
+                    }
                     if ($schoolType === "Secondary") {
                         $overallGrade = $this->getSecondaryHardcodedGrade(
                             $average,
@@ -1469,6 +1503,8 @@ class ResultManagementController extends Controller
                     $className,
                     $studentIDFilter,
                     $electedClassSubjectIds,
+                    $reportUsePercent,
+                    $reportExamWeights,
                 );
                 $allSubjectGrades = $this->extractSubjectGradesFromPointEntries(
                     $subjectPoints,
@@ -1608,9 +1644,11 @@ class ResultManagementController extends Controller
                     $examFilter &&
                     !is_array($examFilter)
                 ) {
-                    $caDef = CaDefinition::where("examID", $examFilter)
-                        ->where("schoolID", $schoolID)
-                        ->first();
+                    $caDef = $this->resolveCaDefinition(
+                        $schoolID,
+                        $examFilter,
+                        null,
+                    );
                     if ($caDef && !empty($caDef->test_ids)) {
                         $caExamIDs = array_merge(
                             [$examFilter],
@@ -2255,9 +2293,16 @@ class ResultManagementController extends Controller
                 // Handle CA Definitions for exam filtering
                 $caExamIDs = $examFilter;
                 if ($examFilter && !is_array($examFilter)) {
-                    $caDef = CaDefinition::where("examID", $examFilter)
-                        ->where("schoolID", $schoolID)
-                        ->first();
+                    $filterClassName = null;
+                    if ($classFilter) {
+                        $fc = ClassModel::find($classFilter);
+                        $filterClassName = $fc->class_name ?? null;
+                    }
+                    $caDef = $this->resolveCaDefinition(
+                        $schoolID,
+                        $examFilter,
+                        $filterClassName,
+                    );
                     if ($caDef && !empty($caDef->test_ids)) {
                         $caExamIDs = array_merge(
                             [$examFilter],
@@ -2413,6 +2458,11 @@ class ResultManagementController extends Controller
             "school" => $school,
             "schoolType" => $schoolType,
             "isALevelView" => $isALevelView,
+            "schoolHasALevel" =>
+                $schoolType === "Secondary" &&
+                app(SelectedAcademicYearService::class)->schoolHasALevelClasses(
+                    (int) $schoolID,
+                ),
             "students" => $students,
             "resultsData" => $resultsData,
             "classes" => $classes,
@@ -4118,13 +4168,20 @@ class ResultManagementController extends Controller
 
             $examinations = $examinationsQuery->orderBy("start_date")->get();
 
+            // Class name for this student (A/O CA definition)
+            $studentClassName =
+                $student->subclass->class->class_name ??
+                ($student->oldSubclass->class->class_name ?? null);
+
             // Check if selected exam has CA definition
             $caDefinition = null;
             if ($examID) {
                 $checkID = is_array($examID) ? $examID[0] : $examID;
-                $caDefinition = CaDefinition::where("examID", $checkID)
-                    ->where("schoolID", $schoolID)
-                    ->first();
+                $caDefinition = $this->resolveCaDefinition(
+                    $schoolID,
+                    $checkID,
+                    $studentClassName,
+                );
             }
 
             // If CA is defined and we are doing a combined view, aggregate ALL involved exams into one pass
@@ -4152,19 +4209,48 @@ class ResultManagementController extends Controller
                 );
 
                 if (!$results->isEmpty()) {
+                    $useCaPercent = (bool) ($caDefinition->use_percent_division ?? false);
+                    $caWeights = is_array($caDefinition->exam_weights ?? null)
+                        ? $caDefinition->exam_weights
+                        : [];
                     $involvedCount = count($examID);
                     $aggregatedResults = $results
                         ->groupBy("class_subjectID")
-                        ->map(function ($group) use ($involvedCount) {
-                            $marksSum = $group->sum(function ($r) {
-                                return $r->marks !== null && $r->marks !== ""
-                                    ? (float) $r->marks
-                                    : 0;
-                            });
-                            $avg =
-                                $involvedCount > 0
-                                    ? $marksSum / $involvedCount
-                                    : 0;
+                        ->map(function ($group) use (
+                            $involvedCount,
+                            $useCaPercent,
+                            $caWeights,
+                            $examID,
+                        ) {
+                            if ($useCaPercent && !empty($caWeights)) {
+                                $marksByExam = [];
+                                foreach ($group as $r) {
+                                    $marksByExam[$r->examID] =
+                                        $r->marks !== null && $r->marks !== ""
+                                            ? (float) $r->marks
+                                            : null;
+                                }
+                                // Ensure all involved exam keys exist
+                                foreach ($examID as $invId) {
+                                    if (!array_key_exists($invId, $marksByExam)) {
+                                        $marksByExam[$invId] = null;
+                                    }
+                                }
+                                $avg = $this->computePercentWeightedTotal(
+                                    $marksByExam,
+                                    $caWeights,
+                                );
+                            } else {
+                                $marksSum = $group->sum(function ($r) {
+                                    return $r->marks !== null && $r->marks !== ""
+                                        ? (float) $r->marks
+                                        : 0;
+                                });
+                                $avg =
+                                    $involvedCount > 0
+                                        ? $marksSum / $involvedCount
+                                        : 0;
+                            }
 
                             $first = $group->first();
                             $first->marks = $avg;
@@ -4222,18 +4308,46 @@ class ResultManagementController extends Controller
                     }
 
                     $involvedCount = count($allInvolvedExams);
+                    $useCaPercent = (bool) ($caDefinition->use_percent_division ?? false);
+                    $caWeights = is_array($caDefinition->exam_weights ?? null)
+                        ? $caDefinition->exam_weights
+                        : [];
                     $results = $results
                         ->groupBy("class_subjectID")
-                        ->map(function ($group) use ($involvedCount) {
-                            $marksSum = $group->sum(function ($r) {
-                                return $r->marks !== null && $r->marks !== ""
-                                    ? (float) $r->marks
-                                    : 0;
-                            });
-                            $avg =
-                                $involvedCount > 0
-                                    ? $marksSum / $involvedCount
-                                    : 0;
+                        ->map(function ($group) use (
+                            $involvedCount,
+                            $useCaPercent,
+                            $caWeights,
+                            $allInvolvedExams,
+                        ) {
+                            if ($useCaPercent && !empty($caWeights)) {
+                                $marksByExam = [];
+                                foreach ($group as $r) {
+                                    $marksByExam[$r->examID] =
+                                        $r->marks !== null && $r->marks !== ""
+                                            ? (float) $r->marks
+                                            : null;
+                                }
+                                foreach ($allInvolvedExams as $invId) {
+                                    if (!array_key_exists($invId, $marksByExam)) {
+                                        $marksByExam[$invId] = null;
+                                    }
+                                }
+                                $avg = $this->computePercentWeightedTotal(
+                                    $marksByExam,
+                                    $caWeights,
+                                );
+                            } else {
+                                $marksSum = $group->sum(function ($r) {
+                                    return $r->marks !== null && $r->marks !== ""
+                                        ? (float) $r->marks
+                                        : 0;
+                                });
+                                $avg =
+                                    $involvedCount > 0
+                                        ? $marksSum / $involvedCount
+                                        : 0;
+                            }
 
                             $first = $group->first();
                             $first->marks = $avg;
@@ -4538,16 +4652,26 @@ class ResultManagementController extends Controller
             $schoolID = Session::get("schoolID");
         }
 
-        // Check if there's a custom report definition for this term
-        $definitionYear = is_array($year) ? ($year[0] ?? null) : $year;
-        $reportDefinitionQuery = TermReportDefinition::where("schoolID", $schoolID)
-            ->where("term", $term);
-        if (is_array($year) && count($year) > 0) {
-            $reportDefinitionQuery->whereIn("year", array_map("intval", $year));
-        } elseif ($definitionYear) {
-            $reportDefinitionQuery->where("year", $definitionYear);
+        // Resolve report definition by class level (A/O/all). Hint from first student.
+        $hintClassName = null;
+        foreach ($students as $hintStudent) {
+            $hintClassName =
+                $hintStudent->subclass->class->class_name ??
+                ($hintStudent->oldSubclass->class->class_name ?? null);
+            if ($hintClassName) {
+                break;
+            }
         }
-        $reportDefinition = $reportDefinitionQuery->first();
+        $reportDefinition = $this->resolveTermReportDefinition(
+            $schoolID,
+            $year,
+            $term,
+            $hintClassName,
+        );
+        $reportUsePercent = (bool) ($reportDefinition?->use_percent_division ?? false);
+        $reportExamWeights = is_array($reportDefinition?->exam_weights ?? null)
+            ? $reportDefinition->exam_weights
+            : [];
 
         // OPTIMIZATION: Query examinations by academic year (header)
         $examinationsQuery = Examination::where("schoolID", $schoolID)->where(
@@ -4576,8 +4700,7 @@ class ResultManagementController extends Controller
 
         /**
          * Term report columns = all selected exams in the definition.
-         * Average each subject across those columns (no CA re-bundling).
-         * CA tests that are also report columns stay as their own columns.
+         * Equal average OR percent-weighted total when use_percent_division is on.
          */
         $reportExaminations = $endedExaminations->values();
         $reportExamIDs = $reportExaminations->pluck("examID")->toArray();
@@ -4722,6 +4845,12 @@ class ResultManagementController extends Controller
 
                     $allExamResults[] = [
                         "exam" => $exam,
+                        "exam_label" => $this->formatExamLabelWithWeight(
+                            $exam->exam_name,
+                            $exam->examID,
+                            $reportExamWeights,
+                            $reportUsePercent,
+                        ),
                         "total_marks" => $examTotalMarks,
                         "subject_count" => $examSubjectCount,
                         "average" => $examAverage,
@@ -4754,6 +4883,8 @@ class ResultManagementController extends Controller
                     $className,
                     $student->studentID,
                     $electedClassSubjectIds,
+                    $reportUsePercent,
+                    $reportExamWeights,
                 );
 
                 $subjectSummaries = $this->buildTermReportSubjectSummaries(
@@ -4765,6 +4896,8 @@ class ResultManagementController extends Controller
                     $student->studentID,
                     $electedClassSubjectIds,
                     $classID,
+                    $reportUsePercent,
+                    $reportExamWeights,
                 );
 
                 $scoredSubjectAverages = [];
@@ -4902,7 +5035,8 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Excel STRM column: A-Level → subclass only; O-Level → stream_code (main + sub).
+     * Board STREAM/COMBIE: A-Level → combination name; O-Level → subclass only (A, B, C).
+     * Never show main class (e.g. FORM THREE) — that is already on the filter / title.
      */
     private function resolveBoardStreamLabel($student, ?string $fallbackClassName = null): string
     {
@@ -4911,11 +5045,22 @@ class ResultManagementController extends Controller
             return "";
         }
 
-        // Always prefer the student's real main-class name (not board title which may be "A")
-        $className =
-            $subclass->class->class_name ??
-            ($student->oldSubclass->class->class_name ??
-                ($fallbackClassName ?? ""));
+        if (
+            !$subclass->relationLoaded("class") &&
+            method_exists($subclass, "class")
+        ) {
+            try {
+                $subclass->load("class");
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
+
+        $className = trim(
+            (string) ($subclass->class->class_name ??
+                ($student->oldSubclass->class->class_name ??
+                    ($fallbackClassName ?? ""))),
+        );
 
         if ($this->isALevelClassName($className)) {
             $name = trim((string) ($subclass->subclass_name ?? ""));
@@ -4924,13 +5069,77 @@ class ResultManagementController extends Controller
                 : trim((string) ($subclass->stream_code ?? ""));
         }
 
-        $code = trim((string) ($subclass->stream_code ?? ""));
-        if ($code !== "") {
-            return $code;
+        return $this->extractOLevelSubclassOnly($subclass, $className);
+    }
+
+    /**
+     * O-Level / Primary stream cell: subclass letter only (A, B, C).
+     * Strips main class from values like "FORM THREE A" / stream_code.
+     */
+    private function extractOLevelSubclassOnly($subclass, string $className): string
+    {
+        // Words that are class ordinals — never treat as stream letter
+        $blocked = [
+            "ONE",
+            "TWO",
+            "THREE",
+            "FOUR",
+            "FIVE",
+            "SIX",
+            "SEVEN",
+            "FORM",
+            "STANDARD",
+            "STD",
+            "GRADE",
+        ];
+
+        $candidates = [
+            trim((string) ($subclass->subclass_name ?? "")),
+            trim((string) ($subclass->stream_code ?? "")),
+        ];
+
+        foreach ($candidates as $raw) {
+            if ($raw === "") {
+                continue;
+            }
+            // Already just A / B / C
+            if (
+                preg_match('/^[A-Za-z0-9]{1,3}$/', $raw) &&
+                !in_array(strtoupper($raw), $blocked, true)
+            ) {
+                return strtoupper($raw);
+            }
         }
 
-        $sub = trim((string) ($subclass->subclass_name ?? ""));
-        return trim($className . ($sub !== "" ? " " . $sub : ""));
+        $classNorm = strtoupper(preg_replace('/[\s\-_]+/', " ", $className));
+        foreach ($candidates as $raw) {
+            if ($raw === "") {
+                continue;
+            }
+            $cand = strtoupper(preg_replace('/[\s\-_]+/', " ", $raw));
+
+            // "FORM THREE A" with class "FORM THREE" → "A"
+            if ($classNorm !== "" && str_starts_with($cand, $classNorm)) {
+                $rest = trim(substr($cand, strlen($classNorm)), " -_\t");
+                if (
+                    $rest !== "" &&
+                    preg_match('/^[A-Z0-9]{1,3}$/', $rest) &&
+                    !in_array($rest, $blocked, true)
+                ) {
+                    return $rest;
+                }
+            }
+
+            // Trailing token that is a real stream letter (not THREE/FOUR/…)
+            if (preg_match('/\b([A-Z0-9]{1,3})$/', $cand, $m)) {
+                $tok = $m[1];
+                if (!in_array($tok, $blocked, true)) {
+                    return $tok;
+                }
+            }
+        }
+
+        return "";
     }
 
     /**
@@ -5131,6 +5340,198 @@ class ResultManagementController extends Controller
     }
 
     /**
+     * Normalize level_scope to all | a_level | o_level.
+     * Legacy empty/null → all (applies to every class).
+     */
+    private function normalizeLevelScope(?string $scope): string
+    {
+        $scope = strtolower(trim((string) $scope));
+        if (in_array($scope, ["a_level", "o_level", "all"], true)) {
+            return $scope;
+        }
+
+        return "all";
+    }
+
+    /**
+     * Preferred definition scope for a class name.
+     */
+    private function levelScopeForClassName(?string $className): string
+    {
+        if ($this->isALevelClassName($className)) {
+            return "a_level";
+        }
+
+        return "o_level";
+    }
+
+    /**
+     * Pick term-report definition for school/term/year + class.
+     * Prefer exact level (a_level/o_level), else fall back to "all" / legacy.
+     */
+    private function resolveTermReportDefinition(
+        $schoolID,
+        $year,
+        string $term,
+        ?string $className = null,
+    ): ?TermReportDefinition {
+        $query = TermReportDefinition::where("schoolID", $schoolID)->where(
+            "term",
+            $term,
+        );
+        if (is_array($year) && count($year) > 0) {
+            $query->whereIn("year", array_map("intval", $year));
+        } elseif ($year) {
+            $query->where("year", is_array($year) ? ($year[0] ?? null) : $year);
+        }
+
+        $defs = $query->get();
+        if ($defs->isEmpty()) {
+            return null;
+        }
+
+        $preferred = $className
+            ? $this->levelScopeForClassName($className)
+            : "all";
+
+        $match = $defs->first(
+            fn($d) => $this->normalizeLevelScope($d->level_scope ?? null) ===
+                $preferred,
+        );
+        if ($match) {
+            return $match;
+        }
+
+        return $defs->first(
+            fn($d) => $this->normalizeLevelScope($d->level_scope ?? null) ===
+                "all",
+        ) ?:
+            $defs->first();
+    }
+
+    /**
+     * Pick CA definition for a main exam + class level.
+     */
+    private function resolveCaDefinition(
+        $schoolID,
+        $examID,
+        ?string $className = null,
+    ): ?CaDefinition {
+        $defs = CaDefinition::where("schoolID", $schoolID)
+            ->where("examID", $examID)
+            ->get();
+        if ($defs->isEmpty()) {
+            return null;
+        }
+
+        $preferred = $className
+            ? $this->levelScopeForClassName($className)
+            : "all";
+
+        $match = $defs->first(
+            fn($d) => $this->normalizeLevelScope($d->level_scope ?? null) ===
+                $preferred,
+        );
+        if ($match) {
+            return $match;
+        }
+
+        return $defs->first(
+            fn($d) => $this->normalizeLevelScope($d->level_scope ?? null) ===
+                "all",
+        ) ?:
+            $defs->first();
+    }
+
+    /**
+     * Weighted total: sum(marks * percent/100). Missing marks count as 0.
+     *
+     * @param  array<int|string, float|null>  $marksByExamId
+     * @param  array<int|string, float|int>  $weights  examID => percent (0–100)
+     */
+    private function computePercentWeightedTotal(
+        array $marksByExamId,
+        array $weights,
+    ): float {
+        $total = 0.0;
+        foreach ($weights as $examID => $percent) {
+            $pct = (float) $percent;
+            if ($pct <= 0) {
+                continue;
+            }
+            $marks = $marksByExamId[$examID] ?? ($marksByExamId[(string) $examID] ?? null);
+            $marksNum =
+                $marks !== null && $marks !== "" ? (float) $marks : 0.0;
+            $total += $marksNum * ($pct / 100.0);
+        }
+
+        return $total;
+    }
+
+    /**
+     * Display label: "Midterm (50%)" when percent mode is on.
+     */
+    private function formatExamLabelWithWeight(
+        string $examName,
+        $examID,
+        ?array $weights,
+        bool $usePercent,
+    ): string {
+        if (!$usePercent || empty($weights)) {
+            return $examName;
+        }
+        $pct =
+            $weights[$examID] ??
+            ($weights[(string) $examID] ??
+                ($weights[(int) $examID] ?? null));
+        if ($pct === null || $pct === "") {
+            return $examName;
+        }
+
+        return $examName . " (" . rtrim(rtrim(number_format((float) $pct, 1), "0"), ".") . "%)";
+    }
+
+    /**
+     * Validate percent weights: must sum to 100 (±0.01) when percent mode on.
+     *
+     * @param  array<int|string, mixed>  $weights
+     */
+    private function validatePercentWeights(
+        bool $usePercent,
+        array $examIds,
+        array $weights,
+    ): ?string {
+        if (!$usePercent) {
+            return null;
+        }
+        if (empty($examIds)) {
+            return "Select at least one exam for percent division.";
+        }
+        $sum = 0.0;
+        foreach ($examIds as $id) {
+            $key = (string) $id;
+            if (!isset($weights[$key]) && !isset($weights[(int) $id])) {
+                return "Please assign a percent for every selected exam.";
+            }
+            $pct = (float) ($weights[$key] ?? $weights[(int) $id]);
+            if ($pct < 0 || $pct > 100) {
+                return "Each percent must be between 0 and 100.";
+            }
+            $sum += $pct;
+        }
+        if (abs($sum - 100.0) > 0.05) {
+            $remaining = round(100.0 - $sum, 2);
+            if ($remaining > 0) {
+                return "Remaining {$remaining}% — please assign the rest to an exam.";
+            }
+
+            return "Percent total is {$sum}%. It must equal 100%.";
+        }
+
+        return null;
+    }
+
+    /**
      * Marks for one term-report exam column — use the column's own marks only.
      * Do not fold CA tests into the parent here: CA tests that are in the report
      * are their own columns, and CA tests outside the report must not wipe a
@@ -5153,12 +5554,10 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Term report subject average (kawaida):
-     * - Jumla = alama zilizopo + 0 kwa kila mtihani incomplete (null)
-     * - Wastani = jumla ÷ idadi ya mitihani kwenye term report (daima)
-     *   (mf. WEEKLY 100 + MIDTERM 100 + TERMINAL 100 → 300/3 = 100)
-     *   (mf. TERMINAL 71, MIDTERM incomplete → (71+0)/2 = 35.5)
-     * - Incomplete tu wakati mitihani YOTE hazina marks
+     * Term report subject average:
+     * - Equal mode: jumla ÷ idadi ya mitihani (missing = 0)
+     * - Percent mode: sum(marks × percent/100)  e.g. 100×25% + 100×25% + 100×50% = 100
+     * - Incomplete only when ALL slots have no marks
      *
      * @return array{
      *   slot_marks: list<float>,
@@ -5172,11 +5571,14 @@ class ResultManagementController extends Controller
         array $data,
         $reportExaminations,
         $caDefinitionsByExam = null,
+        bool $usePercentDivision = false,
+        ?array $examWeights = null,
     ): array {
         $examSlotCount = $reportExaminations->count();
         $slotMarksList = [];
         $sum = 0.0;
         $markedSlotCount = 0;
+        $marksByExamId = [];
 
         foreach ($reportExaminations as $exam) {
             $slotMarks = $this->resolveTermReportExamSlotMarks(
@@ -5184,19 +5586,26 @@ class ResultManagementController extends Controller
                 $exam,
                 $caDefinitionsByExam,
             );
+            $marksByExamId[$exam->examID] = $slotMarks;
             if ($slotMarks !== null) {
                 $slotMarksList[] = $slotMarks;
                 $sum += $slotMarks;
                 $markedSlotCount++;
             }
-            // Incomplete slot counts as 0 in the sum (still divides by total exam count)
         }
 
         $isIncomplete = $markedSlotCount === 0 || $examSlotCount === 0;
 
         $average = null;
         if (!$isIncomplete) {
-            $average = $sum / $examSlotCount;
+            if ($usePercentDivision && !empty($examWeights)) {
+                $average = $this->computePercentWeightedTotal(
+                    $marksByExamId,
+                    $examWeights,
+                );
+            } else {
+                $average = $sum / $examSlotCount;
+            }
         }
 
         return [
@@ -5221,6 +5630,8 @@ class ResultManagementController extends Controller
         string $className,
         int $studentID,
         array $electedClassSubjectIds = [],
+        bool $usePercentDivision = false,
+        ?array $examWeights = null,
     ): array {
         if (
             strtolower(trim($schoolType)) !== "secondary" ||
@@ -5326,6 +5737,8 @@ class ResultManagementController extends Controller
                 $data,
                 $effectiveExaminations,
                 $caDefinitionsByExam,
+                $usePercentDivision,
+                $examWeights,
             );
 
             if ($slotCollect["is_incomplete"]) {
@@ -5364,6 +5777,8 @@ class ResultManagementController extends Controller
         int $studentID,
         array $electedClassSubjectIds = [],
         $classID = null,
+        bool $usePercentDivision = false,
+        ?array $examWeights = null,
     ): array {
         if ($results->isEmpty()) {
             return [];
@@ -5460,6 +5875,8 @@ class ResultManagementController extends Controller
                 $data,
                 $effectiveExaminations,
                 $caDefinitionsByExam,
+                $usePercentDivision,
+                $examWeights,
             );
 
             if ($slotCollect["is_incomplete"]) {
@@ -6360,9 +6777,11 @@ class ResultManagementController extends Controller
                 // Handle CA Definitions for exam filtering
                 $caExamIDs = $examFilter;
                 if ($examFilter && !is_array($examFilter)) {
-                    $caDef = CaDefinition::where("examID", $examFilter)
-                        ->where("schoolID", $schoolID)
-                        ->first();
+                    $caDef = $this->resolveCaDefinition(
+                        $schoolID,
+                        $examFilter,
+                        null,
+                    );
                     if ($caDef && !empty($caDef->test_ids)) {
                         $caExamIDs = array_merge(
                             [$examFilter],
@@ -6589,6 +7008,78 @@ class ResultManagementController extends Controller
             );
         }
 
+        // Board payloads for class / all / subclass Export All (Excel-like landscape PDF)
+        $boardClasses = [];
+        $useBoardPdf = !in_array($option, ["single", "bulk_single"], true);
+        if ($useBoardPdf && $students->isNotEmpty()) {
+            $titleLine = $this->buildBoardTitleLine(
+                $typeFilter,
+                $examFilter,
+                $termFilter,
+                $yearFilter,
+            );
+            $studentsByClass = [];
+            foreach ($students as $student) {
+                $cid = null;
+                if ($student->subclass && $student->subclass->class) {
+                    $cid = $student->subclass->class->classID;
+                } elseif ($student->oldSubclass && $student->oldSubclass->class) {
+                    $cid = $student->oldSubclass->class->classID;
+                }
+                $cid = $cid ?: 0;
+                $studentsByClass[$cid][] = $student;
+            }
+            foreach ($studentsByClass as $cid => $classStudents) {
+                $mainClassName =
+                    $cid > 0
+                        ? ClassModel::find($cid)?->class_name ?? "Class {$cid}"
+                        : "Unknown Class";
+                $className = $mainClassName;
+                if ($option === "subclass" && $subclassID) {
+                    $exportSubclass = Subclass::with("class")->find($subclassID);
+                    if ($exportSubclass) {
+                        $mainName =
+                            $exportSubclass->class->class_name ?? $mainClassName;
+                        $subName = trim(
+                            (string) ($exportSubclass->subclass_name ?? ""),
+                        );
+                        if ($this->isALevelClassName($mainName)) {
+                            $className =
+                                $subName !== ""
+                                    ? strtoupper($mainName) .
+                                        " — " .
+                                        strtoupper($subName)
+                                    : strtoupper($mainName);
+                        } else {
+                            $className = $this->formatSubclassFilterDisplayName(
+                                $mainName,
+                                $subName,
+                            );
+                        }
+                    }
+                }
+                $classExamNos =
+                    $cid > 0
+                        ? $this->buildExamNumberMapForClass((int) $cid, $school)
+                        : $examNumbers;
+                $payload = $this->buildBoardPdfClassData(
+                    $className,
+                    $titleLine,
+                    $classStudents,
+                    $resultsData,
+                    $classExamNos,
+                    $schoolType,
+                    $typeFilter,
+                    $examFilter,
+                    $cid > 0 ? $cid : null,
+                    $option === "class" || $option === "all",
+                );
+                if ($payload) {
+                    $boardClasses[] = $payload;
+                }
+            }
+        }
+
         // Fee summary for ADA block on individual PDF (same year as header / view_payments)
         $studentFeeSummaries = $this->buildStudentFeeSummariesForReport(
             $students->pluck("studentID")->map(fn($id) => (int) $id)->all(),
@@ -6607,6 +7098,8 @@ class ResultManagementController extends Controller
             "examNumbers" => $examNumbers,
             "filterScopeLabel" => $filterScopeLabel,
             "studentFeeSummaries" => $studentFeeSummaries,
+            "boardClasses" => $boardClasses,
+            "useBoardPdf" => $useBoardPdf,
             "filters" => [
                 "term" => $termFilter,
                 "year" => $yearFilter,
@@ -6632,7 +7125,7 @@ class ResultManagementController extends Controller
             // Generate PDF
             $pdf = PDF::loadView("Admin.pdf.results", $data);
             CenturyGothicPdfFont::ensureRegistered($pdf->getDomPDF());
-            $pdf->setPaper("A4", "portrait");
+            $pdf->setPaper("A4", $useBoardPdf ? "landscape" : "portrait");
 
             // Generate filename
             $filename = "Results_";
@@ -7163,6 +7656,338 @@ class ResultManagementController extends Controller
         return in_array((int) $student->studentID, $optionalStudents, true);
     }
 
+    /**
+     * Build one class board payload for PDF Export All (matches Excel board columns).
+     */
+    private function buildBoardPdfClassData(
+        string $className,
+        string $titleLine,
+        $classStudents,
+        array $resultsData,
+        array $examNumbers,
+        string $schoolType,
+        string $typeFilter,
+        $examFilter,
+        $classID = null,
+        bool $forceExpandMainClassSubjects = false,
+    ): ?array {
+        $prepared = [];
+        foreach ($classStudents as $student) {
+            $row = $this->resolveStudentResultRow(
+                $student,
+                $resultsData,
+                $typeFilter,
+                $examFilter,
+            );
+            if (!$row) {
+                continue;
+            }
+            $divisionParts = $this->parseDivisionParts(
+                $row["division"],
+                $row["total_points"],
+            );
+            $prepared[] = [
+                "student" => $student,
+                "row" => $row,
+                "division_roman" => $divisionParts["roman"],
+                "division_points" => $divisionParts["points"],
+            ];
+        }
+        if ($prepared === []) {
+            return null;
+        }
+
+        $subclassIds = [];
+        foreach ($prepared as $item) {
+            $st = $item["student"];
+            $sub = $st->subclass ?? ($st->oldSubclass ?? null);
+            if ($sub && $sub->subclassID) {
+                $subclassIds[] = (int) $sub->subclassID;
+            }
+        }
+        $uniqueSubclassIds = array_values(array_unique($subclassIds));
+        $expandToMainClassSubjects =
+            $schoolType === "Secondary" &&
+            $classID &&
+            (int) $classID > 0 &&
+            ($forceExpandMainClassSubjects || count($uniqueSubclassIds) > 1);
+
+        $boardSubjects = $this->resolveBoardSubjectColumns(
+            $classID ? (int) $classID : null,
+            $prepared,
+            $expandToMainClassSubjects,
+        );
+        $offeredBySubclass = $expandToMainClassSubjects
+            ? $this->buildOfferedSubjectMapBySubclass($uniqueSubclassIds)
+            : [];
+
+        if ($schoolType === "Secondary") {
+            usort($prepared, function ($a, $b) {
+                $ap = $a["row"]["total_points"] ?? 9999;
+                $bp = $b["row"]["total_points"] ?? 9999;
+                if ($ap != $bp) {
+                    return $ap <=> $bp;
+                }
+                $ab = $a["row"]["best_seven_total_marks"] ?? 0;
+                $bb = $b["row"]["best_seven_total_marks"] ?? 0;
+                if ($ab != $bb) {
+                    return $bb <=> $ab;
+                }
+
+                return ($b["row"]["total_marks"] ?? 0) <=>
+                    ($a["row"]["total_marks"] ?? 0);
+            });
+        } else {
+            usort($prepared, function ($a, $b) {
+                return ($b["row"]["total_marks"] ?? 0) <=>
+                    ($a["row"]["total_marks"] ?? 0);
+            });
+        }
+        foreach ($prepared as $i => &$item) {
+            $item["position"] = $i + 1;
+        }
+        unset($item);
+
+        $isALevelClass = $this->isALevelClassName($className);
+        $streamHeader = $isALevelClass ? "COMBIE" : "STREAM";
+        $leadingHeaders =
+            $schoolType === "Secondary"
+                ? [
+                    "S/N",
+                    "STUDENT NAME",
+                    "INDEX NO",
+                    "SEX",
+                    $streamHeader,
+                    "POINT",
+                    "DIVISION",
+                ]
+                : ["S/N", "STUDENT NAME", "INDEX NO", "SEX", "STREAM"];
+        $trailingHeaders =
+            $schoolType === "Secondary"
+                ? ["AVERAGE", "POSITION"]
+                : ["AVERAGE", "GRADE", "POSITION"];
+
+        $stats = [
+            "F" => [
+                "reg" => 0,
+                "abs" => 0,
+                "inc" => 0,
+                "I" => 0,
+                "II" => 0,
+                "III" => 0,
+                "IV" => 0,
+                "0" => 0,
+            ],
+            "M" => [
+                "reg" => 0,
+                "abs" => 0,
+                "inc" => 0,
+                "I" => 0,
+                "II" => 0,
+                "III" => 0,
+                "IV" => 0,
+                "0" => 0,
+            ],
+        ];
+        foreach ($prepared as $item) {
+            $sex = $this->genderShort($item["student"]->gender);
+            if (!isset($stats[$sex])) {
+                $sex = "M";
+            }
+            $stats[$sex]["reg"]++;
+            $hasIncomplete = false;
+            foreach ($item["row"]["subjects"] as $subj) {
+                $marks = $subj["marks"] ?? null;
+                if (
+                    $marks === null ||
+                    $marks === "" ||
+                    $marks === "incomplete"
+                ) {
+                    $hasIncomplete = true;
+                    break;
+                }
+            }
+            if ($hasIncomplete) {
+                $stats[$sex]["inc"]++;
+            }
+            if ($schoolType === "Secondary") {
+                $roman = $item["division_roman"];
+                if ($roman && isset($stats[$sex][$roman])) {
+                    $stats[$sex][$roman]++;
+                }
+            }
+        }
+        $classGpa = $this->calculateClassGpaForExport(
+            $prepared,
+            $schoolType,
+            $className,
+        );
+        $perfRows = [];
+        foreach (["F", "M"] as $sexKey) {
+            $s = $stats[$sexKey];
+            $perfRows[] = [
+                "sex" => $sexKey,
+                "reg" => $s["reg"],
+                "abs" => $s["abs"],
+                "inc" => $s["inc"],
+                "I" => $s["I"],
+                "II" => $s["II"],
+                "III" => $s["III"],
+                "IV" => $s["IV"],
+                "0" => $s["0"],
+                "i_iii" => $s["I"] + $s["II"] + $s["III"],
+            ];
+        }
+        $perfRows[] = [
+            "sex" => "T",
+            "reg" => $stats["F"]["reg"] + $stats["M"]["reg"],
+            "abs" => 0,
+            "inc" => $stats["F"]["inc"] + $stats["M"]["inc"],
+            "I" => $stats["F"]["I"] + $stats["M"]["I"],
+            "II" => $stats["F"]["II"] + $stats["M"]["II"],
+            "III" => $stats["F"]["III"] + $stats["M"]["III"],
+            "IV" => $stats["F"]["IV"] + $stats["M"]["IV"],
+            "0" => $stats["F"]["0"] + $stats["M"]["0"],
+            "i_iii" =>
+                $stats["F"]["I"] +
+                $stats["M"]["I"] +
+                $stats["F"]["II"] +
+                $stats["M"]["II"] +
+                $stats["F"]["III"] +
+                $stats["M"]["III"],
+            "gpa" => $classGpa,
+        ];
+
+        $rows = [];
+        foreach ($prepared as $item) {
+            $student = $item["student"];
+            $row = $item["row"];
+            $stream = $this->resolveBoardStreamLabel($student, $className);
+            $studentName = trim(
+                $student->first_name .
+                    " " .
+                    ($student->middle_name
+                        ? $student->middle_name . " "
+                        : "") .
+                    $student->last_name,
+            );
+            $subjectMapById = [];
+            $subjectMapByName = [];
+            foreach ($row["subjects"] as $subj) {
+                $sid = (int) ($subj["subjectID"] ?? 0);
+                $name = (string) ($subj["subject_name"] ?? "");
+                if ($sid > 0) {
+                    $subjectMapById[$sid] = $subj;
+                }
+                if ($name !== "") {
+                    $subjectMapByName[$name] = $subj;
+                }
+            }
+            $subjectCells = [];
+            foreach ($boardSubjects as $boardSubj) {
+                $sid = (int) ($boardSubj["subjectID"] ?? 0);
+                $name = (string) ($boardSubj["subject_name"] ?? "");
+                $subj =
+                    ($sid > 0 ? $subjectMapById[$sid] ?? null : null) ??
+                    ($subjectMapByName[$name] ?? null);
+                if (
+                    $expandToMainClassSubjects &&
+                    $subj === null &&
+                    !$this->studentTakesBoardSubject(
+                        $student,
+                        $sid,
+                        $offeredBySubclass,
+                    )
+                ) {
+                    $subjectCells[] = [
+                        "marks" => "",
+                        "grade" => "",
+                        "empty" => true,
+                    ];
+                    continue;
+                }
+                if (!$subj) {
+                    $subjectCells[] = [
+                        "marks" => "-",
+                        "grade" => "-",
+                        "empty" => false,
+                    ];
+                    continue;
+                }
+                $marks = $subj["marks"] ?? null;
+                if (
+                    $marks === null ||
+                    $marks === "" ||
+                    $marks === "incomplete"
+                ) {
+                    $subjectCells[] = [
+                        "marks" => "-",
+                        "grade" => "-",
+                        "empty" => false,
+                    ];
+                } else {
+                    $grade = trim((string) ($subj["grade"] ?? ""));
+                    $subjectCells[] = [
+                        "marks" => (string) round((float) $marks),
+                        "grade" => $grade !== "" ? $grade : "-",
+                        "empty" => false,
+                    ];
+                }
+            }
+
+            $rows[] = [
+                "sn" => $item["position"],
+                "name" => $studentName,
+                "index" => $examNumbers[$student->studentID] ?? "N/A",
+                "sex" => $this->genderShort($student->gender),
+                "stream" => $stream,
+                "point" =>
+                    $item["division_points"] !== ""
+                        ? $item["division_points"]
+                        : "-",
+                "division" => $item["division_roman"] ?: "-",
+                "subjects" => $subjectCells,
+                "average" => number_format(
+                    (float) ($row["average_marks"] ?? 0),
+                    0,
+                ),
+                "grade" => $row["grade"] ?? "-",
+                "position" => $item["position"],
+            ];
+        }
+
+        $subjectStats = $this->buildSubjectStatsForBoardExport(
+            $prepared,
+            $boardSubjects,
+            $schoolType,
+            $isALevelClass,
+            $className,
+            $classID,
+            $offeredBySubclass,
+            $expandToMainClassSubjects,
+        );
+
+        $classPerfLabel =
+            strtoupper(trim((string) $className)) . " — CLASS PERFORMANCE";
+        $titleCombined =
+            rtrim(trim((string) $titleLine), ".") . ", " . $classPerfLabel;
+
+        return [
+            "className" => $className,
+            "titleLine" => rtrim(trim((string) $titleLine), "."),
+            "titleCombined" => $titleCombined,
+            "schoolType" => $schoolType,
+            "isALevel" => $isALevelClass,
+            "streamHeader" => $streamHeader,
+            "leadingHeaders" => $leadingHeaders,
+            "trailingHeaders" => $trailingHeaders,
+            "subjects" => $boardSubjects,
+            "perfRows" => $perfRows,
+            "rows" => $rows,
+            "subjectStats" => $subjectStats,
+        ];
+    }
+
     private function populateBoardResultsSheet(
         Worksheet $sheet,
         string $className,
@@ -7261,16 +8086,34 @@ class ResultManagementController extends Controller
         unset($item);
 
         $subjectColSpan = 2; // Marks + Grade under each subject
-        // Leading: S/N, Name, Index No, Sex [, Point, Division for Secondary]
+        $isALevelClass = $this->isALevelClassName($className);
+        $streamHeader = $isALevelClass ? "COMBIE" : "STREAM";
+
+        // Leading: S/N, Name, Index No, Sex, Stream/Combie [, Point, Division for Secondary]
+        // Full labels (rotated vertically where abbreviated before)
         $leadingHeaders =
             $schoolType === "Secondary"
-                ? ["S/N", "STUDENT NAME", "INDEX NO", "SEX", "POINT", "DIVISION"]
-                : ["S/N", "STUDENT NAME", "INDEX NO", "SEX"];
-        // Trailing after subjects
+                ? [
+                    "S/N",
+                    "STUDENT NAME",
+                    "INDEX NO",
+                    "SEX",
+                    $streamHeader,
+                    "POINT",
+                    "DIVISION",
+                ]
+                : [
+                    "S/N",
+                    "STUDENT NAME",
+                    "INDEX NO",
+                    "SEX",
+                    "STREAM",
+                ];
+        // Trailing after subjects (full names, vertical)
         $trailingHeaders =
             $schoolType === "Secondary"
-                ? ["AVG", "POST", "STRM"]
-                : ["AVG", "GRADE", "POST", "STRM"];
+                ? ["AVERAGE", "POSITION"]
+                : ["AVERAGE", "GRADE", "POSITION"];
         $fixedCols = count($leadingHeaders);
         $summaryCols = count($trailingHeaders);
         $subjectBlockCols = count($subjectNames) * $subjectColSpan;
@@ -7312,7 +8155,13 @@ class ResultManagementController extends Controller
         );
         $gpaCol = Coordinate::stringFromColumnIndex($perfEndCol);
 
-        // School header — merge + centre across full results board
+        // School header — org logo LEFT, school logo RIGHT, title text CENTER between them
+        // Organization name (if any) sits above school name
+        $underOrg = (bool) ($school->is_under_organization ?? false);
+        $orgName = $underOrg
+            ? strtoupper(trim((string) ($school->organization_name ?? "")))
+            : "";
+        $hasOrgName = $orgName !== "";
         $schoolName = strtoupper((string) ($school->school_name ?? "SCHOOL"));
         $schoolAddress = trim((string) ($school->address ?? ""));
         $schoolPhone = trim((string) ($school->phone ?? ""));
@@ -7323,47 +8172,109 @@ class ResultManagementController extends Controller
                 ($schoolEmail !== "" ? "Email: {$schoolEmail}" : ""),
         );
 
-        $sheet->setCellValue("A1", $schoolName);
-        $sheet->mergeCells("A1:{$headerEndLetter}1");
+        $logoRowOffset = $this->embedSchoolLogosOnSheet(
+            $sheet,
+            $school,
+            $headerEndLetter,
+        );
+
+        $cursor = 1 + $logoRowOffset;
+        $orgNameRow = null;
+        if ($hasOrgName) {
+            $orgNameRow = $cursor;
+            $cursor++;
+        }
+        $nameRow = $cursor;
+        $addrRow = $cursor + 1;
+        $contactRow = $cursor + 2;
+
+        // When logos sit left/right (side-by-side), give header rows enough height
+        if ($logoRowOffset === 0 && $school) {
+            $hasOrgLogo =
+                $underOrg &&
+                $this->resolveLogoAbsolutePath($school->organization_logo ?? null);
+            $hasSchoolLogo = $this->resolveLogoAbsolutePath(
+                $school->school_logo ?? null,
+            );
+            if ($hasOrgLogo && $hasSchoolLogo) {
+                if ($orgNameRow) {
+                    $sheet->getRowDimension($orgNameRow)->setRowHeight(18);
+                }
+                $sheet->getRowDimension($nameRow)->setRowHeight(26);
+                $sheet->getRowDimension($addrRow)->setRowHeight(16);
+                $sheet->getRowDimension($contactRow)->setRowHeight(18);
+            }
+        }
+
+        if ($orgNameRow) {
+            $sheet->setCellValue("A{$orgNameRow}", $orgName);
+            $sheet->mergeCells("A{$orgNameRow}:{$headerEndLetter}{$orgNameRow}");
+            $sheet
+                ->getStyle("A{$orgNameRow}:{$headerEndLetter}{$orgNameRow}")
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER)
+                ->setTextRotation(0)
+                ->setWrapText(false);
+            $sheet
+                ->getStyle("A{$orgNameRow}")
+                ->getFont()
+                ->setBold(true)
+                ->setSize(11)
+                ->getColor()
+                ->setARGB("FF555555");
+            if ($sheet->getRowDimension($orgNameRow)->getRowHeight() < 18) {
+                $sheet->getRowDimension($orgNameRow)->setRowHeight(18);
+            }
+        }
+
+        $sheet->setCellValue("A{$nameRow}", $schoolName);
+        $sheet->mergeCells("A{$nameRow}:{$headerEndLetter}{$nameRow}");
         $sheet
-            ->getStyle("A1:{$headerEndLetter}1")
+            ->getStyle("A{$nameRow}:{$headerEndLetter}{$nameRow}")
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setTextRotation(0)
             ->setWrapText(false);
         $sheet
-            ->getStyle("A1")
+            ->getStyle("A{$nameRow}")
             ->getFont()
             ->setBold(true)
             ->setSize(14)
             ->getColor()
             ->setARGB("FF940000");
-        $sheet->getRowDimension(1)->setRowHeight(22);
+        if ($sheet->getRowDimension($nameRow)->getRowHeight() < 22) {
+            $sheet->getRowDimension($nameRow)->setRowHeight(22);
+        }
 
-        $sheet->setCellValue("A2", $schoolAddress !== "" ? $schoolAddress : " ");
-        $sheet->mergeCells("A2:{$headerEndLetter}2");
+        $sheet->setCellValue("A{$addrRow}", $schoolAddress !== "" ? $schoolAddress : " ");
+        $sheet->mergeCells("A{$addrRow}:{$headerEndLetter}{$addrRow}");
         $sheet
-            ->getStyle("A2:{$headerEndLetter}2")
+            ->getStyle("A{$addrRow}:{$headerEndLetter}{$addrRow}")
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setTextRotation(0)
             ->setWrapText(false);
-        $sheet->getStyle("A2")->getFont()->setSize(10)->getColor()->setARGB("FF555555");
-        $sheet->getRowDimension(2)->setRowHeight(16);
+        $sheet->getStyle("A{$addrRow}")->getFont()->setSize(10)->getColor()->setARGB("FF555555");
+        if ($sheet->getRowDimension($addrRow)->getRowHeight() < 16) {
+            $sheet->getRowDimension($addrRow)->setRowHeight(16);
+        }
 
-        $sheet->setCellValue("A3", $contactLine !== "" ? $contactLine : " ");
-        $sheet->mergeCells("A3:{$headerEndLetter}3");
+        $sheet->setCellValue("A{$contactRow}", $contactLine !== "" ? $contactLine : " ");
+        $sheet->mergeCells("A{$contactRow}:{$headerEndLetter}{$contactRow}");
         $sheet
-            ->getStyle("A3:{$headerEndLetter}3")
+            ->getStyle("A{$contactRow}:{$headerEndLetter}{$contactRow}")
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setTextRotation(0)
             ->setWrapText(false);
-        $sheet->getStyle("A3")->getFont()->setSize(10)->getColor()->setARGB("FF555555");
-        $sheet->getRowDimension(3)->setRowHeight(16);
+        $sheet->getStyle("A{$contactRow}")->getFont()->setSize(10)->getColor()->setARGB("FF555555");
+        if ($sheet->getRowDimension($contactRow)->getRowHeight() < 16) {
+            $sheet->getRowDimension($contactRow)->setRowHeight(16);
+        }
 
         // Title band: one horizontal line — centred across full board width
         // e.g. "FIRST TERM REPORT RESULTS 2026, FORM THREE — CLASS PERFORMANCE"
@@ -7372,8 +8283,8 @@ class ResultManagementController extends Controller
         $titleCombined =
             rtrim(trim((string) $titleLine), ".") . ", " . $classPerfLabel;
 
-        $titleBlockStart = 4;
-        $titleBlockEnd = 4;
+        $titleBlockStart = $contactRow + 1;
+        $titleBlockEnd = $titleBlockStart;
         $titleBlockRange = "A{$titleBlockStart}:{$headerEndLetter}{$titleBlockEnd}";
 
         // Clear / unmerge leftover cells in the title band so merge is clean
@@ -7779,7 +8690,7 @@ class ResultManagementController extends Controller
             ->setVertical(Alignment::VERTICAL_CENTER)
             ->setWrapText(true);
 
-        // S/N, Student Name, Index No — horizontal; SEX / POINT / DIVISION rotate
+        // S/N, Student Name, Index No — horizontal; SEX and after rotate vertical
         for ($c = 1; $c <= 3; $c++) {
             $letter = Coordinate::stringFromColumnIndex($c);
             $sheet
@@ -7857,12 +8768,13 @@ class ResultManagementController extends Controller
                     $student->last_name,
             );
 
-            // S/N, Name, Index No, Sex [, Point, Division]
+            // S/N, Name, Index No, Sex, Stream/Combie [, Point, Division]
             $line = [
                 $serialNo,
                 $studentName,
                 $examNumbers[$student->studentID] ?? "N/A",
                 $this->genderShort($student->gender),
+                $stream,
             ];
             if ($schoolType === "Secondary") {
                 $line[] = $item["division_points"] !== ""
@@ -7935,15 +8847,13 @@ class ResultManagementController extends Controller
                 $colIndex += $subjectColSpan;
             }
 
-            // Trailing: AVG, POST, STRM (Secondary) | AVG, GRADE, POST, STRM (Primary)
+            // Trailing: AVERAGE, POSITION (Secondary) | AVERAGE, GRADE, POSITION (Primary)
             $line[] = number_format((float) ($row["average_marks"] ?? 0), 0);
             if ($schoolType === "Secondary") {
                 $line[] = $item["position"];
-                $line[] = $stream;
             } else {
                 $line[] = $row["grade"] ?? "-";
                 $line[] = $item["position"];
-                $line[] = $stream;
             }
 
             $sheet->fromArray([$line], null, "A{$dataRow}");
@@ -7976,12 +8886,13 @@ class ResultManagementController extends Controller
                 ->setHorizontal(Alignment::HORIZONTAL_LEFT);
         }
 
-        $strmCol = $totalCols; // last trailing column is always STRM
+        // STREAM/COMBIE is column 5 (after SEX); AVERAGE / POSITION at end
+        $strmCol = 5;
         $avgCol = $fixedCols + $subjectBlockCols + 1;
         $postCol =
             $schoolType === "Secondary"
                 ? $avgCol + 1
-                : $avgCol + 2; // Primary: AVG, GRADE, POST, STRM
+                : $avgCol + 2; // Primary: AVERAGE, GRADE, POSITION
 
         for ($c = 1; $c <= $totalCols; $c++) {
             $colLetter = Coordinate::stringFromColumnIndex($c);
@@ -7992,17 +8903,746 @@ class ResultManagementController extends Controller
             } elseif ($c === 3) {
                 $sheet->getColumnDimension($colLetter)->setWidth(18);
             } elseif ($c === $strmCol) {
-                // Stream column — wider so FORM ONE A / stream labels fit
+                // Stream / Combie — wider so labels fit
                 $sheet->getColumnDimension($colLetter)->setWidth(14);
             } elseif ($c === $avgCol || $c === $postCol) {
-                $sheet->getColumnDimension($colLetter)->setWidth(6);
+                $sheet->getColumnDimension($colLetter)->setWidth(8);
             } elseif ($c <= $fixedCols) {
-                $sheet->getColumnDimension($colLetter)->setWidth(5);
+                $sheet->getColumnDimension($colLetter)->setWidth(6);
             } else {
-                // Marks / Grade subject columns — slightly wider for readability
+                // Marks / Grade subject columns
                 $sheet->getColumnDimension($colLetter)->setWidth(5.5);
             }
         }
+
+        // Below results: Remark Color Definition + Subject Performance Statistics
+        $isALevel = $isALevelClass;
+        $subjectStats = $this->buildSubjectStatsForBoardExport(
+            $prepared,
+            $boardSubjects,
+            $schoolType,
+            $isALevel,
+            $className,
+            $classID,
+            $offeredBySubclass,
+            $expandToMainClassSubjects,
+        );
+        $this->appendSubjectPerformanceStatsToSheet(
+            $sheet,
+            $lastDataRow + 2,
+            $subjectStats,
+            $schoolType,
+            $isALevel,
+            max(10, $totalCols),
+        );
+    }
+
+    /**
+     * Build per-subject grade counts (male/female/total) for Excel export,
+     * matching Subject Performance Statistics on the results board.
+     */
+    private function buildSubjectStatsForBoardExport(
+        array $prepared,
+        array $boardSubjects,
+        string $schoolType,
+        bool $isALevel,
+        string $className,
+        $classID,
+        array $offeredBySubclass = [],
+        bool $expandToMainClassSubjects = false,
+    ): array {
+        $gradesToInit =
+            $schoolType === "Primary"
+                ? ["A", "B", "C", "D", "E", "F", "Incomplete"]
+                : ($isALevel
+                    ? ["A", "B", "C", "D", "E", "S", "F", "Incomplete"]
+                    : ["A", "B", "C", "D", "F", "Incomplete"]);
+
+        $subjectStats = [];
+        foreach ($boardSubjects as $boardSubj) {
+            $subjectName = $boardSubj["subject_name"] ?? "N/A";
+            if (!isset($subjectStats[$subjectName])) {
+                $subjectStats[$subjectName] = [];
+                foreach ($gradesToInit as $g) {
+                    $subjectStats[$subjectName][$g] = [
+                        "male" => 0,
+                        "female" => 0,
+                        "total" => 0,
+                    ];
+                }
+            }
+        }
+
+        foreach ($prepared as $item) {
+            $student = $item["student"];
+            $gender = $student->gender ?? "";
+            $subjects = $item["row"]["subjects"] ?? [];
+            $byId = collect($subjects)->keyBy("subjectID")->all();
+            $byName = collect($subjects)->keyBy("subject_name")->all();
+
+            foreach ($boardSubjects as $boardSubj) {
+                $subjectName = $boardSubj["subject_name"] ?? "N/A";
+                $subjectID = $boardSubj["subjectID"] ?? null;
+
+                if (
+                    $expandToMainClassSubjects &&
+                    !$this->studentTakesBoardSubject(
+                        $student,
+                        (int) ($subjectID ?? 0),
+                        $offeredBySubclass,
+                    )
+                ) {
+                    continue;
+                }
+
+                $res =
+                    $subjectID && isset($byId[$subjectID])
+                        ? $byId[$subjectID]
+                        : ($byName[$subjectName] ?? null);
+
+                $marksVal = $res["marks"] ?? ($res["average"] ?? null);
+                $subjectGrade = $res["grade"] ?? "Incomplete";
+
+                if ($marksVal === null || $marksVal === "") {
+                    $subjectGrade = "Incomplete";
+                } elseif (
+                    strtoupper((string) $subjectGrade) === "INCOMPLETE" ||
+                    !in_array(
+                        $subjectGrade,
+                        ["A", "B", "C", "D", "E", "S", "F"],
+                        true,
+                    )
+                ) {
+                    // Re-resolve letter from marks when grade missing/invalid
+                    $letter = $this->resolveSubjectGradeLetter(
+                        [
+                            "marks" => $marksVal,
+                            "grade" => $res["grade"] ?? null,
+                        ],
+                        $schoolType,
+                        $className,
+                        $classID,
+                    );
+                    $subjectGrade = $letter ?: "Incomplete";
+                }
+
+                if (!isset($subjectStats[$subjectName][$subjectGrade])) {
+                    $subjectStats[$subjectName][$subjectGrade] = [
+                        "male" => 0,
+                        "female" => 0,
+                        "total" => 0,
+                    ];
+                }
+
+                if ($gender === "Male") {
+                    $subjectStats[$subjectName][$subjectGrade]["male"]++;
+                } elseif ($gender === "Female") {
+                    $subjectStats[$subjectName][$subjectGrade]["female"]++;
+                }
+                $subjectStats[$subjectName][$subjectGrade]["total"]++;
+            }
+        }
+
+        ksort($subjectStats);
+
+        return $subjectStats;
+    }
+
+    /**
+     * Append Remark Color Definition + Subject Performance Statistics below board results.
+     * Layout matches subject_performance_statistics_pdf (no school header — already on sheet).
+     */
+    private function appendSubjectPerformanceStatsToSheet(
+        Worksheet $sheet,
+        int $startRow,
+        array $subjectStats,
+        string $schoolType,
+        bool $isALevel,
+        int $boardWidthCols,
+    ): void {
+        if (empty($subjectStats)) {
+            return;
+        }
+
+        $row = max(1, $startRow);
+        $isPrimary = strtolower($schoolType) === "primary";
+        $gradesToLoop = $isPrimary
+            ? ["A", "B", "C", "D", "E", "F"]
+            : ($isALevel
+                ? ["A", "B", "C", "D", "E", "S", "F"]
+                : ["A", "B", "C", "D", "F"]);
+
+        // Columns: SUBJECTS + (F,M,T)×grades + GPA + RANKS + COMPETENCY + GRADE + REMARK
+        $totalCols =
+            1 + count($gradesToLoop) * 3 + 5;
+        $endLetter = Coordinate::stringFromColumnIndex($totalCols);
+
+        $remarkColors = [
+            "excellent" => ["fill" => "FF28A745", "font" => "FFFFFFFF"],
+            "pass" => ["fill" => "FFD4EDDA", "font" => "FF155724"],
+            "good" => ["fill" => "FFFFF3CD", "font" => "FF856404"],
+            "avg" => ["fill" => "FFFFE8D6", "font" => "FFA04000"],
+            "fail" => ["fill" => "FFF8D7DA", "font" => "FF721C24"],
+            "inc" => ["fill" => "FFD1ECF1", "font" => "FF0C5460"],
+        ];
+
+        // --- Remark Color Definition ---
+        $sheet->setCellValue("A{$row}", "Remark Color Definition");
+        $sheet->mergeCells("A{$row}:{$endLetter}{$row}");
+        $sheet
+            ->getStyle("A{$row}")
+            ->getFont()
+            ->setBold(true)
+            ->setSize(11)
+            ->getColor()
+            ->setARGB("FF6C757D");
+        $sheet
+            ->getStyle("A{$row}")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $row++;
+
+        if (!$isPrimary) {
+            $legend = [
+                ["A - Excellent", "excellent"],
+                ["B - Very Good", "pass"],
+                ["C - Good", "good"],
+                [
+                    $isALevel ? "D - Average" : "D - Satisfactory",
+                    "avg",
+                ],
+            ];
+            if ($isALevel) {
+                $legend[] = ["E - Satisfactory", "avg"];
+                $legend[] = ["S - Subsidiary", "avg"];
+            }
+            $legend[] = ["F - Fail", "fail"];
+            $legend[] = ["Incomplete", "inc"];
+        } else {
+            $legend = [
+                ["Pass", "pass"],
+                ["Failed", "fail"],
+                ["Incomplete", "inc"],
+            ];
+        }
+
+        $legendCount = count($legend);
+        $colsPerLegend = max(1, (int) floor($totalCols / $legendCount));
+        $legendCol = 1;
+        foreach ($legend as $i => $item) {
+            [$label, $key] = $item;
+            $startCol = $legendCol;
+            $span = $colsPerLegend;
+            if ($i === $legendCount - 1) {
+                $span = max(1, $totalCols - $startCol + 1);
+            }
+            $endCol = min($totalCols, $startCol + $span - 1);
+            $startL = Coordinate::stringFromColumnIndex($startCol);
+            $endL = Coordinate::stringFromColumnIndex($endCol);
+            $sheet->setCellValue("{$startL}{$row}", $label);
+            if ($startCol !== $endCol) {
+                $sheet->mergeCells("{$startL}{$row}:{$endL}{$row}");
+            }
+            $sheet
+                ->getStyle("{$startL}{$row}:{$endL}{$row}")
+                ->getFill()
+                ->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()
+                ->setARGB($remarkColors[$key]["fill"]);
+            $sheet
+                ->getStyle("{$startL}{$row}:{$endL}{$row}")
+                ->getFont()
+                ->setBold(true)
+                ->setSize(9)
+                ->getColor()
+                ->setARGB($remarkColors[$key]["font"]);
+            $sheet
+                ->getStyle("{$startL}{$row}:{$endL}{$row}")
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet
+                ->getStyle("{$startL}{$row}:{$endL}{$row}")
+                ->getBorders()
+                ->getAllBorders()
+                ->setBorderStyle(Border::BORDER_THIN)
+                ->getColor()
+                ->setARGB("FFEEEEEE");
+            $legendCol = $endCol + 1;
+        }
+        $sheet->getRowDimension($row)->setRowHeight(22);
+        $row += 2;
+
+        // --- Subject Performance Statistics title ---
+        $sheet->setCellValue("A{$row}", "Subject Performance Statistics");
+        $sheet->mergeCells("A{$row}:{$endLetter}{$row}");
+        $sheet
+            ->getStyle("A{$row}")
+            ->getFont()
+            ->setBold(true)
+            ->setSize(12)
+            ->getColor()
+            ->setARGB("FF940000");
+        $row++;
+
+        $headerRow1 = $row;
+        $headerRow2 = $row + 1;
+
+        // SUBJECTS (rowspan 2)
+        $sheet->setCellValue("A{$headerRow1}", "SUBJECTS");
+        $sheet->mergeCells("A{$headerRow1}:A{$headerRow2}");
+
+        // Grade groups: colspan 3 each (F/M/T)
+        $col = 2;
+        foreach ($gradesToLoop as $g) {
+            $startL = Coordinate::stringFromColumnIndex($col);
+            $endL = Coordinate::stringFromColumnIndex($col + 2);
+            $sheet->setCellValue("{$startL}{$headerRow1}", $g);
+            $sheet->mergeCells(
+                "{$startL}{$headerRow1}:{$endL}{$headerRow1}",
+            );
+            $sheet->setCellValue(
+                Coordinate::stringFromColumnIndex($col) . $headerRow2,
+                "F",
+            );
+            $sheet->setCellValue(
+                Coordinate::stringFromColumnIndex($col + 1) . $headerRow2,
+                "M",
+            );
+            $sheet->setCellValue(
+                Coordinate::stringFromColumnIndex($col + 2) . $headerRow2,
+                "T",
+            );
+            $col += 3;
+        }
+
+        $trailing = ["GPA", "RANKS", "COMPETENCY LEVEL", "GRADE", "REMARK"];
+        foreach ($trailing as $label) {
+            $letter = Coordinate::stringFromColumnIndex($col);
+            $sheet->setCellValue("{$letter}{$headerRow1}", $label);
+            $sheet->mergeCells("{$letter}{$headerRow1}:{$letter}{$headerRow2}");
+            $col++;
+        }
+
+        $headerRange = "A{$headerRow1}:{$endLetter}{$headerRow2}";
+        $sheet
+            ->getStyle($headerRange)
+            ->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()
+            ->setARGB("FFF8F9FA");
+        $sheet
+            ->getStyle($headerRange)
+            ->getFont()
+            ->setBold(true)
+            ->setSize(9)
+            ->getColor()
+            ->setARGB("FF940000");
+        $sheet
+            ->getStyle($headerRange)
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        $sheet
+            ->getStyle($headerRange)
+            ->getBorders()
+            ->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)
+            ->getColor()
+            ->setARGB("FFEEEEEE");
+        $sheet->getRowDimension($headerRow1)->setRowHeight(20);
+        $sheet->getRowDimension($headerRow2)->setRowHeight(18);
+
+        $ptMap = $isPrimary
+            ? ["A" => 5, "B" => 4, "C" => 3, "D" => 2, "E" => 1, "F" => 0]
+            : ($isALevel
+                ? [
+                    "A" => 1,
+                    "B" => 2,
+                    "C" => 3,
+                    "D" => 4,
+                    "E" => 5,
+                    "S" => 6,
+                    "F" => 7,
+                ]
+                : ["A" => 1, "B" => 2, "C" => 3, "D" => 4, "F" => 5]);
+
+        // Build row payloads (GPA / grade / remark) then ranks
+        $builtRows = [];
+        foreach ($subjectStats as $subjectName => $grades) {
+            $sTotal = 0;
+            $sPoints = 0;
+            $breakdown = [];
+            foreach ($gradesToLoop as $g) {
+                $male = (int) ($grades[$g]["male"] ?? 0);
+                $female = (int) ($grades[$g]["female"] ?? 0);
+                $total = (int) ($grades[$g]["total"] ?? 0);
+                $breakdown[$g] = [
+                    "female" => $female,
+                    "male" => $male,
+                    "total" => $total,
+                ];
+                $sTotal += $total;
+                $sPoints += $total * ($ptMap[$g] ?? 0);
+            }
+
+            $sGPA = $sTotal > 0 ? round($sPoints / $sTotal, 2) : 0.0;
+
+            if ($isPrimary) {
+                if ($sTotal === 0) {
+                    $subjectGrade = "Incomplete";
+                } elseif ($sGPA >= 4.5) {
+                    $subjectGrade = "A";
+                } elseif ($sGPA >= 3.5) {
+                    $subjectGrade = "B";
+                } elseif ($sGPA >= 2.5) {
+                    $subjectGrade = "C";
+                } elseif ($sGPA >= 1.5) {
+                    $subjectGrade = "D";
+                } elseif ($sGPA >= 0.5) {
+                    $subjectGrade = "E";
+                } else {
+                    $subjectGrade = "F";
+                }
+            } else {
+                if ($sTotal === 0) {
+                    $subjectGrade = "Incomplete";
+                } elseif ($sGPA <= 1.5) {
+                    $subjectGrade = "A";
+                } elseif ($sGPA <= 2.5) {
+                    $subjectGrade = "B";
+                } elseif ($sGPA <= 3.5) {
+                    $subjectGrade = "C";
+                } elseif ($sGPA <= 4.5) {
+                    $subjectGrade = "D";
+                } elseif ($isALevel && $sGPA <= 5.5) {
+                    $subjectGrade = "E";
+                } elseif ($isALevel && $sGPA <= 6.5) {
+                    $subjectGrade = "S";
+                } else {
+                    $subjectGrade = "F";
+                }
+            }
+
+            $remarkText = "Incomplete";
+            $remarkKey = "inc";
+            $competency = "Incomplete";
+            if ($sTotal > 0) {
+                if (!$isPrimary) {
+                    if ($subjectGrade === "A") {
+                        $remarkText = "Excellent";
+                        $remarkKey = "excellent";
+                        $competency = "Grade A (Excellent)";
+                    } elseif ($subjectGrade === "B") {
+                        $remarkText = "Very Good";
+                        $remarkKey = "pass";
+                        $competency = "Grade B (Very Good)";
+                    } elseif ($subjectGrade === "C") {
+                        $remarkText = "Good";
+                        $remarkKey = "good";
+                        $competency = "Grade C (Good)";
+                    } elseif ($subjectGrade === "D") {
+                        $remarkText = $isALevel ? "Average" : "Satisfactory";
+                        $remarkKey = "avg";
+                        $competency = "Grade D ({$remarkText})";
+                    } elseif ($isALevel && $subjectGrade === "E") {
+                        $remarkText = "Satisfactory";
+                        $remarkKey = "avg";
+                        $competency = "Grade E (Satisfactory)";
+                    } elseif ($isALevel && $subjectGrade === "S") {
+                        $remarkText = "Subsidiary";
+                        $remarkKey = "avg";
+                        $competency = "Grade S (Subsidiary)";
+                    } elseif ($subjectGrade === "F") {
+                        $remarkText = "Fail";
+                        $remarkKey = "fail";
+                        $competency = "Grade F (Fail)";
+                    }
+                } else {
+                    if (in_array($subjectGrade, ["A", "B", "C", "D"], true)) {
+                        $remarkText = "Pass";
+                        $remarkKey = "pass";
+                        $competency = "Grade {$subjectGrade} (Pass)";
+                    } elseif (in_array($subjectGrade, ["E", "F"], true)) {
+                        $remarkText = "Fail";
+                        $remarkKey = "fail";
+                        $competency = "Grade {$subjectGrade} (Fail)";
+                    }
+                }
+            }
+
+            $builtRows[] = [
+                "subject" => $subjectName,
+                "breakdown" => $breakdown,
+                "gpa" => $sGPA,
+                "grade" => $subjectGrade,
+                "remark_text" => $remarkText,
+                "remark_key" => $remarkKey,
+                "competency" => $competency,
+                "total" => $sTotal,
+            ];
+        }
+
+        // Ranks: Primary higher GPA better; Secondary lower GPA better
+        $ranked = $builtRows;
+        usort($ranked, function ($a, $b) use ($isPrimary) {
+            if ($isPrimary) {
+                return $b["gpa"] <=> $a["gpa"];
+            }
+            return $a["gpa"] <=> $b["gpa"];
+        });
+        $rankMap = [];
+        $rankTotal = max(1, count($ranked));
+        foreach ($ranked as $i => $item) {
+            $rankMap[$item["subject"]] = ($i + 1) . "/" . $rankTotal;
+        }
+
+        $dataStart = $headerRow2 + 1;
+        $row = $dataStart;
+        foreach ($builtRows as $item) {
+            $line = [strtoupper((string) $item["subject"])];
+            foreach ($gradesToLoop as $g) {
+                $line[] = (int) ($item["breakdown"][$g]["female"] ?? 0);
+                $line[] = (int) ($item["breakdown"][$g]["male"] ?? 0);
+                $line[] = (int) ($item["breakdown"][$g]["total"] ?? 0);
+            }
+            $line[] = number_format((float) $item["gpa"], 2);
+            $line[] = $rankMap[$item["subject"]] ?? "-";
+            $line[] = $item["competency"];
+            $gradeDisplay =
+                strtoupper((string) $item["grade"]) === "INCOMPLETE"
+                    ? "-"
+                    : $item["grade"];
+            $line[] = $gradeDisplay;
+            $line[] = $item["remark_text"];
+
+            $sheet->fromArray([$line], null, "A{$row}");
+
+            $sheet
+                ->getStyle("A{$row}:{$endLetter}{$row}")
+                ->getFont()
+                ->setSize(9);
+            $sheet
+                ->getStyle("A{$row}:{$endLetter}{$row}")
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet
+                ->getStyle("A{$row}")
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_LEFT);
+            $sheet->getStyle("A{$row}")->getFont()->setBold(true);
+
+            // Bold T columns under each grade
+            $tCol = 4; // first T is col 4 (A=1 subject, B=F, C=M, D=T)
+            foreach ($gradesToLoop as $_) {
+                $tLetter = Coordinate::stringFromColumnIndex($tCol);
+                $sheet
+                    ->getStyle("{$tLetter}{$row}")
+                    ->getFont()
+                    ->setBold(true);
+                $tCol += 3;
+            }
+
+            // Colored REMARK cell (last column)
+            $remarkLetter = $endLetter;
+            $rk = $item["remark_key"];
+            $sheet
+                ->getStyle("{$remarkLetter}{$row}")
+                ->getFill()
+                ->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()
+                ->setARGB($remarkColors[$rk]["fill"]);
+            $sheet
+                ->getStyle("{$remarkLetter}{$row}")
+                ->getFont()
+                ->setBold(true)
+                ->setSize(9)
+                ->getColor()
+                ->setARGB($remarkColors[$rk]["font"]);
+
+            $sheet
+                ->getStyle("A{$row}:{$endLetter}{$row}")
+                ->getBorders()
+                ->getAllBorders()
+                ->setBorderStyle(Border::BORDER_THIN)
+                ->getColor()
+                ->setARGB("FFEEEEEE");
+
+            $row++;
+        }
+
+        $lastStatsRow = $row - 1;
+        if ($lastStatsRow >= $headerRow1) {
+            $sheet
+                ->getStyle("A{$headerRow1}:{$endLetter}{$lastStatsRow}")
+                ->getBorders()
+                ->getAllBorders()
+                ->setBorderStyle(Border::BORDER_THIN)
+                ->getColor()
+                ->setARGB("FFEEEEEE");
+        }
+
+        // Only widen trailing columns — do not shrink board result columns above
+        $trailStart = 2 + count($gradesToLoop) * 3;
+        $trailMinWidths = [8, 9, 24, 8, 14]; // GPA, RANKS, COMPETENCY, GRADE, REMARK
+        foreach ($trailMinWidths as $i => $minW) {
+            $letter = Coordinate::stringFromColumnIndex($trailStart + $i);
+            $current = (float) $sheet->getColumnDimension($letter)->getWidth();
+            if ($current < $minW) {
+                $sheet->getColumnDimension($letter)->setWidth($minW);
+            }
+        }
+        $subjW = (float) $sheet->getColumnDimension("A")->getWidth();
+        if ($subjW < 22) {
+            $sheet->getColumnDimension("A")->setWidth(22);
+        }
+    }
+
+    /**
+     * Resolve a school/org logo path on disk for Excel Drawing.
+     */
+    private function resolveLogoAbsolutePath(?string $relativePath): ?string
+    {
+        if (!$relativePath) {
+            return null;
+        }
+        $relativePath = ltrim(str_replace("\\", "/", $relativePath), "/");
+        $candidates = [
+            public_path($relativePath),
+            base_path("public/" . $relativePath),
+            (isset($_SERVER["DOCUMENT_ROOT"])
+                ? rtrim($_SERVER["DOCUMENT_ROOT"], "/\\") . "/" . $relativePath
+                : null),
+            (isset($_SERVER["SCRIPT_FILENAME"])
+                ? dirname($_SERVER["SCRIPT_FILENAME"]) .
+                    "/" .
+                    $relativePath
+                : null),
+        ];
+        foreach ($candidates as $path) {
+            if ($path && is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Embed logos on the board header.
+     * Under organization: org + school logos close beside the centred title (not sheet edges).
+     * Not under organization / school only: school logo centred above title → returns rows used.
+     */
+    private function embedSchoolLogosOnSheet(
+        Worksheet $sheet,
+        $school,
+        string $headerEndLetter,
+    ): int {
+        if (!$school) {
+            return 0;
+        }
+
+        $underOrg = (bool) ($school->is_under_organization ?? false);
+        $orgPath =
+            $underOrg
+                ? $this->resolveLogoAbsolutePath(
+                    $school->organization_logo ?? null,
+                )
+                : null;
+        $schoolPath = $this->resolveLogoAbsolutePath(
+            $school->school_logo ?? null,
+        );
+
+        $lastColIndex = max(
+            1,
+            Coordinate::columnIndexFromString($headerEndLetter),
+        );
+        // Anchor logos next to the centred header text (not far left/right of wide boards)
+        $midCol = max(2, (int) round($lastColIndex / 2));
+        $sideGap = 4; // columns from center to each logo
+        $leftCol = max(1, $midCol - $sideGap);
+        $rightCol = min($lastColIndex, $midCol + $sideGap - 1);
+
+        // Side-by-side near title: org LEFT of center, school RIGHT of center
+        if ($orgPath && $schoolPath) {
+            try {
+                $orgDrawing = new Drawing();
+                $orgDrawing->setName("OrgLogo");
+                $orgDrawing->setPath($orgPath);
+                $orgDrawing->setHeight(52);
+                $orgDrawing->setCoordinates(
+                    Coordinate::stringFromColumnIndex($leftCol) . "1",
+                );
+                $orgDrawing->setOffsetX(2);
+                $orgDrawing->setOffsetY(4);
+                $orgDrawing->setWorksheet($sheet);
+
+                $schoolDrawing = new Drawing();
+                $schoolDrawing->setName("SchoolLogo");
+                $schoolDrawing->setPath($schoolPath);
+                $schoolDrawing->setHeight(55);
+                $schoolDrawing->setCoordinates(
+                    Coordinate::stringFromColumnIndex($rightCol) . "1",
+                );
+                $schoolDrawing->setOffsetX(2);
+                $schoolDrawing->setOffsetY(4);
+                $schoolDrawing->setWorksheet($sheet);
+
+                $sheet->getRowDimension(1)->setRowHeight(28);
+                $sheet->getRowDimension(2)->setRowHeight(18);
+                $sheet->getRowDimension(3)->setRowHeight(22);
+            } catch (\Throwable $e) {
+                \Log::warning("Excel side logos embed failed: " . $e->getMessage());
+            }
+
+            return 0;
+        }
+
+        // Org only: just left of center
+        if ($orgPath) {
+            try {
+                $drawing = new Drawing();
+                $drawing->setName("OrgLogo");
+                $drawing->setPath($orgPath);
+                $drawing->setHeight(52);
+                $drawing->setCoordinates(
+                    Coordinate::stringFromColumnIndex($leftCol) . "1",
+                );
+                $drawing->setOffsetX(2);
+                $drawing->setOffsetY(4);
+                $drawing->setWorksheet($sheet);
+                $sheet->getRowDimension(1)->setRowHeight(42);
+            } catch (\Throwable $e) {
+                \Log::warning("Excel org logo embed failed: " . $e->getMessage());
+            }
+
+            return 0;
+        }
+
+        // School logo only (not under org): centred above title
+        if ($schoolPath) {
+            try {
+                $drawing = new Drawing();
+                $drawing->setName("SchoolLogo");
+                $drawing->setPath($schoolPath);
+                $drawing->setHeight(55);
+                $drawing->setCoordinates(
+                    Coordinate::stringFromColumnIndex(
+                        max(1, $midCol - 1),
+                    ) . "1",
+                );
+                $drawing->setWorksheet($sheet);
+                $sheet->getRowDimension(1)->setRowHeight(42);
+            } catch (\Throwable $e) {
+                \Log::warning("Excel school logo embed failed: " . $e->getMessage());
+            }
+
+            return 1;
+        }
+
+        return 0;
     }
 
     /**
@@ -8064,9 +9704,11 @@ class ResultManagementController extends Controller
                     // Handle CA Definitions for exam filtering
                     $caExamIDs = $examFilter;
                     if ($examFilter && !is_array($examFilter)) {
-                        $caDef = CaDefinition::where("examID", $examFilter)
-                            ->where("schoolID", $schoolID)
-                            ->first();
+                        $caDef = $this->resolveCaDefinition(
+                            $schoolID,
+                            $examFilter,
+                            null,
+                        );
                         if ($caDef && !empty($caDef->test_ids)) {
                             $caExamIDs = array_merge(
                                 [$examFilter],
@@ -8283,6 +9925,9 @@ class ResultManagementController extends Controller
             "term" => "required|string",
             "exam_ids" => "required|array",
             "exam_ids.*" => "integer",
+            "use_percent_division" => "nullable|boolean",
+            "exam_weights" => "nullable|array",
+            "level_scope" => "nullable|string|in:all,a_level,o_level",
         ]);
 
         if ($validator->fails()) {
@@ -8292,19 +9937,93 @@ class ResultManagementController extends Controller
             ]);
         }
 
+        $usePercent = filter_var(
+            $request->input("use_percent_division", false),
+            FILTER_VALIDATE_BOOLEAN,
+        );
+        $weights = $request->input("exam_weights", []) ?: [];
+        // Normalize weight keys to strings
+        $normalizedWeights = [];
+        foreach ($weights as $k => $v) {
+            $normalizedWeights[(string) $k] = (float) $v;
+        }
+        $levelScope = $this->normalizeLevelScope(
+            $request->input("level_scope", "all"),
+        );
+
+        $weightError = $this->validatePercentWeights(
+            $usePercent,
+            $request->exam_ids,
+            $normalizedWeights,
+        );
+        if ($weightError) {
+            return response()->json([
+                "success" => false,
+                "message" => $weightError,
+            ]);
+        }
+
         try {
-            TermReportDefinition::updateOrCreate(
-                [
-                    "schoolID" => $schoolID,
-                    "year" => $request->year,
-                    "term" => $request->term,
-                ],
-                [
-                    "exam_ids" => $request->exam_ids,
-                    "created_by" =>
-                        Session::get("teacherID") ?? (auth()->id() ?? 1),
-                ],
-            );
+            $payload = [
+                "exam_ids" => $request->exam_ids,
+                "use_percent_division" => $usePercent,
+                "exam_weights" => $usePercent ? $normalizedWeights : null,
+                "level_scope" => $levelScope,
+                "created_by" =>
+                    Session::get("teacherID") ?? (auth()->id() ?? 1),
+            ];
+
+            $editId = (int) $request->input("id", 0);
+
+            // Block create/overwrite when another definition already exists for this key
+            $existingQuery = TermReportDefinition::where("schoolID", $schoolID)
+                ->where("year", $request->year)
+                ->where("term", $request->term)
+                ->where("level_scope", $levelScope);
+            if ($editId > 0) {
+                $existingQuery->where("id", "!=", $editId);
+            }
+            $existing = $existingQuery->first();
+            if ($existing) {
+                $termLabel =
+                    $request->term === "first_term"
+                        ? "First Term"
+                        : ($request->term === "second_term"
+                            ? "Second Term"
+                            : $request->term);
+                return response()->json([
+                    "success" => false,
+                    "message" =>
+                        "Report already defined for {$termLabel} {$request->year}. Open View/Filter Reports and use Edit instead of saving a new one.",
+                    "existing_id" => $existing->id,
+                ]);
+            }
+
+            if ($editId > 0) {
+                $def = TermReportDefinition::where("id", $editId)
+                    ->where("schoolID", $schoolID)
+                    ->first();
+                if (!$def) {
+                    return response()->json([
+                        "success" => false,
+                        "message" => "Definition not found.",
+                    ]);
+                }
+                $def->update(
+                    array_merge($payload, [
+                        "year" => $request->year,
+                        "term" => $request->term,
+                    ]),
+                );
+            } else {
+                TermReportDefinition::create(
+                    array_merge($payload, [
+                        "schoolID" => $schoolID,
+                        "year" => $request->year,
+                        "term" => $request->term,
+                    ]),
+                );
+            }
 
             return response()->json([
                 "success" => true,
@@ -8316,6 +10035,82 @@ class ResultManagementController extends Controller
                 "message" => "Error: " . $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Realtime check: report already defined for this school / year / term / level.
+     */
+    public function checkReportDefinitionExists(Request $request)
+    {
+        $schoolID = Session::get("schoolID");
+        if (!$schoolID) {
+            return response()->json([
+                "success" => false,
+                "message" => "Session expired",
+            ]);
+        }
+
+        $year = (int) $request->input("year");
+        $term = (string) $request->input("term");
+        $levelScope = $this->normalizeLevelScope(
+            $request->input("level_scope", "all"),
+        );
+        $excludeId = (int) $request->input("exclude_id", 0);
+
+        if (!$year || $term === "") {
+            return response()->json([
+                "success" => true,
+                "exists" => false,
+            ]);
+        }
+
+        $query = TermReportDefinition::where("schoolID", $schoolID)
+            ->where("year", $year)
+            ->where("term", $term)
+            ->where("level_scope", $levelScope);
+
+        if ($excludeId > 0) {
+            $query->where("id", "!=", $excludeId);
+        }
+
+        $def = $query->first();
+
+        if (!$def) {
+            return response()->json([
+                "success" => true,
+                "exists" => false,
+            ]);
+        }
+
+        $examCount = is_array($def->exam_ids) ? count($def->exam_ids) : 0;
+        $termLabel =
+            $term === "first_term"
+                ? "First Term"
+                : ($term === "second_term"
+                    ? "Second Term"
+                    : $term);
+        $levelLabel =
+            $levelScope === "a_level"
+                ? "A Level"
+                : ($levelScope === "o_level"
+                    ? "O Level"
+                    : "All Classes");
+
+        return response()->json([
+            "success" => true,
+            "exists" => true,
+            "definition" => [
+                "id" => $def->id,
+                "year" => $def->year,
+                "term" => $def->term,
+                "level_scope" => $def->level_scope,
+                "exam_count" => $examCount,
+                "use_percent_division" => (bool) $def->use_percent_division,
+            ],
+            "message" =>
+                "Report already defined for {$termLabel} {$year} ({$levelLabel})" .
+                ($examCount > 0 ? " — {$examCount} exam(s)." : "."),
+        ]);
     }
 
     /**
@@ -8343,16 +10138,26 @@ class ResultManagementController extends Controller
 
         // Get names for exams in each definition
         foreach ($definitions as $def) {
+            $weights = is_array($def->exam_weights) ? $def->exam_weights : [];
+            $usePct = (bool) $def->use_percent_division;
             if (!empty($def->exam_ids)) {
-                $def->exam_names = Examination::whereIn(
-                    "examID",
-                    $def->exam_ids,
-                )
-                    ->pluck("exam_name")
+                $exams = Examination::whereIn("examID", $def->exam_ids)->get();
+                $def->exam_names = $exams
+                    ->map(function ($ex) use ($weights, $usePct) {
+                        return $this->formatExamLabelWithWeight(
+                            $ex->exam_name,
+                            $ex->examID,
+                            $weights,
+                            $usePct,
+                        );
+                    })
                     ->toArray();
             } else {
                 $def->exam_names = [];
             }
+            $def->level_scope = $this->normalizeLevelScope(
+                $def->level_scope ?? null,
+            );
         }
 
         return response()->json(["success" => true, "data" => $definitions]);
@@ -8517,9 +10322,13 @@ class ResultManagementController extends Controller
     {
         $examID = $request->examID;
         $schoolID = Session::get("schoolID");
+        $levelScope = $this->normalizeLevelScope(
+            $request->input("level_scope", "all"),
+        );
 
         $exists = CaDefinition::where("examID", $examID)
             ->where("schoolID", $schoolID)
+            ->where("level_scope", $levelScope)
             ->exists();
 
         return response()->json(["success" => true, "exists" => $exists]);
@@ -8540,6 +10349,9 @@ class ResultManagementController extends Controller
             "term" => "required|string",
             "examID" => "required|integer",
             "test_ids" => "required|array",
+            "use_percent_division" => "nullable|boolean",
+            "exam_weights" => "nullable|array",
+            "level_scope" => "nullable|string|in:all,a_level,o_level",
         ]);
 
         if ($validator->fails()) {
@@ -8549,15 +10361,49 @@ class ResultManagementController extends Controller
             ]);
         }
 
+        $usePercent = filter_var(
+            $request->input("use_percent_division", false),
+            FILTER_VALIDATE_BOOLEAN,
+        );
+        $weights = $request->input("exam_weights", []) ?: [];
+        $normalizedWeights = [];
+        foreach ($weights as $k => $v) {
+            $normalizedWeights[(string) $k] = (float) $v;
+        }
+        $levelScope = $this->normalizeLevelScope(
+            $request->input("level_scope", "all"),
+        );
+
+        // Percent applies to main exam + selected tests
+        $allIds = array_values(
+            array_unique(
+                array_merge([(int) $request->examID], $request->test_ids),
+            ),
+        );
+        $weightError = $this->validatePercentWeights(
+            $usePercent,
+            $allIds,
+            $normalizedWeights,
+        );
+        if ($weightError) {
+            return response()->json([
+                "success" => false,
+                "message" => $weightError,
+            ]);
+        }
+
         CaDefinition::updateOrCreate(
             [
                 "schoolID" => $schoolID,
                 "examID" => $request->examID,
+                "level_scope" => $levelScope,
             ],
             [
                 "year" => $request->year,
                 "term" => $request->term,
                 "test_ids" => $request->test_ids,
+                "use_percent_division" => $usePercent,
+                "exam_weights" => $usePercent ? $normalizedWeights : null,
                 "created_by" =>
                     Session::get("teacherID") ?? (Session::get("staffID") ?? 0),
             ],
@@ -8591,10 +10437,32 @@ class ResultManagementController extends Controller
             ->orderBy("created_at", "desc")
             ->get()
             ->map(function ($def) {
-                $testNames = Examination::whereIn("examID", $def->test_ids)
-                    ->pluck("exam_name")
+                $weights = is_array($def->exam_weights) ? $def->exam_weights : [];
+                $usePct = (bool) $def->use_percent_division;
+                $tests = Examination::whereIn("examID", $def->test_ids)->get();
+                $def->test_names = $tests
+                    ->map(function ($ex) use ($weights, $usePct) {
+                        return $this->formatExamLabelWithWeight(
+                            $ex->exam_name,
+                            $ex->examID,
+                            $weights,
+                            $usePct,
+                        );
+                    })
                     ->toArray();
-                $def->test_names = $testNames;
+                if ($def->mainExam && $usePct) {
+                    $def->main_exam_label = $this->formatExamLabelWithWeight(
+                        $def->mainExam->exam_name,
+                        $def->examID,
+                        $weights,
+                        true,
+                    );
+                } else {
+                    $def->main_exam_label = $def->mainExam->exam_name ?? "N/A";
+                }
+                $def->level_scope = $this->normalizeLevelScope(
+                    $def->level_scope ?? null,
+                );
                 return $def;
             });
 

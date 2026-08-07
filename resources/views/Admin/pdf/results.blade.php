@@ -58,6 +58,13 @@
         $schoolLogoBase64  = getSmartBase64($school->school_logo ?? '');
         $schoolStampBase64 = getSmartBase64($school->school_stamp ?? '');
         $schoolSignBase64  = getSmartBase64($school->school_signature ?? '');
+        $underOrg = !empty($school->is_under_organization);
+        $orgLogoBase64 = ($underOrg && !empty($school->organization_logo))
+            ? getSmartBase64($school->organization_logo)
+            : null;
+        $orgName = ($underOrg && !empty(trim((string) ($school->organization_name ?? ''))))
+            ? strtoupper(trim((string) $school->organization_name))
+            : null;
 
         if (!function_exists('pdfIsALevelClassName')) {
             function pdfIsALevelClassName(?string $className): bool {
@@ -229,6 +236,12 @@
         /* Fee-structure style header (logo centred on top — not left/right) */
         .header { text-align: center; margin-bottom: 12px; border-bottom: 2.5px solid #940000; padding-bottom: 10px; }
         .header img.school-logo-top { display: block; max-height: 60px; margin: 0 auto 5px auto; border: none; outline: none; }
+        .header img.org-logo-top { display: block; max-height: 52px; margin: 0 auto 8px auto; border: none; outline: none; }
+        .org-logo-center { text-align: center; margin: 0 0 8px 0; }
+        .org-logo-center img { display: block; max-height: 56px; max-width: 120px; margin: 0 auto; border: none; outline: none; }
+        .logo-stack { text-align: center; }
+        .logo-stack img { display: block; margin: 0 auto 4px auto; border: none; outline: none; }
+        .logo-stack img.school-logo { max-height: 55px; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
         .header-table td { border: none; padding: 0; vertical-align: middle; }
         .logo-cell { width: 72px; padding-right: 8px; text-align: left; }
@@ -236,6 +249,7 @@
         .student-photo-cell { width: 72px; text-align: right; padding-left: 8px; }
         .student-photo-cell img { display: block; width: 68px; height: 68px; margin-left: auto; border: none; outline: none; object-fit: cover; }
         .school-name-cell { text-align: center; }
+        .org-name { font-size: 12px; font-weight: bold; color: #555; text-transform: uppercase; margin-bottom: 2px; letter-spacing: 0.3px; }
         .school-name { font-size: 17px; font-weight: bold; color: #940000; text-transform: uppercase; }
         .school-sub  { font-size: 10px; color: #555; margin: 1px 0; }
 
@@ -660,16 +674,24 @@
             }
         @endphp
 
-        {{-- HEADER (Printed for each student) — fee-structure style --}}
+        {{-- HEADER (Printed for each student) — org logo top-center, then school row --}}
         <div class="header">
+            @if($orgLogoBase64)
+                <div class="org-logo-center">
+                    <img src="{{ $orgLogoBase64 }}" alt="Organization Logo">
+                </div>
+            @endif
             <table class="header-table">
                 <tr>
                     <td class="logo-cell">
                         @if($schoolLogoBase64)
-                            <img src="{{ $schoolLogoBase64 }}" alt="Logo">
+                            <img class="school-logo" src="{{ $schoolLogoBase64 }}" alt="Logo">
                         @endif
                     </td>
                     <td class="school-name-cell">
+                        @if($orgName)
+                            <div class="org-name">{{ $orgName }}</div>
+                        @endif
                         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
                         @if($school)
                             <div class="school-sub">{{ $school->address ?? '' }}</div>
@@ -1424,753 +1446,26 @@
 @endforeach
 
 {{-- ====================================================
-     CLASS / SUBCLASS / ALL STUDENTS
+     CLASS / SUBCLASS / ALL STUDENTS — Excel-like board (landscape)
 ==================================================== --}}
+@elseif(!empty($useBoardPdf) && !empty($boardClasses))
+    @include('Admin.pdf.partials.results_board')
 @else
-    {{-- HEADER (Printed once for class/subclass bulk mode) — fee-structure style --}}
     <div class="header">
-        @if($schoolLogoBase64)
+        @if(!empty($orgLogoBase64))
+            <img class="org-logo-top" src="{{ $orgLogoBase64 }}" alt="Organization Logo">
+        @endif
+        @if(!empty($schoolLogoBase64))
             <img class="school-logo-top" src="{{ $schoolLogoBase64 }}" alt="Logo">
         @endif
-        <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
-        @if($school)
-            <div class="school-sub">{{ $school->address ?? '' }}</div>
-            <div class="school-sub">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+        @if(!empty($orgName))
+            <div class="org-name">{{ $orgName }}</div>
         @endif
-        <div class="report-title">
-            {{ $title ?? ($filters['type'] === 'report' ? 'Term Report' : 'Exam Results') }}
-        </div>
+        <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
+        <div class="report-title">{{ $title ?? 'Results' }}</div>
     </div>
+    <p style="text-align:center;color:#666;">No board results available for the selected filters.</p>
 
-    <div class="info-section">
-        <table class="info-table">
-            <tr>
-                <td class="label">Term:</td>
-                <td>{{ $filters['term'] ? ucwords(str_replace('_', ' ', $filters['term'])) : 'All Terms' }}</td>
-                <td class="label">Year:</td>
-                <td>{{ $filters['year'] }}</td>
-            </tr>
-            <tr>
-                <td class="label">Type:</td>
-                <td>
-                    {{ $filters['type'] === 'exam' ? 'Exam Results' : 'Term Report' }}
-                    @if($filters['examID'])
-                        @php $exam = \App\Models\Examination::find($filters['examID']); @endphp
-                        @if($exam) — {{ $exam->exam_name }} @endif
-                    @endif
-                </td>
-                <td class="label">Generated:</td>
-                <td>{{ date('d M Y H:i') }}</td>
-            </tr>
-            <tr>
-                <td class="label">Scope:</td>
-                <td>
-                    @php
-                        $scopeDisplay = $filterScopeLabel ?? '';
-                        if ($scopeDisplay === '') {
-                            if (!empty($filters['class'])) {
-                                $cls = \App\Models\ClassModel::find($filters['class']);
-                                $scopeDisplay = $cls->class_name ?? 'Selected Class';
-                                if (!empty($filters['subclass'])) {
-                                    $sub = \App\Models\Subclass::find($filters['subclass']);
-                                    $scopeSubName = trim($sub->subclass_name ?? '');
-                                    if ($scopeSubName !== '') {
-                                        $scopeDisplay .= ' / ' . $scopeSubName;
-                                    }
-                                }
-                            } else {
-                                $scopeDisplay = 'All Classes';
-                            }
-                        }
-                    @endphp
-                    {{ $scopeDisplay }}
-                </td>
-                <td class="label">Students:</td>
-                <td>{{ $students->count() }}</td>
-            </tr>
-        </table>
-    </div>
-
-    @if($option === 'class' || $option === 'subclass')
-        @php
-            $groupedStudents = $students->groupBy(function($s) {
-                if ($s->subclass && $s->subclass->class) return $s->subclass->class->class_name;
-                if ($s->oldSubclass && $s->oldSubclass->class) return $s->oldSubclass->class->class_name;
-                return 'Unknown';
-            });
-        @endphp
-
-        @foreach($groupedStudents as $className => $classStudents)
-            @php
-                // Overview / titles: class + subclass from filter (e.g. FORM FIVE / A)
-                $overviewLabel = !empty($filterScopeLabel)
-                    ? $filterScopeLabel
-                    : $className;
-            @endphp
-            <div class="group-head" style="font-size: 15px;">{{ $overviewLabel }} - PERFORMANCE OVERVIEW</div>
-            
-            @php
-                $isALevelClass = ($schoolType === 'Secondary') && pdfIsALevelClassName($className);
-                $gradeKeysForMap = ($schoolType === 'Primary')
-                    ? ['A','B','C','D','E','F']
-                    : pdfSecondaryGradeKeys($isALevelClass);
-                $examNumbers = $examNumbers ?? [];
-                // CALCULATE STATISTICS FOR THIS GROUP
-                $sTotal = 0; $sMale = 0; $sFemale = 0; $sPass = 0;
-                $sMarks = 0; $mMarks = 0; $fMarks = 0;
-                $divs = ['I'=>['M'=>0,'F'=>0,'T'=>0], 'II'=>['M'=>0,'F'=>0,'T'=>0], 'III'=>['M'=>0,'F'=>0,'T'=>0], 'IV'=>['M'=>0,'F'=>0,'T'=>0], '0'=>['M'=>0,'F'=>0,'T'=>0]];
-                $top = [];
-                $subjMap = [];
-                
-                foreach($classStudents as $s) {
-                    if(!isset($resultsData[$s->studentID])) continue;
-                    $r = $resultsData[$s->studentID];
-                    $res = ($filters['type'] === 'report') ? $r : (is_array($r) && !empty($r) ? $r[0] : null);
-                    if(!$res) continue;
-                    
-                    $sTotal++;
-                    $marks = (float)($res['average_marks'] ?? 0);
-                    $sMarks += $marks;
-                    
-                    $isMale = strtolower($s->gender ?? '') === 'male';
-                    if($isMale) { $sMale++; $mMarks += $marks; } else { $sFemale++; $fMarks += $marks; }
-                    
-                    $dv = $res['division'] ?? '0';
-                    $dvSplit = explode('.', $dv);
-                    $dvCode = preg_replace('/[^IV0]/', '', $dvSplit[0]);
-                    if($dvCode == '') $dvCode = '0';
-                    if(!isset($divs[$dvCode])) $dvCode = '0';
-                    
-                    $divs[$dvCode][$isMale ? 'M' : 'F']++;
-                    $divs[$dvCode]['T']++;
-                    
-                    if(!in_array($dvCode, ['IV', '0']) && $dvCode !== '') $sPass++;
-
-                    $subjsList = $res['subjects'] ?? [];
-                    if(is_array($subjsList)) {
-                        foreach($subjsList as $subItem) {
-                            $sn = $subItem['subject_name'] ?? 'Unknown';
-                            if(!isset($subjMap[$sn])) {
-                                $subjMap[$sn] = array_fill_keys($gradeKeysForMap, ['M'=>0,'F'=>0,'T'=>0]);
-                            }
-                            $gr = strtoupper($subItem['grade'] ?? 'F');
-                            if(!isset($subjMap[$sn][$gr])) $gr = 'F';
-                            $subjMap[$sn][$gr][$isMale ? 'M' : 'F']++;
-                            $subjMap[$sn][$gr]['T']++;
-                        }
-                    }
-                    
-                    // Calculate academic rank weight for robust sorting
-                    $divRank = 99; $ptsRank = 99;
-                    if($schoolType === 'Secondary') {
-                        $dvCodeChar = preg_replace('/[^IV0]/', '', explode('.', $dv)[0] ?: '0');
-                        $divMap = ['I'=>1, 'II'=>2, 'III'=>3, 'IV'=>4, '0'=>5];
-                        $divRank = $divMap[$dvCodeChar] ?? 5;
-                        $ptsPart = explode('.', $dv)[1] ?? 35;
-                        $ptsRank = is_numeric($ptsPart) ? (int)$ptsPart : 35;
-                    } else {
-                        $grChar = strtoupper($res['grade'] ?? 'F');
-                        $grMap = ['A'=>1, 'B'=>2, 'C'=>3, 'D'=>4, 'E'=>5, 'F'=>6];
-                        $divRank = $grMap[$grChar] ?? 6;
-                    }
-
-                    // Weight = (Div * 1000) + Points - (Average / 100)
-                    $rankWeight = ($divRank * 1000) + ($ptsRank) - ($marks / 1000);
-
-                    $top[] = [
-                        'id' => ($examNumbers[$s->studentID] ?? null) ?: ($s->admission_number ?? 'N/A'),
-                        'name' => trim($s->first_name . ' ' . ($s->middle_name ?? '') . ' ' . $s->last_name),
-                        'div' => $dv,
-                        'mark' => $marks,
-                        'rank_weight' => $rankWeight
-                    ];
-                }
-                // Sort by academic rank weight (ascending)
-                usort($top, function($a, $b) { 
-                    return $a['rank_weight'] <=> $b['rank_weight'];
-                });
-                $top5 = array_slice($top, 0, 5);
-                $pRate = $sTotal > 0 ? ($sPass / $sTotal) * 100 : 0;
-                $avgMarks = $sTotal > 0 ? $sMarks / $sTotal : 0;
-                $mAvg = $sMale > 0 ? $mMarks / $sMale : 0;
-                $fAvg = $sFemale > 0 ? $fMarks / $sFemale : 0;
-            @endphp
-
-            {{-- ONLY RENDER STATS IF WE HAVE STUDENTS WITH RESULTS --}}
-            @if($sTotal > 0)
-                <div class="sub-head">Overview Statistics</div>
-                <table class="data" style="margin-bottom: 12px;">
-                    <tbody>
-                        <tr><td style="width: 50%;">Total Students</td><td class="tc bold">{{ $sTotal }}</td></tr>
-                        <tr class="even"><td>Male</td><td class="tc">{{ $sMale }}</td></tr>
-                        <tr><td>Female</td><td class="tc">{{ $sFemale }}</td></tr>
-                        <tr class="even"><td>Pass Rate</td><td class="tc bold" style="color:#155724;">{{ number_format($pRate, 0) }}%</td></tr>
-                        @php
-                            // Calculate Class GPA from subjMap
-                            $gpaPoints = 0; $gpaTotal = 0;
-                            $ptMapGPA = ($schoolType === 'Primary')
-                                ? ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0]
-                                : pdfSecondaryPointMap($isALevelClass);
-                            foreach($subjMap as $sn => $sg) {
-                                foreach($ptMapGPA as $g => $pts) {
-                                    $cnt = $sg[$g]['T'] ?? 0;
-                                    $gpaPoints += $cnt * $pts;
-                                    $gpaTotal  += $cnt;
-                                }
-                            }
-                            $classGPAVal = $gpaTotal > 0 ? number_format($gpaPoints / $gpaTotal, 2) : '0.00';
-                        @endphp
-                        <tr><td>Class GPA</td><td class="tc bold">{{ $classGPAVal }}</td></tr>
-                        <tr class="even"><td>Pass Rate</td><td class="tc bold" style="color:#155724;">{{ number_format($pRate, 0) }}%</td></tr>
-                        <tr><td>Male Average</td><td class="tc">{{ number_format($mAvg, 0) }}</td></tr>
-                        <tr class="even"><td>Female Average</td><td class="tc">{{ number_format($fAvg, 0) }}</td></tr>
-                        <tr><td>Fail Rate</td><td class="tc bold" style="color:#721c24;">{{ number_format((100 - $pRate), 0) }}%</td></tr>
-                        @php
-                            $rmk = ''; $cmt = '';
-                            if ($avgMarks >= 75) { $rmk = 'Excellent'; $cmt = 'The class has performed excellently with an outstanding average score. Keep up the great work!'; }
-                            elseif ($avgMarks >= 65) { $rmk = 'Very Good'; $cmt = 'Good performance, push a little harder to reach excellent.'; }
-                            elseif ($avgMarks >= 45) { $rmk = 'Good'; $cmt = 'Average performance, more effort is needed to improve scores.'; }
-                            elseif ($avgMarks >= 30) { $rmk = 'Satisfactory'; $cmt = 'Below average performance, students need serious effort.'; }
-                            else { $rmk = 'Fail'; $cmt = 'Poor performance, urgent academic intervention is required.'; }
-                        @endphp
-                        <tr><td colspan="2">
-                            <strong>Performance Remark:</strong> {{ $rmk }}<br>
-                            <strong>Performance Comment:</strong><br><span style="font-size: 14px;">{{ $cmt }}</span>
-                        </td></tr>
-                    </tbody>
-                </table>
-
-                <div class="sub-head">Division Distribution</div>
-                <table class="data" style="margin-bottom: 12px;">
-                    <thead>
-                        <tr><th style="width: 40%;">Div</th><th class="tc" style="width: 20%;">M</th><th class="tc" style="width: 20%;">F</th><th class="tc" style="width: 20%;">Total</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach(['I','II','III','IV','0'] as $i => $dCode)
-                            <tr class="{{ $i % 2 == 0 ? '' : 'even' }}">
-                                <td>Division {{ $dCode }}</td>
-                                <td class="tc">{{ $divs[$dCode]['M'] }}</td>
-                                <td class="tc">{{ $divs[$dCode]['F'] }}</td>
-                                <td class="tc bold">{{ $divs[$dCode]['T'] }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-
-                <div class="sub-head">Top 5 Students</div>
-                <table class="data" style="margin-bottom: 12px;">
-                    <thead>
-                        <tr>
-                            <th style="width:10%;" class="tc">#</th>
-                            <th style="width:25%;">Index No</th>
-                            <th style="width:40%;">Student Name</th>
-                            <th class="tc" style="width:25%;">Division</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($top5 as $i => $t)
-                            <tr class="{{ $i % 2 == 0 ? '' : 'even' }}">
-                                <td class="tc">{{ $i + 1 }}</td>
-                                <td>{{ $t['id'] }}</td>
-                                <td>{{ $t['name'] }}</td>
-                                <td class="tc bold">{{ $t['div'] }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-
-                <div class="sub-head" style="margin-top:2px;">Subject Performance Statistics</div>
-                <table class="data" style="margin-bottom:15px;">
-                    <thead>
-                        <tr>
-                            <th>Subject</th>
-                            @php $gradeHeaders = ($schoolType === 'Primary') ? ['A','B','C','D','E','F'] : pdfSecondaryGradeKeys($isALevelClass); @endphp
-                            @foreach($gradeHeaders as $gr)
-                            <th class="tc">{{ $gr }}</th>
-                            @endforeach
-                            <th class="tc">GPA</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @php
-                            $si = 0;
-                            $ptMapSubj = ($schoolType === 'Primary')
-                                ? ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0]
-                                : pdfSecondaryPointMap($isALevelClass);
-                        @endphp
-                        @foreach($subjMap as $sName => $sGrades)
-                            @php
-                                $subjPts = 0; $subjTot = 0;
-                                foreach($ptMapSubj as $g => $pts) {
-                                    $c = $sGrades[$g]['T'] ?? 0;
-                                    $subjPts += $c * $pts;
-                                    $subjTot += $c;
-                                }
-                                $subjGPA = $subjTot > 0 ? number_format($subjPts / $subjTot, 2) : '0.00';
-                            @endphp
-                            <tr class="{{ $si % 2 == 0 ? '' : 'even' }}">
-                                <td class="bold">{{ $sName }}</td>
-                                @foreach($gradeHeaders as $gr)
-                                <td class="tc" style="font-size:14px;">
-                                    <strong>{{ $sGrades[$gr]['T'] ?? 0 }}</strong><br>
-                                    <span style="color:#666;">M:{{ $sGrades[$gr]['M'] ?? 0 }}, F:{{ $sGrades[$gr]['F'] ?? 0 }}</span>
-                                </td>
-                                @endforeach
-                                <td class="tc bold">{{ $subjGPA }}</td>
-                            </tr>
-                            @php $si++; @endphp
-                        @endforeach
-                    </tbody>
-                </table>
-            @endif
-
-            <div class="group-head" style="font-size:14px;">STUDENT RESULTS DETAILED LIST</div>
-
-            @php
-                // Sort students by academic rank weight (best first)
-                $classStudentsSorted = $classStudents->map(function($s) use ($resultsData, $filters, $schoolType) {
-                    if(!isset($resultsData[$s->studentID])) return ['s' => $s, 'weight' => 999999, 'found' => false];
-                    $r = $resultsData[$s->studentID];
-                    $res = ($filters['type'] === 'report') ? $r : (is_array($r) && !empty($r) ? $r[0] : null);
-                    if(!$res) return ['s' => $s, 'weight' => 999999, 'found' => false];
-                    
-                    $dv = $res['division'] ?? '0';
-                    $marks = floatval($res['average_marks'] ?? 0);
-                    
-                    $divRank = 99; $ptsRank = 99;
-                    if($schoolType === 'Secondary') {
-                        $dvCodeChar = preg_replace('/[^IV0]/', '', explode('.', $dv)[0] ?: '0');
-                        $divMap = ['I'=>1, 'II'=>2, 'III'=>3, 'IV'=>4, '0'=>5];
-                        $divRank = $divMap[$dvCodeChar] ?? 5;
-                        $ptsPart = explode('.', $dv)[1] ?? 35;
-                        $ptsRank = is_numeric($ptsPart) ? (int)$ptsPart : 35;
-                    } else {
-                        $grChar = strtoupper($res['grade'] ?? 'F');
-                        $grMap = ['A'=>1, 'B'=>2, 'C'=>3, 'D'=>4, 'E'=>5, 'F'=>6];
-                        $divRank = $grMap[$grChar] ?? 6;
-                    }
-                    $weight = ($divRank * 1000) + ($ptsRank) - ($marks / 1000);
-                    return ['s' => $s, 'weight' => $weight, 'found' => true];
-                })->sortBy('weight')->pluck('s');
-
-                $examNumbers = $examNumbers ?? [];
-
-                // Original list style: subjects as "PHY-68-C, CHEM-95-A, ..."
-                $renderTableItems = function($studentsList) use ($resultsData, $filters, $examNumbers) {
-                    $html = '';
-                    $pos = 1;
-                    foreach($studentsList as $student) {
-                        if(!isset($resultsData[$student->studentID])) continue;
-                        $r = $resultsData[$student->studentID];
-                        $res = ($filters['type'] === 'report') ? $r : (is_array($r) && !empty($r) ? $r[0] : null);
-                        if(!$res) continue;
-
-                        $cn = '';
-                        if ($student->subclass && $student->subclass->class) {
-                            $mainCn = $student->subclass->class->class_name ?? '';
-                            $subCn = trim($student->subclass->subclass_name ?? '');
-                            $cn = pdfIsALevelClassName($mainCn)
-                                ? ($subCn !== '' ? $subCn : $mainCn)
-                                : ($subCn !== '' ? $mainCn . ' / ' . $subCn : $mainCn);
-                        } elseif ($student->oldSubclass && $student->oldSubclass->class) {
-                            $mainCn = $student->oldSubclass->class->class_name ?? '';
-                            $subCn = trim($student->oldSubclass->subclass_name ?? '');
-                            $cn = pdfIsALevelClassName($mainCn)
-                                ? ($subCn !== '' ? $subCn : $mainCn)
-                                : ($subCn !== '' ? $mainCn . ' / ' . $subCn : $mainCn);
-                        }
-
-                        $divstr = $res['division'] ?? ($res['grade'] ?? 'N/A');
-                        $subjStrs = [];
-                        if (isset($res['subjects']) && is_array($res['subjects'])) {
-                            foreach ($res['subjects'] as $subj) {
-                                $sn = $subj['subject_name'] ?? 'U';
-                                $gr = $subj['grade'] ?? 'F';
-                                if (strtolower((string) $gr) === 'incomplete') {
-                                    $subjStrs[] = "{$sn}-Incomplete";
-                                } else {
-                                    $mk = number_format(floatval($subj['marks'] ?? 0), 0);
-                                    $subjStrs[] = "{$sn}-{$mk}-{$gr}";
-                                }
-                            }
-                        }
-                        $subText = htmlspecialchars(implode(', ', $subjStrs), ENT_QUOTES, 'UTF-8');
-                        $cls = ($pos % 2 == 0) ? 'even' : '';
-                        $name = htmlspecialchars(
-                            trim($student->first_name . ' ' . ($student->middle_name ?? '') . ' ' . $student->last_name),
-                            ENT_QUOTES,
-                            'UTF-8'
-                        );
-                        $indexNo = htmlspecialchars(
-                            (string) ($examNumbers[$student->studentID] ?? 'N/A'),
-                            ENT_QUOTES,
-                            'UTF-8'
-                        );
-                        $cnEsc = htmlspecialchars($cn, ENT_QUOTES, 'UTF-8');
-                        $divEsc = htmlspecialchars((string) $divstr, ENT_QUOTES, 'UTF-8');
-
-                        $html .= '<tr class="'.$cls.'">
-                            <td class="tc">'.$pos.'</td>
-                            <td class="bold" style="font-size:11px;">'.$name.'</td>
-                            <td style="font-size:10px;">'.$indexNo.'</td>
-                            <td style="font-size:10px;">'.$cnEsc.'</td>
-                            <td style="font-size:10px; line-height:1.25;">'.$subText.'</td>
-                            <td class="tc bold">'.$divEsc.'</td>
-                        </tr>';
-                        $pos++;
-                    }
-                    return $html;
-                };
-            @endphp
-
-            @if($option === 'subclass')
-                @php
-                    $subclassGroups = $classStudentsSorted->groupBy(function($s) {
-                        if ($s->subclass) return $s->subclass->subclass_name;
-                        if ($s->oldSubclass) return $s->oldSubclass->subclass_name;
-                        return 'Unknown';
-                    });
-                @endphp
-                @foreach($subclassGroups as $subclassName => $subclassStudents)
-                    @php
-                        $streamHead = !empty($filterScopeLabel)
-                            ? $filterScopeLabel
-                            : (($className ?? '') . ($subclassName !== '' ? ' / ' . $subclassName : ''));
-                    @endphp
-                    <div class="sub-head">{{ $streamHead }}</div>
-                    <table class="data">
-                        <thead>
-                            <tr>
-                                <th style="width:5%" class="tc">#</th>
-                                <th style="width:18%">Student Name</th>
-                                <th style="width:12%">Index No</th>
-                                <th style="width:10%">Class</th>
-                                <th style="width:45%">Subject Performances</th>
-                                <th style="width:10%" class="tc">Div/Gr</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {!! $renderTableItems($subclassStudents) !!}
-                        </tbody>
-                    </table>
-                @endforeach
-            @else
-                <table class="data">
-                    <thead>
-                        <tr>
-                            <th style="width:5%" class="tc">#</th>
-                            <th style="width:18%">Student Name</th>
-                            <th style="width:12%">Index No</th>
-                            <th style="width:10%">Class</th>
-                            <th style="width:45%">Subject Performances</th>
-                            <th style="width:10%" class="tc">Div/Gr</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {!! $renderTableItems($classStudentsSorted) !!}
-                    </tbody>
-                </table>
-            @endif
-
-
-            @php
-                $bulkTeacher = null;
-                if(isset($subclassID)) {
-                    $bulkTeacher = \App\Models\Subclass::find($subclassID)->teacher ?? null;
-                } elseif(isset($filters['subclass'])) {
-                    $bulkTeacher = \App\Models\Subclass::find($filters['subclass'])->teacher ?? null;
-                }
-                $bulkTeacherName = $bulkTeacher ? $bulkTeacher->first_name . ' ' . $bulkTeacher->last_name : null;
-                $bulkTeacherSignBase64 = $bulkTeacher ? getSmartBase64($bulkTeacher->signature) : null;
-            @endphp
-            <table class="sig-table">
-                <tr>
-                    <td style="width: 33%; text-align: center;">
-                        @if($bulkTeacherSignBase64)
-                            <div class="teacher-sig-img" style="margin: 0 auto;">
-                                <img src="{{ $bulkTeacherSignBase64 }}" alt="Teacher Sign">
-                            </div>
-                        @else
-                            <div class="placeholder-img" style="width:120px; height:35px; margin: 0 auto 4px auto;">TEACHER SIGN</div>
-                        @endif
-                        <div class="sig-line" style="width: 140px;"></div>
-                        <span class="sig-label">Class Teacher: {{ $bulkTeacherName ?? 'N/A' }}</span>
-                    </td>
-                    <td class="stamp-cell" style="width: 33%;">
-                        @if($schoolStampBase64)
-                            <img src="{{ $schoolStampBase64 }}" alt="Stamp" style="max-height: 120px;">
-                        @else
-                            <div class="placeholder-img" style="width:80px; height:80px; margin: 0 auto;">STAMP</div>
-                        @endif
-                    </td>
-                    <td class="sign-cell" style="width: 33%;">
-                        @if($schoolSignBase64)
-                            <div class="school-signature-img">
-                                <img src="{{ $schoolSignBase64 }}" alt="Signature">
-                            </div>
-                        @else
-                            <div class="placeholder-img" style="width:140px; height:35px; margin: 0 auto 4px auto;">SIGNATURE</div>
-                        @endif
-                        <div class="sig-line" style="width: 140px;"></div>
-                        <span class="sig-label">Headmaster's Signature</span>
-                    </td>
-                </tr>
-            </table>
-        @endforeach
-    @else
-        {{-- ALL STUDENTS — GROUPED BY CLASS, SORTED BY MARKS DESCENDING --}}
-        @php
-            // Group students by class, sorted by marks descending within each class
-            $allGrouped = $students->groupBy(function($s) {
-                if ($s->subclass && $s->subclass->class) return $s->subclass->class->class_name;
-                if ($s->oldSubclass && $s->oldSubclass->class) return $s->oldSubclass->class->class_name;
-                return 'Unknown';
-            });
-        @endphp
-
-        @foreach($allGrouped as $className => $classStudents)
-            @php
-                $overviewLabelAll = !empty($filterScopeLabel)
-                    ? $filterScopeLabel
-                    : $className;
-            @endphp
-            <div class="group-head" style="font-size:15px;">{{ $overviewLabelAll }} — RESULTS</div>
-            @php
-                $isALevelClass = ($schoolType === 'Secondary') && pdfIsALevelClassName($className);
-                $gradeKeysForMap = ($schoolType === 'Primary')
-                    ? ['A','B','C','D','E','F']
-                    : pdfSecondaryGradeKeys($isALevelClass);
-                // Build stats for this class group
-                $sTotal = 0; $sMale = 0; $sFemale = 0; $sPass = 0;
-                $sMarks = 0; $mMarks = 0; $fMarks = 0;
-                $subjMapAll = [];
-                $topAll = [];
-
-                foreach($classStudents as $s) {
-                    if(!isset($resultsData[$s->studentID])) continue;
-                    $r = $resultsData[$s->studentID];
-                    $res = ($filters['type'] === 'report') ? $r : (is_array($r) && !empty($r) ? $r[0] : null);
-                    if(!$res) continue;
-
-                    $sTotal++;
-                    $marks = (float)($res['average_marks'] ?? 0);
-                    $sMarks += $marks;
-                    $isMale = strtolower($s->gender ?? '') === 'male';
-                    if($isMale) { $sMale++; $mMarks += $marks; } else { $sFemale++; $fMarks += $marks; }
-
-                    $dv = $res['division'] ?? '0';
-                    $dvSplit = explode('.', $dv);
-                    $dvCode = preg_replace('/[^IV0]/', '', $dvSplit[0]);
-                    if($dvCode == '') $dvCode = '0';
-                    if(!in_array($dvCode, ['IV', '0']) && $dvCode !== '') $sPass++;
-
-                    if(isset($res['subjects']) && is_array($res['subjects'])) {
-                        foreach($res['subjects'] as $subItem) {
-                            $sn = $subItem['subject_name'] ?? 'Unknown';
-                            if(!isset($subjMapAll[$sn])) {
-                                $subjMapAll[$sn] = array_fill_keys($gradeKeysForMap, ['M'=>0,'F'=>0,'T'=>0]);
-                            }
-                            $gr = strtoupper($subItem['grade'] ?? 'F');
-                            if(!isset($subjMapAll[$sn][$gr])) $gr = 'F';
-                            $subjMapAll[$sn][$gr][$isMale ? 'M' : 'F']++;
-                            $subjMapAll[$sn][$gr]['T']++;
-                        }
-                    }
-
-                    // Academic rank weight
-                    $divRank = 99; $ptsRank = 99;
-                    if($schoolType === 'Secondary') {
-                        $dvCodeChar = preg_replace('/[^IV0]/', '', explode('.', $dv)[0] ?: '0');
-                        $divMap = ['I'=>1, 'II'=>2, 'III'=>3, 'IV'=>4, '0'=>5];
-                        $divRank = $divMap[$dvCodeChar] ?? 5;
-                        $ptsPart = explode('.', $dv)[1] ?? 35;
-                        $ptsRank = is_numeric($ptsPart) ? (int)$ptsPart : 35;
-                    } else {
-                        $grChar = strtoupper($res['grade'] ?? 'F');
-                        $grMap = ['A'=>1, 'B'=>2, 'C'=>3, 'D'=>4, 'E'=>5, 'F'=>6];
-                        $divRank = $grMap[$grChar] ?? 6;
-                    }
-                    $rankWeight = ($divRank * 1000) + ($ptsRank) - ($marks / 1000);
-
-                    $topAll[] = ['student' => $s, 'marks' => $marks, 'div' => $dv, 'rank_weight' => $rankWeight];
-                }
-
-                // Sort by academic rank weight (ascending)
-                usort($topAll, function($a, $b) { 
-                    return $a['rank_weight'] <=> $b['rank_weight'];
-                });
-                $pRate = $sTotal > 0 ? ($sPass / $sTotal) * 100 : 0;
-                $avgMarks = $sTotal > 0 ? $sMarks / $sTotal : 0;
-                $mAvg = $sMale > 0 ? $mMarks / $sMale : 0;
-                $fAvg = $sFemale > 0 ? $fMarks / $sFemale : 0;
-
-                // Class GPA
-                $gpaPoints = 0; $gpaTotal = 0;
-                $ptMapGPA = ($schoolType === 'Primary')
-                    ? ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0]
-                    : pdfSecondaryPointMap($isALevelClass);
-                foreach($subjMapAll as $sn => $sg) {
-                    foreach($ptMapGPA as $g => $pts) {
-                        $cnt = $sg[$g]['T'] ?? 0;
-                        $gpaPoints += $cnt * $pts;
-                        $gpaTotal  += $cnt;
-                    }
-                }
-                $classGPAVal = $gpaTotal > 0 ? number_format($gpaPoints / $gpaTotal, 2) : '0.00';
-            @endphp
-
-            @if($sTotal > 0)
-                {{-- Overview --}}
-                <div class="sub-head">Overview Statistics</div>
-                <table class="data" style="margin-bottom:12px;">
-                    <tbody>
-                        <tr><td style="width:50%;">Total Students</td><td class="tc bold">{{ $sTotal }}</td></tr>
-                        <tr class="even"><td>Male</td><td class="tc">{{ $sMale }}</td></tr>
-                        <tr><td>Female</td><td class="tc">{{ $sFemale }}</td></tr>
-                        <tr class="even"><td>Class GPA</td><td class="tc bold">{{ $classGPAVal }}</td></tr>
-                        <tr><td>Pass Rate</td><td class="tc bold" style="color:#155724;">{{ number_format($pRate, 0) }}%</td></tr>
-                        <tr class="even"><td>Fail Rate</td><td class="tc bold" style="color:#721c24;">{{ number_format((100 - $pRate), 0) }}%</td></tr>
-                    </tbody>
-                </table>
-
-                {{-- Subject Performance Statistics --}}
-                @if(!empty($subjMapAll))
-                    @php
-                        $gradeHdrs = ($schoolType === 'Primary') ? ['A','B','C','D','E','F'] : pdfSecondaryGradeKeys($isALevelClass);
-                        $ptMapSubj = ($schoolType === 'Primary')
-                            ? ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0]
-                            : pdfSecondaryPointMap($isALevelClass);
-                    @endphp
-                    <div class="sub-head" style="margin-top:2px;">Subject Performance Statistics</div>
-                    <table class="data" style="margin-bottom:15px;">
-                        <thead>
-                            <tr>
-                                <th>Subject</th>
-                                @foreach($gradeHdrs as $gr)<th class="tc">{{ $gr }}</th>@endforeach
-                                <th class="tc">GPA</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @php $si2 = 0; @endphp
-                            @foreach($subjMapAll as $sName => $sGrades)
-                                @php
-                                    $subjPts = 0; $subjTot = 0;
-                                    foreach($ptMapSubj as $g => $pts) {
-                                        $c = $sGrades[$g]['T'] ?? 0;
-                                        $subjPts += $c * $pts;
-                                        $subjTot += $c;
-                                    }
-                                    $subjGPA = $subjTot > 0 ? number_format($subjPts / $subjTot, 2) : '0.00';
-                                @endphp
-                                <tr class="{{ $si2 % 2 == 0 ? '' : 'even' }}">
-                                    <td class="bold">{{ $sName }}</td>
-                                    @foreach($gradeHdrs as $gr)
-                                    <td class="tc" style="font-size:14px;">
-                                        <strong>{{ $sGrades[$gr]['T'] ?? 0 }}</strong><br>
-                                        <span style="color:#666;">M:{{ $sGrades[$gr]['M'] ?? 0 }}, F:{{ $sGrades[$gr]['F'] ?? 0 }}</span>
-                                    </td>
-                                    @endforeach
-                                    <td class="tc bold">{{ $subjGPA }}</td>
-                                </tr>
-                                @php $si2++; @endphp
-                            @endforeach
-                        </tbody>
-                    </table>
-                @endif
-
-                {{-- Students list — subjects listed like original (PHY-68-C, CHEM-95-A, ...) --}}
-                <div class="group-head" style="font-size:14px;">STUDENT RESULTS DETAILED LIST</div>
-                @php $examNumbers = $examNumbers ?? []; @endphp
-                <table class="data">
-                    <thead>
-                        <tr>
-                            <th style="width:5%" class="tc">#</th>
-                            <th style="width:18%">Student Name</th>
-                            <th style="width:12%">Index No</th>
-                            <th style="width:50%">Subject Performances</th>
-                            <th style="width:7%" class="tc">Avg</th>
-                            <th style="width:8%" class="tc">Div/Gr</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($topAll as $pIdx => $item)
-                            @php
-                                $s2 = $item['student'];
-                                $r2 = $resultsData[$s2->studentID];
-                                $res2 = ($filters['type'] === 'report') ? $r2 : (is_array($r2) && !empty($r2) ? $r2[0] : null);
-                                $name2 = trim($s2->first_name . ' ' . ($s2->middle_name ?? '') . ' ' . $s2->last_name);
-                                $index2 = $examNumbers[$s2->studentID] ?? 'N/A';
-                                $subjStrs2 = [];
-                                if (isset($res2['subjects']) && is_array($res2['subjects'])) {
-                                    foreach ($res2['subjects'] as $subj2) {
-                                        $gr2 = $subj2['grade'] ?? 'F';
-                                        if (strtolower((string) $gr2) === 'incomplete') {
-                                            $subjStrs2[] = ($subj2['subject_name'] ?? 'U') . '-Incomplete';
-                                        } else {
-                                            $subjStrs2[] = ($subj2['subject_name'] ?? 'U') . '-' . number_format(floatval($subj2['marks'] ?? 0), 0) . '-' . $gr2;
-                                        }
-                                    }
-                                }
-                                $cls2 = ($pIdx % 2 == 0) ? '' : 'even';
-                            @endphp
-                            <tr class="{{ $cls2 }}">
-                                <td class="tc">{{ $pIdx + 1 }}</td>
-                                <td class="bold" style="font-size:11px;">{{ $name2 }}</td>
-                                <td style="font-size:10px;">{{ $index2 }}</td>
-                                <td style="font-size:10px; line-height:1.25;">{{ implode(', ', $subjStrs2) }}</td>
-                                <td class="tc bold">{{ number_format($item['marks'], 0) }}</td>
-                                <td class="tc bold">{{ $item['div'] }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @endif
-        @endforeach
-
-        @php
-            $bulkTeacherAll = null;
-            if(isset($subclassID)) {
-                $bulkTeacherAll = \App\Models\Subclass::find($subclassID)->teacher ?? null;
-            } elseif(isset($filters['subclass'])) {
-                $bulkTeacherAll = \App\Models\Subclass::find($filters['subclass'])->teacher ?? null;
-            }
-            $bulkTeacherNameAll = $bulkTeacherAll ? $bulkTeacherAll->first_name . ' ' . $bulkTeacherAll->last_name : null;
-            $bulkTeacherSignBase64All = $bulkTeacherAll ? getSmartBase64($bulkTeacherAll->signature) : null;
-        @endphp
-        <table class="sig-table">
-            <tr>
-                <td style="width: 33%; text-align: center;">
-                    @if($bulkTeacherSignBase64All)
-                        <div class="teacher-sig-img" style="margin: 0 auto;">
-                            <img src="{{ $bulkTeacherSignBase64All }}" alt="Teacher Sign">
-                        </div>
-                    @else
-                        <div class="placeholder-img" style="width:120px; height:35px; margin: 0 auto 4px auto;">TEACHER SIGN</div>
-                    @endif
-                    <div class="sig-line" style="width: 140px;"></div>
-                    <span class="sig-label">Class Teacher: {{ $bulkTeacherNameAll ?? 'N/A' }}</span>
-                </td>
-                <td class="stamp-cell" style="width: 33%;">
-                    @if($schoolStampBase64)
-                        <img src="{{ $schoolStampBase64 }}" alt="Stamp" style="max-height: 120px;">
-                    @else
-                        <div class="placeholder-img" style="width:80px; height:80px; margin: 0 auto;">STAMP</div>
-                    @endif
-                </td>
-                <td class="sign-cell" style="width: 33%;">
-                    @if($schoolSignBase64)
-                        <div class="school-signature-img">
-                            <img src="{{ $schoolSignBase64 }}" alt="Signature">
-                        </div>
-                    @else
-                        <div class="placeholder-img" style="width:140px; height:35px; margin: 0 auto 4px auto;">SIGNATURE</div>
-                    @endif
-                    <div class="sig-line" style="width: 140px;"></div>
-                    <span class="sig-label">Headmaster's Signature</span>
-                </td>
-            </tr>
-        </table>
-    @endif
 @endif
 <div class="footer">
     Generated by <span class="brand">ShuleXpert</span> (school management system), powered by emca techonology

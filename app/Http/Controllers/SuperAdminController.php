@@ -155,6 +155,7 @@ class SuperAdminController extends Controller
             $school->logo_url = $this->resolveSchoolAssetUrl($school->school_logo) ?? $this->schoolPlaceholderUrl();
             $school->stamp_url = $this->resolveSchoolAssetUrl($school->school_stamp);
             $school->sign_url = $this->resolveSchoolAssetUrl($school->school_signature);
+            $school->org_logo_url = $this->resolveSchoolAssetUrl($school->organization_logo);
 
             return $school;
         });
@@ -1208,6 +1209,9 @@ class SuperAdminController extends Controller
             'school_logo' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
             'school_stamp' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
             'school_signature' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
+            'is_under_organization' => 'nullable|boolean',
+            'organization_name' => 'nullable|string|max:255',
+            'organization_logo' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
         ]);
 
         if ($validator->fails()) {
@@ -1238,6 +1242,10 @@ class SuperAdminController extends Controller
             $school->status = $request->status;
             $school->two_factor_enabled = $request->boolean('two_factor_enabled');
             $school->must_change_default_password = $request->boolean('must_change_default_password');
+            $school->is_under_organization = $request->boolean('is_under_organization');
+            $school->organization_name = $school->is_under_organization
+                ? $request->input('organization_name')
+                : null;
             $school->senderID = $request->senderID;
             $school->login_status = $loginStatus;
             $school->suspension_reason = $loginStatus === 0 ? $request->suspension_reason : null;
@@ -1249,6 +1257,15 @@ class SuperAdminController extends Controller
                 $filename = time() . '_logo_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
                 $file->move($uploadPath, $filename);
                 $school->school_logo = 'logos/' . $filename;
+            }
+
+            if ($request->hasFile('organization_logo') && $school->is_under_organization) {
+                $uploadPath = $this->schoolUploadPath('logos');
+                $this->deleteSchoolAsset($school->organization_logo, 'logos');
+                $file = $request->file('organization_logo');
+                $filename = time() . '_org_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                $file->move($uploadPath, $filename);
+                $school->organization_logo = 'logos/' . $filename;
             }
 
             if ($request->hasFile('school_stamp')) {

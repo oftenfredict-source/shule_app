@@ -17,6 +17,28 @@
         background-color: #f8f9fa;
     }
 
+    /* Keep page within right-panel — no horizontal scroll */
+    .school-page {
+        max-width: 100%;
+        width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+        padding: 16px 12px 24px;
+    }
+
+    .school-page .row {
+        margin-left: 0;
+        margin-right: 0;
+        max-width: 100%;
+    }
+
+    .school-page [class*="col-"] {
+        min-width: 0;
+        max-width: 100%;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
     /* Statistics Cards - Smaller and Cleaner */
     .stat-card {
         background: white;
@@ -27,6 +49,7 @@
         transition: all 0.2s ease;
         border-top: 3px solid #e9ecef;
         height: 100%;
+        max-width: 100%;
     }
 
     .stat-card:hover {
@@ -46,6 +69,7 @@
         color: #495057;
         font-size: 22px;
         margin-bottom: 12px;
+        flex-shrink: 0;
     }
 
     .stat-card:hover .stat-icon {
@@ -58,6 +82,7 @@
         font-weight: 700;
         color: #212529;
         margin: 8px 0;
+        word-break: break-word;
     }
 
     .stat-label {
@@ -71,18 +96,36 @@
     .school-details-card {
         background: white;
         border-radius: 12px;
-        padding: 25px;
+        padding: 20px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         margin-bottom: 25px;
+        max-width: 100%;
+        overflow: hidden;
     }
 
-    .school-header 
+    .school-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
         margin-bottom: 20px;
         padding-bottom: 15px;
         border-bottom: 2px solid #e9ecef;
+        min-width: 0;
+    }
+
+    .school-header-main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        flex: 1 1 220px;
+    }
+
+    .school-header-text {
+        min-width: 0;
+        flex: 1;
     }
 
     .school-title {
@@ -90,11 +133,14 @@
         font-weight: 600;
         color: #212529;
         margin: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     .school-logo-preview {
         width: 80px;
         height: 80px;
+        min-width: 80px;
         border-radius: 10px;
         background: #f8f9fa;
         display: flex;
@@ -102,6 +148,7 @@
         justify-content: center;
         overflow: hidden;
         border: 2px solid #e9ecef;
+        flex-shrink: 0;
     }
 
     .school-logo-preview img {
@@ -112,8 +159,10 @@
 
     .school-info-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 15px;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+        gap: 12px;
+        width: 100%;
+        max-width: 100%;
     }
 
     .info-item {
@@ -122,6 +171,8 @@
         padding: 12px;
         background: #f8f9fa;
         border-radius: 8px;
+        min-width: 0;
+        max-width: 100%;
     }
 
     .info-item i {
@@ -130,10 +181,12 @@
         margin-top: 3px;
         font-size: 18px;
         width: 20px;
+        flex-shrink: 0;
     }
 
     .info-item-content {
         flex: 1;
+        min-width: 0;
     }
 
     .info-item-label {
@@ -148,16 +201,32 @@
         font-size: 0.95rem;
         color: #212529;
         font-weight: 500;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     /* Chart Cards */
     .chart-card {
         background: white;
         border-radius: 12px;
-        padding: 20px;
+        padding: 16px;
         margin-bottom: 20px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         height: 100%;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .chart-canvas-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .chart-canvas-wrap canvas {
+        max-width: 100% !important;
+        width: 100% !important;
     }
 
     .chart-title {
@@ -167,12 +236,16 @@
         margin-bottom: 15px;
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+        overflow-wrap: anywhere;
     }
 
     .chart-title i {
         margin-right: 8px;
         color: var(--primary-color);
         font-size: 1.2rem;
+        flex-shrink: 0;
     }
 
     /* Section Headers */
@@ -183,6 +256,8 @@
         margin: 25px 0 15px 0;
         padding-bottom: 10px;
         border-bottom: 2px solid #e9ecef;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     /* Edit Button */
@@ -194,6 +269,8 @@
         border-radius: 6px;
         font-size: 0.9rem;
         transition: all 0.2s ease;
+        flex-shrink: 0;
+        white-space: nowrap;
     }
 
     .btn-edit:hover {
@@ -225,6 +302,7 @@
         border-radius: 6px;
         padding: 8px 12px;
         font-size: 0.9rem;
+        max-width: 100%;
     }
 
     .form-control:focus, .form-select:focus {
@@ -235,6 +313,7 @@
     .modal-body {
         max-height: 70vh;
         overflow-y: auto;
+        overflow-x: hidden;
     }
 
     .btn-save {
@@ -261,6 +340,8 @@
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
         border-left: 3px solid #e9ecef;
         transition: all 0.2s ease;
+        max-width: 100%;
+        overflow: hidden;
     }
 
     .info-card:hover {
@@ -274,31 +355,51 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: 5px;
+        overflow-wrap: anywhere;
     }
 
     .info-value {
         font-size: 1.3rem;
         font-weight: 600;
         color: #212529;
+        word-break: break-word;
     }
 
     /* Responsive */
     @media (max-width: 768px) {
+        .school-page {
+            padding: 12px 8px 20px;
+        }
+
         .stat-number {
             font-size: 1.5rem;
         }
         
         .school-title {
-            font-size: 1.25rem;
+            font-size: 1.15rem;
+        }
+
+        .school-logo-preview {
+            width: 56px;
+            height: 56px;
+            min-width: 56px;
         }
         
         .school-info-grid {
             grid-template-columns: 1fr;
         }
+
+        .section-header {
+            font-size: 1.15rem;
+        }
+
+        .btn-edit {
+            width: 100%;
+        }
     }
 </style>
 
-<div class="container-fluid" style="padding: 20px;">
+<div class="container-fluid school-page">
     
     <!-- Page Header -->
     <div class="row mb-3">
@@ -314,15 +415,15 @@
         <div class="col-12">
             <div class="school-details-card">
                 <div class="school-header">
-                    <div class="d-flex align-items-center">
-                        <div class="school-logo-preview me-3">
+                    <div class="school-header-main">
+                        <div class="school-logo-preview">
                             @if($school->school_logo)
                                 <img src="{{ asset($school->school_logo) }}" alt="School Logo">
                             @else
                                 <i class="bi bi-building" style="font-size: 40px; color: #6c757d;"></i>
                             @endif
                         </div>
-                        <div>
+                        <div class="school-header-text">
                             <h3 class="school-title">{{ $school->school_name }}</h3>
                             <small class="text-muted">ID: {{ $school->registration_number ?? 'N/A' }}</small>
                         </div>
@@ -508,7 +609,9 @@
                 <h4 class="chart-title">
                     <i class="bi bi-graph-up"></i> Students Gender Distribution
                 </h4>
-                <canvas id="studentsGenderChart" height="250"></canvas>
+                <div class="chart-canvas-wrap">
+                    <canvas id="studentsGenderChart" height="250"></canvas>
+                </div>
                 <div class="row mt-3 text-center">
                     <div class="col-6">
                         <div class="info-card">
@@ -532,7 +635,9 @@
                 <h4 class="chart-title">
                     <i class="bi bi-graph-up"></i> Teachers Gender Distribution
                 </h4>
-                <canvas id="teachersGenderChart" height="250"></canvas>
+                <div class="chart-canvas-wrap">
+                    <canvas id="teachersGenderChart" height="250"></canvas>
+                </div>
                 <div class="row mt-3 text-center">
                     <div class="col-6">
                         <div class="info-card">
@@ -603,7 +708,9 @@
                 <h4 class="chart-title">
                     <i class="bi bi-bar-chart"></i> Number of Students per Class
                 </h4>
-                <canvas id="studentsByClassChart" height="80"></canvas>
+                <div class="chart-canvas-wrap">
+                    <canvas id="studentsByClassChart" height="80"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -694,6 +801,31 @@
                             <label class="form-label">School Logo</label>
                             <input type="file" class="form-control" name="school_logo" accept="image/*">
                             <small class="text-muted">JPG/PNG only, max 2MB</small>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="is_under_organization" name="is_under_organization" value="1" {{ !empty($school->is_under_organization) ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold" for="is_under_organization">Is under organization?</label>
+                            </div>
+                            <small class="text-muted">e.g. diocese / church / trust that owns the school. Default: Off.</small>
+                        </div>
+                        <div class="col-md-12" id="organizationFieldsWrap" style="{{ !empty($school->is_under_organization) ? '' : 'display:none;' }}">
+                            <div class="row g-3 p-3 border rounded bg-light">
+                                <div class="col-md-6">
+                                    <label class="form-label">Organization Name</label>
+                                    <input type="text" class="form-control" name="organization_name" value="{{ $school->organization_name ?? '' }}" placeholder="e.g. Roman Catholic Diocese">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Organization Logo</label>
+                                    <input type="file" class="form-control" name="organization_logo" accept="image/*">
+                                    <small class="text-muted">JPG/PNG only, max 2MB. Shown above school logo on exports.</small>
+                                    @if(!empty($school->organization_logo))
+                                        <div class="mt-2">
+                                            <img src="{{ asset($school->organization_logo) }}" alt="Org Logo" style="max-height:48px;">
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -869,6 +1001,13 @@
                 y: {
                     beginAtZero: true,
                     ticks: { stepSize: 1 }
+                },
+                x: {
+                    ticks: {
+                        autoSkip: true,
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
                 }
             }
         }
@@ -877,6 +1016,15 @@
 
     // Ensure modal works properly
     document.addEventListener('DOMContentLoaded', function() {
+        // Organization toggle
+        const orgToggle = document.getElementById('is_under_organization');
+        const orgWrap = document.getElementById('organizationFieldsWrap');
+        if (orgToggle && orgWrap) {
+            orgToggle.addEventListener('change', function() {
+                orgWrap.style.display = this.checked ? '' : 'none';
+            });
+        }
+
         // Edit button click handler
         const editButton = document.querySelector('[data-bs-target="#editSchoolModal"]');
         if (editButton) {
@@ -897,6 +1045,9 @@
                 e.preventDefault();
                 
                 const formData = new FormData(this);
+                if (!document.getElementById('is_under_organization').checked) {
+                    formData.set('is_under_organization', '0');
+                }
                 const submitBtn = this.querySelector('button[type="submit"]');
                 const originalText = submitBtn.innerHTML;
                 
