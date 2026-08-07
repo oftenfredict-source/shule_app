@@ -615,15 +615,20 @@
         .teacher-sig-img img { max-width: 140px; max-height: 35px; }
         .teacher-name { font-weight: bold; font-size: 10px; border-top: 1px solid #000; width: 150px; padding-top: 2px; }
 
-        .sig-table { width: 100%; margin-top: 18px; border-collapse: collapse; page-break-inside: avoid; table-layout: fixed; }
-        .sig-table td { border: none; padding: 0; vertical-align: bottom; width: 50%; }
+        .orm-head-sign {
+            min-height: 70px;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+        .orm-head-sign img {
+            max-height: 68px;
+            max-width: 200px;
+        }
+        .sig-table { width: 100%; margin-top: 14px; border-collapse: collapse; page-break-inside: avoid; table-layout: fixed; }
+        .sig-table td { border: none; padding: 0; vertical-align: middle; width: 50%; }
         .stamp-cell { text-align: center; vertical-align: middle; }
         .stamp-cell img { max-width: 180px; max-height: 180px; opacity: 0.95; }
         .sign-cell { text-align: center; padding-bottom: 5px; }
-        .school-signature-img { height: 72px; margin-bottom: 6px; }
-        .school-signature-img img { max-width: 220px; max-height: 72px; }
-        .sig-line   { border-top: 2px solid #940000; width: 180px; margin: 0 auto; display: block; }
-        .sig-label  { font-size: 9px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase; }
 
         .footer {
             position: fixed;
@@ -1485,31 +1490,25 @@
             </td>
             <td>
                 <div class="orm-title">Sahihi</div>
-                <div style="min-height:42px; margin-bottom:4px;"></div>
+                <div class="orm-head-sign">
+                    @if($schoolSignBase64)
+                        <img src="{{ $schoolSignBase64 }}" alt="Sahihi">
+                    @endif
+                </div>
                 <div class="sig-dot-line"></div>
                 <div class="orm-sign-label">Mkuu wa Shule</div>
             </td>
         </tr>
     </table>
 
-    {{-- Stamp (left) + Signature (right) — single place only --}}
-    @if($schoolStampBase64 || $schoolSignBase64)
+    {{-- Stamp only (signature stays inside remarks table above) --}}
+    @if($schoolStampBase64)
     <table class="sig-table">
         <tr>
             <td class="stamp-cell">
-                @if($schoolStampBase64)
-                    <img src="{{ $schoolStampBase64 }}" alt="Muhuri">
-                @endif
+                <img src="{{ $schoolStampBase64 }}" alt="Muhuri">
             </td>
-            <td class="sign-cell">
-                @if($schoolSignBase64)
-                    <div class="school-signature-img">
-                        <img src="{{ $schoolSignBase64 }}" alt="Sahihi">
-                    </div>
-                @endif
-                <span class="sig-line"></span>
-                <span class="sig-label">Mkuu wa Shule</span>
-            </td>
+            <td class="sign-cell"></td>
         </tr>
     </table>
     @endif
