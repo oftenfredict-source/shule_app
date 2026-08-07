@@ -38,17 +38,17 @@
         vertical-align: middle;
         background: transparent;
     }
-    .board-logo-side { width: 68px; }
+    .board-logo-side { width: 100px; }
     .board-logo-side img {
         display: block;
-        max-height: 56px;
-        max-width: 64px;
+        max-height: 88px;
+        max-width: 96px;
         margin: 0;
         border: none;
         outline: none;
     }
-    .board-logo-side.left { text-align: left; padding-right: 12px; }
-    .board-logo-side.right { text-align: right; padding-left: 12px; }
+    .board-logo-side.left { text-align: left; padding-right: 14px; }
+    .board-logo-side.right { text-align: right; padding-left: 14px; }
     .board-logo-side.right img { margin-left: auto; }
     .board-header-center { text-align: center; padding: 0 6px; }
     .board-header-center .org-name {
@@ -113,11 +113,11 @@
         margin: 0 0 12px 0;
         border-collapse: collapse;
         table-layout: fixed;
-        font-size: 9px;
+        font-size: 14px;
     }
     table.board-perf th, table.board-perf td {
         border: 1px solid #bbb;
-        padding: 3px 6px;
+        padding: 4px 6px;
         text-align: center;
         vertical-align: middle;
     }
@@ -125,36 +125,40 @@
         background: #f0f0f0;
         color: #940000;
         font-weight: bold;
+        font-size: 14px;
     }
     table.board-perf td.gpa-cell {
         font-weight: bold;
         color: #940000;
         vertical-align: middle;
+        font-size: 14px;
     }
     table.board-results {
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
-        font-size: 7px;
+        font-size: 14px;
         margin-bottom: 12px;
     }
     table.board-results th, table.board-results td {
         border: 1px solid #bbb;
-        padding: 1px;
+        padding: 2px 1px;
         text-align: center;
         vertical-align: middle;
         word-wrap: break-word;
         overflow: hidden;
+        font-size: 14px;
     }
     table.board-results thead th {
         background: #f5f5f5;
         color: #940000;
         font-weight: bold;
+        font-size: 12px;
     }
     /* Vertical titles — centred in cell, clear of borders */
     table.board-results th.v,
     table.board-results th.v-subj {
-        height: 108px;
+        height: 130px;
         padding: 3px 4px;
         vertical-align: middle;
         text-align: center;
@@ -167,7 +171,7 @@
 
     table.board-results table.v-inner {
         width: 100%;
-        height: 100px;
+        height: 120px;
         border-collapse: collapse;
         margin: 0 auto;
     }
@@ -181,25 +185,25 @@
         overflow: visible;
     }
     table.board-results .v-box {
-        width: 10px;
-        height: 94px;
+        width: 14px;
+        height: 114px;
         margin: 0 auto;
         position: relative;
         overflow: visible;
     }
     table.board-results th.v-subj .v-box {
-        width: 12px;
+        width: 16px;
     }
     table.board-results .v-rot {
         position: absolute;
-        left: 5px;
+        left: 7px;
         bottom: 0;
-        width: 94px;
+        width: 114px;
         white-space: nowrap;
-        font-size: 6.5px;
+        font-size: 11px;
         font-weight: bold;
         color: #940000;
-        line-height: 10px;
+        line-height: 14px;
         text-align: center;
         letter-spacing: 0.15px;
         transform: rotate(-90deg);
@@ -208,31 +212,31 @@
     table.board-results th.sn-h {
         width: 3%;
         vertical-align: middle;
-        font-size: 7px;
+        font-size: 12px;
     }
     table.board-results th.name-h {
         width: 11%;
         vertical-align: middle;
-        font-size: 7px;
+        font-size: 12px;
     }
     table.board-results th.index-h {
         width: 8%;
         vertical-align: middle;
-        font-size: 7px;
+        font-size: 12px;
     }
     table.board-results td {
         vertical-align: middle;
-        font-size: 6.5px;
-        padding: 2px 1px;
+        font-size: 14px;
+        padding: 3px 2px;
     }
     table.board-results td.name-cell {
         text-align: left;
         padding-left: 3px;
         font-weight: bold;
-        font-size: 6.5px;
+        font-size: 12px;
     }
     table.board-results td.stream-cell {
-        font-size: 5.5px;
+        font-size: 11px;
         line-height: 1.15;
         padding: 2px;
     }
@@ -246,7 +250,7 @@
         padding: 2px 0;
     }
     .board-stats-title {
-        font-size: 10px;
+        font-size: 13px;
         font-weight: bold;
         color: #940000;
         margin: 10px 0 4px 0;
@@ -257,22 +261,24 @@
     table.board-subj-stats {
         width: 100%;
         border-collapse: collapse;
-        font-size: 8px;
+        font-size: 12px;
         margin-bottom: 8px;
     }
     table.board-subj-stats th, table.board-subj-stats td {
         border: 1px solid #eee;
-        padding: 3px 2px;
+        padding: 4px 3px;
         text-align: center;
         vertical-align: middle;
+        font-size: 12px;
     }
     table.board-subj-stats thead th {
         background: #f8f9fa;
         color: #940000;
         font-weight: bold;
+        font-size: 12px;
     }
     table.board-subj-stats td.subj-name { text-align: left; font-weight: bold; padding-left: 4px; }
-    .legend-row td { font-weight: bold; font-size: 8px; padding: 4px; }
+    .legend-row td { font-weight: bold; font-size: 11px; padding: 4px; }
     .remark-excellent { background-color: #28a745 !important; color: #ffffff !important; }
     .remark-pass { background-color: #d4edda !important; color: #155724 !important; }
     .remark-good { background-color: #fff3cd !important; color: #856404 !important; }

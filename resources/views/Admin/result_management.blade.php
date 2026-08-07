@@ -5822,7 +5822,7 @@ $(document).ready(function() {
     // Download All Bulk Students PDF
     $(document).on('click', '.download-all-students-btn', function(e) {
         e.preventDefault();
-        
+
         let type = $(this).data('type') || $('#type').val(); // exam or report
         let term = $('#term').val();
         let year = $('#year').val();
@@ -5837,7 +5837,12 @@ $(document).ready(function() {
         @elseif(isset($isCoordinatorResultsView) && $isCoordinatorResultsView)
             classID = $('#lockedClassID').val() || '';
         @endif
-        
+
+        askPdfWatermarkOption().then(function(wmResult) {
+            if (!wmResult.isConfirmed) {
+                return;
+            }
+
         let url = '{{ route("admin.download_results_pdf") }}' + 
                   '?option=bulk_single' + 
                   '&type=' + type + 
@@ -5846,7 +5851,8 @@ $(document).ready(function() {
                   '&examID=' + examID + 
                   '&classID=' + classID + 
                   '&subclassID=' + subclassID + 
-                  '&status=' + status;
+                  '&status=' + status +
+                  '&watermark=' + encodeURIComponent(wmResult.value);
                   
         const alertHtml = `
             <div class="mb-3 mt-2 text-left">
@@ -5981,6 +5987,7 @@ $(document).ready(function() {
                 confirmButtonColor: '#940000'
             });
         });
+        }); // end watermark confirm
     });
 
     // Student search functionality
@@ -6029,108 +6036,142 @@ $(document).ready(function() {
     // SERVER-SIDE PDF DOWNLOAD HELPER (DomPDF via fetch blob)
     // Validates real PDF bytes before saving — avoids corrupt .pdf files
     // =========================================================
+    function askPdfWatermarkOption() {
+        if (typeof Swal === 'undefined') {
+            return Promise.resolve({ isConfirmed: true, value: '1' });
+        }
+        return Swal.fire({
+            title: 'Download PDF',
+            html:
+                '<div class="text-left px-1">' +
+                    '<div class="form-check">' +
+                        '<input class="form-check-input" type="checkbox" id="sxPdfWatermark" checked style="cursor:pointer;">' +
+                        '<label class="form-check-label" for="sxPdfWatermark" style="cursor:pointer; font-weight:600;">' +
+                            'Download with watermark' +
+                        '</label>' +
+                    '</div>' +
+                    '<p class="text-muted small mt-2 mb-0">Default is with watermark. Uncheck to export without ShuleXpert watermark.</p>' +
+                '</div>',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-download"></i> Download',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#940000',
+            focusConfirm: false,
+            preConfirm: function() {
+                var el = document.getElementById('sxPdfWatermark');
+                return el && el.checked ? '1' : '0';
+            }
+        });
+    }
+
     function serverDownloadPDF(params, filename) {
         if (window._sxPdfDownloading) {
             return;
         }
-        window._sxPdfDownloading = true;
 
-        const btn = params._btn;
-        const originalHtml = btn ? btn.html() : null;
-        if (btn) btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Generating PDF...');
-
-        const cleanParams = {};
-        Object.keys(params).forEach(function(k) {
-            if (k !== '_btn' && params[k] !== null && params[k] !== undefined && params[k] !== '') {
-                cleanParams[k] = params[k];
+        askPdfWatermarkOption().then(function(result) {
+            if (!result.isConfirmed) {
+                return;
             }
-        });
 
-        const queryString = new URLSearchParams(cleanParams).toString();
-        const url = '{{ route("admin.download_results_pdf") }}?' + queryString;
-        const safeName = (filename || 'Result.pdf').replace(/[\\/:*?"<>|]+/g, '_');
+            window._sxPdfDownloading = true;
 
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Generating PDF...',
-                html: 'Please wait while the report is prepared.',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showConfirmButton: false,
-                didOpen: function() { Swal.showLoading(); }
+            const btn = params._btn;
+            const originalHtml = btn ? btn.html() : null;
+            if (btn) btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Generating PDF...');
+
+            const cleanParams = {};
+            Object.keys(params).forEach(function(k) {
+                if (k !== '_btn' && params[k] !== null && params[k] !== undefined && params[k] !== '') {
+                    cleanParams[k] = params[k];
+                }
             });
-        }
+            cleanParams.watermark = result.value; // '1' or '0'
 
-        fetch(url, {
-            method: 'GET',
-            credentials: 'same-origin',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/pdf,application/octet-stream,*/*'
-            }
-        })
-        .then(function(res) {
-            return res.arrayBuffer().then(function(buf) {
-                return { ok: res.ok, status: res.status, buf: buf };
-            });
-        })
-        .then(function(result) {
-            const bytes = new Uint8Array(result.buf || []);
-            // Valid PDF starts with %PDF
-            const isPdf = bytes.length > 4
-                && bytes[0] === 0x25
-                && bytes[1] === 0x50
-                && bytes[2] === 0x44
-                && bytes[3] === 0x46;
-
-            if (!result.ok || !isPdf) {
-                let msg = 'PDF file could not be generated.';
-                try {
-                    msg = new TextDecoder().decode(bytes).trim() || msg;
-                } catch (e) {}
-                if (msg.length > 300) msg = msg.substring(0, 300) + '...';
-                throw new Error(msg);
-            }
-
-            const blob = new Blob([result.buf], { type: 'application/pdf' });
-            const blobUrl = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = blobUrl;
-            a.download = safeName;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function() {
-                window.URL.revokeObjectURL(blobUrl);
-                document.body.removeChild(a);
-            }, 200);
+            const queryString = new URLSearchParams(cleanParams).toString();
+            const url = '{{ route("admin.download_results_pdf") }}?' + queryString;
+            const safeName = (filename || 'Result.pdf').replace(/[\\/:*?"<>|]+/g, '_');
 
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
-                    title: 'Downloaded!',
-                    text: 'PDF saved successfully.',
-                    icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false
+                    title: 'Generating PDF...',
+                    html: 'Please wait while the report is prepared.',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: function() { Swal.showLoading(); }
                 });
             }
-        })
-        .catch(function(err) {
-            console.error('PDF download error:', err);
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'PDF download failed',
-                    text: (err && err.message) ? err.message : 'Please try again.',
-                    confirmButtonColor: '#940000'
+
+            fetch(url, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/pdf,application/octet-stream,*/*'
+                }
+            })
+            .then(function(res) {
+                return res.arrayBuffer().then(function(buf) {
+                    return { ok: res.ok, status: res.status, buf: buf };
                 });
-            } else {
-                alert((err && err.message) ? err.message : 'PDF download failed');
-            }
-        })
-        .finally(function() {
-            window._sxPdfDownloading = false;
-            if (btn && originalHtml) btn.prop('disabled', false).html(originalHtml);
+            })
+            .then(function(resultFetch) {
+                const bytes = new Uint8Array(resultFetch.buf || []);
+                // Valid PDF starts with %PDF
+                const isPdf = bytes.length > 4
+                    && bytes[0] === 0x25
+                    && bytes[1] === 0x50
+                    && bytes[2] === 0x44
+                    && bytes[3] === 0x46;
+
+                if (!resultFetch.ok || !isPdf) {
+                    let msg = 'PDF file could not be generated.';
+                    try {
+                        msg = new TextDecoder().decode(bytes).trim() || msg;
+                    } catch (e) {}
+                    if (msg.length > 300) msg = msg.substring(0, 300) + '...';
+                    throw new Error(msg);
+                }
+
+                const blob = new Blob([resultFetch.buf], { type: 'application/pdf' });
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = safeName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function() {
+                    window.URL.revokeObjectURL(blobUrl);
+                    if (a.parentNode) document.body.removeChild(a);
+                }, 400);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Downloaded',
+                        timer: 1400,
+                        showConfirmButton: false
+                    });
+                }
+            })
+            .catch(function(err) {
+                console.error(err);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'PDF failed',
+                        text: (err && err.message) ? err.message : 'Could not download PDF.'
+                    });
+                } else {
+                    alert((err && err.message) ? err.message : 'Could not download PDF.');
+                }
+            })
+            .finally(function() {
+                window._sxPdfDownloading = false;
+                if (btn && originalHtml) btn.prop('disabled', false).html(originalHtml);
+            });
         });
     }
 

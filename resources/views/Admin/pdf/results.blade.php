@@ -277,66 +277,84 @@
         }
     @endphp
     <style>
-        @page { margin: 12mm 10mm 16mm 10mm; }
+        @page { margin: 4mm 5mm 7mm 5mm; size: A4 landscape; }
         body {
             font-family: 'Helvetica', sans-serif;
-            font-size: 10.5px;
+            font-size: 9.5px;
             color: #333;
-            line-height: 1.45;
+            line-height: 1.12;
             background: #fff;
             margin: 0;
-            padding: 0 0 28px 0;
+            padding: 0 0 10px 0;
         }
         table, td, th, p, div, span, li {
             font-family: 'Helvetica', sans-serif;
             color: #333;
         }
 
-        /* Fee-structure style header (logo centred on top — not left/right) */
-        .header { text-align: center; margin-bottom: 12px; border-bottom: 2.5px solid #940000; padding-bottom: 10px; }
-        .header img.school-logo-top { display: block; max-height: 60px; margin: 0 auto 5px auto; border: none; outline: none; }
-        .header img.org-logo-top { display: block; max-height: 52px; margin: 0 auto 8px auto; border: none; outline: none; }
-        .org-logo-center { text-align: center; margin: 0 0 8px 0; }
-        .org-logo-center img { display: block; max-height: 56px; max-width: 120px; margin: 0 auto; border: none; outline: none; }
-        .logo-stack { text-align: center; }
-        .logo-stack img { display: block; margin: 0 auto 4px auto; border: none; outline: none; }
-        .logo-stack img.school-logo { max-height: 55px; }
-        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+        /* Individual header — photo on top; logos large & close to title */
+        .header { text-align: center; margin-bottom: 2px; border-bottom: 1.5px solid #940000; padding-bottom: 2px; }
+        .header img.school-logo-top,
+        .header img.org-logo-top { display: none; }
+        .org-logo-center { display: none; }
+        .student-photo-top {
+            text-align: center;
+            margin: 0 0 2px 0;
+        }
+        .student-photo-top img {
+            display: block;
+            width: 48px;
+            height: 48px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            outline: none;
+            object-fit: cover;
+        }
+        .logo-stack { display: none; }
+        .header-table {
+            width: auto;
+            max-width: 72%;
+            margin: 0 auto;
+            border-collapse: collapse;
+        }
         .header-table td { border: none; padding: 0; vertical-align: middle; }
-        .logo-cell { width: 72px; padding-right: 8px; text-align: left; }
-        .logo-cell img { display: block; max-height: 60px; max-width: 68px; border: none; outline: none; }
-        .student-photo-cell { width: 72px; text-align: right; padding-left: 8px; }
-        .student-photo-cell img { display: block; width: 68px; height: 68px; margin-left: auto; border: none; outline: none; object-fit: cover; }
-        .school-name-cell { text-align: center; }
-        .org-name { font-size: 12px; font-weight: bold; color: #555; text-transform: uppercase; margin-bottom: 2px; letter-spacing: 0.3px; }
-        .school-name { font-size: 17px; font-weight: bold; color: #940000; text-transform: uppercase; }
-        .school-sub  { font-size: 10px; color: #555; margin: 1px 0; }
+        .logo-cell { width: 78px; padding-right: 6px; text-align: left; }
+        .logo-cell img { display: block; max-height: 72px; max-width: 76px; border: none; outline: none; }
+        .logo-cell.right { text-align: right; padding-right: 0; padding-left: 6px; }
+        .logo-cell.right img { margin-left: auto; }
+        .student-photo-cell { width: 48px; text-align: right; padding-left: 4px; }
+        .student-photo-cell img { display: block; width: 46px; height: 46px; margin-left: auto; border: 1px solid #ccc; outline: none; object-fit: cover; }
+        .header.under-org .student-photo-cell { display: none; }
+        .school-name-cell { text-align: center; padding: 0 4px; }
+        .org-name { font-size: 9px; font-weight: bold; color: #555; text-transform: uppercase; margin-bottom: 0; letter-spacing: 0.2px; }
+        .school-name { font-size: 13px; font-weight: bold; color: #940000; text-transform: uppercase; line-height: 1.05; }
+        .school-sub  { font-size: 8px; color: #555; margin: 0; }
 
         .report-title {
-            font-size: 12px;
+            font-size: 9px;
             font-weight: bold;
-            margin-top: 8px;
+            margin-top: 2px;
             background: #f8f9fa;
-            padding: 7px 8px;
-            border: 1.5px solid #ccc;
+            padding: 2px 4px;
+            border: 1px solid #ccc;
             text-align: center;
             text-transform: uppercase;
             color: #333;
         }
 
-        .info-section { margin-bottom: 10px; width: 100%; }
+        .info-section { margin-bottom: 2px; width: 100%; }
         .info-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .info-table td { padding: 6px 8px; border: 1px solid #ccc; width: 25%; vertical-align: middle; font-size: 10px; }
+        .info-table td { padding: 1px 3px; border: 1px solid #ccc; width: 25%; vertical-align: middle; font-size: 8px; }
         .info-table .label { font-weight: bold; color: #444; background: #f8f9fa; }
 
         .section-title {
-            font-size: 11.5px;
+            font-size: 9px;
             font-weight: bold;
             color: #940000;
-            border-bottom: 1.5px solid #940000;
-            padding-bottom: 4px;
-            margin-top: 12px;
-            margin-bottom: 8px;
+            border-bottom: 1px solid #940000;
+            padding-bottom: 1px;
+            margin-top: 2px;
+            margin-bottom: 1px;
             text-transform: uppercase;
         }
 
@@ -346,8 +364,8 @@
             background: transparent;
             border: none;
             padding: 0;
-            margin: 0 0 8px 0;
-            font-size: 10.5px;
+            margin: 0 0 4px 0;
+            font-size: 13px;
             color: #333;
         }
         .s-label { color: #444; font-weight: bold; }
@@ -355,30 +373,30 @@
         .group-head {
             background: #f0f0f0;
             color: #940000;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
-            padding: 6px 8px;
-            margin: 12px 0 0 0;
+            padding: 3px 5px;
+            margin: 5px 0 0 0;
             border: 1px solid #ccc;
             text-transform: uppercase;
         }
         .sub-head {
             background: #fcfcfc;
             color: #444;
-            font-size: 10.5px;
+            font-size: 12px;
             font-weight: bold;
             border-left: 2.5px solid #940000;
-            padding: 4px 7px;
-            margin: 6px 0 3px 0;
+            padding: 2px 5px;
+            margin: 3px 0 2px 0;
         }
 
         table.data, table.data-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 2px;
             table-layout: fixed;
-            border: 1.5px solid #ccc;
-            font-size: 10.5px;
+            border: 1px solid #ccc;
+            font-size: 8.5px;
         }
         table.data th, table.data-table th {
             background-color: #f0f0f0;
@@ -386,37 +404,37 @@
             color: #940000;
             border: 1px solid #ccc;
             text-align: center;
-            font-size: 9.5px;
+            font-size: 7.5px;
             text-transform: uppercase;
-            padding: 6px 5px;
+            padding: 1px 2px;
         }
         table.data thead tr { background-color: #f0f0f0; color: #940000; }
         table.data thead th { color: #940000 !important; }
         table.data td, table.data-table td {
             border: 1px solid #ccc;
-            padding: 5px 6px;
+            padding: 1px 2px;
             text-align: left;
             vertical-align: middle;
-            font-size: 10.5px;
+            font-size: 8.5px;
         }
         table.data tbody tr.even { background-color: #fcfcfc; }
         .tc  { text-align: center; }
         .tr  { text-align: right; }
         .bold { font-weight: bold; }
         table.data th.subj-group,
-        table.data td.subj-name { font-size: 9px; }
+        table.data td.subj-name { font-size: 8.5px; }
         table.data td.subj-marks,
-        table.data td.subj-grade { text-align: center; font-size: 10px; font-weight: bold; }
+        table.data td.subj-grade { text-align: center; font-size: 8.5px; font-weight: bold; }
         table.data td.student-span { vertical-align: middle; }
 
         /* Term report card: Marks|Grade under each exam */
-        table.data.term-report-card th.exam-group { font-size: 8.5px; padding: 4px 2px; }
-        table.data.term-report-card th.exam-sub { font-size: 8px; padding: 3px 2px; background: #f8f8f8; color: #555; }
+        table.data.term-report-card th.exam-group { font-size: 7px; padding: 1px; }
+        table.data.term-report-card th.exam-sub { font-size: 6.5px; padding: 1px; background: #f8f8f8; color: #555; }
         table.data.term-report-card td.exam-marks,
         table.data.term-report-card td.exam-grade {
             text-align: center;
-            font-size: 9.5px;
-            padding: 4px 2px;
+            font-size: 8.5px;
+            padding: 1px;
             overflow: hidden;
             word-wrap: break-word;
             word-break: break-word;
@@ -424,52 +442,43 @@
         table.data td.daraja-cell {
             text-align: center;
             font-weight: bold;
-            font-size: 9.5px;
-            padding: 4px 2px;
+            font-size: 8.5px;
+            padding: 1px;
             overflow: hidden;
             white-space: nowrap;
         }
-        .summary-grid { width: 100%; border-collapse: collapse; margin: 8px 0 12px 0; border: 1.5px solid #ccc; table-layout: fixed; }
+        .summary-grid { width: 100%; border-collapse: collapse; margin: 1px 0 2px 0; border: 1px solid #ccc; table-layout: fixed; }
         .summary-grid td {
             border: 1px solid #ccc !important;
-            padding: 5px 6px;
-            font-size: 9px;
+            padding: 1px 2px;
+            font-size: 7.5px;
             vertical-align: middle;
             text-align: left;
         }
-        .summary-grid .sg-k {
-            font-weight: bold;
-            color: #333;
-            text-transform: uppercase;
-        }
-        .summary-grid .sg-v {
-            font-weight: bold;
-            color: #940000;
-        }
-        .summary-grid .sg-label { font-weight: bold; color: #444; font-size: 8px; text-transform: uppercase; display: block; margin-bottom: 3px; }
-        .summary-grid .sg-value { font-weight: bold; color: #940000; font-size: 12px; display: block; }
-        .grade-key-table { width: 100%; border-collapse: collapse; margin: 8px 0 10px 0; font-size: 8px; }
+        .summary-grid .sg-label { font-weight: bold; color: #444; font-size: 6.5px; text-transform: uppercase; display: block; margin-bottom: 0; }
+        .summary-grid .sg-value { font-weight: bold; color: #940000; font-size: 9px; display: block; }
+        .grade-key-table { width: 100%; border-collapse: collapse; margin: 4px 0 5px 0; font-size: 11px; }
         .grade-key-table th, .grade-key-table td {
             border: 1px solid #ccc;
-            padding: 3px 4px;
+            padding: 2px 3px;
             text-align: center;
         }
-        .grade-key-table th { background: #f0f0f0; color: #940000; font-size: 8px; text-transform: uppercase; }
+        .grade-key-table th { background: #f0f0f0; color: #940000; font-size: 11px; text-transform: uppercase; }
         .grade-key-table .gk-title {
             background: #940000;
             color: #fff;
             font-weight: bold;
             text-align: left;
-            padding: 4px 6px;
-            font-size: 9px;
+            padding: 3px 5px;
+            font-size: 12px;
             text-transform: uppercase;
         }
 
-        .dotted-lines { margin-top: 4px; }
+        .dotted-lines { margin-top: 2px; }
         .dot-line {
             border-bottom: 1px dotted #555;
-            height: 16px;
-            margin-bottom: 6px;
+            height: 12px;
+            margin-bottom: 4px;
             width: 100%;
         }
         .sig-dot-line {
@@ -477,80 +486,36 @@
             width: 100%;
             margin-top: 2px;
         }
-        .official-remarks-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 14px;
-            border: 1.5px solid #ccc;
-            font-size: 10.5px;
-        }
-        .official-remarks-table td {
-            border: 1px solid #ccc !important;
-            vertical-align: top;
-            padding: 8px 10px;
-        }
-        .official-remarks-table .orm-title {
-            font-weight: bold;
-            font-size: 10px;
-            text-transform: uppercase;
-            color: #940000;
-            margin-bottom: 6px;
-        }
-        .official-remarks-table .orm-title-dark {
-            font-weight: bold;
-            font-size: 10px;
-            color: #222;
-            margin-bottom: 4px;
-        }
-        .official-remarks-table .orm-body {
-            font-size: 10px;
-            line-height: 1.4;
-            min-height: 34px;
-        }
-        .official-remarks-table .orm-meta {
-            font-size: 9px;
-            margin-top: 6px;
-            color: #555;
-        }
-        .official-remarks-table .orm-sign-label {
-            font-size: 9px;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #940000;
-            margin-top: 6px;
-        }
-
-        /* ADA + TAARIFA (individual report) */
         .ada-taarifa-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 12px 0 10px 0;
-            border: 1.5px solid #ccc;
-            font-size: 10px;
+            margin: 2px 0 1px 0;
+            border: 1px solid #ccc;
+            font-size: 8px;
         }
         .ada-taarifa-table td {
             border: 1px solid #ccc !important;
             vertical-align: top;
-            padding: 8px 10px;
-            width: 50%;
+            padding: 2px 3px;
+            width: 100%;
         }
         .ada-taarifa-table .at-head {
             font-weight: bold;
-            font-size: 11px;
+            font-size: 8px;
             text-transform: uppercase;
             color: #940000;
-            margin-bottom: 8px;
+            margin-bottom: 1px;
         }
         .ada-taarifa-table .at-line {
-            margin: 0 0 8px 0;
-            line-height: 1.55;
+            margin: 0 0 1px 0;
+            line-height: 1.15;
             color: #333;
         }
         .ada-taarifa-table .at-dots {
             display: inline-block;
             border-bottom: 1px dotted #555;
             min-width: 55%;
-            height: 12px;
+            height: 11px;
             vertical-align: baseline;
             margin-left: 4px;
         }
@@ -615,31 +580,134 @@
         .teacher-sig-img img { max-width: 140px; max-height: 35px; }
         .teacher-name { font-weight: bold; font-size: 10px; border-top: 1px solid #000; width: 150px; padding-top: 2px; }
 
+        .ind-bottom-wrap { width: 100%; border-collapse: collapse; margin: 2px 0 0 0; table-layout: fixed; }
+        .ind-bottom-wrap > tbody > tr > td { border: none; padding: 0 2px 0 0; vertical-align: top; }
+        .ind-bottom-wrap .ada-taarifa-table { margin: 0; width: 100%; }
+        .official-remarks-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            border: 1.5px solid #666;
+            font-size: 8px;
+            table-layout: fixed;
+        }
+        .official-remarks-table td {
+            border: 1px solid #666 !important;
+            vertical-align: top;
+            padding: 3px 4px;
+        }
+        .official-remarks-table .orm-title,
+        .official-remarks-table .orm-title-dark {
+            font-weight: bold;
+            font-size: 7.5px;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .official-remarks-table .orm-title { color: #940000; }
+        .official-remarks-table .orm-title-dark { color: #222; }
+        .official-remarks-table .orm-body {
+            font-size: 8px;
+            line-height: 1.15;
+            min-height: 18px;
+        }
+        .official-remarks-table .orm-meta {
+            font-size: 7.5px;
+            margin-top: 2px;
+            color: #555;
+        }
+        .official-remarks-table .orm-sign-label {
+            font-size: 7px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #940000;
+            margin-top: 2px;
+            text-align: center;
+        }
+        .orm-box {
+            text-align: center;
+            vertical-align: middle !important;
+            min-height: 52px;
+            background: #fafafa;
+        }
         .orm-head-sign {
-            min-height: 70px;
-            margin-bottom: 6px;
+            min-height: 26px;
+            margin-bottom: 1px;
             text-align: center;
         }
         .orm-head-sign img {
-            max-height: 68px;
-            max-width: 200px;
+            max-height: 26px;
+            max-width: 100px;
         }
-        .sig-table { width: 100%; margin-top: 14px; border-collapse: collapse; page-break-inside: avoid; table-layout: fixed; }
-        .sig-table td { border: none; padding: 0; vertical-align: middle; width: 50%; }
-        .stamp-cell { text-align: center; vertical-align: middle; }
-        .stamp-cell img { max-width: 180px; max-height: 180px; opacity: 0.95; }
-        .sign-cell { text-align: center; padding-bottom: 5px; }
-
+        .orm-teacher-sign {
+            min-height: 26px;
+            text-align: center;
+        }
+        .orm-teacher-sign img {
+            max-height: 24px;
+            max-width: 90px;
+        }
+        .orm-stamp-block { text-align: center; margin-top: 0; }
+        .orm-stamp-block .stamp-label {
+            font-size: 7px;
+            font-weight: bold;
+            color: #940000;
+            text-transform: uppercase;
+            margin-bottom: 1px;
+        }
+        .orm-stamp-block img {
+            max-width: 112px;
+            max-height: 112px;
+            opacity: 0.95;
+        }
+        .orm-mkuu-lines .dot-line {
+            border-bottom: 1px dotted #555;
+            height: 10px;
+            margin-bottom: 2px;
+            width: 100%;
+        }
+        .sig-table { display: none; }
+        .dot-line {
+            border-bottom: 1px dotted #555;
+            height: 8px;
+            margin-bottom: 1px;
+            width: 100%;
+        }
+        .remark-color-legend {
+            text-align: center;
+            margin: 2px 0 3px 0;
+            width: 100%;
+        }
+        .remark-color-legend-title {
+            font-weight: bold;
+            color: #666;
+            font-size: 7.5px;
+            margin-bottom: 1px;
+            text-transform: uppercase;
+        }
+        .remark-color-block {
+            display: table-cell;
+            width: 33.3333%;
+            box-sizing: border-box;
+            padding: 2px 3px;
+            font-size: 7px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .remark-color-blocks.secondary-legend .remark-color-block {
+            width: 16.6666%;
+            font-size: 6.5px;
+            padding: 1px 1px;
+        }
         .footer {
             position: fixed;
             bottom: 0;
             left: 0; right: 0;
             width: 100%;
             text-align: center;
-            font-size: 8.5px;
+            font-size: 7px;
             color: #666;
             border-top: 1px solid #ccc;
-            padding-top: 5px;
+            padding-top: 1px;
             background: #fff;
         }
         .footer .brand { color: #940000; font-weight: bold; }
@@ -657,14 +725,14 @@
 
         .remark-color-legend {
             text-align: center;
-            margin: 8px 0 12px 0;
+            margin: 2px 0 2px 0;
             width: 100%;
         }
         .remark-color-legend-title {
             font-weight: bold;
             color: #666;
-            font-size: 9.5px;
-            margin-bottom: 5px;
+            font-size: 7px;
+            margin-bottom: 1px;
             text-transform: uppercase;
         }
         .remark-color-blocks {
@@ -678,15 +746,15 @@
             display: table-cell;
             width: 33.3333%;
             box-sizing: border-box;
-            padding: 5px 6px;
-            font-size: 9.5px;
+            padding: 1px 2px;
+            font-size: 6.5px;
             font-weight: bold;
             text-align: center;
         }
         .remark-color-blocks.secondary-legend .remark-color-block {
             width: 16.6666%;
-            font-size: 8.5px;
-            padding: 4px 2px;
+            font-size: 6px;
+            padding: 1px;
         }
         /* Soft remark chips — readable, not loud layout fills */
         .remark-excellent { background-color: #e8f5e9; color: #1b5e20; }
@@ -716,7 +784,9 @@
     </style>
 </head>
 <body>
-    <div class="watermark">ShuleXpert</div>
+    @if($showWatermark ?? true)
+        <div class="watermark">ShuleXpert</div>
+    @endif
 
 {{-- ====================================================
      SINGLE STUDENT OR BULK SINGLE STUDENT
@@ -738,37 +808,61 @@
             }
         @endphp
 
-        {{-- HEADER (Printed for each student) — org logo top-center, then school row --}}
-        <div class="header">
-            @if($orgLogoBase64)
-                <div class="org-logo-center">
-                    <img src="{{ $orgLogoBase64 }}" alt="Organization Logo">
-                </div>
+        {{-- HEADER: under org → photo top; logos large & close to title --}}
+        <div class="header {{ !empty($underOrg) ? 'under-org' : '' }}">
+            @if(!empty($underOrg))
+                @if($studentPhotoBase64)
+                    <div class="student-photo-top">
+                        <img src="{{ $studentPhotoBase64 }}" alt="Student Photo">
+                    </div>
+                @endif
+                <table class="header-table">
+                    <tr>
+                        <td class="logo-cell">
+                            @if($orgLogoBase64)
+                                <img class="school-logo" src="{{ $orgLogoBase64 }}" alt="Organization Logo">
+                            @endif
+                        </td>
+                        <td class="school-name-cell">
+                            @if($orgName)
+                                <div class="org-name">{{ $orgName }}</div>
+                            @endif
+                            <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
+                            @if($school)
+                                <div class="school-sub">{{ $school->address ?? '' }}</div>
+                                <div class="school-sub">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+                            @endif
+                        </td>
+                        <td class="logo-cell right">
+                            @if($schoolLogoBase64)
+                                <img class="school-logo" src="{{ $schoolLogoBase64 }}" alt="School Logo">
+                            @endif
+                        </td>
+                    </tr>
+                </table>
+            @else
+                <table class="header-table">
+                    <tr>
+                        <td class="logo-cell">
+                            @if($schoolLogoBase64)
+                                <img class="school-logo" src="{{ $schoolLogoBase64 }}" alt="Logo">
+                            @endif
+                        </td>
+                        <td class="school-name-cell">
+                            <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
+                            @if($school)
+                                <div class="school-sub">{{ $school->address ?? '' }}</div>
+                                <div class="school-sub">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
+                            @endif
+                        </td>
+                        <td class="student-photo-cell">
+                            @if($studentPhotoBase64)
+                                <img src="{{ $studentPhotoBase64 }}" alt="Student Photo">
+                            @endif
+                        </td>
+                    </tr>
+                </table>
             @endif
-            <table class="header-table">
-                <tr>
-                    <td class="logo-cell">
-                        @if($schoolLogoBase64)
-                            <img class="school-logo" src="{{ $schoolLogoBase64 }}" alt="Logo">
-                        @endif
-                    </td>
-                    <td class="school-name-cell">
-                        @if($orgName)
-                            <div class="org-name">{{ $orgName }}</div>
-                        @endif
-                        <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
-                        @if($school)
-                            <div class="school-sub">{{ $school->address ?? '' }}</div>
-                            <div class="school-sub">Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
-                        @endif
-                    </td>
-                    <td class="student-photo-cell">
-                        @if($studentPhotoBase64)
-                            <img src="{{ $studentPhotoBase64 }}" alt="Student Photo">
-                        @endif
-                    </td>
-                </tr>
-            </table>
             <div class="report-title">
                 {{ strtoupper(trim($student->first_name . ' ' . ($student->middle_name ?? '') . ' ' . $student->last_name)) }}
                 — {{ $title ?? ($filters['type'] === 'report' ? 'Term Report' : 'Exam Results') }}
@@ -1103,7 +1197,7 @@
                             ];
                         }
                     @endphp
-                    <table class="data term-report-card" style="margin-top:10px;">
+                    <table class="data term-report-card" style="margin-top:2px;">
                         <thead>
                             <tr>
                                 <th class="exam-group" colspan="8">Maelezo ya Daraja</th>
@@ -1263,7 +1357,7 @@
             @endif
 
             @if(isset($detailedSingleData['remarks']))
-            <div style="margin-top: 10px; border: 1px dashed #e0cdcd; padding: 6px; font-size: 14px;">
+            <div style="margin-top: 2px; border: 1px dashed #e0cdcd; padding: 2px 4px; font-size: 8px;">
                 <strong>Maoni:</strong> {{ $detailedSingleData['remarks'] }}
             </div>
             @endif
@@ -1379,7 +1473,7 @@
     {{-- Character & Behavioral Assessment --}}
     @if(isset($characterAssessments) && isset($characterAssessments[$student->studentID]) && count($characterAssessments[$student->studentID]) > 0)
         <div class="section-title">Tathmini ya Tabia na Mwenendo</div>
-        <table class="data character-assessment-table" style="margin-bottom: 45px;">
+        <table class="data character-assessment-table" style="margin-bottom: 2px;">
             <thead>
                 <tr>
                     <th style="width: 40%;">Kategoria</th>
@@ -1391,9 +1485,9 @@
                     <tr class="{{ $idx % 2 == 0 ? '' : 'even' }}">
                         <td>{{ $ca->category->name }}</td>
                         <td class="tc">
-                            <span class="bold" style="color:#940000; font-size:14px;">{{ $ca->choice->choice_name ?? 'N/A' }}</span>
+                            <span class="bold" style="color:#940000; font-size:8px;">{{ $ca->choice->choice_name ?? 'N/A' }}</span>
                             @if($ca->description)
-                                <br><span style="font-size:14px; font-style:italic; color:#555;">{{ $ca->description }}</span>
+                                <br><span style="font-size:7px; font-style:italic; color:#555;">{{ $ca->description }}</span>
                             @endif
                         </td>
                     </tr>
@@ -1402,50 +1496,13 @@
         </table>
     @endif
 
-    {{-- ADA + TAARIFA (kama ripoti ya shule; ada/madeni kutoka view_payments) --}}
+    {{-- ADA + remarks side-by-side (saves height for 1 landscape page) --}}
     @php
         $feeSum = ($studentFeeSummaries ?? [])[$student->studentID] ?? null;
         $hasFeeBill = !empty($feeSum['has_bill']);
         $feeMadeni = $hasFeeBill ? (float) ($feeSum['madeni'] ?? 0) : null;
         $feeAda = $hasFeeBill ? (float) ($feeSum['ada'] ?? 0) : null;
-    @endphp
-    <table class="ada-taarifa-table">
-        <tr>
-            <td>
-                <div class="at-head">Ada</div>
-                <div class="at-line">
-                    (i) Madeni ya mwanafunzi ni
-                    @if($feeMadeni !== null)
-                        <strong>Tsh {{ number_format($feeMadeni, 0) }}</strong>
-                    @else
-                        <span class="at-dots"></span>
-                    @endif
-                </div>
-                <div class="at-line">
-                    (ii) Ada ni Tsh
-                    @if($feeAda !== null)
-                        <strong>{{ number_format($feeAda, 0) }}</strong>
-                    @else
-                        <span class="at-dots"></span>
-                    @endif
-                </div>
-            </td>
-            <td>
-                <div class="at-head">Taarifa</div>
-                <div class="at-line">
-                    (i) Tarehe ya kufunga shule ni <span class="at-uline"></span>
-                    siku ya <span class="at-uline"></span>
-                </div>
-                <div class="at-line">
-                    (ii) Tarehe ya kufungua shule ni <span class="at-uline"></span>
-                    siku ya <span class="at-uline"></span>
-                </div>
-            </td>
-        </tr>
-    </table>
 
-    {{-- Maoni + Sahihi: kila mtu kwenye row yake yenye border --}}
-    @php
         $teacher = $student->subclass->teacher ?? $student->oldSubclass->teacher ?? null;
         $teacherName = $teacher ? $teacher->first_name . ' ' . $teacher->last_name : 'N/A';
         $teacherSignBase64 = $teacher ? getSmartBase64($teacher->signature) : null;
@@ -1459,59 +1516,85 @@
         }
         $teacherComment = getAutomaticComment($commentVal);
     @endphp
-
-    <table class="official-remarks-table">
-        {{-- 1. Mwalimu wa Darasa — kwanza --}}
+    <table class="ind-bottom-wrap">
         <tr>
-            <td style="width:62%;">
-                <div class="orm-title-dark">Maoni ya Mwalimu wa Darasa</div>
-                <div class="orm-body">{{ $teacherComment }}</div>
-                <div class="orm-meta">Jina: {{ $teacherName }}</div>
+            <td style="width:22%;">
+                <table class="ada-taarifa-table">
+                    <tr>
+                        <td>
+                            <div class="at-head">Ada</div>
+                            <div class="at-line">
+                                Madeni:
+                                @if($feeMadeni !== null)
+                                    <strong>Tsh {{ number_format($feeMadeni, 0) }}</strong>
+                                @else
+                                    <span class="at-dots"></span>
+                                @endif
+                            </div>
+                            <div class="at-line">
+                                Ada:
+                                @if($feeAda !== null)
+                                    <strong>Tsh {{ number_format($feeAda, 0) }}</strong>
+                                @else
+                                    <span class="at-dots"></span>
+                                @endif
+                            </div>
+                            <div class="at-head" style="margin-top:3px;">Taarifa</div>
+                            <div class="at-line">Kufunga: <span class="at-uline"></span></div>
+                            <div class="at-line">Kufungua: <span class="at-uline"></span></div>
+                        </td>
+                    </tr>
+                </table>
             </td>
-            <td style="width:38%;">
-                <div class="orm-title-dark">Sahihi ya Mwalimu wa Darasa</div>
-                <div style="min-height:36px; margin-bottom:4px;">
-                    @if($teacherSignBase64)
-                        <img src="{{ $teacherSignBase64 }}" alt="Sahihi" style="max-height:34px; max-width:140px;">
-                    @endif
-                </div>
-                <div class="sig-dot-line"></div>
-            </td>
-        </tr>
-        {{-- 2. Mkuu wa Shule — mwisho --}}
-        <tr>
-            <td>
-                <div class="orm-title">Maoni ya Mkuu wa Shule</div>
-                <div class="dotted-lines">
-                    <div class="dot-line"></div>
-                    <div class="dot-line"></div>
-                    <div class="dot-line"></div>
-                </div>
-            </td>
-            <td>
-                <div class="orm-title">Sahihi</div>
-                <div class="orm-head-sign">
-                    @if($schoolSignBase64)
-                        <img src="{{ $schoolSignBase64 }}" alt="Sahihi">
-                    @endif
-                </div>
-                <div class="sig-dot-line"></div>
-                <div class="orm-sign-label">Mkuu wa Shule</div>
+            <td style="width:78%;">
+                <table class="official-remarks-table">
+                    <tr>
+                        <td style="width:26%;">
+                            <div class="orm-title-dark">Maoni ya Mwalimu wa Darasa</div>
+                            <div class="orm-body">{{ $teacherComment }}</div>
+                            <div class="orm-meta">Jina: {{ $teacherName }}</div>
+                        </td>
+                        <td style="width:14%;" class="orm-box">
+                            <div class="orm-title-dark">Sahihi ya Mwalimu</div>
+                            <div class="orm-teacher-sign">
+                                @if($teacherSignBase64)
+                                    <img src="{{ $teacherSignBase64 }}" alt="Sahihi">
+                                @endif
+                            </div>
+                            <div class="sig-dot-line"></div>
+                        </td>
+                        <td style="width:24%;">
+                            <div class="orm-title">Maoni ya Mkuu wa Shule</div>
+                            <div class="orm-mkuu-lines">
+                                <div class="dot-line"></div>
+                                <div class="dot-line"></div>
+                            </div>
+                        </td>
+                        <td style="width:16%;" class="orm-box">
+                            <div class="orm-title">Sahihi ya Mkuu</div>
+                            <div class="orm-head-sign">
+                                @if($schoolSignBase64)
+                                    <img src="{{ $schoolSignBase64 }}" alt="Sahihi">
+                                @endif
+                            </div>
+                            <div class="sig-dot-line"></div>
+                            <div class="orm-sign-label">Mkuu wa Shule</div>
+                        </td>
+                        <td style="width:20%;" class="orm-box">
+                            @if($schoolStampBase64)
+                                <div class="orm-stamp-block">
+                                    <div class="stamp-label">Stamp</div>
+                                    <img src="{{ $schoolStampBase64 }}" alt="Stamp">
+                                </div>
+                            @else
+                                <div class="stamp-label">Stamp</div>
+                            @endif
+                        </td>
+                    </tr>
+                </table>
             </td>
         </tr>
     </table>
-
-    {{-- Stamp only (signature stays inside remarks table above) --}}
-    @if($schoolStampBase64)
-    <table class="sig-table">
-        <tr>
-            <td class="stamp-cell">
-                <img src="{{ $schoolStampBase64 }}" alt="Muhuri">
-            </td>
-            <td class="sign-cell"></td>
-        </tr>
-    </table>
-    @endif
 
     @php $idxCount++; @endphp
     @if($idxCount < $studentsToIterate->count())

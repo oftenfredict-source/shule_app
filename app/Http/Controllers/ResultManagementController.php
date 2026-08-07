@@ -7039,6 +7039,7 @@ class ResultManagementController extends Controller
             ],
             "option" => $option,
             "title" => $title,
+            "showWatermark" => $request->boolean("watermark", true),
             "characterAssessments" => $this->getLatestCharacterAssessments(
                 $students,
                 $termFilter,
@@ -7051,7 +7052,18 @@ class ResultManagementController extends Controller
             // Generate PDF
             $pdf = PDF::loadView("Admin.pdf.results", $data);
             CenturyGothicPdfFont::ensureRegistered($pdf->getDomPDF());
-            $pdf->setPaper("A4", $useBoardPdf ? "landscape" : "portrait");
+            // Individual + board: always landscape for print
+            $landscape =
+                $useBoardPdf ||
+                in_array($option, ["single", "bulk_single"], true);
+            $orientation = $landscape ? "landscape" : "portrait";
+            $pdf->setPaper("a4", $orientation);
+            // Reinforce DomPDF paper (some versions ignore first setPaper)
+            try {
+                $pdf->getDomPDF()->setPaper("A4", $orientation);
+            } catch (\Throwable $e) {
+                // ignore
+            }
 
             // Generate filename
             $filename = "Results_";
@@ -7675,7 +7687,7 @@ class ResultManagementController extends Controller
         unset($item);
 
         $isALevelClass = $this->isALevelClassName($className);
-        $streamHeader = $isALevelClass ? "COMBIE" : "STREAM";
+        $streamHeader = $isALevelClass ? "COMBINATION" : "STREAM";
         $leadingHeaders =
             $schoolType === "Secondary"
                 ? [
