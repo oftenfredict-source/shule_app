@@ -271,7 +271,7 @@
         padding: 2px 0;
     }
     .board-stats-title {
-        font-size: 10px;
+        font-size: 11px;
         font-weight: bold;
         color: #940000;
         margin: 2px 0 1px 0;
@@ -288,38 +288,38 @@
     table.board-subj-stats {
         width: 100%;
         border-collapse: collapse;
-        font-size: 8.5px;
+        font-size: 11px;
         margin: 0;
         page-break-inside: auto;
     }
     table.board-subj-stats th, table.board-subj-stats td {
         border: 1px solid #ddd;
-        padding: 1px 1px;
+        padding: 2px 1px;
         text-align: center;
         vertical-align: middle;
-        font-size: 8.5px;
-        line-height: 1.05;
+        font-size: 11px;
+        line-height: 1.15;
     }
     table.board-subj-stats thead th {
         background: #f8f9fa;
         color: #940000;
         font-weight: bold;
-        font-size: 8px;
+        font-size: 11px;
     }
     table.board-subj-stats th.board-stats-banner {
         background: #940000 !important;
         color: #fff !important;
-        font-size: 10px;
+        font-size: 12px;
         text-transform: uppercase;
-        padding: 3px 2px;
+        padding: 4px 2px;
         text-align: center;
         border: 1px solid #940000;
     }
     table.board-subj-stats thead { display: table-row-group; }
     table.board-subj-stats tr { page-break-inside: auto; }
-    table.board-subj-stats td.subj-name { text-align: left; font-weight: bold; padding-left: 4px; }
+    table.board-subj-stats td.subj-name { text-align: left; font-weight: bold; padding-left: 4px; font-size: 11px; }
     table.board-subj-stats.board-legend { margin-bottom: 2px; }
-    .legend-row td { font-weight: bold; font-size: 9px; padding: 2px; }
+    .legend-row td { font-weight: bold; font-size: 11px; padding: 3px; }
     .remark-excellent { background-color: #28a745 !important; color: #ffffff !important; }
     .remark-pass { background-color: #d4edda !important; color: #155724 !important; }
     .remark-good { background-color: #fff3cd !important; color: #856404 !important; }
@@ -361,11 +361,13 @@
         width: 70%;
         margin: 2px auto 2px auto;
     }
-    .board-head-sign .board-sig-label {
+    .board-head-sign .board-sig-label,
+    .board-head-stamp .board-sig-label {
         font-size: 8px;
         font-weight: bold;
         text-transform: uppercase;
         color: #333;
+        margin-top: 2px;
     }
     .board-head-stamp {
         text-align: center;
@@ -752,6 +754,7 @@
                             @if(!empty($schoolStampBase64))
                                 <img src="{{ $schoolStampBase64 }}" alt="Stamp">
                             @endif
+                            <div class="board-sig-label">Stamp</div>
                         </div>
                     </td>
                 </tr>
