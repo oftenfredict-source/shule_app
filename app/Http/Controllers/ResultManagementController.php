@@ -869,40 +869,15 @@ class ResultManagementController extends Controller
                     ];
                 }
 
-                // Prevent double-counting: exclude CA test exams from average divisor
-                // when their parent exam is also in the term report definition
+                // CA defs kept for compatibility with helpers; averages use column marks only
                 $selectedExamIDs = $examinations->pluck("examID")->toArray();
-                $caDefinitionsForReport = CaDefinition::where(
+                $caDefinitionsByExam = CaDefinition::where(
                     "schoolID",
                     $schoolID,
                 )
                     ->whereIn("examID", $selectedExamIDs)
-                    ->get();
-                $caDefinitionsByExam = $caDefinitionsForReport->keyBy(
-                    "examID",
-                );
-
-                $excludedExamIDs = [];
-                foreach ($caDefinitionsForReport as $caDefinition) {
-                    $testIDs = is_array($caDefinition->test_ids)
-                        ? $caDefinition->test_ids
-                        : [];
-                    foreach ($testIDs as $testID) {
-                        if (in_array($testID, $selectedExamIDs)) {
-                            $excludedExamIDs[] = $testID;
-                        }
-                    }
-                }
-
-                $effectiveExaminations = $examinations
-                    ->reject(function ($exam) use ($excludedExamIDs) {
-                        return in_array($exam->examID, $excludedExamIDs);
-                    })
-                    ->values();
-
-                if ($effectiveExaminations->isEmpty()) {
-                    $effectiveExaminations = $examinations;
-                }
+                    ->get()
+                    ->keyBy("examID");
 
                 // Group by subjectID; duo papers → one % per exam (not Paper 1 / Paper 2)
                 foreach ($results as $result) {
@@ -1033,17 +1008,16 @@ class ResultManagementController extends Controller
                 }
                 unset($data);
 
-                // Calculate CA-aware average and overall grade for each subject
+                // Subject average = mean of marks across term-report exam columns
                 $subjects = [];
                 $totalMarks = 0;
                 $subjectCount = 0;
-                $effectiveExamCount = max(1, $effectiveExaminations->count());
 
                 foreach ($subjectData as $subjectID => $data) {
                     $subjectName = $data["subject_name"];
                     $slotCollect = $this->collectTermReportSlotMarksForSubject(
                         $data,
-                        $effectiveExaminations,
+                        $examinations,
                         $caDefinitionsByExam,
                     );
                     $subjectIncomplete = $slotCollect["is_incomplete"];
@@ -1484,12 +1458,12 @@ class ResultManagementController extends Controller
                     $subjectCount > 0 ? $totalMarks / $subjectCount : 0;
             }
 
-            // NECTA division: term report uses CA-aware term averages (same as bulk list / PDF)
+            // NECTA division: term report uses column averages (same as bulk list / PDF)
             $allSubjectGrades = [];
             if ($typeFilterForDetails === "report") {
                 $subjectPoints = $this->buildTermReportSubjectPointEntries(
                     $results,
-                    $effectiveExaminations,
+                    $examinations,
                     $caDefinitionsByExam,
                     $schoolType,
                     $className,
@@ -4601,53 +4575,19 @@ class ResultManagementController extends Controller
         }
 
         /**
-         * Prevent double-counting in term report:
-         * If a selected exam already has CA definition that includes a selected test exam,
-         * drop that test exam from term-report aggregation.
+         * Term report columns = all selected exams in the definition.
+         * Average each subject across those columns (no CA re-bundling).
+         * CA tests that are also report columns stay as their own columns.
          */
-        $selectedExamIDs = $endedExaminations->pluck("examID")->toArray();
-        $caDefinitions = CaDefinition::where("schoolID", $schoolID)
-            ->whereIn("examID", $selectedExamIDs)
-            ->get();
-
-        $excludedExamIDs = [];
-        foreach ($caDefinitions as $caDefinition) {
-            $testIDs = is_array($caDefinition->test_ids)
-                ? $caDefinition->test_ids
-                : [];
-            foreach ($testIDs as $testID) {
-                if (in_array($testID, $selectedExamIDs)) {
-                    $excludedExamIDs[] = $testID;
-                }
-            }
-        }
-
-        $effectiveExaminations = $endedExaminations
-            ->reject(function ($exam) use ($excludedExamIDs) {
-                return in_array($exam->examID, $excludedExamIDs);
-            })
-            ->values();
-
-        if ($effectiveExaminations->isEmpty()) {
-            // Safety fallback
-            $effectiveExaminations = $endedExaminations;
-        }
-
-        $effectiveExamIDs = $effectiveExaminations->pluck("examID")->toArray();
+        $reportExaminations = $endedExaminations->values();
+        $reportExamIDs = $reportExaminations->pluck("examID")->toArray();
         $caDefinitionsByExam = CaDefinition::where("schoolID", $schoolID)
-            ->whereIn("examID", $effectiveExamIDs)
+            ->whereIn("examID", $reportExamIDs)
             ->get()
             ->keyBy("examID");
 
-        // Fetch all exams needed for aggregation (main exams + their CA tests)
-        $examIDs = $effectiveExamIDs;
-        foreach ($caDefinitionsByExam as $caDefinition) {
-            $testIDs = is_array($caDefinition->test_ids)
-                ? $caDefinition->test_ids
-                : [];
-            $examIDs = array_merge($examIDs, $testIDs);
-        }
-        $examIDs = array_values(array_unique($examIDs));
+        // Fetch results for all report exam columns
+        $examIDs = $reportExamIDs;
 
         // OPTIMIZATION: Get all student IDs
         $studentIDs = $students->pluck("studentID")->toArray();
@@ -4716,61 +4656,16 @@ class ResultManagementController extends Controller
             $totalMarksAllExams = 0;
             $totalSubjectCount = 0;
 
-            foreach ($effectiveExaminations as $exam) {
-                $caDefinition = $caDefinitionsByExam->get($exam->examID);
-
-                if ($caDefinition && !empty($caDefinition->test_ids)) {
-                    $involvedExamIDs = array_values(
-                        array_unique(
-                            array_merge([$exam->examID], $caDefinition->test_ids),
-                        ),
-                    );
-                    $involvedCount = count($involvedExamIDs);
-
-                    $rawResults = collect();
-                    foreach ($involvedExamIDs as $involvedExamID) {
-                        $rawResults = $rawResults->merge(
-                            $studentResultsByExam->get(
-                                $involvedExamID,
-                                collect(),
-                            ),
-                        );
-                    }
-                    $rawResults = $this->filterResultsForStudentElection(
-                        $rawResults,
-                        $student->studentID,
-                        $electedClassSubjectIds,
-                    );
-
-                    $results = $rawResults
-                        ->groupBy("class_subjectID")
-                        ->map(function ($group) use ($involvedCount) {
-                            $marksSum = $group->sum(function ($r) {
-                                return $r->marks !== null && $r->marks !== ""
-                                    ? (float) $r->marks
-                                    : 0;
-                            });
-                            $avg =
-                                $involvedCount > 0
-                                    ? $marksSum / $involvedCount
-                                    : 0;
-
-                            $first = $group->first();
-                            $first->marks = $avg;
-                            $first->grade = null;
-                            return $first;
-                        });
-                } else {
-                    $results = $studentResultsByExam->get(
-                        $exam->examID,
-                        collect(),
-                    );
-                    $results = $this->filterResultsForStudentElection(
-                        $results,
-                        $student->studentID,
-                        $electedClassSubjectIds,
-                    );
-                }
+            foreach ($reportExaminations as $exam) {
+                $results = $studentResultsByExam->get(
+                    $exam->examID,
+                    collect(),
+                );
+                $results = $this->filterResultsForStudentElection(
+                    $results,
+                    $student->studentID,
+                    $electedClassSubjectIds,
+                );
 
                 if ($results->isEmpty()) {
                     continue;
@@ -4838,17 +4733,7 @@ class ResultManagementController extends Controller
             }
 
             if (!empty($allExamResults)) {
-                // Calculate overall average as average of exam averages (for report view)
-                $examAveragesSum = 0;
-                foreach ($allExamResults as $examResult) {
-                    $examAveragesSum += $examResult["average"];
-                }
-                $overallAverage =
-                    count($effectiveExaminations) > 0
-                        ? $examAveragesSum / count($effectiveExaminations)
-                        : 0;
-
-                // NECTA division: one grade per subject (term average), then best 7 / A-Level combie 3
+                // Overall average = mean of subject term averages (column mean per subject)
                 $allStudentResults = collect();
                 foreach ($examIDs as $examIdForDivision) {
                     $allStudentResults = $allStudentResults->merge(
@@ -4863,7 +4748,7 @@ class ResultManagementController extends Controller
 
                 $subjectPointEntries = $this->buildTermReportSubjectPointEntries(
                     $allStudentResults,
-                    $effectiveExaminations,
+                    $reportExaminations,
                     $caDefinitionsByExam,
                     $schoolType,
                     $className,
@@ -4873,7 +4758,7 @@ class ResultManagementController extends Controller
 
                 $subjectSummaries = $this->buildTermReportSubjectSummaries(
                     $allStudentResults,
-                    $effectiveExaminations,
+                    $reportExaminations,
                     $caDefinitionsByExam,
                     $schoolType,
                     $className,
@@ -4881,6 +4766,23 @@ class ResultManagementController extends Controller
                     $electedClassSubjectIds,
                     $classID,
                 );
+
+                $scoredSubjectAverages = [];
+                foreach ($subjectSummaries as $summary) {
+                    if (
+                        isset($summary["marks"]) &&
+                        $summary["marks"] !== null &&
+                        strtolower((string) ($summary["grade"] ?? "")) !==
+                            "incomplete"
+                    ) {
+                        $scoredSubjectAverages[] = (float) $summary["marks"];
+                    }
+                }
+                $overallAverage =
+                    count($scoredSubjectAverages) > 0
+                        ? array_sum($scoredSubjectAverages) /
+                            count($scoredSubjectAverages)
+                        : 0;
 
                 $bestSevenGrades = [];
                 $totalPoints = 0;
@@ -5229,41 +5131,16 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Marks for one term-report exam column (CA bundle = all parts must have marks).
+     * Marks for one term-report exam column — use the column's own marks only.
+     * Do not fold CA tests into the parent here: CA tests that are in the report
+     * are their own columns, and CA tests outside the report must not wipe a
+     * scored parent column (e.g. Terminal 85 ignored because Monthly Test missing).
      */
     private function resolveTermReportExamSlotMarks(
         array $data,
         $exam,
-        $caDefinitionsByExam,
+        $caDefinitionsByExam = null,
     ): ?float {
-        $caDefinition = $caDefinitionsByExam->get($exam->examID);
-
-        if ($caDefinition && !empty($caDefinition->test_ids)) {
-            $involvedExamIDs = array_values(
-                array_unique(
-                    array_merge([$exam->examID], $caDefinition->test_ids),
-                ),
-            );
-            $involvedCount = count($involvedExamIDs);
-            if ($involvedCount === 0) {
-                return null;
-            }
-
-            $involvedSum = 0;
-            foreach ($involvedExamIDs as $involvedExamID) {
-                if (
-                    !isset($data["exams"][$involvedExamID]["marks"]) ||
-                    $data["exams"][$involvedExamID]["marks"] === null ||
-                    $data["exams"][$involvedExamID]["marks"] === ""
-                ) {
-                    return null;
-                }
-                $involvedSum += (float) $data["exams"][$involvedExamID]["marks"];
-            }
-
-            return $involvedSum / $involvedCount;
-        }
-
         if (
             !isset($data["exams"][$exam->examID]["marks"]) ||
             $data["exams"][$exam->examID]["marks"] === null ||
@@ -5279,6 +5156,7 @@ class ResultManagementController extends Controller
      * Term report subject average (kawaida):
      * - Jumla = alama zilizopo + 0 kwa kila mtihani incomplete (null)
      * - Wastani = jumla ÷ idadi ya mitihani kwenye term report (daima)
+     *   (mf. WEEKLY 100 + MIDTERM 100 + TERMINAL 100 → 300/3 = 100)
      *   (mf. TERMINAL 71, MIDTERM incomplete → (71+0)/2 = 35.5)
      * - Incomplete tu wakati mitihani YOTE hazina marks
      *
@@ -5292,15 +5170,15 @@ class ResultManagementController extends Controller
      */
     private function collectTermReportSlotMarksForSubject(
         array $data,
-        $effectiveExaminations,
-        $caDefinitionsByExam,
+        $reportExaminations,
+        $caDefinitionsByExam = null,
     ): array {
-        $examSlotCount = $effectiveExaminations->count();
+        $examSlotCount = $reportExaminations->count();
         $slotMarksList = [];
         $sum = 0.0;
         $markedSlotCount = 0;
 
-        foreach ($effectiveExaminations as $exam) {
+        foreach ($reportExaminations as $exam) {
             $slotMarks = $this->resolveTermReportExamSlotMarks(
                 $data,
                 $exam,
