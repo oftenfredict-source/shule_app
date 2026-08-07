@@ -19,26 +19,36 @@
                 $base = base_path();
                 $parent = dirname($base);
                 $filename = basename($path);
+                $dirHint = trim(str_replace('\\', '/', dirname($path)), './');
                 
                 $possibilities = [
                     public_path($path),                             // Standard Laravel Public
                     public_path('userImages/' . $filename),        // Student photos folder
                     public_path('uploads/' . $path),                // Standard Laravel Public Uploads
+                    public_path('stamps/' . $filename),
+                    public_path('signatures/' . $filename),
+                    public_path('logos/' . $filename),
                     $parent . '/public_html/' . $path,              // cPanel / Shared Hosting
                     $parent . '/public_html/userImages/' . $filename, // cPanel student photos
                     $parent . '/public_html/uploads/' . $path,      // cPanel / Shared Hosting Uploads
+                    $parent . '/public_html/stamps/' . $filename,
+                    $parent . '/public_html/signatures/' . $filename,
                 ];
                 
                 if (isset($_SERVER['DOCUMENT_ROOT'])) {
-                    $docRoot = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
+                    $docRoot = rtrim($_SERVER['DOCUMENT_ROOT'], '/\\');
                     $possibilities[] = $docRoot . '/' . $path;
                     $possibilities[] = $docRoot . '/userImages/' . $filename;
                     $possibilities[] = $docRoot . '/uploads/' . $path;
+                    $possibilities[] = $docRoot . '/stamps/' . $filename;
+                    $possibilities[] = $docRoot . '/signatures/' . $filename;
                 }
                 
                 $possibilities[] = base_path($path);
                 $possibilities[] = base_path('public/userImages/' . $filename);
                 $possibilities[] = base_path('public/' . $path);
+                $possibilities[] = base_path('public/stamps/' . $filename);
+                $possibilities[] = base_path('public/signatures/' . $filename);
                 $possibilities[] = base_path('../public_html/' . $path);
                 
                 foreach ($possibilities as $fullPath) {
@@ -46,7 +56,56 @@
                         try {
                             $data = base64_encode(file_get_contents($fullPath));
                             $ext = pathinfo($fullPath, PATHINFO_EXTENSION);
-                            return 'data:image/' . ($ext ?: 'png') . ';base64,' . $data;
+                            $mime = strtolower($ext ?: 'png');
+                            if ($mime === 'jpg') {
+                                $mime = 'jpeg';
+                            }
+                            return 'data:image/' . $mime . ';base64,' . $data;
+                        } catch (\Exception $e) {}
+                    }
+                }
+
+                // Fuzzy fallback: DB may reference an older timestamped file
+                // e.g. stamps/1774551674_Stamp_Bishop.png → match *_Stamp_Bishop.png
+                $suffix = preg_replace('/^\d+_/', '', $filename);
+                if ($suffix !== '' && $suffix !== $filename) {
+                    $searchDirs = [];
+                    if ($dirHint !== '' && $dirHint !== '.') {
+                        $searchDirs[] = public_path($dirHint);
+                        $searchDirs[] = base_path('public/' . $dirHint);
+                        if (isset($_SERVER['DOCUMENT_ROOT'])) {
+                            $searchDirs[] = rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') . '/' . $dirHint;
+                        }
+                    }
+                    $searchDirs[] = public_path('stamps');
+                    $searchDirs[] = public_path('signatures');
+                    $searchDirs = array_unique(array_filter($searchDirs, 'is_dir'));
+                    $matches = [];
+                    foreach ($searchDirs as $dir) {
+                        foreach ((array) @glob(rtrim($dir, '/\\') . DIRECTORY_SEPARATOR . '*' . $suffix) as $match) {
+                            if (is_file($match)) {
+                                $matches[] = $match;
+                            }
+                        }
+                    }
+                    if (!empty($matches)) {
+                        usort($matches, function ($a, $b) {
+                            $na = (int) preg_replace('/^(\d+).*/', '$1', basename($a));
+                            $nb = (int) preg_replace('/^(\d+).*/', '$1', basename($b));
+                            if ($na !== $nb) {
+                                return $nb <=> $na;
+                            }
+                            return (@filemtime($b) ?: 0) <=> (@filemtime($a) ?: 0);
+                        });
+                        try {
+                            $fullPath = $matches[0];
+                            $data = base64_encode(file_get_contents($fullPath));
+                            $ext = pathinfo($fullPath, PATHINFO_EXTENSION);
+                            $mime = strtolower($ext ?: 'png');
+                            if ($mime === 'jpg') {
+                                $mime = 'jpeg';
+                            }
+                            return 'data:image/' . $mime . ';base64,' . $data;
                         } catch (\Exception $e) {}
                     }
                 }
@@ -556,13 +615,13 @@
         .teacher-sig-img img { max-width: 140px; max-height: 35px; }
         .teacher-name { font-weight: bold; font-size: 10px; border-top: 1px solid #000; width: 150px; padding-top: 2px; }
 
-        .sig-table { width: 100%; margin-top: 28px; border-collapse: collapse; page-break-inside: avoid; table-layout: fixed; }
+        .sig-table { width: 100%; margin-top: 18px; border-collapse: collapse; page-break-inside: avoid; table-layout: fixed; }
         .sig-table td { border: none; padding: 0; vertical-align: bottom; width: 50%; }
         .stamp-cell { text-align: center; vertical-align: middle; }
-        .stamp-cell img { max-width: 110px; max-height: 110px; opacity: 0.85; }
+        .stamp-cell img { max-width: 120px; max-height: 120px; opacity: 0.9; }
         .sign-cell { text-align: center; padding-bottom: 5px; }
-        .school-signature-img { height: 40px; margin-bottom: 4px; }
-        .school-signature-img img { max-width: 150px; max-height: 40px; }
+        .school-signature-img { height: 48px; margin-bottom: 4px; }
+        .school-signature-img img { max-width: 160px; max-height: 48px; }
         .sig-line   { border-top: 2px solid #940000; width: 160px; margin: 0 auto; display: block; }
         .sig-label  { font-size: 8.5px; color: #940000; font-weight: bold; padding-top: 4px; display: block; text-transform: uppercase; }
 
@@ -1429,8 +1488,6 @@
                 <div style="min-height:42px; margin-bottom:4px;">
                     @if($schoolSignBase64)
                         <img src="{{ $schoolSignBase64 }}" alt="Sahihi" style="max-height:38px; max-width:150px;">
-                    @elseif($schoolStampBase64)
-                        <img src="{{ $schoolStampBase64 }}" alt="Muhuri" style="max-height:70px; max-width:90px; opacity:0.85;">
                     @endif
                 </div>
                 <div class="sig-dot-line"></div>
@@ -1438,6 +1495,28 @@
             </td>
         </tr>
     </table>
+
+    {{-- Stamp (left) + Signature (right) — both must show on individual PDF --}}
+    @if($schoolStampBase64 || $schoolSignBase64)
+    <table class="sig-table">
+        <tr>
+            <td class="stamp-cell">
+                @if($schoolStampBase64)
+                    <img src="{{ $schoolStampBase64 }}" alt="Muhuri">
+                @endif
+            </td>
+            <td class="sign-cell">
+                @if($schoolSignBase64)
+                    <div class="school-signature-img">
+                        <img src="{{ $schoolSignBase64 }}" alt="Sahihi">
+                    </div>
+                @endif
+                <span class="sig-line"></span>
+                <span class="sig-label">Mkuu wa Shule</span>
+            </td>
+        </tr>
+    </table>
+    @endif
 
     @php $idxCount++; @endphp
     @if($idxCount < $studentsToIterate->count())
