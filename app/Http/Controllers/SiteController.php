@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\OnlineApplicationApplyTokenService;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -10,6 +11,14 @@ use Illuminate\Support\Str;
 
 class SiteController extends Controller
 {
+    /**
+     * Absolute public-site URL (always https://shulexpert.com) for canonicals / sitemap alignment.
+     */
+    private function publicUrl(string $path = '/'): string
+    {
+        return app(OnlineApplicationApplyTokenService::class)->publicAbsoluteUrl($path);
+    }
+
     /**
      * Public marketing modules mapped from real ShuleXpert Admin / Teacher features
      * (see resources/views/includes/Admin_nav.blade.php).
@@ -703,17 +712,52 @@ class SiteController extends Controller
 
     public function home()
     {
+        $keywords = implode(', ', [
+            'Mfumo bora wa shule Tanzania',
+            'Better school management system',
+            'ShuleXpert',
+            'shulesoft',
+            'shule',
+            'Mifumo ya shule',
+            'Mfumo wa shule',
+            'School system',
+            'school software',
+            'Mfumo wa taaluma',
+            'Mifumo bora ya shule Tanzania',
+            'Mfumo bora wa shule Tanzania',
+            'Mifumo bora ya shule Duniani',
+            'Mifumo Bora ya Shule Duniani',
+            'Mfumo namba moja wa shule Tanzania',
+            'Mfumo wa shule Tanzania',
+            'school management system Tanzania',
+            'school management software Africa',
+            'mfumo wa usimamizi wa shule',
+            'school ERP Tanzania',
+            'mfumo wa mitihani shule',
+            'school fees control number Tanzania',
+            'biometric attendance school Tanzania',
+            'parent portal school Tanzania',
+            'lesson plan software Tanzania',
+            'scheme of work software',
+            'online school application Tanzania',
+            'school admin software',
+            'EmCa Techonology',
+        ]);
+
         return view('site.home', [
             'modules' => array_values(self::modules()),
             'teamMembers' => self::teamMembers(),
             'seo' => [
-                'title' => 'ShuleXpert — School Management System for the World',
-                'description' => 'ShuleXpert is a complete school management platform — digital Lesson Plans & Scheme of Work, fees & control numbers, biometric attendance, exams, topic analysis, parent portal, timetable, library, store, SMS and more. Powered by EmCa Techonology.',
-                'keywords' => 'ShuleXpert, lesson plan software, scheme of work software, school management system, school fees control number, biometric attendance ZKTeco, exam results, topic analysis, parent portal, timetable, EmCa Techonology Tanzania',
-                'canonical' => url('/'),
+                'title' => 'Mfumo Bora wa Shule Tanzania | ShuleXpert School Management System',
+                'description' => 'ShuleXpert ni mfumo bora wa shule Tanzania na duniani — better school management system & school software: fees, biometric attendance, exams, lesson plans, scheme of work, parent portal. Mfumo wa taaluma na usimamizi wa shule. Powered by EmCa Techonology.',
+                'keywords' => $keywords,
+                'canonical' => $this->publicUrl('/'),
                 'type' => 'website',
+                'image' => $this->publicUrl('/images/shuleXpert.jpg'),
+                'image_alt' => 'ShuleXpert — mfumo bora wa shule Tanzania na school management system',
+                'robots' => 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
                 'breadcrumbs' => [
-                    ['name' => 'Home', 'url' => url('/')],
+                    ['name' => 'Home', 'url' => $this->publicUrl('/')],
                 ],
             ],
         ]);
@@ -729,7 +773,7 @@ class SiteController extends Controller
                 'title' => 'Our Team — ShuleXpert | EmCa Techonology',
                 'description' => 'Meet the EmCa Techonology team behind ShuleXpert — Senior Developer, System Analyst, and UI/UX Designer building school management for the world.',
                 'keywords' => 'ShuleXpert team, Senior Developer, EmCa Techonology developers, school software engineers Tanzania, UI UX designer ShuleXpert',
-                'canonical' => url('/team'),
+                'canonical' => $this->publicUrl('/team'),
                 'type' => 'website',
             ],
         ]);
@@ -749,8 +793,8 @@ class SiteController extends Controller
 
         $name = $member['name'];
         $role = $member['role'];
-        $canonical = url('/team/' . $slug);
-        $image = url($member['image']);
+        $canonical = $this->publicUrl('/team/' . $slug);
+        $image = $this->publicUrl('/' . ltrim($member['image'], '/'));
         $desc = \Illuminate\Support\Str::limit(
             trim(preg_replace('/\s+/', ' ', $member['more_bio'] ?? $member['bio'] ?? $member['tagline'] ?? '')),
             160,
@@ -789,7 +833,7 @@ class SiteController extends Controller
                 'title' => 'About ShuleXpert — EmCa Techonology',
                 'description' => 'Learn about ShuleXpert, the school management platform built by EmCa Techonology for schools worldwide — from preschool to advanced level.',
                 'keywords' => 'About ShuleXpert, EmCa Techonology, school software worldwide',
-                'canonical' => url('/about'),
+                'canonical' => $this->publicUrl('/about'),
                 'type' => 'website',
             ],
         ]);
@@ -807,14 +851,14 @@ class SiteController extends Controller
                 'title' => 'ShuleXpert Modules (' . $count . ') — School Management Features',
                 'description' => 'Browse ' . $count . ' ShuleXpert modules led by Lesson Plans and Scheme of Work, plus ' . $highlights . ', and more. Live school capabilities by EmCa Techonology.',
                 'keywords' => 'ShuleXpert modules, lesson plan software, scheme of work software, school management system modules, school fees control number, biometric attendance, exam results, topic analysis, timetable, duty book, library, inventory, character assessment, student ID cards, printing unit, permission requests, school visitors, SMS alerts, budget expenses financial reports, EmCa Techonology',
-                'canonical' => url('/modules'),
+                'canonical' => $this->publicUrl('/modules'),
                 'type' => 'website',
                 'breadcrumb_name' => 'Modules',
                 'breadcrumbs' => [
-                    ['name' => 'Home', 'url' => url('/')],
-                    ['name' => 'Modules', 'url' => url('/modules')],
+                    ['name' => 'Home', 'url' => $this->publicUrl('/')],
+                    ['name' => 'Modules', 'url' => $this->publicUrl('/modules')],
                 ],
-                'image' => url('/images/shuleXpert.jpg'),
+                'image' => $this->publicUrl('/images/shuleXpert.jpg'),
                 'image_alt' => 'ShuleXpert school management modules',
                 'modified_time' => now()->toAtomString(),
             ],
@@ -838,9 +882,9 @@ class SiteController extends Controller
 
         $module = $all[$slug];
         $keywordBase = $module['keywords'] ?? ($module['title'] . ', ShuleXpert, school management');
-        $canonical = url('/modules/' . $slug);
+        $canonical = $this->publicUrl('/modules/' . $slug);
         $imagePath = $module['hero'] ?? $module['image'] ?? 'images/shuleXpert.jpg';
-        $ogImage = str_starts_with($imagePath, 'http') ? $imagePath : url('/' . ltrim($imagePath, '/'));
+        $ogImage = str_starts_with($imagePath, 'http') ? $imagePath : $this->publicUrl('/' . ltrim($imagePath, '/'));
 
         // Lesson Plans: strongest SEO page on the site. Scheme of Work: very strong.
         if (($module['seo_priority'] ?? '') === 'highest') {
@@ -876,8 +920,8 @@ class SiteController extends Controller
                 'robots' => 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
                 'breadcrumb_name' => $module['title'],
                 'breadcrumbs' => [
-                    ['name' => 'Home', 'url' => url('/')],
-                    ['name' => 'Modules', 'url' => url('/modules')],
+                    ['name' => 'Home', 'url' => $this->publicUrl('/')],
+                    ['name' => 'Modules', 'url' => $this->publicUrl('/modules')],
                     ['name' => $module['title'], 'url' => $canonical],
                 ],
             ],
@@ -891,12 +935,12 @@ class SiteController extends Controller
                 'title' => 'ShuleXpert Pricing — TZS 1,000,000 Installation + TZS 500/Student/Month',
                 'description' => 'ShuleXpert pricing by EmCa Techonology: one-time installation fee of TZS 1,000,000 (training, experts, cloud storage, setup) and monthly TZS 500 per student for SMS, support and platform services.',
                 'keywords' => 'ShuleXpert pricing, school management cost Tanzania, installation fee 1000000, 500 TZS per student, EmCa Techonology',
-                'canonical' => url('/pricing'),
+                'canonical' => $this->publicUrl('/pricing'),
                 'type' => 'website',
                 'breadcrumb_name' => 'Pricing',
                 'breadcrumbs' => [
-                    ['name' => 'Home', 'url' => url('/')],
-                    ['name' => 'Pricing', 'url' => url('/pricing')],
+                    ['name' => 'Home', 'url' => $this->publicUrl('/')],
+                    ['name' => 'Pricing', 'url' => $this->publicUrl('/pricing')],
                 ],
             ],
         ]);
@@ -909,7 +953,7 @@ class SiteController extends Controller
                 'title' => 'ShuleXpert Services — Implementation, Training & Support',
                 'description' => 'ShuleXpert services by EmCa Techonology: school digitization, training, biometric support, SMS communication, hosting and continuous user support.',
                 'keywords' => 'ShuleXpert services, school software training worldwide, biometric attendance support, EmCa Techonology',
-                'canonical' => url('/services'),
+                'canonical' => $this->publicUrl('/services'),
                 'type' => 'website',
             ],
         ]);
@@ -922,7 +966,7 @@ class SiteController extends Controller
                 'title' => 'ShuleXpert FAQ — Pricing, Modules & Support',
                 'description' => 'Frequently asked questions about ShuleXpert installation fee (TZS 1,000,000), monthly TZS 500 per student, control numbers, biometric attendance and EmCa Techonology support.',
                 'keywords' => 'ShuleXpert FAQ, school software pricing worldwide, control number fees, EmCa Techonology support',
-                'canonical' => url('/faq'),
+                'canonical' => $this->publicUrl('/faq'),
                 'type' => 'website',
             ],
         ]);
@@ -935,9 +979,9 @@ class SiteController extends Controller
                 'title' => 'Download ShuleXpert App & Online School Application — Tanzania',
                 'description' => 'Download the ShuleXpert Android APK for teachers and parents, or apply to participating schools online. Real-time alerts, admissions, fees and school communication — powered by EmCa Techonology, Moshi Tanzania.',
                 'keywords' => 'download ShuleXpert APK, ShuleXpert Android app, school management app Tanzania, online school application Tanzania, apply to school online, ShuleXpert mobile app, EmCa Techonology, school admission online',
-                'canonical' => url('/download'),
+                'canonical' => $this->publicUrl('/download'),
                 'type' => 'website',
-                'image' => url('/images/shuleXpert.jpg'),
+                'image' => $this->publicUrl('/images/shuleXpert.jpg'),
                 'robots' => 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
             ],
         ]);
@@ -950,7 +994,7 @@ class SiteController extends Controller
                 'title' => 'Contact ShuleXpert — EmCa Techonology',
                 'description' => 'Contact ShuleXpert / EmCa Techonology in Moshi, Kilimanjaro. Call '.config('shulexpert.phone_display').' or email emca@emca.tech.',
                 'keywords' => 'Contact ShuleXpert, EmCa Techonology Moshi, school software support',
-                'canonical' => url('/contact'),
+                'canonical' => $this->publicUrl('/contact'),
                 'type' => 'website',
             ],
         ]);

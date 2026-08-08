@@ -128,6 +128,7 @@ class LogWebVisitor
         $skipExact = [
             'favicon.ico',
             'sitemap.xml',
+            'shulexpert-map.xml',
             'up',
             'robots.txt',
         ];

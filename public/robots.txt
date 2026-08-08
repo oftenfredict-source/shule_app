@@ -14,8 +14,9 @@ Allow: /css/
 Allow: /template/
 Allow: /favicon.ico
 Allow: /site.webmanifest
-Allow: /sitemap.xml
+Allow: /shulexpert-map.xml
 
+# Authenticated / app areas — not for search indexing
 Disallow: /admin
 Disallow: /AdminDashboard
 Disallow: /TeacherDashboard
@@ -26,6 +27,9 @@ Disallow: /api/
 Disallow: /storage/
 Disallow: /login
 Disallow: /logout
+Disallow: /online-application/account/
+Disallow: /online-application/portal/
+Disallow: /online-application/apply
+Disallow: /online-application/application-success
 
-Sitemap: https://shulexpert.com/sitemap.xml
-Sitemap: https://test.shulexpert.com/sitemap.xml
+Sitemap: https://shulexpert.com/shulexpert-map.xml

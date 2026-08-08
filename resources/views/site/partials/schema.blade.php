@@ -1,11 +1,19 @@
 @php
+    $publicBase = rtrim((string) config('shulexpert.public_url', 'https://shulexpert.com'), '/');
+    $homeUrl = $publicBase . '/';
     $orgSchema = [
         '@context' => 'https://schema.org',
         '@type' => 'Organization',
         'name' => 'ShuleXpert',
-        'url' => url('/'),
-        'logo' => asset('images/shuleXpert.jpg'),
-        'description' => 'School management platform for schools worldwide.',
+        'alternateName' => [
+            'Shule Xpert',
+            'ShuleXpert School Management System',
+            'Mfumo wa Shule ShuleXpert',
+            'EmCa ShuleXpert',
+        ],
+        'url' => $homeUrl,
+        'logo' => $publicBase . '/images/shuleXpert.jpg',
+        'description' => 'Mfumo bora wa shule Tanzania na duniani — better school management system and school software by EmCa Techonology.',
         'email' => 'emca@emca.tech',
         'telephone' => config('shulexpert.phone_e164'),
         'address' => [
@@ -13,6 +21,18 @@
             'addressLocality' => 'Moshi',
             'addressRegion' => 'Kilimanjaro',
             'addressCountry' => 'TZ',
+        ],
+        'areaServed' => [
+            ['@type' => 'Country', 'name' => 'Tanzania'],
+            ['@type' => 'Place', 'name' => 'Africa'],
+            ['@type' => 'Place', 'name' => 'Worldwide'],
+        ],
+        'knowsAbout' => [
+            'Mfumo bora wa shule Tanzania',
+            'School management system',
+            'School software',
+            'Mfumo wa taaluma',
+            'Mifumo ya shule',
         ],
         'parentOrganization' => [
             '@type' => 'Organization',
@@ -26,14 +46,17 @@
         '@context' => 'https://schema.org',
         '@type' => 'WebSite',
         'name' => 'ShuleXpert',
-        'url' => url('/'),
+        'alternateName' => ['Mfumo bora wa shule Tanzania', 'School management system ShuleXpert'],
+        'url' => $homeUrl,
+        'inLanguage' => ['sw', 'en'],
+        'description' => 'ShuleXpert — mfumo bora wa shule Tanzania, better school management system, school software na mfumo wa taaluma.',
         'publisher' => [
             '@type' => 'Organization',
             'name' => 'EmCa Techonology',
         ],
         'potentialAction' => [
             '@type' => 'SearchAction',
-            'target' => url('/modules') . '?q={search_term_string}',
+            'target' => $publicBase . '/modules?q={search_term_string}',
             'query-input' => 'required name=search_term_string',
         ],
     ];
@@ -42,22 +65,36 @@
         '@context' => 'https://schema.org',
         '@type' => 'SoftwareApplication',
         'name' => 'ShuleXpert',
+        'alternateName' => [
+            'Mfumo bora wa shule Tanzania',
+            'Better school management system',
+            'Mfumo wa shule',
+            'School system',
+            'School software',
+            'Mfumo wa taaluma',
+            'Mfumo namba moja wa shule Tanzania',
+        ],
         'applicationCategory' => 'BusinessApplication',
         'applicationSubCategory' => 'School Management System',
         'operatingSystem' => 'Web, Android, iOS',
+        'inLanguage' => ['sw', 'en'],
+        'keywords' => 'Mfumo bora wa shule Tanzania, Better school management system, ShuleXpert, shulesoft, Mifumo ya shule, Mfumo wa shule, School system, school software, Mfumo wa taaluma, Mifumo bora ya shule Duniani, school management system Tanzania',
+        'description' => 'ShuleXpert ni mfumo bora wa shule Tanzania na mifumo bora ya shule duniani — complete school management software for fees, attendance, exams, lesson plans, scheme of work and parent communication.',
         'featureList' => [
             'Fees & control numbers',
             'Biometric attendance',
             'Exams & results',
             'Topic analysis',
             'Parent portal',
-            'Timetable & schemes of work',
+            'Lesson plans & scheme of work',
+            'Timetable',
             'SMS alerts',
             'Library & store',
+            'Online school application',
         ],
         'offers' => [
             '@type' => 'Offer',
-            'url' => url('/pricing'),
+            'url' => $publicBase . '/pricing',
             'priceCurrency' => 'TZS',
             'description' => 'Installation TZS 1,000,000 + TZS 500 per student / month',
         ],
@@ -66,9 +103,14 @@
             'name' => 'EmCa Techonology',
             'url' => 'https://emca.tech',
         ],
-        'url' => url('/'),
-        'downloadUrl' => url('/download'),
-        'screenshot' => asset('images/shuleXpert.jpg'),
+        'url' => $homeUrl,
+        'downloadUrl' => $publicBase . '/download',
+        'screenshot' => $publicBase . '/images/shuleXpert.jpg',
+        'countriesSupported' => 'TZ',
+        'audience' => [
+            '@type' => 'EducationalAudience',
+            'educationalRole' => 'administrator',
+        ],
     ];
 
     $breadcrumbItems = [];
@@ -91,9 +133,9 @@
             '@type' => 'ListItem',
             'position' => 1,
             'name' => 'Home',
-            'item' => url('/'),
+            'item' => $homeUrl,
         ];
-        if (!empty($seo['canonical']) && $seo['canonical'] !== url('/')) {
+        if (!empty($seo['canonical']) && $seo['canonical'] !== $homeUrl && rtrim($seo['canonical'], '/') !== rtrim($homeUrl, '/')) {
             $breadcrumbItems[] = [
                 '@type' => 'ListItem',
                 'position' => 2,

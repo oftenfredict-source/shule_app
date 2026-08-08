@@ -4,9 +4,10 @@
         'title' => 'Login to Apply Online — ShuleXpert Online Admission',
         'description' => 'Login to your ShuleXpert online application account with your phone number and password to apply to schools and track admission status.',
         'keywords' => 'login online application, ShuleXpert admission login, apply school online Tanzania',
-        'canonical' => route('online_application.auth.login'),
+        'canonical' => app(\App\Services\OnlineApplicationApplyTokenService::class)->publicAbsoluteUrl('/online-application/account/login'),
         'type' => 'website',
         'image' => url('/images/shuleXpert.jpg'),
+        'robots' => 'noindex, follow',
     ];
 @endphp
 @extends('layouts.online_application_portal')

@@ -235,6 +235,11 @@ class OnlineApplicationController extends Controller
                 ->with('error', $e->getMessage());
         }
 
+        // Legacy Crypt tokens change every encode — 301 to the stable public URL for SEO.
+        if (!$this->applyTokens->isStableSchoolToken($token)) {
+            return redirect()->to($this->applyTokens->schoolUrl($schoolID), 301);
+        }
+
         $school = $this->schoolService->liveSchoolsQuery()->where('schoolID', $schoolID)->first();
 
         if (!$school) {

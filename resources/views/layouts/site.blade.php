@@ -25,6 +25,7 @@
     <link rel="canonical" href="{{ $canonical }}">
 
     <meta property="og:locale" content="en_TZ">
+    <meta property="og:locale:alternate" content="sw_TZ">
     <meta property="og:type" content="{{ $ogType }}">
     <meta property="og:title" content="{{ $pageTitle }}">
     <meta property="og:description" content="{{ $pageDesc }}">
@@ -43,6 +44,7 @@
     <meta name="twitter:image" content="{{ $ogImage }}">
     <meta name="twitter:image:alt" content="{{ $seo['image_alt'] ?? $pageTitle }}">
     <link rel="alternate" hreflang="en" href="{{ $canonical }}">
+    <link rel="alternate" hreflang="sw" href="{{ $canonical }}">
     <link rel="alternate" hreflang="x-default" href="{{ $canonical }}">
 
     @include('includes.site_favicon')

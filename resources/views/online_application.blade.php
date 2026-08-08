@@ -4,9 +4,9 @@
         'title' => 'Online School Application Tanzania — Apply to Schools | ShuleXpert',
         'description' => 'Apply to primary and secondary schools online with ShuleXpert. Search schools in Tanzania by region or district, check class availability, view school details, and submit your student admission application in minutes. Free for parents — powered by EmCa Techonology.',
         'keywords' => 'online school application Tanzania, apply to school online, school admission Tanzania, ShuleXpert online application, primary school application, secondary school application, student admission online, school enrollment Tanzania, apply school Moshi, EmCa Techonology, ShuleXpert admission portal',
-        'canonical' => route('online_application'),
+        'canonical' => app(\App\Services\OnlineApplicationApplyTokenService::class)->publicAbsoluteUrl('/online-application'),
         'type' => 'website',
-        'image' => url('/images/shuleXpert.jpg'),
+        'image' => app(\App\Services\OnlineApplicationApplyTokenService::class)->publicAbsoluteUrl('/images/shuleXpert.jpg'),
         'robots' => 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
     ];
 @endphp

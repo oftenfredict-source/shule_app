@@ -9,7 +9,7 @@ class OnlineApplicationApplyTokenService
 {
     private const TTL_HOURS = 48;
 
-    /** Shareable school landing links stay valid for a long time. */
+    /** Legacy Crypt-based school tokens expired after this many days. */
     private const SCHOOL_TTL_DAYS = 365;
 
     public function encode(int $schoolID, int $classID, ?int $academicYearID = null): string
@@ -59,19 +59,37 @@ class OnlineApplicationApplyTokenService
         ]);
     }
 
+    /**
+     * Stable, deterministic school landing token (safe for sitemap + canonical).
+     * Format: {schoolID}.{hmac32} — does not rotate on each request.
+     */
     public function encodeSchool(int $schoolID): string
     {
-        $payload = json_encode([
-            'type' => 'school',
-            'school' => $schoolID,
-            'exp' => now()->addDays(self::SCHOOL_TTL_DAYS)->timestamp,
-        ]);
+        if ($schoolID <= 0) {
+            throw new \InvalidArgumentException('Invalid school link.');
+        }
 
-        return $this->toUrlSafe(Crypt::encryptString($payload));
+        return $schoolID . '.' . $this->schoolSignature($schoolID);
+    }
+
+    public function isStableSchoolToken(string $token): bool
+    {
+        return (bool) preg_match('/^\d+\.[a-f0-9]{32}$/i', $token);
     }
 
     public function decodeSchool(string $token): int
     {
+        if ($this->isStableSchoolToken($token)) {
+            [$schoolIDRaw, $sig] = explode('.', $token, 2);
+            $schoolID = (int) $schoolIDRaw;
+            if ($schoolID <= 0 || !hash_equals($this->schoolSignature($schoolID), strtolower($sig))) {
+                throw new \InvalidArgumentException('Invalid school link.');
+            }
+
+            return $schoolID;
+        }
+
+        // Legacy Laravel Crypt tokens (random IV each encode — bad for SEO).
         $data = $this->decryptPayload($token);
 
         $schoolID = (int) ($data['school'] ?? 0);
@@ -134,6 +152,24 @@ class OnlineApplicationApplyTokenService
         }
 
         return $base . '/' . ltrim($pathOrUrl, '/');
+    }
+
+    private function schoolSignature(int $schoolID): string
+    {
+        return substr(hash_hmac('sha256', 'oa-school-v1:' . $schoolID, $this->signingKey()), 0, 32);
+    }
+
+    private function signingKey(): string
+    {
+        $key = (string) config('app.key');
+        if (str_starts_with($key, 'base64:')) {
+            $decoded = base64_decode(substr($key, 7), true);
+            if ($decoded !== false && $decoded !== '') {
+                return $decoded;
+            }
+        }
+
+        return $key !== '' ? $key : 'shulexpert-oa-school';
     }
 
     /**

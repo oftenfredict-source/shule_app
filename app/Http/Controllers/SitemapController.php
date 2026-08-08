@@ -30,6 +30,7 @@ class SitemapController extends Controller
 
     public function index(OnlineApplicationApplyTokenService $applyTokens)
     {
+        // Public marketing + school landings only (no account/login/portal URLs).
         $static = [
             ['/', 'daily', '0.95'],
             ['/about', 'monthly', '0.85'],
@@ -41,8 +42,6 @@ class SitemapController extends Controller
             ['/download', 'weekly', '0.85'],
             ['/contact', 'monthly', '0.8'],
             ['/online-application', 'daily', '0.9'],
-            ['/online-application/account/register', 'monthly', '0.8'],
-            ['/online-application/account/login', 'monthly', '0.8'],
         ];
 
         $urls = [];

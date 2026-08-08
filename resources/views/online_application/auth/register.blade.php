@@ -4,9 +4,10 @@
         'title' => 'Create Account to Apply Online — ShuleXpert Online Admission',
         'description' => 'Create your ShuleXpert online application account to apply to schools in Tanzania. Verify your phone with OTP and start submitting student admission applications.',
         'keywords' => 'create online application account, school admission account Tanzania, ShuleXpert apply online, student application registration',
-        'canonical' => route('online_application.auth.register'),
+        'canonical' => app(\App\Services\OnlineApplicationApplyTokenService::class)->publicAbsoluteUrl('/online-application/account/register'),
         'type' => 'website',
         'image' => url('/images/shuleXpert.jpg'),
+        'robots' => 'noindex, follow',
     ];
 @endphp
 @extends('layouts.online_application_portal')

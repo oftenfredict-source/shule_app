@@ -1,5 +1,7 @@
 @php
     $skipSplash = true;
+    $isPortalUser = auth('online_application')->check();
+    $portalActive = 'apply';
     $schoolName = $school->school_name;
     $schoolLogoUrl = $school->school_logo
         ? url($school->school_logo)
@@ -13,6 +15,7 @@
     $seoDesc = 'Apply online to ' . $schoolName
         . (!empty($locationBits) ? ' (' . implode(', ', $locationBits) . ')' : '')
         . '. View available classes, admission spaces, and fee structure, then submit your student admission application on ShuleXpert by EmCa Techonology.';
+    // Public marketing landing is indexable; portal chrome (logged-in) stays noindex.
     $seo = [
         'title' => $schoolName . ' Online Application — Apply Now | ShuleXpert',
         'description' => \Illuminate\Support\Str::limit($seoDesc, 160, ''),
@@ -31,10 +34,10 @@
         'type' => 'website',
         'image' => $schoolLogoUrl,
         'favicon' => $school->school_logo ? $schoolLogoUrl : null,
-        'robots' => 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
+        'robots' => $isPortalUser
+            ? 'noindex, follow'
+            : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
     ];
-    $isPortalUser = auth('online_application')->check();
-    $portalActive = 'apply';
 @endphp
 @extends($isPortalUser ? 'layouts.online_application_portal' : 'layouts.site')
 
