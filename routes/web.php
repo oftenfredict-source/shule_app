@@ -272,7 +272,6 @@ Route::get("/favicon.ico", function () {
 });
 
 Route::get("/shulexpert-map.xml", [SitemapController::class, "index"])->name("site.map");
-Route::redirect("/sitemap.xml", "/shulexpert-map.xml", 301);
 
 // Online Application Routes
 Route::get("online-application", [
