@@ -977,6 +977,11 @@
             background: #fff;
         }
         .footer .brand { color: #940000; font-weight: bold; }
+        /* Board only: fixed footer reserves empty bottom on every page */
+        body.board-pdf .footer {
+            position: static !important;
+            margin-top: 6px;
+        }
         .placeholder-img {
             border: 1px dashed #ccc;
             background: #fdfdfd;
@@ -1049,7 +1054,7 @@
         .header-line { display: none; }
     </style>
 </head>
-<body class="{{ !empty($isIndividualPdf) ? 'individual-pdf' : '' }}">
+<body class="{{ !empty($isIndividualPdf) ? 'individual-pdf' : (!empty($useBoardPdf) ? 'board-pdf' : '') }}">
     @if($showWatermark ?? true)
         <div class="watermark">ShuleXpert</div>
     @endif
