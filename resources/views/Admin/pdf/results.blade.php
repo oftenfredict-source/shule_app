@@ -327,105 +327,206 @@
         $isIndividualPdf = in_array($option ?? '', ['single', 'bulk_single'], true);
     @endphp
     <style>
-        /* Landscape A4 — individual: LEFT margin for hole-punch; tight elsewhere so 1 page fits */
+        /* Landscape A4 — hard-compact to fit one page; LEFT margin for hole-punch */
         @page {
-            margin: {{ $isIndividualPdf ? '3mm 4mm 4mm 22mm' : '4mm 5mm 7mm 5mm' }};
             size: A4 landscape;
+            margin: 2mm 4mm 2mm 20mm;
         }
-        body {
-            font-family: 'Helvetica', sans-serif;
-            font-size: 9.5px;
-            color: #333;
-            line-height: 1.12;
-            background: #fff;
-            margin: 0;
-            padding: 0 0 10px 0;
-        }
-        /* Individual — compact so term report fits ONE landscape page (punch space kept) */
         body.individual-pdf {
-            font-size: 10px;
-            line-height: 1.1;
-            padding: 0 0 2px 0;
+            font-size: 8px !important;
+            line-height: 1.1 !important;
         }
-        body.individual-pdf .header { margin-bottom: 1px; padding-bottom: 1px; }
-        body.individual-pdf .student-photo-top { margin: 0 0 1px 0; }
-        body.individual-pdf .student-photo-top img { width: 54px; height: 54px; }
-        body.individual-pdf .logo-cell { width: 88px; padding-right: 5px; }
-        body.individual-pdf .logo-cell img { max-height: 84px; max-width: 86px; }
-        body.individual-pdf .logo-cell.right { padding-left: 5px; }
-        body.individual-pdf .student-photo-cell { width: 58px; padding-left: 4px; }
-        body.individual-pdf .student-photo-cell img { width: 54px; height: 54px; }
-        body.individual-pdf .org-name { font-size: 9px; }
-        body.individual-pdf .school-name { font-size: 12px; line-height: 1.05; }
-        body.individual-pdf .school-sub { font-size: 8px; }
-        body.individual-pdf .report-title { font-size: 10px; padding: 2px 4px; margin: 1px 0; }
-        body.individual-pdf .info-table td { font-size: 9px; padding: 1px 3px; }
-        body.individual-pdf .info-section { margin-bottom: 1px; }
-        body.individual-pdf .section-title { font-size: 10px; margin: 2px 0 1px 0; padding: 1px 3px; }
-        body.individual-pdf .group-head { font-size: 9px; }
-        body.individual-pdf .sub-head { font-size: 8.5px; }
+        body.individual-pdf .header {
+            margin-bottom: 1px !important;
+            padding-bottom: 1px !important;
+        }
+        body.individual-pdf .header-table {
+            max-width: 90% !important;
+        }
+        body.individual-pdf .logo-cell {
+            width: 64px !important;
+            padding-right: 4px !important;
+            padding-left: 0 !important;
+        }
+        body.individual-pdf .logo-cell.right {
+            padding-left: 4px !important;
+        }
+        body.individual-pdf .logo-cell img,
+        body.individual-pdf .school-logo {
+            max-height: 52px !important;
+            max-width: 54px !important;
+            height: auto !important;
+            width: auto !important;
+        }
+        body.individual-pdf .student-photo-top {
+            margin: 0 0 1px 0 !important;
+        }
+        body.individual-pdf .student-photo-top img {
+            width: 44px !important;
+            height: 44px !important;
+        }
+        body.individual-pdf .student-photo-cell {
+            width: 48px !important;
+            padding-left: 3px !important;
+        }
+        body.individual-pdf .student-photo-cell img {
+            width: 44px !important;
+            height: 44px !important;
+        }
+        body.individual-pdf .org-name {
+            font-size: 9px !important;
+            margin-bottom: 0 !important;
+            line-height: 1.05 !important;
+        }
+        body.individual-pdf .school-name {
+            font-size: 12px !important;
+            line-height: 1.05 !important;
+        }
+        body.individual-pdf .school-sub {
+            font-size: 7px !important;
+            line-height: 1.1 !important;
+        }
+        body.individual-pdf .report-title {
+            font-size: 9px !important;
+            margin-top: 1px !important;
+            padding: 1px 3px !important;
+            line-height: 1.1 !important;
+        }
+        body.individual-pdf .info-section {
+            margin-bottom: 1px !important;
+        }
+        body.individual-pdf .info-table td {
+            padding: 0 2px !important;
+            font-size: 7px !important;
+            line-height: 1.1 !important;
+        }
+        body.individual-pdf .remark-color-legend {
+            margin: 1px 0 !important;
+        }
+        body.individual-pdf .remark-color-legend-title {
+            font-size: 6.5px !important;
+            margin-bottom: 0 !important;
+        }
+        body.individual-pdf .remark-color-block {
+            padding: 0 2px !important;
+            font-size: 6px !important;
+            line-height: 1.15 !important;
+        }
+        body.individual-pdf .section-title {
+            font-size: 8px !important;
+            margin-top: 1px !important;
+            margin-bottom: 1px !important;
+            padding-bottom: 0 !important;
+        }
         body.individual-pdf table.data,
-        body.individual-pdf table.data-table { font-size: 10px; margin-bottom: 1px; }
+        body.individual-pdf table.data-table {
+            margin-bottom: 1px !important;
+            font-size: 7px !important;
+        }
         body.individual-pdf table.data th,
-        body.individual-pdf table.data-table th { font-size: 8.5px; padding: 1px 2px; }
+        body.individual-pdf table.data-table th {
+            padding: 0 1px !important;
+            font-size: 6.2px !important;
+            line-height: 1.05 !important;
+        }
         body.individual-pdf table.data td,
-        body.individual-pdf table.data-table td { font-size: 10px; padding: 1px 2px; }
-        body.individual-pdf table.data th.subj-group,
-        body.individual-pdf table.data td.subj-name,
-        body.individual-pdf table.data td.subj-marks,
-        body.individual-pdf table.data td.subj-grade { font-size: 10px; }
-        body.individual-pdf table.data.term-report-card th.exam-group { font-size: 8px; }
-        body.individual-pdf table.data.term-report-card th.exam-sub { font-size: 7.5px; }
+        body.individual-pdf table.data-table td {
+            padding: 0 1px !important;
+            font-size: 7px !important;
+            line-height: 1.05 !important;
+        }
+        body.individual-pdf table.data.term-report-card th.exam-group {
+            font-size: 6px !important;
+            padding: 0 !important;
+        }
+        body.individual-pdf table.data.term-report-card th.exam-sub {
+            font-size: 5.8px !important;
+            padding: 0 !important;
+        }
         body.individual-pdf table.data.term-report-card td.exam-marks,
         body.individual-pdf table.data.term-report-card td.exam-grade,
-        body.individual-pdf table.data td.daraja-cell { font-size: 10px; }
-        body.individual-pdf .summary-grid { margin: 1px 0; }
-        body.individual-pdf .summary-grid td { font-size: 9px; padding: 1px 2px; }
-        body.individual-pdf .summary-grid .sg-label,
-        body.individual-pdf .summary-grid .sg-k { font-size: 8px; }
-        body.individual-pdf .summary-grid .sg-value,
-        body.individual-pdf .summary-grid .sg-v { font-size: 10px; }
-        body.individual-pdf .grade-key-table { margin: 2px 0 2px 0; font-size: 8.5px; }
-        body.individual-pdf .grade-key-table th,
-        body.individual-pdf .grade-key-table td { font-size: 8.5px; padding: 1px 2px; }
-        body.individual-pdf .grade-key-table .gk-title { font-size: 9px; padding: 2px 3px; }
-        body.individual-pdf table.data td.remark-cell { font-size: 9px; }
-        body.individual-pdf .comment-title { font-size: 10px; }
-        body.individual-pdf .comment-text { font-size: 9px; }
-        body.individual-pdf .teacher-name { font-size: 9px; }
-        body.individual-pdf .official-remarks-table { font-size: 9px; page-break-inside: avoid; }
-        body.individual-pdf .official-remarks-table td { padding: 2px 3px; }
+        body.individual-pdf table.data td.daraja-cell {
+            font-size: 7px !important;
+            padding: 0 !important;
+        }
+        body.individual-pdf .summary-grid {
+            margin: 1px 0 !important;
+        }
+        body.individual-pdf .summary-grid td {
+            padding: 0 2px !important;
+            font-size: 6.8px !important;
+            line-height: 1.1 !important;
+        }
+        body.individual-pdf .summary-grid .sg-value {
+            font-size: 7.5px !important;
+        }
+        body.individual-pdf .character-assessment-table th,
+        body.individual-pdf .character-assessment-table td {
+            padding: 0 2px !important;
+            font-size: 6.5px !important;
+            line-height: 1.05 !important;
+        }
+        body.individual-pdf .official-remarks-table {
+            margin: 1px 0 0 0 !important;
+            page-break-before: avoid;
+            page-break-inside: auto;
+            font-size: 7px !important;
+        }
+        body.individual-pdf .official-remarks-table td {
+            padding: 1px 2px !important;
+            font-size: 6.8px !important;
+            line-height: 1.1 !important;
+            vertical-align: top !important;
+        }
         body.individual-pdf .official-remarks-table .orm-title,
-        body.individual-pdf .official-remarks-table .orm-title-dark { font-size: 8.5px; margin-bottom: 1px; }
-        body.individual-pdf .official-remarks-table .orm-body { font-size: 9px; line-height: 1.1; min-height: 12px; }
-        body.individual-pdf .official-remarks-table .orm-meta,
-        body.individual-pdf .official-remarks-table .orm-sign-label { font-size: 8px; }
-        body.individual-pdf .official-remarks-table .at-line { font-size: 9px; }
-        body.individual-pdf .orm-box { min-height: 40px; }
-        body.individual-pdf .orm-head-sign { min-height: 20px; }
-        body.individual-pdf .orm-head-sign img { max-height: 22px; max-width: 85px; }
-        body.individual-pdf .orm-teacher-sign { min-height: 20px; }
-        body.individual-pdf .orm-teacher-sign img { max-height: 20px; max-width: 80px; }
-        body.individual-pdf .orm-stamp-block img { max-width: 115px; max-height: 115px; }
-        body.individual-pdf .badge-red,
-        body.individual-pdf .badge-pale,
-        body.individual-pdf .badge-grn { font-size: 9px; padding: 1px 4px; }
-        body.individual-pdf .remark-color-legend { margin: 1px 0 2px 0; }
-        body.individual-pdf .remark-color-legend-title { font-size: 8px; }
-        body.individual-pdf .remark-color-block { font-size: 9px; padding: 2px 3px; }
-        body.individual-pdf .remark-color-blocks.secondary-legend .remark-color-block {
-            font-size: 9px;
-            padding: 2px 1px;
+        body.individual-pdf .official-remarks-table .orm-title-dark {
+            font-size: 6.5px !important;
+            margin-bottom: 1px !important;
         }
-        body.individual-pdf .character-assessment-hz th { font-size: 8.5px; padding: 1px 2px; }
-        body.individual-pdf .character-assessment-hz td { font-size: 9.5px; padding: 1px 2px; }
+        body.individual-pdf .official-remarks-table .orm-body {
+            min-height: 14px !important;
+            font-size: 6.8px !important;
+            line-height: 1.1 !important;
+        }
+        body.individual-pdf .official-remarks-table .orm-meta {
+            font-size: 6.2px !important;
+            margin-top: 1px !important;
+        }
+        body.individual-pdf .orm-box {
+            min-height: 40px !important;
+        }
+        body.individual-pdf .orm-teacher-sign,
+        body.individual-pdf .orm-head-sign {
+            min-height: 22px !important;
+            margin-bottom: 0 !important;
+        }
+        body.individual-pdf .orm-teacher-sign img {
+            max-height: 22px !important;
+            max-width: 80px !important;
+        }
+        body.individual-pdf .orm-head-sign img {
+            max-height: 22px !important;
+            max-width: 90px !important;
+        }
+        body.individual-pdf .orm-stamp-block img {
+            max-height: 58px !important;
+            max-width: 58px !important;
+            height: auto !important;
+            width: auto !important;
+        }
+        body.individual-pdf .orm-sign-label {
+            font-size: 6px !important;
+            margin-top: 0 !important;
+        }
         body.individual-pdf .footer {
-            font-size: 6px;
-            padding-top: 0;
-            border-top: none;
-            height: 8px;
-            overflow: hidden;
+            display: none !important;
+            position: static !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            border: none !important;
+            padding: 0 !important;
         }
+
         table, td, th, p, div, span, li {
             font-family: 'Helvetica', sans-serif;
             color: #333;
@@ -458,7 +559,7 @@
         }
         .header-table td { border: none; padding: 0; vertical-align: middle; }
         .logo-cell { width: 100px; padding-right: 8px; text-align: left; }
-        .logo-cell img { display: block; max-height: 96px; max-width: 98px; border: none; outline: none; }
+        .logo-cell img { display: block; max-height: 64px; max-width: 66px; border: none; outline: none; }
         .logo-cell.right { text-align: right; padding-right: 0; padding-left: 8px; }
         .logo-cell.right img { margin-left: auto; }
         .student-photo-cell { width: 60px; text-align: right; padding-left: 6px; }
@@ -812,8 +913,8 @@
             margin-bottom: 1px;
         }
         .orm-stamp-block img {
-            max-width: 112px;
-            max-height: 112px;
+            max-width: 58px;
+            max-height: 58px;
             opacity: 0.95;
         }
         .orm-mkuu-lines .dot-line {
@@ -1796,9 +1897,11 @@
     <p style="text-align:center;color:#666;">No board results available for the selected filters.</p>
 
 @endif
+@if(empty($isIndividualPdf))
 <div class="footer">
     Generated by <span class="brand">ShuleXpert</span> (school management system), powered by emca techonology
 </div>
+@endif
 
 </body>
 </html>
