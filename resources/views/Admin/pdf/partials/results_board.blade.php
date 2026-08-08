@@ -8,6 +8,7 @@
                 return '';
             }
             $safe = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+            // Nested table + rotate: DomPDF centres better than absolute left:0
             return '<table class="v-inner"><tr><td>'
                 . '<div class="v-box"><div class="v-rot">' . $safe . '</div></div>'
                 . '</td></tr></table>';
@@ -19,15 +20,16 @@
     .board-wrap:last-child,
     .board-wrap.board-wrap-last { page-break-after: auto; }
 
+    /* Header â€” same clean layout as Subject Performance Summary */
     .board-page-header {
-        margin: 0 0 4px 0;
-        border-bottom: 1.5px solid #940000;
-        padding-bottom: 3px;
+        margin: 0 0 10px 0;
+        border-bottom: 2px solid #940000;
+        padding-bottom: 8px;
         text-align: center;
     }
     .board-header-inner {
         width: auto;
-        max-width: 82%;
+        max-width: 78%;
         margin: 0 auto;
         border-collapse: collapse;
     }
@@ -37,75 +39,67 @@
         vertical-align: middle;
         background: transparent;
     }
-    .board-logo-side { width: 70px; }
+    .board-logo-side { width: 100px; }
     .board-logo-side img {
         display: block;
-        max-height: 52px;
-        max-width: 56px;
+        max-height: 88px;
+        max-width: 96px;
         margin: 0;
         border: none;
         outline: none;
     }
-    .board-logo-side.left { text-align: left; padding-right: 8px; }
-    .board-logo-side.right { text-align: right; padding-left: 8px; }
+    .board-logo-side.left { text-align: left; padding-right: 14px; }
+    .board-logo-side.right { text-align: right; padding-left: 14px; }
     .board-logo-side.right img { margin-left: auto; }
-    .board-header-center { text-align: center; padding: 0 4px; }
+    .board-header-center { text-align: center; padding: 0 6px; }
     .board-header-center .org-name {
-        font-size: 9px;
+        font-size: 12px;
         font-weight: bold;
         color: #555;
         text-transform: uppercase;
-        margin-bottom: 1px;
+        margin-bottom: 2px;
     }
     .board-header-center .school-name {
-        font-size: 13px;
+        font-size: 16px;
         font-weight: bold;
         color: #940000;
         text-transform: uppercase;
-        line-height: 1.1;
+        line-height: 1.2;
     }
     .board-header-center .school-sub {
-        font-size: 7.5px;
+        font-size: 10px;
         color: #555;
-        margin: 0;
-        line-height: 1.15;
+        margin: 1px 0;
     }
     .board-report-title {
-        font-size: 10px;
+        font-size: 12px;
         font-weight: bold;
-        margin-top: 3px;
+        margin-top: 10px;
         background: #f8f9fa;
-        padding: 2px 5px;
+        padding: 6px 8px;
         color: #940000;
         text-transform: uppercase;
         text-align: center;
         border: none;
     }
     .board-report-subtitle {
-        font-size: 8.5px;
+        font-size: 10px;
         font-weight: bold;
-        margin-top: 1px;
+        margin-top: 4px;
         color: #555;
         text-transform: uppercase;
         text-align: center;
     }
-    .board-part-label {
-        font-size: 8px;
-        font-weight: bold;
-        color: #940000;
-        margin: 4px 0 2px 0;
-        text-transform: uppercase;
-    }
-    .board-info-section { margin: 3px 0 4px 0; }
+    .board-info-section { margin: 8px 0 12px 0; }
     .board-info-table {
         width: 100%;
         border-collapse: collapse;
     }
     .board-info-table td {
-        padding: 1px 4px;
+        padding: 5px 8px;
         border: none;
         border-bottom: 1px solid #eee;
-        font-size: 8px;
+        font-size: 10px;
         text-align: left;
         vertical-align: middle;
         background: transparent;
@@ -120,14 +114,14 @@
     }
     table.board-perf {
         width: 100%;
-        margin: 0 0 4px 0;
+        margin: 0 0 12px 0;
         border-collapse: collapse;
         table-layout: fixed;
-        font-size: 8px;
+        font-size: 14px;
     }
     table.board-perf th, table.board-perf td {
         border: 1px solid #bbb;
-        padding: 1px 2px;
+        padding: 4px 6px;
         text-align: center;
         vertical-align: middle;
     }
@@ -135,61 +129,73 @@
         background: #f0f0f0;
         color: #940000;
         font-weight: bold;
-        font-size: 8px;
+        font-size: 14px;
     }
     table.board-perf td.gpa-cell {
         font-weight: bold;
         color: #940000;
         vertical-align: middle;
-        font-size: 8px;
+        font-size: 14px;
     }
     table.board-results {
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
-        font-size: 7.5px;
-        margin: 0 0 3px 0;
-        page-break-inside: auto;
+        font-size: 14px;
+        margin-bottom: 0;
     }
     table.board-results th, table.board-results td {
         border: 1px solid #bbb;
-        padding: 0 1px;
+        padding: 1px 1px;
         text-align: center;
         vertical-align: middle;
         word-wrap: break-word;
         overflow: hidden;
-        font-size: 7.5px;
-        line-height: 1.1;
+        font-size: 14px;
+        line-height: 1.15;
     }
+    /* Do NOT repeat column titles on following pages â€” first page only */
     table.board-results > thead {
         display: table-row-group;
     }
-    table.board-results tr {
-        page-break-inside: avoid;
+    /* Keep legend/stats in-flow under students */
+    table.board-results tr.board-cont-row td.board-cont-cell {
+        border: none !important;
+        padding: 2px 0 0 0 !important;
+        margin: 0;
+        text-align: left;
+        vertical-align: top;
+        background: #fff !important;
+        overflow: visible;
+    }
+    table.board-results tr.board-cont-row {
+        page-break-before: auto;
+        page-break-inside: auto;
         page-break-after: auto;
     }
     table.board-results thead th {
         background: #f5f5f5;
         color: #940000;
         font-weight: bold;
-        font-size: 7.5px;
+        font-size: 14px;
     }
+    /* Vertical titles â€” base size; per-board height expands with longest subject name */
     table.board-results th.v,
     table.board-results th.v-subj {
-        height: 62px;
-        padding: 1px;
+        height: 78px;
+        padding: 2px 2px;
         vertical-align: middle;
         text-align: center;
         overflow: visible;
     }
-    table.board-results th.v { width: 2.6%; }
-    table.board-results th.v-stream { width: 2.6%; }
-    table.board-results th.v-trail { width: 3.2%; }
+    table.board-results th.v { width: 2.8%; }
+    table.board-results th.v-stream { width: 2.8%; }
+    table.board-results th.v-trail { width: 3.4%; }
     table.board-results th.v-subj { width: auto; }
 
     table.board-results table.v-inner {
         width: 100%;
-        height: 58px;
+        height: 72px;
         border-collapse: collapse;
         margin: 0 auto;
     }
@@ -203,68 +209,107 @@
         overflow: visible;
     }
     table.board-results .v-box {
-        width: 10px;
-        height: 56px;
+        width: 12px;
+        height: 70px;
         margin: 0 auto;
         position: relative;
         overflow: visible;
     }
     table.board-results th.v-subj .v-box {
-        width: 12px;
+        width: 14px;
     }
     table.board-results .v-rot {
         position: absolute;
-        left: 5px;
+        left: 6px;
         bottom: 0;
-        width: 56px;
+        width: 70px;
         white-space: nowrap;
-        font-size: 8px;
+        font-size: 11px;
         font-weight: bold;
         color: #940000;
-        line-height: 10px;
+        line-height: 12px;
         text-align: center;
-        letter-spacing: 0;
+        letter-spacing: 0.1px;
         transform: rotate(-90deg);
         transform-origin: left bottom;
     }
     table.board-results th.sn-h {
-        width: 2.8%;
+        width: 3%;
         vertical-align: middle;
-        font-size: 7.5px;
+        font-size: 14px;
     }
     table.board-results th.name-h {
         width: 11%;
         vertical-align: middle;
-        font-size: 7.5px;
+        font-size: 14px;
     }
     table.board-results th.index-h {
         width: 8%;
         vertical-align: middle;
-        font-size: 7.5px;
+        font-size: 14px;
     }
     table.board-results td {
         vertical-align: middle;
-        font-size: 7.5px;
-        padding: 0 1px;
+        font-size: 14px;
+        padding: 1px 1px;
     }
     table.board-results td.name-cell {
         text-align: left;
-        padding-left: 2px;
+        padding-left: 3px;
         font-weight: bold;
-        font-size: 7.5px;
+        font-size: 14px;
     }
     table.board-results td.stream-cell {
-        font-size: 6.5px;
-        line-height: 1.05;
-        padding: 0;
+        font-size: 12px;
+        line-height: 1.1;
+        padding: 1px;
     }
     table.board-results td.empty-subj { background: #f5f5f5; }
+    table.board-results .sub-h {
+        font-size: 5.5px;
+        background: #fafafa;
+        color: #555;
+        vertical-align: middle;
+        height: auto;
+        padding: 2px 0;
+    }
+    /* Nested Subject Performance Statistics â€” force same 14px as SEX/REG overview
+       (DomPDF often under-sizes nested tables inside board-results) */
+    table.board-results tr.board-cont-row td.board-cont-cell {
+        font-size: 14px !important;
+    }
+    table.board-results .board-cont-cell .board-stats-title {
+        font-size: 14px !important;
+    }
+    table.board-results .board-cont-cell table.board-subj-stats {
+        font-size: 14px !important;
+        table-layout: auto;
+        width: 100%;
+    }
+    table.board-results .board-cont-cell table.board-subj-stats th,
+    table.board-results .board-cont-cell table.board-subj-stats td {
+        font-size: 14px !important;
+        line-height: 1.2 !important;
+        padding: 3px 2px !important;
+        overflow: visible !important;
+        word-wrap: break-word;
+    }
+    table.board-results .board-cont-cell table.board-subj-stats th.board-stats-banner {
+        font-size: 14px !important;
+    }
+    table.board-results .board-cont-cell table.board-subj-stats td.subj-name {
+        font-size: 14px !important;
+    }
+    table.board-results .board-cont-cell table.board-subj-stats.board-legend td,
+    table.board-results .board-cont-cell .legend-row td {
+        font-size: 14px !important;
+    }
 
     .board-stats-title {
-        font-size: 9px;
+        font-size: 14px;
         font-weight: bold;
         color: #940000;
-        margin: 3px 0 1px 0;
+        margin: 2px 0 1px 0;
         border-bottom: 1px solid #940000;
         padding-bottom: 1px;
         text-transform: uppercase;
@@ -274,44 +319,43 @@
         width: 100%;
         margin: 2px 0 0 0;
         page-break-inside: auto;
-        page-break-before: auto;
     }
     table.board-subj-stats {
         width: 100%;
         border-collapse: collapse;
-        font-size: 7.5px !important;
-        margin: 0 0 3px 0;
+        font-size: 14px !important;
+        margin: 0;
         page-break-inside: auto;
     }
     table.board-subj-stats th, table.board-subj-stats td {
         border: 1px solid #ddd;
-        padding: 1px 2px;
+        padding: 3px 2px;
         text-align: center;
         vertical-align: middle;
-        font-size: 7.5px !important;
-        line-height: 1.1;
+        font-size: 14px !important;
+        line-height: 1.2;
         overflow: visible;
     }
     table.board-subj-stats thead th {
         background: #f8f9fa;
         color: #940000;
         font-weight: bold;
-        font-size: 7.5px !important;
+        font-size: 14px !important;
     }
     table.board-subj-stats th.board-stats-banner {
         background: #940000 !important;
         color: #fff !important;
-        font-size: 8px !important;
+        font-size: 14px !important;
         text-transform: uppercase;
-        padding: 2px;
+        padding: 4px 2px;
         text-align: center;
         border: 1px solid #940000;
     }
     table.board-subj-stats thead { display: table-row-group; }
-    table.board-subj-stats tr { page-break-inside: avoid; page-break-after: auto; }
-    table.board-subj-stats td.subj-name { text-align: left; font-weight: bold; padding-left: 3px; font-size: 7.5px !important; }
+    table.board-subj-stats tr { page-break-inside: auto; }
+    table.board-subj-stats td.subj-name { text-align: left; font-weight: bold; padding-left: 4px; font-size: 14px !important; }
     table.board-subj-stats.board-legend { margin-bottom: 2px; }
-    .legend-row td { font-weight: bold; font-size: 7.5px !important; padding: 2px; }
+    .legend-row td { font-weight: bold; font-size: 14px !important; padding: 3px; }
     .remark-excellent { background-color: #28a745 !important; color: #ffffff !important; }
     .remark-pass { background-color: #d4edda !important; color: #155724 !important; }
     .remark-good { background-color: #fff3cd !important; color: #856404 !important; }
@@ -331,9 +375,10 @@
         print-color-adjust: exact !important;
     }
 
+    /* Headmaster sign + stamp â€” side by side, no boxes */
     .board-head-official {
         width: 55%;
-        margin: 4px 0 0 auto;
+        margin: 6px 0 0 auto;
         border-collapse: collapse;
         page-break-inside: avoid;
     }
@@ -342,29 +387,29 @@
         background: transparent !important;
         vertical-align: bottom;
         text-align: center;
-        padding: 0 8px;
+        padding: 0 10px;
     }
     .board-head-sign {
         text-align: center;
         padding: 0;
     }
     .board-head-sign img {
-        max-width: 120px;
-        max-height: 36px;
+        max-width: 160px;
+        max-height: 45px;
     }
     .board-head-sign .board-sig-line {
         display: block;
         border-bottom: 1px solid #333;
         width: 70%;
-        margin: 2px auto;
+        margin: 2px auto 2px auto;
     }
     .board-head-sign .board-sig-label,
     .board-head-stamp .board-sig-label {
-        font-size: 7px;
+        font-size: 8px;
         font-weight: bold;
         text-transform: uppercase;
         color: #333;
-        margin-top: 1px;
+        margin-top: 2px;
     }
     .board-head-stamp {
         text-align: center;
@@ -372,8 +417,8 @@
         margin: 0;
     }
     .board-head-stamp img {
-        max-width: 90px;
-        max-height: 90px;
+        max-width: 140px;
+        max-height: 140px;
         opacity: 0.95;
     }
 </style>
@@ -382,7 +427,7 @@
     @php
         $isSecondary = ($board['schoolType'] ?? 'Secondary') === 'Secondary';
         $isALevel = !empty($board['isALevel']);
-        $subjects = array_values($board['subjects'] ?? []);
+        $subjects = $board['subjects'] ?? [];
         $gradeKeys = $isSecondary
             ? ($isALevel ? ['A','B','C','D','E','S','F'] : ['A','B','C','D','F'])
             : ['A','B','C','D','E','F'];
@@ -392,13 +437,7 @@
                 : ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'F'=>5])
             : ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0];
 
-        // Split wide boards: identity + up to N subjects per part, trailing on last part
-        $maxSubjectsPerPart = 8;
-        $subjectChunks = count($subjects) > $maxSubjectsPerPart
-            ? array_chunk($subjects, $maxSubjectsPerPart)
-            : [$subjects];
-        $partCount = count($subjectChunks);
-
+        // Header row height from longest vertical title (subjects + fixed labels)
         $maxVertLen = 0;
         foreach (['SEX', 'POINT', 'DIVISION', 'AVERAGE', 'POSITION', 'GRADE', 'COMBINATION', 'INDEX NO'] as $fixedLabel) {
             $maxVertLen = max($maxVertLen, strlen($fixedLabel));
@@ -409,9 +448,10 @@
                 mb_strlen(strtoupper(trim((string) ($subj['subject_name'] ?? ''))), 'UTF-8'),
             );
         }
-        $vHeaderH = (int) min(110, max(58, round($maxVertLen * 5.2) + 8));
-        $vInnerH = max(52, $vHeaderH - 4);
-        $vBoxH = max(50, $vHeaderH - 6);
+        // ~7.2px per character at 11px bold vertical titles + padding; clamp for DomPDF page fit
+        $vHeaderH = (int) min(180, max(90, round($maxVertLen * 7.2) + 12));
+        $vInnerH = max(78, $vHeaderH - 6);
+        $vBoxH = max(76, $vHeaderH - 8);
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
@@ -428,7 +468,6 @@
         }
         .{{ $boardCssId }} table.board-results .v-rot {
             width: {{ $vBoxH }}px !important;
-            font-size: 8px !important;
         }
     </style>
 
@@ -441,8 +480,6 @@
             $termDisp = $termRaw !== ''
                 ? ucwords(str_replace('_', ' ', $termRaw))
                 : '';
-            $showBoardSign = $loop->last && (!empty($schoolSignBase64) || !empty($schoolStampBase64));
-            $statsColSpan = 1 + (count($gradeKeys) * 3) + 3;
         @endphp
         <div class="board-page-header">
             <table class="board-header-inner">
@@ -494,6 +531,7 @@
             </table>
         </div>
 
+        {{-- Class performance overview (Excel-like) --}}
         <table class="board-perf">
             <thead>
                 <tr>
@@ -541,231 +579,230 @@
             </tbody>
         </table>
 
-        {{-- Student results: split wide subject sets into continuation parts --}}
-        @php $subjOffset = 0; @endphp
-        @foreach($subjectChunks as $partIdx => $subjChunk)
-            @php
-                $isLastPart = ($partIdx === $partCount - 1);
-                $chunkStart = $subjOffset;
-                $chunkLen = count($subjChunk);
-                $subjOffset += $chunkLen;
-            @endphp
-            @if($partCount > 1)
-                <div class="board-part-label">
-                    Subjects part {{ $partIdx + 1 }} of {{ $partCount }}
-                    @if(!$isLastPart)
-                        (continued on next part)
-                    @else
-                        (summary columns)
+        {{-- Student results board --}}
+        <table class="board-results">
+            <thead>
+                <tr>
+                    <th class="sn-h" style="width:3%;">S/N</th>
+                    @if($board['showName'] ?? true)
+                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '12%' : '18%' }};">STUDENT NAME</th>
                     @endif
-                </div>
-            @endif
-            <table class="board-results">
-                <thead>
+                    @if($board['showIndex'] ?? true)
+                        <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};">INDEX NO</th>
+                    @endif
+                    <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
+                    @if(!empty($board['showStream']))
+                        <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
+                    @endif
+                    @if($isSecondary)
+                        <th class="v">{!! pdfBoardVerticalLabel('POINT') !!}</th>
+                        <th class="v">{!! pdfBoardVerticalLabel('DIVISION') !!}</th>
+                    @endif
+                    @foreach($subjects as $subj)
+                        <th class="v-subj" colspan="2">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '') !!}</th>
+                    @endforeach
+                    @foreach($board['trailingHeaders'] ?? [] as $th)
+                        <th class="v v-trail">{!! pdfBoardVerticalLabel($th) !!}</th>
+                    @endforeach
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($board['rows'] as $r)
                     <tr>
-                        <th class="sn-h" style="width:3%;">S/N</th>
+                        <td>{{ $r['sn'] }}</td>
                         @if($board['showName'] ?? true)
-                            <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '12%' : '18%' }};">STUDENT NAME</th>
+                            <td class="name-cell">{{ $r['name'] }}</td>
                         @endif
                         @if($board['showIndex'] ?? true)
-                            <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};">INDEX NO</th>
+                            <td>{{ $r['index'] }}</td>
                         @endif
-                        <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
+                        <td>{{ $r['sex'] }}</td>
                         @if(!empty($board['showStream']))
-                            <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
+                            <td class="stream-cell">{{ $r['stream'] ?? '' }}</td>
                         @endif
                         @if($isSecondary)
-                            <th class="v">{!! pdfBoardVerticalLabel('POINT') !!}</th>
-                            <th class="v">{!! pdfBoardVerticalLabel('DIVISION') !!}</th>
+                            <td>{{ $r['point'] }}</td>
+                            <td>{{ $r['division'] }}</td>
                         @endif
-                        @foreach($subjChunk as $subj)
-                            <th class="v-subj" colspan="2">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '') !!}</th>
+                        @foreach($r['subjects'] as $cell)
+                            <td class="{{ !empty($cell['empty']) ? 'empty-subj' : '' }}">{{ $cell['marks'] }}</td>
+                            <td class="{{ !empty($cell['empty']) ? 'empty-subj' : '' }}">{{ $cell['grade'] }}</td>
                         @endforeach
-                        @if($isLastPart)
-                            @foreach($board['trailingHeaders'] ?? [] as $th)
-                                <th class="v v-trail">{!! pdfBoardVerticalLabel($th) !!}</th>
-                            @endforeach
+                        <td class="{{ $r['average_class'] ?? 'remark-inc' }}">{{ $r['average'] }}</td>
+                        @if(!$isSecondary)
+                            <td>{{ $r['grade'] }}</td>
                         @endif
+                        <td>{{ $r['position'] }}</td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach($board['rows'] as $r)
-                        <tr>
-                            <td>{{ $r['sn'] }}</td>
-                            @if($board['showName'] ?? true)
-                                <td class="name-cell">{{ $r['name'] }}</td>
-                            @endif
-                            @if($board['showIndex'] ?? true)
-                                <td>{{ $r['index'] }}</td>
-                            @endif
-                            <td>{{ $r['sex'] }}</td>
-                            @if(!empty($board['showStream']))
-                                <td class="stream-cell">{{ $r['stream'] ?? '' }}</td>
-                            @endif
-                            @if($isSecondary)
-                                <td>{{ $r['point'] }}</td>
-                                <td>{{ $r['division'] }}</td>
-                            @endif
-                            @for($si = $chunkStart; $si < $chunkStart + $chunkLen; $si++)
-                                @php $cell = $r['subjects'][$si] ?? ['marks' => '', 'grade' => '', 'empty' => true]; @endphp
-                                <td class="{{ !empty($cell['empty']) ? 'empty-subj' : '' }}">{{ $cell['marks'] }}</td>
-                                <td class="{{ !empty($cell['empty']) ? 'empty-subj' : '' }}">{{ $cell['grade'] }}</td>
-                            @endfor
-                            @if($isLastPart)
-                                <td class="{{ $r['average_class'] ?? 'remark-inc' }}">{{ $r['average'] }}</td>
-                                @if(!$isSecondary)
-                                    <td>{{ $r['grade'] }}</td>
-                                @endif
-                                <td>{{ $r['position'] }}</td>
-                            @endif
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        @endforeach
+                @endforeach
 
-        {{-- Legend + stats AFTER student tables (fills remaining page; DomPDF can break naturally) --}}
-        @if(!empty($board['subjectStats']))
-            <div class="board-stats-section">
-                <div class="board-stats-title">Remark Color Definition</div>
-                <table class="board-subj-stats board-legend">
-                    <tr class="legend-row">
-                        @if($isSecondary)
-                            <td class="remark-excellent">A - Excellent</td>
-                            <td class="remark-pass">B - Very Good</td>
-                            <td class="remark-good">C - Good</td>
-                            <td class="remark-avg">D - {{ $isALevel ? 'Average' : 'Satisfactory' }}</td>
-                            @if($isALevel)
-                                <td class="remark-avg">E - Satisfactory</td>
-                                <td class="remark-avg">S - Subsidiary</td>
-                            @endif
-                            <td class="remark-fail">F - Fail</td>
-                            <td class="remark-inc">Incomplete</td>
-                        @else
-                            <td class="remark-pass">Pass</td>
-                            <td class="remark-fail">Failed</td>
-                            <td class="remark-inc">Incomplete</td>
-                        @endif
+                @php
+                    $boardColSpan = 1; // S/N
+                    if ($board['showName'] ?? true) {
+                        $boardColSpan++;
+                    }
+                    if ($board['showIndex'] ?? true) {
+                        $boardColSpan++;
+                    }
+                    $boardColSpan++; // SEX
+                    if (!empty($board['showStream'])) {
+                        $boardColSpan++;
+                    }
+                    if ($isSecondary) {
+                        $boardColSpan += 2; // POINT + DIVISION
+                    }
+                    $boardColSpan += count($subjects) * 2;
+                    $boardColSpan += count($board['trailingHeaders'] ?? []);
+                    $statsColSpan = 1 + (count($gradeKeys) * 3) + 3;
+                    $showBoardSign = $loop->last && (!empty($schoolSignBase64) || !empty($schoolStampBase64));
+                @endphp
+
+                {{-- Legend + stats in ONE cell (no stamp here) so DomPDF fills space after students --}}
+                @if(!empty($board['subjectStats']))
+                    <tr class="board-cont-row">
+                        <td colspan="{{ max(1, $boardColSpan) }}" class="board-cont-cell">
+                                <div class="board-stats-title">Remark Color Definition</div>
+                                <table class="board-subj-stats board-legend">
+                                    <tr class="legend-row">
+                                        @if($isSecondary)
+                                            <td class="remark-excellent">A - Excellent</td>
+                                            <td class="remark-pass">B - Very Good</td>
+                                            <td class="remark-good">C - Good</td>
+                                            <td class="remark-avg">D - {{ $isALevel ? 'Average' : 'Satisfactory' }}</td>
+                                            @if($isALevel)
+                                                <td class="remark-avg">E - Satisfactory</td>
+                                                <td class="remark-avg">S - Subsidiary</td>
+                                            @endif
+                                            <td class="remark-fail">F - Fail</td>
+                                            <td class="remark-inc">Incomplete</td>
+                                        @else
+                                            <td class="remark-pass">Pass</td>
+                                            <td class="remark-fail">Failed</td>
+                                            <td class="remark-inc">Incomplete</td>
+                                        @endif
+                                    </tr>
+                                </table>
+
+                                <table class="board-subj-stats">
+                                    <thead>
+                                        <tr>
+                                            <th class="board-stats-banner" colspan="{{ $statsColSpan }}">Subject Performance Statistics</th>
+                                        </tr>
+                                        <tr>
+                                            <th rowspan="2">SUBJECTS</th>
+                                            @foreach($gradeKeys as $gk)
+                                                <th colspan="3">{{ $gk }}</th>
+                                            @endforeach
+                                            <th rowspan="2">GPA</th>
+                                            <th rowspan="2">RANKS</th>
+                                            <th rowspan="2">COMPETENCY LEVEL</th>
+                                        </tr>
+                                        <tr>
+                                            @foreach($gradeKeys as $gk)
+                                                <th>F</th><th>M</th><th>T</th>
+                                            @endforeach
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @php
+                                            $rankItems = [];
+                                            foreach ($board['subjectStats'] as $rn => $rg) {
+                                                $rt = 0; $rp = 0;
+                                                foreach ($gradeKeys as $gk) {
+                                                    $c = (int) ($rg[$gk]['total'] ?? 0);
+                                                    $rt += $c;
+                                                    $rp += $c * ($ptMap[$gk] ?? 0);
+                                                }
+                                                $rankItems[] = [
+                                                    'name' => $rn,
+                                                    'gpa' => $rt > 0 ? round($rp / $rt, 4) : 0.0,
+                                                ];
+                                            }
+                                            usort($rankItems, function ($a, $b) use ($isSecondary) {
+                                                return $isSecondary
+                                                    ? ($a['gpa'] <=> $b['gpa'])
+                                                    : ($b['gpa'] <=> $a['gpa']);
+                                            });
+                                            $rankMap = [];
+                                            $rankTotal = max(1, count($rankItems));
+                                            foreach ($rankItems as $i => $it) {
+                                                $rankMap[$it['name']] = ($i + 1) . '/' . $rankTotal;
+                                            }
+                                        @endphp
+                                        @foreach($board['subjectStats'] as $sName => $grades)
+                                            @php
+                                                $sTotal = 0; $sPoints = 0;
+                                                foreach ($gradeKeys as $gk) {
+                                                    $c = (int) ($grades[$gk]['total'] ?? 0);
+                                                    $sTotal += $c;
+                                                    $sPoints += $c * ($ptMap[$gk] ?? 0);
+                                                }
+                                                $sGPA = $sTotal > 0 ? round($sPoints / $sTotal, 4) : 0.0;
+                                                if ($isSecondary) {
+                                                    if ($sTotal === 0) $sg = 'Incomplete';
+                                                    elseif ($sGPA <= 1.5) $sg = 'A';
+                                                    elseif ($sGPA <= 2.5) $sg = 'B';
+                                                    elseif ($sGPA <= 3.5) $sg = 'C';
+                                                    elseif ($sGPA <= 4.5) $sg = 'D';
+                                                    elseif ($isALevel && $sGPA <= 5.5) $sg = 'E';
+                                                    elseif ($isALevel && $sGPA <= 6.5) $sg = 'S';
+                                                    else $sg = 'F';
+                                                } else {
+                                                    if ($sTotal === 0) $sg = 'Incomplete';
+                                                    elseif ($sGPA >= 4.5) $sg = 'A';
+                                                    elseif ($sGPA >= 3.5) $sg = 'B';
+                                                    elseif ($sGPA >= 2.5) $sg = 'C';
+                                                    elseif ($sGPA >= 1.5) $sg = 'D';
+                                                    elseif ($sGPA >= 0.5) $sg = 'E';
+                                                    else $sg = 'F';
+                                                }
+                                                $remarkClass = 'remark-inc';
+                                                $competency = 'Incomplete';
+                                                if ($sTotal > 0) {
+                                                    if ($isSecondary) {
+                                                        $map = [
+                                                            'A' => ['remark-excellent', 'Grade A (Excellent)'],
+                                                            'B' => ['remark-pass', 'Grade B (Very Good)'],
+                                                            'C' => ['remark-good', 'Grade C (Good)'],
+                                                            'D' => ['remark-avg', 'Grade D (' . ($isALevel ? 'Average' : 'Satisfactory') . ')'],
+                                                            'E' => ['remark-avg', 'Grade E (Satisfactory)'],
+                                                            'S' => ['remark-avg', 'Grade S (Subsidiary)'],
+                                                            'F' => ['remark-fail', 'Grade F (Fail)'],
+                                                        ];
+                                                        if (isset($map[$sg])) {
+                                                            $remarkClass = $map[$sg][0];
+                                                            $competency = $map[$sg][1];
+                                                        }
+                                                    } else {
+                                                        if (in_array($sg, ['A','B','C','D'], true)) {
+                                                            $remarkClass = 'remark-pass';
+                                                            $competency = "Grade {$sg} (Pass)";
+                                                        } else {
+                                                            $remarkClass = 'remark-fail';
+                                                            $competency = "Grade {$sg} (Fail)";
+                                                        }
+                                                    }
+                                                }
+                                            @endphp
+                                            <tr>
+                                                <td class="subj-name">{{ strtoupper($sName) }}</td>
+                                                @foreach($gradeKeys as $gk)
+                                                    <td>{{ (int) ($grades[$gk]['female'] ?? 0) }}</td>
+                                                    <td>{{ (int) ($grades[$gk]['male'] ?? 0) }}</td>
+                                                    <td style="font-weight:bold;">{{ (int) ($grades[$gk]['total'] ?? 0) }}</td>
+                                                @endforeach
+                                                <td>{{ number_format($sGPA, 4) }}</td>
+                                                <td>{{ $rankMap[$sName] ?? '-' }}</td>
+                                                <td class="remark-cell {{ $remarkClass }}">{{ $competency }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                        </td>
                     </tr>
-                </table>
-
-                <table class="board-subj-stats">
-                    <thead>
-                        <tr>
-                            <th class="board-stats-banner" colspan="{{ $statsColSpan }}">Subject Performance Statistics</th>
-                        </tr>
-                        <tr>
-                            <th rowspan="2">SUBJECTS</th>
-                            @foreach($gradeKeys as $gk)
-                                <th colspan="3">{{ $gk }}</th>
-                            @endforeach
-                            <th rowspan="2">GPA</th>
-                            <th rowspan="2">RANKS</th>
-                            <th rowspan="2">COMPETENCY LEVEL</th>
-                        </tr>
-                        <tr>
-                            @foreach($gradeKeys as $gk)
-                                <th>F</th><th>M</th><th>T</th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @php
-                            $rankItems = [];
-                            foreach ($board['subjectStats'] as $rn => $rg) {
-                                $rt = 0; $rp = 0;
-                                foreach ($gradeKeys as $gk) {
-                                    $c = (int) ($rg[$gk]['total'] ?? 0);
-                                    $rt += $c;
-                                    $rp += $c * ($ptMap[$gk] ?? 0);
-                                }
-                                $rankItems[] = [
-                                    'name' => $rn,
-                                    'gpa' => $rt > 0 ? round($rp / $rt, 4) : 0.0,
-                                ];
-                            }
-                            usort($rankItems, function ($a, $b) use ($isSecondary) {
-                                return $isSecondary
-                                    ? ($a['gpa'] <=> $b['gpa'])
-                                    : ($b['gpa'] <=> $a['gpa']);
-                            });
-                            $rankMap = [];
-                            $rankTotal = max(1, count($rankItems));
-                            foreach ($rankItems as $i => $it) {
-                                $rankMap[$it['name']] = ($i + 1) . '/' . $rankTotal;
-                            }
-                        @endphp
-                        @foreach($board['subjectStats'] as $sName => $grades)
-                            @php
-                                $sTotal = 0; $sPoints = 0;
-                                foreach ($gradeKeys as $gk) {
-                                    $c = (int) ($grades[$gk]['total'] ?? 0);
-                                    $sTotal += $c;
-                                    $sPoints += $c * ($ptMap[$gk] ?? 0);
-                                }
-                                $sGPA = $sTotal > 0 ? round($sPoints / $sTotal, 4) : 0.0;
-                                if ($isSecondary) {
-                                    if ($sTotal === 0) $sg = 'Incomplete';
-                                    elseif ($sGPA <= 1.5) $sg = 'A';
-                                    elseif ($sGPA <= 2.5) $sg = 'B';
-                                    elseif ($sGPA <= 3.5) $sg = 'C';
-                                    elseif ($sGPA <= 4.5) $sg = 'D';
-                                    elseif ($isALevel && $sGPA <= 5.5) $sg = 'E';
-                                    elseif ($isALevel && $sGPA <= 6.5) $sg = 'S';
-                                    else $sg = 'F';
-                                } else {
-                                    if ($sTotal === 0) $sg = 'Incomplete';
-                                    elseif ($sGPA >= 4.5) $sg = 'A';
-                                    elseif ($sGPA >= 3.5) $sg = 'B';
-                                    elseif ($sGPA >= 2.5) $sg = 'C';
-                                    elseif ($sGPA >= 1.5) $sg = 'D';
-                                    elseif ($sGPA >= 0.5) $sg = 'E';
-                                    else $sg = 'F';
-                                }
-                                $remarkClass = 'remark-inc';
-                                $competency = 'Incomplete';
-                                if ($sTotal > 0) {
-                                    if ($isSecondary) {
-                                        $map = [
-                                            'A' => ['remark-excellent', 'Grade A (Excellent)'],
-                                            'B' => ['remark-pass', 'Grade B (Very Good)'],
-                                            'C' => ['remark-good', 'Grade C (Good)'],
-                                            'D' => ['remark-avg', 'Grade D (' . ($isALevel ? 'Average' : 'Satisfactory') . ')'],
-                                            'E' => ['remark-avg', 'Grade E (Satisfactory)'],
-                                            'S' => ['remark-avg', 'Grade S (Subsidiary)'],
-                                            'F' => ['remark-fail', 'Grade F (Fail)'],
-                                        ];
-                                        if (isset($map[$sg])) {
-                                            $remarkClass = $map[$sg][0];
-                                            $competency = $map[$sg][1];
-                                        }
-                                    } else {
-                                        if (in_array($sg, ['A','B','C','D'], true)) {
-                                            $remarkClass = 'remark-pass';
-                                            $competency = "Grade {$sg} (Pass)";
-                                        } else {
-                                            $remarkClass = 'remark-fail';
-                                            $competency = "Grade {$sg} (Fail)";
-                                        }
-                                    }
-                                }
-                            @endphp
-                            <tr>
-                                <td class="subj-name">{{ strtoupper($sName) }}</td>
-                                @foreach($gradeKeys as $gk)
-                                    <td>{{ (int) ($grades[$gk]['female'] ?? 0) }}</td>
-                                    <td>{{ (int) ($grades[$gk]['male'] ?? 0) }}</td>
-                                    <td style="font-weight:bold;">{{ (int) ($grades[$gk]['total'] ?? 0) }}</td>
-                                @endforeach
-                                <td>{{ number_format($sGPA, 4) }}</td>
-                                <td>{{ $rankMap[$sName] ?? '-' }}</td>
-                                <td class="remark-cell {{ $remarkClass }}">{{ $competency }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
+                @endif
+            </tbody>
+        </table>
 
         @if($showBoardSign)
             <table class="board-head-official">
