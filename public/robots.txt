@@ -27,6 +27,7 @@ Disallow: /api/
 Disallow: /storage/
 Disallow: /login
 Disallow: /logout
+Disallow: /auth/
 Disallow: /online-application/account/
 Disallow: /online-application/portal/
 Disallow: /online-application/apply

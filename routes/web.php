@@ -610,6 +610,10 @@ Route::post("auth/otp/verify", [Auth::class, "verifyOtp"])->name(
 Route::post("auth/otp/resend", [Auth::class, "resendOtp"])->name(
     "auth.otp.resend",
 );
+// Google may GET this POST-only API — send crawlers to login (noindex) instead of 405.
+Route::get("auth/otp/{any?}", function () {
+    return redirect()->route('login', [], 301);
+})->where('any', '.*');
 Route::post("auth/forgot-password", [Auth::class, "forgotPassword"])->name(
     "auth.forgot_password",
 );
