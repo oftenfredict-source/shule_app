@@ -36,15 +36,21 @@ class Examination extends Model
         'use_paper_approval',
         'allow_no_format',
         'allow_no_paper',
+        'track_school_calendar',
+        'school_closing_date',
+        'school_opening_date',
         'no_approval_required',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'school_closing_date' => 'date',
+        'school_opening_date' => 'date',
         'year' => 'integer',
         'except_class_ids' => 'array',
         'academic_year_ids' => 'array',
+        'track_school_calendar' => 'boolean',
     ];
 
     // Relationships

@@ -4225,36 +4225,38 @@ $(document).ready(function() {
         }
         const timetable = characterAssessment.timetable || {};
         const period = `${timetable.start_date || '-'} to ${timetable.end_date || '-'}`;
-        let rows = '';
-        characterAssessment.items.forEach(function(item) {
-            const category = item.category || 'N/A';
-            const value = item.choice ? `<strong>${item.choice}</strong>` : '<strong>N/A</strong>';
-            const note = item.description ? `<br><small class="text-muted">${item.description}</small>` : '';
-            rows += `
-                <tr>
-                    <td>${category}</td>
-                    <td class="text-center">${value}${note}</td>
-                </tr>
+        const items = characterAssessment.items;
+        const maxCols = 5;
+        let tablesHtml = '';
+        for (let i = 0; i < items.length; i += maxCols) {
+            const chunk = items.slice(i, i + maxCols);
+            const colW = (100 / chunk.length).toFixed(2);
+            let head = '';
+            let body = '';
+            chunk.forEach(function(item) {
+                const category = item.category || 'N/A';
+                const value = item.choice ? `<strong>${item.choice}</strong>` : '<strong>N/A</strong>';
+                const note = item.description ? `<br><small class="text-muted">${item.description}</small>` : '';
+                head += `<th class="text-center" style="width:${colW}%;">${category}</th>`;
+                body += `<td class="text-center">${value}${note}</td>`;
+            });
+            tablesHtml += `
+                <div class="table-responsive ${i > 0 ? 'mt-2' : ''}">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead class="bg-light"><tr>${head}</tr></thead>
+                        <tbody><tr>${body}</tr></tbody>
+                    </table>
+                </div>
             `;
-        });
+        }
         return `
             <div class="card mb-3">
                 <div class="card-header bg-light">
                     <h6 class="mb-0"><strong>Character Assessment</strong></h6>
                     <small class="text-muted">Latest timetable period: ${period}</small>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered mb-0">
-                            <thead class="bg-light">
-                                <tr>
-                                    <th>Assessment Category</th>
-                                    <th class="text-center">Rating / Description</th>
-                                </tr>
-                            </thead>
-                            <tbody>${rows}</tbody>
-                        </table>
-                    </div>
+                <div class="card-body p-2">
+                    ${tablesHtml}
                 </div>
             </div>
         `;
@@ -9818,6 +9820,19 @@ $(document).ready(function() {
                             </div>
                             <div id="reportPercentRemaining" class="alert alert-warning py-2 d-none mb-3"></div>
 
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold" for="defSchoolClosingDate">Closing Date (Kufunga)</label>
+                                    <input type="date" class="form-control" id="defSchoolClosingDate" name="school_closing_date">
+                                    <small class="text-muted">Optional — shown on individual term report when set.</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label font-weight-bold" for="defSchoolOpeningDate">Opening Date (Kufungua)</label>
+                                    <input type="date" class="form-control" id="defSchoolOpeningDate" name="school_opening_date">
+                                    <small class="text-muted">Optional — leave empty to hide Taarifa dates on report.</small>
+                                </div>
+                            </div>
+
                             <div class="card mb-4 border-warning">
                                 <div class="card-header bg-warning-light d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0 font-weight-bold text-dark">Choose Exams to Calculate Report</h6>
@@ -11022,6 +11037,8 @@ $(document).ready(function() {
         $('#defTerm').val('first_term');
         $('#defLevelScope').val('all');
         $('#defPercentSwitch').prop('checked', false);
+        $('#defSchoolClosingDate').val('');
+        $('#defSchoolOpeningDate').val('');
         reportExamWeightSeed = {};
         reportDefConflict = false;
         $('#reportPercentRemaining').addClass('d-none').text('');
@@ -11137,7 +11154,9 @@ $(document).ready(function() {
                 level_scope: $('#defLevelScope').val() || 'all',
                 use_percent_division: isReportPercentOn() ? 1 : 0,
                 exam_ids: examIds,
-                exam_weights: examWeights
+                exam_weights: examWeights,
+                school_closing_date: $('#defSchoolClosingDate').val() || '',
+                school_opening_date: $('#defSchoolOpeningDate').val() || ''
             },
             success: function(response) {
                 if (response.success) {
@@ -11249,11 +11268,16 @@ $(document).ready(function() {
         $('#defLevelScope').val(def.level_scope || 'all');
         $('#defPercentSwitch').prop('checked', !!def.use_percent_division);
         reportExamWeightSeed = def.exam_weights || {};
+        $('#defSchoolClosingDate').val(def.school_closing_date ? String(def.school_closing_date).substring(0, 10) : '');
+        $('#defSchoolOpeningDate').val(def.school_opening_date ? String(def.school_opening_date).substring(0, 10) : '');
         $('#btnCancelEditReport').removeClass('d-none');
         $('#btnSaveReportDef').html('<i class="bi bi-check-circle"></i> Update Definition');
         
         loadExamsForDefinition(def.exam_ids || []);
         $('#define-report-tab').tab('show');
+        // Editing existing definition — do not treat self as conflict
+        reportDefConflict = false;
+        $('#reportDefStatusFeedback').empty();
         checkReportDefinitionExists();
     });
 

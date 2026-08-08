@@ -32,6 +32,7 @@ class School extends Model
         'organization_logo',
         'school_stamp',
         'school_signature',
+        'character_categories_limit',
         'status',
         'environment',
         'two_factor_enabled',

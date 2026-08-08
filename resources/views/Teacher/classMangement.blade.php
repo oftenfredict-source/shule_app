@@ -584,7 +584,74 @@
             </div>
         </div>
     </div>
+
+    <!-- Teacher Signature Widget -->
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm widget-card h-100" id="teacherSignatureBtn" role="button" style="cursor:pointer;">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-pen text-primary-custom" style="font-size: 3rem;"></i>
+                </div>
+                <h6 class="card-title mb-0 fw-bold">Teacher Signature</h6>
+                <small class="text-muted" id="teacherSignatureWidgetHint">
+                    @if(!empty($teacherHasSignature))
+                        Ready — View / Edit / Delete
+                    @else
+                        Add your signature for reports
+                    @endif
+                </small>
+            </div>
+        </div>
+    </div>
 </div>
+</div>
+
+{{-- Teacher Signature Modal --}}
+<div class="modal fade" id="teacherSignatureModal" tabindex="-1" role="dialog" aria-labelledby="teacherSignatureModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title" id="teacherSignatureModalLabel">
+                    <i class="bi bi-pen"></i> Teacher Signature
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="teacherSigViewBlock" style="{{ !empty($teacherHasSignature) ? '' : 'display:none;' }}">
+                    <p class="text-muted mb-2">Your uploaded signature (used on individual student reports):</p>
+                    <div class="text-center border rounded p-3 mb-3 bg-light">
+                        <img id="teacherSigPreviewImg" src="{{ $teacherSignatureUrl ?? '' }}" alt="Signature"
+                             style="max-height:120px; max-width:100%; {{ empty($teacherHasSignature) ? 'display:none;' : '' }}">
+                        <p id="teacherSigEmptyPreview" class="text-muted mb-0" style="{{ !empty($teacherHasSignature) ? 'display:none;' : '' }}">No signature</p>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-center" style="gap:8px;">
+                        <button type="button" class="btn btn-primary" id="teacherSigEditBtn">
+                            <i class="bi bi-pencil"></i> Edit / Replace
+                        </button>
+                        <button type="button" class="btn btn-danger" id="teacherSigDeleteBtn">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                <div id="teacherSigUploadBlock" style="{{ !empty($teacherHasSignature) ? 'display:none;' : '' }}">
+                    <p class="text-muted mb-2">Upload a clear PNG/JPG of your signature (max 5MB).</p>
+                    <div class="form-group">
+                        <label for="teacherSignatureFile">Signature file</label>
+                        <input type="file" class="form-control-file" id="teacherSignatureFile" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml">
+                    </div>
+                    <div class="text-center border rounded p-3 mb-2 bg-light" id="teacherSigLocalPreviewWrap" style="display:none;">
+                        <img id="teacherSigLocalPreview" src="" alt="Preview" style="max-height:120px; max-width:100%;">
+                    </div>
+                    <button type="button" class="btn btn-success btn-block" id="teacherSigSaveBtn">
+                        <i class="bi bi-upload"></i> Upload Signature
+                    </button>
+                    <button type="button" class="btn btn-link btn-block" id="teacherSigCancelEditBtn" style="display:none;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Register Student Modal -->
@@ -2369,6 +2436,144 @@
                     Swal.fire('Error', 'Class ID not found', 'error');
                     return;
                 }
+            });
+
+            // Teacher Signature (add / view / edit / delete — no duplicate uploads)
+            var teacherHasSignature = {{ !empty($teacherHasSignature) ? 'true' : 'false' }};
+
+            function setTeacherSigUi(hasSig, url) {
+                teacherHasSignature = !!hasSig;
+                if (hasSig && url) {
+                    $('#teacherSigPreviewImg').attr('src', url).show();
+                    $('#teacherSigEmptyPreview').hide();
+                    $('#teacherSignatureWidgetHint').text('Ready — View / Edit / Delete');
+                    $('#teacherSigViewBlock').show();
+                    $('#teacherSigUploadBlock').hide();
+                    $('#teacherSigCancelEditBtn').hide();
+                } else {
+                    $('#teacherSigPreviewImg').attr('src', '').hide();
+                    $('#teacherSigEmptyPreview').show();
+                    $('#teacherSignatureWidgetHint').text('Add your signature for reports');
+                    $('#teacherSigViewBlock').hide();
+                    $('#teacherSigUploadBlock').show();
+                    $('#teacherSigCancelEditBtn').hide();
+                }
+                $('#teacherSignatureFile').val('');
+                $('#teacherSigLocalPreviewWrap').hide();
+                $('#teacherSigLocalPreview').attr('src', '');
+            }
+
+            $('#teacherSignatureBtn').on('click', function () {
+                if (teacherHasSignature) {
+                    setTeacherSigUi(true, $('#teacherSigPreviewImg').attr('src'));
+                } else {
+                    setTeacherSigUi(false, null);
+                }
+                $('#teacherSignatureModal').modal('show');
+            });
+
+            $('#teacherSigEditBtn').on('click', function () {
+                $('#teacherSigViewBlock').hide();
+                $('#teacherSigUploadBlock').show();
+                $('#teacherSigCancelEditBtn').show();
+                $('#teacherSignatureFile').val('');
+                $('#teacherSigLocalPreviewWrap').hide();
+            });
+
+            $('#teacherSigCancelEditBtn').on('click', function () {
+                setTeacherSigUi(true, $('#teacherSigPreviewImg').attr('src'));
+            });
+
+            $('#teacherSignatureFile').on('change', function () {
+                var file = this.files && this.files[0];
+                if (!file) {
+                    $('#teacherSigLocalPreviewWrap').hide();
+                    return;
+                }
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    $('#teacherSigLocalPreview').attr('src', e.target.result);
+                    $('#teacherSigLocalPreviewWrap').show();
+                };
+                reader.readAsDataURL(file);
+            });
+
+            $('#teacherSigSaveBtn').on('click', function () {
+                var fileInput = $('#teacherSignatureFile')[0];
+                if (!fileInput.files || !fileInput.files[0]) {
+                    Swal.fire('Required', 'Please choose a signature image first.', 'warning');
+                    return;
+                }
+                var formData = new FormData();
+                formData.append('signature', fileInput.files[0]);
+                var $btn = $(this);
+                var original = $btn.html();
+                $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Uploading...');
+                $.ajax({
+                    url: '{{ route("teacher.upload_signature") }}',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val()
+                    },
+                    dataType: 'json',
+                    success: function (res) {
+                        $btn.prop('disabled', false).html(original);
+                        if (res.success) {
+                            setTeacherSigUi(true, res.signature_url);
+                            Swal.fire('Success', res.message || 'Signature saved.', 'success');
+                        } else {
+                            Swal.fire('Error', res.message || 'Upload failed.', 'error');
+                        }
+                    },
+                    error: function (xhr) {
+                        $btn.prop('disabled', false).html(original);
+                        var msg = 'Upload failed.';
+                        if (xhr.responseJSON) {
+                            if (xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                            else if (xhr.responseJSON.errors && xhr.responseJSON.errors.signature) {
+                                msg = [].concat(xhr.responseJSON.errors.signature).join(' ');
+                            }
+                        }
+                        Swal.fire('Error', msg, 'error');
+                    }
+                });
+            });
+
+            $('#teacherSigDeleteBtn').on('click', function () {
+                Swal.fire({
+                    title: 'Delete signature?',
+                    text: 'This removes your signature from student reports until you upload again.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#940000',
+                    confirmButtonText: 'Yes, delete'
+                }).then(function (result) {
+                    if (!result.isConfirmed && !result.value) return;
+                    $.ajax({
+                        url: '{{ route("teacher.delete_signature") }}',
+                        type: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val()
+                        },
+                        dataType: 'json',
+                        success: function (res) {
+                            if (res.success) {
+                                setTeacherSigUi(false, null);
+                                $('#teacherSignatureModal').modal('hide');
+                                Swal.fire('Deleted', res.message || 'Signature deleted.', 'success');
+                            } else {
+                                Swal.fire('Error', res.message || 'Delete failed.', 'error');
+                            }
+                        },
+                        error: function (xhr) {
+                            var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Delete failed.';
+                            Swal.fire('Error', msg, 'error');
+                        }
+                    });
+                });
             });
 
             // Register Student Form

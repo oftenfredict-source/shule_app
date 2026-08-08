@@ -19,6 +19,8 @@ class TermReportDefinition extends Model
         'use_percent_division',
         'exam_weights',
         'level_scope',
+        'school_closing_date',
+        'school_opening_date',
         'created_by',
     ];
 
@@ -27,6 +29,8 @@ class TermReportDefinition extends Model
         'exam_weights' => 'array',
         'use_percent_division' => 'boolean',
         'year' => 'integer',
+        'school_closing_date' => 'date',
+        'school_opening_date' => 'date',
     ];
 
     public function creator()

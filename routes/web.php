@@ -1595,6 +1595,14 @@ Route::get("ClassMangement/{subclassID?}", [
     ManageClassessController::class,
     "ClassMangement",
 ])->name("ClassMangement");
+Route::post("teacher/upload-signature", [
+    ManageClassessController::class,
+    "uploadTeacherSignature",
+])->name("teacher.upload_signature");
+Route::post("teacher/delete-signature", [
+    ManageClassessController::class,
+    "deleteTeacherSignature",
+])->name("teacher.delete_signature");
 Route::get("get_examinations_for_subclass/{subclassID}", [
     ManageClassessController::class,
     "getExaminationsForSubclass",
@@ -3102,6 +3110,10 @@ Route::delete("delete_assessment_category/{id}", [
     CharacterAssessmentController::class,
     "delete_category",
 ])->name("delete_assessment_category");
+Route::post("update_character_categories_limit", [
+    CharacterAssessmentController::class,
+    "update_categories_limit",
+])->name("update_character_categories_limit");
 Route::post("store_assessment_choice", [
     CharacterAssessmentController::class,
     "store_choice",

@@ -275,9 +275,63 @@
                 return 'Juhudi nzuri. Endelea kufanya kazi kwa bidii ili kuboresha matokeo yako.';
             }
         }
+
+        /** Headmaster remarks — auto from ufaulu, wording different from class teacher */
+        if (!function_exists('getAutomaticHeadComment')) {
+            function getAutomaticHeadComment($gradeOrDivision) {
+                $raw = strtoupper(trim((string) $gradeOrDivision));
+                $key = $raw;
+                if (preg_match('/^(I|II|III|IV|0)\b/', $raw, $m)) {
+                    $key = $m[1];
+                } elseif (preg_match('/DIV(?:ISION)?\s*(I|II|III|IV|0)/', $raw, $m)) {
+                    $key = $m[1];
+                }
+
+                if ($key === 'I') {
+                    return 'Kama Mkuu wa Shule, ninapongeza ufaulu wako bora. Dumisha nidhamu na kiwango hiki cha juu.';
+                }
+                if ($key === 'II') {
+                    return 'Matokeo yako ni ya kuridhisha. Endelea kujitahidi ili kufikia ufaulu wa daraja la kwanza.';
+                }
+                if ($key === 'III') {
+                    return 'Ufaulu wako umeonekana. Ongeza juhudi na ushirikiane na walimu ili kuboresha zaidi.';
+                }
+                if ($key === 'IV') {
+                    return 'Matokeo yako yanaonyesha haja ya bidii zaidi. Fuata ushauri wa kitaaluma kwa uboreshaji.';
+                }
+                if ($key === '0' || $key === 'FAIL') {
+                    return 'Matokeo haya hayaridhishi. Ninakuhimiza kuongeza muda wa kujifunza na kutafuta msaada wa karibu.';
+                }
+
+                if ($key === 'A') {
+                    return 'Kama Mkuu wa Shule, ninapongeza matokeo yako bora. Endelea kuongoza kwa mfano mzuri.';
+                }
+                if ($key === 'B') {
+                    return 'Ufaulu mzuri umeonekana. Fanya bidii kidogo zaidi ili kufikia kiwango cha juu kabisa.';
+                }
+                if ($key === 'C') {
+                    return 'Matokeo yako yanaridhisha kwa kiasi. Zidisha bidii ili kupata ufaulu bora zaidi.';
+                }
+                if ($key === 'D') {
+                    return 'Kiwango chako kinahitaji kuboreshwa. Fanya kazi kwa bidii na ufuate maelekezo ya walimu.';
+                }
+                if ($key === 'E' || $key === 'F') {
+                    return 'Matokeo haya yanahitaji mabadiliko ya haraka. Panga ratiba ya masomo na utafute msaada wa kitaaluma.';
+                }
+
+                return 'Endelea kujitahidi katika masomo yako. Ufaulu unategemea nidhamu na bidii endelevu.';
+            }
+        }
+    @endphp
+    @php
+        $isIndividualPdf = in_array($option ?? '', ['single', 'bulk_single'], true);
     @endphp
     <style>
-        @page { margin: 4mm 5mm 7mm 5mm; size: A4 landscape; }
+        /* Landscape A4 — individual: LEFT margin for hole-punch; tight elsewhere so 1 page fits */
+        @page {
+            margin: {{ $isIndividualPdf ? '3mm 4mm 4mm 22mm' : '4mm 5mm 7mm 5mm' }};
+            size: A4 landscape;
+        }
         body {
             font-family: 'Helvetica', sans-serif;
             font-size: 9.5px;
@@ -287,12 +341,97 @@
             margin: 0;
             padding: 0 0 10px 0;
         }
+        /* Individual — compact so term report fits ONE landscape page (punch space kept) */
+        body.individual-pdf {
+            font-size: 10px;
+            line-height: 1.1;
+            padding: 0 0 2px 0;
+        }
+        body.individual-pdf .header { margin-bottom: 1px; padding-bottom: 1px; }
+        body.individual-pdf .student-photo-top { margin: 0 0 1px 0; }
+        body.individual-pdf .student-photo-top img { width: 54px; height: 54px; }
+        body.individual-pdf .logo-cell { width: 88px; padding-right: 5px; }
+        body.individual-pdf .logo-cell img { max-height: 84px; max-width: 86px; }
+        body.individual-pdf .logo-cell.right { padding-left: 5px; }
+        body.individual-pdf .student-photo-cell { width: 58px; padding-left: 4px; }
+        body.individual-pdf .student-photo-cell img { width: 54px; height: 54px; }
+        body.individual-pdf .org-name { font-size: 9px; }
+        body.individual-pdf .school-name { font-size: 12px; line-height: 1.05; }
+        body.individual-pdf .school-sub { font-size: 8px; }
+        body.individual-pdf .report-title { font-size: 10px; padding: 2px 4px; margin: 1px 0; }
+        body.individual-pdf .info-table td { font-size: 9px; padding: 1px 3px; }
+        body.individual-pdf .info-section { margin-bottom: 1px; }
+        body.individual-pdf .section-title { font-size: 10px; margin: 2px 0 1px 0; padding: 1px 3px; }
+        body.individual-pdf .group-head { font-size: 9px; }
+        body.individual-pdf .sub-head { font-size: 8.5px; }
+        body.individual-pdf table.data,
+        body.individual-pdf table.data-table { font-size: 10px; margin-bottom: 1px; }
+        body.individual-pdf table.data th,
+        body.individual-pdf table.data-table th { font-size: 8.5px; padding: 1px 2px; }
+        body.individual-pdf table.data td,
+        body.individual-pdf table.data-table td { font-size: 10px; padding: 1px 2px; }
+        body.individual-pdf table.data th.subj-group,
+        body.individual-pdf table.data td.subj-name,
+        body.individual-pdf table.data td.subj-marks,
+        body.individual-pdf table.data td.subj-grade { font-size: 10px; }
+        body.individual-pdf table.data.term-report-card th.exam-group { font-size: 8px; }
+        body.individual-pdf table.data.term-report-card th.exam-sub { font-size: 7.5px; }
+        body.individual-pdf table.data.term-report-card td.exam-marks,
+        body.individual-pdf table.data.term-report-card td.exam-grade,
+        body.individual-pdf table.data td.daraja-cell { font-size: 10px; }
+        body.individual-pdf .summary-grid { margin: 1px 0; }
+        body.individual-pdf .summary-grid td { font-size: 9px; padding: 1px 2px; }
+        body.individual-pdf .summary-grid .sg-label,
+        body.individual-pdf .summary-grid .sg-k { font-size: 8px; }
+        body.individual-pdf .summary-grid .sg-value,
+        body.individual-pdf .summary-grid .sg-v { font-size: 10px; }
+        body.individual-pdf .grade-key-table { margin: 2px 0 2px 0; font-size: 8.5px; }
+        body.individual-pdf .grade-key-table th,
+        body.individual-pdf .grade-key-table td { font-size: 8.5px; padding: 1px 2px; }
+        body.individual-pdf .grade-key-table .gk-title { font-size: 9px; padding: 2px 3px; }
+        body.individual-pdf table.data td.remark-cell { font-size: 9px; }
+        body.individual-pdf .comment-title { font-size: 10px; }
+        body.individual-pdf .comment-text { font-size: 9px; }
+        body.individual-pdf .teacher-name { font-size: 9px; }
+        body.individual-pdf .official-remarks-table { font-size: 9px; page-break-inside: avoid; }
+        body.individual-pdf .official-remarks-table td { padding: 2px 3px; }
+        body.individual-pdf .official-remarks-table .orm-title,
+        body.individual-pdf .official-remarks-table .orm-title-dark { font-size: 8.5px; margin-bottom: 1px; }
+        body.individual-pdf .official-remarks-table .orm-body { font-size: 9px; line-height: 1.1; min-height: 12px; }
+        body.individual-pdf .official-remarks-table .orm-meta,
+        body.individual-pdf .official-remarks-table .orm-sign-label { font-size: 8px; }
+        body.individual-pdf .official-remarks-table .at-line { font-size: 9px; }
+        body.individual-pdf .orm-box { min-height: 40px; }
+        body.individual-pdf .orm-head-sign { min-height: 20px; }
+        body.individual-pdf .orm-head-sign img { max-height: 22px; max-width: 85px; }
+        body.individual-pdf .orm-teacher-sign { min-height: 20px; }
+        body.individual-pdf .orm-teacher-sign img { max-height: 20px; max-width: 80px; }
+        body.individual-pdf .orm-stamp-block img { max-width: 115px; max-height: 115px; }
+        body.individual-pdf .badge-red,
+        body.individual-pdf .badge-pale,
+        body.individual-pdf .badge-grn { font-size: 9px; padding: 1px 4px; }
+        body.individual-pdf .remark-color-legend { margin: 1px 0 2px 0; }
+        body.individual-pdf .remark-color-legend-title { font-size: 8px; }
+        body.individual-pdf .remark-color-block { font-size: 9px; padding: 2px 3px; }
+        body.individual-pdf .remark-color-blocks.secondary-legend .remark-color-block {
+            font-size: 9px;
+            padding: 2px 1px;
+        }
+        body.individual-pdf .character-assessment-hz th { font-size: 8.5px; padding: 1px 2px; }
+        body.individual-pdf .character-assessment-hz td { font-size: 9.5px; padding: 1px 2px; }
+        body.individual-pdf .footer {
+            font-size: 6px;
+            padding-top: 0;
+            border-top: none;
+            height: 8px;
+            overflow: hidden;
+        }
         table, td, th, p, div, span, li {
             font-family: 'Helvetica', sans-serif;
             color: #333;
         }
 
-        /* Individual header — photo on top; logos large & close to title */
+        /* Individual header — larger logos + header text */
         .header { text-align: center; margin-bottom: 2px; border-bottom: 1.5px solid #940000; padding-bottom: 2px; }
         .header img.school-logo-top,
         .header img.org-logo-top { display: none; }
@@ -303,8 +442,8 @@
         }
         .student-photo-top img {
             display: block;
-            width: 48px;
-            height: 48px;
+            width: 58px;
+            height: 58px;
             margin: 0 auto;
             border: 1px solid #ccc;
             outline: none;
@@ -313,29 +452,29 @@
         .logo-stack { display: none; }
         .header-table {
             width: auto;
-            max-width: 72%;
+            max-width: 82%;
             margin: 0 auto;
             border-collapse: collapse;
         }
         .header-table td { border: none; padding: 0; vertical-align: middle; }
-        .logo-cell { width: 78px; padding-right: 6px; text-align: left; }
-        .logo-cell img { display: block; max-height: 72px; max-width: 76px; border: none; outline: none; }
-        .logo-cell.right { text-align: right; padding-right: 0; padding-left: 6px; }
+        .logo-cell { width: 100px; padding-right: 8px; text-align: left; }
+        .logo-cell img { display: block; max-height: 96px; max-width: 98px; border: none; outline: none; }
+        .logo-cell.right { text-align: right; padding-right: 0; padding-left: 8px; }
         .logo-cell.right img { margin-left: auto; }
-        .student-photo-cell { width: 48px; text-align: right; padding-left: 4px; }
-        .student-photo-cell img { display: block; width: 46px; height: 46px; margin-left: auto; border: 1px solid #ccc; outline: none; object-fit: cover; }
+        .student-photo-cell { width: 60px; text-align: right; padding-left: 6px; }
+        .student-photo-cell img { display: block; width: 56px; height: 56px; margin-left: auto; border: 1px solid #ccc; outline: none; object-fit: cover; }
         .header.under-org .student-photo-cell { display: none; }
-        .school-name-cell { text-align: center; padding: 0 4px; }
-        .org-name { font-size: 9px; font-weight: bold; color: #555; text-transform: uppercase; margin-bottom: 0; letter-spacing: 0.2px; }
-        .school-name { font-size: 13px; font-weight: bold; color: #940000; text-transform: uppercase; line-height: 1.05; }
-        .school-sub  { font-size: 8px; color: #555; margin: 0; }
+        .school-name-cell { text-align: center; padding: 0 6px; }
+        .org-name { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; margin-bottom: 1px; letter-spacing: 0.2px; }
+        .school-name { font-size: 15px; font-weight: bold; color: #940000; text-transform: uppercase; line-height: 1.1; }
+        .school-sub  { font-size: 9.5px; color: #555; margin: 0; }
 
         .report-title {
-            font-size: 9px;
+            font-size: 11px;
             font-weight: bold;
-            margin-top: 2px;
+            margin-top: 3px;
             background: #f8f9fa;
-            padding: 2px 4px;
+            padding: 3px 5px;
             border: 1px solid #ccc;
             text-align: center;
             text-transform: uppercase;
@@ -580,13 +719,10 @@
         .teacher-sig-img img { max-width: 140px; max-height: 35px; }
         .teacher-name { font-weight: bold; font-size: 10px; border-top: 1px solid #000; width: 150px; padding-top: 2px; }
 
-        .ind-bottom-wrap { width: 100%; border-collapse: collapse; margin: 2px 0 0 0; table-layout: fixed; }
-        .ind-bottom-wrap > tbody > tr > td { border: none; padding: 0 2px 0 0; vertical-align: top; }
-        .ind-bottom-wrap .ada-taarifa-table { margin: 0; width: 100%; }
         .official-remarks-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 0;
+            margin: 2px 0 0 0;
             border: 1.5px solid #666;
             font-size: 8px;
             table-layout: fixed;
@@ -622,6 +758,27 @@
             color: #940000;
             margin-top: 2px;
             text-align: center;
+        }
+        .official-remarks-table .at-line {
+            margin: 0 0 1px 0;
+            line-height: 1.15;
+            color: #333;
+        }
+        .official-remarks-table .at-dots {
+            display: inline-block;
+            border-bottom: 1px dotted #555;
+            min-width: 45%;
+            height: 11px;
+            vertical-align: baseline;
+            margin-left: 4px;
+        }
+        .official-remarks-table .at-uline {
+            display: inline-block;
+            border-bottom: 1px solid #555;
+            min-width: 28%;
+            height: 12px;
+            vertical-align: baseline;
+            margin: 0 2px;
         }
         .orm-box {
             text-align: center;
@@ -783,7 +940,7 @@
         .header-line { display: none; }
     </style>
 </head>
-<body>
+<body class="{{ !empty($isIndividualPdf) ? 'individual-pdf' : '' }}">
     @if($showWatermark ?? true)
         <div class="watermark">ShuleXpert</div>
     @endif
@@ -899,15 +1056,11 @@
                             if ($student->subclass && $student->subclass->class) {
                                 $pdfCn = $student->subclass->class->class_name ?? '';
                                 $pdfSn = trim($student->subclass->subclass_name ?? '');
-                                $pdfClassLabel = pdfIsALevelClassName($pdfCn)
-                                    ? ($pdfSn !== '' ? $pdfSn : $pdfCn)
-                                    : ($pdfSn !== '' ? $pdfCn . ' / ' . $pdfSn : $pdfCn);
+                                $pdfClassLabel = $pdfSn !== '' ? $pdfCn . ' / ' . $pdfSn : $pdfCn;
                             } elseif ($student->oldSubclass && $student->oldSubclass->class) {
                                 $pdfCn = $student->oldSubclass->class->class_name ?? '';
                                 $pdfSn = trim($student->oldSubclass->subclass_name ?? '');
-                                $pdfClassLabel = pdfIsALevelClassName($pdfCn)
-                                    ? ($pdfSn !== '' ? $pdfSn : $pdfCn)
-                                    : ($pdfSn !== '' ? $pdfCn . ' / ' . $pdfSn : $pdfCn);
+                                $pdfClassLabel = $pdfSn !== '' ? $pdfCn . ' / ' . $pdfSn : $pdfCn;
                             }
                         @endphp
                         {{ $pdfClassLabel }}
@@ -1096,7 +1249,7 @@
                     </tbody>
                 </table>
 
-                {{-- Summary: layout kama ripoti — mchepuo (subclass) + kidato (main class) --}}
+                {{-- Summary — same structure for A-Level & O-Level (processing differs in backend) --}}
                 @php
                     $sumDivisionFull = (string) ($detailedSingleData['division'] ?? '');
                     $sumDivisionRoman = $sumDivisionFull;
@@ -1204,7 +1357,7 @@
                             </tr>
                             <tr>
                                 <th class="exam-group" colspan="6">Masomo</th>
-                                <th class="exam-group" colspan="2">Tabia na Mwenendo</th>
+                                <th class="exam-group" colspan="2">Maelezo ya Maoni</th>
                             </tr>
                             <tr>
                                 <th class="exam-sub">Gredi</th>
@@ -1470,30 +1623,37 @@
         <p style="color:#940000; font-style:italic; margin-top:10px;">No result data found for this student.</p>
     @endif
 
-    {{-- Character & Behavioral Assessment --}}
+    {{-- Character & Behavioral Assessment — horizontal cols (max 5 per row; no empty cols) --}}
     @if(isset($characterAssessments) && isset($characterAssessments[$student->studentID]) && count($characterAssessments[$student->studentID]) > 0)
+        @php
+            $caRows = collect($characterAssessments[$student->studentID])->values();
+            $caChunks = $caRows->chunk(5);
+        @endphp
         <div class="section-title">Tathmini ya Tabia na Mwenendo</div>
-        <table class="data character-assessment-table" style="margin-bottom: 2px;">
-            <thead>
-                <tr>
-                    <th style="width: 40%;">Kategoria</th>
-                    <th style="width: 60%;" class="tc">Alama / Chaguo</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($characterAssessments[$student->studentID] as $idx => $ca)
-                    <tr class="{{ $idx % 2 == 0 ? '' : 'even' }}">
-                        <td>{{ $ca->category->name }}</td>
-                        <td class="tc">
-                            <span class="bold" style="color:#940000; font-size:8px;">{{ $ca->choice->choice_name ?? 'N/A' }}</span>
-                            @if($ca->description)
-                                <br><span style="font-size:7px; font-style:italic; color:#555;">{{ $ca->description }}</span>
-                            @endif
-                        </td>
+        @foreach($caChunks as $caChunk)
+            @php $colCount = $caChunk->count(); @endphp
+            <table class="data character-assessment-table character-assessment-hz" style="margin-bottom: 2px; table-layout: fixed; width: 100%;">
+                <thead>
+                    <tr>
+                        @foreach($caChunk as $ca)
+                            <th class="tc" style="width: {{ round(100 / $colCount, 2) }}%;">{{ $ca->category->name ?? 'N/A' }}</th>
+                        @endforeach
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <tr>
+                        @foreach($caChunk as $ca)
+                            <td class="tc">
+                                <span class="bold" style="color:#940000;">{{ $ca->choice->choice_name ?? ($ca->description ?: 'N/A') }}</span>
+                                @if(!empty($ca->choice->choice_name) && !empty($ca->description))
+                                    <br><span style="font-size:0.85em; font-style:italic; color:#555;">{{ $ca->description }}</span>
+                                @endif
+                            </td>
+                        @endforeach
+                    </tr>
+                </tbody>
+            </table>
+        @endforeach
     @endif
 
     {{-- ADA + remarks side-by-side (saves height for 1 landscape page) --}}
@@ -1515,83 +1675,95 @@
             $commentVal = $reportRes['division'] ?? $reportRes['grade'] ?? null;
         }
         $teacherComment = getAutomaticComment($commentVal);
+        $headComment = getAutomaticHeadComment($commentVal);
     @endphp
-    <table class="ind-bottom-wrap">
+    <table class="official-remarks-table">
         <tr>
-            <td style="width:22%;">
-                <table class="ada-taarifa-table">
-                    <tr>
-                        <td>
-                            <div class="at-head">Ada</div>
-                            <div class="at-line">
-                                Madeni:
-                                @if($feeMadeni !== null)
-                                    <strong>Tsh {{ number_format($feeMadeni, 0) }}</strong>
-                                @else
-                                    <span class="at-dots"></span>
-                                @endif
-                            </div>
-                            <div class="at-line">
-                                Ada:
-                                @if($feeAda !== null)
-                                    <strong>Tsh {{ number_format($feeAda, 0) }}</strong>
-                                @else
-                                    <span class="at-dots"></span>
-                                @endif
-                            </div>
-                            <div class="at-head" style="margin-top:3px;">Taarifa</div>
-                            <div class="at-line">Kufunga: <span class="at-uline"></span></div>
-                            <div class="at-line">Kufungua: <span class="at-uline"></span></div>
-                        </td>
-                    </tr>
-                </table>
+            <td style="width:16%;">
+                <div class="orm-title">Ada</div>
+                <div class="at-line">
+                    Madeni:
+                    @if($feeMadeni !== null)
+                        <strong>Tsh {{ number_format($feeMadeni, 0) }}</strong>
+                    @else
+                        <span class="at-dots"></span>
+                    @endif
+                </div>
+                <div class="at-line">
+                    Ada:
+                    @if($feeAda !== null)
+                        <strong>Tsh {{ number_format($feeAda, 0) }}</strong>
+                    @else
+                        <span class="at-dots"></span>
+                    @endif
+                </div>
+                @php
+                    $cal = $schoolCalendar ?? null;
+                    $closeDate = is_array($cal) ? ($cal['closing_date'] ?? null) : null;
+                    $openDate = is_array($cal) ? ($cal['opening_date'] ?? null) : null;
+                    $showSchoolCalendar = !empty($closeDate) || !empty($openDate);
+                @endphp
+                @if($showSchoolCalendar)
+                    <div class="orm-title" style="margin-top:3px;">Taarifa</div>
+                    <div class="at-line">
+                        Kufunga:
+                        @if(!empty($closeDate))
+                            <strong>{{ \Carbon\Carbon::parse($closeDate)->format('d M Y') }}</strong>
+                        @else
+                            <span class="at-uline"></span>
+                        @endif
+                    </div>
+                    <div class="at-line">
+                        Kufungua:
+                        @if(!empty($openDate))
+                            <strong>{{ \Carbon\Carbon::parse($openDate)->format('d M Y') }}</strong>
+                        @else
+                            <span class="at-uline"></span>
+                        @endif
+                    </div>
+                @endif
             </td>
-            <td style="width:78%;">
-                <table class="official-remarks-table">
-                    <tr>
-                        <td style="width:26%;">
-                            <div class="orm-title-dark">Maoni ya Mwalimu wa Darasa</div>
-                            <div class="orm-body">{{ $teacherComment }}</div>
-                            <div class="orm-meta">Jina: {{ $teacherName }}</div>
-                        </td>
-                        <td style="width:14%;" class="orm-box">
-                            <div class="orm-title-dark">Sahihi ya Mwalimu</div>
-                            <div class="orm-teacher-sign">
-                                @if($teacherSignBase64)
-                                    <img src="{{ $teacherSignBase64 }}" alt="Sahihi">
-                                @endif
-                            </div>
-                            <div class="sig-dot-line"></div>
-                        </td>
-                        <td style="width:24%;">
-                            <div class="orm-title">Maoni ya Mkuu wa Shule</div>
-                            <div class="orm-mkuu-lines">
-                                <div class="dot-line"></div>
-                                <div class="dot-line"></div>
-                            </div>
-                        </td>
-                        <td style="width:16%;" class="orm-box">
-                            <div class="orm-title">Sahihi ya Mkuu</div>
-                            <div class="orm-head-sign">
-                                @if($schoolSignBase64)
-                                    <img src="{{ $schoolSignBase64 }}" alt="Sahihi">
-                                @endif
-                            </div>
-                            <div class="sig-dot-line"></div>
-                            <div class="orm-sign-label">Mkuu wa Shule</div>
-                        </td>
-                        <td style="width:20%;" class="orm-box">
-                            @if($schoolStampBase64)
-                                <div class="orm-stamp-block">
-                                    <div class="stamp-label">Stamp</div>
-                                    <img src="{{ $schoolStampBase64 }}" alt="Stamp">
-                                </div>
-                            @else
-                                <div class="stamp-label">Stamp</div>
-                            @endif
-                        </td>
-                    </tr>
-                </table>
+            <td style="width:22%;">
+                <div class="orm-title-dark">Maoni ya Mwalimu wa Darasa</div>
+                <div class="orm-body">{{ $teacherComment }}</div>
+                <div class="orm-meta">Jina: {{ $teacherName }}</div>
+            </td>
+            <td style="width:12%;" class="orm-box">
+                <div class="orm-title-dark">Sahihi ya Mwalimu</div>
+                <div class="orm-teacher-sign">
+                    @if($teacherSignBase64)
+                        <img src="{{ $teacherSignBase64 }}" alt="Sahihi">
+                    @endif
+                </div>
+                @if(!$teacherSignBase64)
+                    <div class="sig-dot-line"></div>
+                @endif
+            </td>
+            <td style="width:20%;">
+                <div class="orm-title">Maoni ya Mkuu wa Shule</div>
+                <div class="orm-body">{{ $headComment }}</div>
+            </td>
+            <td style="width:14%;" class="orm-box">
+                <div class="orm-title">Sahihi ya Mkuu</div>
+                <div class="orm-head-sign">
+                    @if($schoolSignBase64)
+                        <img src="{{ $schoolSignBase64 }}" alt="Sahihi">
+                    @endif
+                </div>
+                @if(!$schoolSignBase64)
+                    <div class="sig-dot-line"></div>
+                @endif
+                <div class="orm-sign-label">Mkuu wa Shule</div>
+            </td>
+            <td style="width:16%;" class="orm-box">
+                @if($schoolStampBase64)
+                    <div class="orm-stamp-block">
+                        <div class="stamp-label">Stamp</div>
+                        <img src="{{ $schoolStampBase64 }}" alt="Stamp">
+                    </div>
+                @else
+                    <div class="stamp-label">Stamp</div>
+                @endif
             </td>
         </tr>
     </table>

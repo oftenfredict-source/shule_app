@@ -13,11 +13,13 @@ use App\Models\Teacher;
 use App\Models\CharacterAssessmentTimetable;
 use App\Models\CharacterAssessmentAssignment;
 use App\Models\StudentCharacterAssessment;
+use App\Models\School;
 use App\Services\SelectedAcademicYearService;
 use App\Services\StudentEnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Validator;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -65,6 +67,12 @@ class CharacterAssessmentController extends Controller
             $defaultYear = $academicYears->first()->year;
         }
 
+        $school = School::find($schoolID);
+        $categoriesLimit = (int) ($school->character_categories_limit ?? 5);
+        if ($categoriesLimit < 1) {
+            $categoriesLimit = 5;
+        }
+
         return view('Admin.character_assessment', compact(
             'categories', 
             'globalChoices', 
@@ -74,8 +82,46 @@ class CharacterAssessmentController extends Controller
             'subclasses', 
             'teachers',
             'defaultAcademicYearID',
-            'defaultYear'
+            'defaultYear',
+            'categoriesLimit'
         ));
+    }
+
+    /**
+     * Save max assessment categories selectable per timetable assignment.
+     */
+    public function update_categories_limit(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'character_categories_limit' => 'required|integer|min:1|max:20',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $school = School::find($schoolID);
+        if (!$school) {
+            return response()->json(['success' => false, 'message' => 'School not found'], 404);
+        }
+
+        $limit = (int) $request->character_categories_limit;
+        $school->character_categories_limit = $limit;
+        $school->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Categories limit saved.',
+            'character_categories_limit' => $limit,
+        ]);
     }
 
     /**
@@ -256,6 +302,24 @@ class CharacterAssessmentController extends Controller
         try {
             $schoolID = Session::get('schoolID');
             $id = $request->timetableID;
+
+            $school = School::find($schoolID);
+            $categoriesLimit = (int) ($school->character_categories_limit ?? 5);
+            if ($categoriesLimit < 1) {
+                $categoriesLimit = 5;
+            }
+
+            if ($request->assignments && is_array($request->assignments)) {
+                foreach ($request->assignments as $asgn) {
+                    $selected = $asgn['selected_categories'] ?? [];
+                    if (is_array($selected) && count($selected) > $categoriesLimit) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Cannot select more than {$categoriesLimit} assessment categories per assignment.",
+                        ], 422);
+                    }
+                }
+            }
             
             // 2. Create or Update Timetable
             if ($id) {

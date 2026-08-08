@@ -22,6 +22,24 @@
                             <!-- Expanded Settings Section -->
                             <div id="expandedSettings" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(148, 0, 0, 0.1); position: relative;">
                                 <button type="button" class="close" onclick="$('#expandedSettings').slideUp(300);" style="position: absolute; right: 10px; top: 10px; color: #000000; opacity: 1;">&times;</button>
+
+                                <div class="row align-items-end mb-4 pb-3" style="border-bottom: 1px solid rgba(148, 0, 0, 0.08);">
+                                    <div class="col-md-5">
+                                        <label class="small font-weight-bold text-uppercase mb-1" style="color:#940000; letter-spacing:0.5px;">Categories Limit</label>
+                                        <p class="text-muted small mb-2 mb-md-0">Max assessment categories selectable when creating a timetable (reports show up to 5 columns per row).</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="input-group">
+                                            <input type="number" id="categoriesLimitInput" class="form-control font-weight-bold" min="1" max="20"
+                                                   value="{{ (int) ($categoriesLimit ?? 5) }}" style="border-radius:0;">
+                                            <div class="input-group-append">
+                                                <button type="button" class="btn text-white font-weight-bold" id="saveCategoriesLimitBtn" style="border-radius:0; background:#940000;">SAVE LIMIT</button>
+                                            </div>
+                                        </div>
+                                        <small id="categoriesLimitFeedback" class="d-block mt-1"></small>
+                                    </div>
+                                </div>
+
                                 <div class="row text-center">
                                     <div class="col-md-2 border-right">
                                         <a href="#" class="text-decoration-none d-block py-3 setting-item" onclick="openAddCategoryModal()">
@@ -626,6 +644,43 @@
     const classesData = @json($classes);
     const subclassesData = @json($subclasses);
     const teachersData = @json($teachers);
+    let categoriesLimit = {{ (int) ($categoriesLimit ?? 5) }};
+
+    $('#saveCategoriesLimitBtn').on('click', function() {
+        const val = parseInt($('#categoriesLimitInput').val(), 10);
+        const $fb = $('#categoriesLimitFeedback');
+        if (!val || val < 1 || val > 20) {
+            $fb.removeClass('text-success').addClass('text-danger').text('Enter a limit between 1 and 20.');
+            $('#categoriesLimitInput').css('border-color', '#dc3545');
+            return;
+        }
+        const $btn = $(this);
+        const original = $btn.html();
+        $btn.prop('disabled', true).text('Saving...');
+        $.ajax({
+            url: '{{ route("update_character_categories_limit") }}',
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                character_categories_limit: val
+            },
+            success: function(res) {
+                $btn.prop('disabled', false).html(original);
+                if (res.success) {
+                    categoriesLimit = res.character_categories_limit;
+                    $('#categoriesLimitInput').css('border-color', '');
+                    $fb.removeClass('text-danger').addClass('text-success').text(res.message || 'Saved.');
+                } else {
+                    $fb.removeClass('text-success').addClass('text-danger').text(res.message || 'Save failed.');
+                }
+            },
+            error: function(xhr) {
+                $btn.prop('disabled', false).html(original);
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Save failed.';
+                $fb.removeClass('text-success').addClass('text-danger').text(msg);
+            }
+        });
+    });
 
     // --- CATEGORY ACTIONS ---
     function openAddCategoryModal() {
@@ -953,10 +1008,11 @@
                     </div>
                     <div class="row mt-3 border-top pt-3">
                         <div class="col-md-12">
-                            <label class="small font-weight-bold text-uppercase" style="font-size: 9px; color: #940000;">4. Select Assessment Sectors (Order of Assessment)</label>
+                            <label class="small font-weight-bold text-uppercase" style="font-size: 9px; color: #940000;">4. Select Assessment Sectors (Order of Assessment) — max <span class="cat-limit-label">${categoriesLimit}</span></label>
                             <div class="d-flex flex-wrap gap-2 category-selection-grid" id="categories_${rowId}">
                                 ${getCategoryCheckboxesHtml(rowId)}
                             </div>
+                            <div class="category-limit-error text-danger font-weight-bold small mt-1" id="cat_limit_err_${rowId}" style="display:none;"></div>
                         </div>
                     </div>
                 </div>
@@ -964,10 +1020,27 @@
         $('#teacherAssignmentsContainer').append(row);
     }
 
+    function normalizeSelectedCategoryIds(selectedCategories) {
+        if (!Array.isArray(selectedCategories) || !selectedCategories.length) return [];
+        // Support both plain IDs and {categoryID, number} objects, keep order
+        const sorted = selectedCategories.slice().sort((a, b) => {
+            const ao = (typeof a === 'object' && a !== null) ? (a.number || 0) : 0;
+            const bo = (typeof b === 'object' && b !== null) ? (b.number || 0) : 0;
+            return ao - bo;
+        });
+        return sorted.map(item => {
+            if (typeof item === 'object' && item !== null) {
+                return String(item.categoryID ?? item.id ?? '');
+            }
+            return String(item);
+        }).filter(Boolean);
+    }
+
     function getCategoryCheckboxesHtml(rowId, selectedCategories = []) {
         let html = '';
+        const selectedIds = normalizeSelectedCategoryIds(selectedCategories);
         categoriesList.forEach(cat => {
-            const selectedIdx = selectedCategories.indexOf(cat.categoryID.toString());
+            const selectedIdx = selectedIds.indexOf(cat.categoryID.toString());
             const isChecked = selectedIdx !== -1;
             const sequenceNum = isChecked ? selectedIdx + 1 : '';
             
@@ -990,6 +1063,18 @@
         return html;
     }
 
+    function clearCategoryLimitError(rowId) {
+        const $err = $(`#cat_limit_err_${rowId}`);
+        $err.hide().text('');
+        $(`#categories_${rowId}`).css('border', '');
+    }
+
+    function showCategoryLimitError(rowId) {
+        const $err = $(`#cat_limit_err_${rowId}`);
+        $err.show().text(`Haiwezi: max categories limit ni ${categoriesLimit}. Ondoa category nyingine kwanza.`);
+        $(`#categories_${rowId}`).css('border', '1px solid #dc3545');
+    }
+
     function handleCategoryToggle(rowId, catId) {
         const checkbox = $(`#check_${rowId}_${catId}`);
         const wrapper = $(`#cat_wrap_${rowId}_${catId}`);
@@ -998,6 +1083,13 @@
         const isCurrentlyChecked = checkbox.is(':checked');
         
         if (!isCurrentlyChecked) {
+            const willBe = $(`#categories_${rowId} .cat-check:checked`).length + 1;
+            if (willBe > categoriesLimit) {
+                showCategoryLimitError(rowId);
+                return;
+            }
+            clearCategoryLimitError(rowId);
+
             // Check it
             checkbox.prop('checked', true);
             wrapper.addClass('border-danger').css('background-color', '#fff5f5');
@@ -1010,6 +1102,7 @@
             checkbox.prop('checked', false);
             wrapper.removeClass('border-danger').css('background-color', '#fff');
             badge.hide().text('');
+            clearCategoryLimitError(rowId);
             
             // Reorder others
             $(`#categories_${rowId} .seq-badge`).each(function() {
@@ -1076,6 +1169,25 @@
 
         if (targetClasses.length === 0) {
             Swal.fire('Error', 'Please select at least one target class', 'error');
+            return;
+        }
+
+        let limitExceeded = false;
+        $('.assignment-row').each(function() {
+            const rowId = $(this).attr('id');
+            const checkedCount = $(`#categories_${rowId} .cat-check:checked`).length;
+            if (checkedCount > categoriesLimit) {
+                showCategoryLimitError(rowId);
+                limitExceeded = true;
+            }
+        });
+        if (limitExceeded) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Categories Limit',
+                text: `Haiwezi kuchagua zaidi ya ${categoriesLimit} assessment categories.`,
+                confirmButtonColor: '#940000'
+            });
             return;
         }
 
@@ -1351,10 +1463,11 @@
                             </div>
                             <div class="row mt-3 border-top pt-3">
                                 <div class="col-md-12">
-                                    <label class="small font-weight-bold text-uppercase" style="font-size: 9px; color: #940000;">4. Select Assessment Sectors (Order of Assessment)</label>
+                                    <label class="small font-weight-bold text-uppercase" style="font-size: 9px; color: #940000;">4. Select Assessment Sectors (Order of Assessment) — max <span class="cat-limit-label">${categoriesLimit}</span></label>
                                     <div class="d-flex flex-wrap gap-2 category-selection-grid" id="categories_${rowId}">
-                                        ${getCategoryCheckboxesHtml(rowId, grp.selected_categories || [])}
+                                        ${getCategoryCheckboxesHtml(rowId, normalizeSelectedCategoryIds(grp.selected_categories || []))}
                                     </div>
+                                    <div class="category-limit-error text-danger font-weight-bold small mt-1" id="cat_limit_err_${rowId}" style="display:none;"></div>
                                 </div>
                             </div>
                         </div>`;

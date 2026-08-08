@@ -468,6 +468,12 @@ class ManageClassessController extends Controller
         $fpStudentCount = $this->countTeacherFingerprintStudents($fpSubclasses);
         $fpWorkTime = StudentWorkTimeSetting::forSchool((int) $schoolID);
 
+        $currentTeacher = Teacher::find($teacherID);
+        $teacherHasSignature = $currentTeacher && !empty($currentTeacher->signature);
+        $teacherSignatureUrl = $teacherHasSignature
+            ? asset(ltrim((string) $currentTeacher->signature, '/'))
+            : null;
+
         return view('Teacher.classMangement', compact(
             'decryptedSubclassID',
             'decryptedClassID',
@@ -476,8 +482,144 @@ class ManageClassessController extends Controller
             'fpSubclasses',
             'fpMainClasses',
             'fpStudentCount',
-            'fpWorkTime'
+            'fpWorkTime',
+            'currentTeacher',
+            'teacherHasSignature',
+            'teacherSignatureUrl'
         ));
+    }
+
+    /**
+     * Upload / replace class teacher signature (same storage strategy as school signatures).
+     */
+    public function uploadTeacherSignature(Request $request)
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+        if (!$teacherID || !$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        if (!$request->hasFile('signature')) {
+            $errCode = isset($_FILES['signature']['error']) ? $_FILES['signature']['error'] : 'MISSING';
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'signature' => [
+                        'No valid file received. PHP Error: ' . $errCode,
+                    ],
+                ],
+            ], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'signature' => 'required|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $teacher = Teacher::where('id', $teacherID)
+            ->where('schoolID', $schoolID)
+            ->first();
+        if (!$teacher) {
+            return response()->json(['success' => false, 'message' => 'Teacher not found'], 404);
+        }
+
+        $uploadPath = $this->teacherSignatureUploadPath();
+        $this->deleteTeacherSignatureFile($teacher->signature);
+
+        $file = $request->file('signature');
+        $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', $file->getClientOriginalName());
+        $filename = time() . '_teacher_' . $teacherID . '_' . $safeName;
+        $file->move($uploadPath, $filename);
+        $teacher->signature = 'signatures/' . $filename;
+        $teacher->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Teacher signature saved successfully.',
+            'signature_url' => asset($teacher->signature),
+            'has_signature' => true,
+        ]);
+    }
+
+    /**
+     * Delete class teacher signature.
+     */
+    public function deleteTeacherSignature(Request $request)
+    {
+        $teacherID = Session::get('teacherID');
+        $schoolID = Session::get('schoolID');
+        if (!$teacherID || !$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $teacher = Teacher::where('id', $teacherID)
+            ->where('schoolID', $schoolID)
+            ->first();
+        if (!$teacher) {
+            return response()->json(['success' => false, 'message' => 'Teacher not found'], 404);
+        }
+
+        $this->deleteTeacherSignatureFile($teacher->signature);
+        $teacher->signature = null;
+        $teacher->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Teacher signature deleted.',
+            'has_signature' => false,
+        ]);
+    }
+
+    private function teacherSignatureUploadPath(): string
+    {
+        $folder = 'signatures';
+        $scriptDir = isset($_SERVER['SCRIPT_FILENAME'])
+            ? dirname($_SERVER['SCRIPT_FILENAME'])
+            : public_path();
+        $uploadPath = $scriptDir . '/' . $folder;
+
+        if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
+            $docRootPath = isset($_SERVER['DOCUMENT_ROOT'])
+                ? $_SERVER['DOCUMENT_ROOT'] . '/' . $folder
+                : null;
+            if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
+                $uploadPath = $docRootPath;
+            } else {
+                $uploadPath = public_path($folder);
+            }
+        }
+
+        if ($uploadPath && !file_exists($uploadPath)) {
+            @mkdir($uploadPath, 0755, true);
+        }
+
+        return $uploadPath;
+    }
+
+    private function deleteTeacherSignatureFile(?string $storedPath): void
+    {
+        if (!$storedPath) {
+            return;
+        }
+        $basename = basename($storedPath);
+        $possiblePaths = [
+            $this->teacherSignatureUploadPath() . '/' . $basename,
+            public_path(ltrim($storedPath, '/')),
+        ];
+        if (isset($_SERVER['DOCUMENT_ROOT'])) {
+            $possiblePaths[] =
+                rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') .
+                '/' .
+                ltrim($storedPath, '/');
+        }
+        foreach ($possiblePaths as $oldPath) {
+            if ($oldPath && file_exists($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
     }
 
     /**

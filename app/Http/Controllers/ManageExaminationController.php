@@ -1003,6 +1003,9 @@ class ManageExaminationController extends Controller
                 'end_date' => 'required|date|after_or_equal:start_date',
                 'allow_no_format' => 'nullable|boolean',
                 'allow_no_paper' => 'nullable|boolean',
+                'track_school_calendar' => 'nullable|boolean',
+                'school_closing_date' => 'nullable|required_if:track_school_calendar,1|date',
+                'school_opening_date' => 'nullable|required_if:track_school_calendar,1|date|after_or_equal:school_closing_date',
                 'year' => 'nullable|integer|min:2000|max:2100',
                 'academic_yearID' => 'nullable|integer|exists:academic_years,academic_yearID',
                 'details' => 'nullable|string',
@@ -1195,6 +1198,13 @@ class ManageExaminationController extends Controller
                 'term' => ($request->exam_category === 'school_exams' || $request->exam_category === 'test' || $request->exam_category === 'special_exams') ? $request->term : null,
                 'allow_no_format' => $request->has('allow_no_format') ? 1 : 0,
                 'allow_no_paper' => $request->has('allow_no_paper') ? 1 : 0,
+                'track_school_calendar' => ($request->exam_category === 'school_exams' && $request->has('track_school_calendar')) ? 1 : 0,
+                'school_closing_date' => ($request->exam_category === 'school_exams' && $request->has('track_school_calendar'))
+                    ? $request->school_closing_date
+                    : null,
+                'school_opening_date' => ($request->exam_category === 'school_exams' && $request->has('track_school_calendar'))
+                    ? $request->school_opening_date
+                    : null,
                 'except_class_ids' => $exceptClassIds,
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
@@ -1996,6 +2006,9 @@ class ManageExaminationController extends Controller
             $examData = $exam->toArray();
             $examData['start_date'] = $exam->start_date ? $exam->start_date->format('Y-m-d') : null;
             $examData['end_date'] = $exam->end_date ? $exam->end_date->format('Y-m-d') : null;
+            $examData['school_closing_date'] = $exam->school_closing_date ? $exam->school_closing_date->format('Y-m-d') : null;
+            $examData['school_opening_date'] = $exam->school_opening_date ? $exam->school_opening_date->format('Y-m-d') : null;
+            $examData['track_school_calendar'] = !empty($exam->track_school_calendar) ? 1 : 0;
             $examData['enter_result'] = $exam->enter_result ?? false;
             $examData['except_class_ids'] = $exam->except_class_ids ?? [];
             $examData['academic_yearID'] = $exam->academic_yearID;
@@ -2165,6 +2178,9 @@ class ManageExaminationController extends Controller
                 'end_date' => 'required|date|after_or_equal:start_date',
                 'allow_no_format' => 'nullable|boolean',
                 'allow_no_paper' => 'nullable|boolean',
+                'track_school_calendar' => 'nullable|boolean',
+                'school_closing_date' => 'nullable|required_if:track_school_calendar,1|date',
+                'school_opening_date' => 'nullable|required_if:track_school_calendar,1|date|after_or_equal:school_closing_date',
                 'year' => 'nullable|integer|min:2000|max:2100',
                 'academic_yearID' => 'nullable|integer|exists:academic_years,academic_yearID',
                 'details' => 'nullable|string',
@@ -2321,6 +2337,13 @@ class ManageExaminationController extends Controller
                 'end_date' => $request->end_date,
                 'allow_no_format' => $request->has('allow_no_format') ? 1 : 0,
                 'allow_no_paper' => $request->has('allow_no_paper') ? 1 : 0,
+                'track_school_calendar' => ($examCategory === 'school_exams' && $request->has('track_school_calendar')) ? 1 : 0,
+                'school_closing_date' => ($examCategory === 'school_exams' && $request->has('track_school_calendar'))
+                    ? $request->school_closing_date
+                    : null,
+                'school_opening_date' => ($examCategory === 'school_exams' && $request->has('track_school_calendar'))
+                    ? $request->school_opening_date
+                    : null,
                 'exam_type' => 'school_wide_all_subjects',
                 'academic_yearID' => $academicYearID ?? $exam->academic_yearID,
                 'academic_year_ids' => !empty($academicYearIds) ? $academicYearIds : ($exam->academic_year_ids ?? null),

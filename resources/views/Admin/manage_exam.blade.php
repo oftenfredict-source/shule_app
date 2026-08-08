@@ -938,6 +938,32 @@
                             <i class="bi bi-info-circle"></i> Kama ikiwashwa, mwalimu ataweza kujaza matokeo hata kama hajawahi kupandisha (upload) karatasi ya mtihani.
                         </small>
                     </div>
+
+                    <div class="form-group border-top pt-3 mt-3" id="school_calendar_group" style="display:none;">
+                        <div class="custom-control custom-switch mb-2">
+                            <input type="checkbox" class="custom-control-input" id="track_school_calendar" name="track_school_calendar" value="1">
+                            <label class="custom-control-label" for="track_school_calendar">
+                                <strong>Student Closing / Opening School</strong>
+                            </label>
+                        </div>
+                        <small class="form-text text-muted d-block mb-3 ml-4">
+                            <i class="bi bi-info-circle"></i> Washawasha ili tarehe za kufunga/kufungua shule zionekane kwenye individual report (exam result filter).
+                        </small>
+                        <div class="row" id="school_calendar_dates" style="display:none;">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="school_closing_date">Closing Date (Kufunga) <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="school_closing_date" name="school_closing_date">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="school_opening_date">Opening Date (Kufungua) <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="school_opening_date" name="school_opening_date">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     
                     <div class="row" id="date_fields_group">
                         <div class="col-md-6">
@@ -1356,6 +1382,32 @@
                         <small class="form-text text-muted d-block mb-3 ml-4">
                             <i class="bi bi-info-circle"></i> Kama ikiwashwa, mwalimu ataweza kujaza matokeo hata kama hajawahi kupandisha (upload) karatasi ya mtihani.
                         </small>
+                    </div>
+
+                    <div class="form-group border-top pt-3 mt-3" id="edit_school_calendar_group" style="display:none;">
+                        <div class="custom-control custom-switch mb-2">
+                            <input type="checkbox" class="custom-control-input" id="edit_track_school_calendar" name="track_school_calendar" value="1">
+                            <label class="custom-control-label" for="edit_track_school_calendar">
+                                <strong>Student Closing / Opening School</strong>
+                            </label>
+                        </div>
+                        <small class="form-text text-muted d-block mb-3 ml-4">
+                            <i class="bi bi-info-circle"></i> Washawasha ili tarehe za kufunga/kufungua shule zionekane kwenye individual report (exam result filter).
+                        </small>
+                        <div class="row" id="edit_school_calendar_dates" style="display:none;">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="edit_school_closing_date">Closing Date (Kufunga) <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="edit_school_closing_date" name="school_closing_date">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="edit_school_opening_date">Opening Date (Kufungua) <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="edit_school_opening_date" name="school_opening_date">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="row" id="edit_date_fields_group">
@@ -1895,6 +1947,7 @@ jQuery(document).ready(function($) {
             // Show student shifting status
             $('#student_shifting_status_group').show();
             $('#student_shifting_status').prop('required', true);
+            $('#school_calendar_group').show();
         } else if (examCategory === 'test') {
             // Show test type selection dropdown
             $('#test_type_group').stop(true, true).show();
@@ -1918,6 +1971,7 @@ jQuery(document).ready(function($) {
             // Show student shifting status
             $('#student_shifting_status_group').show();
             $('#student_shifting_status').prop('required', true);
+            resetSchoolCalendarCreate();
         } else if (examCategory === 'special_exams') {
             // Show text input for exam name, hide select dropdown
             $('#exam_name_select_group').hide();
@@ -1938,6 +1992,7 @@ jQuery(document).ready(function($) {
             // Hide student shifting status
             $('#student_shifting_status_group').hide();
             $('#student_shifting_status').prop('required', false);
+            resetSchoolCalendarCreate();
         } else {
             // Hide all
             $('#exam_name_text_group').hide();
@@ -1950,8 +2005,44 @@ jQuery(document).ready(function($) {
             $('#exam_name').prop('required', false);
             $('#exam_name_type').prop('required', false);
             $('#term').prop('required', false);
+            resetSchoolCalendarCreate();
         }
     });
+
+    function resetSchoolCalendarCreate() {
+        $('#track_school_calendar').prop('checked', false);
+        $('#school_calendar_dates').hide();
+        $('#school_closing_date, #school_opening_date').val('').prop('required', false);
+        $('#school_calendar_group').hide();
+    }
+
+    function syncSchoolCalendarCreateDates() {
+        const on = $('#track_school_calendar').is(':checked');
+        $('#school_calendar_dates').toggle(on);
+        $('#school_closing_date, #school_opening_date').prop('required', on);
+        if (!on) {
+            $('#school_closing_date, #school_opening_date').val('');
+        }
+    }
+
+    function resetSchoolCalendarEdit() {
+        $('#edit_track_school_calendar').prop('checked', false);
+        $('#edit_school_calendar_dates').hide();
+        $('#edit_school_closing_date, #edit_school_opening_date').val('').prop('required', false);
+        $('#edit_school_calendar_group').hide();
+    }
+
+    function syncSchoolCalendarEditDates() {
+        const on = $('#edit_track_school_calendar').is(':checked');
+        $('#edit_school_calendar_dates').toggle(on);
+        $('#edit_school_closing_date, #edit_school_opening_date').prop('required', on);
+        if (!on) {
+            $('#edit_school_closing_date, #edit_school_opening_date').val('');
+        }
+    }
+
+    $(document).on('change', '#track_school_calendar', syncSchoolCalendarCreateDates);
+    $(document).on('change', '#edit_track_school_calendar', syncSchoolCalendarEditDates);
 
     // Handle test type change (when Test category is selected)
     $('#test_type').on('change', function() {
@@ -3803,6 +3894,7 @@ jQuery(document).ready(function($) {
 
             $('#edit_student_shifting_status_group').show();
             $('#edit_student_shifting_status').prop('required', true);
+            $('#edit_school_calendar_group').show();
         } else if (examCategory === 'test') {
             $('#edit_test_type_group').show();
             $('#edit_test_type').prop('required', true);
@@ -3821,6 +3913,7 @@ jQuery(document).ready(function($) {
 
             $('#edit_student_shifting_status_group').show();
             $('#edit_student_shifting_status').prop('required', true);
+            resetSchoolCalendarEdit();
         } else if (examCategory === 'special_exams') {
             $('#edit_exam_name_select_group').hide();
             $('#edit_exam_name_type').prop('required', false);
@@ -3837,6 +3930,7 @@ jQuery(document).ready(function($) {
 
             $('#edit_student_shifting_status_group').hide();
             $('#edit_student_shifting_status').prop('required', false);
+            resetSchoolCalendarEdit();
         } else {
             $('#edit_exam_name_text_group').hide();
             $('#edit_exam_name_select_group').hide();
@@ -3848,6 +3942,7 @@ jQuery(document).ready(function($) {
             $('#edit_exam_name').prop('required', false);
             $('#edit_exam_name_type').prop('required', false);
             $('#edit_term').prop('required', false);
+            resetSchoolCalendarEdit();
         }
     }
 
@@ -4050,6 +4145,17 @@ jQuery(document).ready(function($) {
                     $('#edit_academic_yearID').val(exam.academic_yearID || '');
                     $('#edit_year_display').val(exam.academic_year_name || exam.year || '');
                     $('#edit_details').val(exam.details || '');
+
+                    if (exam.exam_category === 'school_exams') {
+                        $('#edit_school_calendar_group').show();
+                        const trackOn = exam.track_school_calendar == 1 || exam.track_school_calendar === true;
+                        $('#edit_track_school_calendar').prop('checked', trackOn);
+                        $('#edit_school_closing_date').val(exam.school_closing_date || '');
+                        $('#edit_school_opening_date').val(exam.school_opening_date || '');
+                        syncSchoolCalendarEditDates();
+                    } else {
+                        resetSchoolCalendarEdit();
+                    }
 
                     if (exam.exam_category === 'school_exams') {
                         $('#edit_exam_name_type').val(exam.exam_name_type || exam.exam_name || '');

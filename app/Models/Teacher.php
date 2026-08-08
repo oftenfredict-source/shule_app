@@ -47,6 +47,7 @@ class Teacher extends Model
         'first_name',
         'middle_name',
         'image',
+        'signature',
         'last_name',
         'gender',
         'national_id',

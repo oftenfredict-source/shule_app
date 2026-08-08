@@ -1590,6 +1590,7 @@ class ResultManagementController extends Controller
             }
 
             // Nafasi: mchepuo = subclass/stream; kidato = whole main class
+            // A-Level processing: primary position = combination/subclass; Kidato still shown (same report structure as O-Level)
             $totalStudentsCount = 0;
             $studentPosition = 0;
             $subclassPosition = null;
@@ -1612,27 +1613,41 @@ class ResultManagementController extends Controller
             }
 
             if ($studentClassID || $studentSubclassID) {
-                // Prefer whole main class pool (kidato); subclass rank derived from it
+                $enrollmentSvc = app(StudentEnrollmentService::class);
+
+                // Same pool structure for A & O: load main class, then derive mchepuo + kidato
                 $classStudentsQuery = Student::where("schoolID", $schoolID)
                     ->where("status", "Active")
                     ->with(["subclass.class", "oldSubclass.class"]);
 
                 if ($studentClassID) {
-                    $classStudentsQuery->where(function ($query) use (
-                        $studentClassID,
-                    ) {
-                        $query
-                            ->whereHas("subclass", function ($q) use (
-                                $studentClassID,
-                            ) {
-                                $q->where("classID", $studentClassID);
-                            })
-                            ->orWhereHas("oldSubclass", function ($q) use (
-                                $studentClassID,
-                            ) {
-                                $q->where("classID", $studentClassID);
-                            });
-                    });
+                    $enrolledInClass = $enrollmentSvc->studentIDsInClass(
+                        (int) $studentClassID,
+                        (int) $schoolID,
+                        "Active",
+                    );
+                    if (!empty($enrolledInClass)) {
+                        $classStudentsQuery->whereIn(
+                            "studentID",
+                            $enrolledInClass,
+                        );
+                    } else {
+                        $classStudentsQuery->where(function ($query) use (
+                            $studentClassID,
+                        ) {
+                            $query
+                                ->whereHas("subclass", function ($q) use (
+                                    $studentClassID,
+                                ) {
+                                    $q->where("classID", $studentClassID);
+                                })
+                                ->orWhereHas("oldSubclass", function ($q) use (
+                                    $studentClassID,
+                                ) {
+                                    $q->where("classID", $studentClassID);
+                                });
+                        });
+                    }
                 } else {
                     $classStudentsQuery->where(function ($query) use (
                         $studentSubclassID,
@@ -1838,7 +1853,7 @@ class ResultManagementController extends Controller
                 $classTotal = count($kidatoList);
                 $classPosition = $findRank($kidatoList, $studentIDFilter);
 
-                // Mchepuo = same subclass/stream only
+                // Mchepuo = same subclass/stream (A-Level = combination e.g. PCM)
                 $mchepuoList = $classStudentsWithResults;
                 if ($studentSubclassID) {
                     $mchepuoList = array_values(
@@ -1861,7 +1876,7 @@ class ResultManagementController extends Controller
                 $subclassTotal = count($mchepuoList);
                 $subclassPosition = $findRank($mchepuoList, $studentIDFilter);
 
-                // Back-compat: position defaults to mchepuo (board stream view)
+                // Primary position: A-Level = combination/subclass; O-Level = mchepuo (same structure fields)
                 $studentPosition = $subclassPosition ?? ($classPosition ?? 0);
                 $totalStudentsCount =
                     $subclassTotal > 0 ? $subclassTotal : $classTotal;
@@ -7046,6 +7061,15 @@ class ResultManagementController extends Controller
             is_array($academicYearIDs) ? $academicYearIDs : [],
         );
 
+        $schoolCalendar = $this->resolveSchoolCalendarForIndividualReport(
+            (int) $schoolID,
+            (string) $typeFilter,
+            $examFilter,
+            $termFilter,
+            $yearFilter,
+            $students,
+        );
+
         // Prepare data for PDF
         $data = [
             "school" => $school,
@@ -7057,6 +7081,7 @@ class ResultManagementController extends Controller
             "examNumbers" => $examNumbers,
             "filterScopeLabel" => $filterScopeLabel,
             "studentFeeSummaries" => $studentFeeSummaries,
+            "schoolCalendar" => $schoolCalendar,
             "boardClasses" => $boardClasses,
             "useBoardPdf" => $useBoardPdf,
             "filters" => [
@@ -7096,6 +7121,18 @@ class ResultManagementController extends Controller
                 $pdf->getDomPDF()->setPaper("A4", $orientation);
             } catch (\Throwable $e) {
                 // ignore
+            }
+            // Individual reports: keep content denser so one landscape page fits
+            if (in_array($option, ["single", "bulk_single"], true)) {
+                try {
+                    $pdf->setOptions([
+                        "dpi" => 96,
+                        "defaultFont" => "Helvetica",
+                        "isRemoteEnabled" => true,
+                    ]);
+                } catch (\Throwable $e) {
+                    // ignore
+                }
             }
 
             // Generate filename
@@ -10017,6 +10054,8 @@ class ResultManagementController extends Controller
             "use_percent_division" => "nullable|boolean",
             "exam_weights" => "nullable|array",
             "level_scope" => "nullable|string|in:all,a_level,o_level",
+            "school_closing_date" => "nullable|date",
+            "school_opening_date" => "nullable|date|after_or_equal:school_closing_date",
         ]);
 
         if ($validator->fails()) {
@@ -10040,6 +10079,15 @@ class ResultManagementController extends Controller
             $request->input("level_scope", "all"),
         );
 
+        $closingDate = $request->input("school_closing_date") ?: null;
+        $openingDate = $request->input("school_opening_date") ?: null;
+        if ($closingDate === "") {
+            $closingDate = null;
+        }
+        if ($openingDate === "") {
+            $openingDate = null;
+        }
+
         $weightError = $this->validatePercentWeights(
             $usePercent,
             $request->exam_ids,
@@ -10058,6 +10106,8 @@ class ResultManagementController extends Controller
                 "use_percent_division" => $usePercent,
                 "exam_weights" => $usePercent ? $normalizedWeights : null,
                 "level_scope" => $levelScope,
+                "school_closing_date" => $closingDate,
+                "school_opening_date" => $openingDate,
                 "created_by" =>
                     Session::get("teacherID") ?? (auth()->id() ?? 1),
             ];
@@ -10247,6 +10297,12 @@ class ResultManagementController extends Controller
             $def->level_scope = $this->normalizeLevelScope(
                 $def->level_scope ?? null,
             );
+            $def->school_closing_date = $def->school_closing_date
+                ? $def->school_closing_date->format("Y-m-d")
+                : null;
+            $def->school_opening_date = $def->school_opening_date
+                ? $def->school_opening_date->format("Y-m-d")
+                : null;
         }
 
         return response()->json(["success" => true, "data" => $definitions]);
@@ -10582,6 +10638,96 @@ class ResultManagementController extends Controller
     /**
      * Get latest character assessments for a set of students by term/year
      */
+    /**
+     * Closing / opening dates for individual PDF Taarifa block.
+     * Exam filter → school exam track_school_calendar.
+     * Term report → term_report_definitions dates (if set).
+     *
+     * @return array{closing_date:?string,opening_date:?string,source:?string}
+     */
+    private function resolveSchoolCalendarForIndividualReport(
+        int $schoolID,
+        string $typeFilter,
+        $examFilter,
+        $termFilter,
+        $yearFilter,
+        $students,
+    ): array {
+        $empty = [
+            "closing_date" => null,
+            "opening_date" => null,
+            "source" => null,
+        ];
+
+        if ($typeFilter === "exam" && $examFilter) {
+            $exam = Examination::where("schoolID", $schoolID)
+                ->where("examID", (int) $examFilter)
+                ->first();
+            if (
+                $exam &&
+                $exam->exam_category === "school_exams" &&
+                !empty($exam->track_school_calendar)
+            ) {
+                return [
+                    "closing_date" => $exam->school_closing_date
+                        ? $exam->school_closing_date->format("Y-m-d")
+                        : null,
+                    "opening_date" => $exam->school_opening_date
+                        ? $exam->school_opening_date->format("Y-m-d")
+                        : null,
+                    "source" => "exam",
+                ];
+            }
+            return $empty;
+        }
+
+        if ($typeFilter === "report" && $termFilter && $yearFilter) {
+            $levelScope = "all";
+            $first = $students instanceof Collection ? $students->first() : null;
+            if ($first) {
+                $cn =
+                    $first->subclass->class->class_name ??
+                    ($first->oldSubclass->class->class_name ?? "");
+                if ($this->isALevelClassName($cn)) {
+                    $levelScope = "a_level";
+                } else {
+                    $levelScope = "o_level";
+                }
+            }
+
+            $defQuery = TermReportDefinition::where("schoolID", $schoolID)
+                ->where("year", (int) $yearFilter)
+                ->where("term", $termFilter);
+
+            $def = (clone $defQuery)
+                ->where("level_scope", $levelScope)
+                ->first();
+            if (!$def) {
+                $def = (clone $defQuery)->where("level_scope", "all")->first();
+            }
+            if (!$def) {
+                $def = $defQuery->first();
+            }
+
+            if (
+                $def &&
+                ($def->school_closing_date || $def->school_opening_date)
+            ) {
+                return [
+                    "closing_date" => $def->school_closing_date
+                        ? $def->school_closing_date->format("Y-m-d")
+                        : null,
+                    "opening_date" => $def->school_opening_date
+                        ? $def->school_opening_date->format("Y-m-d")
+                        : null,
+                    "source" => "term_report",
+                ];
+            }
+        }
+
+        return $empty;
+    }
+
     private function getLatestCharacterAssessments(
         $students,
         $term,
