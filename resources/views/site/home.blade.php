@@ -8,12 +8,12 @@
         <div class="row fullscreen d-flex align-items-center justify-content-between">
             <div class="banner-content col-12 col-lg-9 col-md-12">
                 <h1 class="text-uppercase">
-                    ShuleXpert — Mfumo Bora wa Shule<br>Tanzania &amp; the World
+                    ShuleXpert: Best School System<br>for Tanzania &amp; the World
                 </h1>
                 <p class="pt-10 pb-10" style="color:#eee;max-width:640px;">
-                    Better school management system na school software kamili — fees &amp; control numbers, biometric attendance,
-                    exams &amp; results, lesson plans, scheme of work, parent portal, SMS na zaidi. Mfumo wa taaluma na usimamizi wa shule
-                    kutoka preschool hadi advanced.
+                    A complete better school management system and school software: fees &amp; control numbers, biometric attendance,
+                    exams &amp; results, lesson plans, scheme of work, parent portal, SMS and more. Academic and school administration
+                    from preschool to advanced.
                 </p>
                 <a href="{{ route('site.modules') }}" class="primary-btn text-uppercase">Explore Modules</a>
                 <a href="{{ route('login') }}" class="primary-btn wh text-uppercase ml-10">School Login</a>

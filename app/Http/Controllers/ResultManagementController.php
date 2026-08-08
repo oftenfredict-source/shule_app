@@ -196,6 +196,14 @@ class ResultManagementController extends Controller
         $examFilter = $request->input("examID", ""); // Specific exam filter
         $weekFilter = $request->input("week", ""); // Week filter for weekly/monthly tests
         $subjectFilter = $request->input("subjectID", ""); // Specific subject filter
+        $rankBy = strtolower(trim((string) $request->input("rank_by", "average")));
+        if (!in_array($rankBy, ["average", "division"], true)) {
+            $rankBy = "average";
+        }
+        // Primary schools always rank by average
+        if ($schoolType !== "Secondary") {
+            $rankBy = "average";
+        }
 
         // Academic year always from header selection (like manageExamination) — no page year picker
         $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
@@ -1715,6 +1723,8 @@ class ResultManagementController extends Controller
                                 $classStudentsWithResults[] = [
                                     "student" => $classStudent,
                                     "total_marks" => $er["total_marks"] ?? 0,
+                                    "average_marks" =>
+                                        $er["average_marks"] ?? 0,
                                     "total_points" =>
                                         $er["total_points"] ?? 9999,
                                     "best_seven_total_marks" =>
@@ -1731,9 +1741,13 @@ class ResultManagementController extends Controller
                 $sortRankList = function (array &$list) use (
                     $typeFilterForDetails,
                     $schoolType,
+                    $rankBy,
                 ) {
-                    if ($typeFilterForDetails === "report") {
-                        if ($schoolType === "Secondary") {
+                    $useDivision =
+                        $rankBy === "division" && $schoolType === "Secondary";
+
+                    if ($useDivision) {
+                        if ($typeFilterForDetails === "report") {
                             usort($list, function ($a, $b) {
                                 $divOrder = [
                                     "I" => 1,
@@ -1767,31 +1781,39 @@ class ResultManagementController extends Controller
                             });
                         } else {
                             usort($list, function ($a, $b) {
-                                return ($b["average_marks"] ?? 0) <=>
-                                    ($a["average_marks"] ?? 0);
+                                if (
+                                    ($a["total_points"] ?? 9999) !=
+                                    ($b["total_points"] ?? 9999)
+                                ) {
+                                    return ($a["total_points"] ?? 9999) <=>
+                                        ($b["total_points"] ?? 9999);
+                                }
+                                if (
+                                    ($a["best_seven_total_marks"] ?? 0) !=
+                                    ($b["best_seven_total_marks"] ?? 0)
+                                ) {
+                                    return ($b["best_seven_total_marks"] ?? 0) <=>
+                                        ($a["best_seven_total_marks"] ?? 0);
+                                }
+                                return ($b["average_marks"] ??
+                                    ($b["total_marks"] ?? 0)) <=>
+                                    ($a["average_marks"] ??
+                                        ($a["total_marks"] ?? 0));
                             });
                         }
-                    } elseif ($schoolType === "Secondary") {
-                        usort($list, function ($a, $b) {
-                            if (
-                                ($a["total_points"] ?? 9999) !=
-                                ($b["total_points"] ?? 9999)
-                            ) {
-                                return ($a["total_points"] ?? 9999) <=>
-                                    ($b["total_points"] ?? 9999);
-                            }
-                            if (
-                                ($a["best_seven_total_marks"] ?? 0) !=
-                                ($b["best_seven_total_marks"] ?? 0)
-                            ) {
-                                return ($b["best_seven_total_marks"] ?? 0) <=>
-                                    ($a["best_seven_total_marks"] ?? 0);
-                            }
-                            return ($b["total_marks"] ?? 0) <=>
-                                ($a["total_marks"] ?? 0);
-                        });
                     } else {
+                        // Default: highest average first
                         usort($list, function ($a, $b) {
+                            $aa = (float) ($a["average_marks"] ?? 0);
+                            $ba = (float) ($b["average_marks"] ?? 0);
+                            if ($aa != $ba) {
+                                return $ba <=> $aa;
+                            }
+                            $ptA = $a["total_points"] ?? 9999;
+                            $ptB = $b["total_points"] ?? 9999;
+                            if ($ptA != $ptB) {
+                                return $ptA <=> $ptB;
+                            }
                             return ($b["total_marks"] ?? 0) <=>
                                 ($a["total_marks"] ?? 0);
                         });
@@ -2485,6 +2507,7 @@ class ResultManagementController extends Controller
                 "examID" => $examFilter,
                 "week" => $weekFilter,
                 "subjectID" => $subjectFilter,
+                "rank_by" => $rankBy,
             ],
             "availableExams" => $availableExams,
             "schoolSubjects" => SchoolSubject::where("schoolID", $schoolID)
@@ -6941,6 +6964,10 @@ class ResultManagementController extends Controller
         if (!in_array($nameMode, ["both", "name", "index"], true)) {
             $nameMode = "both";
         }
+        $rankBy = strtolower(trim((string) $request->get("rank_by", "average")));
+        if (!in_array($rankBy, ["average", "division"], true)) {
+            $rankBy = "average";
+        }
         if ($useBoardPdf && $students->isNotEmpty()) {
             $titleLine = $this->buildBoardTitleLine(
                 $typeFilter,
@@ -7004,6 +7031,7 @@ class ResultManagementController extends Controller
                     $cid > 0 ? $cid : null,
                     $option === "class" || $option === "all",
                     $nameMode,
+                    $rankBy,
                 );
                 if ($payload) {
                     $boardClasses[] = $payload;
@@ -7379,8 +7407,126 @@ class ResultManagementController extends Controller
         }
 
         return $classGpaCount > 0
-            ? round($classGpaSum / $classGpaCount, 1)
+            ? round($classGpaSum / $classGpaCount, 4)
             : 0.0;
+    }
+
+    /**
+     * Sort board export rows: average (default, highest first) or division (Secondary only).
+     *
+     * @param  list<array<string,mixed>>  $prepared
+     */
+    private function sortBoardPreparedRows(
+        array &$prepared,
+        string $schoolType,
+        string $rankBy,
+    ): void {
+        $rankBy = strtolower(trim($rankBy));
+        if ($rankBy !== "division") {
+            $rankBy = "average";
+        }
+        if ($rankBy === "division" && $schoolType !== "Secondary") {
+            $rankBy = "average";
+        }
+
+        if ($rankBy === "division") {
+            usort($prepared, function ($a, $b) {
+                $ap = $a["row"]["total_points"] ?? 9999;
+                $bp = $b["row"]["total_points"] ?? 9999;
+                if ($ap != $bp) {
+                    return $ap <=> $bp;
+                }
+                $ab = $a["row"]["best_seven_total_marks"] ?? 0;
+                $bb = $b["row"]["best_seven_total_marks"] ?? 0;
+                if ($ab != $bb) {
+                    return $bb <=> $ab;
+                }
+
+                return ($b["row"]["average_marks"] ?? 0) <=>
+                    ($a["row"]["average_marks"] ?? 0);
+            });
+
+            return;
+        }
+
+        usort($prepared, function ($a, $b) {
+            $aa = (float) ($a["row"]["average_marks"] ?? 0);
+            $ba = (float) ($b["row"]["average_marks"] ?? 0);
+            if ($aa != $ba) {
+                return $ba <=> $aa;
+            }
+            $ap = $a["row"]["total_points"] ?? 9999;
+            $bp = $b["row"]["total_points"] ?? 9999;
+            if ($ap != $bp) {
+                return $ap <=> $bp;
+            }
+
+            return ($b["row"]["total_marks"] ?? 0) <=>
+                ($a["row"]["total_marks"] ?? 0);
+        });
+    }
+
+    /**
+     * Remark CSS class from letter grade (for average / competency coloring).
+     */
+    private function boardRemarkClassFromGrade(?string $grade): string
+    {
+        $g = strtoupper(trim((string) $grade));
+        return match ($g) {
+            "A" => "remark-excellent",
+            "B" => "remark-pass",
+            "C" => "remark-good",
+            "D", "E", "S" => "remark-avg",
+            "F" => "remark-fail",
+            default => "remark-inc",
+        };
+    }
+
+    /**
+     * Excel ARGB fill/font for board remark classes (matches PDF legend colors).
+     *
+     * @return array{fill:string,font:string}
+     */
+    private function boardRemarkArgb(string $remarkClass): array
+    {
+        return match ($remarkClass) {
+            "remark-excellent" => [
+                "fill" => "FF28A745",
+                "font" => "FFFFFFFF",
+            ],
+            "remark-pass" => ["fill" => "FFD4EDDA", "font" => "FF155724"],
+            "remark-good" => ["fill" => "FFFFF3CD", "font" => "FF856404"],
+            "remark-avg" => ["fill" => "FFFFE8D6", "font" => "FFA04000"],
+            "remark-fail" => ["fill" => "FFF8D7DA", "font" => "FF721C24"],
+            default => ["fill" => "FFD1ECF1", "font" => "FF0C5460"],
+        };
+    }
+
+    /**
+     * Map average marks to remark class using school grade bands.
+     */
+    private function boardRemarkClassFromAverage(
+        $averageMarks,
+        string $schoolType,
+        ?string $className = null,
+        $classID = null,
+    ): string {
+        if ($averageMarks === null || $averageMarks === "") {
+            return "remark-inc";
+        }
+        if ($schoolType === "Secondary") {
+            $info = $this->getSecondaryHardcodedGrade($averageMarks, $className);
+
+            return $this->boardRemarkClassFromGrade($info["grade"] ?? null);
+        }
+        $info = $this->getGradeFromDefinition(
+            $averageMarks,
+            $classID,
+            $schoolType,
+            $className,
+        );
+
+        return $this->boardRemarkClassFromGrade($info["grade"] ?? null);
     }
 
     /**
@@ -7614,6 +7760,7 @@ class ResultManagementController extends Controller
         $classID = null,
         bool $forceExpandMainClassSubjects = false,
         string $nameMode = "both",
+        string $rankBy = "average",
     ): ?array {
         $prepared = [];
         foreach ($classStudents as $student) {
@@ -7665,28 +7812,7 @@ class ResultManagementController extends Controller
             ? $this->buildOfferedSubjectMapBySubclass($uniqueSubclassIds)
             : [];
 
-        if ($schoolType === "Secondary") {
-            usort($prepared, function ($a, $b) {
-                $ap = $a["row"]["total_points"] ?? 9999;
-                $bp = $b["row"]["total_points"] ?? 9999;
-                if ($ap != $bp) {
-                    return $ap <=> $bp;
-                }
-                $ab = $a["row"]["best_seven_total_marks"] ?? 0;
-                $bb = $b["row"]["best_seven_total_marks"] ?? 0;
-                if ($ab != $bb) {
-                    return $bb <=> $ab;
-                }
-
-                return ($b["row"]["total_marks"] ?? 0) <=>
-                    ($a["row"]["total_marks"] ?? 0);
-            });
-        } else {
-            usort($prepared, function ($a, $b) {
-                return ($b["row"]["total_marks"] ?? 0) <=>
-                    ($a["row"]["total_marks"] ?? 0);
-            });
-        }
+        $this->sortBoardPreparedRows($prepared, $schoolType, $rankBy);
         foreach ($prepared as $i => &$item) {
             $item["position"] = $i + 1;
         }
@@ -7814,7 +7940,7 @@ class ResultManagementController extends Controller
                 $stats["M"]["II"] +
                 $stats["F"]["III"] +
                 $stats["M"]["III"],
-            "gpa" => $classGpa,
+            "gpa" => number_format((float) $classGpa, 4),
         ];
 
         $rows = [];
@@ -7896,6 +8022,7 @@ class ResultManagementController extends Controller
                 }
             }
 
+            $avgRaw = (float) ($row["average_marks"] ?? 0);
             $rowOut = [
                 "sn" => $item["position"],
                 "name" => $studentName,
@@ -7907,9 +8034,12 @@ class ResultManagementController extends Controller
                         : "-",
                 "division" => $item["division_roman"] ?: "-",
                 "subjects" => $subjectCells,
-                "average" => number_format(
-                    (float) ($row["average_marks"] ?? 0),
-                    0,
+                "average" => number_format($avgRaw, 0),
+                "average_class" => $this->boardRemarkClassFromAverage(
+                    $avgRaw,
+                    $schoolType,
+                    $className,
+                    $classID,
                 ),
                 "grade" => $row["grade"] ?? "-",
                 "position" => $item["position"],
@@ -7949,6 +8079,7 @@ class ResultManagementController extends Controller
             "showName" => $showName,
             "showIndex" => $showIndex,
             "nameMode" => $nameMode,
+            "rankBy" => $rankBy,
             "streamHeader" => $streamHeader,
             "leadingHeaders" => $leadingHeaders,
             "trailingHeaders" => $trailingHeaders,
@@ -7972,6 +8103,7 @@ class ResultManagementController extends Controller
         $classID = null,
         bool $forceExpandMainClassSubjects = false,
         $school = null,
+        string $rankBy = "average",
     ): void {
         $prepared = [];
 
@@ -8028,28 +8160,7 @@ class ResultManagementController extends Controller
             ? $this->buildOfferedSubjectMapBySubclass($uniqueSubclassIds)
             : [];
 
-        if ($schoolType === "Secondary") {
-            usort($prepared, function ($a, $b) {
-                $ap = $a["row"]["total_points"] ?? 9999;
-                $bp = $b["row"]["total_points"] ?? 9999;
-                if ($ap != $bp) {
-                    return $ap <=> $bp;
-                }
-                $ab = $a["row"]["best_seven_total_marks"] ?? 0;
-                $bb = $b["row"]["best_seven_total_marks"] ?? 0;
-                if ($ab != $bb) {
-                    return $bb <=> $ab;
-                }
-
-                return ($b["row"]["total_marks"] ?? 0) <=>
-                    ($a["row"]["total_marks"] ?? 0);
-            });
-        } else {
-            usort($prepared, function ($a, $b) {
-                return ($b["row"]["total_marks"] ?? 0) <=>
-                    ($a["row"]["total_marks"] ?? 0);
-            });
-        }
+        $this->sortBoardPreparedRows($prepared, $schoolType, $rankBy);
 
         foreach ($prepared as $i => &$item) {
             $item["position"] = $i + 1;
@@ -8523,7 +8634,7 @@ class ResultManagementController extends Controller
         $sheet
             ->getStyle("{$gpaCol}{$gpaFirstRow}")
             ->getNumberFormat()
-            ->setFormatCode("0.0");
+            ->setFormatCode("0.0000");
         $sheet->getStyle("{$gpaCol}{$gpaFirstRow}")->getFont()->setBold(true);
 
         // GPA header + merged body: outline only (no internal F/M/T lines)
@@ -8711,7 +8822,7 @@ class ResultManagementController extends Controller
 
         $sheet
             ->getRowDimension($subjectHeaderRow)
-            ->setRowHeight(min(200, max(70, (int) round($maxVerticalLen * 5.5))));
+            ->setRowHeight(min(220, max(80, (int) round($maxVerticalLen * 6.5))));
         $sheet->getRowDimension($subHeaderRow)->setRowHeight(18);
 
         $dataRow = $subHeaderRow + 1;
@@ -8815,7 +8926,9 @@ class ResultManagementController extends Controller
             }
 
             // Trailing: AVERAGE, POSITION (Secondary) | AVERAGE, GRADE, POSITION (Primary)
-            $line[] = number_format((float) ($row["average_marks"] ?? 0), 0);
+            $avgRaw = (float) ($row["average_marks"] ?? 0);
+            $avgLetter = Coordinate::stringFromColumnIndex($colIndex);
+            $line[] = number_format($avgRaw, 0);
             if ($schoolType === "Secondary") {
                 $line[] = $item["position"];
             } else {
@@ -8824,6 +8937,27 @@ class ResultManagementController extends Controller
             }
 
             $sheet->fromArray([$line], null, "A{$dataRow}");
+
+            $avgRemarkClass = $this->boardRemarkClassFromAverage(
+                $avgRaw,
+                $schoolType,
+                $className,
+                $classID,
+            );
+            $avgArgb = $this->boardRemarkArgb($avgRemarkClass);
+            $sheet
+                ->getStyle("{$avgLetter}{$dataRow}")
+                ->getFill()
+                ->setFillType(Fill::FILL_SOLID)
+                ->getStartColor()
+                ->setARGB($avgArgb["fill"]);
+            $sheet
+                ->getStyle("{$avgLetter}{$dataRow}")
+                ->getFont()
+                ->setBold(true)
+                ->getColor()
+                ->setARGB($avgArgb["font"]);
+
             $dataRow++;
         }
 
@@ -9039,9 +9173,8 @@ class ResultManagementController extends Controller
                 ? ["A", "B", "C", "D", "E", "S", "F"]
                 : ["A", "B", "C", "D", "F"]);
 
-        // Columns: SUBJECTS + (F,M,T)×grades + GPA + RANKS + COMPETENCY + GRADE + REMARK
-        $totalCols =
-            1 + count($gradesToLoop) * 3 + 5;
+        // Columns: SUBJECTS + (F,M,T)×grades + GPA + RANKS + COMPETENCY LEVEL
+        $totalCols = 1 + count($gradesToLoop) * 3 + 3;
         $endLetter = Coordinate::stringFromColumnIndex($totalCols);
 
         $remarkColors = [
@@ -9120,7 +9253,7 @@ class ResultManagementController extends Controller
                 ->getStyle("{$startL}{$row}:{$endL}{$row}")
                 ->getFont()
                 ->setBold(true)
-                ->setSize(9)
+                ->setSize(11)
                 ->getColor()
                 ->setARGB($remarkColors[$key]["font"]);
             $sheet
@@ -9147,7 +9280,7 @@ class ResultManagementController extends Controller
             ->getStyle("A{$row}")
             ->getFont()
             ->setBold(true)
-            ->setSize(12)
+            ->setSize(14)
             ->getColor()
             ->setARGB("FF940000");
         $row++;
@@ -9183,7 +9316,7 @@ class ResultManagementController extends Controller
             $col += 3;
         }
 
-        $trailing = ["GPA", "RANKS", "COMPETENCY LEVEL", "GRADE", "REMARK"];
+        $trailing = ["GPA", "RANKS", "COMPETENCY LEVEL"];
         foreach ($trailing as $label) {
             $letter = Coordinate::stringFromColumnIndex($col);
             $sheet->setCellValue("{$letter}{$headerRow1}", $label);
@@ -9202,7 +9335,7 @@ class ResultManagementController extends Controller
             ->getStyle($headerRange)
             ->getFont()
             ->setBold(true)
-            ->setSize(9)
+            ->setSize(11)
             ->getColor()
             ->setARGB("FF940000");
         $sheet
@@ -9218,8 +9351,8 @@ class ResultManagementController extends Controller
             ->setBorderStyle(Border::BORDER_THIN)
             ->getColor()
             ->setARGB("FFEEEEEE");
-        $sheet->getRowDimension($headerRow1)->setRowHeight(20);
-        $sheet->getRowDimension($headerRow2)->setRowHeight(18);
+        $sheet->getRowDimension($headerRow1)->setRowHeight(22);
+        $sheet->getRowDimension($headerRow2)->setRowHeight(20);
 
         $ptMap = $isPrimary
             ? ["A" => 5, "B" => 4, "C" => 3, "D" => 2, "E" => 1, "F" => 0]
@@ -9254,7 +9387,7 @@ class ResultManagementController extends Controller
                 $sPoints += $total * ($ptMap[$g] ?? 0);
             }
 
-            $sGPA = $sTotal > 0 ? round($sPoints / $sTotal, 2) : 0.0;
+            $sGPA = $sTotal > 0 ? round($sPoints / $sTotal, 4) : 0.0;
 
             if ($isPrimary) {
                 if ($sTotal === 0) {
@@ -9292,21 +9425,17 @@ class ResultManagementController extends Controller
                 }
             }
 
-            $remarkText = "Incomplete";
             $remarkKey = "inc";
             $competency = "Incomplete";
             if ($sTotal > 0) {
                 if (!$isPrimary) {
                     if ($subjectGrade === "A") {
-                        $remarkText = "Excellent";
                         $remarkKey = "excellent";
                         $competency = "Grade A (Excellent)";
                     } elseif ($subjectGrade === "B") {
-                        $remarkText = "Very Good";
                         $remarkKey = "pass";
                         $competency = "Grade B (Very Good)";
                     } elseif ($subjectGrade === "C") {
-                        $remarkText = "Good";
                         $remarkKey = "good";
                         $competency = "Grade C (Good)";
                     } elseif ($subjectGrade === "D") {
@@ -9314,25 +9443,20 @@ class ResultManagementController extends Controller
                         $remarkKey = "avg";
                         $competency = "Grade D ({$remarkText})";
                     } elseif ($isALevel && $subjectGrade === "E") {
-                        $remarkText = "Satisfactory";
                         $remarkKey = "avg";
                         $competency = "Grade E (Satisfactory)";
                     } elseif ($isALevel && $subjectGrade === "S") {
-                        $remarkText = "Subsidiary";
                         $remarkKey = "avg";
                         $competency = "Grade S (Subsidiary)";
                     } elseif ($subjectGrade === "F") {
-                        $remarkText = "Fail";
                         $remarkKey = "fail";
                         $competency = "Grade F (Fail)";
                     }
                 } else {
                     if (in_array($subjectGrade, ["A", "B", "C", "D"], true)) {
-                        $remarkText = "Pass";
                         $remarkKey = "pass";
                         $competency = "Grade {$subjectGrade} (Pass)";
                     } elseif (in_array($subjectGrade, ["E", "F"], true)) {
-                        $remarkText = "Fail";
                         $remarkKey = "fail";
                         $competency = "Grade {$subjectGrade} (Fail)";
                     }
@@ -9343,8 +9467,6 @@ class ResultManagementController extends Controller
                 "subject" => $subjectName,
                 "breakdown" => $breakdown,
                 "gpa" => $sGPA,
-                "grade" => $subjectGrade,
-                "remark_text" => $remarkText,
                 "remark_key" => $remarkKey,
                 "competency" => $competency,
                 "total" => $sTotal,
@@ -9374,22 +9496,16 @@ class ResultManagementController extends Controller
                 $line[] = (int) ($item["breakdown"][$g]["male"] ?? 0);
                 $line[] = (int) ($item["breakdown"][$g]["total"] ?? 0);
             }
-            $line[] = number_format((float) $item["gpa"], 2);
+            $line[] = number_format((float) $item["gpa"], 4);
             $line[] = $rankMap[$item["subject"]] ?? "-";
             $line[] = $item["competency"];
-            $gradeDisplay =
-                strtoupper((string) $item["grade"]) === "INCOMPLETE"
-                    ? "-"
-                    : $item["grade"];
-            $line[] = $gradeDisplay;
-            $line[] = $item["remark_text"];
 
             $sheet->fromArray([$line], null, "A{$row}");
 
             $sheet
                 ->getStyle("A{$row}:{$endLetter}{$row}")
                 ->getFont()
-                ->setSize(9);
+                ->setSize(11);
             $sheet
                 ->getStyle("A{$row}:{$endLetter}{$row}")
                 ->getAlignment()
@@ -9412,20 +9528,20 @@ class ResultManagementController extends Controller
                 $tCol += 3;
             }
 
-            // Colored REMARK cell (last column)
-            $remarkLetter = $endLetter;
+            // Colored COMPETENCY LEVEL cell (last column) by remark/ufaulu
+            $competencyLetter = $endLetter;
             $rk = $item["remark_key"];
             $sheet
-                ->getStyle("{$remarkLetter}{$row}")
+                ->getStyle("{$competencyLetter}{$row}")
                 ->getFill()
                 ->setFillType(Fill::FILL_SOLID)
                 ->getStartColor()
                 ->setARGB($remarkColors[$rk]["fill"]);
             $sheet
-                ->getStyle("{$remarkLetter}{$row}")
+                ->getStyle("{$competencyLetter}{$row}")
                 ->getFont()
                 ->setBold(true)
-                ->setSize(9)
+                ->setSize(11)
                 ->getColor()
                 ->setARGB($remarkColors[$rk]["font"]);
 
@@ -9453,7 +9569,7 @@ class ResultManagementController extends Controller
 
         // Only widen trailing columns — do not shrink board result columns above
         $trailStart = 2 + count($gradesToLoop) * 3;
-        $trailMinWidths = [8, 9, 24, 8, 14]; // GPA, RANKS, COMPETENCY, GRADE, REMARK
+        $trailMinWidths = [12, 10, 32]; // GPA, RANKS, COMPETENCY LEVEL
         foreach ($trailMinWidths as $i => $minW) {
             $letter = Coordinate::stringFromColumnIndex($trailStart + $i);
             $current = (float) $sheet->getColumnDimension($letter)->getWidth();
@@ -9462,8 +9578,8 @@ class ResultManagementController extends Controller
             }
         }
         $subjW = (float) $sheet->getColumnDimension("A")->getWidth();
-        if ($subjW < 22) {
-            $sheet->getColumnDimension("A")->setWidth(22);
+        if ($subjW < 26) {
+            $sheet->getColumnDimension("A")->setWidth(26);
         }
     }
 
@@ -9661,6 +9777,11 @@ class ResultManagementController extends Controller
             $school = \App\Models\School::find($schoolID);
             $schoolType = $school ? $school->school_type : "Secondary";
 
+            $rankBy = strtolower(trim((string) $request->get("rank_by", "average")));
+            if (!in_array($rankBy, ["average", "division"], true)) {
+                $rankBy = "average";
+            }
+
             // Get students based on option (Active enrollments for selected year — same as PDF)
             $students = $this->studentsForResultDownload($request, $schoolID);
 
@@ -9813,6 +9934,7 @@ class ResultManagementController extends Controller
                     ($option === "class" && empty($subclassID)) ||
                         (empty($subclassID) && !empty($classID)),
                     $school,
+                    $rankBy,
                 );
 
                 $sheetIndex++;

@@ -648,6 +648,21 @@
                                 </select>
                             </div>
 
+                            <!-- Rank / Position measure -->
+                            <div class="col-md-3 mb-3">
+                                <label for="rank_by" class="form-label">
+                                    <i class="bi bi-sort-numeric-down"></i> Rank / Position measure
+                                </label>
+                                @php $rankByFilter = $filters['rank_by'] ?? 'average'; @endphp
+                                <select class="form-control" id="rank_by" name="rank_by">
+                                    <option value="average" {{ $rankByFilter === 'average' ? 'selected' : '' }}>Average (highest average first)</option>
+                                    @if(($schoolType ?? 'Secondary') === 'Secondary')
+                                        <option value="division" {{ $rankByFilter === 'division' ? 'selected' : '' }}>Division (O-Level best 7 / A-Level 3 subjects)</option>
+                                    @endif
+                                </select>
+                                <small class="text-muted">Default is average. Change if you want ranking by division.</small>
+                            </div>
+
                             <!-- Submit Button -->
                             <div class="col-md-12 mb-3">
                                 <button type="submit" class="btn btn-primary-custom" id="filterSubmitBtn">
@@ -1233,6 +1248,7 @@
                                                             'student' => $student,
                                                             'result' => $examResult,
                                                             'total_marks' => $examResult['total_marks'],
+                                                            'average_marks' => (float) ($examResult['average_marks'] ?? 0),
                                                             'total_points' => $totalPoints,
                                                             'best_seven_total_marks' => $bestSevenTotalMarks,
                                                             'grade' => $grade,
@@ -1257,25 +1273,35 @@
                                     }
                                     
                                     // Sort and assign positions per class
+                                    $rankByFilter = ($filters['rank_by'] ?? 'average');
+                                    if (($schoolType ?? '') !== 'Secondary') {
+                                        $rankByFilter = 'average';
+                                    }
+                                    $useDivisionRank = $rankByFilter === 'division';
                                     $sortedExamStudents = [];
                                     foreach ($studentsByClass as $className => $classStudents) {
-                                        // Sort students in this class
-                                        if ($schoolType === 'Secondary') {
+                                        // Sort students in this class by selected Rank / Position measure
+                                        if ($useDivisionRank) {
                                             usort($classStudents, function($a, $b) {
-                                                // First sort by total points (ascending - lower is better)
                                                 if ($a['total_points'] != $b['total_points']) {
                                                     return $a['total_points'] <=> $b['total_points'];
                                                 }
-                                                // If points are equal, sort by best 7 total marks descending (higher marks = better)
                                                 if ($a['best_seven_total_marks'] != $b['best_seven_total_marks']) {
                                                     return $b['best_seven_total_marks'] <=> $a['best_seven_total_marks'];
                                                 }
-                                                // If best 7 marks are also equal, sort by total marks descending
-                                                return $b['total_marks'] <=> $a['total_marks'];
+                                                return ($b['average_marks'] ?? $b['total_marks']) <=> ($a['average_marks'] ?? $a['total_marks']);
                                             });
                                         } else {
-                                            // Primary: Sort by total marks descending
+                                            // Default: highest average first
                                             usort($classStudents, function($a, $b) {
+                                                $aa = (float) ($a['average_marks'] ?? 0);
+                                                $ba = (float) ($b['average_marks'] ?? 0);
+                                                if ($aa != $ba) {
+                                                    return $ba <=> $aa;
+                                                }
+                                                if (($a['total_points'] ?? 9999) != ($b['total_points'] ?? 9999)) {
+                                                    return ($a['total_points'] ?? 9999) <=> ($b['total_points'] ?? 9999);
+                                                }
                                                 return $b['total_marks'] <=> $a['total_marks'];
                                             });
                                         }
@@ -1294,22 +1320,26 @@
                                     
                                     // Get top 5 overall (after positions are assigned per class)
                                     // Sort all students again for top 5 selection
-                                    if ($schoolType === 'Secondary') {
+                                    if ($useDivisionRank) {
                                         usort($examStudents, function($a, $b) {
-                                            // First sort by total points (ascending - lower is better)
                                             if ($a['total_points'] != $b['total_points']) {
                                                 return $a['total_points'] <=> $b['total_points'];
                                             }
-                                            // If points are equal, sort by best 7 total marks descending (higher marks = better)
                                             if ($a['best_seven_total_marks'] != $b['best_seven_total_marks']) {
                                                 return $b['best_seven_total_marks'] <=> $a['best_seven_total_marks'];
                                             }
-                                            // If best 7 marks are also equal, sort by total marks descending
-                                            return $b['total_marks'] <=> $a['total_marks'];
+                                            return ($b['average_marks'] ?? $b['total_marks']) <=> ($a['average_marks'] ?? $a['total_marks']);
                                         });
                                     } else {
-                                        // Primary: Sort by total marks descending
                                         usort($examStudents, function($a, $b) {
+                                            $aa = (float) ($a['average_marks'] ?? 0);
+                                            $ba = (float) ($b['average_marks'] ?? 0);
+                                            if ($aa != $ba) {
+                                                return $ba <=> $aa;
+                                            }
+                                            if (($a['total_points'] ?? 9999) != ($b['total_points'] ?? 9999)) {
+                                                return ($a['total_points'] ?? 9999) <=> ($b['total_points'] ?? 9999);
+                                            }
                                             return $b['total_marks'] <=> $a['total_marks'];
                                         });
                                     }
@@ -1320,8 +1350,8 @@
                                     // But keep positions per class - re-group and maintain positions
                                     $finalExamStudents = [];
                                     foreach ($studentsByClass as $className => $classStudents) {
-                                        // Sort students in this class again
-                                        if ($schoolType === 'Secondary') {
+                                        // Sort students in this class again (same Rank / Position measure)
+                                        if ($useDivisionRank) {
                                             usort($classStudents, function($a, $b) {
                                                 if ($a['total_points'] != $b['total_points']) {
                                                     return $a['total_points'] <=> $b['total_points'];
@@ -1329,10 +1359,18 @@
                                                 if ($a['best_seven_total_marks'] != $b['best_seven_total_marks']) {
                                                     return $b['best_seven_total_marks'] <=> $a['best_seven_total_marks'];
                                                 }
-                                                return $b['total_marks'] <=> $a['total_marks'];
+                                                return ($b['average_marks'] ?? $b['total_marks']) <=> ($a['average_marks'] ?? $a['total_marks']);
                                             });
                                         } else {
                                             usort($classStudents, function($a, $b) {
+                                                $aa = (float) ($a['average_marks'] ?? 0);
+                                                $ba = (float) ($b['average_marks'] ?? 0);
+                                                if ($aa != $ba) {
+                                                    return $ba <=> $aa;
+                                                }
+                                                if (($a['total_points'] ?? 9999) != ($b['total_points'] ?? 9999)) {
+                                                    return ($a['total_points'] ?? 9999) <=> ($b['total_points'] ?? 9999);
+                                                }
                                                 return $b['total_marks'] <=> $a['total_marks'];
                                             });
                                         }
@@ -2897,16 +2935,18 @@
                                     }
                                     
                                     // Sort and assign positions per class
+                                    $rankByFilter = ($filters['rank_by'] ?? 'average');
+                                    if (($schoolType ?? '') !== 'Secondary') {
+                                        $rankByFilter = 'average';
+                                    }
+                                    $useDivisionRank = $rankByFilter === 'division';
                                     $sortedReportStudents = [];
                                     foreach ($studentsByClass as $className => $classStudents) {
-                                        // Sort students in this class
-                                        if ($schoolType === 'Secondary') {
+                                        // Sort students in this class by selected Rank / Position measure
+                                        if ($useDivisionRank) {
                                             usort($classStudents, function($a, $b) {
-                                                // For Secondary, sort by division points first (from division string like 'I.9')
                                                 $divA = $a['division'] ?? null;
                                                 $divB = $b['division'] ?? null;
-
-                                                // Extract Roman numeral prefix from division e.g. 'I.9' => 'I', 'IV.29' => 'IV'
                                                 $divOrder = ['I' => 1, 'II' => 2, 'III' => 3, 'IV' => 4, '0' => 5];
                                                 preg_match('/^([0IVX]+)\./', $divA ?? '', $mA);
                                                 preg_match('/^([0IVX]+)\./', $divB ?? '', $mB);
@@ -2917,20 +2957,28 @@
                                                     return $rankA <=> $rankB;
                                                 }
 
-                                                // Same division: sort by total_points ascending (lower = better for O-Level)
                                                 $ptA = $a['report']['total_points'] ?? 9999;
                                                 $ptB = $b['report']['total_points'] ?? 9999;
                                                 if ($ptA != $ptB) {
                                                     return $ptA <=> $ptB;
                                                 }
 
-                                                // Fallback: average descending
                                                 return $b['average_marks'] <=> $a['average_marks'];
                                             });
                                         } else {
-                                            // Primary: Sort by average descending
+                                            // Default: highest average first
                                             usort($classStudents, function($a, $b) {
-                                                return $b['average_marks'] <=> $a['average_marks'];
+                                                $aa = (float) ($a['average_marks'] ?? 0);
+                                                $ba = (float) ($b['average_marks'] ?? 0);
+                                                if ($aa != $ba) {
+                                                    return $ba <=> $aa;
+                                                }
+                                                $ptA = $a['report']['total_points'] ?? 9999;
+                                                $ptB = $b['report']['total_points'] ?? 9999;
+                                                if ($ptA != $ptB) {
+                                                    return $ptA <=> $ptB;
+                                                }
+                                                return 0;
                                             });
                                         }
                                         
@@ -4320,7 +4368,8 @@ $(document).ready(function() {
                 year: year,
                 type: 'report',
                 studentID: studentID,
-                getSubjectDetails: true
+                getSubjectDetails: true,
+                rank_by: $('#rank_by').val() || 'average'
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -4601,7 +4650,8 @@ $(document).ready(function() {
                 examID: examID,
                 class: $('#class').val(),
                 studentID: studentID,
-                getSubjectDetails: true
+                getSubjectDetails: true,
+                rank_by: $('#rank_by').val() || 'average'
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -4991,7 +5041,8 @@ $(document).ready(function() {
             examID: $('#examID').val() || '',
             grade: $('#grade').val() || '',
             gender: $('#gender').val() || '',
-            week: $('#week').val() || 'all'
+            week: $('#week').val() || 'all',
+            rank_by: $('#rank_by').val() || 'average'
         };
 
         let description = '';
@@ -5082,6 +5133,12 @@ $(document).ready(function() {
         if ($('#subjectID').val()) {
             const subjectName = $('#subjectID option:selected').text();
             description += ' - Subject: ' + subjectName;
+        }
+
+        if (filters.rank_by === 'division') {
+            description += ' - Rank by: Division';
+        } else {
+            description += ' - Rank by: Average';
         }
 
         if (description) {
@@ -5431,7 +5488,7 @@ $(document).ready(function() {
     });
 
     // Update filtering description on filter change
-    $('#term, #year, #type, #status, #class, #subclass, #examID, #grade, #gender, #week, #subjectID').on('change', function() {
+    $('#term, #year, #type, #status, #class, #subclass, #examID, #grade, #gender, #week, #subjectID, #rank_by').on('change', function() {
         updateFilteringDescription();
         
         // Auto-filter when term or year or type changes to reload exams
@@ -5508,7 +5565,8 @@ $(document).ready(function() {
                 grade: $('#grade').val() || '',
                 gender: $('#gender').val() || '',
                 week: $('#week').val() || 'all',
-                subjectID: $('#subjectID').val() || ''
+                subjectID: $('#subjectID').val() || '',
+                rank_by: $('#rank_by').val() || 'average'
             };
         @elseif(isset($isCoordinatorResultsView) && $isCoordinatorResultsView)
             // Coordinator view: main class is locked, subclass can be selected
@@ -5525,7 +5583,8 @@ $(document).ready(function() {
                 grade: $('#grade').val() || '',
                 gender: $('#gender').val() || '',
                 week: $('#week').val() || 'all',
-                subjectID: $('#subjectID').val() || ''
+                subjectID: $('#subjectID').val() || '',
+                rank_by: $('#rank_by').val() || 'average'
             };
         @else
             const formData = {
@@ -5539,7 +5598,8 @@ $(document).ready(function() {
                 grade: $('#grade').val() || '',
                 gender: $('#gender').val() || '',
                 week: $('#week').val() || 'all',
-                subjectID: $('#subjectID').val() || ''
+                subjectID: $('#subjectID').val() || '',
+                rank_by: $('#rank_by').val() || 'average'
             };
         @endif
 
@@ -6039,10 +6099,12 @@ $(document).ready(function() {
     function askPdfDownloadOptions(opts) {
         opts = opts || {};
         var showNameMode = !!opts.showNameMode;
+        var showRankBy = !!opts.showRankBy;
+        var isSecondarySchool = (opts.schoolType || '{{ $schoolType ?? "Secondary" }}') === 'Secondary';
         if (typeof Swal === 'undefined') {
             return Promise.resolve({
                 isConfirmed: true,
-                value: { watermark: '1', name_mode: 'both' }
+                value: { watermark: '1', name_mode: 'both', rank_by: 'average' }
             });
         }
         var nameModeHtml = '';
@@ -6064,6 +6126,26 @@ $(document).ready(function() {
                     '</div>' +
                 '</div>';
         }
+        var rankByHtml = '';
+        if (showRankBy) {
+            rankByHtml =
+                '<div class="mt-3 pt-2" style="border-top:1px solid #eee;">' +
+                    '<div class="font-weight-bold mb-2" style="font-size:0.95rem;">Rank / Position measure</div>' +
+                    '<div class="form-check">' +
+                        '<input class="form-check-input" type="radio" name="sxPdfRankBy" id="sxPdfRankAverage" value="average" checked style="cursor:pointer;">' +
+                        '<label class="form-check-label" for="sxPdfRankAverage" style="cursor:pointer;">Average (highest average first)</label>' +
+                    '</div>';
+            if (isSecondarySchool) {
+                rankByHtml +=
+                    '<div class="form-check">' +
+                        '<input class="form-check-input" type="radio" name="sxPdfRankBy" id="sxPdfRankDivision" value="division" style="cursor:pointer;">' +
+                        '<label class="form-check-label" for="sxPdfRankDivision" style="cursor:pointer;">Division (O-Level best 7 / A-Level 3 subjects)</label>' +
+                    '</div>';
+            }
+            rankByHtml +=
+                    '<p class="text-muted small mt-2 mb-0">Default ranking is by average.</p>' +
+                '</div>';
+        }
         return Swal.fire({
             title: 'Download PDF',
             html:
@@ -6076,6 +6158,7 @@ $(document).ready(function() {
                     '</div>' +
                     '<p class="text-muted small mt-2 mb-0">Default is with watermark. Uncheck to export without ShuleXpert watermark.</p>' +
                     nameModeHtml +
+                    rankByHtml +
                 '</div>',
             icon: 'question',
             showCancelButton: true,
@@ -6090,9 +6173,15 @@ $(document).ready(function() {
                     var checked = document.querySelector('input[name="sxPdfNameMode"]:checked');
                     mode = checked ? checked.value : 'both';
                 }
+                var rankBy = 'average';
+                if (showRankBy) {
+                    var rankEl = document.querySelector('input[name="sxPdfRankBy"]:checked');
+                    rankBy = rankEl ? rankEl.value : 'average';
+                }
                 return {
                     watermark: el && el.checked ? '1' : '0',
-                    name_mode: mode
+                    name_mode: mode,
+                    rank_by: rankBy
                 };
             }
         });
@@ -6138,6 +6227,11 @@ $(document).ready(function() {
             cleanParams.watermark = optVal.watermark != null ? optVal.watermark : '1';
             if (downloadOpts.showNameMode) {
                 cleanParams.name_mode = optVal.name_mode || 'both';
+            }
+            if (downloadOpts.showRankBy) {
+                cleanParams.rank_by = optVal.rank_by || 'average';
+            } else if (!cleanParams.rank_by) {
+                cleanParams.rank_by = $('#rank_by').val() || 'average';
             }
 
             const queryString = new URLSearchParams(cleanParams).toString();
@@ -6227,89 +6321,150 @@ $(document).ready(function() {
         });
     }
 
-    function serverDownloadExcel(params, filename) {
+    function askExcelDownloadOptions(opts) {
+        opts = opts || {};
+        var showRankBy = opts.showRankBy !== false;
+        var isSecondarySchool = (opts.schoolType || '{{ $schoolType ?? "Secondary" }}') === 'Secondary';
+        if (typeof Swal === 'undefined') {
+            return Promise.resolve({ isConfirmed: true, value: { rank_by: 'average' } });
+        }
+        if (!showRankBy) {
+            return Promise.resolve({ isConfirmed: true, value: { rank_by: 'average' } });
+        }
+        var rankByHtml =
+            '<div class="text-left px-1">' +
+                '<div class="font-weight-bold mb-2" style="font-size:0.95rem;">Rank / Position measure</div>' +
+                '<div class="form-check">' +
+                    '<input class="form-check-input" type="radio" name="sxExcelRankBy" id="sxExcelRankAverage" value="average" checked style="cursor:pointer;">' +
+                    '<label class="form-check-label" for="sxExcelRankAverage" style="cursor:pointer;">Average (highest average first)</label>' +
+                '</div>';
+        if (isSecondarySchool) {
+            rankByHtml +=
+                '<div class="form-check">' +
+                    '<input class="form-check-input" type="radio" name="sxExcelRankBy" id="sxExcelRankDivision" value="division" style="cursor:pointer;">' +
+                    '<label class="form-check-label" for="sxExcelRankDivision" style="cursor:pointer;">Division (O-Level best 7 / A-Level 3 subjects)</label>' +
+                '</div>';
+        }
+        rankByHtml +=
+                '<p class="text-muted small mt-2 mb-0">Default ranking is by average.</p>' +
+            '</div>';
+        return Swal.fire({
+            title: 'Download Excel',
+            html: rankByHtml,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-download"></i> Download',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#198754',
+            focusConfirm: false,
+            preConfirm: function() {
+                var rankEl = document.querySelector('input[name="sxExcelRankBy"]:checked');
+                return { rank_by: rankEl ? rankEl.value : 'average' };
+            }
+        });
+    }
+
+    function serverDownloadExcel(params, filename, downloadOpts) {
         if (window._sxExcelDownloading) {
             return;
         }
-        window._sxExcelDownloading = true;
 
-        const btn = params._btn;
-        const originalHtml = btn ? btn.html() : null;
-        if (btn) btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Generating Excel...');
-
-        const cleanParams = {};
-        Object.keys(params).forEach(function(k) {
-            if (k !== '_btn' && params[k] !== null && params[k] !== undefined && params[k] !== '') {
-                cleanParams[k] = params[k];
+        downloadOpts = downloadOpts || { showRankBy: false };
+        askExcelDownloadOptions(downloadOpts).then(function(result) {
+            if (!result.isConfirmed) {
+                return;
             }
-        });
 
-        const queryString = new URLSearchParams(cleanParams).toString();
-        const url = '{{ route("admin.download_results_excel") }}?' + queryString;
-        const safeName = (filename || 'Results.xlsx').replace(/[\\/:*?"<>|]+/g, '_');
+            window._sxExcelDownloading = true;
 
-        fetch(url, {
-            method: 'GET',
-            credentials: 'same-origin',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*'
-            }
-        })
-        .then(function(res) {
-            return res.arrayBuffer().then(function(buf) {
-                return { ok: res.ok, status: res.status, buf: buf };
+            const btn = params._btn;
+            const originalHtml = btn ? btn.html() : null;
+            if (btn) btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Generating Excel...');
+
+            const cleanParams = {};
+            Object.keys(params).forEach(function(k) {
+                if (k !== '_btn' && params[k] !== null && params[k] !== undefined && params[k] !== '') {
+                    cleanParams[k] = params[k];
+                }
             });
-        })
-        .then(function(result) {
-            const bytes = new Uint8Array(result.buf || []);
-            // Valid .xlsx is a ZIP archive (starts with PK)
-            const isXlsx = bytes.length > 4 && bytes[0] === 0x50 && bytes[1] === 0x4B;
-
-            if (!result.ok || !isXlsx) {
-                let msg = 'Excel file could not be generated.';
-                try {
-                    msg = new TextDecoder().decode(bytes).trim() || msg;
-                } catch (e) {}
-                if (msg.length > 300) msg = msg.substring(0, 300) + '...';
-                throw new Error(msg);
+            var optVal = result.value || {};
+            if (downloadOpts.showRankBy) {
+                cleanParams.rank_by = optVal.rank_by || 'average';
+            } else if (!cleanParams.rank_by) {
+                cleanParams.rank_by = $('#rank_by').val() || 'average';
             }
 
-            const blob = new Blob([result.buf], {
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            });
-            const blobUrl = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = blobUrl;
-            a.download = safeName;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function() {
-                window.URL.revokeObjectURL(blobUrl);
-                document.body.removeChild(a);
-            }, 200);
+            const queryString = new URLSearchParams(cleanParams).toString();
+            const url = '{{ route("admin.download_results_excel") }}?' + queryString;
+            const safeName = (filename || 'Results.xlsx').replace(/[\\/:*?"<>|]+/g, '_');
 
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({ title: 'Downloaded!', text: 'Excel file saved successfully.', icon: 'success', timer: 2000, showConfirmButton: false });
-            }
-        })
-        .catch(function(err) {
-            console.error('Excel download error:', err);
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Excel download failed',
-                    text: (err && err.message) ? err.message : 'Please try again.',
-                    confirmButtonColor: '#940000'
+            fetch(url, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*'
+                }
+            })
+            .then(function(res) {
+                return res.arrayBuffer().then(function(buf) {
+                    return { ok: res.ok, status: res.status, buf: buf };
                 });
-            } else {
-                alert((err && err.message) ? err.message : 'Excel download failed');
-            }
-        })
-        .finally(function() {
-            window._sxExcelDownloading = false;
-            if (btn && originalHtml) btn.prop('disabled', false).html(originalHtml);
+            })
+            .then(function(resultFetch) {
+                const bytes = new Uint8Array(resultFetch.buf || []);
+                // XLSX zip magic: PK
+                const isXlsx = bytes.length > 3
+                    && bytes[0] === 0x50
+                    && bytes[1] === 0x4B;
+
+                if (!resultFetch.ok || !isXlsx) {
+                    let msg = 'Excel file could not be generated.';
+                    try {
+                        msg = new TextDecoder().decode(bytes).trim() || msg;
+                    } catch (e) {}
+                    if (msg.length > 300) msg = msg.substring(0, 300) + '...';
+                    throw new Error(msg);
+                }
+
+                const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = safeName;
+                document.body.appendChild(link);
+                link.click();
+                setTimeout(function() {
+                    URL.revokeObjectURL(link.href);
+                    link.remove();
+                }, 1500);
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Downloaded',
+                        text: safeName,
+                        timer: 1800,
+                        showConfirmButton: false
+                    });
+                }
+            })
+            .catch(function(err) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Excel failed',
+                        text: (err && err.message) ? err.message : 'Could not download Excel.'
+                    });
+                } else {
+                    alert((err && err.message) ? err.message : 'Could not download Excel.');
+                }
+            })
+            .finally(function() {
+                window._sxExcelDownloading = false;
+                if (btn && originalHtml != null) {
+                    btn.prop('disabled', false).html(originalHtml);
+                }
+            });
         });
     }
 
@@ -7012,6 +7167,7 @@ $(document).ready(function() {
             subclassID: subclassVal,
             grade:  $('#grade').val() || '',
             gender: $('#gender').val() || '',
+            rank_by: $('#rank_by').val() || 'average',
             _btn: $btn
         };
 
@@ -7020,7 +7176,7 @@ $(document).ready(function() {
         const typeName = params.type === 'report' ? 'Term_Report' : 'Exam_Results';
         const filename = 'Students_' + typeName + '_' + (term ? term + '_' : '') + year + '.pdf';
 
-        serverDownloadPDF(params, filename, { showNameMode: true });
+        serverDownloadPDF(params, filename, { showNameMode: true, showRankBy: false, schoolType: @json($schoolType ?? 'Secondary') });
     });
 
     // Function to export detailed view PDF
@@ -7651,6 +7807,7 @@ $(document).ready(function() {
             subclassID: subclassVal,
             grade:  $('#grade').val() || '',
             gender: $('#gender').val() || '',
+            rank_by: $('#rank_by').val() || 'average',
             _btn: $btn
         };
 
@@ -7659,7 +7816,7 @@ $(document).ready(function() {
         const typeName = params.type === 'report' ? 'Term_Report' : 'Exam_Results';
         const filename = 'Students_' + typeName + '_' + (term ? term + '_' : '') + year + '.xlsx';
 
-        serverDownloadExcel(params, filename);
+        serverDownloadExcel(params, filename, { showRankBy: false, schoolType: @json($schoolType ?? 'Secondary') });
     });
 
     function exportAllStudentsPDF() {

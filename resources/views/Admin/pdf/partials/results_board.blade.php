@@ -1,4 +1,4 @@
-{{-- Excel-like class board (landscape). Styles extend results.blade.php --}}
+﻿{{-- Excel-like class board (landscape). Styles extend results.blade.php --}}
 @php
     if (!function_exists('pdfBoardVerticalLabel')) {
         /** Excel-style vertical header, centred in cell (DomPDF-safe) */
@@ -20,7 +20,7 @@
     .board-wrap:last-child,
     .board-wrap.board-wrap-last { page-break-after: auto; }
 
-    /* Header — same clean layout as Subject Performance Summary */
+    /* Header â€” same clean layout as Subject Performance Summary */
     .board-page-header {
         margin: 0 0 10px 0;
         border-bottom: 2px solid #940000;
@@ -109,6 +109,9 @@
         color: #555;
         width: 16%;
     }
+    table.board-perf > thead {
+        display: table-row-group;
+    }
     table.board-perf {
         width: 100%;
         margin: 0 0 12px 0;
@@ -138,7 +141,7 @@
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
-        font-size: 11px;
+        font-size: 14px;
         margin-bottom: 0;
     }
     table.board-results th, table.board-results td {
@@ -148,12 +151,12 @@
         vertical-align: middle;
         word-wrap: break-word;
         overflow: hidden;
-        font-size: 11px;
-        line-height: 1.1;
+        font-size: 14px;
+        line-height: 1.15;
     }
-    /* Repeat subject/column titles on every page */
+    /* Do NOT repeat column titles on following pages â€” first page only */
     table.board-results > thead {
-        display: table-header-group;
+        display: table-row-group;
     }
     /* Keep legend/stats in-flow under students */
     table.board-results tr.board-cont-row td.board-cont-cell {
@@ -174,16 +177,16 @@
         background: #f5f5f5;
         color: #940000;
         font-weight: bold;
-        font-size: 10px;
+        font-size: 14px;
     }
-    /* Vertical titles — shorter so more student rows fit per page */
+    /* Vertical titles â€” base size; per-board height expands with longest subject name */
     table.board-results th.v,
     table.board-results th.v-subj {
         height: 78px;
         padding: 2px 2px;
         vertical-align: middle;
         text-align: center;
-        overflow: hidden;
+        overflow: visible;
     }
     table.board-results th.v { width: 2.8%; }
     table.board-results th.v-stream { width: 2.8%; }
@@ -221,7 +224,7 @@
         bottom: 0;
         width: 70px;
         white-space: nowrap;
-        font-size: 9px;
+        font-size: 11px;
         font-weight: bold;
         color: #940000;
         line-height: 12px;
@@ -233,31 +236,31 @@
     table.board-results th.sn-h {
         width: 3%;
         vertical-align: middle;
-        font-size: 12px;
+        font-size: 14px;
     }
     table.board-results th.name-h {
         width: 11%;
         vertical-align: middle;
-        font-size: 12px;
+        font-size: 14px;
     }
     table.board-results th.index-h {
         width: 8%;
         vertical-align: middle;
-        font-size: 12px;
+        font-size: 14px;
     }
     table.board-results td {
         vertical-align: middle;
-        font-size: 11px;
+        font-size: 14px;
         padding: 1px 1px;
     }
     table.board-results td.name-cell {
         text-align: left;
         padding-left: 3px;
         font-weight: bold;
-        font-size: 10px;
+        font-size: 14px;
     }
     table.board-results td.stream-cell {
-        font-size: 9px;
+        font-size: 12px;
         line-height: 1.1;
         padding: 1px;
     }
@@ -270,8 +273,40 @@
         height: auto;
         padding: 2px 0;
     }
+    /* Nested Subject Performance Statistics â€” force same 14px as SEX/REG overview
+       (DomPDF often under-sizes nested tables inside board-results) */
+    table.board-results tr.board-cont-row td.board-cont-cell {
+        font-size: 14px !important;
+    }
+    table.board-results .board-cont-cell .board-stats-title {
+        font-size: 14px !important;
+    }
+    table.board-results .board-cont-cell table.board-subj-stats {
+        font-size: 14px !important;
+        table-layout: auto;
+        width: 100%;
+    }
+    table.board-results .board-cont-cell table.board-subj-stats th,
+    table.board-results .board-cont-cell table.board-subj-stats td {
+        font-size: 14px !important;
+        line-height: 1.2 !important;
+        padding: 3px 2px !important;
+        overflow: visible !important;
+        word-wrap: break-word;
+    }
+    table.board-results .board-cont-cell table.board-subj-stats th.board-stats-banner {
+        font-size: 14px !important;
+    }
+    table.board-results .board-cont-cell table.board-subj-stats td.subj-name {
+        font-size: 14px !important;
+    }
+    table.board-results .board-cont-cell table.board-subj-stats.board-legend td,
+    table.board-results .board-cont-cell .legend-row td {
+        font-size: 14px !important;
+    }
+
     .board-stats-title {
-        font-size: 11px;
+        font-size: 14px;
         font-weight: bold;
         color: #940000;
         margin: 2px 0 1px 0;
@@ -288,28 +323,29 @@
     table.board-subj-stats {
         width: 100%;
         border-collapse: collapse;
-        font-size: 11px;
+        font-size: 14px !important;
         margin: 0;
         page-break-inside: auto;
     }
     table.board-subj-stats th, table.board-subj-stats td {
         border: 1px solid #ddd;
-        padding: 2px 1px;
+        padding: 3px 2px;
         text-align: center;
         vertical-align: middle;
-        font-size: 11px;
-        line-height: 1.15;
+        font-size: 14px !important;
+        line-height: 1.2;
+        overflow: visible;
     }
     table.board-subj-stats thead th {
         background: #f8f9fa;
         color: #940000;
         font-weight: bold;
-        font-size: 11px;
+        font-size: 14px !important;
     }
     table.board-subj-stats th.board-stats-banner {
         background: #940000 !important;
         color: #fff !important;
-        font-size: 12px;
+        font-size: 14px !important;
         text-transform: uppercase;
         padding: 4px 2px;
         text-align: center;
@@ -317,9 +353,9 @@
     }
     table.board-subj-stats thead { display: table-row-group; }
     table.board-subj-stats tr { page-break-inside: auto; }
-    table.board-subj-stats td.subj-name { text-align: left; font-weight: bold; padding-left: 4px; font-size: 11px; }
+    table.board-subj-stats td.subj-name { text-align: left; font-weight: bold; padding-left: 4px; font-size: 14px !important; }
     table.board-subj-stats.board-legend { margin-bottom: 2px; }
-    .legend-row td { font-weight: bold; font-size: 11px; padding: 3px; }
+    .legend-row td { font-weight: bold; font-size: 14px !important; padding: 3px; }
     .remark-excellent { background-color: #28a745 !important; color: #ffffff !important; }
     .remark-pass { background-color: #d4edda !important; color: #155724 !important; }
     .remark-good { background-color: #fff3cd !important; color: #856404 !important; }
@@ -327,13 +363,19 @@
     .remark-fail { background-color: #f8d7da !important; color: #721c24 !important; }
     .remark-inc { background-color: #d1ecf1 !important; color: #0c5460 !important; }
     .legend-row td,
-    table.board-subj-stats td.remark-cell {
+    table.board-subj-stats td.remark-cell,
+    table.board-results td.remark-excellent,
+    table.board-results td.remark-pass,
+    table.board-results td.remark-good,
+    table.board-results td.remark-avg,
+    table.board-results td.remark-fail,
+    table.board-results td.remark-inc {
         font-weight: bold;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
 
-    /* Headmaster sign + stamp — side by side, no boxes */
+    /* Headmaster sign + stamp â€” side by side, no boxes */
     .board-head-official {
         width: 55%;
         margin: 6px 0 0 auto;
@@ -394,9 +436,42 @@
                 ? ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'E'=>5,'S'=>6,'F'=>7]
                 : ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'F'=>5])
             : ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0];
+
+        // Header row height from longest vertical title (subjects + fixed labels)
+        $maxVertLen = 0;
+        foreach (['SEX', 'POINT', 'DIVISION', 'AVERAGE', 'POSITION', 'GRADE', 'COMBINATION', 'INDEX NO'] as $fixedLabel) {
+            $maxVertLen = max($maxVertLen, strlen($fixedLabel));
+        }
+        foreach ($subjects as $subj) {
+            $maxVertLen = max(
+                $maxVertLen,
+                mb_strlen(strtoupper(trim((string) ($subj['subject_name'] ?? ''))), 'UTF-8'),
+            );
+        }
+        // ~7.2px per character at 11px bold vertical titles + padding; clamp for DomPDF page fit
+        $vHeaderH = (int) min(180, max(90, round($maxVertLen * 7.2) + 12));
+        $vInnerH = max(78, $vHeaderH - 6);
+        $vBoxH = max(76, $vHeaderH - 8);
+        $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
-    <div class="board-wrap{{ $loop->last ? ' board-wrap-last' : '' }}">
+    <style>
+        .{{ $boardCssId }} table.board-results th.v,
+        .{{ $boardCssId }} table.board-results th.v-subj {
+            height: {{ $vHeaderH }}px !important;
+        }
+        .{{ $boardCssId }} table.board-results table.v-inner {
+            height: {{ $vInnerH }}px !important;
+        }
+        .{{ $boardCssId }} table.board-results .v-box {
+            height: {{ $vBoxH }}px !important;
+        }
+        .{{ $boardCssId }} table.board-results .v-rot {
+            width: {{ $vBoxH }}px !important;
+        }
+    </style>
+
+    <div class="board-wrap {{ $boardCssId }}{{ $loop->last ? ' board-wrap-last' : '' }}">
         @php
             $boardTitle = $board['titleLine'] ?? ($title ?? 'Results');
             $boardClass = $board['className'] ?? '';
@@ -553,7 +628,7 @@
                             <td class="{{ !empty($cell['empty']) ? 'empty-subj' : '' }}">{{ $cell['marks'] }}</td>
                             <td class="{{ !empty($cell['empty']) ? 'empty-subj' : '' }}">{{ $cell['grade'] }}</td>
                         @endforeach
-                        <td>{{ $r['average'] }}</td>
+                        <td class="{{ $r['average_class'] ?? 'remark-inc' }}">{{ $r['average'] }}</td>
                         @if(!$isSecondary)
                             <td>{{ $r['grade'] }}</td>
                         @endif
@@ -578,7 +653,7 @@
                     }
                     $boardColSpan += count($subjects) * 2;
                     $boardColSpan += count($board['trailingHeaders'] ?? []);
-                    $statsColSpan = 1 + (count($gradeKeys) * 3) + 5;
+                    $statsColSpan = 1 + (count($gradeKeys) * 3) + 3;
                     $showBoardSign = $loop->last && (!empty($schoolSignBase64) || !empty($schoolStampBase64));
                 @endphp
 
@@ -621,8 +696,6 @@
                                             <th rowspan="2">GPA</th>
                                             <th rowspan="2">RANKS</th>
                                             <th rowspan="2">COMPETENCY LEVEL</th>
-                                            <th rowspan="2">GRADE</th>
-                                            <th rowspan="2">REMARK</th>
                                         </tr>
                                         <tr>
                                             @foreach($gradeKeys as $gk)
@@ -642,7 +715,7 @@
                                                 }
                                                 $rankItems[] = [
                                                     'name' => $rn,
-                                                    'gpa' => $rt > 0 ? round($rp / $rt, 2) : 0.0,
+                                                    'gpa' => $rt > 0 ? round($rp / $rt, 4) : 0.0,
                                                 ];
                                             }
                                             usort($rankItems, function ($a, $b) use ($isSecondary) {
@@ -664,7 +737,7 @@
                                                     $sTotal += $c;
                                                     $sPoints += $c * ($ptMap[$gk] ?? 0);
                                                 }
-                                                $sGPA = $sTotal > 0 ? round($sPoints / $sTotal, 2) : 0.0;
+                                                $sGPA = $sTotal > 0 ? round($sPoints / $sTotal, 4) : 0.0;
                                                 if ($isSecondary) {
                                                     if ($sTotal === 0) $sg = 'Incomplete';
                                                     elseif ($sGPA <= 1.5) $sg = 'A';
@@ -683,32 +756,28 @@
                                                     elseif ($sGPA >= 0.5) $sg = 'E';
                                                     else $sg = 'F';
                                                 }
-                                                $remarkText = 'Incomplete';
                                                 $remarkClass = 'remark-inc';
                                                 $competency = 'Incomplete';
                                                 if ($sTotal > 0) {
                                                     if ($isSecondary) {
                                                         $map = [
-                                                            'A' => ['Excellent', 'remark-excellent', 'Grade A (Excellent)'],
-                                                            'B' => ['Very Good', 'remark-pass', 'Grade B (Very Good)'],
-                                                            'C' => ['Good', 'remark-good', 'Grade C (Good)'],
-                                                            'D' => [$isALevel ? 'Average' : 'Satisfactory', 'remark-avg', null],
-                                                            'E' => ['Satisfactory', 'remark-avg', 'Grade E (Satisfactory)'],
-                                                            'S' => ['Subsidiary', 'remark-avg', 'Grade S (Subsidiary)'],
-                                                            'F' => ['Fail', 'remark-fail', 'Grade F (Fail)'],
+                                                            'A' => ['remark-excellent', 'Grade A (Excellent)'],
+                                                            'B' => ['remark-pass', 'Grade B (Very Good)'],
+                                                            'C' => ['remark-good', 'Grade C (Good)'],
+                                                            'D' => ['remark-avg', 'Grade D (' . ($isALevel ? 'Average' : 'Satisfactory') . ')'],
+                                                            'E' => ['remark-avg', 'Grade E (Satisfactory)'],
+                                                            'S' => ['remark-avg', 'Grade S (Subsidiary)'],
+                                                            'F' => ['remark-fail', 'Grade F (Fail)'],
                                                         ];
                                                         if (isset($map[$sg])) {
-                                                            $remarkText = $map[$sg][0];
-                                                            $remarkClass = $map[$sg][1];
-                                                            $competency = $map[$sg][2] ?? ('Grade D (' . $remarkText . ')');
+                                                            $remarkClass = $map[$sg][0];
+                                                            $competency = $map[$sg][1];
                                                         }
                                                     } else {
                                                         if (in_array($sg, ['A','B','C','D'], true)) {
-                                                            $remarkText = 'Pass';
                                                             $remarkClass = 'remark-pass';
                                                             $competency = "Grade {$sg} (Pass)";
                                                         } else {
-                                                            $remarkText = 'Fail';
                                                             $remarkClass = 'remark-fail';
                                                             $competency = "Grade {$sg} (Fail)";
                                                         }
@@ -722,11 +791,9 @@
                                                     <td>{{ (int) ($grades[$gk]['male'] ?? 0) }}</td>
                                                     <td style="font-weight:bold;">{{ (int) ($grades[$gk]['total'] ?? 0) }}</td>
                                                 @endforeach
-                                                <td>{{ number_format($sGPA, 2) }}</td>
+                                                <td>{{ number_format($sGPA, 4) }}</td>
                                                 <td>{{ $rankMap[$sName] ?? '-' }}</td>
-                                                <td>{{ $competency }}</td>
-                                                <td>{{ $sg === 'Incomplete' ? '-' : $sg }}</td>
-                                                <td class="remark-cell {{ $remarkClass }}">{{ $remarkText }}</td>
+                                                <td class="remark-cell {{ $remarkClass }}">{{ $competency }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>
