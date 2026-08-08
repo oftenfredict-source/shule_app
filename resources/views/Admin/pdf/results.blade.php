@@ -327,13 +327,18 @@
         $isIndividualPdf = in_array($option ?? '', ['single', 'bulk_single'], true);
     @endphp
     <style>
-        /* Landscape A4 — hard-compact to fit one page; LEFT margin for hole-punch */
+        /* Landscape A4 */
         @page {
             size: A4 landscape;
-            margin: 2mm 4mm 2mm 20mm;
+            @if(!empty($isIndividualPdf))
+            margin: 2mm 4mm 2mm 20mm; /* individual: LEFT hole-punch */
+            @else
+            margin: 5mm 5mm 6mm 5mm; /* all-results board: fill page evenly */
+            @endif
         }
+        /* Font bump only (~all-results 7.5–8px); keep paddings/logos/stamp scale */
         body.individual-pdf {
-            font-size: 8px !important;
+            font-size: 8.5px !important;
             line-height: 1.1 !important;
         }
         body.individual-pdf .header {
@@ -374,20 +379,20 @@
             height: 44px !important;
         }
         body.individual-pdf .org-name {
-            font-size: 9px !important;
+            font-size: 10px !important;
             margin-bottom: 0 !important;
             line-height: 1.05 !important;
         }
         body.individual-pdf .school-name {
-            font-size: 12px !important;
+            font-size: 13px !important;
             line-height: 1.05 !important;
         }
         body.individual-pdf .school-sub {
-            font-size: 7px !important;
+            font-size: 8px !important;
             line-height: 1.1 !important;
         }
         body.individual-pdf .report-title {
-            font-size: 9px !important;
+            font-size: 10px !important;
             margin-top: 1px !important;
             padding: 1px 3px !important;
             line-height: 1.1 !important;
@@ -397,23 +402,23 @@
         }
         body.individual-pdf .info-table td {
             padding: 0 2px !important;
-            font-size: 7px !important;
+            font-size: 8px !important;
             line-height: 1.1 !important;
         }
         body.individual-pdf .remark-color-legend {
             margin: 1px 0 !important;
         }
         body.individual-pdf .remark-color-legend-title {
-            font-size: 6.5px !important;
+            font-size: 7.5px !important;
             margin-bottom: 0 !important;
         }
         body.individual-pdf .remark-color-block {
             padding: 0 2px !important;
-            font-size: 6px !important;
+            font-size: 7px !important;
             line-height: 1.15 !important;
         }
         body.individual-pdf .section-title {
-            font-size: 8px !important;
+            font-size: 9px !important;
             margin-top: 1px !important;
             margin-bottom: 1px !important;
             padding-bottom: 0 !important;
@@ -421,75 +426,78 @@
         body.individual-pdf table.data,
         body.individual-pdf table.data-table {
             margin-bottom: 1px !important;
-            font-size: 7px !important;
+            font-size: 7.5px !important;
         }
         body.individual-pdf table.data th,
         body.individual-pdf table.data-table th {
             padding: 0 1px !important;
-            font-size: 6.2px !important;
+            font-size: 7px !important;
             line-height: 1.05 !important;
         }
         body.individual-pdf table.data td,
         body.individual-pdf table.data-table td {
             padding: 0 1px !important;
-            font-size: 7px !important;
+            font-size: 7.5px !important;
             line-height: 1.05 !important;
         }
         body.individual-pdf table.data.term-report-card th.exam-group {
-            font-size: 6px !important;
+            font-size: 6.8px !important;
             padding: 0 !important;
         }
         body.individual-pdf table.data.term-report-card th.exam-sub {
-            font-size: 5.8px !important;
+            font-size: 6.5px !important;
             padding: 0 !important;
         }
         body.individual-pdf table.data.term-report-card td.exam-marks,
         body.individual-pdf table.data.term-report-card td.exam-grade,
         body.individual-pdf table.data td.daraja-cell {
-            font-size: 7px !important;
+            font-size: 7.5px !important;
             padding: 0 !important;
+        }
+        body.individual-pdf table.data td.remark-cell {
+            font-size: 7px !important;
         }
         body.individual-pdf .summary-grid {
             margin: 1px 0 !important;
         }
         body.individual-pdf .summary-grid td {
             padding: 0 2px !important;
-            font-size: 6.8px !important;
+            font-size: 7.5px !important;
             line-height: 1.1 !important;
         }
         body.individual-pdf .summary-grid .sg-value {
-            font-size: 7.5px !important;
+            font-size: 8.5px !important;
         }
         body.individual-pdf .character-assessment-table th,
         body.individual-pdf .character-assessment-table td {
             padding: 0 2px !important;
-            font-size: 6.5px !important;
+            font-size: 7.5px !important;
             line-height: 1.05 !important;
         }
         body.individual-pdf .official-remarks-table {
             margin: 1px 0 0 0 !important;
             page-break-before: avoid;
             page-break-inside: auto;
-            font-size: 7px !important;
+            font-size: 7.5px !important;
         }
         body.individual-pdf .official-remarks-table td {
             padding: 1px 2px !important;
-            font-size: 6.8px !important;
+            font-size: 7.5px !important;
             line-height: 1.1 !important;
             vertical-align: top !important;
         }
         body.individual-pdf .official-remarks-table .orm-title,
         body.individual-pdf .official-remarks-table .orm-title-dark {
-            font-size: 6.5px !important;
+            font-size: 7px !important;
             margin-bottom: 1px !important;
         }
         body.individual-pdf .official-remarks-table .orm-body {
             min-height: 14px !important;
-            font-size: 6.8px !important;
+            font-size: 7.5px !important;
             line-height: 1.1 !important;
         }
         body.individual-pdf .official-remarks-table .orm-meta {
-            font-size: 6.2px !important;
+            font-size: 7px !important;
             margin-top: 1px !important;
         }
         body.individual-pdf .orm-box {
@@ -515,7 +523,7 @@
             width: auto !important;
         }
         body.individual-pdf .orm-sign-label {
-            font-size: 6px !important;
+            font-size: 7px !important;
             margin-top: 0 !important;
         }
         body.individual-pdf .footer {
@@ -969,6 +977,12 @@
             background: #fff;
         }
         .footer .brand { color: #940000; font-weight: bold; }
+        /* Board PDF: no fixed footer (it reserves empty bottom space on every page) */
+        body.board-pdf .footer {
+            position: static !important;
+            margin-top: 4px;
+            padding-top: 2px;
+        }
         .placeholder-img {
             border: 1px dashed #ccc;
             background: #fdfdfd;
@@ -1041,7 +1055,7 @@
         .header-line { display: none; }
     </style>
 </head>
-<body class="{{ !empty($isIndividualPdf) ? 'individual-pdf' : '' }}">
+<body class="{{ !empty($isIndividualPdf) ? 'individual-pdf' : (!empty($useBoardPdf) ? 'board-pdf' : '') }}">
     @if($showWatermark ?? true)
         <div class="watermark">ShuleXpert</div>
     @endif
