@@ -7110,10 +7110,8 @@ class ResultManagementController extends Controller
             // Generate PDF
             $pdf = PDF::loadView("Admin.pdf.results", $data);
             CenturyGothicPdfFont::ensureRegistered($pdf->getDomPDF());
-            // Individual + board: always landscape for print
-            $landscape =
-                $useBoardPdf ||
-                in_array($option, ["single", "bulk_single"], true);
+            // Board: landscape; individual student report: portrait (one page)
+            $landscape = $useBoardPdf;
             $orientation = $landscape ? "landscape" : "portrait";
             $pdf->setPaper("a4", $orientation);
             // Reinforce DomPDF paper (some versions ignore first setPaper)
@@ -7122,7 +7120,7 @@ class ResultManagementController extends Controller
             } catch (\Throwable $e) {
                 // ignore
             }
-            // Individual reports: keep content denser so one landscape page fits
+            // Individual reports: keep content denser so one portrait page fits
             if (in_array($option, ["single", "bulk_single"], true)) {
                 try {
                     $pdf->setOptions([

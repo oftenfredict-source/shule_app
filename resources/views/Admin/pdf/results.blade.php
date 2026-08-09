@@ -327,13 +327,14 @@
         $isIndividualPdf = in_array($option ?? '', ['single', 'bulk_single'], true);
     @endphp
     <style>
-        /* Landscape A4 */
+        /* Paper size: individual = portrait; board = landscape */
         @page {
-            size: A4 landscape;
             @if(!empty($isIndividualPdf))
-            margin: 2mm 4mm 2mm 20mm; /* individual: LEFT hole-punch */
+            size: A4 portrait;
+            margin: 4mm 5mm 5mm 14mm; /* LEFT hole-punch; compact so one page fits */
             @else
-            margin: 4mm 5mm 7mm 5mm; /* all-results: original board margins */
+            size: A4 landscape;
+            margin: 4mm 5mm 7mm 5mm;
             @endif
         }
         /* Font bump only (~all-results readability); keep paddings/logos/stamp scale */
@@ -1396,12 +1397,17 @@
                             <span class="sg-v">{{ $sumGradeLetter }}</span>
                         </td>
                         <td>
-                            <span class="sg-k">Nafasi (Mchepuo)</span> :
-                            <span class="sg-v">{{ $mchepuoPos }}</span>
+                            @if($isALevelPdf)
+                                <span class="sg-k">Nafasi (Mchepuo)</span> :
+                                <span class="sg-v">{{ $mchepuoPos }}</span>
+                            @else
+                                <span class="sg-k">Nafasi (Kidato)</span> :
+                                <span class="sg-v">{{ $kidatoPos }}</span>
+                            @endif
                         </td>
                         <td>
                             <span class="sg-k">Kati ya Wanafunzi</span> :
-                            <span class="sg-v">{{ $mchepuoTotal }}</span>
+                            <span class="sg-v">{{ $isALevelPdf ? $mchepuoTotal : $kidatoTotal }}</span>
                         </td>
                     </tr>
                     <tr>
@@ -1430,14 +1436,19 @@
                                 <span class="sg-v">{{ $detailedSingleData['subjectCount'] ?? count($detailedSingleData['subjects'] ?? []) }}</span>
                             @endif
                         </td>
-                        <td>
-                            <span class="sg-k">Nafasi (Kidato)</span> :
-                            <span class="sg-v">{{ $kidatoPos }}</span>
-                        </td>
-                        <td>
-                            <span class="sg-k">Kati ya Wanafunzi</span> :
-                            <span class="sg-v">{{ $kidatoTotal }}</span>
-                        </td>
+                        @if($isALevelPdf)
+                            <td>
+                                <span class="sg-k">Nafasi (Kidato)</span> :
+                                <span class="sg-v">{{ $kidatoPos }}</span>
+                            </td>
+                            <td>
+                                <span class="sg-k">Kati ya Wanafunzi</span> :
+                                <span class="sg-v">{{ $kidatoTotal }}</span>
+                            </td>
+                        @else
+                            <td></td>
+                            <td></td>
+                        @endif
                     </tr>
                 </table>
 
@@ -1737,31 +1748,26 @@
         <p style="color:#940000; font-style:italic; margin-top:10px;">No result data found for this student.</p>
     @endif
 
-    {{-- Character & Behavioral Assessment — horizontal cols (max 5 per row; no empty cols) --}}
+    {{-- Character assessment: KEY: VALUE on one line; max 6 cols per row --}}
     @if(isset($characterAssessments) && isset($characterAssessments[$student->studentID]) && count($characterAssessments[$student->studentID]) > 0)
         @php
             $caRows = collect($characterAssessments[$student->studentID])->values();
-            $caChunks = $caRows->chunk(5);
+            $caChunks = $caRows->chunk(6);
         @endphp
         <div class="section-title">Tathmini ya Tabia na Mwenendo</div>
         @foreach($caChunks as $caChunk)
             @php $colCount = $caChunk->count(); @endphp
             <table class="data character-assessment-table character-assessment-hz" style="margin-bottom: 2px; table-layout: fixed; width: 100%;">
-                <thead>
-                    <tr>
-                        @foreach($caChunk as $ca)
-                            <th class="tc" style="width: {{ round(100 / $colCount, 2) }}%;">{{ $ca->category->name ?? 'N/A' }}</th>
-                        @endforeach
-                    </tr>
-                </thead>
                 <tbody>
                     <tr>
                         @foreach($caChunk as $ca)
-                            <td class="tc">
-                                <span class="bold" style="color:#940000;">{{ $ca->choice->choice_name ?? ($ca->description ?: 'N/A') }}</span>
-                                @if(!empty($ca->choice->choice_name) && !empty($ca->description))
-                                    <br><span style="font-size:0.85em; font-style:italic; color:#555;">{{ $ca->description }}</span>
-                                @endif
+                            @php
+                                $caKey = strtoupper(trim((string) ($ca->category->name ?? 'N/A')));
+                                $caVal = $ca->choice->choice_name ?? ($ca->description ?: 'N/A');
+                            @endphp
+                            <td class="tc" style="width: {{ round(100 / $colCount, 2) }}%;">
+                                <span class="bold">{{ $caKey }}:</span>
+                                <span class="bold" style="color:#940000;">{{ $caVal }}</span>
                             </td>
                         @endforeach
                     </tr>
@@ -1858,7 +1864,7 @@
                 <div class="orm-body">{{ $headComment }}</div>
             </td>
             <td style="width:14%;" class="orm-box">
-                <div class="orm-title">Sahihi ya Mkuu</div>
+                <div class="orm-title">Sahihi ya Mkuu wa Shule</div>
                 <div class="orm-head-sign">
                     @if($schoolSignBase64)
                         <img src="{{ $schoolSignBase64 }}" alt="Sahihi">
@@ -1867,7 +1873,6 @@
                 @if(!$schoolSignBase64)
                     <div class="sig-dot-line"></div>
                 @endif
-                <div class="orm-sign-label">Mkuu wa Shule</div>
             </td>
             <td style="width:16%;" class="orm-box">
                 @if($schoolStampBase64)
