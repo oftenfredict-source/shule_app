@@ -4267,6 +4267,65 @@ class ManageExaminationController extends Controller
     }
 
     /**
+     * Required / null = include; Optional = only if elected. Inactive class subjects excluded upstream.
+     */
+    private function studentTakesClassSubjectForSms(
+        ?string $studentStatus,
+        int $classSubjectID,
+        array $electedClassSubjectIds,
+    ): bool {
+        $status = strtolower(trim((string) ($studentStatus ?? '')));
+        if ($status === 'optional') {
+            return in_array($classSubjectID, $electedClassSubjectIds, true);
+        }
+
+        // Default: Required (including null / empty)
+        return true;
+    }
+
+    /**
+     * Exam result rows for SMS — same election rules as individual report blade.
+     */
+    private function getFilteredExamResultRowsForSms(
+        int $studentID,
+        int $examID,
+        ?int $subclassID,
+    ) {
+        $electedIds = SubjectElector::where('studentID', $studentID)
+            ->pluck('classSubjectID')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $query = DB::table('results')
+            ->join('class_subjects', 'results.class_subjectID', '=', 'class_subjects.class_subjectID')
+            ->join('school_subjects', 'class_subjects.subjectID', '=', 'school_subjects.subjectID')
+            ->where('results.studentID', $studentID)
+            ->where('results.examID', $examID)
+            ->where('class_subjects.status', 'Active');
+
+        if ($subclassID) {
+            $query->where('class_subjects.subclassID', $subclassID);
+        }
+
+        return $query
+            ->select(
+                'results.marks',
+                'school_subjects.subject_name',
+                'class_subjects.class_subjectID',
+                'class_subjects.student_status',
+            )
+            ->get()
+            ->filter(function ($row) use ($electedIds) {
+                return $this->studentTakesClassSubjectForSms(
+                    $row->student_status ?? null,
+                    (int) $row->class_subjectID,
+                    $electedIds,
+                );
+            })
+            ->values();
+    }
+
+    /**
      * Get student result information for SMS
      */
     private function getStudentResultForSMS($studentID, $examID, $schoolID, $schoolType, $student)
@@ -4278,16 +4337,15 @@ class ManageExaminationController extends Controller
 
             $className = $student->subclass->class->class_name;
             $classID = $student->subclass->classID;
+            $subclassID = (int) ($student->subclass->subclassID ?? 0);
             $classNameLower = strtolower(preg_replace('/[\s\-]+/', '_', $className));
 
-            // Get student's results for this exam
-            $results = DB::table('results')
-                ->join('class_subjects', 'results.class_subjectID', '=', 'class_subjects.class_subjectID')
-                ->join('school_subjects', 'class_subjects.subjectID', '=', 'school_subjects.subjectID')
-                ->where('results.studentID', $studentID)
-                ->where('results.examID', $examID)
-                ->select('results.marks', 'school_subjects.subject_name')
-                ->get();
+            // Same subjects the individual report would show (required + elected optional only)
+            $results = $this->getFilteredExamResultRowsForSms(
+                (int) $studentID,
+                (int) $examID,
+                $subclassID > 0 ? $subclassID : null,
+            );
 
             if ($results->isEmpty()) {
                 return null;
@@ -4336,22 +4394,22 @@ class ManageExaminationController extends Controller
             $totalGradeOrDivision = $this->calculateTotalDivisionForExam($totalPoints, $schoolType, $classNameLower, $averageMarks);
 
             // Get all students in the main class (not just subclass)
-            $allClassStudents = Student::whereHas('subclass', function ($query) use ($classID) {
-                $query->where('classID', $classID);
-            })
+            $allClassStudents = Student::with('subclass')
+                ->whereHas('subclass', function ($query) use ($classID) {
+                    $query->where('classID', $classID);
+                })
                 ->where('status', 'Active')
                 ->get();
 
-            // Calculate results for all students in class to determine position
+            // Calculate results for all students in class to determine position (same election filter)
             $allClassResults = [];
             foreach ($allClassStudents as $classStudent) {
-                $classStudentResults = DB::table('results')
-                    ->join('class_subjects', 'results.class_subjectID', '=', 'class_subjects.class_subjectID')
-                    ->join('school_subjects', 'class_subjects.subjectID', '=', 'school_subjects.subjectID')
-                    ->where('results.studentID', $classStudent->studentID)
-                    ->where('results.examID', $examID)
-                    ->select('results.marks', 'school_subjects.subject_name')
-                    ->get();
+                $peerSubclassID = (int) ($classStudent->subclass->subclassID ?? 0);
+                $classStudentResults = $this->getFilteredExamResultRowsForSms(
+                    (int) $classStudent->studentID,
+                    (int) $examID,
+                    $peerSubclassID > 0 ? $peerSubclassID : null,
+                );
 
                 if ($classStudentResults->isEmpty()) {
                     continue;

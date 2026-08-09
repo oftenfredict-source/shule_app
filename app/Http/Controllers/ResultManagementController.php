@@ -2731,6 +2731,15 @@ class ResultManagementController extends Controller
             return false;
         }
 
+        // Inactive / removed from class → never show
+        if (
+            strcasecmp((string) ($classSubject->status ?? "Active"), "Active") !==
+            0
+        ) {
+            return false;
+        }
+
+        // Default: null / empty / Required → required for all
         if (!$this->isOptionalStudentStatus($classSubject->student_status ?? null)) {
             return true;
         }
@@ -2798,8 +2807,10 @@ class ResultManagementController extends Controller
     }
 
     /**
-     * Final safety net for individual report / modal subject rows.
-     * Drops Optional (election) subjects the student did not elect — never display them.
+     * Final safety net for individual report / modal / SMS subject rows.
+     * - Keeps only Active class subjects on the student's subclass (when known)
+     * - Required / null student_status → include for everyone
+     * - Optional → include only if student elected
      *
      * @param  list<array<string, mixed>>  $subjects
      * @param  list<int>|null  $electedClassSubjectIds
@@ -2819,10 +2830,50 @@ class ResultManagementController extends Controller
             $studentID,
         );
 
-        $optionalSubjectIds = [];
+        // Allowed subjects on this student's class/stream (darasa lake)
+        $allowedSubjectIds = null;
+        $allowedClassSubjectIds = null;
         if ($subclassID) {
-            $optionalSubjectIds = ClassSubject::where("subclassID", $subclassID)
+            $classSubjects = ClassSubject::where("subclassID", $subclassID)
                 ->where("status", "Active")
+                ->get(["class_subjectID", "subjectID", "student_status"]);
+
+            $allowedSubjectIds = [];
+            $allowedClassSubjectIds = [];
+            foreach ($classSubjects as $cs) {
+                if (
+                    !$this->shouldIncludeClassSubjectForStudent(
+                        $studentID,
+                        $cs,
+                        $electedClassSubjectIds,
+                    )
+                ) {
+                    continue;
+                }
+                $allowedSubjectIds[] = (int) $cs->subjectID;
+                $allowedClassSubjectIds[] = (int) $cs->class_subjectID;
+            }
+            $allowedSubjectIds = array_values(array_unique($allowedSubjectIds));
+            $allowedClassSubjectIds = array_values(
+                array_unique($allowedClassSubjectIds),
+            );
+        }
+
+        // Fallback maps when subclass not known (optional-by-subjectID only)
+        $optionalSubjectIds = [];
+        $electedSubjectIds = [];
+        if ($allowedSubjectIds === null) {
+            $optionalSubjectIds = ClassSubject::query()
+                ->where("status", "Active")
+                ->whereIn(
+                    "class_subjectID",
+                    array_filter(
+                        array_map(
+                            fn($s) => (int) ($s["class_subjectID"] ?? 0),
+                            $subjects,
+                        ),
+                    ),
+                )
                 ->get(["class_subjectID", "subjectID", "student_status"])
                 ->filter(
                     fn($cs) => $this->isOptionalStudentStatus(
@@ -2834,39 +2885,73 @@ class ResultManagementController extends Controller
                 ->unique()
                 ->values()
                 ->all();
-        }
 
-        $electedSubjectIds = [];
-        if ($optionalSubjectIds !== [] && $electedClassSubjectIds !== []) {
-            $electedSubjectIds = ClassSubject::whereIn(
-                "class_subjectID",
-                $electedClassSubjectIds,
-            )
-                ->pluck("subjectID")
-                ->map(fn($id) => (int) $id)
-                ->unique()
-                ->values()
-                ->all();
+            if ($optionalSubjectIds !== [] && $electedClassSubjectIds !== []) {
+                $electedSubjectIds = ClassSubject::whereIn(
+                    "class_subjectID",
+                    $electedClassSubjectIds,
+                )
+                    ->pluck("subjectID")
+                    ->map(fn($id) => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all();
+            }
         }
 
         $filtered = [];
         foreach ($subjects as $subj) {
+            if (!is_array($subj)) {
+                continue;
+            }
+
             $subjectID = (int) ($subj["subjectID"] ?? 0);
             $classSubjectID = (int) ($subj["class_subjectID"] ?? 0);
-            $isOptional = !empty($subj["is_optional"]);
 
+            // Strict: must be offered + elected/required on student's subclass
+            if ($allowedSubjectIds !== null) {
+                $ok = false;
+                if (
+                    $classSubjectID > 0 &&
+                    in_array($classSubjectID, $allowedClassSubjectIds, true)
+                ) {
+                    $ok = true;
+                } elseif (
+                    $subjectID > 0 &&
+                    in_array($subjectID, $allowedSubjectIds, true)
+                ) {
+                    $ok = true;
+                }
+                if (!$ok) {
+                    continue;
+                }
+                $filtered[] = $subj;
+                continue;
+            }
+
+            // Fallback without subclass: drop unelected Optionals only
+            $isOptional = !empty($subj["is_optional"]);
             if (!$isOptional && $subjectID > 0 && $optionalSubjectIds !== []) {
                 $isOptional = in_array($subjectID, $optionalSubjectIds, true);
             }
-
             if (
                 !$isOptional &&
-                $classSubjectID > 0 &&
                 isset($subj["student_status"])
             ) {
                 $isOptional = $this->isOptionalStudentStatus(
                     (string) $subj["student_status"],
                 );
+            }
+            if (
+                !$isOptional &&
+                $classSubjectID > 0
+            ) {
+                $cs = ClassSubject::find($classSubjectID);
+                if ($cs) {
+                    $isOptional = $this->isOptionalStudentStatus(
+                        $cs->student_status ?? null,
+                    );
+                }
             }
 
             if ($isOptional) {
@@ -2880,9 +2965,8 @@ class ResultManagementController extends Controller
                 } elseif ($subjectID > 0) {
                     $elected = in_array($subjectID, $electedSubjectIds, true);
                 }
-
                 if (!$elected) {
-                    continue; // unelected election subject — hide completely
+                    continue;
                 }
             }
 
@@ -3861,6 +3945,21 @@ class ResultManagementController extends Controller
             }
         };
 
+        // Same rules as individual PDF: only class subjects the student takes
+        $smsSubclassID =
+            $student->subclass->subclassID ??
+            ($student->oldSubclass->subclassID ?? null);
+        $sanitizeSmsSubjects = function (array $subjects) use (
+            $studentID,
+            $smsSubclassID,
+        ): array {
+            return $this->filterSubjectPayloadForStudentElection(
+                $subjects,
+                (int) $studentID,
+                $smsSubclassID ? (int) $smsSubclassID : null,
+            );
+        };
+
         // Prefer exact subject lines from filtered manageResults board
         $subjectsPayload = $request->input("subjects");
         if (is_string($subjectsPayload)) {
@@ -3869,6 +3968,9 @@ class ResultManagementController extends Controller
         }
         if (!is_array($subjectsPayload)) {
             $subjectsPayload = [];
+        }
+        if (!empty($subjectsPayload)) {
+            $subjectsPayload = $sanitizeSmsSubjects($subjectsPayload);
         }
 
         $yearCtx = $this->resolveResultsAcademicYearContext((int) $schoolID);
@@ -3891,13 +3993,8 @@ class ResultManagementController extends Controller
             $resultsString = $formattedResults[0];
         } elseif (!empty($subjectsPayload)) {
             $appendSubjectsToSms($subjectsPayload);
-            if ($request->filled("totalMarks") && $request->input("totalMarks") !== "") {
-                $summaryTotal = (float) str_replace(
-                    ",",
-                    "",
-                    (string) $request->input("totalMarks"),
-                );
-            } elseif ($type === "report" && count($formattedResults) > 0) {
+            // Totals from filtered subjects only (never trust client total for wrong subjects)
+            if ($type === "report" && count($formattedResults) > 0) {
                 $summaryTotal = $totalSum / count($formattedResults);
             } else {
                 $summaryTotal = $totalSum;
@@ -3927,8 +4024,16 @@ class ResultManagementController extends Controller
                     "error" => "No results found for this term",
                 ]);
             }
-            $appendSubjectsToSms($studentReport["subjects"]);
-            $summaryTotal = (float) ($studentReport["average_marks"] ?? $totalSum);
+            $reportSubjects = $sanitizeSmsSubjects(
+                is_array($studentReport["subjects"])
+                    ? $studentReport["subjects"]
+                    : [],
+            );
+            $appendSubjectsToSms($reportSubjects);
+            $summaryTotal =
+                count($formattedResults) > 0
+                    ? $totalSum / count($formattedResults)
+                    : (float) ($studentReport["average_marks"] ?? $totalSum);
             if (
                 empty($request->input("division")) &&
                 !empty($studentReport["division"])
@@ -4009,9 +4114,16 @@ class ResultManagementController extends Controller
                 ]);
             }
 
+            $subjectsFromExam = $sanitizeSmsSubjects(
+                is_array($subjectsFromExam) ? $subjectsFromExam : [],
+            );
             $appendSubjectsToSms($subjectsFromExam);
             $summaryTotal =
-                $examTotalMarks !== null ? (float) $examTotalMarks : $totalSum;
+                count($formattedResults) > 0
+                    ? $totalSum
+                    : ($examTotalMarks !== null
+                        ? (float) $examTotalMarks
+                        : $totalSum);
             if (empty($request->input("division")) && $examDivision) {
                 $request->merge(["division" => $examDivision]);
             }
