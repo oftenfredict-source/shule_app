@@ -9878,7 +9878,10 @@ $(document).ready(function() {
 
                             <div class="card mb-4 border-warning">
                                 <div class="card-header bg-warning-light d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0 font-weight-bold text-dark">Choose Exams to Calculate Report</h6>
+                                    <div>
+                                        <h6 class="mb-0 font-weight-bold text-dark">Choose Exams to Calculate Report</h6>
+                                        <small class="text-muted">Check order = column order (1st checked = column 1)</small>
+                                    </div>
                                     <button type="button" class="btn btn-sm btn-outline-dark" id="btnRefreshExams">
                                         <i class="bi bi-arrow-clockwise"></i> Refresh Exams
                                     </button>
@@ -10065,7 +10068,10 @@ $(document).ready(function() {
 
                                 <div class="card mb-4 border-info">
                                     <div class="card-header bg-info-light d-flex justify-content-between align-items-center">
-                                        <h6 class="mb-0 font-weight-bold text-info"><i class="bi bi-check2-square"></i> Choose Tests for CA</h6>
+                                        <div>
+                                            <h6 class="mb-0 font-weight-bold text-info"><i class="bi bi-check2-square"></i> Choose Tests for CA</h6>
+                                            <small class="text-muted">Check order = column order (1st checked = column 1)</small>
+                                        </div>
                                     </div>
                                     <div class="card-body" style="max-height: 280px; overflow-y: auto;">
                                         <div id="caTestsList" class="exams-list-grid">
@@ -10950,9 +10956,39 @@ $(document).ready(function() {
     // Store definitions in JS for easy edit/expand
     let termReportDefinitions = [];
     let reportExamWeightSeed = {};
+    /** Check-order of exam IDs → report column order (1st checked = col 1) */
+    let reportExamCheckOrder = [];
 
     function isReportPercentOn() {
         return $('#defPercentSwitch').is(':checked');
+    }
+
+    function refreshReportExamOrderBadges() {
+        $('.exam-id-checkbox').each(function() {
+            const $row = $(this).closest('.d-flex');
+            $row.find('.exam-order-badge').remove();
+            if (!$(this).is(':checked')) return;
+            const id = String($(this).val());
+            const n = reportExamCheckOrder.indexOf(id) + 1;
+            if (n > 0) {
+                $row.append('<span class="badge badge-warning exam-order-badge ml-auto">' + n + '</span>');
+            }
+        });
+    }
+
+    function syncReportExamCheckOrderFromDom() {
+        const kept = [];
+        reportExamCheckOrder.forEach(function(id) {
+            if ($('.exam-id-checkbox[value="' + id + '"]').is(':checked')) {
+                kept.push(String(id));
+            }
+        });
+        $('.exam-id-checkbox:checked').each(function() {
+            const id = String($(this).val());
+            if (kept.indexOf(id) === -1) kept.push(id);
+        });
+        reportExamCheckOrder = kept;
+        refreshReportExamOrderBadges();
     }
 
     function updateReportPercentRemaining() {
@@ -11052,14 +11088,21 @@ $(document).ready(function() {
     });
 
     $(document).on('change', '.exam-id-checkbox', function() {
-        const id = $(this).val();
+        const id = String($(this).val());
         const wrap = $('.report-weight-wrap[data-exam-id="' + id + '"]');
-        if ($(this).is(':checked') && isReportPercentOn()) {
-            wrap.removeClass('d-none');
-        } else if (!$(this).is(':checked')) {
+        if ($(this).is(':checked')) {
+            if (reportExamCheckOrder.indexOf(id) === -1) {
+                reportExamCheckOrder.push(id);
+            }
+            if (isReportPercentOn()) {
+                wrap.removeClass('d-none');
+            }
+        } else {
+            reportExamCheckOrder = reportExamCheckOrder.filter(function(x) { return String(x) !== id; });
             wrap.find('input').val('');
             wrap.addClass('d-none');
         }
+        refreshReportExamOrderBadges();
         updateReportPercentRemaining();
     });
 
@@ -11083,6 +11126,7 @@ $(document).ready(function() {
         $('#defSchoolClosingDate').val('');
         $('#defSchoolOpeningDate').val('');
         reportExamWeightSeed = {};
+        reportExamCheckOrder = [];
         reportDefConflict = false;
         $('#reportPercentRemaining').addClass('d-none').text('');
         $('#reportDefStatusFeedback').html('');
@@ -11097,6 +11141,13 @@ $(document).ready(function() {
         const year = $('#defYear').val();
         const term = $('#defTerm').val();
         const container = $('#examsListContainer');
+        const selected = (selectedIds || []).map(String);
+        // Edit: preserve saved order; new/refresh without selection: clear order
+        if (selected.length > 0) {
+            reportExamCheckOrder = selected.slice();
+        } else {
+            reportExamCheckOrder = [];
+        }
         
         container.html('<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-warning" role="status"></div> Loading exams...</div>');
         
@@ -11108,8 +11159,9 @@ $(document).ready(function() {
                 if (response.success && response.data.length > 0) {
                     let html = '';
                     response.data.forEach(function(exam) {
-                        const isChecked = selectedIds.includes(String(exam.examID)) || selectedIds.includes(Number(exam.examID)) ? 'checked' : '';
-                        const seed = reportExamWeightSeed[String(exam.examID)] ?? reportExamWeightSeed[exam.examID] ?? '';
+                        const idStr = String(exam.examID);
+                        const isChecked = selected.indexOf(idStr) !== -1 ? 'checked' : '';
+                        const seed = reportExamWeightSeed[idStr] ?? reportExamWeightSeed[exam.examID] ?? '';
                         html += `
                             <label class="exam-checkbox-item d-block mb-0">
                                 <div class="d-flex align-items-center">
@@ -11126,6 +11178,7 @@ $(document).ready(function() {
                         `;
                     });
                     container.html(html);
+                    syncReportExamCheckOrderFromDom();
                     updateReportPercentRemaining();
                 } else {
                     container.html('<div class="text-center py-4 text-muted">No exams found for this term.</div>');
@@ -11138,11 +11191,10 @@ $(document).ready(function() {
     $('#reportDefinitionForm').on('submit', function(e) {
         e.preventDefault();
         
-        const examIds = [];
+        syncReportExamCheckOrderFromDom();
+        const examIds = reportExamCheckOrder.slice();
         const examWeights = {};
-        $('.exam-id-checkbox:checked').each(function() {
-            const id = $(this).val();
-            examIds.push(id);
+        examIds.forEach(function(id) {
             if (isReportPercentOn()) {
                 const w = parseFloat($('.report-weight-input[data-exam-id="' + id + '"]').val());
                 examWeights[id] = isNaN(w) ? null : w;
@@ -11360,9 +11412,39 @@ $(document).ready(function() {
     // ==========================================
 
     let caTestWeightSeed = {};
+    /** Check-order of CA test IDs → column order after main exam (1st checked = first test col) */
+    let caTestCheckOrder = [];
 
     function isCaPercentOn() {
         return $('#caPercentSwitch').is(':checked');
+    }
+
+    function refreshCaTestOrderBadges() {
+        $('.ca-test-checkbox').each(function() {
+            const $row = $(this).closest('.d-flex');
+            $row.find('.exam-order-badge').remove();
+            if (!$(this).is(':checked')) return;
+            const id = String($(this).val());
+            const n = caTestCheckOrder.indexOf(id) + 1;
+            if (n > 0) {
+                $row.append('<span class="badge badge-info exam-order-badge ml-auto">' + n + '</span>');
+            }
+        });
+    }
+
+    function syncCaTestCheckOrderFromDom() {
+        const kept = [];
+        caTestCheckOrder.forEach(function(id) {
+            if ($('.ca-test-checkbox[value="' + id + '"]').is(':checked')) {
+                kept.push(String(id));
+            }
+        });
+        $('.ca-test-checkbox:checked').each(function() {
+            const id = String($(this).val());
+            if (kept.indexOf(id) === -1) kept.push(id);
+        });
+        caTestCheckOrder = kept;
+        refreshCaTestOrderBadges();
     }
 
     function updateCaPercentUI() {
@@ -11400,6 +11482,7 @@ $(document).ready(function() {
         $('#caDefinitionModal').modal('show');
         $('#caPercentSwitch').prop('checked', false);
         caTestWeightSeed = {};
+        caTestCheckOrder = [];
         $('#caMainExamWeight').val('');
         $('#caLevelScope').val('all');
         updateCaPercentUI();
@@ -11409,12 +11492,22 @@ $(document).ready(function() {
 
     // Handle Year/Term change
     $('#caYear, #caTerm').on('change', function() {
+        caTestCheckOrder = [];
         loadSchoolExamsForCa();
     });
 
     $('#caPercentSwitch').on('change', updateCaPercentUI);
     $(document).on('input', '#caMainExamWeight, .ca-test-weight-input', updateCaPercentUI);
     $(document).on('change', '.ca-test-checkbox', function() {
+        const id = String($(this).val());
+        if ($(this).is(':checked')) {
+            if (caTestCheckOrder.indexOf(id) === -1) {
+                caTestCheckOrder.push(id);
+            }
+        } else {
+            caTestCheckOrder = caTestCheckOrder.filter(function(x) { return String(x) !== id; });
+        }
+        refreshCaTestOrderBadges();
         updateCaPercentUI();
     });
 
@@ -11485,6 +11578,12 @@ $(document).ready(function() {
         const year = $('#caYear').val();
         const term = $('#caTerm').val();
         const container = $('#caTestsList');
+        const selected = (selectedTestIds || []).map(function(id) { return String(id); });
+        if (selected.length > 0) {
+            caTestCheckOrder = selected.slice();
+        } else {
+            caTestCheckOrder = [];
+        }
         
         container.html('<div class="col-12 text-center py-3"><span class="spinner-border spinner-border-sm text-info"></span> Loading tests...</div>');
         $('#caTestsContainer').show();
@@ -11497,11 +11596,13 @@ $(document).ready(function() {
                 if (response.success && response.data.length > 0) {
                     let html = '';
                     response.data.forEach(function(test) {
-                        const seed = caTestWeightSeed[String(test.examID)] ?? '';
+                        const idStr = String(test.examID);
+                        const isChecked = selected.indexOf(idStr) !== -1 ? 'checked' : '';
+                        const seed = caTestWeightSeed[idStr] ?? '';
                         html += `
                             <label class="exam-checkbox-item d-block mb-0 border-info-light">
                                 <div class="d-flex align-items-center">
-                                    <input type="checkbox" name="test_ids[]" value="${test.examID}" class="mr-2 ca-test-checkbox">
+                                    <input type="checkbox" name="test_ids[]" value="${test.examID}" class="mr-2 ca-test-checkbox" ${isChecked}>
                                     <div class="text-dark small font-weight-bold">${test.exam_name}</div>
                                 </div>
                                 <div class="ca-test-weight-wrap mt-2 ${isCaPercentOn() ? '' : 'd-none'}">
@@ -11514,14 +11615,7 @@ $(document).ready(function() {
                         `;
                     });
                     container.html(html);
-                    
-                    if (selectedTestIds && selectedTestIds.length > 0) {
-                        $('.ca-test-checkbox').each(function() {
-                            if (selectedTestIds.includes(parseInt($(this).val()))) {
-                                $(this).prop('checked', true);
-                            }
-                        });
-                    }
+                    syncCaTestCheckOrderFromDom();
                     updateCaPercentUI();
                 } else {
                     container.html('<div class="col-12 text-center py-3 text-muted">No tests found for this term.</div>');
@@ -11534,11 +11628,10 @@ $(document).ready(function() {
     $('#caDefinitionForm').on('submit', function(e) {
         e.preventDefault();
         
-        const testIds = [];
+        syncCaTestCheckOrderFromDom();
+        const testIds = caTestCheckOrder.slice();
         const examWeights = {};
-        $('.ca-test-checkbox:checked').each(function() {
-            const id = $(this).val();
-            testIds.push(id);
+        testIds.forEach(function(id) {
             if (isCaPercentOn()) {
                 const w = parseFloat($('.ca-test-weight-input[data-exam-id="' + id + '"]').val());
                 examWeights[id] = isNaN(w) ? null : w;

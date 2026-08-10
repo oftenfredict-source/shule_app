@@ -286,7 +286,7 @@
             }
         }
 
-        /** Headmaster remarks — auto from ufaulu, wording different from class teacher */
+        /** Headmaster remarks — direct points; no "Mkuu wa Shule" wording; different from class teacher */
         if (!function_exists('getAutomaticHeadComment')) {
             function getAutomaticHeadComment($gradeOrDivision) {
                 $raw = strtoupper(trim((string) $gradeOrDivision));
@@ -298,7 +298,7 @@
                 }
 
                 if ($key === 'I') {
-                    return 'Kama Mkuu wa Shule, ninapongeza ufaulu wako bora. Dumisha nidhamu na kiwango hiki cha juu.';
+                    return 'Ninapongeza ufaulu wako bora. Dumisha nidhamu na kiwango hiki cha juu.';
                 }
                 if ($key === 'II') {
                     return 'Matokeo yako ni ya kuridhisha. Endelea kujitahidi ili kufikia ufaulu wa daraja la kwanza.';
@@ -314,7 +314,7 @@
                 }
 
                 if ($key === 'A') {
-                    return 'Kama Mkuu wa Shule, ninapongeza matokeo yako bora. Endelea kuongoza kwa mfano mzuri.';
+                    return 'Ninapongeza matokeo yako bora. Endelea kuongoza kwa mfano mzuri.';
                 }
                 if ($key === 'B') {
                     return 'Ufaulu mzuri umeonekana. Fanya bidii kidogo zaidi ili kufikia kiwango cha juu kabisa.';
@@ -344,7 +344,7 @@
             margin: 3mm 5mm 6mm 14mm; /* LEFT hole-punch; bottom clears fixed footer */
             @else
             size: A4 landscape;
-            margin: 4mm 5mm 7mm 5mm;
+            margin: 4mm 5mm 10mm 5mm; /* bottom clears page numbers */
             @endif
         }
         /*
@@ -506,7 +506,7 @@
             line-height: 1.1 !important;
         }
         body.individual-pdf .character-assessment-table {
-            margin: 1px 0 2px 0 !important;
+            margin: 1px 0 8px 0 !important;
             width: 100% !important;
         }
         body.individual-pdf .character-assessment-table th,
@@ -546,7 +546,7 @@
             white-space: nowrap !important;
         }
         body.individual-pdf .official-remarks-table {
-            margin: 2px 0 0 0 !important;
+            margin: 8px 0 0 0 !important;
             page-break-before: auto; /* avoid/inside-avoid ejects remarks to page 2 when space is tight */
             page-break-inside: auto;
             font-size: 10.5px !important;
@@ -1961,7 +1961,7 @@
             $caRows = collect($characterAssessments[$student->studentID])->values();
         @endphp
         <div class="section-title">Tathmini ya Tabia na Mwenendo</div>
-        <table class="data character-assessment-table character-assessment-hz" style="margin-bottom: 2px; width: 100%;">
+        <table class="data character-assessment-table character-assessment-hz" style="margin-bottom: 10px; width: 100%;">
             <tbody>
                 <tr>
                     @foreach($caRows as $ca)

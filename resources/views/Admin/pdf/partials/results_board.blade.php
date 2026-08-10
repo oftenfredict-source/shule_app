@@ -189,7 +189,23 @@
         overflow: visible;
     }
     table.board-results th.v { width: 2.5%; }
-    table.board-results th.v-stream { width: 2.5%; }
+    /* COMBINATION header — horizontal (not rotated), wider so codes fit */
+    table.board-results th.v-stream {
+        width: 5.2%;
+        font-size: 8.5px;
+        font-weight: bold;
+        color: #5c2e0a;
+        letter-spacing: 0.2px;
+        padding: 3px 1px;
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        word-break: keep-all !important;
+        line-height: 1.1;
+        height: auto;
+        overflow: hidden;
+    }
     table.board-results th.v-trail { width: 4%; }
     table.board-results th.v-trail.v-total { width: 5.8%; }
     table.board-results th.v-trail.v-avg { width: 4.6%; }
@@ -241,9 +257,10 @@
         font-size: 14px;
     }
     table.board-results th.name-h {
-        width: 11%;
+        width: 13%;
         vertical-align: middle;
         font-size: 14px;
+        white-space: nowrap !important;
     }
     table.board-results th.index-h {
         width: 8%;
@@ -258,13 +275,35 @@
     table.board-results td.name-cell {
         text-align: left;
         padding-left: 3px;
+        padding-right: 2px;
         font-weight: bold;
-        font-size: 14px;
-    }
-    table.board-results td.stream-cell {
         font-size: 12px;
         line-height: 1.1;
-        padding: 1px;
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        word-break: keep-all !important;
+        overflow: hidden !important;
+    }
+    table.board-results td.name-cell .name-keep {
+        white-space: nowrap !important;
+        display: inline-block;
+        max-width: 100%;
+    }
+    table.board-results td.stream-cell {
+        font-size: 11px;
+        font-weight: bold;
+        line-height: 1.1;
+        padding: 1px 2px;
+        text-align: center;
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        word-break: keep-all !important;
+        overflow: hidden !important;
+    }
+    table.board-results td.stream-cell .stream-keep {
+        white-space: nowrap !important;
+        display: inline-block;
+        letter-spacing: 0.3px;
     }
     /* TOTAL / AVERAGE — same font as marks; TOTAL wider so long values don't overlap */
     table.board-results td.board-num-cell {
@@ -614,14 +653,14 @@
                 <tr>
                     <th class="sn-h" style="width:3%;">S/N</th>
                     @if($board['showName'] ?? true)
-                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '12%' : '18%' }};">STUDENT NAME</th>
+                        <th class="name-h" style="width:{{ ($board['showIndex'] ?? true) ? '14%' : '20%' }};">STUDENT NAME</th>
                     @endif
                     @if($board['showIndex'] ?? true)
                         <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};">INDEX NO</th>
                     @endif
                     <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
                     @if(!empty($board['showStream']))
-                        <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
+                        <th class="v-stream">{{ strtoupper($board['streamHeader'] ?? 'COMBINATION') }}</th>
                     @endif
                     @if($isSecondary)
                         <th class="v">{!! pdfBoardVerticalLabel('POINT') !!}</th>
@@ -644,14 +683,14 @@
                     <tr>
                         <td>{{ $r['sn'] }}</td>
                         @if($board['showName'] ?? true)
-                            <td class="name-cell">{{ $r['name'] }}</td>
+                            <td class="name-cell"><span class="name-keep">{{ $r['name'] }}</span></td>
                         @endif
                         @if($board['showIndex'] ?? true)
                             <td>{{ $r['index'] }}</td>
                         @endif
                         <td>{{ $r['sex'] }}</td>
                         @if(!empty($board['showStream']))
-                            <td class="stream-cell">{{ $r['stream'] ?? '' }}</td>
+                            <td class="stream-cell"><span class="stream-keep">{{ preg_replace('/\s+/', '', (string) ($r['stream'] ?? '')) }}</span></td>
                         @endif
                         @if($isSecondary)
                             <td>{{ $r['point'] }}</td>

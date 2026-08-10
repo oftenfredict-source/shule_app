@@ -793,8 +793,7 @@ class ResultManagementController extends Controller
 
                 $examinationsQuery = Examination::where("schoolID", $schoolID)
                     ->where("year", $yearFilter)
-                    ->where("term", $termFilter)
-                    ->orderBy("start_date");
+                    ->where("term", $termFilter);
 
                 if ($reportDefinition && !empty($reportDefinition->exam_ids)) {
                     $examinationsQuery->whereIn(
@@ -804,6 +803,16 @@ class ResultManagementController extends Controller
                 }
 
                 $examinations = $examinationsQuery->get();
+                if ($reportDefinition && !empty($reportDefinition->exam_ids)) {
+                    $examinations = $this->orderModelsByIdList(
+                        $examinations,
+                        (array) $reportDefinition->exam_ids,
+                    );
+                } else {
+                    $examinations = $examinations
+                        ->sortBy("start_date")
+                        ->values();
+                }
                 $examIDs = $examinations->pluck("examID")->toArray();
 
                 $results = Result::where("studentID", $studentIDFilter)
@@ -865,9 +874,17 @@ class ResultManagementController extends Controller
                     $examinationsQuery->where("approval_status", "Approved");
                 }
 
-                $examinations = $examinationsQuery
-                    ->orderBy("start_date")
-                    ->get();
+                $examinations = $examinationsQuery->get();
+                if ($reportDefinition && !empty($reportDefinition->exam_ids)) {
+                    $examinations = $this->orderModelsByIdList(
+                        $examinations,
+                        (array) $reportDefinition->exam_ids,
+                    );
+                } else {
+                    $examinations = $examinations
+                        ->sortBy("start_date")
+                        ->values();
+                }
 
                 foreach ($examinations as $exam) {
                     $examsData[$exam->examID] = [
@@ -1245,21 +1262,25 @@ class ResultManagementController extends Controller
             } elseif ($caDefinition) {
                 // For school exam with CA: Group by subject and calculate average from Tests + Exam
                 $subjectData = [];
-                $allInvolvedExams = array_merge(
-                    [$examFilter],
-                    $caDefinition->test_ids,
+                $allInvolvedExams = array_values(
+                    array_unique(
+                        array_merge(
+                            [(int) $examFilter],
+                            array_map(
+                                "intval",
+                                (array) ($caDefinition->test_ids ?? []),
+                            ),
+                        ),
+                    ),
                 );
                 $useCaPercent = (bool) ($caDefinition->use_percent_division ?? false);
                 $caWeights = is_array($caDefinition->exam_weights ?? null)
                     ? $caDefinition->exam_weights
                     : [];
-                $involvedExams = Examination::whereIn(
-                    "examID",
+                $involvedExams = $this->orderModelsByIdList(
+                    Examination::whereIn("examID", $allInvolvedExams)->get(),
                     $allInvolvedExams,
-                )
-                    ->orderBy("end_date")
-                    ->get()
-                    ->keyBy("examID");
+                )->keyBy("examID");
 
                 $caResults = Result::where("studentID", $studentIDFilter)
                     ->whereIn("examID", $allInvolvedExams)
@@ -1315,7 +1336,11 @@ class ResultManagementController extends Controller
                         "is_duo" => (bool) ($subject->is_duo ?? false),
                     ];
 
-                    foreach ($bundle["by_exam"] as $examID => $examRows) {
+                    foreach ($allInvolvedExams as $examID) {
+                        if (!isset($bundle["by_exam"][$examID])) {
+                            continue;
+                        }
+                        $examRows = $bundle["by_exam"][$examID];
                         $collapsed = $this->collapseResultsToSubjectMarks(
                             $examRows,
                         );
@@ -4800,7 +4825,15 @@ class ResultManagementController extends Controller
             $examinationsQuery->whereIn("examID", $reportDefinition->exam_ids);
         }
 
-        $examinations = $examinationsQuery->orderBy("start_date")->get();
+        $examinations = $examinationsQuery->get();
+        if ($reportDefinition && !empty($reportDefinition->exam_ids)) {
+            $examinations = $this->orderModelsByIdList(
+                $examinations,
+                (array) $reportDefinition->exam_ids,
+            );
+        } else {
+            $examinations = $examinations->sortBy("start_date")->values();
+        }
 
         // No longer filtering by ended status
         $endedExaminations = $examinations;
@@ -7269,7 +7302,37 @@ class ResultManagementController extends Controller
                 $filename,
             );
 
-            return $pdf->download($filename);
+            // Page numbers on every page (board + individual) — does not change layout scale
+            try {
+                $dompdf = $pdf->getDomPDF();
+                $dompdf->render();
+                $canvas = $dompdf->getCanvas();
+                $fontMetrics = $dompdf->getFontMetrics();
+                $font = $fontMetrics->getFont("Helvetica", "normal");
+                $size = 8;
+                $color = [0.35, 0.35, 0.35];
+                $w = $canvas->get_width();
+                $h = $canvas->get_height();
+                // Bottom-center; leave room above edge
+                $y = $h - 14;
+                $canvas->page_text(
+                    $w / 2 - 36,
+                    $y,
+                    "Page {PAGE_NUM} of {PAGE_COUNT}",
+                    $font,
+                    $size,
+                    $color,
+                );
+
+                return response($dompdf->output(), 200, [
+                    "Content-Type" => "application/pdf",
+                    "Content-Disposition" =>
+                        'attachment; filename="' . $filename . '"',
+                ]);
+            } catch (\Throwable $pageErr) {
+                \Log::warning("PDF page numbers skipped: " . $pageErr->getMessage());
+                return $pdf->download($filename);
+            }
         } catch (\Throwable $e) {
             \Log::error("downloadPdf failed: " . $e->getMessage(), [
                 "trace" => $e->getTraceAsString(),
@@ -7776,6 +7839,34 @@ class ResultManagementController extends Controller
     private function formatBoardAverageMarks(float $average): string
     {
         return number_format($average, 2, ".", "");
+    }
+
+    /**
+     * Order Eloquent models by an explicit ID list (definition check order).
+     * Unknown IDs are skipped; leftovers (if any) append at the end.
+     *
+     * @param  \Illuminate\Support\Collection|iterable  $models
+     * @param  array<int|string>  $orderedIds
+     * @return \Illuminate\Support\Collection
+     */
+    private function orderModelsByIdList($models, array $orderedIds, string $key = "examID")
+    {
+        $byId = collect($models)->keyBy(function ($m) use ($key) {
+            return (int) (is_array($m) ? ($m[$key] ?? 0) : $m->{$key});
+        });
+        $ordered = collect();
+        foreach ($orderedIds as $id) {
+            $id = (int) $id;
+            if ($id > 0 && $byId->has($id)) {
+                $ordered->push($byId->get($id));
+                $byId->forget($id);
+            }
+        }
+        foreach ($byId as $left) {
+            $ordered->push($left);
+        }
+
+        return $ordered->values();
     }
 
     /**
@@ -10577,7 +10668,10 @@ class ResultManagementController extends Controller
             $weights = is_array($def->exam_weights) ? $def->exam_weights : [];
             $usePct = (bool) $def->use_percent_division;
             if (!empty($def->exam_ids)) {
-                $exams = Examination::whereIn("examID", $def->exam_ids)->get();
+                $exams = $this->orderModelsByIdList(
+                    Examination::whereIn("examID", $def->exam_ids)->get(),
+                    (array) $def->exam_ids,
+                );
                 $def->exam_names = $exams
                     ->map(function ($ex) use ($weights, $usePct) {
                         return $this->formatExamLabelWithWeight(
@@ -10881,7 +10975,10 @@ class ResultManagementController extends Controller
             ->map(function ($def) {
                 $weights = is_array($def->exam_weights) ? $def->exam_weights : [];
                 $usePct = (bool) $def->use_percent_division;
-                $tests = Examination::whereIn("examID", $def->test_ids)->get();
+                $tests = $this->orderModelsByIdList(
+                    Examination::whereIn("examID", $def->test_ids)->get(),
+                    (array) $def->test_ids,
+                );
                 $def->test_names = $tests
                     ->map(function ($ex) use ($weights, $usePct) {
                         return $this->formatExamLabelWithWeight(
