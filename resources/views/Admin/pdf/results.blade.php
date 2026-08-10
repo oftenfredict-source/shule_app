@@ -337,10 +337,26 @@
             margin: 4mm 5mm 7mm 5mm;
             @endif
         }
-        /* Compact vertical spacing so ~15 subjects fit 1 page — fonts/logos keep scale */
+        /*
+         * Individual PDF: fonts/logos stay fixed (scale).
+         * Baseline spacing = density-tight (~15 subjects, 1 page).
+         * Fewer subjects → density-mid / comfy / loose expands height only.
+         */
         body.individual-pdf {
             font-size: 11px !important;
             line-height: 1.12 !important;
+        }
+        body.individual-pdf .student-sheet {
+            /* density wrapper only — do not force avoid (can spill to blank page) */
+        }
+        body.individual-pdf .sheet-fill {
+            width: 100%;
+            height: 0;
+            margin: 0;
+            padding: 0;
+            border: none;
+            font-size: 0;
+            line-height: 0;
         }
         body.individual-pdf .header {
             margin-bottom: 2px !important;
@@ -552,6 +568,294 @@
             font-size: 9px !important;
             margin-top: 0 !important;
         }
+
+        /* --- Density: mid (11–13 subjects) — slight expand, still 1 page --- */
+        body.individual-pdf .student-sheet.density-mid .header {
+            margin-bottom: 3px !important;
+            padding-bottom: 3px !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .student-photo-top {
+            margin: 0 0 2px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .report-title {
+            margin-top: 3px !important;
+            padding: 3px 4px !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .info-section,
+        body.individual-pdf .student-sheet.density-mid .remark-color-legend {
+            margin-bottom: 3px !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .remark-color-legend {
+            margin: 3px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .section-title {
+            margin-top: 3px !important;
+            margin-bottom: 2px !important;
+            padding-bottom: 2px !important;
+        }
+        body.individual-pdf .student-sheet.density-mid table.data th,
+        body.individual-pdf .student-sheet.density-mid table.data-table th {
+            padding: 2px 2px !important;
+            line-height: 1.12 !important;
+        }
+        body.individual-pdf .student-sheet.density-mid table.data td,
+        body.individual-pdf .student-sheet.density-mid table.data-table td,
+        body.individual-pdf .student-sheet.density-mid table.data.term-report-card td.exam-marks,
+        body.individual-pdf .student-sheet.density-mid table.data.term-report-card td.exam-grade,
+        body.individual-pdf .student-sheet.density-mid table.data td.daraja-cell {
+            padding: 2px 2px !important;
+            line-height: 1.15 !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .summary-grid td {
+            padding: 3px 3px !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .grade-key-table th,
+        body.individual-pdf .student-sheet.density-mid .grade-key-table td {
+            padding: 2px 3px !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .character-assessment-table th,
+        body.individual-pdf .student-sheet.density-mid .character-assessment-table td {
+            padding: 2px 5px !important;
+            line-height: 1.15 !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .official-remarks-table {
+            margin: 3px 0 0 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .official-remarks-table td {
+            padding: 3px 3px !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .official-remarks-table .orm-body {
+            min-height: 22px !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .orm-box {
+            min-height: 48px !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .orm-teacher-sign,
+        body.individual-pdf .student-sheet.density-mid .orm-head-sign {
+            min-height: 26px !important;
+        }
+        body.individual-pdf .student-sheet.density-mid .sheet-fill {
+            height: 10px;
+        }
+
+        /* --- Density: comfy (7–10 subjects) --- */
+        body.individual-pdf .student-sheet.density-comfy .header {
+            margin-bottom: 4px !important;
+            padding-bottom: 4px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .student-photo-top {
+            margin: 0 0 3px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .report-title {
+            margin-top: 4px !important;
+            padding: 4px 5px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .info-section {
+            margin-bottom: 4px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .info-table td {
+            padding: 3px 4px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .remark-color-legend {
+            margin: 4px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .remark-color-block {
+            padding: 3px 4px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .section-title {
+            margin-top: 5px !important;
+            margin-bottom: 3px !important;
+            padding-bottom: 2px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy table.data,
+        body.individual-pdf .student-sheet.density-comfy table.data-table {
+            margin-bottom: 4px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy table.data th,
+        body.individual-pdf .student-sheet.density-comfy table.data-table th {
+            padding: 3px 2px !important;
+            line-height: 1.15 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy table.data td,
+        body.individual-pdf .student-sheet.density-comfy table.data-table td,
+        body.individual-pdf .student-sheet.density-comfy table.data.term-report-card td.exam-marks,
+        body.individual-pdf .student-sheet.density-comfy table.data.term-report-card td.exam-grade,
+        body.individual-pdf .student-sheet.density-comfy table.data td.daraja-cell {
+            padding: 3px 2px !important;
+            line-height: 1.2 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy table.data.term-report-card th.exam-group {
+            padding: 3px 1px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy table.data.term-report-card th.exam-sub {
+            padding: 2px 1px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .summary-grid {
+            margin: 4px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .summary-grid td {
+            padding: 4px 4px !important;
+            line-height: 1.2 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .grade-key-table {
+            margin: 4px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .grade-key-table th,
+        body.individual-pdf .student-sheet.density-comfy .grade-key-table td {
+            padding: 3px 3px !important;
+            line-height: 1.15 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .character-assessment-table {
+            margin: 3px 0 4px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .character-assessment-table th,
+        body.individual-pdf .student-sheet.density-comfy .character-assessment-table td {
+            padding: 4px 6px !important;
+            line-height: 1.2 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .official-remarks-table {
+            margin: 5px 0 0 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .official-remarks-table td {
+            padding: 5px 4px !important;
+            line-height: 1.2 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .official-remarks-table .orm-title,
+        body.individual-pdf .student-sheet.density-comfy .official-remarks-table .orm-title-dark {
+            margin-bottom: 3px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .official-remarks-table .orm-body {
+            min-height: 32px !important;
+            line-height: 1.25 !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .orm-box {
+            min-height: 68px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .orm-teacher-sign,
+        body.individual-pdf .student-sheet.density-comfy .orm-head-sign {
+            min-height: 34px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .orm-teacher-sign img,
+        body.individual-pdf .student-sheet.density-comfy .orm-head-sign img {
+            max-height: 30px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .orm-stamp-block img {
+            max-height: 60px !important;
+            max-width: 60px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .sheet-fill {
+            height: 36px;
+        }
+
+        /* --- Density: loose (≤6 subjects) — fill page, no next-page spill --- */
+        body.individual-pdf .student-sheet.density-loose .header {
+            margin-bottom: 6px !important;
+            padding-bottom: 5px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .student-photo-top {
+            margin: 0 0 4px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .report-title {
+            margin-top: 5px !important;
+            padding: 5px 6px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .info-section {
+            margin-bottom: 5px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .info-table td {
+            padding: 4px 5px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .remark-color-legend {
+            margin: 5px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .remark-color-block {
+            padding: 4px 5px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .section-title {
+            margin-top: 6px !important;
+            margin-bottom: 4px !important;
+            padding-bottom: 3px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose table.data,
+        body.individual-pdf .student-sheet.density-loose table.data-table {
+            margin-bottom: 5px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose table.data th,
+        body.individual-pdf .student-sheet.density-loose table.data-table th {
+            padding: 4px 3px !important;
+            line-height: 1.2 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose table.data td,
+        body.individual-pdf .student-sheet.density-loose table.data-table td,
+        body.individual-pdf .student-sheet.density-loose table.data.term-report-card td.exam-marks,
+        body.individual-pdf .student-sheet.density-loose table.data.term-report-card td.exam-grade,
+        body.individual-pdf .student-sheet.density-loose table.data td.daraja-cell {
+            padding: 5px 3px !important;
+            line-height: 1.25 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose table.data.term-report-card th.exam-group {
+            padding: 4px 2px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose table.data.term-report-card th.exam-sub {
+            padding: 3px 1px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .summary-grid {
+            margin: 5px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .summary-grid td {
+            padding: 5px 5px !important;
+            line-height: 1.25 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .grade-key-table {
+            margin: 5px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .grade-key-table th,
+        body.individual-pdf .student-sheet.density-loose .grade-key-table td {
+            padding: 4px 4px !important;
+            line-height: 1.2 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .character-assessment-table {
+            margin: 4px 0 6px 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .character-assessment-table th,
+        body.individual-pdf .student-sheet.density-loose .character-assessment-table td {
+            padding: 5px 8px !important;
+            line-height: 1.25 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .official-remarks-table {
+            margin: 6px 0 0 0 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .official-remarks-table td {
+            padding: 6px 5px !important;
+            line-height: 1.25 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .official-remarks-table .orm-title,
+        body.individual-pdf .student-sheet.density-loose .official-remarks-table .orm-title-dark {
+            margin-bottom: 4px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .official-remarks-table .orm-body {
+            min-height: 44px !important;
+            line-height: 1.3 !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .orm-box {
+            min-height: 90px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .orm-teacher-sign,
+        body.individual-pdf .student-sheet.density-loose .orm-head-sign {
+            min-height: 40px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .orm-teacher-sign img,
+        body.individual-pdf .student-sheet.density-loose .orm-head-sign img {
+            max-height: 34px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .orm-stamp-block img {
+            max-height: 64px !important;
+            max-width: 64px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .sheet-fill {
+            height: 72px;
+        }
+
         /* Always show brand footer at bottom (even if watermark unchecked) */
         body.individual-pdf .footer {
             display: block !important;
@@ -1118,8 +1422,34 @@
             if (!$studentPhotoBase64) {
                 $studentPhotoBase64 = getSmartBase64(($student->gender ?? '') === 'Female' ? 'images/female.png' : 'images/male.png');
             }
+
+            // Vertical density from subject count — expand when few, stay tight at ~15 (1 page)
+            $pdfSubjectCount = 0;
+            if (!empty($detailedSingleData['subjects']) && is_array($detailedSingleData['subjects'])) {
+                $pdfSubjectCount = count($detailedSingleData['subjects']);
+            } elseif (is_array($result) && !empty($result['subjects']) && is_array($result['subjects'])) {
+                $pdfSubjectCount = count($result['subjects']);
+            } elseif (is_array($result) && isset($result[0]['subjects']) && is_array($result[0]['subjects'])) {
+                $pdfSubjectCount = count($result[0]['subjects']);
+            }
+            $pdfCaCount = 0;
+            if (isset($characterAssessments[$student->studentID])) {
+                $pdfCaCount = count($characterAssessments[$student->studentID]);
+            }
+            // Many character rows nudge toward tighter so page never spills
+            $pdfDensityWeight = $pdfSubjectCount + (int) floor($pdfCaCount / 4);
+            if ($pdfDensityWeight <= 6) {
+                $pdfDensity = 'density-loose';
+            } elseif ($pdfDensityWeight <= 10) {
+                $pdfDensity = 'density-comfy';
+            } elseif ($pdfDensityWeight <= 13) {
+                $pdfDensity = 'density-mid';
+            } else {
+                $pdfDensity = 'density-tight';
+            }
         @endphp
 
+        <div class="student-sheet {{ $pdfDensity }}">
         {{-- HEADER: under org → photo top; logos large & close to title --}}
         <div class="header {{ !empty($underOrg) ? 'under-org' : '' }}">
             @if(!empty($underOrg))
@@ -1831,6 +2161,7 @@
         $teacherComment = getAutomaticComment($commentVal);
         $headComment = getAutomaticHeadComment($commentVal);
     @endphp
+    <div class="sheet-fill" aria-hidden="true"></div>
     <table class="official-remarks-table">
         <tr>
             <td style="width:16%;">
@@ -1920,6 +2251,7 @@
             </td>
         </tr>
     </table>
+        </div>{{-- /.student-sheet --}}
 
     @php $idxCount++; @endphp
     @if($idxCount < $studentsToIterate->count())
