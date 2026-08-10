@@ -505,22 +505,35 @@
             font-size: 10px !important;
             line-height: 1.1 !important;
         }
-        /* Horizontal CA: key + value in one cell (e.g. DISCIPLINE: A) */
+        /* Horizontal CA: key + value in one cell (e.g. DISCIPLINE: A) — never wrap */
+        body.individual-pdf .character-assessment-table.character-assessment-hz {
+            table-layout: auto !important;
+        }
         body.individual-pdf .character-assessment-table.character-assessment-hz td.ca-cell {
             text-align: center !important;
             width: auto !important;
-            font-size: 9.5px !important;
-            padding: 2px 3px !important;
+            font-size: 8.5px !important;
+            padding: 2px 2px !important;
             white-space: nowrap !important;
+            word-wrap: normal !important;
+            word-break: keep-all !important;
+            overflow: hidden !important;
+            line-height: 1.15 !important;
+        }
+        body.individual-pdf .character-assessment-table.character-assessment-hz .ca-inline {
+            white-space: nowrap !important;
+            display: inline;
         }
         body.individual-pdf .character-assessment-table.character-assessment-hz .ca-key {
             font-weight: bold !important;
             text-transform: uppercase;
             color: #333 !important;
+            white-space: nowrap !important;
         }
         body.individual-pdf .character-assessment-table.character-assessment-hz .ca-val {
             font-weight: bold !important;
             color: #940000 !important;
+            white-space: nowrap !important;
         }
         body.individual-pdf .official-remarks-table {
             margin: 2px 0 0 0 !important;
@@ -1938,15 +1951,15 @@
             $caRows = collect($characterAssessments[$student->studentID])->values();
         @endphp
         <div class="section-title">Tathmini ya Tabia na Mwenendo</div>
-        <table class="data character-assessment-table character-assessment-hz" style="margin-bottom: 2px; table-layout: fixed; width: 100%;">
+        <table class="data character-assessment-table character-assessment-hz" style="margin-bottom: 2px; width: 100%;">
             <tbody>
                 <tr>
                     @foreach($caRows as $ca)
                         @php
                             $caKey = strtoupper(trim((string) ($ca->category->name ?? 'N/A')));
-                            $caVal = $ca->choice->choice_name ?? ($ca->description ?: 'N/A');
+                            $caVal = trim((string) ($ca->choice->choice_name ?? ($ca->description ?: 'N/A')));
                         @endphp
-                        <td class="ca-cell tc"><span class="ca-key">{{ $caKey }}</span>: <span class="ca-val">{{ $caVal }}</span></td>
+                        <td class="ca-cell tc"><span class="ca-inline"><span class="ca-key">{{ $caKey }}</span>:&nbsp;<span class="ca-val">{{ $caVal }}</span></span></td>
                     @endforeach
                 </tr>
             </tbody>
