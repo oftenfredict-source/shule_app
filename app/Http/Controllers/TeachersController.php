@@ -1042,9 +1042,9 @@ class TeachersController extends Controller
                     "message" => $feedback->admin_response
                         ? $feedback->admin_response
                         : "{$typeLabel} has been {$feedback->status}.",
-                    "date" => $feedback->responded_at
-                        ? $feedback->responded_at->toDateTimeString()
-                        : $feedback->updated_at->toDateTimeString(),
+                    "date" => \Illuminate\Support\Carbon::parse(
+                        $feedback->responded_at ?: $feedback->updated_at
+                    )->toDateTimeString(),
                     "link" => $link,
                 ]);
             }

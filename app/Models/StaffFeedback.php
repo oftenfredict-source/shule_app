@@ -21,4 +21,11 @@ class StaffFeedback extends Model
         'is_read_by_admin',
         'is_read_by_staff',
     ];
+
+    protected $casts = [
+        'response_due_date' => 'datetime',
+        'responded_at' => 'datetime',
+        'is_read_by_admin' => 'boolean',
+        'is_read_by_staff' => 'boolean',
+    ];
 }
