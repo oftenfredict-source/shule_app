@@ -4450,17 +4450,28 @@ class ManageExaminationController extends Controller
                 }
 
                 $classAverageMarks = $classSubjectCount > 0 ? $classTotalMarks / $classSubjectCount : 0;
+                $classAllIncomplete = $classSubjectCount === 0
+                    || $classStudentResults->every(function ($r) {
+                        return $r->marks === null || $r->marks === '';
+                    });
 
                 $allClassResults[] = [
                     'studentID' => $classStudent->studentID,
                     'total_marks' => round($classTotalMarks, 2),
                     'total_points' => $classTotalPoints,
                     'average_marks' => $classAverageMarks,
+                    'is_all_incomplete' => $classAllIncomplete,
                 ];
             }
 
-            // Sort by average marks (descending)
+            // Sort by average marks (descending); all-incomplete always last
             usort($allClassResults, function ($a, $b) {
+                $aInc = !empty($a['is_all_incomplete']);
+                $bInc = !empty($b['is_all_incomplete']);
+                if ($aInc !== $bInc) {
+                    return ($aInc ? 1 : 0) <=> ($bInc ? 1 : 0);
+                }
+
                 return ($b['average_marks'] ?? 0) <=> ($a['average_marks'] ?? 0);
             });
 

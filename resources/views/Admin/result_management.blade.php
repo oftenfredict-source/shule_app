@@ -1253,7 +1253,9 @@
                                                             'best_seven_total_marks' => $bestSevenTotalMarks,
                                                             'grade' => $grade,
                                                             'division' => $division,
-                                                            'class_name' => $studentClassName
+                                                            'class_name' => $studentClassName,
+                                                            'is_all_incomplete' => !empty($examResult['is_all_incomplete']),
+                                                            'subjects' => $examResult['subjects'] ?? [],
                                                         ];
                                                         break; // Found matching exam, no need to continue
                                                     }
@@ -1283,6 +1285,11 @@
                                         // Sort students in this class by selected Rank / Position measure
                                         if ($useDivisionRank) {
                                             usort($classStudents, function($a, $b) {
+                                                $aInc = !empty($a['is_all_incomplete']);
+                                                $bInc = !empty($b['is_all_incomplete']);
+                                                if ($aInc !== $bInc) {
+                                                    return ($aInc ? 1 : 0) <=> ($bInc ? 1 : 0);
+                                                }
                                                 if ($a['total_points'] != $b['total_points']) {
                                                     return $a['total_points'] <=> $b['total_points'];
                                                 }
@@ -1292,8 +1299,13 @@
                                                 return ($b['average_marks'] ?? $b['total_marks']) <=> ($a['average_marks'] ?? $a['total_marks']);
                                             });
                                         } else {
-                                            // Default: highest average first
+                                            // Default: highest average first; all-incomplete last
                                             usort($classStudents, function($a, $b) {
+                                                $aInc = !empty($a['is_all_incomplete']);
+                                                $bInc = !empty($b['is_all_incomplete']);
+                                                if ($aInc !== $bInc) {
+                                                    return ($aInc ? 1 : 0) <=> ($bInc ? 1 : 0);
+                                                }
                                                 $aa = (float) ($a['average_marks'] ?? 0);
                                                 $ba = (float) ($b['average_marks'] ?? 0);
                                                 if ($aa != $ba) {
@@ -1322,6 +1334,11 @@
                                     // Sort all students again for top 5 selection
                                     if ($useDivisionRank) {
                                         usort($examStudents, function($a, $b) {
+                                            $aInc = !empty($a['is_all_incomplete']);
+                                            $bInc = !empty($b['is_all_incomplete']);
+                                            if ($aInc !== $bInc) {
+                                                return ($aInc ? 1 : 0) <=> ($bInc ? 1 : 0);
+                                            }
                                             if ($a['total_points'] != $b['total_points']) {
                                                 return $a['total_points'] <=> $b['total_points'];
                                             }
@@ -1332,6 +1349,11 @@
                                         });
                                     } else {
                                         usort($examStudents, function($a, $b) {
+                                            $aInc = !empty($a['is_all_incomplete']);
+                                            $bInc = !empty($b['is_all_incomplete']);
+                                            if ($aInc !== $bInc) {
+                                                return ($aInc ? 1 : 0) <=> ($bInc ? 1 : 0);
+                                            }
                                             $aa = (float) ($a['average_marks'] ?? 0);
                                             $ba = (float) ($b['average_marks'] ?? 0);
                                             if ($aa != $ba) {
@@ -1353,6 +1375,11 @@
                                         // Sort students in this class again (same Rank / Position measure)
                                         if ($useDivisionRank) {
                                             usort($classStudents, function($a, $b) {
+                                                $aInc = !empty($a['is_all_incomplete']);
+                                                $bInc = !empty($b['is_all_incomplete']);
+                                                if ($aInc !== $bInc) {
+                                                    return ($aInc ? 1 : 0) <=> ($bInc ? 1 : 0);
+                                                }
                                                 if ($a['total_points'] != $b['total_points']) {
                                                     return $a['total_points'] <=> $b['total_points'];
                                                 }
@@ -1363,6 +1390,11 @@
                                             });
                                         } else {
                                             usort($classStudents, function($a, $b) {
+                                                $aInc = !empty($a['is_all_incomplete']);
+                                                $bInc = !empty($b['is_all_incomplete']);
+                                                if ($aInc !== $bInc) {
+                                                    return ($aInc ? 1 : 0) <=> ($bInc ? 1 : 0);
+                                                }
                                                 $aa = (float) ($a['average_marks'] ?? 0);
                                                 $ba = (float) ($b['average_marks'] ?? 0);
                                                 if ($aa != $ba) {
@@ -2796,6 +2828,7 @@
                                                     'exams' => $studentReport['exams'] ?? [],
                                                     // Needed by Subject Performance Statistics (term report)
                                                     'subjects' => $studentReport['subjects'] ?? [],
+                                                    'is_all_incomplete' => !empty($studentReport['is_all_incomplete']),
                                                 ];
                                             }
                                         }
@@ -2945,6 +2978,11 @@
                                         // Sort students in this class by selected Rank / Position measure
                                         if ($useDivisionRank) {
                                             usort($classStudents, function($a, $b) {
+                                                $aInc = !empty($a['is_all_incomplete']);
+                                                $bInc = !empty($b['is_all_incomplete']);
+                                                if ($aInc !== $bInc) {
+                                                    return ($aInc ? 1 : 0) <=> ($bInc ? 1 : 0);
+                                                }
                                                 $divA = $a['division'] ?? null;
                                                 $divB = $b['division'] ?? null;
                                                 $divOrder = ['I' => 1, 'II' => 2, 'III' => 3, 'IV' => 4, '0' => 5];
@@ -2968,6 +3006,11 @@
                                         } else {
                                             // Default: highest average first
                                             usort($classStudents, function($a, $b) {
+                                                $aInc = !empty($a['is_all_incomplete']);
+                                                $bInc = !empty($b['is_all_incomplete']);
+                                                if ($aInc !== $bInc) {
+                                                    return ($aInc ? 1 : 0) <=> ($bInc ? 1 : 0);
+                                                }
                                                 $aa = (float) ($a['average_marks'] ?? 0);
                                                 $ba = (float) ($b['average_marks'] ?? 0);
                                                 if ($aa != $ba) {

@@ -188,9 +188,11 @@
         text-align: center;
         overflow: visible;
     }
-    table.board-results th.v { width: 2.8%; }
-    table.board-results th.v-stream { width: 2.8%; }
-    table.board-results th.v-trail { width: 3.4%; }
+    table.board-results th.v { width: 2.5%; }
+    table.board-results th.v-stream { width: 2.5%; }
+    table.board-results th.v-trail { width: 4%; }
+    table.board-results th.v-trail.v-total { width: 5.8%; }
+    table.board-results th.v-trail.v-avg { width: 4.6%; }
     table.board-results th.v-subj { width: auto; }
 
     table.board-results table.v-inner {
@@ -263,6 +265,32 @@
         font-size: 12px;
         line-height: 1.1;
         padding: 1px;
+    }
+    /* TOTAL / AVERAGE — same font as marks; TOTAL wider so long values don't overlap */
+    table.board-results td.board-num-cell {
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        overflow: hidden !important;
+        font-size: 14px !important;
+        line-height: 1.15 !important;
+        letter-spacing: 0;
+        padding: 1px 2px !important;
+        text-align: center !important;
+    }
+    table.board-results td.board-num-cell.board-total-cell {
+        font-size: 12px !important;
+        padding: 1px 1px !important;
+    }
+    table.board-results td.board-num-cell .board-num-keep {
+        white-space: nowrap !important;
+        display: inline-block;
+        max-width: 100%;
+    }
+    table.board-results td.board-total-cell .board-num-keep {
+        font-size: 12px !important;
+    }
+    table.board-results td.board-avg-cell .board-num-keep {
+        font-size: 14px !important;
     }
     table.board-results td.empty-subj { background: #f5f5f5; }
     table.board-results .sub-h {
@@ -440,7 +468,7 @@
 
         // Header row height from longest vertical title (subjects + fixed labels)
         $maxVertLen = 0;
-        foreach (['SEX', 'POINT', 'DIVISION', 'AVERAGE', 'POSITION', 'GRADE', 'COMBINATION', 'INDEX NO'] as $fixedLabel) {
+        foreach (['SEX', 'POINT', 'DIVISION', 'TOTAL', 'AVERAGE', 'POSITION', 'GRADE', 'COMBINATION', 'INDEX NO'] as $fixedLabel) {
             $maxVertLen = max($maxVertLen, strlen($fixedLabel));
         }
         foreach ($subjects as $subj) {
@@ -603,7 +631,11 @@
                         <th class="v-subj" colspan="2">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '') !!}</th>
                     @endforeach
                     @foreach($board['trailingHeaders'] ?? [] as $th)
-                        <th class="v v-trail">{!! pdfBoardVerticalLabel($th) !!}</th>
+                        @php
+                            $thUp = strtoupper(trim((string) $th));
+                            $trailExtra = $thUp === 'TOTAL' ? 'v-total' : ($thUp === 'AVERAGE' ? 'v-avg' : '');
+                        @endphp
+                        <th class="v v-trail {{ $trailExtra }}">{!! pdfBoardVerticalLabel($th) !!}</th>
                     @endforeach
                 </tr>
             </thead>
@@ -629,7 +661,8 @@
                             <td class="{{ !empty($cell['empty']) ? 'empty-subj' : '' }}">{{ $cell['marks'] }}</td>
                             <td class="{{ !empty($cell['empty']) ? 'empty-subj' : '' }}">{{ $cell['grade'] }}</td>
                         @endforeach
-                        <td class="{{ $r['average_class'] ?? 'remark-inc' }}">{{ $r['average'] }}</td>
+                        <td class="board-num-cell board-total-cell"><span class="board-num-keep">{{ $r['total'] ?? '' }}</span></td>
+                        <td class="board-num-cell board-avg-cell {{ $r['average_class'] ?? 'remark-inc' }}"><span class="board-num-keep">{{ $r['average'] }}</span></td>
                         @if(!$isSecondary)
                             <td>{{ $r['grade'] }}</td>
                         @endif

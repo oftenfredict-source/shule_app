@@ -1727,6 +1727,10 @@ class ResultManagementController extends Controller
                             "division" =>
                                 $studentResultData["division"] ?? null,
                             "grade" => $studentResultData["grade"] ?? null,
+                            "subjects" => $studentResultData["subjects"] ?? [],
+                            "is_all_incomplete" => !empty(
+                                $studentResultData["is_all_incomplete"]
+                            ),
                         ];
                     } else {
                         foreach ($studentResultData as $er) {
@@ -1746,6 +1750,10 @@ class ResultManagementController extends Controller
                                         $er["best_seven_total_marks"] ?? 0,
                                     "division" => $er["division"] ?? null,
                                     "grade" => $er["grade"] ?? null,
+                                    "subjects" => $er["subjects"] ?? [],
+                                    "is_all_incomplete" => !empty(
+                                        $er["is_all_incomplete"]
+                                    ),
                                 ];
                                 break;
                             }
@@ -1760,79 +1768,22 @@ class ResultManagementController extends Controller
                 ) {
                     $useDivision =
                         $rankBy === "division" && $schoolType === "Secondary";
+                    $reportDivisionStyle =
+                        $useDivision && $typeFilterForDetails === "report";
 
-                    if ($useDivision) {
-                        if ($typeFilterForDetails === "report") {
-                            usort($list, function ($a, $b) {
-                                $divOrder = [
-                                    "I" => 1,
-                                    "II" => 2,
-                                    "III" => 3,
-                                    "IV" => 4,
-                                    "0" => 5,
-                                ];
-                                preg_match(
-                                    '/^([0IVX]+)\./',
-                                    (string) ($a["division"] ?? ""),
-                                    $mA,
-                                );
-                                preg_match(
-                                    '/^([0IVX]+)\./',
-                                    (string) ($b["division"] ?? ""),
-                                    $mB,
-                                );
-                                $rankA = $divOrder[$mA[1] ?? ""] ?? 999;
-                                $rankB = $divOrder[$mB[1] ?? ""] ?? 999;
-                                if ($rankA != $rankB) {
-                                    return $rankA <=> $rankB;
-                                }
-                                $ptA = $a["total_points"] ?? 9999;
-                                $ptB = $b["total_points"] ?? 9999;
-                                if ($ptA != $ptB) {
-                                    return $ptA <=> $ptB;
-                                }
-                                return ($b["average_marks"] ?? 0) <=>
-                                    ($a["average_marks"] ?? 0);
-                            });
-                        } else {
-                            usort($list, function ($a, $b) {
-                                if (
-                                    ($a["total_points"] ?? 9999) !=
-                                    ($b["total_points"] ?? 9999)
-                                ) {
-                                    return ($a["total_points"] ?? 9999) <=>
-                                        ($b["total_points"] ?? 9999);
-                                }
-                                if (
-                                    ($a["best_seven_total_marks"] ?? 0) !=
-                                    ($b["best_seven_total_marks"] ?? 0)
-                                ) {
-                                    return ($b["best_seven_total_marks"] ?? 0) <=>
-                                        ($a["best_seven_total_marks"] ?? 0);
-                                }
-                                return ($b["average_marks"] ??
-                                    ($b["total_marks"] ?? 0)) <=>
-                                    ($a["average_marks"] ??
-                                        ($a["total_marks"] ?? 0));
-                            });
-                        }
-                    } else {
-                        // Default: highest average first
-                        usort($list, function ($a, $b) {
-                            $aa = (float) ($a["average_marks"] ?? 0);
-                            $ba = (float) ($b["average_marks"] ?? 0);
-                            if ($aa != $ba) {
-                                return $ba <=> $aa;
-                            }
-                            $ptA = $a["total_points"] ?? 9999;
-                            $ptB = $b["total_points"] ?? 9999;
-                            if ($ptA != $ptB) {
-                                return $ptA <=> $ptB;
-                            }
-                            return ($b["total_marks"] ?? 0) <=>
-                                ($a["total_marks"] ?? 0);
-                        });
-                    }
+                    usort($list, function ($a, $b) use (
+                        $rankBy,
+                        $schoolType,
+                        $reportDivisionStyle,
+                    ) {
+                        return $this->compareStudentsForPosition(
+                            $a,
+                            $b,
+                            $rankBy === "division" ? "division" : "average",
+                            $schoolType,
+                            $reportDivisionStyle,
+                        );
+                    });
                 };
 
                 $findRank = function (array $list, $sid) {
@@ -4704,11 +4655,20 @@ class ResultManagementController extends Controller
             null,
             $electedClassSubjectIds,
         );
-        // Recount after election filter (unelected optionals must not affect totals)
+
+        // Sat ≥1 subject → remaining incompletes become 0; sat none → all-incomplete (rank last)
+        [$subjectsData, $isAllIncomplete] = $this->applySatZeroRuleToSubjects(
+            $subjectsData,
+            $schoolType,
+            $className,
+            $classID,
+        );
+
+        // Recount after election filter + sat/zero rule
         $totalMarks = 0;
         $subjectCount = 0;
         foreach ($subjectsData as $s) {
-            if (($s["marks"] ?? null) !== "incomplete" && $s["marks"] !== null && $s["marks"] !== "") {
+            if ($this->subjectEntryIsSat($s)) {
                 $totalMarks += (float) $s["marks"];
                 $subjectCount++;
             } elseif (($s["marks"] ?? null) === "incomplete") {
@@ -4721,7 +4681,7 @@ class ResultManagementController extends Controller
         $bestSevenTotalMarks = 0;
         $marksPointsArray = [];
         foreach ($subjectsData as $s) {
-            if ($s["marks"] !== "incomplete" && $s["points"] !== null) {
+            if ($this->subjectEntryIsSat($s) && ($s["points"] ?? null) !== null) {
                 $marksPointsArray[] = [
                     "marks" => (float) $s["marks"],
                     "points" => $s["points"],
@@ -4782,6 +4742,7 @@ class ResultManagementController extends Controller
             "division" => $gradeDivision["division"] ?? null,
             "total_points" => $totalPoints,
             "best_seven_total_marks" => $bestSevenTotalMarks,
+            "is_all_incomplete" => $isAllIncomplete,
         ];
     }
 
@@ -5051,13 +5012,42 @@ class ResultManagementController extends Controller
                 );
 
                 $scoredSubjectAverages = [];
+                [$subjectSummaries, $isAllIncomplete] = $this->applySatZeroRuleToSubjects(
+                    $subjectSummaries,
+                    $schoolType,
+                    $className,
+                    $classID,
+                );
+                // Rebuild point entries after sat/zero rule (incomplete → 0 must count for division)
+                if (!$isAllIncomplete) {
+                    $subjectPointEntries = [];
+                    foreach ($subjectSummaries as $summary) {
+                        if (!$this->subjectEntryIsSat($summary)) {
+                            continue;
+                        }
+                        $avg = (float) $summary["marks"];
+                        $gp = $this->calculateGradePoints(
+                            $avg,
+                            $schoolType,
+                            $className,
+                            $classID,
+                        );
+                        if (($gp["points"] ?? null) === null) {
+                            continue;
+                        }
+                        $subjectPointEntries[] = [
+                            "marks" => $avg,
+                            "points" => $gp["points"],
+                            "grade" => $gp["grade"] ?? ($summary["grade"] ?? null),
+                            "subjectID" => $summary["subjectID"] ?? null,
+                        ];
+                    }
+                } else {
+                    $subjectPointEntries = [];
+                }
+
                 foreach ($subjectSummaries as $summary) {
-                    if (
-                        isset($summary["marks"]) &&
-                        $summary["marks"] !== null &&
-                        strtolower((string) ($summary["grade"] ?? "")) !==
-                            "incomplete"
-                    ) {
+                    if ($this->subjectEntryIsSat($summary)) {
                         $scoredSubjectAverages[] = (float) $summary["marks"];
                     }
                 }
@@ -5142,6 +5132,7 @@ class ResultManagementController extends Controller
                     "position" => null, // Will be calculated in view per class
                     "total_points" => $totalPoints,
                     "subjects" => $subjectSummaries,
+                    "is_all_incomplete" => $isAllIncomplete,
                 ];
             }
         }
@@ -7381,6 +7372,12 @@ class ResultManagementController extends Controller
                 "division" => $payload["division"] ?? null,
                 "total_points" => $payload["total_points"] ?? null,
                 "best_seven_total_marks" => 0,
+                "is_all_incomplete" => !empty($payload["is_all_incomplete"])
+                    || $this->isAllIncompleteFromSubjects(
+                        is_array($payload["subjects"] ?? null)
+                            ? $payload["subjects"]
+                            : [],
+                    ),
             ];
         }
 
@@ -7412,6 +7409,12 @@ class ResultManagementController extends Controller
             "division" => $chosen["division"] ?? null,
             "total_points" => $chosen["total_points"] ?? null,
             "best_seven_total_marks" => $chosen["best_seven_total_marks"] ?? 0,
+            "is_all_incomplete" => !empty($chosen["is_all_incomplete"])
+                || $this->isAllIncompleteFromSubjects(
+                    is_array($chosen["subjects"] ?? null)
+                        ? $chosen["subjects"]
+                        : [],
+                ),
         ];
     }
 
@@ -7559,7 +7562,169 @@ class ResultManagementController extends Controller
     }
 
     /**
+     * True when subject has a numeric mark (including 0). Incomplete / missing = false.
+     */
+    private function subjectEntryIsSat(array $subject): bool
+    {
+        $marks = $subject["marks"] ?? null;
+        if ($marks === null || $marks === "") {
+            return false;
+        }
+        if (strtolower(trim((string) $marks)) === "incomplete") {
+            return false;
+        }
+
+        return is_numeric($marks);
+    }
+
+    /**
+     * Student did not sit any exam paper → all incomplete (rank last).
+     *
+     * @param  list<array<string,mixed>>  $subjects
+     */
+    private function isAllIncompleteFromSubjects(array $subjects): bool
+    {
+        if ($subjects === []) {
+            return true;
+        }
+        foreach ($subjects as $subject) {
+            if (is_array($subject) && $this->subjectEntryIsSat($subject)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * If student sat ≥1 subject, convert remaining incompletes to 0 (not Incomplete).
+     * If sat none, leave incompletes and flag is_all_incomplete.
+     *
+     * @param  list<array<string,mixed>>  $subjects
+     * @return array{0: list<array<string,mixed>>, 1: bool}
+     */
+    private function applySatZeroRuleToSubjects(
+        array $subjects,
+        string $schoolType,
+        string $className,
+        $classID = null,
+    ): array {
+        if ($subjects === []) {
+            return [[], true];
+        }
+
+        $hasSat = false;
+        foreach ($subjects as $subject) {
+            if ($this->subjectEntryIsSat($subject)) {
+                $hasSat = true;
+                break;
+            }
+        }
+
+        if (!$hasSat) {
+            return [$subjects, true];
+        }
+
+        foreach ($subjects as &$subject) {
+            if ($this->subjectEntryIsSat($subject)) {
+                continue;
+            }
+            $gradePoints = $this->calculateGradePoints(
+                0,
+                $schoolType,
+                $className,
+                $classID,
+            );
+            $subject["marks"] = 0;
+            $subject["grade"] = $gradePoints["grade"] ?? "F";
+            $subject["points"] = $gradePoints["points"] ?? null;
+            if (array_key_exists("remark", $subject) || isset($gradePoints["remark"])) {
+                $subject["remark"] = $gradePoints["remark"] ?? ($subject["remark"] ?? null);
+            }
+            $subject["is_incomplete"] = false;
+        }
+        unset($subject);
+
+        return [$subjects, false];
+    }
+
+    /**
+     * Rank compare: all-incomplete always last; then average or division rules.
+     *
+     * @param  array<string,mixed>  $a
+     * @param  array<string,mixed>  $b
+     */
+    private function compareStudentsForPosition(
+        array $a,
+        array $b,
+        string $rankBy,
+        string $schoolType,
+        bool $reportDivisionStyle = false,
+    ): int {
+        $aInc = !empty($a["is_all_incomplete"]);
+        $bInc = !empty($b["is_all_incomplete"]);
+        if (!$aInc && isset($a["subjects"]) && is_array($a["subjects"])) {
+            $aInc = $this->isAllIncompleteFromSubjects($a["subjects"]);
+        }
+        if (!$bInc && isset($b["subjects"]) && is_array($b["subjects"])) {
+            $bInc = $this->isAllIncompleteFromSubjects($b["subjects"]);
+        }
+        if ($aInc !== $bInc) {
+            return ($aInc ? 1 : 0) <=> ($bInc ? 1 : 0);
+        }
+
+        $useDivision = $rankBy === "division" && $schoolType === "Secondary";
+        if ($useDivision && $reportDivisionStyle) {
+            $divOrder = ["I" => 1, "II" => 2, "III" => 3, "IV" => 4, "0" => 5];
+            preg_match('/^([0IVX]+)\./', (string) ($a["division"] ?? ""), $mA);
+            preg_match('/^([0IVX]+)\./', (string) ($b["division"] ?? ""), $mB);
+            $rankA = $divOrder[$mA[1] ?? ""] ?? 999;
+            $rankB = $divOrder[$mB[1] ?? ""] ?? 999;
+            if ($rankA != $rankB) {
+                return $rankA <=> $rankB;
+            }
+            $ptA = $a["total_points"] ?? 9999;
+            $ptB = $b["total_points"] ?? 9999;
+            if ($ptA != $ptB) {
+                return $ptA <=> $ptB;
+            }
+
+            return ($b["average_marks"] ?? 0) <=> ($a["average_marks"] ?? 0);
+        }
+
+        if ($useDivision) {
+            if (($a["total_points"] ?? 9999) != ($b["total_points"] ?? 9999)) {
+                return ($a["total_points"] ?? 9999) <=> ($b["total_points"] ?? 9999);
+            }
+            if (
+                ($a["best_seven_total_marks"] ?? 0) !=
+                ($b["best_seven_total_marks"] ?? 0)
+            ) {
+                return ($b["best_seven_total_marks"] ?? 0) <=>
+                    ($a["best_seven_total_marks"] ?? 0);
+            }
+
+            return ($b["average_marks"] ?? ($b["total_marks"] ?? 0)) <=>
+                ($a["average_marks"] ?? ($a["total_marks"] ?? 0));
+        }
+
+        $aa = (float) ($a["average_marks"] ?? 0);
+        $ba = (float) ($b["average_marks"] ?? 0);
+        if ($aa != $ba) {
+            return $ba <=> $aa;
+        }
+        $ptA = $a["total_points"] ?? 9999;
+        $ptB = $b["total_points"] ?? 9999;
+        if ($ptA != $ptB) {
+            return $ptA <=> $ptB;
+        }
+
+        return ($b["total_marks"] ?? 0) <=> ($a["total_marks"] ?? 0);
+    }
+
+    /**
      * Sort board export rows: average (default, highest first) or division (Secondary only).
+     * All-incomplete students always rank last (below zeros).
      *
      * @param  list<array<string,mixed>>  $prepared
      */
@@ -7576,41 +7741,53 @@ class ResultManagementController extends Controller
             $rankBy = "average";
         }
 
-        if ($rankBy === "division") {
-            usort($prepared, function ($a, $b) {
-                $ap = $a["row"]["total_points"] ?? 9999;
-                $bp = $b["row"]["total_points"] ?? 9999;
-                if ($ap != $bp) {
-                    return $ap <=> $bp;
-                }
-                $ab = $a["row"]["best_seven_total_marks"] ?? 0;
-                $bb = $b["row"]["best_seven_total_marks"] ?? 0;
-                if ($ab != $bb) {
-                    return $bb <=> $ab;
-                }
+        foreach ($prepared as &$item) {
+            $row = $item["row"] ?? [];
+            if (!isset($row["is_all_incomplete"])) {
+                $row["is_all_incomplete"] = $this->isAllIncompleteFromSubjects(
+                    is_array($row["subjects"] ?? null) ? $row["subjects"] : [],
+                );
+                $item["row"] = $row;
+            }
+        }
+        unset($item);
 
-                return ($b["row"]["average_marks"] ?? 0) <=>
-                    ($a["row"]["average_marks"] ?? 0);
-            });
+        usort($prepared, function ($a, $b) use ($rankBy, $schoolType) {
+            $left = array_merge($a["row"] ?? [], [
+                "is_all_incomplete" => !empty(($a["row"] ?? [])["is_all_incomplete"]),
+            ]);
+            $right = array_merge($b["row"] ?? [], [
+                "is_all_incomplete" => !empty(($b["row"] ?? [])["is_all_incomplete"]),
+            ]);
 
-            return;
+            return $this->compareStudentsForPosition(
+                $left,
+                $right,
+                $rankBy,
+                $schoolType,
+                false,
+            );
+        });
+    }
+
+    /**
+     * Board AVERAGE: always 2 decimal places (no integer approximation).
+     */
+    private function formatBoardAverageMarks(float $average): string
+    {
+        return number_format($average, 2, ".", "");
+    }
+
+    /**
+     * Board TOTAL marks — compact, no forced rounding up to whole when fractional.
+     */
+    private function formatBoardTotalMarks(float $total): string
+    {
+        if (abs($total - round($total)) < 0.00001) {
+            return (string) (int) round($total);
         }
 
-        usort($prepared, function ($a, $b) {
-            $aa = (float) ($a["row"]["average_marks"] ?? 0);
-            $ba = (float) ($b["row"]["average_marks"] ?? 0);
-            if ($aa != $ba) {
-                return $ba <=> $aa;
-            }
-            $ap = $a["row"]["total_points"] ?? 9999;
-            $bp = $b["row"]["total_points"] ?? 9999;
-            if ($ap != $bp) {
-                return $ap <=> $bp;
-            }
-
-            return ($b["row"]["total_marks"] ?? 0) <=>
-                ($a["row"]["total_marks"] ?? 0);
-        });
+        return number_format($total, 2, ".", "");
     }
 
     /**
@@ -7996,8 +8173,8 @@ class ResultManagementController extends Controller
         }
         $trailingHeaders =
             $schoolType === "Secondary"
-                ? ["AVERAGE", "POSITION"]
-                : ["AVERAGE", "GRADE", "POSITION"];
+                ? ["TOTAL", "AVERAGE", "POSITION"]
+                : ["TOTAL", "AVERAGE", "GRADE", "POSITION"];
 
         $stats = [
             "F" => [
@@ -8170,6 +8347,7 @@ class ResultManagementController extends Controller
             }
 
             $avgRaw = (float) ($row["average_marks"] ?? 0);
+            $totalRaw = (float) ($row["total_marks"] ?? 0);
             $rowOut = [
                 "sn" => $item["position"],
                 "name" => $studentName,
@@ -8181,7 +8359,8 @@ class ResultManagementController extends Controller
                         : "-",
                 "division" => $item["division_roman"] ?: "-",
                 "subjects" => $subjectCells,
-                "average" => number_format($avgRaw, 0),
+                "total" => $this->formatBoardTotalMarks($totalRaw),
+                "average" => $this->formatBoardAverageMarks($avgRaw),
                 "average_class" => $this->boardRemarkClassFromAverage(
                     $avgRaw,
                     $schoolType,
@@ -8333,8 +8512,8 @@ class ResultManagementController extends Controller
         // Trailing after subjects (full names, vertical)
         $trailingHeaders =
             $schoolType === "Secondary"
-                ? ["AVERAGE", "POSITION"]
-                : ["AVERAGE", "GRADE", "POSITION"];
+                ? ["TOTAL", "AVERAGE", "POSITION"]
+                : ["TOTAL", "AVERAGE", "GRADE", "POSITION"];
         $fixedCols = count($leadingHeaders);
         $summaryCols = count($trailingHeaders);
         $subjectBlockCols = count($subjectNames) * $subjectColSpan;
@@ -9072,10 +9251,15 @@ class ResultManagementController extends Controller
                 $colIndex += $subjectColSpan;
             }
 
-            // Trailing: AVERAGE, POSITION (Secondary) | AVERAGE, GRADE, POSITION (Primary)
+            // Trailing: TOTAL, AVERAGE, POSITION (Secondary) | TOTAL, AVERAGE, GRADE, POSITION (Primary)
             $avgRaw = (float) ($row["average_marks"] ?? 0);
+            $totalRaw = (float) ($row["total_marks"] ?? 0);
+            $totalLetter = Coordinate::stringFromColumnIndex($colIndex);
+            $line[] = $this->formatBoardTotalMarks($totalRaw);
+            $colIndex++;
             $avgLetter = Coordinate::stringFromColumnIndex($colIndex);
-            $line[] = number_format($avgRaw, 0);
+            $line[] = $this->formatBoardAverageMarks($avgRaw);
+            $colIndex++;
             if ($schoolType === "Secondary") {
                 $line[] = $item["position"];
             } else {
@@ -9134,13 +9318,14 @@ class ResultManagementController extends Controller
                 ->setHorizontal(Alignment::HORIZONTAL_LEFT);
         }
 
-        // COMBIE is column 5 (after SEX) for A-Level only; AVERAGE / POSITION at end
+        // COMBIE is column 5 (after SEX) for A-Level only; TOTAL / AVERAGE / POSITION at end
         $strmCol = $isALevelClass ? 5 : 0;
-        $avgCol = $fixedCols + $subjectBlockCols + 1;
+        $totalCol = $fixedCols + $subjectBlockCols + 1;
+        $avgCol = $totalCol + 1;
         $postCol =
             $schoolType === "Secondary"
                 ? $avgCol + 1
-                : $avgCol + 2; // Primary: AVERAGE, GRADE, POSITION
+                : $avgCol + 2; // Primary: TOTAL, AVERAGE, GRADE, POSITION
 
         for ($c = 1; $c <= $totalCols; $c++) {
             $colLetter = Coordinate::stringFromColumnIndex($c);
@@ -9153,6 +9338,8 @@ class ResultManagementController extends Controller
             } elseif ($strmCol > 0 && $c === $strmCol) {
                 // Combie — wider so labels fit
                 $sheet->getColumnDimension($colLetter)->setWidth(14);
+            } elseif ($c === $totalCol) {
+                $sheet->getColumnDimension($colLetter)->setWidth(11);
             } elseif ($c === $avgCol || $c === $postCol) {
                 $sheet->getColumnDimension($colLetter)->setWidth(8);
             } elseif ($c <= $fixedCols) {
