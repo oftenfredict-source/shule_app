@@ -578,8 +578,8 @@
             max-width: 100px !important;
         }
         body.individual-pdf .orm-stamp-block img {
-            max-height: 72px !important;
-            max-width: 72px !important;
+            max-height: 92px !important;
+            max-width: 92px !important;
             height: auto !important;
             width: auto !important;
         }
@@ -679,8 +679,8 @@
             min-height: 30px !important;
         }
         body.individual-pdf .student-sheet.density-loose .orm-stamp-block img {
-            max-height: 78px !important;
-            max-width: 78px !important;
+            max-height: 96px !important;
+            max-width: 96px !important;
         }
 
         /* Always show brand footer at bottom (even if watermark unchecked) */
@@ -2064,10 +2064,9 @@
                     <div class="sig-dot-line"></div>
                 @endif
             </td>
-            <td style="width:16%;" class="orm-box">
+            <td style="width:16%;" class="orm-box orm-stamp-cell">
                 @if($schoolStampBase64)
                     <div class="orm-stamp-block">
-                        <div class="stamp-label">Stamp</div>
                         <img src="{{ $schoolStampBase64 }}" alt="Stamp">
                     </div>
                 @else

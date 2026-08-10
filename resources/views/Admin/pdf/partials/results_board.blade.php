@@ -188,8 +188,20 @@
         text-align: center;
         overflow: visible;
     }
+    table.board-results th.v-stream {
+        width: 5.5%;
+        font-size: 9px;
+        font-weight: bold;
+        color: #5c2e0a;
+        letter-spacing: 0.3px;
+        padding: 4px 2px;
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap;
+        line-height: 1.1;
+        height: auto;
+    }
     table.board-results th.v { width: 2.5%; }
-    table.board-results th.v-stream { width: 2.5%; }
     table.board-results th.v-trail { width: 4%; }
     table.board-results th.v-trail.v-total { width: 5.8%; }
     table.board-results th.v-trail.v-avg { width: 4.6%; }
@@ -263,8 +275,14 @@
     }
     table.board-results td.stream-cell {
         font-size: 12px;
+        font-weight: bold;
         line-height: 1.1;
-        padding: 1px;
+        padding: 1px 2px;
+        text-align: center;
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        word-break: keep-all !important;
+        overflow: hidden !important;
     }
     /* TOTAL / AVERAGE — same font as marks; TOTAL wider so long values don't overlap */
     table.board-results td.board-num-cell {
@@ -621,7 +639,7 @@
                     @endif
                     <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
                     @if(!empty($board['showStream']))
-                        <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
+                        <th class="v-stream">{{ strtoupper($board['streamHeader'] ?? 'COMBINATION') }}</th>
                     @endif
                     @if($isSecondary)
                         <th class="v">{!! pdfBoardVerticalLabel('POINT') !!}</th>
