@@ -153,6 +153,16 @@
             }
         }
 
+        if (!function_exists('pdfFormatAverageMarks')) {
+            /** Average: always 2 decimal places (no integer approximation). */
+            function pdfFormatAverageMarks($average): string {
+                if ($average === null || $average === '') {
+                    return '—';
+                }
+                return number_format((float) $average, 2, '.', '');
+            }
+        }
+
         if (!function_exists('getSubjectRemarkInfo')) {
             function getSubjectRemarkInfo($grade, $isSecondary, $isALevel = false) {
                 $normalizedGrade = strtoupper(trim((string) ($grade ?? '')));
@@ -1545,11 +1555,11 @@
                                     @if($isIncompleteSubj)
                                         —
                                     @elseif(isset($subj['average']) && $subj['average'] !== null && $subj['average'] !== '')
-                                        {{ number_format((float)$subj['average'], 0) }}
+                                        {{ pdfFormatAverageMarks($subj['average']) }}
                                     @elseif($rowCount > 0)
-                                        {{ number_format($rowTotal / $rowCount, 0) }}
+                                        {{ pdfFormatAverageMarks($rowTotal / $rowCount) }}
                                     @elseif(isset($subj['marks']) && $subj['marks'] !== null && $subj['marks'] !== '')
-                                        {{ number_format((float)$subj['marks'], 0) }}
+                                        {{ pdfFormatAverageMarks($subj['marks']) }}
                                     @else
                                         —
                                     @endif
@@ -1587,7 +1597,7 @@
                         </td>
                         <td>
                             <span class="sg-k">Wastani</span> :
-                            <span class="sg-v">{{ number_format($detailedSingleData['averageMarks'] ?? 0, 0) }}</span>
+                            <span class="sg-v">{{ pdfFormatAverageMarks($detailedSingleData['averageMarks'] ?? 0) }}</span>
                         </td>
                         <td>
                             <span class="sg-k">Daraja</span> :
@@ -1805,9 +1815,9 @@
                                     @if($isIncompleteSubj)
                                         —
                                     @elseif(isset($subj['average']) && $subj['average'] !== null && $subj['average'] !== '')
-                                        {{ number_format((float)$subj['average'], 0) }}
+                                        {{ pdfFormatAverageMarks($subj['average']) }}
                                     @elseif(isset($subj['marks']) && $subj['marks'] !== null && $subj['marks'] !== '')
-                                        {{ number_format((float)$subj['marks'], 0) }}
+                                        {{ pdfFormatAverageMarks($subj['marks']) }}
                                     @else
                                         —
                                     @endif
@@ -1820,7 +1830,7 @@
                 </table>
                 <div class="result-bar">
                     <strong>Jumla:</strong> {{ number_format($detailedSingleData['totalMarks'] ?? 0, 0) }} &nbsp;|&nbsp;
-                    <strong>Wastani:</strong> {{ number_format($detailedSingleData['averageMarks'] ?? 0, 0) }} &nbsp;|&nbsp;
+                    <strong>Wastani:</strong> {{ pdfFormatAverageMarks($detailedSingleData['averageMarks'] ?? 0) }} &nbsp;|&nbsp;
                     <strong>Daraja:</strong> {{ $detailedSingleData['grade'] ?? 'N/A' }}
                     @if(isset($detailedSingleData['division']))
                         &nbsp;|&nbsp; <strong>Divisheni:</strong> {{ $detailedSingleData['division'] }}
@@ -1853,7 +1863,7 @@
                 <tbody>
                     <tr>
                         <td class="bold">{{ number_format($result['total_marks'], 0) }}</td>
-                        <td class="tc bold">{{ number_format($result['average_marks'], 0) }}</td>
+                        <td class="tc bold">{{ pdfFormatAverageMarks($result['average_marks'] ?? 0) }}</td>
                         <td class="tc"><span class="badge-pale">{{ $result['grade'] ?? 'N/A' }}</span></td>
                         <td class="tc"><span class="badge-red">{{ $result['division'] ?? 'N/A' }}</span></td>
                         <td class="tc"><span class="badge-grn">{{ $result['position'] ?? 'N/A' }}</span></td>
@@ -1935,7 +1945,7 @@
                 </table>
                 <div class="result-bar">
                     <strong>Jumla:</strong> {{ number_format($examResult['total_marks'], 0) }} &nbsp;|&nbsp;
-                    <strong>Wastani:</strong> {{ number_format($examResult['average_marks'], 0) }} &nbsp;|&nbsp;
+                    <strong>Wastani:</strong> {{ pdfFormatAverageMarks($examResult['average_marks'] ?? 0) }} &nbsp;|&nbsp;
                     <strong>Daraja:</strong> {{ $examResult['grade'] ?? 'N/A' }} &nbsp;|&nbsp;
                     <strong>Divisheni:</strong> {{ $examResult['division'] ?? 'N/A' }}
                 </div>
