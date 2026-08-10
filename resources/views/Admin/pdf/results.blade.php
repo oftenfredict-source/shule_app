@@ -501,24 +501,29 @@
         }
         body.individual-pdf .character-assessment-table th,
         body.individual-pdf .character-assessment-table td {
-            padding: 1px 5px !important;
-            font-size: 11px !important;
-            line-height: 1.12 !important;
+            padding: 1px 4px !important;
+            font-size: 10px !important;
+            line-height: 1.1 !important;
         }
-        body.individual-pdf .character-assessment-table td.ca-key {
-            text-align: left !important;
-            width: 72% !important;
-            font-weight: bold !important;
-        }
-        body.individual-pdf .character-assessment-table td.ca-val {
+        /* Horizontal CA: one block (labels row + grades row) — saves height, keeps 1 page */
+        body.individual-pdf .character-assessment-table.character-assessment-hz td.ca-key {
             text-align: center !important;
-            width: 28% !important;
+            width: auto !important;
+            font-weight: bold !important;
+            font-size: 8.5px !important;
+            text-transform: uppercase;
+            background: #f8f9fa;
+        }
+        body.individual-pdf .character-assessment-table.character-assessment-hz td.ca-val {
+            text-align: center !important;
+            width: auto !important;
             font-weight: bold !important;
             color: #940000 !important;
+            font-size: 11px !important;
         }
         body.individual-pdf .official-remarks-table {
             margin: 2px 0 0 0 !important;
-            page-break-before: avoid;
+            page-break-before: auto; /* avoid/inside-avoid ejects remarks to page 2 when space is tight */
             page-break-inside: auto;
             font-size: 10.5px !important;
         }
@@ -534,7 +539,7 @@
             margin-bottom: 1px !important;
         }
         body.individual-pdf .official-remarks-table .orm-body {
-            min-height: 18px !important;
+            min-height: 14px !important;
             font-size: 10.5px !important;
             line-height: 1.15 !important;
         }
@@ -543,11 +548,11 @@
             margin-top: 1px !important;
         }
         body.individual-pdf .orm-box {
-            min-height: 42px !important;
+            min-height: 36px !important;
         }
         body.individual-pdf .orm-teacher-sign,
         body.individual-pdf .orm-head-sign {
-            min-height: 22px !important;
+            min-height: 20px !important;
             margin-bottom: 0 !important;
         }
         body.individual-pdf .orm-teacher-sign img {
@@ -559,8 +564,8 @@
             max-width: 100px !important;
         }
         body.individual-pdf .orm-stamp-block img {
-            max-height: 52px !important;
-            max-width: 52px !important;
+            max-height: 48px !important;
+            max-width: 48px !important;
             height: auto !important;
             width: auto !important;
         }
@@ -569,112 +574,27 @@
             margin-top: 0 !important;
         }
 
-        /* --- Density: mid (11–13 subjects) — slight expand, still 1 page --- */
-        body.individual-pdf .student-sheet.density-mid .header {
-            margin-bottom: 3px !important;
-            padding-bottom: 3px !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .student-photo-top {
-            margin: 0 0 2px 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .report-title {
-            margin-top: 3px !important;
-            padding: 3px 4px !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .info-section,
-        body.individual-pdf .student-sheet.density-mid .remark-color-legend {
-            margin-bottom: 3px !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .remark-color-legend {
-            margin: 3px 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .section-title {
-            margin-top: 3px !important;
-            margin-bottom: 2px !important;
-            padding-bottom: 2px !important;
-        }
-        body.individual-pdf .student-sheet.density-mid table.data th,
-        body.individual-pdf .student-sheet.density-mid table.data-table th {
-            padding: 2px 2px !important;
-            line-height: 1.12 !important;
-        }
+        /* Density expands ONLY padding slightly — never enough to force page 2 */
         body.individual-pdf .student-sheet.density-mid table.data td,
         body.individual-pdf .student-sheet.density-mid table.data-table td,
         body.individual-pdf .student-sheet.density-mid table.data.term-report-card td.exam-marks,
         body.individual-pdf .student-sheet.density-mid table.data.term-report-card td.exam-grade,
         body.individual-pdf .student-sheet.density-mid table.data td.daraja-cell {
             padding: 2px 2px !important;
-            line-height: 1.15 !important;
         }
-        body.individual-pdf .student-sheet.density-mid .summary-grid td {
-            padding: 3px 3px !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .grade-key-table th,
-        body.individual-pdf .student-sheet.density-mid .grade-key-table td {
-            padding: 2px 3px !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .character-assessment-table th,
         body.individual-pdf .student-sheet.density-mid .character-assessment-table td {
-            padding: 2px 5px !important;
-            line-height: 1.15 !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .official-remarks-table {
-            margin: 3px 0 0 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .official-remarks-table td {
-            padding: 3px 3px !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .official-remarks-table .orm-body {
-            min-height: 22px !important;
+            padding: 2px 4px !important;
         }
         body.individual-pdf .student-sheet.density-mid .orm-box {
-            min-height: 48px !important;
+            min-height: 40px !important;
         }
-        body.individual-pdf .student-sheet.density-mid .orm-teacher-sign,
-        body.individual-pdf .student-sheet.density-mid .orm-head-sign {
-            min-height: 26px !important;
-        }
-        body.individual-pdf .student-sheet.density-mid .sheet-fill {
-            height: 10px;
+        body.individual-pdf .student-sheet.density-mid .official-remarks-table .orm-body {
+            min-height: 16px !important;
         }
 
-        /* --- Density: comfy (7–10 subjects) --- */
-        body.individual-pdf .student-sheet.density-comfy .header {
-            margin-bottom: 4px !important;
-            padding-bottom: 4px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .student-photo-top {
-            margin: 0 0 3px 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .report-title {
-            margin-top: 4px !important;
-            padding: 4px 5px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .info-section {
-            margin-bottom: 4px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .info-table td {
-            padding: 3px 4px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .remark-color-legend {
-            margin: 4px 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .remark-color-block {
-            padding: 3px 4px !important;
-        }
         body.individual-pdf .student-sheet.density-comfy .section-title {
-            margin-top: 5px !important;
-            margin-bottom: 3px !important;
-            padding-bottom: 2px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy table.data,
-        body.individual-pdf .student-sheet.density-comfy table.data-table {
-            margin-bottom: 4px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy table.data th,
-        body.individual-pdf .student-sheet.density-comfy table.data-table th {
-            padding: 3px 2px !important;
-            line-height: 1.15 !important;
+            margin-top: 3px !important;
+            margin-bottom: 2px !important;
         }
         body.individual-pdf .student-sheet.density-comfy table.data td,
         body.individual-pdf .student-sheet.density-comfy table.data-table td,
@@ -682,178 +602,71 @@
         body.individual-pdf .student-sheet.density-comfy table.data.term-report-card td.exam-grade,
         body.individual-pdf .student-sheet.density-comfy table.data td.daraja-cell {
             padding: 3px 2px !important;
-            line-height: 1.2 !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy table.data.term-report-card th.exam-group {
-            padding: 3px 1px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy table.data.term-report-card th.exam-sub {
-            padding: 2px 1px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .summary-grid {
-            margin: 4px 0 !important;
+            line-height: 1.18 !important;
         }
         body.individual-pdf .student-sheet.density-comfy .summary-grid td {
-            padding: 4px 4px !important;
-            line-height: 1.2 !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .grade-key-table {
-            margin: 4px 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .grade-key-table th,
-        body.individual-pdf .student-sheet.density-comfy .grade-key-table td {
             padding: 3px 3px !important;
-            line-height: 1.15 !important;
         }
-        body.individual-pdf .student-sheet.density-comfy .character-assessment-table {
-            margin: 3px 0 4px 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .character-assessment-table th,
         body.individual-pdf .student-sheet.density-comfy .character-assessment-table td {
-            padding: 4px 6px !important;
-            line-height: 1.2 !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .official-remarks-table {
-            margin: 5px 0 0 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .official-remarks-table td {
-            padding: 5px 4px !important;
-            line-height: 1.2 !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .official-remarks-table .orm-title,
-        body.individual-pdf .student-sheet.density-comfy .official-remarks-table .orm-title-dark {
-            margin-bottom: 3px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .official-remarks-table .orm-body {
-            min-height: 32px !important;
-            line-height: 1.25 !important;
+            padding: 3px 4px !important;
         }
         body.individual-pdf .student-sheet.density-comfy .orm-box {
-            min-height: 68px !important;
+            min-height: 48px !important;
+        }
+        body.individual-pdf .student-sheet.density-comfy .official-remarks-table .orm-body {
+            min-height: 22px !important;
         }
         body.individual-pdf .student-sheet.density-comfy .orm-teacher-sign,
         body.individual-pdf .student-sheet.density-comfy .orm-head-sign {
-            min-height: 34px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .orm-teacher-sign img,
-        body.individual-pdf .student-sheet.density-comfy .orm-head-sign img {
-            max-height: 30px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .orm-stamp-block img {
-            max-height: 60px !important;
-            max-width: 60px !important;
-        }
-        body.individual-pdf .student-sheet.density-comfy .sheet-fill {
-            height: 36px;
+            min-height: 26px !important;
         }
 
-        /* --- Density: loose (≤6 subjects) — fill page, no next-page spill --- */
-        body.individual-pdf .student-sheet.density-loose .header {
-            margin-bottom: 6px !important;
-            padding-bottom: 5px !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .student-photo-top {
-            margin: 0 0 4px 0 !important;
-        }
         body.individual-pdf .student-sheet.density-loose .report-title {
-            margin-top: 5px !important;
-            padding: 5px 6px !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .info-section {
-            margin-bottom: 5px !important;
+            margin-top: 3px !important;
+            padding: 3px 5px !important;
         }
         body.individual-pdf .student-sheet.density-loose .info-table td {
-            padding: 4px 5px !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .remark-color-legend {
-            margin: 5px 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .remark-color-block {
-            padding: 4px 5px !important;
+            padding: 3px 4px !important;
         }
         body.individual-pdf .student-sheet.density-loose .section-title {
-            margin-top: 6px !important;
-            margin-bottom: 4px !important;
-            padding-bottom: 3px !important;
-        }
-        body.individual-pdf .student-sheet.density-loose table.data,
-        body.individual-pdf .student-sheet.density-loose table.data-table {
-            margin-bottom: 5px !important;
+            margin-top: 4px !important;
+            margin-bottom: 2px !important;
         }
         body.individual-pdf .student-sheet.density-loose table.data th,
         body.individual-pdf .student-sheet.density-loose table.data-table th {
-            padding: 4px 3px !important;
-            line-height: 1.2 !important;
+            padding: 2px 2px !important;
         }
         body.individual-pdf .student-sheet.density-loose table.data td,
         body.individual-pdf .student-sheet.density-loose table.data-table td,
         body.individual-pdf .student-sheet.density-loose table.data.term-report-card td.exam-marks,
         body.individual-pdf .student-sheet.density-loose table.data.term-report-card td.exam-grade,
         body.individual-pdf .student-sheet.density-loose table.data td.daraja-cell {
-            padding: 5px 3px !important;
-            line-height: 1.25 !important;
-        }
-        body.individual-pdf .student-sheet.density-loose table.data.term-report-card th.exam-group {
             padding: 4px 2px !important;
-        }
-        body.individual-pdf .student-sheet.density-loose table.data.term-report-card th.exam-sub {
-            padding: 3px 1px !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .summary-grid {
-            margin: 5px 0 !important;
+            line-height: 1.2 !important;
         }
         body.individual-pdf .student-sheet.density-loose .summary-grid td {
-            padding: 5px 5px !important;
-            line-height: 1.25 !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .grade-key-table {
-            margin: 5px 0 !important;
+            padding: 4px 4px !important;
         }
         body.individual-pdf .student-sheet.density-loose .grade-key-table th,
         body.individual-pdf .student-sheet.density-loose .grade-key-table td {
-            padding: 4px 4px !important;
-            line-height: 1.2 !important;
+            padding: 2px 3px !important;
         }
-        body.individual-pdf .student-sheet.density-loose .character-assessment-table {
-            margin: 4px 0 6px 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .character-assessment-table th,
         body.individual-pdf .student-sheet.density-loose .character-assessment-table td {
-            padding: 5px 8px !important;
-            line-height: 1.25 !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .official-remarks-table {
-            margin: 6px 0 0 0 !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .official-remarks-table td {
-            padding: 6px 5px !important;
-            line-height: 1.25 !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .official-remarks-table .orm-title,
-        body.individual-pdf .student-sheet.density-loose .official-remarks-table .orm-title-dark {
-            margin-bottom: 4px !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .official-remarks-table .orm-body {
-            min-height: 44px !important;
-            line-height: 1.3 !important;
+            padding: 3px 5px !important;
         }
         body.individual-pdf .student-sheet.density-loose .orm-box {
-            min-height: 90px !important;
+            min-height: 56px !important;
+        }
+        body.individual-pdf .student-sheet.density-loose .official-remarks-table .orm-body {
+            min-height: 28px !important;
         }
         body.individual-pdf .student-sheet.density-loose .orm-teacher-sign,
         body.individual-pdf .student-sheet.density-loose .orm-head-sign {
-            min-height: 40px !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .orm-teacher-sign img,
-        body.individual-pdf .student-sheet.density-loose .orm-head-sign img {
-            max-height: 34px !important;
+            min-height: 30px !important;
         }
         body.individual-pdf .student-sheet.density-loose .orm-stamp-block img {
-            max-height: 64px !important;
-            max-width: 64px !important;
-        }
-        body.individual-pdf .student-sheet.density-loose .sheet-fill {
-            height: 72px;
+            max-height: 52px !important;
+            max-width: 52px !important;
         }
 
         /* Always show brand footer at bottom (even if watermark unchecked) */
@@ -2118,29 +1931,35 @@
         <p style="color:#940000; font-style:italic; margin-top:10px;">No result data found for this student.</p>
     @endif
 
-    {{-- Character assessment: vertical rows (KEY | VALUE) --}}
+    {{-- Character assessment: horizontal (labels + grades) — keeps 1 page --}}
     @if(isset($characterAssessments) && isset($characterAssessments[$student->studentID]) && count($characterAssessments[$student->studentID]) > 0)
         @php
             $caRows = collect($characterAssessments[$student->studentID])->values();
         @endphp
         <div class="section-title">Tathmini ya Tabia na Mwenendo</div>
-        <table class="data character-assessment-table character-assessment-vt" style="margin-bottom: 3px; table-layout: fixed; width: 100%;">
+        <table class="data character-assessment-table character-assessment-hz" style="margin-bottom: 2px; table-layout: fixed; width: 100%;">
             <tbody>
-                @foreach($caRows as $ca)
-                    @php
-                        $caKey = strtoupper(trim((string) ($ca->category->name ?? 'N/A')));
-                        $caVal = $ca->choice->choice_name ?? ($ca->description ?: 'N/A');
-                    @endphp
-                    <tr>
+                <tr>
+                    @foreach($caRows as $ca)
+                        @php
+                            $caKey = strtoupper(trim((string) ($ca->category->name ?? 'N/A')));
+                        @endphp
                         <td class="ca-key">{{ $caKey }}</td>
+                    @endforeach
+                </tr>
+                <tr>
+                    @foreach($caRows as $ca)
+                        @php
+                            $caVal = $ca->choice->choice_name ?? ($ca->description ?: 'N/A');
+                        @endphp
                         <td class="ca-val tc">{{ $caVal }}</td>
-                    </tr>
-                @endforeach
+                    @endforeach
+                </tr>
             </tbody>
         </table>
     @endif
 
-    {{-- ADA + remarks side-by-side (saves height for 1 landscape page) --}}
+    {{-- ADA + remarks side-by-side --}}
     @php
         $feeSum = ($studentFeeSummaries ?? [])[$student->studentID] ?? null;
         $hasFeeBill = !empty($feeSum['has_bill']);
@@ -2161,7 +1980,6 @@
         $teacherComment = getAutomaticComment($commentVal);
         $headComment = getAutomaticHeadComment($commentVal);
     @endphp
-    <div class="sheet-fill" aria-hidden="true"></div>
     <table class="official-remarks-table">
         <tr>
             <td style="width:16%;">
