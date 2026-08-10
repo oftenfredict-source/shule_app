@@ -282,15 +282,23 @@ class AppServiceProvider extends ServiceProvider
             } elseif ($user_type == 'Staff') {
                 // Initialize staff notifications and permissions
                 $teacherNotifications = collect();
+                $teacherPermissions = collect();
+                $teacherPermissionsByCategory = collect();
                 $staffPermissionsByCategory = collect();
                 try {
                     $staffID = Session::get('staffID');
                     if ($staffID) {
                         $staff = \App\Models\OtherStaff::find($staffID);
                         if ($staff && $staff->profession_id) {
-                            $staffPermissionsByCategory = \App\Models\StaffPermission::where('profession_id', $staff->profession_id)
-                                ->get()
-                                ->groupBy('permission_category');
+                            $staffPermissionsData = \App\Models\StaffPermission::where('profession_id', $staff->profession_id)
+                                ->get(['name', 'permission_category']);
+                            // Expose as teacherPermissions so Blade/JS gates work the same for Staff
+                            $teacherPermissions = $staffPermissionsData->pluck('name')->unique()->values();
+                            $teacherPermissionsByCategory = $staffPermissionsData->groupBy('permission_category')
+                                ->map(function ($perms) {
+                                    return $perms->pluck('name')->unique()->values();
+                                });
+                            $staffPermissionsByCategory = $teacherPermissionsByCategory;
                         }
                     }
 

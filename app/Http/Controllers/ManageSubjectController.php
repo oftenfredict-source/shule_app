@@ -54,18 +54,8 @@ class ManageSubjectController extends Controller
             
             $roleIds = $roles->pluck('roleID')->toArray();
             
-            // Define permission aliases for backward compatibility and consistency
-            $aliases = [
-                'create_subject' => ['create_subject', 'subject_create'],
-                'edit_subject' => ['edit_subject', 'update_subject', 'subject_update'],
-                'delete_subject' => ['delete_subject', 'subject_delete'],
-                'activate_subject' => ['activate_subject', 'update_subject', 'subject_update'],
-                'view_class_subjects' => ['view_class_subjects', 'subject_read_only', 'subject_create', 'subject_update', 'subject_delete', 'create_class_subject', 'update_class_subject', 'delete_class_subject', 'create_subject', 'edit_subject', 'update_subject', 'delete_subject'],
-                'create_class_subject' => ['create_class_subject', 'subject_create'],
-                'update_class_subject' => ['update_class_subject', 'subject_update'],
-                'delete_class_subject' => ['delete_class_subject', 'subject_delete'],
-                'approve_created_subject' => ['approve_created_subject', 'subject_update'],
-            ];
+            // Define permission aliases for backward compatibility and hierarchy
+            $aliases = $this->subjectPermissionAliases();
 
             $checkPermissions = [$permissionName];
             if (isset($aliases[$permissionName])) {
@@ -81,7 +71,7 @@ class ManageSubjectController extends Controller
             return $hasPermission;
         }
 
-        // For staff, check profession permissions
+        // For staff, check profession permissions (same aliases as teachers)
         if ($userType === 'Staff') {
             $staffID = Session::get('staffID');
             if (!$staffID) {
@@ -96,13 +86,43 @@ class ManageSubjectController extends Controller
                 return false;
             }
 
+            $aliases = $this->subjectPermissionAliases();
+            $checkPermissions = [$permissionName];
+            if (isset($aliases[$permissionName])) {
+                $checkPermissions = array_unique(array_merge($checkPermissions, $aliases[$permissionName]));
+            }
+
             return DB::table('staff_permissions')
                 ->where('profession_id', $professionId)
-                ->where('name', $permissionName)
+                ->whereIn('name', $checkPermissions)
                 ->exists();
         }
         
         return false;
+    }
+
+    /**
+     * Subject permission aliases / hierarchy (Blade + JS must stay aligned).
+     */
+    private function subjectPermissionAliases(): array
+    {
+        return [
+            'create_subject' => ['create_subject', 'subject_create', 'subject_update', 'subject_delete'],
+            'edit_subject' => ['edit_subject', 'update_subject', 'subject_update', 'subject_delete', 'update_class_subject'],
+            'delete_subject' => ['delete_subject', 'subject_delete', 'delete_class_subject'],
+            'activate_subject' => ['activate_subject', 'activate_class_subject', 'update_subject', 'subject_update', 'subject_delete', 'edit_subject'],
+            'view_class_subjects' => [
+                'view_class_subjects', 'view_subject', 'subject_read_only',
+                'subject_create', 'subject_update', 'subject_delete',
+                'create_class_subject', 'update_class_subject', 'delete_class_subject', 'activate_class_subject',
+                'create_subject', 'edit_subject', 'update_subject', 'delete_subject', 'manage_class_subject',
+            ],
+            'create_class_subject' => ['create_class_subject', 'subject_create', 'subject_update', 'subject_delete', 'create_subject'],
+            'update_class_subject' => ['update_class_subject', 'subject_update', 'subject_delete', 'edit_subject', 'update_subject'],
+            'delete_class_subject' => ['delete_class_subject', 'subject_delete', 'delete_subject'],
+            'activate_class_subject' => ['activate_class_subject', 'activate_subject', 'subject_update', 'subject_delete', 'update_class_subject', 'update_subject', 'edit_subject'],
+            'approve_created_subject' => ['approve_created_subject', 'subject_update', 'subject_delete'],
+        ];
     }
 
     /**

@@ -300,14 +300,34 @@
                     </div>
 
                     @php
-                        $perms = $teacherPermissions ?? collect();
+                        $perms = collect($teacherPermissions ?? []);
                         $isAdmin = ($user_type ?? '') == 'Admin';
-                        $canViewClassSubjects = $isAdmin || $perms->intersect(['view_class_subjects', 'subject_read_only', 'create_class_subject'])->isNotEmpty();
-                        $canCreateClassSubject = $isAdmin || $perms->contains('create_class_subject') || $perms->contains('subject_create');
-                        $canCreateSubject = $isAdmin || $perms->contains('create_subject') || $perms->contains('subject_create');
-                        $canEditSubject = $isAdmin || $perms->intersect(['edit_subject', 'update_subject', 'subject_update'])->isNotEmpty();
-                        $canDeleteSubject = $isAdmin || $perms->intersect(['delete_subject', 'subject_delete'])->isNotEmpty();
-                        $canActivateSubject = $isAdmin || $perms->intersect(['activate_subject', 'subject_update'])->isNotEmpty();
+                        // Match JS/controller hierarchy: any subject modify/read permission grants view
+                        $canViewClassSubjects = $isAdmin || $perms->intersect([
+                            'view_class_subjects', 'view_subject', 'subject_read_only',
+                            'subject_create', 'subject_update', 'subject_delete',
+                            'create_subject', 'edit_subject', 'update_subject', 'delete_subject',
+                            'create_class_subject', 'update_class_subject', 'delete_class_subject',
+                            'activate_class_subject', 'manage_class_subject',
+                        ])->isNotEmpty();
+                        $canCreateClassSubject = $isAdmin || $perms->intersect([
+                            'create_class_subject', 'subject_create', 'subject_update', 'subject_delete',
+                            'create_subject',
+                        ])->isNotEmpty();
+                        $canCreateSubject = $isAdmin || $perms->intersect([
+                            'create_subject', 'subject_create', 'subject_update', 'subject_delete',
+                        ])->isNotEmpty();
+                        $canEditSubject = $isAdmin || $perms->intersect([
+                            'edit_subject', 'update_subject', 'subject_update', 'subject_delete',
+                            'update_class_subject',
+                        ])->isNotEmpty();
+                        $canDeleteSubject = $isAdmin || $perms->intersect([
+                            'delete_subject', 'subject_delete', 'delete_class_subject',
+                        ])->isNotEmpty();
+                        $canActivateSubject = $isAdmin || $perms->intersect([
+                            'activate_subject', 'activate_class_subject', 'subject_update', 'subject_delete',
+                            'update_subject', 'edit_subject',
+                        ])->isNotEmpty();
                         $isSecondarySchool = isset($school_details) && strcasecmp((string) ($school_details->school_type ?? ''), 'Secondary') === 0;
                     @endphp
 
@@ -1459,32 +1479,37 @@
             
             // --- SUBJECT MANAGEMENT HIERARCHY ---
             
+            // Normalize to array (Laravel Collection JSON is usually a list)
+            if (!Array.isArray(userPermissions)) {
+                userPermissions = Object.values(userPermissions || {});
+            }
+
             // 1. Hierarchy for View Class Subjects: any modify or read_only permission grants view
             if (permissionName === 'view_class_subjects' || permissionName === 'view_subject' || permissionName === 'subject_read_only') {
                 const viewPerms = [
                     'subject_create', 'subject_update', 'subject_delete', 'subject_read_only',
                     'create_subject', 'edit_subject', 'update_subject', 'delete_subject',
                     'create_class_subject', 'update_class_subject', 'delete_class_subject',
-                    'manage_class_subject'
+                    'activate_class_subject', 'manage_class_subject'
                 ];
                 return userPermissions.some(p => viewPerms.includes(p));
             }
             
             // 2. Hierarchy for Create: subject_create or any broad modify permission
             if (permissionName === 'create_class_subject' || permissionName === 'create_subject' || permissionName === 'subject_create') {
-                const createPerms = ['subject_create', 'subject_update', 'subject_delete'];
+                const createPerms = ['subject_create', 'subject_update', 'subject_delete', 'create_class_subject', 'create_subject'];
                 return userPermissions.some(p => createPerms.includes(p));
             }
             
             // 3. Hierarchy for Update: subject_update or higher delete permission
-            if (permissionName === 'update_class_subject' || permissionName === 'edit_subject' || permissionName === 'update_subject' || permissionName === 'subject_update' || permissionName === 'activate_class_subject') {
-                const updatePerms = ['subject_update', 'subject_delete'];
+            if (permissionName === 'update_class_subject' || permissionName === 'edit_subject' || permissionName === 'update_subject' || permissionName === 'subject_update' || permissionName === 'activate_class_subject' || permissionName === 'activate_subject') {
+                const updatePerms = ['subject_update', 'subject_delete', 'update_class_subject', 'edit_subject', 'update_subject', 'activate_class_subject', 'activate_subject'];
                 return userPermissions.some(p => updatePerms.includes(p));
             }
             
             // 4. Hierarchy for Delete: subject_delete
             if (permissionName === 'delete_class_subject' || permissionName === 'delete_subject' || permissionName === 'subject_delete') {
-                const deletePerms = ['subject_delete'];
+                const deletePerms = ['subject_delete', 'delete_class_subject', 'delete_subject'];
                 return userPermissions.some(p => deletePerms.includes(p));
             }
             
