@@ -505,21 +505,22 @@
             font-size: 10px !important;
             line-height: 1.1 !important;
         }
-        /* Horizontal CA: one block (labels row + grades row) — saves height, keeps 1 page */
-        body.individual-pdf .character-assessment-table.character-assessment-hz td.ca-key {
+        /* Horizontal CA: key + value in one cell (e.g. DISCIPLINE: A) */
+        body.individual-pdf .character-assessment-table.character-assessment-hz td.ca-cell {
             text-align: center !important;
             width: auto !important;
-            font-weight: bold !important;
-            font-size: 8.5px !important;
-            text-transform: uppercase;
-            background: #f8f9fa;
+            font-size: 9.5px !important;
+            padding: 2px 3px !important;
+            white-space: nowrap !important;
         }
-        body.individual-pdf .character-assessment-table.character-assessment-hz td.ca-val {
-            text-align: center !important;
-            width: auto !important;
+        body.individual-pdf .character-assessment-table.character-assessment-hz .ca-key {
+            font-weight: bold !important;
+            text-transform: uppercase;
+            color: #333 !important;
+        }
+        body.individual-pdf .character-assessment-table.character-assessment-hz .ca-val {
             font-weight: bold !important;
             color: #940000 !important;
-            font-size: 11px !important;
         }
         body.individual-pdf .official-remarks-table {
             margin: 2px 0 0 0 !important;
@@ -564,8 +565,8 @@
             max-width: 100px !important;
         }
         body.individual-pdf .orm-stamp-block img {
-            max-height: 48px !important;
-            max-width: 48px !important;
+            max-height: 72px !important;
+            max-width: 72px !important;
             height: auto !important;
             width: auto !important;
         }
@@ -665,8 +666,8 @@
             min-height: 30px !important;
         }
         body.individual-pdf .student-sheet.density-loose .orm-stamp-block img {
-            max-height: 52px !important;
-            max-width: 52px !important;
+            max-height: 78px !important;
+            max-width: 78px !important;
         }
 
         /* Always show brand footer at bottom (even if watermark unchecked) */
@@ -1931,7 +1932,7 @@
         <p style="color:#940000; font-style:italic; margin-top:10px;">No result data found for this student.</p>
     @endif
 
-    {{-- Character assessment: horizontal (labels + grades) — keeps 1 page --}}
+    {{-- Character assessment: horizontal — key + value in one cell (e.g. DISCIPLINE: A) --}}
     @if(isset($characterAssessments) && isset($characterAssessments[$student->studentID]) && count($characterAssessments[$student->studentID]) > 0)
         @php
             $caRows = collect($characterAssessments[$student->studentID])->values();
@@ -1943,16 +1944,9 @@
                     @foreach($caRows as $ca)
                         @php
                             $caKey = strtoupper(trim((string) ($ca->category->name ?? 'N/A')));
-                        @endphp
-                        <td class="ca-key">{{ $caKey }}</td>
-                    @endforeach
-                </tr>
-                <tr>
-                    @foreach($caRows as $ca)
-                        @php
                             $caVal = $ca->choice->choice_name ?? ($ca->description ?: 'N/A');
                         @endphp
-                        <td class="ca-val tc">{{ $caVal }}</td>
+                        <td class="ca-cell tc"><span class="ca-key">{{ $caKey }}</span>: <span class="ca-val">{{ $caVal }}</span></td>
                     @endforeach
                 </tr>
             </tbody>
