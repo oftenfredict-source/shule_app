@@ -189,22 +189,14 @@
         overflow: visible;
     }
     table.board-results th.v { width: 2.5%; }
-    /* COMBINATION header — horizontal (not rotated), wider so codes fit */
+    /* COMBIE/COMBINATION: vertical header like SEX/POINT; column wide enough for horizontal codes (PMC) */
     table.board-results th.v-stream {
-        width: 5.2%;
-        font-size: 8.5px;
-        font-weight: bold;
-        color: #5c2e0a;
-        letter-spacing: 0.2px;
-        padding: 3px 1px;
-        text-align: center;
-        vertical-align: middle;
-        white-space: nowrap !important;
-        word-wrap: normal !important;
-        word-break: keep-all !important;
-        line-height: 1.1;
-        height: auto;
-        overflow: hidden;
+        width: 4.2%;
+        font-size: 14px;
+        vertical-align: bottom;
+        padding: 2px 1px 0 1px;
+        height: 78px;
+        overflow: visible;
     }
     table.board-results th.v-trail { width: 4%; }
     table.board-results th.v-trail.v-total { width: 5.8%; }
@@ -660,7 +652,7 @@
                     @endif
                     <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
                     @if(!empty($board['showStream']))
-                        <th class="v-stream">{{ strtoupper($board['streamHeader'] ?? 'COMBINATION') }}</th>
+                        <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
                     @endif
                     @if($isSecondary)
                         <th class="v">{!! pdfBoardVerticalLabel('POINT') !!}</th>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\School;
+use App\Models\SchoolRegistrationRequest;
 use App\Models\SchoolAttendanceSmsSchedule;
 use App\Models\SchoolFingerprintAttendanceSmsSchedule;
 use App\Models\ClassModel;
@@ -200,6 +201,80 @@ class SuperAdminController extends Controller
             'schools', 'studentsBySchool', 'teachersBySchool', 'staffBySchool', 
             'parentsBySchool', 'classesBySchool', 'subclassesBySchool'
         ));
+    }
+
+    /**
+     * Public school registration requests (landing form) — pending / ready / rejected.
+     * Verify → ready only; does NOT create login credentials.
+     */
+    public function schoolRegistrationRequests(Request $request)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $status = $request->get('status', 'pending');
+        $query = SchoolRegistrationRequest::query()->orderByDesc('id');
+        if (in_array($status, ['pending', 'ready', 'rejected'], true)) {
+            $query->where('status', $status);
+        }
+
+        $requests = $query->paginate(30)->withQueryString();
+        $counts = [
+            'pending' => SchoolRegistrationRequest::where('status', 'pending')->count(),
+            'ready' => SchoolRegistrationRequest::where('status', 'ready')->count(),
+            'rejected' => SchoolRegistrationRequest::where('status', 'rejected')->count(),
+            'all' => SchoolRegistrationRequest::count(),
+        ];
+        $publicRegisterUrl = 'https://test.shulexpert.com/register-school';
+
+        return view('SuperAdmin.school_registration_requests', compact(
+            'requests',
+            'counts',
+            'status',
+            'publicRegisterUrl'
+        ));
+    }
+
+    public function verifySchoolRegistrationRequest(Request $request, $id)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $row = SchoolRegistrationRequest::findOrFail($id);
+        if ($row->status === 'ready') {
+            return back()->with('success', 'Request is already marked Ready.');
+        }
+
+        $row->status = 'ready';
+        $row->verified_at = now();
+        $row->verified_by = Session::get('userID') ?: Session::get('id');
+        if ($request->filled('admin_notes')) {
+            $row->admin_notes = $request->admin_notes;
+        }
+        $row->save();
+
+        return back()->with(
+            'success',
+            'School request marked Ready. No login credentials were created — register the school manually when ready to onboard.'
+        );
+    }
+
+    public function rejectSchoolRegistrationRequest(Request $request, $id)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $row = SchoolRegistrationRequest::findOrFail($id);
+        $row->status = 'rejected';
+        $row->verified_at = now();
+        $row->verified_by = Session::get('userID') ?: Session::get('id');
+        $row->admin_notes = $request->input('admin_notes', $row->admin_notes);
+        $row->save();
+
+        return back()->with('success', 'School registration request rejected.');
     }
 
     public function changePasswordForm()

@@ -309,6 +309,93 @@ class ManageExaminationController extends Controller
         }
     }
 
+    /**
+     * Bulk insert in chunks to avoid MySQL "Prepared statement contains too many placeholders" (max ~65k).
+     *
+     * @param  class-string<\Illuminate\Database\Eloquent\Model>|null  $eloquentModel
+     */
+    private function insertInChunks(array $rows, int $chunkSize = 500, ?string $eloquentModel = null, ?string $table = null): void
+    {
+        if (empty($rows)) {
+            return;
+        }
+
+        // Keep placeholders well under MySQL limit (65535)
+        $chunkSize = max(50, min($chunkSize, 500));
+
+        foreach (array_chunk($rows, $chunkSize) as $chunk) {
+            if ($eloquentModel) {
+                $eloquentModel::insert($chunk);
+            } elseif ($table) {
+                DB::table($table)->insert($chunk);
+            }
+        }
+    }
+
+    /**
+     * Chunked whereIn delete for large ID lists.
+     */
+    private function deleteWhereInChunks(string $modelClass, string $column, array $ids, int $chunkSize = 1000): void
+    {
+        if (empty($ids)) {
+            return;
+        }
+        foreach (array_chunk($ids, $chunkSize) as $chunk) {
+            $modelClass::whereIn($column, $chunk)->delete();
+        }
+    }
+
+    /**
+     * User-facing error only — never expose SQL / stack / paths (security).
+     * Full details always go to the log.
+     */
+    private function safeUserFacingError(\Throwable $e, string $fallback): string
+    {
+        $raw = strtolower($e->getMessage());
+        $sqlState = null;
+        $driverCode = null;
+
+        if ($e instanceof \Illuminate\Database\QueryException) {
+            $sqlState = (string) ($e->errorInfo[0] ?? '');
+            $driverCode = $e->errorInfo[1] ?? null;
+        }
+
+        // Duplicate key / unique constraint
+        if (
+            $sqlState === '23000'
+            || (int) $driverCode === 1062
+            || str_contains($raw, 'duplicate')
+            || str_contains($raw, 'unique constraint')
+        ) {
+            return 'An examination with the same details already exists (duplicate). Please use a different name or check existing exams for this term/year.';
+        }
+
+        // MySQL placeholder / packet size issues
+        if (
+            (int) $driverCode === 1390
+            || str_contains($raw, 'too many placeholders')
+            || str_contains($raw, 'max_allowed_packet')
+        ) {
+            return 'The system could not finish saving because there is a lot of student/subject data. Please try again. If it continues, contact support.';
+        }
+
+        // FK / missing related row
+        if (
+            (int) $driverCode === 1452
+            || str_contains($raw, 'foreign key')
+            || str_contains($raw, 'cannot add or update a child row')
+        ) {
+            return 'Some related data is missing or invalid. Please refresh the page and try again.';
+        }
+
+        // Deadlock / lock wait
+        if ((int) $driverCode === 1213 || (int) $driverCode === 1205 || str_contains($raw, 'deadlock')) {
+            return 'The system was busy. Please wait a moment and try again.';
+        }
+
+        return $fallback;
+    }
+
     private function hasPermission($permissionName)
     {
         $userType = Session::get('user_type');
@@ -1442,9 +1529,9 @@ class ManageExaminationController extends Controller
             }
 
 
-            // Bulk insert results
+            // Bulk insert results (chunked — large schools exceed MySQL placeholder limit)
             if (! empty($results)) {
-                Result::insert($results);
+                $this->insertInChunks($results, 500, Result::class);
             }
 
             // Create paper approval chain if enabled
@@ -1741,9 +1828,9 @@ class ManageExaminationController extends Controller
                     }
                 }
 
-                // Bulk insert exam attendance records
+                // Bulk insert exam attendance records (chunked)
                 if (!empty($examAttendanceRecords)) {
-                    DB::table('exam_attendance')->insert($examAttendanceRecords);
+                    $this->insertInChunks($examAttendanceRecords, 500, null, 'exam_attendance');
                 }
             }
 
@@ -1761,29 +1848,22 @@ class ManageExaminationController extends Controller
                 'errors' => $e->errors(),
                 'error' => collect($e->errors())->flatten()->first() ?: 'Validation failed.',
             ], 422);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Exam creation error: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all(),
+                'schoolID' => Session::get('schoolID'),
+                'exam_name' => $request->input('exam_name'),
+                'exam_category' => $request->input('exam_category'),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
             ]);
 
-            // Return detailed error for debugging
-            $errorMessage = 'An error occurred while creating the examination.';
-            if (config('app.debug')) {
-                $errorMessage .= ' Error: '.$e->getMessage().' (Line: '.$e->getLine().')';
-            }
-
             return response()->json([
-                'error' => $errorMessage,
-                'details' => config('app.debug') ? [
-                    'message' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'trace' => $e->getTraceAsString(),
-                ] : null,
+                'error' => $this->safeUserFacingError(
+                    $e,
+                    'Unable to create the examination. Please check your details and try again.'
+                ),
             ], 500);
         }
     }
@@ -1847,7 +1927,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -1911,7 +1991,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -1953,7 +2033,13 @@ class ManageExaminationController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            Log::error('ManageExamination unexpected error: '.$e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            return response()->json([
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
+            ], 500);
         }
     }
 
@@ -2097,7 +2183,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -2142,7 +2228,7 @@ class ManageExaminationController extends Controller
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -2536,11 +2622,11 @@ class ManageExaminationController extends Controller
                     }
                 }
                 if (! empty($resultIdsToDelete)) {
-                    Result::whereIn('resultID', $resultIdsToDelete)->delete();
+                    $this->deleteWhereInChunks(Result::class, 'resultID', $resultIdsToDelete, 1000);
                 }
 
                 if (! empty($rowsToInsert)) {
-                    Result::insert($rowsToInsert);
+                    $this->insertInChunks($rowsToInsert, 500, Result::class);
                 }
             }
 
@@ -2752,7 +2838,7 @@ class ManageExaminationController extends Controller
                 }
 
                 if (! empty($examAttendanceRecords)) {
-                    DB::table('exam_attendance')->insert($examAttendanceRecords);
+                    $this->insertInChunks($examAttendanceRecords, 500, null, 'exam_attendance');
                 }
             }
 
@@ -2763,10 +2849,21 @@ class ManageExaminationController extends Controller
                 'exam' => $exam,
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Exam update error: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'examID' => $examID ?? null,
+                'schoolID' => Session::get('schoolID'),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError(
+                    $e,
+                    'Unable to update the examination. Please check your details and try again.'
+                ),
             ], 500);
         }
     }
@@ -2833,7 +2930,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -2939,7 +3036,7 @@ class ManageExaminationController extends Controller
             DB::rollBack();
 
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -3084,7 +3181,7 @@ class ManageExaminationController extends Controller
                 } catch (\Exception $e) {
                     DB::rollBack();
                     return response()->json([
-                        'error' => 'An error occurred while rejecting the examination: '.$e->getMessage(),
+                        'error' => $this->safeUserFacingError($e, 'Unable to reject the examination. Please try again.'),
                     ], 500);
                 }
             }
@@ -3106,7 +3203,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -3355,7 +3452,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -3445,7 +3542,7 @@ class ManageExaminationController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred: '.$e->getMessage(),
+                'message' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -5285,12 +5382,9 @@ class ManageExaminationController extends Controller
                 'existing_exam_paper_id' => $request->existing_exam_paper_id,
             ]);
 
-            $message = 'Failed to submit exam paper. Please try again.';
-            if (config('app.debug')) {
-                $message = 'Failed to submit exam paper: '.$e->getMessage();
-            }
-
-            return response()->json(['error' => $message], 500);
+            return response()->json([
+                'error' => $this->safeUserFacingError($e, 'Failed to submit exam paper. Please try again.'),
+            ], 500);
         }
     }
 
@@ -6214,7 +6308,10 @@ class ManageExaminationController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'An error occurred: '.$e->getMessage()], 500);
+            Log::error('ManageExamination unexpected error: '.$e->getMessage());
+            return response()->json([
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
+            ], 500);
         }
     }
 
@@ -6476,7 +6573,9 @@ class ManageExaminationController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Update exam paper error: '.$e->getMessage());
-            return response()->json(['error' => 'Failed to update: '.$e->getMessage()], 500);
+            return response()->json([
+                'error' => $this->safeUserFacingError($e, 'Failed to update. Please try again.'),
+            ], 500);
         }
     }
 
@@ -6680,7 +6779,10 @@ class ManageExaminationController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Failed to update exam paper questions: '.$e->getMessage()], 500);
+            Log::error('Update exam paper questions error: '.$e->getMessage());
+            return response()->json([
+                'error' => $this->safeUserFacingError($e, 'Failed to update exam paper questions. Please try again.'),
+            ], 500);
         }
     }
 
@@ -6782,7 +6884,9 @@ class ManageExaminationController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Resubmit exam paper error: '.$e->getMessage());
-            return response()->json(['error' => 'Failed to resubmit exam paper: '.$e->getMessage()], 500);
+            return response()->json([
+                'error' => $this->safeUserFacingError($e, 'Failed to resubmit exam paper. Please try again.'),
+            ], 500);
         }
     }
 
@@ -7260,7 +7364,7 @@ class ManageExaminationController extends Controller
             Log::error('Error deleting exam paper: '.$e->getMessage());
 
             return response()->json([
-                'error' => 'Failed to delete exam paper: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Failed to delete exam paper. Please try again.'),
             ], 500);
         }
     }
@@ -7498,7 +7602,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -7620,7 +7724,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -7677,7 +7781,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -7952,7 +8056,7 @@ class ManageExaminationController extends Controller
         } catch (\Exception $e) {
             Log::error('Auto shift students error: '.$e->getMessage());
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -8025,7 +8129,7 @@ class ManageExaminationController extends Controller
         } catch (\Exception $e) {
             Log::error('Unshift students error: '.$e->getMessage());
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -8121,7 +8225,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred: '.$e->getMessage(),
+                'error' => $this->safeUserFacingError($e, 'Something went wrong. Please try again.'),
             ], 500);
         }
     }
@@ -9412,7 +9516,7 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error loading printing unit: ' . $e->getMessage());
-            return redirect()->route('manageExamination')->with('error', 'Error loading printing unit: ' . $e->getMessage());
+            return redirect()->route('manageExamination')->with('error', 'Unable to load printing unit. Please try again.');
         }
     }
 
@@ -9613,7 +9717,10 @@ class ManageExaminationController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error filtering printing unit: ' . $e->getMessage());
-            return response()->json(['success' => false, 'error' => 'Error filtering data: ' . $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'error' => $this->safeUserFacingError($e, 'Unable to filter data. Please try again.'),
+            ], 500);
         }
     }
     public function getTestByTypeYear(Request $request)
@@ -9646,7 +9753,10 @@ class ManageExaminationController extends Controller
             return response()->json(['success' => false, 'message' => 'No ' . $examName . ' found for the year ' . $year]);
         } catch (\Exception $e) {
             \Log::error('Error in getTestByTypeYear: ' . $e->getMessage());
-            return response()->json(['success' => false, 'error' => 'Failed to fetch test: ' . $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'error' => $this->safeUserFacingError($e, 'Failed to fetch test. Please try again.'),
+            ], 500);
         }
     }
 
@@ -9724,7 +9834,10 @@ class ManageExaminationController extends Controller
             return response()->json(['success' => true, 'periods' => $periods]);
         } catch (\Exception $e) {
             \Log::error('Error in getAvailablePeriods: ' . $e->getMessage());
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'error' => $this->safeUserFacingError($e, 'Failed to load periods. Please try again.'),
+            ], 500);
         }
     }
 
@@ -9849,7 +9962,10 @@ class ManageExaminationController extends Controller
             ]);
         } catch (\Exception $e) {
             \Log::error('Error in getScheduledSubjects: ' . $e->getMessage());
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'error' => $this->safeUserFacingError($e, 'Failed to load scheduled subjects. Please try again.'),
+            ], 500);
         }
     }
 

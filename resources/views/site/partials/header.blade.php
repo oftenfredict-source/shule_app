@@ -97,6 +97,9 @@
                     <li class="{{ request()->routeIs('online_application*') ? 'active' : '' }}">
                         <a href="{{ route('online_application') }}">Online Application</a>
                     </li>
+                    <li class="{{ request()->routeIs('site.register_school') ? 'active' : '' }}">
+                        <a href="{{ route('site.register_school') }}">Register School</a>
+                    </li>
                     <li class="{{ request()->routeIs('site.contact') ? 'active' : '' }}">
                         <a href="{{ route('site.contact') }}">Contact</a>
                     </li>
@@ -126,6 +129,7 @@
             <li class="{{ request()->routeIs('pricing') ? 'active' : '' }}"><a href="{{ route('pricing') }}">Pricing</a></li>
             <li class="{{ request()->routeIs('site.faq') ? 'active' : '' }}"><a href="{{ route('site.faq') }}">FAQ</a></li>
             <li class="{{ request()->routeIs('online_application*') ? 'active' : '' }}"><a href="{{ route('online_application') }}">Online Application</a></li>
+            <li class="{{ request()->routeIs('site.register_school') ? 'active' : '' }}"><a href="{{ route('site.register_school') }}">Register School</a></li>
             <li class="{{ request()->routeIs('site.contact') ? 'active' : '' }}"><a href="{{ route('site.contact') }}">Contact</a></li>
             <li><a href="{{ route('login') }}">Login</a></li>
         </ul>

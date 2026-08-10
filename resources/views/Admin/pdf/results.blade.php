@@ -496,8 +496,16 @@
             font-size: 12px !important;
         }
         body.individual-pdf .grade-key-table {
-            margin: 2px 0 !important;
+            margin: 2px 0 10px 0 !important;
             font-size: 10px !important;
+        }
+        body.individual-pdf table.data.board-grade-key-table,
+        body.individual-pdf table.data.term-report-card.board-grade-key-table {
+            margin-bottom: 10px !important;
+        }
+        body.individual-pdf .section-title.ca-section-title {
+            margin-top: 8px !important;
+            margin-bottom: 3px !important;
         }
         body.individual-pdf .grade-key-table th,
         body.individual-pdf .grade-key-table td {
@@ -1682,7 +1690,7 @@
                             ];
                         }
                     @endphp
-                    <table class="data term-report-card" style="margin-top:2px;">
+                    <table class="data term-report-card board-grade-key-table" style="margin-top:2px; margin-bottom:10px;">
                         <thead>
                             <tr>
                                 <th class="exam-group" colspan="8">Maelezo ya Daraja</th>
@@ -1960,8 +1968,8 @@
         @php
             $caRows = collect($characterAssessments[$student->studentID])->values();
         @endphp
-        <div class="section-title">Tathmini ya Tabia na Mwenendo</div>
-        <table class="data character-assessment-table character-assessment-hz" style="margin-bottom: 10px; width: 100%;">
+        <div class="section-title ca-section-title">Tathmini ya Tabia na Mwenendo</div>
+        <table class="data character-assessment-table character-assessment-hz" style="margin-top: 2px; margin-bottom: 10px; width: 100%;">
             <tbody>
                 <tr>
                     @foreach($caRows as $ca)

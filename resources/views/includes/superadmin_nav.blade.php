@@ -283,6 +283,9 @@
         <a href="{{ route('superadmin.schools.register') }}" class="sidebar-link {{ request()->routeIs('superadmin.schools.register') ? 'active' : '' }}">
             <i class="bx bx-plus-circle"></i> Register School
         </a>
+        <a href="{{ route('superadmin.schools.registration_requests') }}" class="sidebar-link {{ request()->routeIs('superadmin.schools.registration_requests*') ? 'active' : '' }}">
+            <i class="bx bx-file"></i> School Requests
+        </a>
         <a href="{{ route('superadmin.schools.index') }}" class="sidebar-link {{ request()->routeIs('superadmin.schools.index') ? 'active' : '' }}">
             <i class="bx bx-building"></i> Registered Schools
         </a>

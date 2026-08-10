@@ -86,10 +86,32 @@
             <h4 class="fw-bold mb-0" style="color: var(--primary-red);">Registered Schools</h4>
             <p class="text-muted small mb-0">Full management of institutional data</p>
         </div>
-        <a href="{{ route('superadmin.schools.register') }}" class="btn btn-primary-custom">
-            <i class="bx bx-plus me-2"></i> Register New School
-        </a>
+        <div class="d-flex flex-wrap" style="gap:8px;">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCopyPublicRegLink"
+                    data-url="https://test.shulexpert.com/register-school">
+                <i class="bx bx-link me-1"></i> Copy Register Link
+            </button>
+            <a href="{{ route('superadmin.schools.registration_requests') }}" class="btn btn-outline-warning btn-sm">
+                <i class="bx bx-file me-1"></i> School Requests
+            </a>
+            <a href="{{ route('superadmin.schools.register') }}" class="btn btn-primary-custom">
+                <i class="bx bx-plus me-2"></i> Register New School
+            </a>
+        </div>
     </div>
+
+    <script>
+    document.getElementById('btnCopyPublicRegLink')?.addEventListener('click', function () {
+        var url = this.getAttribute('data-url') || '';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function () {
+                alert('Copied: ' + url);
+            });
+        } else {
+            prompt('Copy this link:', url);
+        }
+    });
+    </script>
 
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">

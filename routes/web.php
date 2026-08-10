@@ -245,6 +245,17 @@ Route::post("/contact", [SiteController::class, "contactSubmit"])
     ->middleware("throttle:3,10")
     ->name("site.contact.submit");
 
+Route::get("/register-school", [SiteController::class, "registerSchool"])->name("site.register_school");
+Route::post("/register-school/send-otp", [SiteController::class, "registerSchoolSendOtp"])
+    ->middleware("throttle:5,1")
+    ->name("site.register_school.send_otp");
+Route::post("/register-school/verify-otp", [SiteController::class, "registerSchoolVerifyOtp"])
+    ->middleware("throttle:10,1")
+    ->name("site.register_school.verify_otp");
+Route::post("/register-school", [SiteController::class, "registerSchoolSubmit"])
+    ->middleware("throttle:3,10")
+    ->name("site.register_school.submit");
+
 // Browser auto-requests /favicon.ico — serve round ShuleXpert logo
 Route::get("/favicon.ico", function () {
     $round = public_path("images/shuleXpert-favicon.png");
@@ -415,6 +426,18 @@ Route::get("super-admin/schools/register", [
     ConfigurationController::class,
     "index",
 ])->name("superadmin.schools.register");
+Route::get("super-admin/schools/registration-requests", [
+    SuperAdminController::class,
+    "schoolRegistrationRequests",
+])->name("superadmin.schools.registration_requests");
+Route::post("super-admin/schools/registration-requests/{id}/verify", [
+    SuperAdminController::class,
+    "verifySchoolRegistrationRequest",
+])->name("superadmin.schools.registration_requests.verify");
+Route::post("super-admin/schools/registration-requests/{id}/reject", [
+    SuperAdminController::class,
+    "rejectSchoolRegistrationRequest",
+])->name("superadmin.schools.registration_requests.reject");
 Route::get("super-admin/schools", [
     SuperAdminController::class,
     "schools",
