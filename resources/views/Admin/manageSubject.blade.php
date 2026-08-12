@@ -264,6 +264,48 @@
 
 <!-- Bootstrap Icons -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* Select2 inside manageSubjects modals — searchable teacher picker */
+    .select2-container--default .select2-selection--single {
+        border-radius: 0 !important;
+        border: 1px solid #ced4da !important;
+        min-height: 38px;
+        padding: 4px 8px;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 28px !important;
+        padding-left: 0 !important;
+        color: #212529;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+    }
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #940000 !important;
+        box-shadow: 0 0 0 0.15rem rgba(148, 0, 0, 0.15);
+    }
+    .select2-dropdown {
+        border-radius: 0 !important;
+        border-color: #ced4da !important;
+        z-index: 3000 !important;
+    }
+    .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+        background-color: #940000 !important;
+    }
+    .select2-container--default .select2-search--dropdown .select2-search__field {
+        border-radius: 0 !important;
+        border-color: #ced4da !important;
+    }
+    .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+        border-color: #940000 !important;
+        outline: none;
+    }
+    .modal .select2-container {
+        width: 100% !important;
+    }
+</style>
 
 <div class="container-fluid mt-4">
     <div class="row">
@@ -716,7 +758,7 @@
 
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Teacher</label>
-                                <select name="subjects[0][teacherID]" class="form-select teacher-select">
+                                <select name="subjects[0][teacherID]" class="form-select teacher-select" data-placeholder="Search / select teacher...">
                                     <option value="">Select Teacher (Optional)</option>
                                     @foreach($teachers as $teacher)
                                         <option value="{{ $teacher->id }}">
@@ -724,6 +766,7 @@
                                         </option>
                                     @endforeach
                                 </select>
+                                <small class="text-muted"><i class="bi bi-search"></i> Type to search by name or employee number</small>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Status <span class="text-danger">*</span></label>
@@ -792,7 +835,7 @@
                     <!-- Non-duo: single teacher -->
                     <div class="mb-3" id="editMainTeacherWrap">
                         <label class="form-label fw-bold">Select Teacher</label>
-                        <select name="teacherID" id="edit_teacher_select" class="form-select teacher-select">
+                        <select name="teacherID" id="edit_teacher_select" class="form-select teacher-select" data-placeholder="Search / select teacher...">
                             <option value="">Select Teacher (Optional)</option>
                             @foreach($teachers as $teacher)
                                 <option value="{{ $teacher->id }}">
@@ -800,7 +843,7 @@
                                 </option>
                             @endforeach
                         </select>
-                        <small class="text-muted">Search and select a teacher, or leave empty to unassign</small>
+                        <small class="text-muted"><i class="bi bi-search"></i> Type to search by name or employee number, or leave empty to unassign</small>
                     </div>
 
                     <!-- Duo: per-paper teachers -->
@@ -953,7 +996,8 @@
 <!-- DataTables JS -->
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-
+<!-- Select2 (searchable teacher dropdowns) -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -1019,7 +1063,65 @@
         }
 
         function destroySelect2In($root) {
+            destroyTeacherSelect2In($root);
             destroySearchSelectsIn($root);
+        }
+
+        function destroyTeacherSelect2In($root) {
+            if (!$root || !$root.length) return;
+            $root.find('select.teacher-select, select.edit-duo-component-teacher, select.duo-component-teacher').each(function() {
+                const $select = $(this);
+                if ($select.hasClass('select2-hidden-accessible') && typeof $select.select2 === 'function') {
+                    try { $select.select2('destroy'); } catch (e) {}
+                }
+            });
+        }
+
+        /**
+         * Searchable teacher dropdown (Select2) — works inside Bootstrap modals.
+         */
+        function initTeacherSearchSelect($el) {
+            if (!$el || !$el.length) return;
+            if (typeof $.fn.select2 !== 'function') {
+                // Fallback to custom searchable select if Select2 failed to load
+                initSearchableSelect($el, 'Search teacher...');
+                return;
+            }
+
+            $el.each(function() {
+                const $select = $(this);
+                // Remove custom sx wrapper if previously enhanced that way
+                if ($select.hasClass('sx-ss-enhanced')) {
+                    const $wrap = $select.closest('.sx-ss');
+                    if ($wrap.length) {
+                        if (typeof $select.data('sx-close-panel') === 'function') {
+                            $select.data('sx-close-panel')();
+                        }
+                        $wrap.before($select);
+                        $wrap.remove();
+                    }
+                    $select.removeClass('sx-ss-enhanced').removeData('sx-close-panel').removeData('sx-panel').removeData('sx-placeholder').show();
+                }
+
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    try { $select.select2('destroy'); } catch (e) {}
+                }
+
+                const $modal = $select.closest('.modal');
+                const placeholder = $select.data('placeholder') || 'Search / select teacher...';
+
+                $select.select2({
+                    width: '100%',
+                    placeholder: placeholder,
+                    allowClear: true,
+                    dropdownParent: $modal.length ? $modal : $(document.body),
+                    minimumResultsForSearch: 0,
+                    language: {
+                        noResults: function() { return 'No teacher found'; },
+                        searching: function() { return 'Searching...'; }
+                    }
+                });
+            });
         }
 
         function destroySearchSelectsIn($root) {
@@ -1218,7 +1320,7 @@
                 initSearchableSelect($(this), 'Search subject...');
             });
             $('#addClassSubjectModal .teacher-select').each(function() {
-                initSearchableSelect($(this), 'Search teacher...');
+                initTeacherSearchSelect($(this));
             });
         }
 
@@ -1286,9 +1388,10 @@
                         </div>
                         <div class="duo-paper-teacher">
                             <label class="form-label fw-bold mb-1">Teacher <span class="text-muted">(paper)</span></label>
-                            <select name="subjects[${rowIndex}][components][${i}][teacherID]" class="form-select teacher-select duo-component-teacher">
+                            <select name="subjects[${rowIndex}][components][${i}][teacherID]" class="form-select teacher-select duo-component-teacher" data-placeholder="Search / select teacher...">
                                 ${buildTeacherOptionsHtml(teacherVal)}
                             </select>
+                            <small class="text-muted"><i class="bi bi-search"></i> Type to search</small>
                         </div>
                     </div>`;
             });
@@ -1311,9 +1414,10 @@
             return `
                 <div class="mb-3 main-teacher-wrap" style="${display}">
                     <label class="form-label fw-bold">Teacher</label>
-                    <select name="subjects[${rowIndex}][teacherID]" class="form-select teacher-select main-teacher-select">
+                    <select name="subjects[${rowIndex}][teacherID]" class="form-select teacher-select main-teacher-select" data-placeholder="Search / select teacher...">
                         ${buildTeacherOptionsHtml(teacherID)}
                     </select>
+                    <small class="text-muted"><i class="bi bi-search"></i> Type to search by name or employee number</small>
                 </div>`;
         }
 
@@ -1334,10 +1438,11 @@
                     $row.find('.subject-select, .subject-select-value').closest('.mb-3').after(papersHtml);
                 }
                 $row.find('.duo-component-teacher').each(function() {
-                    initSearchableSelect($(this), 'Search teacher...');
+                    initTeacherSearchSelect($(this));
                 });
             } else {
                 $mainTeacher.show();
+                initTeacherSearchSelect($mainTeacher.find('.teacher-select'));
             }
         }
 
@@ -2548,7 +2653,7 @@
             updateClassSubjectNumbers();
             const $newSelects = $('#classSubjectsContainer .subject-row').last();
             initSearchableSelect($newSelects.find('.subject-select'), 'Search subject...');
-            initSearchableSelect($newSelects.find('.teacher-select'), 'Search teacher...');
+            initTeacherSearchSelect($newSelects.find('.teacher-select'));
             disableAlreadyAddedSubjects($newSelects.find('.subject-select'), addedSubjectIDsCache);
         });
 
@@ -2586,10 +2691,10 @@
         $('#editClassSubjectModal').on('shown.bs.modal', function() {
             setTimeout(function() {
                 if ($('#editMainTeacherWrap').is(':visible')) {
-                    initSearchableSelect($('#edit_teacher_select'), 'Search teacher...');
+                    initTeacherSearchSelect($('#edit_teacher_select'));
                 }
                 $('#editDuoPapersBox .edit-duo-component-teacher').each(function() {
-                    initSearchableSelect($(this), 'Search teacher...');
+                    initTeacherSearchSelect($(this));
                 });
             }, 50);
         });
@@ -3605,9 +3710,10 @@
                             </div>
                             <div class="duo-paper-teacher">
                                 <label class="form-label fw-bold mb-1">Teacher <span class="text-muted">(paper)</span></label>
-                                <select class="form-select teacher-select edit-duo-component-teacher">
+                                <select class="form-select teacher-select edit-duo-component-teacher" data-placeholder="Search / select teacher...">
                                     ${buildTeacherOptionsHtml(paper.teacherID || '')}
                                 </select>
+                                <small class="text-muted"><i class="bi bi-search"></i> Type to search</small>
                             </div>
                         </div>`;
                 });
