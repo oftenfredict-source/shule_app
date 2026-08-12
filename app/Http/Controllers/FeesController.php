@@ -3906,7 +3906,7 @@ class FeesController extends Controller
                 'academic_year_id' => $resolved['academicYearID'] ?? null,
                 'is_closed_year' => (bool) ($resolved['isClosedYear'] ?? false),
                 'fees' => [],
-                'message' => 'Hakuna bili / control number kwa mwanafunzi huyu katika academic year husika.',
+                'message' => 'No bill / control number found for this student in the selected academic year.',
             ]);
         }
 
@@ -3962,7 +3962,7 @@ class FeesController extends Controller
                     'mode' => 'unified',
                     'paymentID' => $payment->paymentID,
                     'feeID' => 'any',
-                    'fee_name' => 'Lipa kwa ada yoyote (Automatic Priority)',
+                    'fee_name' => 'Pay to any fee (Automatic Priority)',
                     'control_number' => $payment->control_number,
                     'amount_required' => (float) $payment->amount_required,
                     'amount_paid' => (float) $payment->amount_paid,
@@ -3973,7 +3973,7 @@ class FeesController extends Controller
                     'academic_year_id' => $payment->academic_yearID,
                     'can_record' => !$yearClosed && !$isClosed,
                     'payment' => $payment,
-                    'label' => 'Control Number ' . ($payment->control_number ?: '—') . ' · Ada yoyote (Bal: ' . number_format((float) $payment->balance, 0) . '/=)',
+                    'label' => 'Control Number ' . ($payment->control_number ?: '—') . ' · Any fee (Bal: ' . number_format((float) $payment->balance, 0) . '/=)',
                 ];
 
                 foreach ($fps as $fp) {

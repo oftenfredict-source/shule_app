@@ -7234,6 +7234,7 @@ class ResultManagementController extends Controller
             "option" => $option,
             "title" => $title,
             "showWatermark" => $request->boolean("watermark", true),
+            "pdfScale" => $this->normalizeIndividualPdfScale($request->input("pdf_scale", 1)),
             "characterAssessments" => $this->getLatestCharacterAssessments(
                 $students,
                 $termFilter,
@@ -7327,10 +7328,14 @@ class ResultManagementController extends Controller
                 return response($dompdf->output(), 200, [
                     "Content-Type" => "application/pdf",
                     "Content-Disposition" =>
-                        'attachment; filename="' . $filename . '"',
+                        ($request->boolean("preview") ? "inline" : "attachment")
+                        . '; filename="' . $filename . '"',
                 ]);
             } catch (\Throwable $pageErr) {
                 \Log::warning("PDF page numbers skipped: " . $pageErr->getMessage());
+                if ($request->boolean("preview")) {
+                    return $pdf->stream($filename);
+                }
                 return $pdf->download($filename);
             }
         } catch (\Throwable $e) {
@@ -7344,6 +7349,27 @@ class ResultManagementController extends Controller
                 ["Content-Type" => "text/plain; charset=UTF-8"],
             );
         }
+    }
+
+    /**
+     * Individual report PDF scale. 1.0 = current default (unchanged).
+     * Allowed range: 1.00 – 1.40.
+     */
+    private function normalizeIndividualPdfScale($raw): float
+    {
+        $scale = is_numeric($raw) ? (float) $raw : 1.0;
+        if ($scale < 1.0) {
+            $scale = 1.0;
+        }
+        if ($scale > 1.4) {
+            $scale = 1.4;
+        }
+        // Snap near 1.0 so floating noise never triggers scale CSS
+        if (abs($scale - 1.0) < 0.001) {
+            return 1.0;
+        }
+
+        return round($scale, 2);
     }
 
     /**

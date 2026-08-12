@@ -1035,7 +1035,7 @@
                             <div id="paymentsWidgetGrid" class="payments-widget-grid"></div>
                             <div id="paymentsGridLoadMore" class="text-center py-3 d-none" aria-live="polite">
                                 <div class="spinner-border spinner-border-sm text-primary-custom me-2" role="status"></div>
-                                <span>Inapakia wengine...</span>
+                                <span>Loading more...</span>
                             </div>
                             <div id="paymentsGridCount" class="text-center text-muted small py-2 d-none"></div>
                             <div id="paymentsGridSentinel" style="height:1px;" aria-hidden="true"></div>
@@ -1382,17 +1382,17 @@
             <div class="modal-body">
                 <div class="alert alert-light border mb-3" style="border-left:4px solid #940000 !important;">
                     <small class="text-muted">
-                        Chagua mwanafunzi, kisha aina ya ada. Baada ya hapo utajaza kiasi na njia ya malipo.
-                        Academic year inatumia ile ya header.
+                        Select a student, then choose the fee type. Next you will enter the amount and payment method.
+                        The academic year follows the header selection.
                     </small>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-bold">1. Tafuta / Chagua Mwanafunzi <span class="text-danger">*</span></label>
+                    <label class="form-label fw-bold">1. Search / Select Student <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text bg-white"><i class="bi bi-search text-primary-custom"></i></span>
                         <input type="text" class="form-control" id="quickRecordStudentSearch"
-                               placeholder="Andika jina au admission number..." autocomplete="off">
+                               placeholder="Type student name or admission number..." autocomplete="off">
                     </div>
                     <div id="quickRecordStudentResults" class="border mt-1 bg-white" style="max-height:220px;overflow-y:auto;display:none;"></div>
                     <div id="quickRecordSelectedStudent" class="mt-2 p-2 border bg-light" style="display:none;">
@@ -1401,26 +1401,26 @@
                                 <div class="fw-bold text-primary-custom" id="quickRecordStudentName">—</div>
                                 <small class="text-muted" id="quickRecordStudentMeta">—</small>
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="quickRecordClearStudent">Badilisha</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="quickRecordClearStudent">Change</button>
                         </div>
                     </div>
                 </div>
 
                 <div class="mb-3" id="quickRecordFeeSection" style="display:none;">
-                    <label class="form-label fw-bold">2. Chagua Aina ya Ada <span class="text-danger">*</span></label>
+                    <label class="form-label fw-bold">2. Select Fee Type <span class="text-danger">*</span></label>
                     <select class="form-select" id="quickRecordFeeSelect">
-                        <option value="">— Chagua fee —</option>
+                        <option value="">— Select fee —</option>
                     </select>
                     <small class="text-muted d-block mt-1" id="quickRecordFeeHint"></small>
                     <div id="quickRecordFeeEmpty" class="alert alert-warning mt-2 mb-0 py-2" style="display:none;">
-                        Hakuna bili inayoweza kurekodiwa kwa mwanafunzi huyu (hakuna CN au mwaka umefungwa).
+                        No bill can be recorded for this student (no control number, or the academic year is closed).
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-light text-primary-custom border" data-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary-custom" id="quickRecordContinueBtn" disabled>
-                    Endelea kurekodi <i class="bi bi-arrow-right"></i>
+                    Continue to record <i class="bi bi-arrow-right"></i>
                 </button>
             </div>
         </div>
@@ -1652,7 +1652,7 @@
                             role="progressbar" style="width: 0%; border-radius: 0 !important;"></div>
                     </div>
                     <div id="pdfProgressPercent" class="font-weight-bold text-muted" style="font-size: 14px;">0%</div>
-                    <p class="mt-3 text-muted small">Tafadhali subiri kidogo wakati tunaandaa ripoti yako rasmi.</p>
+                    <p class="mt-3 text-muted small">Please wait while we prepare your official report.</p>
                 </div>
             </div>
         </div>
@@ -1986,7 +1986,7 @@
             feeSelect.find('option').remove();
 
             if (isMulti) {
-                feeSelect.append('<option value="" disabled selected>Chagua ada...</option>');
+                feeSelect.append('<option value="" disabled selected>Select fee...</option>');
                 multiAccounts.forEach(function(ma) {
                     if (!ma) return;
                     normalizeFeePaymentsFromMulti(ma).forEach(function(fp) {
@@ -2013,7 +2013,7 @@
                 }
                 feeSelect.trigger('change');
             } else {
-                feeSelect.append('<option value="any">Lipa kwa ada yoyote (Automatic Priority)</option>');
+                feeSelect.append('<option value="any">Pay to any fee (Automatic Priority)</option>');
                 if (payment && payment.fee_payments) {
                     var fps = payment.fee_payments;
                     if (typeof fps === 'string') {
@@ -2371,7 +2371,7 @@
             }
             $('#paymentsGridCount')
                 .removeClass('d-none')
-                .text('Zimeonyeshwa ' + shown + ' kati ya ' + total);
+                .text('Showing ' + shown + ' of ' + total);
         }
 
         function paymentGridAppendNextBatch() {
@@ -2813,7 +2813,7 @@
                 }
 
                 var items = config.items || [];
-                $('#smsTemplateModalTitle').text(config.title || 'Thibitisha SMS');
+                $('#smsTemplateModalTitle').text(config.title || 'Confirm SMS');
                 $('#smsTemplateModalDesc').html(config.description || '');
 
                 var html = '';
@@ -2879,25 +2879,25 @@
                 if (!previewRes.success) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Haiwezekani kuona SMS',
-                        text: previewRes.message || 'Imeshindwa kuandaa ujumbe wa SMS.',
+                        title: 'Unable to preview SMS',
+                        text: previewRes.message || 'Failed to prepare the SMS message.',
                         confirmButtonColor: '#940000'
                     });
                     return;
                 }
 
                 var metaParts = [];
-                if (previewRes.student_name) metaParts.push('Mwanafunzi: ' + previewRes.student_name);
+                if (previewRes.student_name) metaParts.push('Student: ' + previewRes.student_name);
                 if (previewRes.control_number) metaParts.push('Control Number: ' + previewRes.control_number);
-                if (previewRes.fee_name) metaParts.push('Ada: ' + previewRes.fee_name);
-                if (previewRes.to) metaParts.push('Simu: ' + previewRes.to);
+                if (previewRes.fee_name) metaParts.push('Fee: ' + previewRes.fee_name);
+                if (previewRes.to) metaParts.push('Phone: ' + previewRes.to);
 
                 var editResult = await openSmsTemplateEditor({
-                    title: 'Tuma SMS ya Control Number',
-                    description: '<div class="mb-2"><strong>Kwa:</strong> ' + feeEscapeHtml(previewRes.parent_name || 'Mzazi') + '</div>',
+                    title: 'Send Control Number SMS',
+                    description: '<div class="mb-2"><strong>To:</strong> ' + feeEscapeHtml(previewRes.parent_name || 'Parent') + '</div>',
                     items: [{
                         key: String(paymentID),
-                        label: previewRes.parent_name || 'Mzazi',
+                        label: previewRes.parent_name || 'Parent',
                         meta: metaParts.join(' · '),
                         message: previewRes.sms_sample || ''
                     }]
@@ -2906,7 +2906,7 @@
                 if (!editResult.confirmed) return;
 
                 var editedMessage = editResult.messages[String(paymentID)] || previewRes.sms_sample || '';
-                if (btn) btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Inatuma...');
+                if (btn) btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Sending...');
 
                 var response = await $.ajax({
                     url: '/resend_control_number/' + paymentID,
@@ -2919,15 +2919,15 @@
 
                 Swal.fire({
                     icon: response.success ? 'success' : 'error',
-                    title: response.success ? 'Imetumwa!' : 'Imeshindwa!',
+                    title: response.success ? 'Sent!' : 'Failed!',
                     text: response.message,
                     confirmButtonColor: '#940000'
                 });
             } catch (xhr) {
                 Swal.fire({
                     icon: 'error',
-                    title: 'Hitilafu!',
-                    text: (xhr.responseJSON && xhr.responseJSON.message) || 'Imeshindwa kutuma SMS.',
+                    title: 'Error!',
+                    text: (xhr.responseJSON && xhr.responseJSON.message) || 'Failed to send SMS.',
                     confirmButtonColor: '#940000'
                 });
             } finally {
@@ -2951,10 +2951,10 @@
         function feeBuildAudienceChooserHtml() {
             return '<div class="d-grid gap-2 w-100">' +
                 '<button type="button" class="btn btn-outline-primary btn-lg w-100 fee-audience-choice" data-audience="all">' +
-                    '<i class="bi bi-people-fill me-2"></i> Wote wenye deni (All)' +
+                    '<i class="bi bi-people-fill me-2"></i> All with outstanding balance' +
                 '</button>' +
                 '<button type="button" class="btn btn-outline-danger btn-lg w-100 fee-audience-choice" data-audience="deadline_reached">' +
-                    '<i class="bi bi-alarm-fill me-2"></i> Deadline zilizofika tu' +
+                    '<i class="bi bi-alarm-fill me-2"></i> Deadline reached only' +
                 '</button>' +
             '</div>';
         }
@@ -2972,15 +2972,15 @@
             feeRecipientType = 'parent';
 
             if (type === 'debt_reminder') {
-                $('#feeSmsModalTitle').text('Tuma Ukumbusho wa Deni');
+                $('#feeSmsModalTitle').text('Send Debt Reminder');
                 var audienceLabel = feeSmsAudience === 'deadline_reached'
-                    ? 'Deadline zilizofika'
-                    : 'Wote wenye deni';
-                $('#feeSmsModalDesc').text('Orodha ya wazazi kulingana na filta zako. Wapokeaji: ' + audienceLabel + '.');
+                    ? 'Deadline reached'
+                    : 'All with outstanding balance';
+                $('#feeSmsModalDesc').text('Parent list based on your filters. Recipients: ' + audienceLabel + '.');
                 $('#feeSmsTabs').show();
             } else {
-                $('#feeSmsModalTitle').text('Tuma Namba za Kudhibiti (CN)');
-                $('#feeSmsModalDesc').text('Orodha ya wazazi kulingana na filta zako. Chagua wapokeaji kisha angalia SMS kabla ya kutuma.');
+                $('#feeSmsModalTitle').text('Send Control Numbers (CN)');
+                $('#feeSmsModalDesc').text('Parent list based on your filters. Select recipients, then review the SMS before sending.');
                 $('#feeSmsTabs').hide();
             }
 
@@ -3000,7 +3000,7 @@
             $('#feeSmsDeliverySummary').empty();
             $('#feeSmsProgressText').text('0 / 0');
             $('#feeSelectAllParents').prop('checked', false);
-            $('#feeStartSendingSms').prop('disabled', true).html('<i class="bi bi-eye"></i> Angalia SMS na Tuma');
+            $('#feeStartSendingSms').prop('disabled', true).html('<i class="bi bi-eye"></i> Review SMS & Send');
             $('#feeBtnCancelSms').prop('disabled', false).text('Cancel');
             $('.fee-parent-checkbox, #feeSelectAllParents').prop('disabled', false);
             feeIsSendingSms = false;
@@ -3011,31 +3011,31 @@
             if (feeRecipientType === 'sponsor') {
                 headerRow.html(`
                     <th style="width:40px;"></th>
-                    <th>Mdhamini</th>
-                    <th>Wanafunzi</th>
-                    <th>Simu</th>
-                    <th>Deni (TZS)</th>
-                    <th class="text-center" style="width:110px;">Hali</th>
+                    <th>Sponsor</th>
+                    <th>Students</th>
+                    <th>Phone</th>
+                    <th>Debt (TZS)</th>
+                    <th class="text-center" style="width:110px;">Status</th>
                 `);
             } else if (feeSmsType === 'control_number') {
                 headerRow.html(`
                     <th style="width:40px;"></th>
-                    <th>Mzazi</th>
-                    <th>Mwanafunzi</th>
-                    <th>Ada</th>
+                    <th>Parent</th>
+                    <th>Student</th>
+                    <th>Fee</th>
                     <th>CN</th>
-                    <th>Simu</th>
-                    <th class="text-center" style="width:110px;">Hali</th>
+                    <th>Phone</th>
+                    <th class="text-center" style="width:110px;">Status</th>
                 `);
             } else {
                 headerRow.html(`
                     <th style="width:40px;"></th>
-                    <th>Mzazi</th>
-                    <th>Mwanafunzi</th>
-                    <th>Ada</th>
+                    <th>Parent</th>
+                    <th>Student</th>
+                    <th>Fee</th>
                     <th>CN</th>
-                    <th>Deni (TZS)</th>
-                    <th class="text-center" style="width:110px;">Hali</th>
+                    <th>Debt (TZS)</th>
+                    <th class="text-center" style="width:110px;">Status</th>
                 `);
             }
 
@@ -3056,7 +3056,7 @@
 
                     if (!response.success || !response.recipients || response.recipients.length === 0) {
                         const colspan = feeRecipientType === 'sponsor' ? 6 : (feeSmsType === 'control_number' ? 7 : 7);
-                        list.html(`<tr><td colspan="${colspan}" class="text-center text-muted py-3">Hakuna wapokeaji kulingana na filta zako.</td></tr>`);
+                        list.html(`<tr><td colspan="${colspan}" class="text-center text-muted py-3">No recipients match your filters.</td></tr>`);
                         $('#feeSmsRecipientsSection').removeClass('d-none');
                         return;
                     }
@@ -3067,8 +3067,8 @@
                         const checkId    = 'fee_chk_' + (r.paymentID || r.sponsorID) + '_' + idx;
                         const overdueRow = r.deadline_overdue ? ' table-danger' : '';
                         const statusHtml = hasPhone
-                            ? '<span class="fee-status-marker text-muted small">Inasubiri</span>'
-                            : '<span class="text-danger small">Hakuna Simu</span>';
+                            ? '<span class="fee-status-marker text-muted small">Waiting</span>'
+                            : '<span class="text-danger small">No Phone</span>';
                         const smsEncoded = encodeURIComponent(r.sms_message || '');
 
                         let rowHtml = `<tr class="${overdueRow.trim()}" data-payment-id="${r.paymentID || ''}" data-sponsor-id="${r.sponsorID || ''}" data-phone="${r.phone || ''}" data-sms-message="${smsEncoded}">
@@ -3162,8 +3162,8 @@
             });
 
             const editResult = await openSmsTemplateEditor({
-                title: 'Thibitisha kutuma SMS',
-                description: 'Unakaribia kutuma SMS kwa <strong>' + selectedRows.length + '</strong> wapokeaji. Hariri ujumbe hapa chini:',
+                title: 'Confirm sending SMS',
+                description: 'You are about to send SMS to <strong>' + selectedRows.length + '</strong> recipients. Edit the message below:',
                 reopenOnConfirm: true,
                 items: templateItems
             });
@@ -3173,7 +3173,7 @@
             feeIsSendingSms = true;
             feeStopSms      = false;
 
-            $('#feeStartSendingSms').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Inatuma...');
+            $('#feeStartSendingSms').prop('disabled', true).html('<i class="spinner-border spinner-border-sm"></i> Sending...');
             $('#feeBtnCancelSms').prop('disabled', true);
             $('.fee-parent-checkbox, #feeSelectAllParents').prop('disabled', true);
             $('#feeSmsProgressArea').removeClass('d-none');
@@ -3214,14 +3214,14 @@
                     });
 
                     if (response.success) {
-                        statusCol.html('<i class="bi bi-check-circle-fill text-success" style="font-size:1.2rem;" title="Imetumwa"></i>');
+                        statusCol.html('<i class="bi bi-check-circle-fill text-success" style="font-size:1.2rem;" title="Sent"></i>');
                         delivered++;
                     } else {
-                        statusCol.html('<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:1.2rem;" title="' + feeEscapeHtml(response.message || 'Imeshindwa') + '"></i>');
+                        statusCol.html('<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:1.2rem;" title="' + feeEscapeHtml(response.message || 'Failed') + '"></i>');
                         failed++;
                     }
                 } catch (err) {
-                    statusCol.html('<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:1.2rem;" title="Hitilafu ya mtandao"></i>');
+                    statusCol.html('<i class="bi bi-exclamation-circle-fill text-danger" style="font-size:1.2rem;" title="Network error"></i>');
                     failed++;
                 }
 
@@ -3230,17 +3230,17 @@
                 $('#feeSmsProgressBar').css('width', percent + '%').text(percent + '%');
                 $('#feeSmsProgressText').text(`${current} / ${total}`);
                 $('#feeSmsDeliverySummary').html(
-                    `<span class="text-success font-weight-bold">${delivered} Zimetumwa</span> | <span class="text-danger font-weight-bold">${failed} Zimeshindwa</span>`
+                    `<span class="text-success font-weight-bold">${delivered} Sent</span> | <span class="text-danger font-weight-bold">${failed} Failed</span>`
                 );
             }
 
             feeIsSendingSms = false;
-            $('#feeStartSendingSms').html('<i class="bi bi-check-all"></i> Imekamilika').prop('disabled', true);
-            $('#feeBtnCancelSms').prop('disabled', false).text('Funga');
+            $('#feeStartSendingSms').html('<i class="bi bi-check-all"></i> Completed').prop('disabled', true);
+            $('#feeBtnCancelSms').prop('disabled', false).text('Close');
 
             Swal.fire({
-                title: 'SMS Imekamilika!',
-                text: `Zimetumwa: ${delivered}, Zimeshindwa: ${failed}`,
+                title: 'SMS Completed!',
+                text: `Sent: ${delivered}, Failed: ${failed}`,
                 icon: delivered > 0 ? 'success' : 'info',
                 confirmButtonColor: '#940000'
             }).then(function() {
@@ -3258,11 +3258,11 @@
         $('#sendDebtRemindersBtn').off('click').on('click', function(e) {
             e.preventDefault();
             Swal.fire({
-                title: 'Chagua Wapokeaji wa Ukumbusho',
+                title: 'Select Reminder Recipients',
                 html: feeBuildAudienceChooserHtml(),
                 showConfirmButton: false,
                 showCancelButton: true,
-                cancelButtonText: 'Ghairi',
+                cancelButtonText: 'Cancel',
                 cancelButtonColor: '#6c757d',
                 width: 520,
                 didOpen: function() {
@@ -3684,7 +3684,7 @@
                     'data-is-sponsored="' + (btn.data('student-sponsor') ? 'yes' : 'no') + '" ' +
                     'data-academic-year="' + rowYearLabel + '" ' +
                     'data-academic-year-id="' + rowYearId + '" ' +
-                    'title="Record payment — chagua ada">' +
+                    'title="Record payment — select fee">' +
                     '<i class="bi bi-cash-coin me-2"></i> Record New Payment' +
                     '</button>';
             } else if (!isClosedYear && payment && payment.paymentID) {
@@ -4153,7 +4153,7 @@
             $('#quickRecordStudentResults').hide().empty();
             $('#quickRecordSelectedStudent').hide();
             $('#quickRecordFeeSection').hide();
-            $('#quickRecordFeeSelect').html('<option value="">— Chagua fee —</option>');
+            $('#quickRecordFeeSelect').html('<option value="">— Select fee —</option>');
             $('#quickRecordFeeEmpty').hide();
             $('#quickRecordFeeHint').text('');
             $('#quickRecordContinueBtn').prop('disabled', true);
@@ -4232,13 +4232,13 @@
                 return;
             }
             quickRecordState.searchTimer = setTimeout(function() {
-                $('#quickRecordStudentResults').show().html('<div class="p-2 text-muted small">Inatafuta...</div>');
+                $('#quickRecordStudentResults').show().html('<div class="p-2 text-muted small">Searching...</div>');
                 $.get('{{ route("quick_record_search_students") }}', { q: q })
                     .done(function(res) {
                         var list = (res && res.students) ? res.students : [];
                         quickRecordState.searchResults = list;
                         if (!list.length) {
-                            $('#quickRecordStudentResults').html('<div class="p-2 text-muted small">Hakuna mwanafunzi aliyepatikana</div>');
+                            $('#quickRecordStudentResults').html('<div class="p-2 text-muted small">No students found</div>');
                             return;
                         }
                         var html = '';
@@ -4251,7 +4251,7 @@
                         $('#quickRecordStudentResults').html(html);
                     })
                     .fail(function() {
-                        $('#quickRecordStudentResults').html('<div class="p-2 text-danger small">Imeshindikana kutafuta</div>');
+                        $('#quickRecordStudentResults').html('<div class="p-2 text-danger small">Search failed</div>');
                     });
             }, 280);
         });
@@ -4267,7 +4267,7 @@
             $('#quickRecordStudentMeta').text((s.admission_number || '') + ' · ' + (s.class_label || ''));
             $('#quickRecordSelectedStudent').show();
             $('#quickRecordFeeSection').show();
-            $('#quickRecordFeeSelect').html('<option value="">Inapakia ada...</option>').prop('disabled', true);
+            $('#quickRecordFeeSelect').html('<option value="">Loading fees...</option>').prop('disabled', true);
             $('#quickRecordFeeEmpty').hide();
             $('#quickRecordContinueBtn').prop('disabled', true);
 
@@ -4284,20 +4284,20 @@
 
                 var $sel = $('#quickRecordFeeSelect').empty().prop('disabled', false);
                 if (!quickRecordState.fees.length) {
-                    $sel.append('<option value="">— Hakuna fee —</option>');
+                    $sel.append('<option value="">— No fees —</option>');
                     $('#quickRecordFeeEmpty').show();
                     $('#quickRecordFeeHint').text(res.message || '');
                     return;
                 }
                 $('#quickRecordFeeEmpty').hide();
-                $sel.append('<option value="">— Chagua fee —</option>');
+                $sel.append('<option value="">— Select fee —</option>');
                 quickRecordState.fees.forEach(function(f, idx) {
                     $sel.append($('<option></option>').attr('value', String(idx)).text(f.label || f.fee_name));
                 });
                 $('#quickRecordFeeHint').text('Academic Year: ' + ((res && res.academic_year) || headerAcademicYearLabel || '—'));
             }).fail(function() {
-                $('#quickRecordFeeSelect').html('<option value="">Hitilafu</option>').prop('disabled', true);
-                $('#quickRecordFeeEmpty').show().text('Imeshindikana kupakia ada.');
+                $('#quickRecordFeeSelect').html('<option value="">Error</option>').prop('disabled', true);
+                $('#quickRecordFeeEmpty').show().text('Failed to load fees.');
             });
         });
 
@@ -4650,7 +4650,7 @@
                 const recordID = $(this).data('record-id');
                 const paymentID = $(this).data('payment-id');
                 
-                if (confirm('Je, unathibitisha kupokea malipo haya?')) {
+                if (confirm('Confirm that you have received this payment?')) {
                     const btn = $(this);
                     btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
                     
@@ -4686,7 +4686,7 @@
                 const recordID = $(this).data('record-id');
                 const paymentID = $(this).data('payment-id');
                 
-                if (confirm('Je, una uhakika wa kufuta uthibitisho huu?')) {
+                if (confirm('Are you sure you want to remove this verification?')) {
                     const btn = $(this);
                     btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
                     
@@ -5098,7 +5098,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-light text-primary-custom border" data-dismiss="modal" id="feeBtnCancelSms">Cancel</button>
                 <button type="button" class="btn btn-primary-custom" id="feeStartSendingSms" disabled>
-                    <i class="bi bi-eye"></i> Angalia SMS na Tuma
+                    <i class="bi bi-eye"></i> Review SMS & Send
                 </button>
             </div>
         </div>
@@ -5111,7 +5111,7 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header">
                 <h5 class="modal-title" id="smsTemplateModalLabel">
-                    <i class="bi bi-chat-left-text me-2"></i> <span id="smsTemplateModalTitle">Thibitisha SMS</span>
+                    <i class="bi bi-chat-left-text me-2"></i> <span id="smsTemplateModalTitle">Confirm SMS</span>
                 </h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -5122,9 +5122,9 @@
                 <div id="smsTemplateEditorList"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-light text-primary-custom border" id="smsTemplateCancelBtn">Ghairi</button>
+                <button type="button" class="btn btn-light text-primary-custom border" id="smsTemplateCancelBtn">Cancel</button>
                 <button type="button" class="btn btn-primary-custom" id="smsTemplateConfirmBtn">
-                    <i class="bi bi-send"></i> Ndiyo, Tuma SMS
+                    <i class="bi bi-send"></i> Yes, Send SMS
                 </button>
             </div>
         </div>

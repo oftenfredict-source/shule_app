@@ -5943,10 +5943,13 @@ $(document).ready(function() {
             classID = $('#lockedClassID').val() || '';
         @endif
 
-        askPdfWatermarkOption().then(function(wmResult) {
+        askPdfDownloadOptions({ showScale: true, showNameMode: false, showRankBy: false }).then(function(wmResult) {
             if (!wmResult.isConfirmed) {
                 return;
             }
+            var optVal = wmResult.value || {};
+            var watermarkVal = optVal.watermark != null ? optVal.watermark : '1';
+            var pdfScaleVal = optVal.pdf_scale != null ? optVal.pdf_scale : '1';
 
         let url = '{{ route("admin.download_results_pdf") }}' + 
                   '?option=bulk_single' + 
@@ -5957,7 +5960,8 @@ $(document).ready(function() {
                   '&classID=' + classID + 
                   '&subclassID=' + subclassID + 
                   '&status=' + status +
-                  '&watermark=' + encodeURIComponent(wmResult.value);
+                  '&watermark=' + encodeURIComponent(watermarkVal) +
+                  '&pdf_scale=' + encodeURIComponent(pdfScaleVal);
                   
         const alertHtml = `
             <div class="mb-3 mt-2 text-left">
@@ -6145,11 +6149,13 @@ $(document).ready(function() {
         opts = opts || {};
         var showNameMode = !!opts.showNameMode;
         var showRankBy = !!opts.showRankBy;
+        var showScale = !!opts.showScale;
+        var previewParams = opts.previewParams || null;
         var isSecondarySchool = (opts.schoolType || '{{ $schoolType ?? "Secondary" }}') === 'Secondary';
         if (typeof Swal === 'undefined') {
             return Promise.resolve({
                 isConfirmed: true,
-                value: { watermark: '1', name_mode: 'both', rank_by: 'average' }
+                value: { watermark: '1', name_mode: 'both', rank_by: 'average', pdf_scale: '1' }
             });
         }
         var nameModeHtml = '';
@@ -6191,8 +6197,89 @@ $(document).ready(function() {
                     '<p class="text-muted small mt-2 mb-0">Default ranking is by average.</p>' +
                 '</div>';
         }
+        var scaleHtml = '';
+        if (showScale) {
+            scaleHtml =
+                '<div class="mt-3 pt-2" style="border-top:1px solid #eee;">' +
+                    '<div class="d-flex justify-content-between align-items-center mb-1">' +
+                        '<div class="font-weight-bold" style="font-size:0.95rem;">Report scale</div>' +
+                        '<span id="sxPdfScaleLabel" class="badge" style="background:#940000;">100% (default)</span>' +
+                    '</div>' +
+                    '<input type="range" class="custom-range w-100" id="sxPdfScale" min="100" max="140" step="5" value="100" style="cursor:pointer;">' +
+                    '<div class="d-flex justify-content-between text-muted small mb-2">' +
+                        '<span>100%</span><span>120%</span><span>140%</span>' +
+                    '</div>' +
+                    '<p class="text-muted small mb-2">Default keeps the current PDF size. Increase only if text looks too small when printed.</p>';
+            if (previewParams) {
+                scaleHtml +=
+                    '<div id="sxPdfPreviewWrap" style="border:1px solid #ddd;background:#ececec;height:390px;overflow:hidden;position:relative;">' +
+                        '<div id="sxPdfPreviewLoading" class="text-center text-muted small" style="padding-top:140px;">' +
+                            '<div class="spinner-border spinner-border-sm text-danger mb-2" role="status"></div><br>Generating preview…' +
+                        '</div>' +
+                        '<iframe id="sxPdfPreviewFrame" title="PDF preview" style="width:100%;height:100%;border:0;display:none;background:#fff;"></iframe>' +
+                    '</div>';
+            }
+            scaleHtml += '</div>';
+        }
+        var previewBlobUrl = null;
+        var previewTimer = null;
+        var previewSeq = 0;
+
+        function sxScaleLabel(pct) {
+            return pct <= 100 ? '100% (default)' : (pct + '%');
+        }
+
+        function sxBuildPreviewQuery() {
+            var clean = {};
+            Object.keys(previewParams || {}).forEach(function(k) {
+                if (k !== '_btn' && previewParams[k] !== null && previewParams[k] !== undefined && previewParams[k] !== '') {
+                    clean[k] = previewParams[k];
+                }
+            });
+            var wm = document.getElementById('sxPdfWatermark');
+            clean.watermark = (wm && wm.checked) ? '1' : '0';
+            var scaleEl = document.getElementById('sxPdfScale');
+            var pct = scaleEl ? parseInt(scaleEl.value, 10) : 100;
+            clean.pdf_scale = String((pct / 100).toFixed(2));
+            clean.preview = '1';
+            return new URLSearchParams(clean).toString();
+        }
+
+        function sxRefreshPdfPreview() {
+            if (!showScale || !previewParams) return;
+            var loading = document.getElementById('sxPdfPreviewLoading');
+            var frame = document.getElementById('sxPdfPreviewFrame');
+            if (!frame) return;
+            if (loading) loading.style.display = 'block';
+            frame.style.display = 'none';
+            var seq = ++previewSeq;
+            var url = '{{ route("admin.download_results_pdf") }}?' + sxBuildPreviewQuery();
+            fetch(url, { method: 'GET', credentials: 'same-origin', headers: { 'Accept': 'application/pdf' } })
+                .then(function(res) {
+                    if (!res.ok) throw new Error('Preview failed');
+                    return res.blob();
+                })
+                .then(function(blob) {
+                    if (seq !== previewSeq) return;
+                    if (previewBlobUrl) {
+                        try { URL.revokeObjectURL(previewBlobUrl); } catch (e) {}
+                    }
+                    previewBlobUrl = URL.createObjectURL(blob);
+                    frame.src = previewBlobUrl;
+                    frame.style.display = 'block';
+                    if (loading) loading.style.display = 'none';
+                })
+                .catch(function() {
+                    if (seq !== previewSeq) return;
+                    if (loading) {
+                        loading.innerHTML = '<span class="text-danger">Could not load preview. You can still download.</span>';
+                        loading.style.display = 'block';
+                    }
+                });
+        }
+
         return Swal.fire({
-            title: 'Download PDF',
+            title: showScale ? 'Download Individual Report' : 'Download PDF',
             html:
                 '<div class="text-left px-1">' +
                     '<div class="form-check">' +
@@ -6204,13 +6291,45 @@ $(document).ready(function() {
                     '<p class="text-muted small mt-2 mb-0">Default is with watermark. Uncheck to export without ShuleXpert watermark.</p>' +
                     nameModeHtml +
                     rankByHtml +
+                    scaleHtml +
                 '</div>',
-            icon: 'question',
+            icon: showScale ? undefined : 'question',
+            width: showScale ? '760px' : undefined,
             showCancelButton: true,
             confirmButtonText: '<i class="bi bi-download"></i> Download',
             cancelButtonText: 'Cancel',
             confirmButtonColor: '#940000',
             focusConfirm: false,
+            didOpen: function() {
+                if (!showScale) return;
+                var scaleEl = document.getElementById('sxPdfScale');
+                var labelEl = document.getElementById('sxPdfScaleLabel');
+                var wmEl = document.getElementById('sxPdfWatermark');
+                function onScaleInput() {
+                    var pct = scaleEl ? parseInt(scaleEl.value, 10) : 100;
+                    if (labelEl) labelEl.textContent = sxScaleLabel(pct);
+                    if (previewTimer) clearTimeout(previewTimer);
+                    previewTimer = setTimeout(sxRefreshPdfPreview, 500);
+                }
+                if (scaleEl) {
+                    scaleEl.addEventListener('input', onScaleInput);
+                }
+                if (wmEl) {
+                    wmEl.addEventListener('change', function() {
+                        if (previewTimer) clearTimeout(previewTimer);
+                        previewTimer = setTimeout(sxRefreshPdfPreview, 400);
+                    });
+                }
+                sxRefreshPdfPreview();
+            },
+            willClose: function() {
+                if (previewTimer) clearTimeout(previewTimer);
+                previewSeq++;
+                if (previewBlobUrl) {
+                    try { URL.revokeObjectURL(previewBlobUrl); } catch (e) {}
+                    previewBlobUrl = null;
+                }
+            },
             preConfirm: function() {
                 var el = document.getElementById('sxPdfWatermark');
                 var mode = 'both';
@@ -6223,10 +6342,19 @@ $(document).ready(function() {
                     var rankEl = document.querySelector('input[name="sxPdfRankBy"]:checked');
                     rankBy = rankEl ? rankEl.value : 'average';
                 }
+                var pdfScale = '1';
+                if (showScale) {
+                    var scaleEl = document.getElementById('sxPdfScale');
+                    var pct = scaleEl ? parseInt(scaleEl.value, 10) : 100;
+                    if (isNaN(pct) || pct < 100) pct = 100;
+                    if (pct > 140) pct = 140;
+                    pdfScale = (pct / 100).toFixed(2);
+                }
                 return {
                     watermark: el && el.checked ? '1' : '0',
                     name_mode: mode,
-                    rank_by: rankBy
+                    rank_by: rankBy,
+                    pdf_scale: pdfScale
                 };
             }
         });
@@ -6251,6 +6379,16 @@ $(document).ready(function() {
         }
 
         downloadOpts = downloadOpts || {};
+        // Individual reports (single / bulk_single): offer scale + live PDF preview
+        if (downloadOpts.showScale == null) {
+            var opt = String(params.option || '');
+            downloadOpts.showScale = (opt === 'single' || opt === 'bulk_single');
+        }
+        if (downloadOpts.showScale && !downloadOpts.previewParams) {
+            downloadOpts.previewParams = Object.assign({}, params);
+            delete downloadOpts.previewParams._btn;
+        }
+
         askPdfDownloadOptions(downloadOpts).then(function(result) {
             if (!result.isConfirmed) {
                 return;
@@ -6277,6 +6415,9 @@ $(document).ready(function() {
                 cleanParams.rank_by = optVal.rank_by || 'average';
             } else if (!cleanParams.rank_by) {
                 cleanParams.rank_by = $('#rank_by').val() || 'average';
+            }
+            if (downloadOpts.showScale) {
+                cleanParams.pdf_scale = optVal.pdf_scale != null ? optVal.pdf_scale : '1';
             }
 
             const queryString = new URLSearchParams(cleanParams).toString();

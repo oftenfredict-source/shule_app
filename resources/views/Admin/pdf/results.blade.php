@@ -335,6 +335,18 @@
     @endphp
     @php
         $isIndividualPdf = in_array($option ?? '', ['single', 'bulk_single'], true);
+        $pdfScale = isset($pdfScale) ? (float) $pdfScale : 1.0;
+        if ($pdfScale < 1.0) {
+            $pdfScale = 1.0;
+        }
+        if ($pdfScale > 1.4) {
+            $pdfScale = 1.4;
+        }
+        $pdfScale = round($pdfScale, 2);
+        $pdfScaleActive = $isIndividualPdf && $pdfScale > 1.001;
+        $sx = function ($base) use ($pdfScale) {
+            return round(((float) $base) * $pdfScale, 2);
+        };
     @endphp
     <style>
         /* Paper size: individual = portrait; board = landscape */
@@ -724,6 +736,65 @@
             color: #940000 !important;
             font-weight: bold !important;
         }
+
+        @if(!empty($pdfScaleActive))
+        /* Optional download scale (>100%). Default 100% uses rules above unchanged. */
+        body.individual-pdf {
+            font-size: {{ $sx(11) }}px !important;
+            line-height: 1.12 !important;
+        }
+        body.individual-pdf .logo-cell {
+            width: {{ $sx(78) }}px !important;
+        }
+        body.individual-pdf .logo-cell img,
+        body.individual-pdf .school-logo {
+            max-height: {{ $sx(72) }}px !important;
+            max-width: {{ $sx(74) }}px !important;
+        }
+        body.individual-pdf .student-photo-top img,
+        body.individual-pdf .student-photo-cell img {
+            width: {{ $sx(68) }}px !important;
+            height: {{ $sx(68) }}px !important;
+        }
+        body.individual-pdf .org-name { font-size: {{ $sx(11) }}px !important; }
+        body.individual-pdf .school-name { font-size: {{ $sx(15) }}px !important; }
+        body.individual-pdf .school-sub { font-size: {{ $sx(9) }}px !important; }
+        body.individual-pdf .report-title { font-size: {{ $sx(11) }}px !important; padding: {{ $sx(2) }}px {{ $sx(4) }}px !important; }
+        body.individual-pdf .info-table td { font-size: {{ $sx(10) }}px !important; padding: {{ $sx(1) }}px {{ $sx(3) }}px !important; }
+        body.individual-pdf .remark-color-legend-title { font-size: {{ $sx(9) }}px !important; }
+        body.individual-pdf .remark-color-block { font-size: {{ $sx(8.5) }}px !important; padding: {{ $sx(1) }}px {{ $sx(3) }}px !important; }
+        body.individual-pdf .section-title { font-size: {{ $sx(11) }}px !important; }
+        body.individual-pdf table.data,
+        body.individual-pdf table.data-table { font-size: {{ $sx(11) }}px !important; }
+        body.individual-pdf table.data th,
+        body.individual-pdf table.data-table th { font-size: {{ $sx(9.5) }}px !important; padding: {{ $sx(1) }}px {{ $sx(2) }}px !important; }
+        body.individual-pdf table.data td,
+        body.individual-pdf table.data-table td { font-size: {{ $sx(11) }}px !important; padding: {{ $sx(1) }}px {{ $sx(2) }}px !important; }
+        body.individual-pdf table.data.term-report-card th.exam-group { font-size: {{ $sx(8.5) }}px !important; }
+        body.individual-pdf table.data.term-report-card th.exam-sub { font-size: {{ $sx(8) }}px !important; }
+        body.individual-pdf table.data.term-report-card td.exam-marks,
+        body.individual-pdf table.data.term-report-card td.exam-grade,
+        body.individual-pdf table.data td.daraja-cell { font-size: {{ $sx(11) }}px !important; }
+        body.individual-pdf table.data td.remark-cell { font-size: {{ $sx(10) }}px !important; }
+        body.individual-pdf .summary-grid td { font-size: {{ $sx(10.5) }}px !important; padding: {{ $sx(2) }}px {{ $sx(3) }}px !important; }
+        body.individual-pdf .summary-grid .sg-value { font-size: {{ $sx(12) }}px !important; }
+        body.individual-pdf .grade-key-table { font-size: {{ $sx(11) }}px !important; }
+        body.individual-pdf .grade-key-table th,
+        body.individual-pdf .grade-key-table td { font-size: {{ $sx(9.5) }}px !important; padding: {{ $sx(1) }}px {{ $sx(2) }}px !important; }
+        body.individual-pdf .character-assessment-table th,
+        body.individual-pdf .character-assessment-table td { font-size: {{ $sx(10) }}px !important; padding: {{ $sx(2) }}px {{ $sx(3) }}px !important; }
+        body.individual-pdf .official-remarks-table td { font-size: {{ $sx(10.5) }}px !important; }
+        body.individual-pdf .official-remarks-table .orm-title,
+        body.individual-pdf .official-remarks-table .orm-title-dark { font-size: {{ $sx(9.5) }}px !important; }
+        body.individual-pdf .official-remarks-table .orm-body { font-size: {{ $sx(10.5) }}px !important; }
+        body.individual-pdf .official-remarks-table .orm-meta { font-size: {{ $sx(9.5) }}px !important; }
+        body.individual-pdf .orm-sign-label { font-size: {{ $sx(9) }}px !important; }
+        body.individual-pdf .orm-stamp-block img {
+            max-height: {{ $sx(84) }}px !important;
+            max-width: {{ $sx(84) }}px !important;
+        }
+        body.individual-pdf .footer { font-size: {{ $sx(7) }}px !important; }
+        @endif
 
         table, td, th, p, div, span, li {
             font-family: 'Helvetica', sans-serif;
