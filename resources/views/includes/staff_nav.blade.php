@@ -919,6 +919,8 @@
             </div>
         </header>
 
+        @include('partials.school_social_media_bar')
+
         @php
             $systemAlerts = collect();
             try {

@@ -128,7 +128,24 @@
     }
     @media (max-width: 575.98px) {
         .dashboard-hero { padding: 10px 12px; }
-        .dashboard-card .stat { font-size: 1.2rem; }
+        .dashboard-card .stat { font-size: 1.05rem; }
+        .dashboard-card .card-body { padding: 8px 8px; }
+        .dashboard-card .card-title { font-size: 0.68rem; }
+        .dashboard-card .stat-note { font-size: 0.62rem; }
+        .dashboard-card .card-icon { font-size: 1rem; }
+        .dashboard-card .card-actions .btn {
+            font-size: 0.62rem;
+            padding: 3px 5px;
+        }
+        .dashboard-widgets-row {
+            margin-left: -4px;
+            margin-right: -4px;
+        }
+        .dashboard-widgets-row > [class*="col-"] {
+            padding-left: 4px;
+            padding-right: 4px;
+            margin-bottom: 8px;
+        }
     }
 </style>
 <div class="container-fluid mt-3">
@@ -330,7 +347,7 @@
 
 <div class="row dashboard-widgets-row">
     @foreach($cards as $card)
-        <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+        <div class="col-4 col-md-4 col-lg-3 col-xl-2">
             <div class="card dashboard-card">
             <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">

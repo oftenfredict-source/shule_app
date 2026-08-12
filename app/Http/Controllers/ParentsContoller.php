@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\ParentResultNotification;
+use App\Models\ParentHomePackageNotification;
 use App\Models\CaDefinition;
 use App\Models\GradeDefinition;
 use App\Models\ClassModel;
@@ -30,6 +31,8 @@ use App\Services\StudentPermissionAttendanceService;
 use App\Services\ParentFingerprintPortalService;
 use App\Services\SecondaryResultGradingService;
 use App\Models\StudentFingerprintAttendance;
+use App\Models\AcademicYear;
+use App\Services\SelectedAcademicYearService;
 
 class ParentsContoller extends Controller
 {
@@ -644,6 +647,33 @@ class ParentsContoller extends Controller
                 ->toArray();
         }
 
+        // Academic years (O/A) — wizard filters by student level after student is chosen
+        $ayContext = $this->parentAcademicYearContext((int) $schoolID);
+        $academicYears = $ayContext['options'];
+        $academicYearLabel = $ayContext['label'];
+        $ayMode = $ayContext['mode'];
+        if (!empty($ayContext['calendar_years'])) {
+            $years = $ayContext['calendar_years'];
+        }
+
+        $yearService = app(SelectedAcademicYearService::class);
+        $isSecondaryDual = $ayMode === 'secondary_dual';
+        $students = $students->map(function ($student) use ($yearService, $isSecondaryDual, $ayMode) {
+            $className = $student->subclass->class->class_name ?? '';
+            $isA = $yearService->isALevelClassName($className);
+            $student->setAttribute('class_name', $className);
+            $student->setAttribute('is_a_level', $isA);
+            if ($ayMode === 'primary') {
+                $levelLabel = $className ?: 'Primary';
+            } elseif ($isSecondaryDual || $ayMode === 'secondary_o_only') {
+                $levelLabel = ($isA ? 'A Level' : 'O Level') . ($className ? ' · ' . $className : '');
+            } else {
+                $levelLabel = $className ?: '—';
+            }
+            $student->setAttribute('level_label', $levelLabel);
+            return $student;
+        });
+
         // Get unique terms from examinations (all approved exams with results for parent's students)
         $terms = Examination::where('schoolID', $schoolID)
             ->where('approval_status', 'Approved')
@@ -1052,6 +1082,9 @@ class ParentsContoller extends Controller
             'resultsWithDivisions',
             'examinations',
             'years',
+            'academicYears',
+            'academicYearLabel',
+            'ayMode',
             'terms',
             'studentFilter',
             'yearFilter',
@@ -4263,23 +4296,45 @@ class ParentsContoller extends Controller
 
     public function getPublishedExams(Request $request)
     {
-        $schoolID = Session::get('schoolID');
+        $schoolID = (int) Session::get('schoolID');
         $year = $request->get('year');
         $term = $request->get('term');
+        $academicYearID = (int) $request->get('academic_yearID', 0);
 
-        $exams = Examination::where('schoolID', $schoolID)
-            ->where('year', $year)
+        $ayIds = [];
+        $calendarYears = [];
+        if ($academicYearID > 0) {
+            $ay = AcademicYear::where('schoolID', $schoolID)
+                ->where('academic_yearID', $academicYearID)
+                ->first();
+            if ($ay) {
+                $ayIds = [$academicYearID];
+                $calendarYears = $this->extractCalendarYearsFromAcademicYear($ay);
+            }
+        } elseif ($year) {
+            $calendarYears = [(int) $year];
+        } else {
+            $ctx = $this->parentAcademicYearContext($schoolID);
+            $ayIds = $ctx['selected_ids'];
+            $calendarYears = $ctx['calendar_years'];
+        }
+
+        $examsQuery = Examination::where('schoolID', $schoolID)
             ->where('term', $term)
             ->where('approval_status', 'Approved')
-            ->whereHas('results', function($q) {
+            ->whereHas('results', function ($q) {
                 $q->where('parent_status', 'enabled');
-            })
-            ->select('examID', 'exam_name')
-            ->get();
+            });
+
+        $this->applyParentExaminationAcademicYearFilter($examsQuery, $ayIds, $calendarYears);
+
+        $exams = $examsQuery->select('examID', 'exam_name', 'academic_yearID', 'year')->get();
 
         return response()->json([
             'success' => true,
-            'exams' => $exams
+            'exams' => $exams,
+            'academic_year_ids' => $ayIds,
+            'calendar_years' => $calendarYears,
         ]);
     }
 
@@ -4292,6 +4347,7 @@ class ParentsContoller extends Controller
         $type = $request->input('type', 'exam');
         $year = $request->input('year');
         $term = $request->input('term');
+        $academicYearID = (int) $request->input('academic_yearID', 0);
 
         $student = Student::with(['subclass.class', 'subclass.combie.subjects'])
             ->where('studentID', $studentID)
@@ -4300,6 +4356,19 @@ class ParentsContoller extends Controller
 
         if (!$student) {
             return response()->json(['success' => false, 'message' => 'Mwanafunzi hakupatikana.']);
+        }
+
+        // Resolve calendar year(s) from academic year (manageResults style)
+        if ($academicYearID > 0) {
+            $ay = AcademicYear::where('schoolID', $schoolID)
+                ->where('academic_yearID', $academicYearID)
+                ->first();
+            if ($ay) {
+                $cals = $this->extractCalendarYearsFromAcademicYear($ay);
+                if (!empty($cals) && empty($year)) {
+                    $year = $cals[0];
+                }
+            }
         }
 
         if ($type === 'report') {
@@ -4336,7 +4405,8 @@ class ParentsContoller extends Controller
             'examID' => $examID,
             'type' => $type,
             'year' => $year,
-            'term' => $term
+            'term' => $term,
+            'academic_yearID' => $academicYearID ?: null,
         ]);
 
         $detailedData = [];
@@ -4530,5 +4600,296 @@ class ParentsContoller extends Controller
         }
 
         return $position;
+    }
+
+    /**
+     * Academic years for parent results wizard — same source as header selector.
+     */
+    private function parentAcademicYearContext(int $schoolID): array
+    {
+        $yearService = app(SelectedAcademicYearService::class);
+        $ctx = $yearService->headerContext($schoolID);
+        $mode = $ctx['mode'] ?? 'none';
+
+        if ($mode === 'primary') {
+            $pool = collect($ctx['years'] ?? []);
+        } elseif ($mode === 'secondary_o_only') {
+            $pool = collect($ctx['o_level_years'] ?? $ctx['years'] ?? []);
+        } elseif ($mode === 'secondary_dual') {
+            $pool = collect($ctx['o_level_years'] ?? [])->concat($ctx['a_level_years'] ?? []);
+        } else {
+            $pool = collect($ctx['years'] ?? []);
+        }
+
+        $selectedIds = array_values(array_filter(array_map('intval', $ctx['selected_year_ids'] ?? [])));
+        $options = [];
+        $calendarYears = [];
+        $labels = [];
+
+        foreach ($pool->unique('academic_yearID') as $y) {
+            $id = (int) $y->academic_yearID;
+            $cals = $this->extractCalendarYearsFromAcademicYear($y);
+            $isA = $yearService->isALevelYear($y);
+            $baseLabel = $y->year_name ?: $y->year;
+            $label = $baseLabel;
+            if ($mode === 'secondary_dual') {
+                $label = ($isA ? 'A: ' : 'O: ') . $baseLabel;
+            }
+            $options[] = [
+                'academic_yearID' => $id,
+                'label' => $label,
+                'short_label' => $baseLabel,
+                'calendar_years' => $cals,
+                'calendar_year' => $cals[0] ?? (int) ($y->year ?: date('Y')),
+                'is_selected' => in_array($id, $selectedIds, true),
+                'is_a_level' => $isA,
+            ];
+            foreach ($cals as $c) {
+                $calendarYears[] = $c;
+            }
+        }
+
+        foreach ($selectedIds as $sid) {
+            $opt = collect($options)->firstWhere('academic_yearID', $sid);
+            if ($opt) {
+                $labels[] = $opt['label'];
+            }
+        }
+
+        $calendarYears = array_values(array_unique(array_filter($calendarYears)));
+
+        return [
+            'mode' => $mode,
+            'options' => $options,
+            'selected_ids' => $selectedIds,
+            'calendar_years' => $calendarYears,
+            'label' => !empty($labels)
+                ? implode(' / ', $labels)
+                : (!empty($options) ? $options[0]['label'] : ('Year ' . date('Y'))),
+        ];
+    }
+
+    private function extractCalendarYearsFromAcademicYear($year): array
+    {
+        $blob = trim((string) ($year->year ?? '') . ' ' . (string) ($year->year_name ?? ''));
+        if ($blob === '') {
+            return [];
+        }
+
+        preg_match_all('/(20\d{2})/', $blob, $matches);
+        $found = array_map('intval', $matches[1] ?? []);
+        if (empty($found) && is_numeric($year->year ?? null)) {
+            $found[] = (int) $year->year;
+        }
+
+        return array_values(array_unique(array_filter($found, fn ($y) => $y >= 2000)));
+    }
+
+    private function applyParentExaminationAcademicYearFilter($query, array $yearIds, array $calendarYears = [])
+    {
+        $yearIds = array_values(array_filter(array_map('intval', $yearIds)));
+        $calendarYears = array_values(array_filter(array_map('intval', $calendarYears)));
+
+        if (!empty($yearIds)) {
+            $query->where(function ($q) use ($yearIds, $calendarYears) {
+                $q->whereIn('academic_yearID', $yearIds);
+                foreach ($yearIds as $yearId) {
+                    $q->orWhereJsonContains('academic_year_ids', $yearId);
+                    $q->orWhereJsonContains('academic_year_ids', (string) $yearId);
+                }
+                if (!empty($calendarYears)) {
+                    $q->orWhere(function ($q2) use ($calendarYears) {
+                        $q2->whereNull('academic_yearID')->whereIn('year', $calendarYears);
+                    });
+                    $q->orWhereIn('year', $calendarYears);
+                }
+            });
+        } elseif (!empty($calendarYears)) {
+            $query->whereIn('year', $calendarYears);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Unified parent header notifications (results + home packages).
+     */
+    public function headerNotifications()
+    {
+        $schoolID = (int) Session::get('schoolID');
+        $parentID = (int) Session::get('parentID');
+        if (!$schoolID || !$parentID) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $resultItems = ParentResultNotification::with(['student', 'examination'])
+            ->where('schoolID', $schoolID)
+            ->where('parentID', $parentID)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(function (ParentResultNotification $n) {
+                $studentName = trim(
+                    ($n->student->first_name ?? '') . ' ' . ($n->student->last_name ?? '')
+                ) ?: 'Mwanafunzi';
+                $isReport = ($n->type ?? '') === 'report';
+                $examName = $n->examination->exam_name ?? 'Mtihani';
+                $term = $n->term ?: ($n->examination->term ?? '');
+                $year = $n->year ?: ($n->examination->year ?? '');
+                $termYear = trim(($term ? 'Muhula ' . $term : '') . ($year ? ' · ' . $year : ''));
+
+                if ($isReport) {
+                    $message = 'Ripoti ya muhula imechapishwa kwa ' . $studentName
+                        . ($termYear ? ' (' . $termYear . ')' : '');
+                    $title = 'Ripoti ya Mwanafunzi';
+                    $url = route('parentReport');
+                    $icon = 'bx-book-open';
+                } else {
+                    $message = 'Matokeo ya ' . $examName . ' yamechapishwa kwa ' . $studentName
+                        . ($termYear ? ' (' . $termYear . ')' : '');
+                    $title = 'Matokeo ya Mtihani';
+                    $url = route('parentResults');
+                    $icon = 'bx-trophy';
+                }
+
+                return [
+                    'id' => $n->id,
+                    'source' => 'result',
+                    'type' => $isReport ? 'report' : 'exam',
+                    'is_viewed' => (bool) $n->is_viewed,
+                    'created_at' => optional($n->created_at)->diffForHumans(),
+                    'created_at_raw' => optional($n->created_at)->timestamp ?? 0,
+                    'title' => $title,
+                    'message' => $message,
+                    'icon' => $icon,
+                    'url' => $url,
+                    'student_name' => $studentName,
+                ];
+            });
+
+        $hpItems = ParentHomePackageNotification::with([
+            'homePackage.holiday',
+            'homePackage.subject',
+        ])
+            ->where('schoolID', $schoolID)
+            ->where('parentID', $parentID)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(function (ParentHomePackageNotification $n) {
+                $p = $n->homePackage;
+                $subject = $p->subject->subject_name ?? 'somo';
+                $holiday = $p->holiday->holiday_name ?? '';
+                $mime = strtolower((string) ($p->mime_type ?? ''));
+                $filename = strtolower((string) ($p->original_filename ?? ''));
+                $isPdf = str_contains($mime, 'pdf') || str_ends_with($filename, '.pdf');
+                $isDoc = str_contains($mime, 'word')
+                    || str_contains($mime, 'msword')
+                    || str_contains($mime, 'officedocument')
+                    || str_ends_with($filename, '.doc')
+                    || str_ends_with($filename, '.docx');
+                $fileKind = $isPdf ? 'pdf' : ($isDoc ? 'doc' : 'file');
+
+                return [
+                    'id' => $n->id,
+                    'source' => 'home_package',
+                    'type' => 'home_package',
+                    'is_viewed' => (bool) $n->is_viewed,
+                    'created_at' => optional($n->created_at)->diffForHumans(),
+                    'created_at_raw' => optional($n->created_at)->timestamp ?? 0,
+                    'title' => 'Home Package',
+                    'message' => 'Kifurushi kipya cha masomo ya nyumbani'
+                        . ($subject ? ' — ' . $subject : '')
+                        . ($holiday ? ' (' . $holiday . ')' : ''),
+                    'icon' => 'bx-home-smile',
+                    'url' => route('parentHomePackages'),
+                    'holiday_name' => $holiday ?: '—',
+                    'original_filename' => $p->original_filename ?? null,
+                    'file_kind' => $fileKind,
+                    'view_url' => $p ? route('home_packages.view', $p->home_packageID) : null,
+                    'download_url' => $p ? route('home_packages.download', $p->home_packageID) : null,
+                    'level_label' => $p ? $p->levelLabel() : '—',
+                ];
+            });
+
+        $merged = $resultItems->concat($hpItems)
+            ->sortByDesc('created_at_raw')
+            ->take(30)
+            ->values()
+            ->map(function ($row) {
+                unset($row['created_at_raw']);
+                return $row;
+            });
+
+        $unreadResults = ParentResultNotification::where('schoolID', $schoolID)
+            ->where('parentID', $parentID)
+            ->where('is_viewed', false)
+            ->count();
+        $unreadHp = ParentHomePackageNotification::where('schoolID', $schoolID)
+            ->where('parentID', $parentID)
+            ->where('is_viewed', false)
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'unread' => $unreadResults + $unreadHp,
+            'unread_results' => $unreadResults,
+            'unread_home_packages' => $unreadHp,
+            'notifications' => $merged,
+        ]);
+    }
+
+    public function markHeaderNotificationsRead(Request $request)
+    {
+        $schoolID = (int) Session::get('schoolID');
+        $parentID = (int) Session::get('parentID');
+        if (!$schoolID || !$parentID) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $source = $request->input('source', 'all');
+        $id = $request->input('id');
+        $markAll = $request->boolean('all') || $id === 'all' || $source === 'all';
+
+        if ($markAll && ($source === 'all' || !$request->filled('source'))) {
+            ParentResultNotification::where('schoolID', $schoolID)
+                ->where('parentID', $parentID)
+                ->where('is_viewed', false)
+                ->update(['is_viewed' => true]);
+            ParentHomePackageNotification::where('schoolID', $schoolID)
+                ->where('parentID', $parentID)
+                ->where('is_viewed', false)
+                ->update(['is_viewed' => true]);
+
+            return response()->json(['success' => true, 'message' => 'Arifa zote zimesomwa']);
+        }
+
+        if ($source === 'result') {
+            if ($request->boolean('all') || $id === 'all') {
+                ParentResultNotification::where('schoolID', $schoolID)
+                    ->where('parentID', $parentID)
+                    ->where('is_viewed', false)
+                    ->update(['is_viewed' => true]);
+            } else {
+                ParentResultNotification::where('id', $id)
+                    ->where('schoolID', $schoolID)
+                    ->where('parentID', $parentID)
+                    ->update(['is_viewed' => true]);
+            }
+        } elseif ($source === 'home_package') {
+            if ($request->boolean('all') || $id === 'all') {
+                ParentHomePackageNotification::where('schoolID', $schoolID)
+                    ->where('parentID', $parentID)
+                    ->where('is_viewed', false)
+                    ->update(['is_viewed' => true]);
+            } else {
+                ParentHomePackageNotification::where('id', $id)
+                    ->where('schoolID', $schoolID)
+                    ->where('parentID', $parentID)
+                    ->update(['is_viewed' => true]);
+            }
+        }
+
+        return response()->json(['success' => true]);
     }
 }

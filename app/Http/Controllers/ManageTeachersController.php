@@ -650,7 +650,62 @@ class ManageTeachersController extends Controller
         }
     }
 
-  public function save_teachers(Request $request)
+    /**
+     * Generate a unique employee / check number (login username).
+     */
+    private function generateUniqueEmployeeNumber(?int $schoolID = null): string
+    {
+        $prefix = 'TCH';
+        if ($schoolID) {
+            $prefix .= $schoolID;
+        }
+        do {
+            $candidate = $prefix . str_pad((string) random_int(1, 999999), 6, '0', STR_PAD_LEFT);
+        } while (
+            Teacher::where('employee_number', $candidate)->exists() ||
+            User::where('name', $candidate)->exists()
+        );
+
+        return $candidate;
+    }
+
+    /**
+     * Default teacher login password: last_name + "staff"
+     */
+    private function teacherDefaultPlainPassword(string $lastName): string
+    {
+        return trim($lastName) . 'staff';
+    }
+
+    /**
+     * Resolve employee number from request (auto or custom). Unique enforced.
+     */
+    private function resolveEmployeeNumber(Request $request): array
+    {
+        $mode = strtolower((string) ($request->input('employee_number_mode') ?: 'auto'));
+        if (!in_array($mode, ['auto', 'custom'], true)) {
+            $mode = 'auto';
+        }
+
+        if ($mode === 'auto') {
+            $emp = $this->generateUniqueEmployeeNumber(
+                $request->schoolID ? (int) $request->schoolID : (Session::get('schoolID') ? (int) Session::get('schoolID') : null)
+            );
+            return ['ok' => true, 'mode' => 'auto', 'employee_number' => $emp];
+        }
+
+        $emp = trim((string) $request->input('employee_number', ''));
+        if ($emp === '') {
+            return ['ok' => false, 'error' => 'Employee number is required for custom mode.', 'field' => 'employee_number'];
+        }
+        if (Teacher::where('employee_number', $emp)->exists() || User::where('name', $emp)->exists()) {
+            return ['ok' => false, 'error' => 'Employee number already exists. Use a unique value.', 'field' => 'employee_number'];
+        }
+
+        return ['ok' => true, 'mode' => 'custom', 'employee_number' => $emp];
+    }
+
+    public function save_teachers(Request $request)
 {
     // Permission check
     if (!$this->checkPermission('teacher_create')) {
@@ -658,32 +713,59 @@ class ManageTeachersController extends Controller
     }
 
     try {
-        // Validation rules
-        $validator = Validator::make($request->all(), [
-            'first_name'      => 'required|string|max:255',
-            'last_name'       => 'required|string|max:255',
-            'gender'          => 'required|in:Male,Female',
-            'national_id'     => 'required|unique:teachers,national_id',
-            'employee_number' => 'required|unique:teachers,employee_number',
-            'email'           => 'required|email|unique:teachers,email',
-            'phone_number'    => [
-                'required',
-                'unique:teachers,phone_number',
-                'regex:/^255\d{9}$/'
-            ],
-            'bank_account_number' => 'nullable|string|max:255',
-            'image'           => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-        ], [
-            'phone_number.regex' => 'Phone number must have 12 digits: start with 255 followed by 9 digits (e.g., 255614863345)',
-            'image.max'         => 'Image must not exceed 2MB.',
-            'image.mimes'       => 'Only JPG and PNG formats are allowed.',
-        ]);
+        $isQuick = $request->boolean('quick_reg') || $request->input('quick_reg') == 1;
 
-        // If validation fails, return errors as JSON
+        // Resolve employee number first (auto default)
+        $resolved = $this->resolveEmployeeNumber($request);
+        if (!$resolved['ok']) {
+            return response()->json([
+                'errors' => [
+                    ($resolved['field'] ?? 'employee_number') => $resolved['error'],
+                ],
+            ], 422);
+        }
+        $employeeNumber = $resolved['employee_number'];
+
+        // Quick reg: only names + phone (+ optional custom emp no). Fill unique placeholders for required account fields.
+        if ($isQuick) {
+            $validator = Validator::make($request->all(), [
+                'first_name'   => 'required|string|max:255',
+                'last_name'    => 'required|string|max:255',
+                'middle_name'  => 'nullable|string|max:255',
+                'phone_number' => [
+                    'required',
+                    'unique:teachers,phone_number',
+                    'regex:/^255\d{9}$/',
+                ],
+            ], [
+                'phone_number.regex' => 'Phone number must have 12 digits: start with 255 followed by 9 digits (e.g., 255614863345)',
+                'phone_number.unique' => 'This phone number is already registered.',
+            ]);
+        } else {
+            $validator = Validator::make($request->all(), [
+                'first_name'      => 'required|string|max:255',
+                'last_name'       => 'required|string|max:255',
+                'gender'          => 'required|in:Male,Female',
+                'national_id'     => 'required|unique:teachers,national_id',
+                'email'           => 'required|email|unique:teachers,email|unique:users,email',
+                'phone_number'    => [
+                    'required',
+                    'unique:teachers,phone_number',
+                    'regex:/^255\d{9}$/',
+                ],
+                'bank_account_number' => 'nullable|string|max:255',
+                'image'           => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            ], [
+                'phone_number.regex' => 'Phone number must have 12 digits: start with 255 followed by 9 digits (e.g., 255614863345)',
+                'image.max'         => 'Image must not exceed 2MB.',
+                'image.mimes'       => 'Only JPG and PNG formats are allowed.',
+            ]);
+        }
+
         if ($validator->fails()) {
             $errors = [];
             foreach ($validator->errors()->toArray() as $field => $messages) {
-                $errors[$field] = $messages[0]; // first error per field
+                $errors[$field] = $messages[0];
             }
             return response()->json(['errors' => $errors], 422);
         }
@@ -691,11 +773,9 @@ class ManageTeachersController extends Controller
         // Handle Image Upload
         $imageName = null;
         if ($request->hasFile('image')) {
-            // Determine upload path - Prioritize the directory where index.php is located
             $scriptDir = isset($_SERVER['SCRIPT_FILENAME']) ? dirname($_SERVER['SCRIPT_FILENAME']) : public_path();
             $uploadPath = $scriptDir . '/userImages';
-            
-            // If scriptDir doesn't exist or isn't writable, fallback to other common paths
+
             if (!is_dir($uploadPath) && !@mkdir($uploadPath, 0777, true)) {
                 $docRootPath = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] . '/userImages' : null;
                 if ($docRootPath && (is_dir($docRootPath) || @mkdir($docRootPath, 0777, true))) {
@@ -713,59 +793,80 @@ class ManageTeachersController extends Controller
             $request->file('image')->move($uploadPath, $imageName);
         }
 
-        // Get schoolID from session
         $schoolID = Session::get('schoolID') ?? $request->schoolID ?? null;
 
-        // Generate unique 4-digit fingerprint ID (must be unique in users table first)
         $fingerprintId = null;
-        // Generate 4-digit ID (1000-9999) - ensure it's unique in users table
         do {
             $fingerprintId = (string)rand(1000, 9999);
         } while (
             User::where('fingerprint_id', $fingerprintId)->exists() ||
             Teacher::where('fingerprint_id', $fingerprintId)->exists() ||
-            Teacher::where('id', (int)$fingerprintId)->exists() // Check id as well
+            Teacher::where('id', (int)$fingerprintId)->exists()
         );
 
-        // Create teacher with id = fingerprintID and fingerprint_id = fingerprintID
+        $firstName = trim((string) $request->first_name);
+        $lastName = trim((string) $request->last_name);
+        $middleName = $request->middle_name ? trim((string) $request->middle_name) : null;
+        $phone = (string) $request->phone_number;
+
+        if ($isQuick) {
+            $gender = in_array($request->gender, ['Male', 'Female'], true) ? $request->gender : 'Male';
+            do {
+                $nationalId = 'QR-' . strtoupper(substr(md5(uniqid((string) mt_rand(), true)), 0, 12));
+            } while (Teacher::where('national_id', $nationalId)->exists());
+            do {
+                $email = strtolower($employeeNumber) . '.' . $phone . '@teachers.local';
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $email = 't' . preg_replace('/\W+/', '', $employeeNumber) . '@teachers.local';
+                }
+            } while (
+                Teacher::where('email', $email)->exists() ||
+                User::where('email', $email)->exists()
+            );
+        } else {
+            $gender = $request->gender;
+            $nationalId = $request->national_id;
+            $email = $request->email;
+        }
+
+        $plainPassword = $this->teacherDefaultPlainPassword($lastName);
+
         $teacher = Teacher::create(array_merge([
-            'id'             => (int)$fingerprintId, // Set id equal to fingerprintID (as integer)
+            'id'             => (int)$fingerprintId,
             'schoolID'       => $schoolID,
-            'first_name'     => $request->first_name,
-            'middle_name'   => $request->middle_name ?? null,
-            'last_name'      => $request->last_name,
+            'first_name'     => $firstName,
+            'middle_name'    => $middleName,
+            'last_name'      => $lastName,
             'image'          => $imageName,
-            'gender'         => $request->gender,
-            'national_id'    => $request->national_id,
-            'employee_number' => $request->employee_number,
-            'email'         => $request->email,
-            'phone_number'  => $request->phone_number,
+            'gender'         => $gender,
+            'national_id'    => $nationalId,
+            'employee_number' => $employeeNumber,
+            'email'         => $email,
+            'phone_number'  => $phone,
             'bank_account_number' => $request->bank_account_number ?? null,
             'status'        => $request->status ?? 'Active',
-            'fingerprint_id' => $fingerprintId, // Also store in fingerprint_id column (as string)
-        ], $this->tangePayloadFromRequest($request)));
+            'fingerprint_id' => $fingerprintId,
+        ], $isQuick ? [] : $this->tangePayloadFromRequest($request)));
 
-        // Create user for login with same fingerprint_id
-        $user = User::create([
-            'name'          => $request->employee_number,
-            'email'         => $request->email,
-            'password'      => bcrypt($request->first_name), // hash password
+        User::create([
+            'name'          => $employeeNumber,
+            'email'         => $email,
+            'password'      => bcrypt($plainPassword),
             'user_type'     => 'Teacher',
-            'fingerprint_id' => $fingerprintId  // Same fingerprint_id as teacher (id)
+            'fingerprint_id' => $fingerprintId,
         ]);
 
         $smsResult = null;
         try {
             $school = School::find($schoolID);
             $schoolName = $school->school_name ?? 'ShuleXpert';
-            $username = (string) $request->employee_number;
-            $plainPassword = (string) $request->first_name;
-            
+            $username = (string) $employeeNumber;
+
             $prefix = ($school && $school->senderID) ? "" : "{$schoolName}. ";
             $smsMessage = "{$prefix}Usajili umekamilika. Username: {$username}. Password: {$plainPassword}. Login: https://shulexpert.com/login";
 
             $smsService = new SmsService();
-            $smsResult = $smsService->sendSms($request->phone_number, $smsMessage);
+            $smsResult = $smsService->sendSms($phone, $smsMessage);
         } catch (\Exception $e) {
             $smsResult = ['success' => false, 'message' => $e->getMessage()];
         }
@@ -773,6 +874,9 @@ class ManageTeachersController extends Controller
         return response()->json([
             'success' => 'Teacher added successfully!',
             'fingerprint_id' => $fingerprintId,
+            'employee_number' => $employeeNumber,
+            'employee_number_mode' => $resolved['mode'],
+            'username' => $employeeNumber,
             'sms_success' => (bool)($smsResult['success'] ?? false),
             'sms_message' => $smsResult['message'] ?? null,
         ]);

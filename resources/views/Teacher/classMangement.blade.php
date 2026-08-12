@@ -477,10 +477,41 @@
 
     <!-- Action Widgets -->
     <div class="row mb-4 class-mgmt-widgets">
-        {{-- Register / Parent widgets intentionally commented — use Admin Quick Registration + Enroll --}}
-
-        <!-- Enroll Student Widget (class locked to this teacher's subclass) -->
+        {{-- Class teacher (own stream): Quick Reg / Import auto-enrolls into this stream --}}
         @if(!empty($decryptedSubclassID) && empty($isCoordinatorView))
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm widget-card h-100" id="quickRegisterStudentBtn" role="button" style="cursor:pointer;">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-lightning-charge-fill text-primary-custom" style="font-size: 3rem;"></i>
+                    </div>
+                    <h6 class="card-title mb-0 fw-bold">Quick Registration</h6>
+                    <small class="text-muted">Register into {{ $subclassDisplayName ?? 'this stream' }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm widget-card h-100" id="quickTemplateDownloadBtn" role="button" style="cursor:pointer;">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-download text-primary-custom" style="font-size: 3rem;"></i>
+                    </div>
+                    <h6 class="card-title mb-0 fw-bold">Quick Template</h6>
+                    <small class="text-muted">Excel for this stream</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm widget-card h-100" id="quickImportStudentBtn" role="button" style="cursor:pointer;">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-file-earmark-excel text-primary-custom" style="font-size: 3rem;"></i>
+                    </div>
+                    <h6 class="card-title mb-0 fw-bold">Quick Import</h6>
+                    <small class="text-muted">Import &amp; enroll here</small>
+                </div>
+            </div>
+        </div>
         <div class="col-6 col-md-3">
             <div class="card shadow-sm widget-card h-100" id="teacherEnrollStudentBtn" role="button" style="cursor:pointer;">
                 <div class="card-body text-center">
@@ -1888,12 +1919,12 @@
 <!-- Include Student Registration Modal (Steps) -->
 @include('student_registration.modal')
 
-{{-- Enroll Student (own class only; no quick register on teacher page unless needed) --}}
+{{-- Class teacher: Quick Reg/Import auto-enrolls into locked stream. Coordinator: enroll only (multi-stream). --}}
 @include('Admin.partials.quick_enroll_student_modals', [
     'qeMode' => 'teacher',
-    'qeLockedSubclassID' => $decryptedSubclassID ?? null,
+    'qeLockedSubclassID' => (!empty($isCoordinatorView) ? null : ($decryptedSubclassID ?? null)),
     'qeLockedSubclassLabel' => $subclassDisplayName ?? '',
-    'qeCanQuickRegister' => false,
+    'qeCanQuickRegister' => !empty($decryptedSubclassID) && empty($isCoordinatorView),
 ])
 
 <script>

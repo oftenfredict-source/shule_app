@@ -8,12 +8,73 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Holiday;
 use App\Models\Event;
 use App\Models\School;
+use App\Models\AcademicYear;
+use App\Services\SelectedAcademicYearService;
 use App\Services\TanzaniaHolidaysService;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
+use Illuminate\Database\Eloquent\Builder;
 
 class CalendarController extends Controller
 {
+    /**
+     * Header-selected academic year IDs for calendar scoping.
+     *
+     * @return list<int>
+     */
+    private function headerYearIds(): array
+    {
+        $ids = app(SelectedAcademicYearService::class)->selectedYearIds(
+            (int) Session::get('schoolID')
+        );
+
+        return array_values(array_filter(array_map('intval', $ids)));
+    }
+
+    /**
+     * Resolve academic_yearID for create/update from request or header.
+     */
+    private function resolveAcademicYearId($request): ?int
+    {
+        $schoolID = (int) Session::get('schoolID');
+        $requested = (int) $request->input('academic_yearID', 0);
+        $headerIds = $this->headerYearIds();
+
+        if ($requested > 0) {
+            $exists = AcademicYear::where('schoolID', $schoolID)
+                ->where('academic_yearID', $requested)
+                ->exists();
+            if ($exists) {
+                return $requested;
+            }
+        }
+
+        if (!empty($headerIds)) {
+            return (int) $headerIds[0];
+        }
+
+        $ctx = app(SelectedAcademicYearService::class)->headerContext($schoolID);
+
+        return $ctx['selected_academic_yearID']
+            ? (int) $ctx['selected_academic_yearID']
+            : null;
+    }
+
+    /**
+     * Scope holidays/events to header academic years (legacy null rows still included).
+     */
+    private function scopeByHeaderYears(Builder $query, array $yearIds): Builder
+    {
+        if (empty($yearIds)) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($yearIds) {
+            $q->whereIn('academic_yearID', $yearIds)
+                ->orWhereNull('academic_yearID');
+        });
+    }
+
     /**
      * @param \Illuminate\Support\Collection<int, \App\Models\Holiday> $holidays
      * @return array{holiday_dates: array<int,string>, holiday_working_dates: array<int,string>}
@@ -93,30 +154,31 @@ class CalendarController extends Controller
         }
 
         $currentYear = request()->input('year', date('Y'));
+        $yearIds = $this->headerYearIds();
 
-        // Get all holidays for the year
-        $holidays = Holiday::where('schoolID', $schoolID)
+        // Get all holidays for the year (scoped by header academic year)
+        $holidaysQuery = Holiday::where('schoolID', $schoolID)
             ->whereYear('start_date', '<=', $currentYear)
-            ->whereYear('end_date', '>=', $currentYear)
-            ->orderBy('start_date')
-            ->get();
+            ->whereYear('end_date', '>=', $currentYear);
+        $this->scopeByHeaderYears($holidaysQuery, $yearIds);
+        $holidays = $holidaysQuery->orderBy('start_date')->get();
 
         // Get all events for the year
-        $events = Event::where('schoolID', $schoolID)
-            ->whereYear('event_date', $currentYear)
-            ->orderBy('event_date')
-            ->get();
+        $eventsQuery = Event::where('schoolID', $schoolID)
+            ->whereYear('event_date', $currentYear);
+        $this->scopeByHeaderYears($eventsQuery, $yearIds);
+        $events = $eventsQuery->orderBy('event_date')->get();
 
         // Get auto-detected Tanzania holidays
         $autoHolidays = TanzaniaHolidaysService::getHolidaysForYear($currentYear);
 
         // Calculate statistics
-        $stats = $this->calculateYearStatistics($schoolID, $currentYear);
+        $stats = $this->calculateYearStatistics($schoolID, $currentYear, $yearIds);
 
         // Calculate monthly working days
         $monthlyStats = $this->calculateMonthlyStatistics($schoolID, $currentYear, $holidays, $events);
 
-        return view('Admin.calendar', compact('holidays', 'events', 'currentYear', 'stats', 'monthlyStats', 'autoHolidays'));
+        return view('Admin.calendar', compact('holidays', 'events', 'currentYear', 'stats', 'monthlyStats', 'autoHolidays', 'yearIds'));
     }
 
     /**
@@ -132,30 +194,24 @@ class CalendarController extends Controller
         }
 
         $currentYear = request()->input('year', date('Y'));
+        $yearIds = $this->headerYearIds();
 
-        // Get all holidays for the year
-        $holidays = Holiday::where('schoolID', $schoolID)
+        $holidaysQuery = Holiday::where('schoolID', $schoolID)
             ->whereYear('start_date', '<=', $currentYear)
-            ->whereYear('end_date', '>=', $currentYear)
-            ->orderBy('start_date')
-            ->get();
+            ->whereYear('end_date', '>=', $currentYear);
+        $this->scopeByHeaderYears($holidaysQuery, $yearIds);
+        $holidays = $holidaysQuery->orderBy('start_date')->get();
 
-        // Get all events for the year
-        $events = Event::where('schoolID', $schoolID)
-            ->whereYear('event_date', $currentYear)
-            ->orderBy('event_date')
-            ->get();
+        $eventsQuery = Event::where('schoolID', $schoolID)
+            ->whereYear('event_date', $currentYear);
+        $this->scopeByHeaderYears($eventsQuery, $yearIds);
+        $events = $eventsQuery->orderBy('event_date')->get();
 
-        // Get auto-detected Tanzania holidays
         $autoHolidays = TanzaniaHolidaysService::getHolidaysForYear($currentYear);
-
-        // Calculate statistics
-        $stats = $this->calculateYearStatistics($schoolID, $currentYear);
-
-        // Calculate monthly working days
+        $stats = $this->calculateYearStatistics($schoolID, $currentYear, $yearIds);
         $monthlyStats = $this->calculateMonthlyStatistics($schoolID, $currentYear, $holidays, $events);
 
-        return view('Teacher.calendar', compact('holidays', 'events', 'currentYear', 'stats', 'monthlyStats', 'autoHolidays'));
+        return view('Teacher.calendar', compact('holidays', 'events', 'currentYear', 'stats', 'monthlyStats', 'autoHolidays', 'yearIds'));
     }
 
     /**
@@ -178,11 +234,18 @@ class CalendarController extends Controller
             'type' => 'required|in:Public Holiday,School Holiday,Other',
             'has_working_days' => 'nullable|boolean',
             'working_days_count' => 'nullable|integer|min:0',
+            'academic_yearID' => 'nullable|integer',
         ]);
+
+        $academicYearID = $this->resolveAcademicYearId($request);
+        if (!$academicYearID) {
+            return response()->json(['error' => 'Chagua academic year kwenye header kwanza'], 422);
+        }
 
         try {
             $holiday = Holiday::create([
                 'schoolID' => $schoolID,
+                'academic_yearID' => $academicYearID,
                 'holiday_name' => $request->holiday_name,
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
@@ -238,8 +301,14 @@ class CalendarController extends Controller
             'holidays.*.start_date' => 'required|date',
             'holidays.*.end_date' => 'required|date|after_or_equal:holidays.*.start_date',
             'holidays.*.type' => 'required|in:Public Holiday,School Holiday,Other',
-            'holidays.*.description' => 'nullable|string'
+            'holidays.*.description' => 'nullable|string',
+            'academic_yearID' => 'nullable|integer',
         ]);
+
+        $academicYearID = $this->resolveAcademicYearId($request);
+        if (!$academicYearID) {
+            return response()->json(['error' => 'Chagua academic year kwenye header kwanza'], 422);
+        }
 
         try {
             $created = [];
@@ -249,6 +318,7 @@ class CalendarController extends Controller
                 try {
                     $holiday = Holiday::create([
                         'schoolID' => $schoolID,
+                        'academic_yearID' => $academicYearID,
                         'holiday_name' => $holidayData['holiday_name'],
                         'start_date' => $holidayData['start_date'],
                         'end_date' => $holidayData['end_date'],
@@ -310,10 +380,11 @@ class CalendarController extends Controller
             'type' => 'required|in:Public Holiday,School Holiday,Other',
             'has_working_days' => 'nullable|boolean',
             'working_days_count' => 'nullable|integer|min:0',
+            'academic_yearID' => 'nullable|integer',
         ]);
 
         try {
-            $holiday->update([
+            $payload = [
                 'holiday_name' => $request->holiday_name,
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
@@ -321,7 +392,16 @@ class CalendarController extends Controller
                 'type' => $request->type,
                 'has_working_days' => (bool) $request->input('has_working_days', false),
                 'working_days_count' => $request->input('has_working_days') ? (int) $request->input('working_days_count', 0) : null,
-            ]);
+            ];
+
+            $academicYearID = $this->resolveAcademicYearId($request);
+            if ($academicYearID) {
+                $payload['academic_yearID'] = $academicYearID;
+            } elseif (!$holiday->academic_yearID) {
+                return response()->json(['error' => 'Chagua academic year kwenye header kwanza'], 422);
+            }
+
+            $holiday->update($payload);
 
             return response()->json([
                 'success' => true,
@@ -383,12 +463,19 @@ class CalendarController extends Controller
             'end_time' => 'nullable|date_format:H:i|after:start_time',
             'description' => 'nullable|string',
             'type' => 'required|in:School Event,Sports,Academic,Cultural,Other',
-            'is_non_working_day' => 'boolean'
+            'is_non_working_day' => 'boolean',
+            'academic_yearID' => 'nullable|integer',
         ]);
+
+        $academicYearID = $this->resolveAcademicYearId($request);
+        if (!$academicYearID) {
+            return response()->json(['error' => 'Chagua academic year kwenye header kwanza'], 422);
+        }
 
         try {
             $event = Event::create([
                 'schoolID' => $schoolID,
+                'academic_yearID' => $academicYearID,
                 'event_name' => $request->event_name,
                 'event_date' => $request->event_date,
                 'start_time' => $request->start_time,
@@ -453,14 +540,23 @@ class CalendarController extends Controller
             'end_time' => 'nullable|date_format:H:i|after:start_time',
             'description' => 'nullable|string',
             'type' => 'required|in:School Event,Sports,Academic,Cultural,Other',
-            'is_non_working_day' => 'boolean'
+            'is_non_working_day' => 'boolean',
+            'academic_yearID' => 'nullable|integer',
         ]);
 
         try {
-            $event->update($request->only([
+            $payload = $request->only([
                 'event_name', 'event_date', 'start_time', 'end_time',
                 'description', 'type', 'is_non_working_day'
-            ]));
+            ]);
+            $academicYearID = $this->resolveAcademicYearId($request);
+            if ($academicYearID) {
+                $payload['academic_yearID'] = $academicYearID;
+            } elseif (!$event->academic_yearID) {
+                return response()->json(['error' => 'Chagua academic year kwenye header kwanza'], 422);
+            }
+
+            $event->update($payload);
 
             return response()->json([
                 'success' => true,
@@ -506,13 +602,17 @@ class CalendarController extends Controller
     /**
      * Calculate Year Statistics
      */
-    private function calculateYearStatistics($schoolID, $year)
+    private function calculateYearStatistics($schoolID, $year, array $yearIds = [])
     {
         $startDate = Carbon::create($year, 1, 1)->startOfDay();
         $endDate = Carbon::create($year, 12, 31)->endOfDay();
 
+        if (empty($yearIds)) {
+            $yearIds = $this->headerYearIds();
+        }
+
         // Get all manual holidays for the year
-        $holidays = Holiday::where('schoolID', $schoolID)
+        $holidaysQuery = Holiday::where('schoolID', $schoolID)
             ->where(function($query) use ($startDate, $endDate) {
                 $query->whereBetween('start_date', [$startDate, $endDate])
                       ->orWhereBetween('end_date', [$startDate, $endDate])
@@ -520,17 +620,19 @@ class CalendarController extends Controller
                           $q->where('start_date', '<=', $startDate)
                             ->where('end_date', '>=', $endDate);
                       });
-            })
-            ->get();
+            });
+        $this->scopeByHeaderYears($holidaysQuery, $yearIds);
+        $holidays = $holidaysQuery->get();
 
         // Get auto-detected Tanzania holidays
         $autoHolidays = TanzaniaHolidaysService::getHolidaysForYear($year);
 
         // Get all non-working events
-        $nonWorkingEvents = Event::where('schoolID', $schoolID)
+        $nonWorkingEventsQuery = Event::where('schoolID', $schoolID)
             ->whereYear('event_date', $year)
-            ->where('is_non_working_day', true)
-            ->get();
+            ->where('is_non_working_day', true);
+        $this->scopeByHeaderYears($nonWorkingEventsQuery, $yearIds);
+        $nonWorkingEvents = $nonWorkingEventsQuery->get();
 
         // Calculate total days in year (exact integer)
         $totalDays = (int)($startDate->diffInDays($endDate) + 1);
@@ -577,9 +679,10 @@ class CalendarController extends Controller
         $totalHolidays = count($holidayDates);
 
         // Calculate total events count
-        $totalEvents = Event::where('schoolID', $schoolID)
-            ->whereYear('event_date', $year)
-            ->count();
+        $totalEventsQuery = Event::where('schoolID', $schoolID)
+            ->whereYear('event_date', $year);
+        $this->scopeByHeaderYears($totalEventsQuery, $yearIds);
+        $totalEvents = $totalEventsQuery->count();
 
         // Calculate teacher sessions per year (assuming 5 sessions per week)
         // This can be customized based on school schedule
@@ -673,11 +776,12 @@ class CalendarController extends Controller
         $schoolID = Session::get('schoolID');
         $year = $request->input('year', date('Y'));
         $month = $request->input('month', date('m'));
+        $yearIds = $this->headerYearIds();
 
         $startDate = Carbon::create($year, $month, 1)->startOfDay();
         $endDate = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
 
-        $holidays = Holiday::where('schoolID', $schoolID)
+        $holidaysQuery = Holiday::where('schoolID', $schoolID)
             ->where(function($query) use ($startDate, $endDate) {
                 $query->whereBetween('start_date', [$startDate, $endDate])
                       ->orWhereBetween('end_date', [$startDate, $endDate])
@@ -685,12 +789,14 @@ class CalendarController extends Controller
                           $q->where('start_date', '<=', $startDate)
                             ->where('end_date', '>=', $endDate);
                       });
-            })
-            ->get();
+            });
+        $this->scopeByHeaderYears($holidaysQuery, $yearIds);
+        $holidays = $holidaysQuery->get();
 
-        $events = Event::where('schoolID', $schoolID)
-            ->whereBetween('event_date', [$startDate, $endDate])
-            ->get();
+        $eventsQuery = Event::where('schoolID', $schoolID)
+            ->whereBetween('event_date', [$startDate, $endDate]);
+        $this->scopeByHeaderYears($eventsQuery, $yearIds);
+        $events = $eventsQuery->get();
 
         return response()->json([
             'success' => true,
@@ -714,25 +820,26 @@ class CalendarController extends Controller
 
         $currentYear = $request->input('year', date('Y'));
         $school = School::find($schoolID);
+        $yearIds = $this->headerYearIds();
 
         // Get all holidays for the year
-        $holidays = Holiday::where('schoolID', $schoolID)
+        $holidaysQuery = Holiday::where('schoolID', $schoolID)
             ->whereYear('start_date', '<=', $currentYear)
-            ->whereYear('end_date', '>=', $currentYear)
-            ->orderBy('start_date')
-            ->get();
+            ->whereYear('end_date', '>=', $currentYear);
+        $this->scopeByHeaderYears($holidaysQuery, $yearIds);
+        $holidays = $holidaysQuery->orderBy('start_date')->get();
 
         // Get all events for the year
-        $events = Event::where('schoolID', $schoolID)
-            ->whereYear('event_date', $currentYear)
-            ->orderBy('event_date')
-            ->get();
+        $eventsQuery = Event::where('schoolID', $schoolID)
+            ->whereYear('event_date', $currentYear);
+        $this->scopeByHeaderYears($eventsQuery, $yearIds);
+        $events = $eventsQuery->orderBy('event_date')->get();
 
         // Get auto-detected Tanzania holidays
         $autoHolidays = TanzaniaHolidaysService::getHolidaysForYear($currentYear);
 
         // Calculate statistics
-        $stats = $this->calculateYearStatistics($schoolID, $currentYear);
+        $stats = $this->calculateYearStatistics($schoolID, $currentYear, $yearIds);
 
         // Calculate monthly working days
         $monthlyStats = $this->calculateMonthlyStatistics($schoolID, $currentYear, $holidays, $events);

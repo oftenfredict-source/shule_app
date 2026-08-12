@@ -11,6 +11,7 @@ class Holiday extends Model
     
     protected $fillable = [
         'schoolID',
+        'academic_yearID',
         'holiday_name',
         'start_date',
         'end_date',
@@ -30,5 +31,15 @@ class Holiday extends Model
     public function school()
     {
         return $this->belongsTo(School::class, 'schoolID', 'schoolID');
+    }
+
+    public function academicYear()
+    {
+        return $this->belongsTo(AcademicYear::class, 'academic_yearID', 'academic_yearID');
+    }
+
+    public function homePackages()
+    {
+        return $this->hasMany(HomePackage::class, 'holidayID', 'holidayID');
     }
 }

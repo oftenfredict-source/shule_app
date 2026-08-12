@@ -516,7 +516,8 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Code</label>
                                 <input type="text" name="subjects[0][subject_code]" class="form-control subject-code" placeholder="e.g., MAT, ENG, PHY" maxlength="20">
-                        <small class="text-muted">Optional: Enter a short code for this subject</small>
+                                <div class="field-error subject-code-error">Subject code already exists for this school</div>
+                        <small class="text-muted">Must be unique within this school (same code in another school is allowed)</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Status <span class="text-danger">*</span></label>
@@ -593,7 +594,8 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Code</label>
                         <input type="text" name="subject_code" id="edit_subject_code" class="form-control" placeholder="e.g., MAT, ENG, PHY" maxlength="20">
-                        <small class="text-muted">Optional: Enter a short code for this subject</small>
+                        <div class="field-error" id="edit_subject_code_error">Subject code already exists for this school</div>
+                        <small class="text-muted">Must be unique within this school (same code in another school is allowed)</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Status <span class="text-danger">*</span></label>
@@ -1675,9 +1677,63 @@
             return true;
         }
 
+        let subjectCodeCheckTimer = null;
+        function validateSubjectCodeInput($input, options) {
+            options = options || {};
+            const code = ($input.val() || '').trim();
+            const $err = $input.siblings('.subject-code-error, #edit_subject_code_error').first();
+            const excludeId = options.excludeSubjectID || $input.data('exclude-subject-id') || '';
+
+            if (code === '') {
+                $input.removeClass('is-invalid is-valid');
+                $input.removeData('code-invalid');
+                if ($err.length) $err.hide();
+                return true;
+            }
+
+            // Duplicate within current add form rows
+            if ($input.hasClass('subject-code') && $input.closest('#schoolSubjectsContainer').length) {
+                let dupInForm = false;
+                $('#schoolSubjectsContainer .subject-code').each(function() {
+                    if (this === $input[0]) return;
+                    if (($(this).val() || '').trim().toLowerCase() === code.toLowerCase()) {
+                        dupInForm = true;
+                    }
+                });
+                if (dupInForm) {
+                    $input.addClass('is-invalid').removeClass('is-valid').data('code-invalid', 1);
+                    $err.text('Subject code is duplicated in this form').show();
+                    return false;
+                }
+            }
+
+            clearTimeout(subjectCodeCheckTimer);
+            subjectCodeCheckTimer = setTimeout(function() {
+                $.get(@json(route('check_subject_code')), {
+                    subject_code: code,
+                    exclude_subjectID: excludeId || ''
+                }).done(function(res) {
+                    if (($input.val() || '').trim() !== code) return; // stale
+                    if (res.available) {
+                        $input.removeClass('is-invalid').addClass('is-valid').data('code-invalid', 0);
+                        $err.hide();
+                    } else {
+                        $input.addClass('is-invalid').removeClass('is-valid').data('code-invalid', 1);
+                        $err.text(res.message || 'Subject code already exists for this school').show();
+                    }
+                }).fail(function() {
+                    // don't block typing on network fail; server will still validate on save
+                });
+            }, 350);
+
+            return $input.data('code-invalid') != 1;
+        }
+
         function validateDuoRowRealtime($row) {
             const isDuo = isSecondarySchool && $row.find('.duo-toggle').is(':checked');
             let ok = validateSubjectNameInput($row.find('.subject-name'));
+            validateSubjectCodeInput($row.find('.subject-code'));
+            if ($row.find('.subject-code').data('code-invalid') == 1) ok = false;
             if (!isDuo) {
                 $row.find('.duo-component-name, .duo-component-marks').removeClass('is-invalid');
                 $row.find('.duo-name-error, .duo-marks-error').hide();
@@ -1704,6 +1760,14 @@
         });
         $(document).on('input change blur', '#edit_subject_name', function() {
             validateSubjectNameInput($(this));
+        });
+        $(document).on('input change blur', '#schoolSubjectsContainer .subject-code', function() {
+            validateSubjectCodeInput($(this));
+        });
+        $(document).on('input change blur', '#edit_subject_code', function() {
+            validateSubjectCodeInput($(this), {
+                excludeSubjectID: $('#edit_subjectID').val() || ''
+            });
         });
         $(document).on('input change blur', '.duo-component-marks', function() {
             validateDuoMarksInput($(this));
@@ -1851,7 +1915,8 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Code</label>
                         <input type="text" name="subjects[${rowIndex}][subject_code]" class="form-control subject-code" placeholder="e.g., MAT, ENG, PHY" maxlength="20">
-                        <small class="text-muted">Optional: Enter a short code for this subject</small>
+                        <div class="field-error subject-code-error">Subject code already exists for this school</div>
+                        <small class="text-muted">Must be unique within this school</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Status <span class="text-danger">*</span></label>
@@ -1936,6 +2001,25 @@
                     errorMessage = `Please enter subject name for Subject ${index + 1}.`;
                     $row.find('.subject-name').addClass('is-invalid');
                     return false;
+                }
+
+                if ($row.find('.subject-code').data('code-invalid') == 1) {
+                    hasError = true;
+                    errorMessage = `Subject ${index + 1}: Subject code already exists for this school.`;
+                    $row.find('.subject-code').addClass('is-invalid');
+                    return false;
+                }
+
+                // Client-side duplicate codes in the same form
+                if (subjectCode) {
+                    const lower = subjectCode.toLowerCase();
+                    const seen = subjects.some(s => (s.subject_code || '').toLowerCase() === lower);
+                    if (seen) {
+                        hasError = true;
+                        errorMessage = `Subject ${index + 1}: Subject code "${subjectCode}" is duplicated in this form.`;
+                        $row.find('.subject-code').addClass('is-invalid');
+                        return false;
+                    }
                 }
 
                 if (isDuo) {
@@ -2089,7 +2173,8 @@
 
             $('#edit_subjectID').val(subjectID);
             $('#edit_subject_name').val(subjectName);
-            $('#edit_subject_code').val(subjectCode);
+            $('#edit_subject_code').val(subjectCode).removeClass('is-invalid is-valid').removeData('code-invalid');
+            $('#edit_subject_code_error').hide();
             
             // Get current status from the activate button
             const currentStatus = $(this).closest('.card').find('.activate-subject-btn').data('current-status');
@@ -2163,6 +2248,16 @@
                 components: components,
                 _token: $('input[name="_token"]', '#editSchoolSubjectForm').val()
             };
+
+            if ($('#edit_subject_code').data('code-invalid') == 1) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Validation Error',
+                    text: 'Subject code already exists for this school.',
+                    confirmButtonColor: '#940000'
+                });
+                return false;
+            }
 
             const $submitBtn = $(this).find('button[type="submit"]');
             const originalText = $submitBtn.html();
@@ -3846,7 +3941,8 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Subject Code</label>
                         <input type="text" name="subjects[0][subject_code]" class="form-control subject-code" placeholder="e.g., MAT, ENG, KIS" maxlength="20">
-                        <small class="text-muted">Optional: Enter a short code for this subject</small>
+                        <div class="field-error subject-code-error">Subject code already exists for this school</div>
+                        <small class="text-muted">Must be unique within this school</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Status <span class="text-danger">*</span></label>

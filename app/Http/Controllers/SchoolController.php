@@ -143,12 +143,21 @@ class SchoolController extends Controller
             'organization_name' => 'nullable|string|max:255',
             'organization_logo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'status' => 'required|in:Active,Inactive',
+            'enable_social_media' => 'nullable|boolean',
+            'social_media' => 'nullable|array',
+            'social_media.*.platform' => 'nullable|string|max:40',
+            'social_media.*.value' => 'nullable|string|max:500',
         ]);
 
         $validated['is_under_organization'] = $request->boolean('is_under_organization');
         if (!$validated['is_under_organization']) {
             $validated['organization_name'] = null;
         }
+
+        $validated['enable_social_media'] = $request->boolean('enable_social_media');
+        $validated['social_media'] = $validated['enable_social_media']
+            ? \App\Support\SchoolSocialMedia::normalize($request->input('social_media', []))
+            : [];
 
         // Handle logo upload
         if ($request->hasFile('school_logo')) {

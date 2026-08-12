@@ -107,6 +107,22 @@
     .badge {
         border-radius: 0 !important;
     }
+    @media (max-width: 767.98px) {
+        .stat-card {
+            padding: 14px 12px;
+        }
+        .stat-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .stat-number {
+            font-size: 22px;
+        }
+        .stat-label {
+            font-size: 9px;
+            letter-spacing: 0.5px;
+        }
+    }
 </style>
 
 <div class="row">
@@ -170,29 +186,29 @@
 </div>
 
 <!-- Statistics Row -->
-<div class="row g-4 mb-4">
-    <div class="col-lg-3 col-md-6">
+<div class="row g-3 g-md-4 mb-4">
+    <div class="col-6 col-md-6 col-lg-3">
         <div class="stat-card">
             <div class="stat-icon"><i class="bx bx-group"></i></div>
             <div class="stat-number">{{ number_format($totalStudents) }}</div>
             <div class="stat-label">Total Children</div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6">
+    <div class="col-6 col-md-6 col-lg-3">
         <div class="stat-card">
             <div class="stat-icon"><i class="bx bx-user-check"></i></div>
             <div class="stat-number">{{ number_format($activeStudents) }}</div>
             <div class="stat-label">Active Students</div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6">
+    <div class="col-6 col-md-6 col-lg-3">
         <div class="stat-card">
             <div class="stat-icon"><i class="bx bx-chart"></i></div>
             <div class="stat-number">{{ $recentResults->count() }}</div>
             <div class="stat-label">Recent Results</div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6">
+    <div class="col-6 col-md-6 col-lg-3">
         <div class="stat-card">
             <div class="stat-icon"><i class="bx bx-alarm-exclamation"></i></div>
             <div class="stat-number">{{ $upcomingExams->count() }}</div>

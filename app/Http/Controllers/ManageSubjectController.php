@@ -365,6 +365,45 @@ class ManageSubjectController extends Controller
         ));
     }
 
+    /**
+     * Realtime check: subject_code unique within current school only.
+     */
+    public function check_subject_code(Request $request)
+    {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['available' => false, 'message' => 'School not found'], 400);
+        }
+
+        $code = trim((string) $request->input('subject_code', ''));
+        $excludeId = (int) $request->input('exclude_subjectID', 0);
+
+        if ($code === '') {
+            return response()->json([
+                'available' => true,
+                'empty' => true,
+                'message' => 'Subject code is optional',
+            ]);
+        }
+
+        $query = SchoolSubject::where('schoolID', $schoolID)
+            ->whereRaw('LOWER(TRIM(subject_code)) = ?', [strtolower($code)]);
+
+        if ($excludeId > 0) {
+            $query->where('subjectID', '!=', $excludeId);
+        }
+
+        $exists = $query->exists();
+
+        return response()->json([
+            'available' => !$exists,
+            'empty' => false,
+            'message' => $exists
+                ? 'Subject code "' . $code . '" already exists for this school.'
+                : 'Subject code is available.',
+        ]);
+    }
+
     public function save_school_subject(Request $request)
     {
         // Check permission
@@ -421,14 +460,24 @@ class ManageSubjectController extends Controller
                     continue;
                 }
 
-                // Check if subject already exists for this school
-                $existingSubject = SchoolSubject::where('schoolID', $schoolID)
-                    ->where('subject_name', $subjectData['subject_name'])
-                    ->first();
-
-                if ($existingSubject) {
-                    $errors[] = "Subject " . ($index + 1) . ": Subject '" . $subjectData['subject_name'] . "' already exists for this school.";
-                    continue;
+                // Subject name may duplicate (e.g. Physics O-Level vs A-Level).
+                // Subject code must be unique within this school when provided.
+                $subjectCode = trim((string) ($subjectData['subject_code'] ?? ''));
+                if ($subjectCode !== '') {
+                    $existingCode = SchoolSubject::where('schoolID', $schoolID)
+                        ->whereRaw('LOWER(TRIM(subject_code)) = ?', [strtolower($subjectCode)])
+                        ->first();
+                    if ($existingCode) {
+                        $errors[] = "Subject " . ($index + 1) . ": Subject code '" . $subjectCode . "' already exists for this school.";
+                        continue;
+                    }
+                    // Also block duplicates within the same submit batch
+                    foreach ($createdSubjects as $created) {
+                        if (strcasecmp(trim((string) ($created->subject_code ?? '')), $subjectCode) === 0) {
+                            $errors[] = "Subject " . ($index + 1) . ": Subject code '" . $subjectCode . "' is duplicated in this form.";
+                            continue 2;
+                        }
+                    }
                 }
 
                 $isDuo = $isSecondarySchool && (
@@ -452,7 +501,7 @@ class ManageSubjectController extends Controller
                     $subject = SchoolSubject::create([
                         'schoolID' => $schoolID,
                         'subject_name' => $subjectData['subject_name'],
-                        'subject_code' => $subjectData['subject_code'] ?? null,
+                        'subject_code' => $subjectCode !== '' ? $subjectCode : null,
                         'status' => $status,
                         'is_duo' => $isDuo,
                     ]);
@@ -548,16 +597,18 @@ class ManageSubjectController extends Controller
                 ], 404);
             }
 
-            // Check if subject name already exists (excluding current subject)
-            $existingSubject = SchoolSubject::where('schoolID', $schoolID)
-                ->where('subject_name', $request->subject_name)
-                ->where('subjectID', '!=', $request->subjectID)
-                ->first();
-
-            if ($existingSubject) {
-                return response()->json([
-                    'error' => 'Subject "' . $request->subject_name . '" already exists for this school.'
-                ], 400);
+            // Subject code must be unique within this school (name may duplicate)
+            $subjectCode = trim((string) ($request->subject_code ?? ''));
+            if ($subjectCode !== '') {
+                $existingCode = SchoolSubject::where('schoolID', $schoolID)
+                    ->whereRaw('LOWER(TRIM(subject_code)) = ?', [strtolower($subjectCode)])
+                    ->where('subjectID', '!=', $request->subjectID)
+                    ->first();
+                if ($existingCode) {
+                    return response()->json([
+                        'error' => 'Subject code "' . $subjectCode . '" already exists for this school.'
+                    ], 400);
+                }
             }
 
             $school = School::find($schoolID);
@@ -575,7 +626,7 @@ class ManageSubjectController extends Controller
             try {
                 $subject->update([
                     'subject_name' => $request->subject_name,
-                    'subject_code' => $request->subject_code ?? null,
+                    'subject_code' => $subjectCode !== '' ? $subjectCode : null,
                     'status' => $request->status,
                     'is_duo' => $isDuo,
                 ]);
@@ -975,19 +1026,23 @@ class ManageSubjectController extends Controller
 
                     // Create new subject if needed
                     if ($isNewSubject) {
-                        // Check if subject with same name already exists in school
-                        $existingSubject = SchoolSubject::where('schoolID', $schoolID)
-                            ->where('subject_name', $newSubjectName)
-                            ->first();
+                        $newSubjectCode = trim((string) ($newSubjectCode ?? ''));
+                        // Reuse only when same subject code already exists in this school.
+                        // Subject names may intentionally duplicate (different codes).
+                        $existingSubject = null;
+                        if ($newSubjectCode !== '') {
+                            $existingSubject = SchoolSubject::where('schoolID', $schoolID)
+                                ->whereRaw('LOWER(TRIM(subject_code)) = ?', [strtolower($newSubjectCode)])
+                                ->first();
+                        }
 
                         if ($existingSubject) {
                             $subjectID = $existingSubject->subjectID;
                         } else {
-                            // Create new school subject
                             $newSchoolSubject = SchoolSubject::create([
                                 'schoolID' => $schoolID,
                                 'subject_name' => $newSubjectName,
-                                'subject_code' => $newSubjectCode,
+                                'subject_code' => $newSubjectCode !== '' ? $newSubjectCode : null,
                                 'status' => 'Active',
                             ]);
                             $subjectID = $newSchoolSubject->subjectID;

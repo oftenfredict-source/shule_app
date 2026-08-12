@@ -30,6 +30,8 @@ class School extends Model
         'is_under_organization',
         'organization_name',
         'organization_logo',
+        'enable_social_media',
+        'social_media',
         'school_stamp',
         'school_signature',
         'character_categories_limit',
@@ -44,7 +46,38 @@ class School extends Model
 
     protected $casts = [
         'is_under_organization' => 'boolean',
+        'enable_social_media' => 'boolean',
+        'social_media' => 'array',
     ];
+
+    public function socialMediaLinks(): array
+    {
+        if (!$this->enable_social_media) {
+            return [];
+        }
+
+        $items = is_array($this->social_media) ? $this->social_media : [];
+        $platforms = \App\Support\SchoolSocialMedia::platforms();
+        $links = [];
+
+        foreach ($items as $item) {
+            $platform = $item['platform'] ?? '';
+            $value = trim((string) ($item['value'] ?? ''));
+            if (!$platform || $value === '' || !isset($platforms[$platform])) {
+                continue;
+            }
+            $meta = $platforms[$platform];
+            $links[] = [
+                'platform' => $platform,
+                'label' => $meta['label'],
+                'icon' => $meta['icon'],
+                'color' => $meta['color'] ?? '#940000',
+                'href' => \App\Support\SchoolSocialMedia::href($platform, $value),
+            ];
+        }
+
+        return $links;
+    }
 
     public function teachers()
     {

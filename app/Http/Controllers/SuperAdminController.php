@@ -1287,6 +1287,10 @@ class SuperAdminController extends Controller
             'is_under_organization' => 'nullable|boolean',
             'organization_name' => 'nullable|string|max:255',
             'organization_logo' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,svg|max:5120',
+            'enable_social_media' => 'nullable|boolean',
+            'social_media' => 'nullable|array',
+            'social_media.*.platform' => 'nullable|string|max:40',
+            'social_media.*.value' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -1320,6 +1324,10 @@ class SuperAdminController extends Controller
             $school->is_under_organization = $request->boolean('is_under_organization');
             $school->organization_name = $school->is_under_organization
                 ? $request->input('organization_name')
+                : null;
+            $school->enable_social_media = $request->boolean('enable_social_media');
+            $school->social_media = $school->enable_social_media
+                ? \App\Support\SchoolSocialMedia::normalize($request->input('social_media', []))
                 : null;
             $school->senderID = $request->senderID;
             $school->login_status = $loginStatus;

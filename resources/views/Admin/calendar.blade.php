@@ -224,6 +224,22 @@
             <i class="fa fa-calendar"></i>
             School Calendar - {{ $currentYear }}
         </h2>
+        <p class="mb-0 mt-2" style="opacity:0.9;font-size:14px;">
+            Holidays/Events zinafungwa na Academic Year iliyochaguliwa kwenye header.
+            @php
+                $oY = $headerAcademicYear['selected_o_level_year'] ?? null;
+                $sY = $headerAcademicYear['selected_year'] ?? null;
+                $aY = $headerAcademicYear['selected_a_level_year'] ?? null;
+                $ayLabel = ($oY->year_name ?? null) ?: ($oY->year ?? null)
+                    ?: (($sY->year_name ?? null) ?: ($sY->year ?? null));
+            @endphp
+            @if($ayLabel)
+                <strong>Year:</strong> {{ $ayLabel }}
+            @endif
+            @if($aY)
+                | <strong>A-Level:</strong> {{ $aY->year_name ?? $aY->year }}
+            @endif
+        </p>
     </div>
 
     <!-- Statistics Cards -->
@@ -513,6 +529,27 @@
             <div class="modal-body">
                 <form id="holidayForm">
                     <input type="hidden" id="holidayID" name="holidayID">
+                    @if(($headerAcademicYear['mode'] ?? '') === 'secondary_dual')
+                    <div class="mb-3">
+                        <label class="form-label">Academic Year *</label>
+                        <select class="form-select" id="holiday_academic_yearID" name="academic_yearID">
+                            <optgroup label="O Level">
+                                @foreach(($headerAcademicYear['o_level_years'] ?? []) as $y)
+                                    <option value="{{ $y->academic_yearID }}" @selected((int)($headerAcademicYear['selected_o_level_academic_yearID'] ?? 0) === (int)$y->academic_yearID)>
+                                        {{ $y->year_name ?: $y->year }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                            <optgroup label="A Level">
+                                @foreach(($headerAcademicYear['a_level_years'] ?? []) as $y)
+                                    <option value="{{ $y->academic_yearID }}" @selected((int)($headerAcademicYear['selected_a_level_academic_yearID'] ?? 0) === (int)$y->academic_yearID)>
+                                        {{ $y->year_name ?: $y->year }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        </select>
+                    </div>
+                    @endif
                     <div class="mb-3">
                         <label class="form-label">Holiday Name *</label>
                         <input type="text" class="form-control" id="holiday_name" name="holiday_name" required>
@@ -834,6 +871,9 @@
                     ? response.working_days_count
                     : '';
                 jQuery('#working_days_count').val(wdc);
+                if (jQuery('#holiday_academic_yearID').length && response.academic_yearID) {
+                    jQuery('#holiday_academic_yearID').val(response.academic_yearID);
+                }
                 toggleWorkingDaysInputs();
                 new bootstrap.Modal(document.getElementById('holidayModal')).show();
             },
@@ -857,6 +897,9 @@
             description: jQuery('#description').val(),
             has_working_days: jQuery('#has_working_days').is(':checked') ? 1 : 0,
             working_days_count: jQuery('#has_working_days').is(':checked') ? (jQuery('#working_days_count').val() || 0) : '',
+            academic_yearID: (jQuery('#holiday_academic_yearID').length ? jQuery('#holiday_academic_yearID').val() : null)
+                || (window.headerAcademicYearIds && window.headerAcademicYearIds[0])
+                || {{ (int) (($headerAcademicYear['selected_academic_yearID'] ?? null) ?: ($headerAcademicYear['selected_o_level_academic_yearID'] ?? 0) ?: 0) }},
             _token: jQuery('meta[name="csrf-token"]').attr('content')
         };
 
@@ -1064,7 +1107,9 @@
                 'X-CSRF-TOKEN': jQuery('meta[name="csrf-token"]').attr('content')
             },
             data: {
-                holidays: holidays
+                holidays: holidays,
+                academic_yearID: (window.headerAcademicYearIds && window.headerAcademicYearIds[0])
+                    || {{ (int) (($headerAcademicYear['selected_academic_yearID'] ?? null) ?: ($headerAcademicYear['selected_o_level_academic_yearID'] ?? 0) ?: 0) }}
             },
             success: function(response) {
                 Swal.fire('Success', response.message, 'success').then(() => {
@@ -1125,6 +1170,8 @@
             type: jQuery('#event_type').val(),
             description: jQuery('#event_description').val(),
             is_non_working_day: jQuery('#is_non_working_day').is(':checked') ? 1 : 0,
+            academic_yearID: (window.headerAcademicYearIds && window.headerAcademicYearIds[0])
+                || {{ (int) (($headerAcademicYear['selected_academic_yearID'] ?? null) ?: ($headerAcademicYear['selected_o_level_academic_yearID'] ?? 0) ?: 0) }},
             _token: jQuery('meta[name="csrf-token"]').attr('content')
         };
 

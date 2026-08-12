@@ -87,6 +87,49 @@ class QuickStudentController extends Controller
     }
 
     /**
+     * Admin/staff with create permission, OR class teacher registering into their own stream.
+     */
+    private function canQuickRegisterForSubclass(?int $subclassID): bool
+    {
+        if ($this->canCreateStudents()) {
+            return true;
+        }
+
+        return $subclassID
+            && Session::get('user_type') === 'Teacher'
+            && $this->teacherOwnsSubclass($subclassID);
+    }
+
+    /**
+     * Resolve and authorize an optional target subclass for quick reg/import.
+     * Teachers may only use their own stream.
+     *
+     * @return array{ok:bool,message?:string,subclassID?:int|null,subclass?:\App\Models\Subclass|null}
+     */
+    private function resolveAuthorizedTargetSubclass(?int $subclassID, int $schoolID): array
+    {
+        if (!$subclassID) {
+            return ['ok' => true, 'subclassID' => null, 'subclass' => null];
+        }
+
+        $subclass = Subclass::with('class')->find($subclassID);
+        if (!$subclass || (int) ($subclass->class->schoolID ?? 0) !== (int) $schoolID) {
+            return ['ok' => false, 'message' => 'Invalid class / stream.'];
+        }
+
+        $userType = Session::get('user_type');
+        if ($userType === 'Teacher' && !$this->teacherOwnsSubclass($subclassID) && !$this->canCreateStudents()) {
+            return ['ok' => false, 'message' => 'You can only register students into your own class stream.'];
+        }
+
+        if (!$this->canQuickRegisterForSubclass($subclassID)) {
+            return ['ok' => false, 'message' => 'You do not have permission to register students.'];
+        }
+
+        return ['ok' => true, 'subclassID' => $subclassID, 'subclass' => $subclass];
+    }
+
+    /**
      * Class teacher may enroll into their own subclass even without global student_create.
      */
     private function teacherOwnsSubclass(int $subclassID): bool
@@ -197,16 +240,21 @@ class QuickStudentController extends Controller
      */
     public function quickRegister(Request $request)
     {
-        if (!$this->canCreateStudents()) {
+        $schoolID = Session::get('schoolID');
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
+        }
+
+        $targetSubclassID = $request->filled('subclassID') ? (int) $request->subclassID : null;
+        $authTarget = $this->resolveAuthorizedTargetSubclass($targetSubclassID, (int) $schoolID);
+        if (!$authTarget['ok']) {
+            return response()->json(['success' => false, 'message' => $authTarget['message']], 403);
+        }
+        if (!$targetSubclassID && !$this->canCreateStudents()) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to register students.',
             ], 403);
-        }
-
-        $schoolID = Session::get('schoolID');
-        if (!$schoolID) {
-            return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
         }
 
         $validator = Validator::make($request->all(), [
@@ -222,6 +270,7 @@ class QuickStudentController extends Controller
             'parent_last_name' => 'nullable|string|max:100',
             'parent_gender' => 'nullable|in:Male,Female',
             'parent_photo' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
+            'subclassID' => 'nullable|integer|exists:subclasses,subclassID',
         ]);
 
         if ($validator->fails()) {
@@ -375,6 +424,25 @@ class QuickStudentController extends Controller
                 'fingerprint_id' => $fingerprintId,
             ]);
 
+            $enrolled = false;
+            $classLabel = null;
+            if ($targetSubclassID) {
+                $enroll = $this->enrollNewlyCreatedStudent((int) $schoolID, (int) $student->studentID, $targetSubclassID);
+                if (!$enroll['success']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Student could not be enrolled: ' . $enroll['message'],
+                    ], 422);
+                }
+                $enrolled = true;
+                /** @var Subclass|null $sub */
+                $sub = $authTarget['subclass'];
+                $classLabel = $sub
+                    ? trim(($sub->class->class_name ?? '') . ' ' . ($sub->subclass_name ?? ''))
+                    : null;
+            }
+
             $smsSent = false;
             $parentSmsSent = false;
             // SMS only when a NEW parent is created — never when reusing an existing parent
@@ -397,7 +465,11 @@ class QuickStudentController extends Controller
 
             DB::commit();
 
-            $message = 'Student quick-registered successfully. Enroll them into a class when ready.';
+            if ($enrolled) {
+                $message = 'Student registered and enrolled into ' . ($classLabel ?: 'your class') . '.';
+            } else {
+                $message = 'Student quick-registered successfully. Enroll them into a class when ready.';
+            }
             if ($parentSmsSent) {
                 $message .= ' Parent account credentials sent by SMS.';
             }
@@ -409,6 +481,8 @@ class QuickStudentController extends Controller
                 'student_id' => $student->studentID,
                 'fingerprint_id' => $fingerprintId,
                 'is_new_parent' => $isNewParent,
+                'enrolled' => $enrolled,
+                'class_label' => $classLabel,
             ], 201);
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -981,28 +1055,69 @@ class QuickStudentController extends Controller
     }
 
     /**
-     * Minimal Excel template for Quick Registration (no class / no enrollment).
+     * Minimal Excel template for Quick Registration.
+     * Query: with_demo=1, with_enrollment=1 (adds Stream/Subclass ID + Valid Subclasses sheet),
+     *        subclass_id=N (class-teacher locked stream — auto-enroll, no Subclass ID column).
      */
     public function downloadQuickTemplate(Request $request)
     {
-        if (!$this->canCreateStudents()) {
+        $schoolID = (int) (Session::get('schoolID') ?? 0);
+        $withDemo = $request->boolean('with_demo');
+        $withEnrollment = $request->boolean('with_enrollment');
+        $lockedSubclassID = $request->filled('subclass_id') ? (int) $request->input('subclass_id') : null;
+
+        $authTarget = $this->resolveAuthorizedTargetSubclass($lockedSubclassID, $schoolID);
+        if (!$authTarget['ok']) {
+            return redirect()->back()->with('error', $authTarget['message']);
+        }
+        if (!$lockedSubclassID && !$this->canCreateStudents()) {
             return redirect()->back()->with('error', 'Unauthorized');
         }
 
-        $withDemo = $request->boolean('with_demo');
-        $spreadsheet = $this->buildQuickRegistrationSpreadsheet($withDemo);
-        $filename = $withDemo
-            ? 'Quick_Student_Registration_Demo_2000_' . date('Y-m-d') . '.xlsx'
-            : 'Quick_Student_Registration_Template.xlsx';
+        // Teacher locked stream: never use admin "with enrollment" column mode
+        if ($lockedSubclassID) {
+            $withEnrollment = false;
+        }
+
+        $lockedSubclass = $authTarget['subclass'] ?? null;
+        $spreadsheet = $this->buildQuickRegistrationSpreadsheet(
+            $withDemo,
+            $withEnrollment,
+            $schoolID,
+            $lockedSubclass
+        );
+
+        if ($lockedSubclassID) {
+            $safeName = preg_replace('/[^A-Za-z0-9_\-]+/', '_', trim(
+                ($lockedSubclass->class->class_name ?? '') . '_' . ($lockedSubclass->subclass_name ?? 'Stream')
+            )) ?: 'Stream';
+            $filename = $withDemo
+                ? 'Quick_Reg_' . $safeName . '_Demo_2000_' . date('Y-m-d') . '.xlsx'
+                : 'Quick_Reg_' . $safeName . '_Template.xlsx';
+        } elseif ($withEnrollment && $withDemo) {
+            $filename = 'Quick_Student_Registration_With_Enrollment_Demo_2000_' . date('Y-m-d') . '.xlsx';
+        } elseif ($withEnrollment) {
+            $filename = 'Quick_Student_Registration_With_Enrollment_Template.xlsx';
+        } elseif ($withDemo) {
+            $filename = 'Quick_Student_Registration_Demo_2000_' . date('Y-m-d') . '.xlsx';
+        } else {
+            $filename = 'Quick_Student_Registration_Template.xlsx';
+        }
 
         return $this->downloadSpreadsheet($spreadsheet, $filename);
     }
 
     /**
      * Build the Quick Registration workbook (empty or with demo rows).
+     * When $withEnrollment: adds Stream/Subclass ID column + "Valid Subclasses" reference sheet.
+     * When $lockedSubclass: class-teacher mode — no Subclass ID column; all imports enroll into that stream.
      */
-    private function buildQuickRegistrationSpreadsheet(bool $withDemo): \PhpOffice\PhpSpreadsheet\Spreadsheet
-    {
+    private function buildQuickRegistrationSpreadsheet(
+        bool $withDemo,
+        bool $withEnrollment = false,
+        int $schoolID = 0,
+        ?Subclass $lockedSubclass = null
+    ): \PhpOffice\PhpSpreadsheet\Spreadsheet {
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Quick Registration');
@@ -1019,14 +1134,27 @@ class QuickStudentController extends Controller
             'Parent Gender (Male/Female)*',
         ];
 
+        if ($withEnrollment && !$lockedSubclass) {
+            $columns[] = 'Stream / Subclass ID*';
+        }
+
+        $subclassIds = [];
+        if ($withEnrollment && !$lockedSubclass && $schoolID > 0) {
+            $subclassIds = $this->schoolSubclassIds($schoolID);
+        }
+
         $sheetData = [$columns];
 
         if ($withDemo) {
-            foreach ($this->generateQuickDemoStudentRows(self::QUICK_DEMO_ROW_COUNT) as $row) {
+            foreach ($this->generateQuickDemoStudentRows(self::QUICK_DEMO_ROW_COUNT, $withEnrollment && !$lockedSubclass ? $subclassIds : []) as $row) {
                 $sheetData[] = $row;
             }
         } else {
-            $sheetData[] = ['Juma', 'Ali', 'Hassan', 'Male', '255712345678', 'Amina', '', 'Hassan', 'Female'];
+            $example = ['Juma', 'Ali', 'Hassan', 'Male', '255712345678', 'Amina', '', 'Hassan', 'Female'];
+            if ($withEnrollment && !$lockedSubclass) {
+                $example[] = !empty($subclassIds) ? $subclassIds[0] : '';
+            }
+            $sheetData[] = $example;
         }
 
         $sheet->fromArray($sheetData, null, 'A1');
@@ -1038,27 +1166,92 @@ class QuickStudentController extends Controller
         }
 
         if (!$withDemo) {
-            $sheet->getStyle('A2:I2')->getFont()->setItalic(true)->getColor()->setRGB('888888');
+            $sheet->getStyle('A2:' . $lastCol . '2')->getFont()->setItalic(true)->getColor()->setRGB('888888');
         }
+
+        $lockedLabel = $lockedSubclass
+            ? trim(($lockedSubclass->class->class_name ?? '') . ' ' . ($lockedSubclass->subclass_name ?? ''))
+            : '';
 
         $sheet2 = $spreadsheet->createSheet();
         $sheet2->setTitle('Instructions');
-        $sheet2->setCellValue('A1', 'Quick Registration Import');
-        $sheet2->getStyle('A1')->getFont()->setBold(true);
-        $sheet2->setCellValue('A3', '1. Fill one student per row (delete the grey example row if empty template).');
-        $sheet2->setCellValue('A4', '2. Required: Student first/last name, gender, parent phone. Parent names + gender only if phone is NEW in this school.');
-        $sheet2->setCellValue('A5', '3. Parent phone must be 255 + 9 digits (e.g. 255712345678). 0712… is also accepted.');
-        $sheet2->setCellValue('A6', '4. If parent phone already exists in this school, that parent is reused (new parent names ignored for that phone).');
-        $sheet2->setCellValue('A7', '5. Students are registered WITHOUT class enrollment — enroll later via Enroll Student.');
-        $sheet2->setCellValue('A8', '6. Admission numbers are auto-generated.');
+        if ($lockedSubclass) {
+            $sheet2->setCellValue('A1', 'Quick Registration — Class Teacher (' . $lockedLabel . ')');
+            $sheet2->getStyle('A1')->getFont()->setBold(true);
+            $sheet2->setCellValue('A3', '1. Fill one student per row (delete the grey example row if empty template).');
+            $sheet2->setCellValue('A4', '2. Required: Student first/last name, gender, parent phone. Parent names + gender only if phone is NEW in this school.');
+            $sheet2->setCellValue('A5', '3. Parent phone must be 255 + 9 digits (e.g. 255712345678). 0712… is also accepted.');
+            $sheet2->setCellValue('A6', '4. If parent phone already exists in this school, that parent is reused.');
+            $sheet2->setCellValue('A7', '5. Do NOT fill Subclass ID — all students are enrolled automatically into: ' . $lockedLabel . ' (ID ' . $lockedSubclass->subclassID . ').');
+            $sheet2->setCellValue('A8', '6. Admission numbers are auto-generated.');
+            $next = 9;
+        } else {
+            $sheet2->setCellValue('A1', $withEnrollment
+                ? 'Quick Registration + Enrollment Import'
+                : 'Quick Registration Import');
+            $sheet2->getStyle('A1')->getFont()->setBold(true);
+            $sheet2->setCellValue('A3', '1. Fill one student per row (delete the grey example row if empty template).');
+            $sheet2->setCellValue('A4', '2. Required: Student first/last name, gender, parent phone. Parent names + gender only if phone is NEW in this school.');
+            $sheet2->setCellValue('A5', '3. Parent phone must be 255 + 9 digits (e.g. 255712345678). 0712… is also accepted.');
+            $sheet2->setCellValue('A6', '4. If parent phone already exists in this school, that parent is reused (new parent names ignored for that phone).');
+            if ($withEnrollment) {
+                $sheet2->setCellValue('A7', '5. Fill Stream / Subclass ID from the "Valid Subclasses" sheet (use the exact Subclass ID).');
+                $sheet2->setCellValue('A8', '6. Students are registered AND enrolled into that stream in the current academic year.');
+                $sheet2->setCellValue('A9', '7. Admission numbers are auto-generated.');
+                $next = 10;
+            } else {
+                $sheet2->setCellValue('A7', '5. Students are registered WITHOUT class enrollment — enroll later via Enroll Student.');
+                $sheet2->setCellValue('A8', '6. Admission numbers are auto-generated.');
+                $next = 9;
+            }
+        }
         if ($withDemo) {
-            $sheet2->setCellValue('A9', '7. This file contains ' . self::QUICK_DEMO_ROW_COUNT . ' demo students (Tanzanian names) for testing — upload or use Import with demo data.');
+            $sheet2->setCellValue('A' . $next, ($next >= 10 ? '8' : '7') . '. This file contains ' . self::QUICK_DEMO_ROW_COUNT . ' demo students (Tanzanian names) for testing — upload or use Import with demo data.');
         }
         $sheet2->getColumnDimension('A')->setWidth(100);
+
+        if ($withEnrollment && !$lockedSubclass) {
+            $this->appendValidSubclassesSheet($spreadsheet, $schoolID);
+        }
 
         $spreadsheet->setActiveSheetIndex(0);
 
         return $spreadsheet;
+    }
+
+    /**
+     * Reference sheet listing Subclass IDs for the school (same idea as full student upload template).
+     */
+    private function appendValidSubclassesSheet(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet, int $schoolID): void
+    {
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('Valid Subclasses');
+        $sheet->setCellValue('A1', 'Subclass ID');
+        $sheet->setCellValue('B1', 'Class Name');
+        $sheet->setCellValue('C1', 'Stream / Subclass Name');
+        $sheet->getStyle('A1:C1')->getFont()->setBold(true);
+
+        if ($schoolID > 0) {
+            $subclasses = Subclass::with('class')
+                ->whereHas('class', function ($q) use ($schoolID) {
+                    $q->where('schoolID', $schoolID);
+                })
+                ->orderBy('classID')
+                ->orderBy('subclass_name')
+                ->get();
+
+            $row = 2;
+            foreach ($subclasses as $subclass) {
+                $sheet->setCellValue('A' . $row, $subclass->subclassID);
+                $sheet->setCellValue('B' . $row, $subclass->class->class_name ?? '');
+                $sheet->setCellValue('C' . $row, $subclass->subclass_name ?? '');
+                $row++;
+            }
+        }
+
+        $sheet->getColumnDimension('A')->setAutoSize(true);
+        $sheet->getColumnDimension('B')->setAutoSize(true);
+        $sheet->getColumnDimension('C')->setAutoSize(true);
     }
 
     private const QUICK_DEMO_ROW_COUNT = 2000;
@@ -1138,14 +1331,11 @@ class QuickStudentController extends Controller
     }
 
     /**
-     * Import quick-registration Excel: create students + parents, NO enrollment.
+     * Import quick-registration Excel.
+     * Optional: with_enrollment=1 (per-row Subclass ID), or subclassID=N (class teacher — enroll all into stream).
      */
     public function importQuickStudents(Request $request)
     {
-        if (!$this->canCreateStudents()) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
-        }
-
         $schoolID = Session::get('schoolID');
         if (!$schoolID) {
             return response()->json(['success' => false, 'message' => 'School ID not found'], 400);
@@ -1160,14 +1350,38 @@ class QuickStudentController extends Controller
         }
 
         $withDemo = $request->boolean('with_demo');
+        $withEnrollment = $request->boolean('with_enrollment');
+        $forceSubclassID = $request->filled('subclassID') ? (int) $request->input('subclassID') : null;
         $file = $request->file('excel_file');
+
+        $authTarget = $this->resolveAuthorizedTargetSubclass($forceSubclassID, (int) $schoolID);
+        if (!$authTarget['ok']) {
+            return response()->json(['success' => false, 'message' => $authTarget['message']], 403);
+        }
+        if (!$forceSubclassID && !$this->canCreateStudents()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        // Teacher locked stream: force enroll, ignore admin with_enrollment column mode
+        if ($forceSubclassID) {
+            $withEnrollment = false;
+        }
+
+        $classLabel = null;
+        if ($forceSubclassID && !empty($authTarget['subclass'])) {
+            $sub = $authTarget['subclass'];
+            $classLabel = trim(($sub->class->class_name ?? '') . ' ' . ($sub->subclass_name ?? ''));
+        }
 
         if ($withDemo) {
             $rows = $file
                 ? $this->readQuickImportRowsFromSpreadsheet($file)
-                : $this->generateQuickDemoStudentRows(self::QUICK_DEMO_ROW_COUNT);
+                : $this->generateQuickDemoStudentRows(
+                    self::QUICK_DEMO_ROW_COUNT,
+                    ($withEnrollment && !$forceSubclassID) ? $this->schoolSubclassIds((int) $schoolID) : []
+                );
 
-            $parsed = $this->parseQuickImportRows($rows, !$file);
+            $parsed = $this->parseQuickImportRows($rows, !$file, $withEnrollment && !$forceSubclassID);
             if (empty($parsed['items'])) {
                 return response()->json([
                     'success' => false,
@@ -1177,6 +1391,19 @@ class QuickStudentController extends Controller
                     'imported' => 0,
                     'errors' => $parsed['errors'],
                 ]);
+            }
+
+            // Demo + enrollment (per-row or forced stream): use row processor
+            if ($forceSubclassID || $withEnrollment || $this->parsedItemsHaveSubclass($parsed['items'])) {
+                return $this->processQuickImportRows(
+                    (int) $schoolID,
+                    $rows,
+                    !$file,
+                    true,
+                    $withEnrollment && !$forceSubclassID,
+                    $forceSubclassID,
+                    $classLabel
+                );
             }
 
             return $this->importQuickDemoBulk((int) $schoolID, $parsed['items']);
@@ -1189,7 +1416,15 @@ class QuickStudentController extends Controller
         try {
             $rows = $this->readQuickImportRowsFromSpreadsheet($file);
 
-            return $this->processQuickImportRows((int) $schoolID, $rows, false, false);
+            return $this->processQuickImportRows(
+                (int) $schoolID,
+                $rows,
+                false,
+                false,
+                $withEnrollment && !$forceSubclassID,
+                $forceSubclassID,
+                $classLabel
+            );
         } catch (\Throwable $e) {
             Log::error('Quick import error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
@@ -1197,6 +1432,39 @@ class QuickStudentController extends Controller
                 'message' => SafeErrorMessage::from($e, 'Error importing file. Please check the template and try again.'),
             ]);
         }
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function schoolSubclassIds(int $schoolID): array
+    {
+        if ($schoolID <= 0) {
+            return [];
+        }
+
+        return Subclass::whereHas('class', function ($q) use ($schoolID) {
+            $q->where('schoolID', $schoolID);
+        })
+            ->orderBy('subclassID')
+            ->pluck('subclassID')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function parsedItemsHaveSubclass(array $items): bool
+    {
+        foreach ($items as $item) {
+            if (!empty($item['subclass_id'])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1219,16 +1487,17 @@ class QuickStudentController extends Controller
 
     /**
      * @param  array<int, array<int, mixed>>  $rows
-     * @return array{items: array<int, array<string, mixed>>, errors: array<int, string>}
+     * @return array{items: array<int, array<string, mixed>>, errors: array<int, string>, require_subclass: bool}
      */
-    private function parseQuickImportRows(array $rows, bool $skipExampleRow): array
+    private function parseQuickImportRows(array $rows, bool $skipExampleRow, bool $requireSubclass = false): array
     {
         $items = [];
         $errors = [];
+        $sawSubclassColumn = $requireSubclass;
 
         foreach ($rows as $index => $row) {
             $rowNum = $index + 2;
-            $row = array_pad($row, 9, null);
+            $row = array_pad($row, 10, null);
 
             $sFirst = trim((string) ($row[0] ?? ''));
             $sMiddle = trim((string) ($row[1] ?? ''));
@@ -1239,8 +1508,9 @@ class QuickStudentController extends Controller
             $pMiddle = trim((string) ($row[6] ?? ''));
             $pLast = trim((string) ($row[7] ?? ''));
             $pGender = $this->normalizeQuickGender($row[8] ?? '');
+            $subclassRaw = trim((string) ($row[9] ?? ''));
 
-            if ($sFirst === '' && $sLast === '' && $pPhoneRaw === '') {
+            if ($sFirst === '' && $sLast === '' && $pPhoneRaw === '' && $subclassRaw === '') {
                 continue;
             }
 
@@ -1263,6 +1533,23 @@ class QuickStudentController extends Controller
                 continue;
             }
 
+            $subclassID = null;
+            if ($subclassRaw !== '') {
+                $sawSubclassColumn = true;
+                if (!ctype_digit(preg_replace('/\.0$/', '', $subclassRaw)) && !is_numeric($subclassRaw)) {
+                    $errors[] = "Row {$rowNum}: Stream / Subclass ID must be a number (see Valid Subclasses sheet).";
+                    continue;
+                }
+                $subclassID = (int) $subclassRaw;
+                if ($subclassID <= 0) {
+                    $errors[] = "Row {$rowNum}: Invalid Stream / Subclass ID.";
+                    continue;
+                }
+            } elseif ($requireSubclass) {
+                $errors[] = "Row {$rowNum}: Stream / Subclass ID is required for enrollment import.";
+                continue;
+            }
+
             $items[] = [
                 'row_num' => $rowNum,
                 'first_name' => $sFirst,
@@ -1274,10 +1561,11 @@ class QuickStudentController extends Controller
                 'parent_middle_name' => $pMiddle !== '' ? $pMiddle : null,
                 'parent_last_name' => $pLast,
                 'parent_gender' => $pGender ?? '',
+                'subclass_id' => $subclassID,
             ];
         }
 
-        return ['items' => $items, 'errors' => $errors];
+        return ['items' => $items, 'errors' => $errors, 'require_subclass' => $sawSubclassColumn];
     }
 
     /**
@@ -1473,21 +1761,58 @@ class QuickStudentController extends Controller
 
     /**
      * @param  array<int, array<int, mixed>>  $rows
+     * @param  int|null  $forceSubclassID  Class-teacher mode: enroll every imported student into this stream
      */
-    private function processQuickImportRows(int $schoolID, array $rows, bool $skipExampleRow, bool $skipParentSms): \Illuminate\Http\JsonResponse
-    {
-        $parsed = $this->parseQuickImportRows($rows, $skipExampleRow);
+    private function processQuickImportRows(
+        int $schoolID,
+        array $rows,
+        bool $skipExampleRow,
+        bool $skipParentSms,
+        bool $requireSubclass = false,
+        ?int $forceSubclassID = null,
+        ?string $classLabel = null
+    ): \Illuminate\Http\JsonResponse {
+        $parsed = $this->parseQuickImportRows($rows, $skipExampleRow, $requireSubclass);
 
         try {
             DB::beginTransaction();
             $successCount = 0;
+            $enrolledCount = 0;
             $errors = $parsed['errors'];
             $newParentsSms = 0;
 
+            if ($forceSubclassID) {
+                $precheck = $this->validateSubclassForSchool($schoolID, $forceSubclassID);
+                if (!$precheck['success']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => $precheck['message'],
+                        'imported' => 0,
+                        'enrolled' => 0,
+                        'errors' => [$precheck['message']],
+                    ]);
+                }
+                if (!$classLabel && !empty($precheck['subclass'])) {
+                    $sub = $precheck['subclass'];
+                    $classLabel = trim(($sub->class->class_name ?? '') . ' ' . ($sub->subclass_name ?? ''));
+                }
+            }
+
             foreach ($parsed['items'] as $item) {
                 $rowNum = $item['row_num'];
+                $rowSubclassID = $forceSubclassID ?: ($item['subclass_id'] ?? null);
 
                 try {
+                    // Validate subclass before create when provided / required
+                    if (!empty($rowSubclassID) && !$forceSubclassID) {
+                        $precheck = $this->validateSubclassForSchool($schoolID, (int) $rowSubclassID);
+                        if (!$precheck['success']) {
+                            $errors[] = "Row {$rowNum}: " . $precheck['message'];
+                            continue;
+                        }
+                    }
+
                     $result = $this->createQuickStudentRecord((int) $schoolID, [
                         'first_name' => $item['first_name'],
                         'middle_name' => $item['middle_name'],
@@ -1503,6 +1828,20 @@ class QuickStudentController extends Controller
                     if (!$result['success']) {
                         $errors[] = "Row {$rowNum}: " . $result['message'];
                         continue;
+                    }
+
+                    if (!empty($rowSubclassID)) {
+                        $enroll = $this->enrollNewlyCreatedStudent(
+                            $schoolID,
+                            (int) $result['studentID'],
+                            (int) $rowSubclassID
+                        );
+                        if (!$enroll['success']) {
+                            $errors[] = "Row {$rowNum}: Registered ({$result['admission_number']}) but enrollment failed: " . $enroll['message'];
+                            $successCount++;
+                            continue;
+                        }
+                        $enrolledCount++;
                     }
 
                     $successCount++;
@@ -1523,11 +1862,18 @@ class QuickStudentController extends Controller
                         ? 'No students imported. ' . implode(' | ', array_slice($errors, 0, 5))
                         : 'No students imported. Fill the "Quick Registration" sheet (not Instructions) and remove the grey example row.',
                     'imported' => 0,
+                    'enrolled' => 0,
                     'errors' => $errors,
                 ]);
             }
 
-            $msg = "Successfully imported {$successCount} student(s) (not enrolled).";
+            if ($forceSubclassID && $enrolledCount > 0) {
+                $msg = "Successfully imported {$successCount} student(s) into " . ($classLabel ?: 'your class') . " ({$enrolledCount} enrolled).";
+            } elseif ($enrolledCount > 0) {
+                $msg = "Successfully imported {$successCount} student(s); {$enrolledCount} enrolled into class/stream.";
+            } else {
+                $msg = "Successfully imported {$successCount} student(s) (not enrolled).";
+            }
             if ($newParentsSms > 0) {
                 $msg .= " Parent SMS sent for {$newParentsSms} new parent(s).";
             }
@@ -1539,6 +1885,8 @@ class QuickStudentController extends Controller
                 'success' => true,
                 'message' => $msg,
                 'imported' => $successCount,
+                'enrolled' => $enrolledCount,
+                'class_label' => $classLabel,
                 'errors' => $errors,
             ]);
         } catch (\Throwable $e) {
@@ -1552,11 +1900,99 @@ class QuickStudentController extends Controller
     }
 
     /**
+     * @return array{success:bool,message:string,subclass?:\App\Models\Subclass}
+     */
+    private function validateSubclassForSchool(int $schoolID, int $subclassID): array
+    {
+        $subclass = Subclass::with('class')->find($subclassID);
+        if (!$subclass || (int) ($subclass->class->schoolID ?? 0) !== (int) $schoolID) {
+            return [
+                'success' => false,
+                'message' => 'Invalid Stream / Subclass ID (use an ID from the Valid Subclasses sheet).',
+            ];
+        }
+
+        $yearID = $this->resolveCurrentYearIdForClass($subclass->class->class_name ?? null, $schoolID);
+        if (!$yearID) {
+            return [
+                'success' => false,
+                'message' => 'No current academic year found. Set a current academic year first.',
+            ];
+        }
+
+        return ['success' => true, 'message' => 'OK', 'subclass' => $subclass];
+    }
+
+    /**
+     * Enroll a just-created student into a subclass for the current academic year.
+     *
+     * @return array{success:bool,message:string}
+     */
+    private function enrollNewlyCreatedStudent(int $schoolID, int $studentID, int $subclassID): array
+    {
+        $check = $this->validateSubclassForSchool($schoolID, $subclassID);
+        if (!$check['success']) {
+            return ['success' => false, 'message' => $check['message']];
+        }
+
+        /** @var Subclass $subclass */
+        $subclass = $check['subclass'];
+        $yearID = $this->resolveCurrentYearIdForClass($subclass->class->class_name ?? null, $schoolID);
+        $actor = $this->resolveCurrentActor();
+        $classLabel = trim(($subclass->class->class_name ?? '') . ' ' . ($subclass->subclass_name ?? ''));
+        $enrollNote = 'Enrolled via Quick Import on ' . now()->format('Y-m-d') . ' by ' . $actor['label'];
+
+        $reuse = StudentEnrollment::where('schoolID', $schoolID)
+            ->where('studentID', $studentID)
+            ->where('academic_yearID', $yearID)
+            ->where('subclassID', $subclassID)
+            ->where('status', '!=', 'Active')
+            ->orderByDesc('enrollmentID')
+            ->first();
+
+        if ($reuse) {
+            $reuse->status = 'Active';
+            $reuse->promotion_status = 'Pending';
+            $reuse->classID = (int) $subclass->classID;
+            $reuse->joined_date = now()->toDateString();
+            $reuse->left_date = null;
+            $reuse->enrolled_by = $actor['id'];
+            $reuse->enrolled_by_name = $actor['label'];
+            $reuse->closed_by = null;
+            $reuse->closed_by_name = null;
+            $reuse->notes = trim(($reuse->notes ? $reuse->notes . ' | ' : '') . $enrollNote);
+            $reuse->save();
+        } else {
+            StudentEnrollment::create([
+                'studentID' => $studentID,
+                'schoolID' => $schoolID,
+                'academic_yearID' => $yearID,
+                'classID' => (int) $subclass->classID,
+                'subclassID' => $subclassID,
+                'roll_number' => null,
+                'status' => 'Active',
+                'promotion_status' => 'Pending',
+                'joined_date' => now()->toDateString(),
+                'left_date' => null,
+                'notes' => $enrollNote,
+                'enrolled_by' => $actor['id'],
+                'enrolled_by_name' => $actor['label'],
+            ]);
+        }
+
+        Student::where('studentID', $studentID)->where('schoolID', $schoolID)->update([
+            'subclassID' => $subclassID,
+        ]);
+
+        return ['success' => true, 'message' => 'Enrolled into ' . $classLabel];
+    }
+
+    /**
      * Shared create for one quick-registered student (no enrollment).
      * Caller manages outer transaction for bulk import.
      *
      * @param  array<string,mixed>  $data
-     * @return array{success:bool,message:string,admission_number?:string,is_new_parent?:bool,parent_sms_sent?:bool}
+     * @return array{success:bool,message:string,admission_number?:string,studentID?:int,is_new_parent?:bool,parent_sms_sent?:bool}
      */
     private function createQuickStudentRecord(int $schoolID, array $data, bool $skipParentSms = false): array
     {
@@ -1683,6 +2119,7 @@ class QuickStudentController extends Controller
         return [
             'success' => true,
             'message' => 'OK',
+            'studentID' => (int) $fingerprintId,
             'admission_number' => $admissionNumber,
             'is_new_parent' => $isNewParent,
             'parent_sms_sent' => $parentSmsSent,
@@ -1729,10 +2166,12 @@ class QuickStudentController extends Controller
 
     /**
      * Generate demo quick-registration rows (Tanzanian / African names).
+     * When $subclassIds is non-empty, appends a cycling Stream/Subclass ID as column 10.
      *
-     * @return array<int, array{0:string,1:string,2:string,3:string,4:string,5:string,6:string,7:string,8:string}>
+     * @param  array<int, int>  $subclassIds
+     * @return array<int, array<int, string|int>>
      */
-    private function generateQuickDemoStudentRows(int $count): array
+    private function generateQuickDemoStudentRows(int $count, array $subclassIds = []): array
     {
         $maleFirst = [
             'Juma', 'Hassan', 'Rajabu', 'Musa', 'Omari', 'Hamisi', 'Yusuf', 'Ibrahim', 'Mohamed', 'Abdallah',
@@ -1766,6 +2205,7 @@ class QuickStudentController extends Controller
         ];
 
         $rows = [];
+        $subclassCount = count($subclassIds);
         for ($i = 1; $i <= $count; $i++) {
             $isMale = ($i % 2 === 1);
             $sGender = $isMale ? 'Male' : 'Female';
@@ -1784,7 +2224,7 @@ class QuickStudentController extends Controller
             $pMiddle = $middle[($i + 9) % count($middle)];
             $pLast = $last[($i * 13 + 5) % count($last)];
 
-            $rows[] = [
+            $row = [
                 $sFirst,
                 $sMiddle,
                 $sLast,
@@ -1795,6 +2235,12 @@ class QuickStudentController extends Controller
                 $pLast,
                 $pGender,
             ];
+
+            if ($subclassCount > 0) {
+                $row[] = $subclassIds[($i - 1) % $subclassCount];
+            }
+
+            $rows[] = $row;
         }
 
         return $rows;

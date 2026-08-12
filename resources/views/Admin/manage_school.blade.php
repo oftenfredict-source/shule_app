@@ -509,6 +509,25 @@
                             </div>
                         </div>
                     </div>
+                    @php $schoolSocialLinks = $school->socialMediaLinks(); @endphp
+                    @if(!empty($schoolSocialLinks))
+                    <div class="info-item" style="grid-column: 1 / -1;">
+                        <i class="bi bi-share"></i>
+                        <div class="info-item-content">
+                            <div class="info-item-label">School Social Media</div>
+                            <div class="info-item-value d-flex flex-wrap gap-2 mt-1">
+                                @foreach($schoolSocialLinks as $sm)
+                                    <a href="{{ $sm['href'] }}" target="_blank" rel="noopener noreferrer"
+                                       title="{{ $sm['label'] }}"
+                                       class="school-sm-display-icon"
+                                       style="width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border:none;color:#fff !important;text-decoration:none;background:{{ $sm['color'] ?? '#940000' }};">
+                                        <i class="bx {{ $sm['icon'] }}" style="font-size:18px;color:#fff !important;"></i>
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -827,6 +846,14 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="col-md-12">
+                            <hr class="my-2">
+                            @include('SuperAdmin.partials.school_social_media_fields', [
+                                'ssmId' => 'schoolEditSsm',
+                                'ssmEnabled' => (bool) ($school->enable_social_media ?? false),
+                                'ssmItems' => is_array($school->social_media) ? $school->social_media : [],
+                            ])
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -840,8 +867,9 @@
     </div>
 </div>
 
-<!-- Bootstrap Icons -->
+<!-- Bootstrap Icons + Boxicons (social platform icons) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" />
 
 <!-- Bootstrap 5 JS Bundle (includes Popper) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
@@ -1047,6 +1075,10 @@
                 const formData = new FormData(this);
                 if (!document.getElementById('is_under_organization').checked) {
                     formData.set('is_under_organization', '0');
+                }
+                const ssmEnable = document.getElementById('schoolEditSsm_enable');
+                if (!ssmEnable || !ssmEnable.checked) {
+                    formData.set('enable_social_media', '0');
                 }
                 const submitBtn = this.querySelector('button[type="submit"]');
                 const originalText = submitBtn.innerHTML;

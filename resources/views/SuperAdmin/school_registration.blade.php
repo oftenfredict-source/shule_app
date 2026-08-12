@@ -174,6 +174,13 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="col-md-12">
+                                    @include('SuperAdmin.partials.school_social_media_fields', [
+                                        'ssmId' => 'reg_ssm',
+                                        'ssmEnabled' => (bool) old('enable_social_media'),
+                                        'ssmItems' => old('social_media', []),
+                                    ])
+                                </div>
                                 <div class="col-md-6">
                                     <label class="form-label required" for="login_status">Login Access</label>
                                     <select id="login_status" name="login_status" class="form-select" required>

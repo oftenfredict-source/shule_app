@@ -32,7 +32,7 @@ class AcademicYearsController extends Controller
 
     public function store(Request $request)
     {
-        $access = $this->authorizeSchoolAccess();
+        $access = $this->authorizeAdminAccess();
         if ($access !== true) {
             return $access;
         }
@@ -127,7 +127,7 @@ class AcademicYearsController extends Controller
 
     public function update(Request $request, $academicYearID)
     {
-        $access = $this->authorizeSchoolAccess();
+        $access = $this->authorizeAdminAccess();
         if ($access !== true) {
             return $access;
         }
@@ -212,7 +212,7 @@ class AcademicYearsController extends Controller
 
     public function destroy($academicYearID)
     {
-        $access = $this->authorizeSchoolAccess();
+        $access = $this->authorizeAdminAccess();
         if ($access !== true) {
             return $access;
         }
@@ -259,6 +259,21 @@ class AcademicYearsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Access denied',
+            ], 403);
+        }
+
+        return true;
+    }
+
+    private function authorizeAdminAccess()
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+
+        if (!$schoolID || $userType !== 'Admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Admin can manage academic years.',
             ], 403);
         }
 

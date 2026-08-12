@@ -9594,6 +9594,250 @@ class TeachersController extends Controller
         }
     }
 
+    /**
+     * Parse Excel for the Add Results form — does NOT save.
+     * Returns rows for the client to fill marks + auto-calculate grade/remark.
+     */
+    public function parseExcelResultsForForm(Request $request)
+    {
+        try {
+            $teacherID = Session::get("teacherID");
+            $schoolID = Session::get("schoolID");
+            $userType = Session::get("user_type");
+
+            if (
+                (!$teacherID &&
+                    $userType !== "Admin" &&
+                    $userType !== "Staff") ||
+                !$schoolID
+            ) {
+                return response()->json(
+                    [
+                        "error" =>
+                            "Teacher ID or School ID not found in session.",
+                    ],
+                    400,
+                );
+            }
+
+            $validator = Validator::make($request->all(), [
+                "class_subject_id" =>
+                    "required|exists:class_subjects,class_subjectID",
+                "exam_id" => "required|exists:examinations,examID",
+                "excel_file" => "required|mimes:xlsx,xls|max:10240",
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(
+                    [
+                        "error" => $validator->errors()->first(),
+                        "errors" => $validator->errors(),
+                    ],
+                    422,
+                );
+            }
+
+            $classSubject = ClassSubject::where(
+                "class_subjectID",
+                $request->class_subject_id,
+            )
+                ->where("status", "Active")
+                ->whereHas("subject", function ($query) {
+                    $query->where("status", "Active");
+                })
+                ->first();
+
+            if (!$classSubject) {
+                return response()->json(
+                    ["error" => "Class subject not found."],
+                    404,
+                );
+            }
+
+            if ($userType !== "Admin" && $userType !== "Staff") {
+                $isOwner = $this->teacherOwnsOrTeachesClassSubject(
+                    $classSubject,
+                    $teacherID,
+                );
+                $isAssigned = false;
+                if (!$isOwner) {
+                    $isAssigned = TeacherResultAssignment::where(
+                        "schoolID",
+                        $schoolID,
+                    )
+                        ->where("teacherID", $teacherID)
+                        ->where("classID", $classSubject->classID)
+                        ->where(function ($q) use ($classSubject) {
+                            $q->where(
+                                "subclassID",
+                                $classSubject->subclassID,
+                            )->orWhereNull("subclassID");
+                        })
+                        ->where("status", true)
+                        ->whereJsonContains(
+                            "subject_ids",
+                            $classSubject->subjectID,
+                        )
+                        ->exists();
+                }
+                if (!$isOwner && !$isAssigned) {
+                    return response()->json(
+                        [
+                            "error" =>
+                                "Unauthorized access to this class subject.",
+                        ],
+                        403,
+                    );
+                }
+            }
+
+            if (!class_exists("\PhpOffice\PhpSpreadsheet\IOFactory")) {
+                return response()->json(
+                    [
+                        "error" =>
+                            "PhpSpreadsheet library is not installed on the server.",
+                    ],
+                    500,
+                );
+            }
+
+            $file = $request->file("excel_file");
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load(
+                $file->getRealPath(),
+            );
+
+            $worksheet = null;
+            foreach ($spreadsheet->getAllSheets() as $sheet) {
+                $title = strtolower(trim((string) $sheet->getTitle()));
+                if ($title === "export info") {
+                    continue;
+                }
+                $worksheet = $sheet;
+                break;
+            }
+            if (!$worksheet) {
+                $worksheet = $spreadsheet->getActiveSheet();
+            }
+
+            $highestRow = (int) $worksheet->getHighestRow();
+            $highestColumn = $worksheet->getHighestColumn();
+            $headerRow = $worksheet
+                ->rangeToArray("A1:" . $highestColumn . "1", null, true, false)[0] ?? [];
+
+            $headerMap = [];
+            foreach ($headerRow as $colIndex => $headerLabel) {
+                $key = strtolower(trim((string) $headerLabel));
+                if ($key !== "") {
+                    $headerMap[$key] = $colIndex;
+                }
+            }
+
+            $findCol = function (array $aliases) use ($headerMap) {
+                foreach ($aliases as $alias) {
+                    $k = strtolower($alias);
+                    if (array_key_exists($k, $headerMap)) {
+                        return $headerMap[$k];
+                    }
+                }
+                return null;
+            };
+
+            $colStudentId = $findCol(["student id", "studentid", "student_id", "id"]);
+            $colName = $findCol(["student name", "name", "full name", "student_name"]);
+            $colIndex = $findCol([
+                "index no.",
+                "index no",
+                "index number",
+                "index",
+                "examination_number",
+                "admission number",
+                "admission no.",
+            ]);
+            $colMarks = $findCol(["marks", "score", "total"]);
+
+            if ($colMarks === null) {
+                return response()->json(
+                    [
+                        "error" =>
+                            'Excel must include a "Marks" column.',
+                    ],
+                    422,
+                );
+            }
+
+            if ($colStudentId === null && $colName === null && $colIndex === null) {
+                return response()->json(
+                    [
+                        "error" =>
+                            'Excel must include Student Name and/or Index No. (or Student ID).',
+                    ],
+                    422,
+                );
+            }
+
+            $rows = [];
+            for ($row = 2; $row <= $highestRow; $row++) {
+                $rowValues = $worksheet->rangeToArray(
+                    "A" . $row . ":" . $highestColumn . $row,
+                    null,
+                    true,
+                    false,
+                )[0] ?? [];
+
+                $marksRaw = $rowValues[$colMarks] ?? null;
+                if ($marksRaw === null || $marksRaw === "") {
+                    continue;
+                }
+
+                $studentId = $colStudentId !== null ? ($rowValues[$colStudentId] ?? "") : "";
+                $name = $colName !== null ? trim((string) ($rowValues[$colName] ?? "")) : "";
+                $indexNo = $colIndex !== null ? trim((string) ($rowValues[$colIndex] ?? "")) : "";
+
+                if ($studentId === "" && $name === "" && $indexNo === "") {
+                    continue;
+                }
+
+                if (!is_numeric($marksRaw)) {
+                    continue;
+                }
+
+                $rows[] = [
+                    "student_id" => $studentId !== "" ? (string) $studentId : null,
+                    "student_name" => $name !== "" ? $name : null,
+                    "index_no" => $indexNo !== "" ? $indexNo : null,
+                    "marks" => (float) $marksRaw,
+                ];
+            }
+
+            if (empty($rows)) {
+                return response()->json(
+                    [
+                        "error" =>
+                            "No valid mark rows found in the Excel file.",
+                    ],
+                    422,
+                );
+            }
+
+            return response()->json(
+                [
+                    "success" => true,
+                    "message" => "Parsed " . count($rows) . " row(s).",
+                    "rows" => $rows,
+                    "count" => count($rows),
+                ],
+                200,
+            );
+        } catch (\Exception $e) {
+            return response()->json(
+                [
+                    "error" => "Failed to parse Excel: " . $e->getMessage(),
+                ],
+                500,
+            );
+        }
+    }
+
     private function calculateGrade($marks, $schoolType)
     {
         if ($schoolType === "Primary") {

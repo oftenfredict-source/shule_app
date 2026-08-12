@@ -79,7 +79,7 @@
         font-weight: 400;
     }
     #quickTemplateDownloadModal .modal-dialog {
-        max-width: 420px;
+        max-width: 520px;
         width: calc(100% - 1.5rem);
         margin-left: auto;
         margin-right: auto;

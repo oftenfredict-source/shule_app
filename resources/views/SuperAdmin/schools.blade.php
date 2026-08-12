@@ -363,6 +363,15 @@
                                 <input type="file" class="form-control form-control-sm" name="organization_logo" onchange="readURL(this, 'p_org_logo')">
                             </div>
                         </div>
+                        <div class="row mt-2">
+                            <div class="col-12 mb-3">
+                                @include('SuperAdmin.partials.school_social_media_fields', [
+                                    'ssmId' => 'edit_ssm',
+                                    'ssmEnabled' => false,
+                                    'ssmItems' => [],
+                                ])
+                            </div>
+                        </div>
                         <hr>
                         <div class="row">
                             <div class="col-md-4 text-center">
@@ -497,6 +506,13 @@
             } else {
                 $('#e_org_fields').hide();
             }
+            if (window.SchoolSocialMediaUI) {
+                window.SchoolSocialMediaUI.loadItems(
+                    $('#edit_ssm_wrap'),
+                    !!(s.enable_social_media == 1 || s.enable_social_media === true),
+                    s.social_media || []
+                );
+            }
             $('#e_login_status').val(s.login_status == 0 ? '0' : '1');
             $('#e_suspension_reason').val(s.suspension_reason || '');
             
@@ -543,6 +559,9 @@
                     const fd = new FormData(document.getElementById('editForm'));
                     if (!$('#e_under_org').is(':checked')) {
                         fd.set('is_under_organization', '0');
+                    }
+                    if (!$('#edit_ssm_enable').is(':checked')) {
+                        fd.set('enable_social_media', '0');
                     }
                     return fd;
                 })(),

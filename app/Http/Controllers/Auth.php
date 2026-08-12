@@ -200,8 +200,8 @@ class Auth extends Controller
                 ->where('schoolID', $schoolID)
                 ->first();
             if (!$teacher) return false;
-            $default = (string) ($teacher->last_name ?? '');
-            return $default !== '' && Hash::check($default, $user->password);
+            $default = (string) ($teacher->last_name ?? '') . 'staff';
+            return $default !== 'staff' && Hash::check($default, $user->password);
         }
 
         if ($userType === 'Staff') {

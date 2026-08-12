@@ -22,9 +22,22 @@
     </h6>
 </div>
 
-<div class="col-md-4">
-    <label class="form-label fw-bold">Check Number (C/N) <span class="text-danger">*</span></label>
-    <input type="text" name="employee_number" id="{{ $p }}employee_number" class="form-control" value="{{ $val('employee_number') }}" required placeholder="Check Number / Login ID">
+<div class="col-md-4" id="{{ $p }}employee_number_mode_wrap">
+    <label class="form-label fw-bold">Employee No. Mode <span class="text-danger">*</span></label>
+    @if(($p ?? '') === '')
+        <div class="d-flex gap-3 flex-wrap mt-1">
+            <label class="mb-0"><input type="radio" name="employee_number_mode" value="auto" checked class="js-emp-no-mode"> Auto (unique)</label>
+            <label class="mb-0"><input type="radio" name="employee_number_mode" value="custom" class="js-emp-no-mode"> Custom</label>
+        </div>
+        <small class="text-muted">Default Auto. Username = Employee No. Password = LastName + staff</small>
+    @else
+        <input type="hidden" name="employee_number_mode" value="custom">
+        <div class="form-control-plaintext small text-muted">Custom (edit existing)</div>
+    @endif
+</div>
+<div class="col-md-4" id="{{ $p }}employee_number_field_wrap">
+    <label class="form-label fw-bold">Employee No. / Check Number (C/N) <span class="text-danger emp-no-required-star">*</span></label>
+    <input type="text" name="employee_number" id="{{ $p }}employee_number" class="form-control" value="{{ $val('employee_number') }}" @if(($p ?? '') !== '') required @endif placeholder="Check Number / Login ID" @if(($p ?? '') === '') disabled @endif>
     <small class="text-muted">Used as login username</small>
 </div>
 <div class="col-md-4">

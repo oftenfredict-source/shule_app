@@ -175,6 +175,23 @@
 </div>
 
 <div class="content mt-3">
+    @if(session('error') || session('require_academic_year') || $academicYears->isEmpty())
+        <div class="alert alert-danger" style="border-radius:0;border-left:5px solid #940000;">
+            <strong><i class="fa fa-exclamation-triangle"></i> Academic Year required</strong>
+            <div class="mt-1">
+                @if($academicYears->isEmpty())
+                    This school has no Academic Year yet. Register at least one Academic Year before using the system (students, exams, attendance, fees, etc.).
+                @else
+                    {{ session('error') }}
+                @endif
+            </div>
+            @if($academicYears->isEmpty() && session('user_type') === 'Admin')
+                <button type="button" class="btn btn-primary-custom btn-sm mt-2" data-toggle="modal" data-target="#registerYearModal">
+                    <i class="fa fa-plus"></i> Register Academic Year now
+                </button>
+            @endif
+        </div>
+    @endif
     <div class="card">
         <div class="card-header bg-primary-custom text-white d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
             <strong><i class="fa fa-calendar-check-o me-1"></i> Academic Years Management</strong>

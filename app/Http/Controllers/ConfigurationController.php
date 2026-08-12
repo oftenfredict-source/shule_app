@@ -69,6 +69,10 @@ class ConfigurationController extends Controller
     if (!$validated['is_under_organization']) {
         $validated['organization_name'] = null;
     }
+    $validated['enable_social_media'] = (bool) $request->input('enable_social_media', false);
+    $validated['social_media'] = $validated['enable_social_media']
+        ? \App\Support\SchoolSocialMedia::normalize($request->input('social_media', []))
+        : null;
     $password = 'Admin@3345';
     if ($request->hasFile('school_logo')) {
         // Determine upload path - Robust strategy for Main Domain and Subdomains

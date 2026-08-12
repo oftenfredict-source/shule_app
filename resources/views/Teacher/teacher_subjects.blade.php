@@ -216,12 +216,52 @@
         border-color: #28a745 !important;
         box-shadow: 0 0 0 0.1rem rgba(40,167,69,0.15);
     }
-    .marks-input.duo-marks-bad {
+    .marks-input.duo-marks-bad,
+    .marks-input.marks-over-max {
         border-color: #dc3545 !important;
         box-shadow: 0 0 0 0.1rem rgba(220,53,69,0.15);
     }
     .marks-input.duo-marks-warn {
         border-color: #ffc107 !important;
+    }
+    .marks-max-error {
+        display: none;
+        color: #dc3545;
+        font-size: 0.75rem;
+        font-weight: 700;
+        margin-top: 2px;
+        line-height: 1.2;
+    }
+    .marks-max-error.is-visible {
+        display: block;
+    }
+    .marks-max-hint {
+        display: block;
+        color: #6c757d;
+        font-size: 0.72rem;
+        margin-top: 2px;
+    }
+    .results-tools-bar {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 12px 14px;
+        margin-top: 12px;
+        margin-bottom: 8px;
+    }
+    .results-tools-bar label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: #495057;
+    }
+    .results-excel-actions .btn {
+        margin-left: 4px;
+        margin-top: 4px;
+    }
+    tr.result-student-row.is-search-hidden,
+    tr.question-details-row.is-search-hidden {
+        display: none !important;
     }
 </style>
 
@@ -231,6 +271,8 @@
 <!-- jsPDF Library for PDF generation -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
+<!-- SheetJS for Excel export/import (client-side, respects current sort) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <div class="container-fluid mt-4">
     <div class="row">
@@ -375,6 +417,15 @@
 
                                     <!-- Action Icons -->
                                     <div class="d-flex justify-content-around align-items-center pt-3 border-top flex-wrap">
+                                        <div class="text-center mb-2" title="Home Package">
+                                            <i class="bi bi-house-door-fill action-icon"
+                                               style="color: #940000; cursor:pointer;"
+                                               role="button"
+                                               data-class-subject-id="{{ $classSubject->class_subjectID }}"
+                                               data-subject-name="{{ e($classSubject->subject->subject_name ?? 'Somo') }}"
+                                               onclick="openHomePackageModal(this.getAttribute('data-class-subject-id'), this.getAttribute('data-subject-name'))"></i>
+                                            <small class="d-block text-muted mt-1">Home Package</small>
+                                        </div>
                                         <div class="text-center mb-2" title="View Students">
                                             <i class="bi bi-people-fill action-icon view-students" onclick="viewStudents({{ $classSubject->class_subjectID }})"></i>
                                             <small class="d-block text-muted mt-1">Students</small>
@@ -661,15 +712,16 @@
                             <i class="bi bi-info-circle"></i> Only Microsoft Excel Worksheet files (.xlsx or .xls) are allowed.
                         </small>
                     </div>
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        <strong>Note:</strong> Make sure the Excel file matches the downloaded template format.
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Note:</strong> Upload fills Marks into the form and <strong>auto-calculates grade/remark</strong>.
+                        You can still edit below, then click <strong>Save Results</strong>.
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary-custom">
-                        <i class="bi bi-upload"></i> Upload & Process
+                    <button type="button" class="btn btn-primary-custom" id="btnLoadExcelIntoForm">
+                        <i class="bi bi-upload"></i> Load into Form
                     </button>
                 </div>
             </form>
@@ -696,7 +748,7 @@ function getResultsCacheKey() {
     const classSubjectID = jQuery('#class_subject_id').val();
     const examID = jQuery('#exam_id').val();
     const testWeek = jQuery('#test_week').val() || 'none';
-    // Duo papers must be isolated — without componentID, PHY1/PHY2 share one cache and restore wrong totals
+    // Duo papers must be isolated without componentID, PHY1/PHY2 share one cache and restore wrong totals
     const componentID = jQuery('#component_id').val() || window.selectedComponentID || '0';
     if (!classSubjectID || !examID) return null;
     return `${RESULTS_CACHE_PREFIX}${classSubjectID}_${examID}_${testWeek}_c${componentID}`;
@@ -774,7 +826,7 @@ function restoreMarksFromCache() {
                 restoredCount++;
             }
         } else {
-            // No main cached — derive from question marks only
+            // No main cached; derive from question marks only
             updateStudentTotal(studentID);
         }
     });
@@ -821,11 +873,61 @@ function clearResultsCache() {
     if (key) localStorage.removeItem(key);
 }
 
-// Attach Event Listeners for Caching
+// Attach Event Listeners for Caching + realtime max validation (non-qn / direct marks)
 jQuery(document).on('input', '.marks-input', function() {
     const studentID = jQuery(this).data('student');
     const marks = jQuery(this).val();
     saveMarkToCache(studentID, 'main', marks);
+    validateDirectMarksInput(jQuery(this));
+});
+
+jQuery(document).on('blur', '.marks-input', function() {
+    validateDirectMarksInput(jQuery(this));
+});
+
+// Enter on marks: move to next editable row; on last row submit Save Results
+jQuery(document).on('keydown', '#resultsForm .marks-input', function(e) {
+    if (e.key !== 'Enter' && e.which !== 13) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const $current = jQuery(this);
+    if ($current.prop('disabled')) return;
+
+    validateDirectMarksInput($current);
+
+    const $editable = jQuery('#resultsForm .marks-input').filter(function() {
+        const $el = jQuery(this);
+        if ($el.prop('disabled')) return false;
+        if ($el.closest('tr.result-student-row').hasClass('is-search-hidden')) return false;
+        // Skip readonly question-format totals (not typed marks)
+        if ($el.prop('readonly') && !isDuoResultMode() && !isDirectMarksEntryMode()) return false;
+        return true;
+    });
+
+    const idx = $editable.index($current);
+    if (idx < 0) return;
+
+    if (idx < $editable.length - 1) {
+        const $next = $editable.eq(idx + 1);
+        $next.focus().select();
+        // Keep next row visible inside the scrollable modal body
+        const $body = jQuery('#addEditResultsModalBody');
+        if ($body.length && $next.length) {
+            const nextTop = $next.closest('tr')[0]
+                ? ($next.closest('tr')[0].offsetTop - 80)
+                : 0;
+            $body.stop(true).animate({ scrollTop: Math.max(nextTop, 0) }, 120);
+        }
+        return;
+    }
+
+    // Last editable row -> save
+    const $form = jQuery('#resultsForm');
+    if ($form.length) {
+        $form.trigger('submit');
+    }
 });
 
 function showPremiumLoading(targetID, title = "Preparing Data...", detail = "Fetching information from server...") {
@@ -1010,11 +1112,103 @@ function getResultMarksMax() {
     if (isDuoResultMode() && Number(window.duoPaperContext.maxMarks) > 0) {
         return Number(window.duoPaperContext.maxMarks);
     }
-    // Question format total for secondary may override display, but ceiling stays paper max for duo
-    if (isDuoResultMode()) {
-        return Number(examQuestionData.maxTotal) > 0 ? Number(examQuestionData.maxTotal) : 100;
+    // Configured paper / question-format total (e.g. 50) when available
+    if (Number(examQuestionData.maxTotal) > 0) {
+        return Number(examQuestionData.maxTotal);
     }
+    // Default total when exam is not question-format / not configured
     return 100;
+}
+
+/**
+ * Direct marks entry (not built from question-by-question inputs).
+ * Includes primary schools and secondary allow_no_format exams.
+ */
+function isDirectMarksEntryMode() {
+    const examID = jQuery('#exam_id').val();
+    if (!examID) {
+        // Before exam pick: still validate against default/configured max
+        return true;
+    }
+    const exam = window.examDataCache && window.examDataCache[examID] ? window.examDataCache[examID] : null;
+    if (exam && (exam.allow_no_format == 1 || exam.allow_no_format === true)) {
+        return true;
+    }
+    if (typeof isSecondarySchool !== 'undefined' && !isSecondarySchool) {
+        return true;
+    }
+    // Secondary with question format: main marks are usually readonly (sum of Qs)
+    const $sample = jQuery('#resultsForm .marks-input:not([disabled]):first');
+    if ($sample.length && !$sample.prop('readonly')) {
+        return true;
+    }
+    return false;
+}
+
+function syncMarksInputsMaxAttr() {
+    const max = getResultMarksMax();
+    jQuery('#resultsForm .marks-input').attr('max', max);
+    jQuery('#resultsForm .marks-max-hint').text('Max ' + max);
+    jQuery('#resultsForm .marks-input').each(function() {
+        validateDirectMarksInput(jQuery(this));
+    });
+}
+
+/**
+ * Realtime validation: marks must not exceed configured/default total.
+ * Shows "Total is X" under the input when exceeded.
+ */
+function validateDirectMarksInput($input) {
+    if (!$input || !$input.length) return true;
+    if ($input.prop('disabled')) return true;
+
+    const studentID = $input.data('student');
+    const $row = $input.closest('tr');
+    let $err = $row.find(`.marks-max-error[data-student="${studentID}"]`);
+    if (!$err.length) {
+        $err = jQuery(`<small class="marks-max-error" data-student="${studentID}"></small>`);
+        $input.after($err);
+    }
+
+    const max = getResultMarksMax();
+    $input.attr('max', max);
+
+    // Question-format readonly totals: skip (validated via question marks)
+    if ($input.prop('readonly') && !isDuoResultMode() && !isDirectMarksEntryMode()) {
+        $input.removeClass('marks-over-max');
+        $err.removeClass('is-visible').text('');
+        return true;
+    }
+
+    const raw = $input.val();
+    if (raw === '' || raw === null || raw === undefined) {
+        $input.removeClass('marks-over-max');
+        $err.removeClass('is-visible').text('');
+        return true;
+    }
+
+    const marks = parseFloat(raw);
+    if (isNaN(marks)) {
+        $input.addClass('marks-over-max');
+        $err.addClass('is-visible').text('Enter a valid number');
+        return false;
+    }
+
+    if (marks < 0) {
+        $input.addClass('marks-over-max');
+        $err.addClass('is-visible').text('Marks cannot be negative');
+        return false;
+    }
+
+    if (max > 0 && marks > max) {
+        $input.addClass('marks-over-max');
+        $err.addClass('is-visible').text('Total is ' + max);
+        return false;
+    }
+
+    $input.removeClass('marks-over-max');
+    $err.removeClass('is-visible').text('');
+    return true;
 }
 
 function getDuoDisplayMax() {
@@ -1039,9 +1233,9 @@ function evaluateDuoPaperScore(marks) {
     const m = parseFloat(marks);
     const pct = max > 0 ? (m / max) * 100 : 0;
     if (m < 0 || (max > 0 && m > max)) {
-        return { state: 'invalid', label: 'Over max', pct: pct, max: max };
+        return { state: 'invalid', label: 'Total is ' + max, pct: pct, max: max };
     }
-    // No paper max yet → do not guess fail/pass
+    // No paper max yet -> do not guess fail/pass
     if (max <= 0) {
         return { state: 'empty', label: '', pct: 0, max: max };
     }
@@ -1111,7 +1305,7 @@ function updateDuoMarksIndicator(studentID, marks, $row = null) {
         $label
             .addClass('duo-state-invalid')
             .css('color', '#b8860b')
-            .text('Max ' + evalResult.max);
+            .text('Total is ' + evalResult.max);
         $input.addClass('duo-marks-warn');
     }
 }
@@ -1177,8 +1371,9 @@ function loadExamQuestionData(classSubjectID, examID) {
                 if (response.paper_max_marks && Number(response.paper_max_marks) > 0) {
                     window.duoPaperContext.maxMarks = Number(response.paper_max_marks);
                 }
-                jQuery('.marks-input').attr('max', getResultMarksMax());
             }
+            // Apply configured/default max to all marks inputs + realtime validation
+            syncMarksInputsMaxAttr();
             if (response.test_week) {
                 // Set the week value and hide the selection as it should be default from the paper
                 jQuery('#test_week_group').hide();
@@ -1409,7 +1604,7 @@ function updateStudentTotal(studentID) {
     const $mainMarksInput = jQuery(`#marks_${studentID}`);
 
     if (hasMarks) {
-        // Teacher has entered question-level marks — update the total
+        // Teacher has entered question-level marks; update the total
         if (isDuoResultMode() && parseFloat(displayTotal) > getResultMarksMax()) {
             $optionalWarning.text('Paper total exceeds max marks (' + getResultMarksMax() + ').').removeClass('d-none');
         }
@@ -1422,11 +1617,11 @@ function updateStudentTotal(studentID) {
     }
     // If no question marks are entered (hasMarks = false), preserve the existing
     // marks input value (could be from loadExistingResults or manual entry).
-    // Do NOT clear it — that would delete marks from students who have results
+    // Do NOT clear it; that would delete marks from students who have results
     // saved in the results table but do not have question-level breakdown yet.
 }
 
-// Build one marks row — Active enrollment editable; others greyed out
+// Build one marks row: Active enrollment editable; others greyed out
 function canEnterResultForStudent(student) {
     if (student.can_enter_result === false) return false;
     if (student.can_enter_result === true) return true;
@@ -1446,6 +1641,13 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
         const disabledAttr = canEnter ? '' : 'disabled readonly';
         const marksReadonly = (!canEnter || isSecondarySchool) ? 'readonly' : '';
         const btnDisabled = canEnter ? '' : 'disabled';
+        const fullName = `${student.first_name || ''} ${student.middle_name || ''} ${student.last_name || ''}`.replace(/\s+/g, ' ').trim();
+        const indexNo = student.examination_number || student.admission_number || 'N/A';
+        const gender = student.gender || '';
+        const sortName = fullName.toLowerCase();
+        const sortIndex = String(indexNo).toLowerCase();
+        const sortGender = String(gender).toLowerCase();
+        const searchText = `${fullName} ${indexNo} ${gender} ${student.admission_number || ''}`.toLowerCase();
         const gradeCell = duoMode
             ? `<div class="duo-marks-status" data-student="${student.studentID}">
                     <span class="duo-marks-bullet" title="Paper score vs max"></span>
@@ -1467,12 +1669,19 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
                            placeholder="Remark" readonly ${disabledAttr}>`;
 
         html += `
-            <tr class="${rowClass}" data-can-enter="${canEnter ? 1 : 0}" data-enrollment-id="${student.enrollmentID || ''}">
-                <td>${index + 1}</td>
-                <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}${statusBadge}</td>
-                <td>${student.examination_number || student.admission_number || 'N/A'}</td>
+            <tr class="result-student-row ${rowClass}"
+                data-can-enter="${canEnter ? 1 : 0}"
+                data-enrollment-id="${student.enrollmentID || ''}"
+                data-student-id="${student.studentID}"
+                data-sort-name="${sortName.replace(/"/g, '&quot;')}"
+                data-sort-index="${sortIndex.replace(/"/g, '&quot;')}"
+                data-sort-gender="${sortGender.replace(/"/g, '&quot;')}"
+                data-search-text="${searchText.replace(/"/g, '&quot;')}">
+                <td class="result-row-num">${index + 1}</td>
+                <td>${fullName}${statusBadge}</td>
+                <td>${indexNo}</td>
                 <td class="text-center questions-column-cell" style="${isSecondarySchool ? '' : 'display:none;'}">
-                    <button type="button" class="btn btn-sm btn-outline-primary toggle-question-btn" data-student="${student.studentID}" title="${canEnter ? 'Add result questions' : 'Not editable — enrollment not Active'}" ${btnDisabled}>
+                    <button type="button" class="btn btn-sm btn-outline-primary toggle-question-btn" data-student="${student.studentID}" title="${canEnter ? 'Add result questions' : 'Not editable: enrollment not Active'}" ${btnDisabled}>
                         <i class="bi bi-list-check"></i>
                     </button>
                 </td>
@@ -1482,10 +1691,11 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
                            id="marks_${student.studentID}"
                            data-student="${student.studentID}"
                            data-can-enter="${canEnter ? 1 : 0}"
-                           step="0.01" min="0" max="${marksMax}" placeholder="${canEnter ? '0.00' : '—'}"
+                           step="0.01" min="0" max="${marksMax}" placeholder="${canEnter ? '0.00' : '-'}"
                            oninput="autoCalculateGrade(${student.studentID})"
                            ${marksReadonly} ${disabledAttr}>
-                    ${duoMode ? `<small class="text-muted d-block">Max ${marksMax}</small>` : ''}
+                    <small class="marks-max-hint">Max ${marksMax}</small>
+                    <small class="marks-max-error" data-student="${student.studentID}"></small>
                 </td>
                 <td>
                     ${gradeCell}
@@ -1497,7 +1707,7 @@ function buildResultStudentRowsHtml(students, isSecondarySchool, questionColspan
             <tr class="question-details-row questions-detail-row d-none ${rowClass}" id="question_details_${student.studentID}" data-student="${student.studentID}">
                 <td colspan="${questionColspan}">
                     <div class="question-detail-container" data-student="${student.studentID}">
-                        <div class="text-muted small">${canEnter ? 'Select examination to load question formats.' : 'Marks locked — enrollment is not Active for this academic year.'}</div>
+                        <div class="text-muted small">${canEnter ? 'Select examination to load question formats.' : 'Marks locked: enrollment is not Active for this academic year.'}</div>
                     </div>
                 </td>
             </tr>
@@ -1671,7 +1881,7 @@ function viewResults(classSubjectID) {
             if (examResponse.success && examResponse.examinations && examResponse.examinations.length > 0) {
                 const headerYearIds = (examResponse.header_academic_year_ids || []).map(Number).filter(Boolean);
                 const headerYearId = examResponse.header_academic_yearID || (headerYearIds[0] || null);
-                const headerYearLabel = examResponse.header_academic_year_label || '—';
+                const headerYearLabel = examResponse.header_academic_year_label || '-';
                 window.currentViewIsALevel = !!(examResponse.is_a_level);
                 window.currentResultClassName = examResponse.class_name || mainClassName;
                 window.currentViewHeaderYearId = headerYearId;
@@ -2035,7 +2245,7 @@ function buildDuoResultsViewTable(response) {
         <div class="mb-2">
             <small class="text-muted">
                 <i class="bi bi-info-circle"></i> Duo total =
-                student paper marks ÷ ${paperMaxTotal} (all papers max) × 100 → grade
+                student paper marks / ${paperMaxTotal} (all papers max) x 100 -> grade
             </small>
         </div>
         <div class="table-responsive">
@@ -2117,7 +2327,7 @@ function getUniqueYears(exams) {
 }
 
 // Helper: Generate Exam Options
-// forView=true → show all exams (including entry closed); Add Results keeps enter_result only
+// forView=true -> show all exams (including entry closed); Add Results keeps enter_result only
 function generateExamOptions(exams, forView = false) {
     return (exams || [])
         .filter(function(e) {
@@ -2126,7 +2336,7 @@ function generateExamOptions(exams, forView = false) {
         })
         .map(function(e) {
             const open = e.enter_result === true || e.enter_result === 1;
-            const closedTag = forView && !open ? ' — entry closed' : '';
+            const closedTag = forView && !open ? ' (entry closed)' : '';
             return `<option value="${e.examID}" data-year="${e.year}" data-term="${e.term}">${e.exam_name} (${e.year_label || e.year})${closedTag}</option>`;
         })
         .join('');
@@ -2219,7 +2429,7 @@ function exportResultsToPDF(classSubjectID) {
 
 // Removed checkExamStatusForAddEdit function - now only checking enter_result
 
-// Edit Results — reuse duo-aware Add Results flow
+// Edit Results: reuse duo-aware Add Results flow
 function editResults(classSubjectID) {
     const item = jQuery(`.subject-item`).has(`[onclick*="editResults(${classSubjectID})"]`).first();
     if (item.length) {
@@ -2258,7 +2468,7 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
                 jQuery('#resultsTableBody .marks-input, #resultsTableBody .grade-input, #resultsTableBody .remark-input').val('');
 
                 // Populate with existing results
-                // Only show marks that are genuinely non-zero (> 0) — zero/null means 'not entered'
+                // Only show marks that are genuinely non-zero (> 0); zero/null means 'not entered'
                 response.results.forEach(function(result) {
                     if (result.studentID) {
                         const rawMarks = parseFloat(result.marks);
@@ -2271,7 +2481,7 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
                     }
                 });
             }
-            // Always restore cache — even if no DB results exist yet (first-time entry)
+            // Always restore cache even if no DB results exist yet (first-time entry)
             setTimeout(restoreMarksFromCache, 600);
         },
         error: function(xhr) {
@@ -2320,16 +2530,26 @@ function autoCalculateGrade(studentID, $row = null) {
     const marksMax = getResultMarksMax();
     marksInput.attr('max', marksMax);
 
-    // Duo subjects: no A/B — live pass/fail bullet vs paper max only
+    // Realtime max check for direct marks entry (non-qn format / primary / allow_no_format)
+    const marksOk = validateDirectMarksInput(marksInput);
+
+    // Duo subjects: no A/B; live pass/fail bullet vs paper max only
     if (isDuoResultMode()) {
         gradeInput.val('');
         remarkInput.val('');
-        if (marks !== '' && marks !== null && !isNaN(marks) && parseFloat(marks) > marksMax) {
-            marksInput.val(marksMax);
-            updateDuoMarksIndicator(studentID, marksMax, $targetRow);
+        if (!marksOk && marks !== '' && marks !== null && !isNaN(marks) && parseFloat(marks) > marksMax) {
+            // Keep typed value so teacher sees the error "Total is X"
+            updateDuoMarksIndicator(studentID, marks, $targetRow);
             return;
         }
         updateDuoMarksIndicator(studentID, marks, $targetRow);
+        return;
+    }
+
+    if (!marksOk) {
+        // Over max / invalid; clear auto grade until corrected
+        gradeInput.val('');
+        remarkInput.val('');
         return;
     }
 
@@ -2361,7 +2581,7 @@ function viewDuoPapers(payload) {
         });
     }
     Swal.fire({
-        title: subject + ' — Papers',
+        title: subject + ' Papers',
         html: `<div class="table-responsive text-left">
             <table class="table table-sm table-bordered mb-0">
                 <thead class="thead-light">
@@ -2376,7 +2596,7 @@ function viewDuoPapers(payload) {
     });
 }
 
-// Add Results — for duo subjects, pick paper BEFORE exam
+// Add Results: for duo subjects, pick paper BEFORE exam
 function addResults(classSubjectID, isEdit = false) {
     const modalTitle = isEdit ? 'Edit Results' : 'Add Results';
     const item = jQuery(`.subject-item`).has(`[onclick*="addResults(${classSubjectID})"], [onclick*="editResults(${classSubjectID})"]`).first();
@@ -2414,7 +2634,7 @@ function addResults(classSubjectID, isEdit = false) {
                         <i class="bi bi-layers"></i>
                         <strong>${paperResponse.subject_name || 'Subject'}</strong> is a DUO subject.
                         Select your assigned paper before choosing an examination.
-                        <br><small>Marks max = that paper's marks. No A/B here — only Pass/Fail colour vs paper total.</small>
+                        <br><small>Marks max = that paper's marks. No A/B here, only Pass/Fail colour vs paper total.</small>
                     </div>
                     <div class="form-group">
                         <label>Select Paper <span class="text-danger">*</span></label>
@@ -2449,7 +2669,7 @@ function addResults(classSubjectID, isEdit = false) {
                 return;
             }
 
-            // Non-duo or no paper list — existing flow
+            // Non-duo or no paper list; existing flow
             window.duoPaperContext = null;
             loadAddResultsExamForm(classSubjectID, isEdit, null, null, '#addEditResultsModalBody');
         },
@@ -2491,7 +2711,7 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
                         <div class="alert alert-success py-2">
                             <i class="bi bi-check-circle"></i> Entering results for paper:
                             <strong>${paperName || ('#' + componentID)}</strong>
-                            ${isDuoResultMode() ? ` &nbsp;|&nbsp; <strong>Max marks: ${getResultMarksMax()}</strong> <small class="text-muted">(no A/B — Pass/Fail colour only)</small>` : ''}
+                            ${isDuoResultMode() ? ` &nbsp;|&nbsp; <strong>Max marks: ${getResultMarksMax()}</strong> <small class="text-muted">(no A/B, Pass/Fail colour only)</small>` : ''}
                         </div>` : '';
 
                     let html = `
@@ -2544,31 +2764,50 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
                                 ${isSecondarySchool ? `
                                     <div class="alert alert-warning mt-3 secondary-only-alert">
                                         <i class="bi bi-exclamation-triangle"></i>
-                                        Question-based results are enabled. Excel import/export is disabled.
+                                        Question-based results are enabled. Excel import/export is disabled unless this exam allows no-format entry.
                                     </div>
-                                ` : `
-                                    <div class="alert alert-info mt-3 non-secondary-alert">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <i class="bi bi-file-earmark-excel"></i>
-                                                <strong>Excel Import/Export:</strong> Download template, fill in results, then upload.
-                                            </div>
-                                            <div>
-                                                <button type="button" class="btn btn-sm btn-outline-info" onclick="fillRandomPrimaryResults()" id="fillRandomBtn" disabled>
-                                                    <i class="bi bi-dice-5"></i> Fill Random
-                                                </button>
-                                                <button type="button" class="btn btn-sm btn-success" onclick="downloadExcelTemplate(${classSubjectID})" id="downloadExcelBtn" disabled>
-                                                    <i class="bi bi-download"></i> Download Excel Template
-                                                </button>
-                                                <button type="button" class="btn btn-sm btn-primary ml-1" onclick="uploadExcelResults(${classSubjectID})" id="uploadExcelBtn" disabled>
-                                                    <i class="bi bi-upload"></i> Upload Results
-                                                </button>
-                                            </div>
+                                ` : ''}
+                                <div class="alert alert-info mt-3 results-excel-alert" style="${isSecondarySchool ? 'display:none;' : ''}">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center">
+                                        <div class="mb-1">
+                                            <i class="bi bi-file-earmark-excel"></i>
+                                            <strong>Excel Import/Export:</strong> Choose Name / Index columns, fill Marks only. Upload auto-calculates grade/remark, then Save.
+                                        </div>
+                                        <div class="results-excel-actions">
+                                            <button type="button" class="btn btn-sm btn-outline-info" onclick="fillRandomPrimaryResults()" id="fillRandomBtn" disabled>
+                                                <i class="bi bi-dice-5"></i> Fill Random
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-success" onclick="downloadExcelTemplate(${classSubjectID})" id="downloadExcelBtn" disabled>
+                                                <i class="bi bi-download"></i> Export Excel
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-primary ml-1" onclick="uploadExcelResults(${classSubjectID})" id="uploadExcelBtn" disabled>
+                                                <i class="bi bi-upload"></i> Import Excel
+                                            </button>
                                         </div>
                                     </div>
-                                `}
+                                </div>
                             </div>
-                            <div class="table-responsive mt-3">
+                            <div class="results-tools-bar">
+                                <div class="row">
+                                    <div class="col-md-5 col-sm-12 mb-2">
+                                        <label for="resultsStudentSearch"><i class="bi bi-search"></i> Search student</label>
+                                        <input type="text" class="form-control form-control-sm" id="resultsStudentSearch"
+                                               placeholder="Name, index no, sex..." autocomplete="off">
+                                    </div>
+                                    <div class="col-md-4 col-sm-8 mb-2">
+                                        <label for="resultsStudentSort"><i class="bi bi-sort-down"></i> Sort by</label>
+                                        <select class="form-control form-control-sm" id="resultsStudentSort">
+                                            <option value="index" selected>Index No. (default)</option>
+                                            <option value="sex">Sex</option>
+                                            <option value="alphabet">Alphabet (Name)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 col-sm-4 mb-2 d-flex align-items-end">
+                                        <small class="text-muted" id="resultsVisibleCount"></small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive mt-2">
                                 <table class="table table-hover">
                                     <thead class="bg-primary-custom text-white">
                                         <tr>
@@ -2585,8 +2824,10 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
                     `;
 
                     if (studentsResponse.success && studentsResponse.students) {
+                        window.resultStudentsCache = studentsResponse.students;
                         html += buildResultStudentRowsHtml(studentsResponse.students, isSecondarySchool, questionColspan);
                     } else {
+                        window.resultStudentsCache = [];
                         html += `<tr><td colspan="${questionColspan}" class="text-center text-muted">No enrolled students for the selected academic year.</td></tr>`;
                     }
 
@@ -2604,6 +2845,8 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
                     `;
 
                     $target.html(html);
+                    initResultsTableTools();
+                    applyResultsSearchSort();
                     }, 400);
                 },
                 error: function(xhr) {
@@ -2780,7 +3023,7 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
                     return; // Skip student if no marks at all
                 }
             } else {
-                // We have question marks — recalculate and update total for UI consistency
+                // We have question marks; recalculate and update total for UI consistency
                 const displayTotal = Number.isInteger(total) ? total : total.toFixed(2);
                 jQuery(`#marks_${studentID}`).val(displayTotal);
                 autoCalculateGrade(studentID);
@@ -2793,7 +3036,19 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
                     hasValidationError = true;
                     Swal.fire({
                         title: 'Error!',
-                        text: `Duo paper marks cannot exceed ${paperMax} (paper max) for student ${studentID}.`,
+                        text: `Total is ${paperMax}. Marks cannot exceed ${paperMax} for student ${studentID}.`,
+                        icon: 'error',
+                        confirmButtonColor: '#940000'
+                    });
+                    return false;
+                }
+            } else if (isDirectMarksEntryMode()) {
+                const maxMarks = getResultMarksMax();
+                if (parseFloat(total) > maxMarks) {
+                    hasValidationError = true;
+                    Swal.fire({
+                        title: 'Error!',
+                        text: `Total is ${maxMarks}. Marks cannot exceed ${maxMarks} for student ${studentID}.`,
                         icon: 'error',
                         confirmButtonColor: '#940000'
                     });
@@ -2826,13 +3081,14 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
             const remark = jQuery(`.remark-input[data-student="${studentID}"]`).val();
 
             if (marks || grade || remark) {
-                if (isDuoResultMode() && marks !== '' && marks !== null && !isNaN(marks)) {
-                    const paperMax = getResultMarksMax();
-                    if (parseFloat(marks) > paperMax) {
+                if (marks !== '' && marks !== null && !isNaN(marks)) {
+                    const maxMarks = getResultMarksMax();
+                    if (parseFloat(marks) > maxMarks) {
                         duoMarksInvalid = true;
+                        validateDirectMarksInput(jQuery(this));
                         Swal.fire({
                             title: 'Error!',
-                            text: `Duo paper marks cannot exceed ${paperMax} (paper max).`,
+                            text: `Total is ${maxMarks}. Marks cannot exceed ${maxMarks}.`,
                             icon: 'error',
                             confirmButtonColor: '#940000'
                         });
@@ -2910,74 +3166,162 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
             }
         }
     });
+});
 
-    // Upload Excel Form Handler
-    jQuery('#uploadExcelForm').on('submit', function(e) {
-        e.preventDefault();
+// Upload Excel: AJAX parse only (does not save). Bound at document level so it always works.
+jQuery(document).off('submit.uploadExcel', '#uploadExcelForm').on('submit.uploadExcel', '#uploadExcelForm', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    loadExcelResultsIntoForm(this);
+    return false;
+});
 
-        const formData = new FormData(this);
-        const classSubjectID = jQuery('#upload_class_subject_id').val();
-        const examID = jQuery('#upload_exam_id').val();
+jQuery(document).off('click.uploadExcel', '#btnLoadExcelIntoForm').on('click.uploadExcel', '#btnLoadExcelIntoForm', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    loadExcelResultsIntoForm(jQuery('#uploadExcelForm')[0]);
+    return false;
+});
 
-        if (!examID) {
+jQuery(document).on('hidden.bs.modal', '#uploadExcelModal', function() {
+    if (jQuery('#addEditResultsModal').is(':visible') || jQuery('#addEditResultsModal').hasClass('show')) {
+        jQuery('body').addClass('modal-open');
+    }
+});
+
+function loadExcelResultsIntoForm(formEl) {
+    const classSubjectID = jQuery('#upload_class_subject_id').val() || jQuery('#class_subject_id').val();
+    const examID = jQuery('#upload_exam_id').val() || jQuery('#exam_id').val();
+    if (!examID || !classSubjectID) {
+        Swal.fire({
+            title: 'Error!',
+            text: 'Please select an examination first.',
+            icon: 'error',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+
+    const fileInput = document.getElementById('excel_file');
+    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+    if (!file) {
+        Swal.fire({
+            title: 'Error!',
+            text: 'Please choose an Excel file.',
+            icon: 'error',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+
+    const $btn = jQuery('#btnLoadExcelIntoForm');
+    const originalBtnHtml = $btn.html();
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...');
+
+    const formData = new FormData();
+    formData.append('class_subject_id', classSubjectID);
+    formData.append('exam_id', examID);
+    formData.append('excel_file', file);
+    formData.append('_token', jQuery('meta[name="csrf-token"]').attr('content'));
+
+    Swal.fire({
+        title: 'Loading Excel...',
+        text: 'Please wait while we parse your file.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    jQuery.ajax({
+        url: '/parse_excel_results',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            $btn.prop('disabled', false).html(originalBtnHtml);
+            const rows = (response && response.rows) ? response.rows : [];
+            const result = applyExcelRowsToResultsForm(rows);
+
+            const finish = function() {
+                jQuery('body').addClass('modal-open');
+                showExcelImportFeedback(result);
+            };
+
+            if (jQuery('#uploadExcelModal').is(':visible') || jQuery('#uploadExcelModal').hasClass('show')) {
+                jQuery('#uploadExcelModal').one('hidden.bs.modal', finish);
+                jQuery('#uploadExcelModal').modal('hide');
+            } else {
+                finish();
+            }
+        },
+        error: function(xhr) {
+            $btn.prop('disabled', false).html(originalBtnHtml);
+            let errorMsg = 'Failed to parse Excel file.';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMsg = xhr.responseJSON.message;
+            } else if (xhr.status === 419) {
+                errorMsg = 'Session expired. Please refresh the page and try again.';
+            } else if (xhr.status === 404) {
+                errorMsg = 'Parse endpoint not found. Please refresh the page.';
+            }
             Swal.fire({
                 title: 'Error!',
-                text: 'Please select an examination first.',
+                text: errorMsg,
                 icon: 'error',
                 confirmButtonColor: '#940000'
             });
-            return;
         }
-
-        Swal.fire({
-            title: 'Uploading...',
-            text: 'Please wait while we process your Excel file.',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-
-        jQuery.ajax({
-            url: '/upload_excel_results',
-            method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                Swal.fire({
-                    title: 'Success!',
-                    text: response.message || 'Results uploaded successfully!',
-                    icon: 'success',
-                    confirmButtonColor: '#940000'
-                }).then(() => {
-                    jQuery('#uploadExcelModal').modal('hide');
-                    // Reload the results form
-                    const currentClassSubjectID = jQuery('#class_subject_id').val();
-                    const currentExamID = jQuery('#exam_id').val();
-                    if (currentClassSubjectID && currentExamID) {
-                        loadExistingResults(currentClassSubjectID, currentExamID);
-                    }
-                });
-            },
-            error: function(xhr) {
-                let errorMsg = 'Failed to upload Excel file.';
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    errorMsg = xhr.responseJSON.error;
-                } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMsg = xhr.responseJSON.message;
-                }
-                Swal.fire({
-                    title: 'Error!',
-                    text: errorMsg,
-                    icon: 'error',
-                    confirmButtonColor: '#940000'
-                });
-            }
-        });
     });
-});
+}
 
+function showExcelImportFeedback(result) {
+    jQuery('.excel-import-feedback').remove();
+    if (!result || result.filled === 0) {
+        const warn = `
+            <div class="alert alert-warning excel-import-feedback mt-2" role="alert">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Import:</strong> No student rows matched. Check Name / Index No. columns match the list below.
+            </div>`;
+        jQuery('#resultsForm .results-tools-bar').before(warn);
+        Swal.fire({
+            title: 'No matches',
+            text: 'No student rows matched the form. Check Name / Index No. in Excel.',
+            icon: 'warning',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+
+    let detail = `Loaded <strong>${result.filled}</strong> mark(s). Grade &amp; remark calculated automatically. <strong>Not saved yet</strong>. Review below, then click Save Results.`;
+    if (result.skipped) detail += ` ${result.skipped} row(s) skipped.`;
+    if (result.overMax) detail += ` <span class="text-danger">${result.overMax} over Max. Fix highlighted rows.</span>`;
+
+    const ok = `
+        <div class="alert alert-success excel-import-feedback mt-2" role="alert">
+            <i class="bi bi-check-circle"></i> ${detail}
+        </div>`;
+    jQuery('#resultsForm .results-tools-bar').before(ok);
+
+    const $body = jQuery('#addEditResultsModalBody');
+    if ($body.length && jQuery('#resultsForm .results-tools-bar').length) {
+        const top = jQuery('#resultsForm .results-tools-bar').position();
+        if (top && typeof top.top === 'number') {
+            $body.animate({ scrollTop: Math.max(top.top, 0) }, 300);
+        }
+    }
+
+    Swal.fire({
+        title: 'Loaded into form',
+        html: detail,
+        icon: 'success',
+        confirmButtonColor: '#940000'
+    });
+}
 // Handle exam selection - enable/disable Excel buttons
 function handleExamSelection(classSubjectID, examID) {
     jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').prop('disabled', true);
@@ -3013,16 +3357,18 @@ function handleExamSelection(classSubjectID, examID) {
         if (exam.allow_no_format == 1) {
             jQuery('.secondary-only-alert').hide();
             jQuery('.questions-column-header, .questions-column-cell').hide();
-            // Show Excel options if it was secondary school but no format allowed
-            if (isSecondarySchool) {
-               // We need to ensure the Excel alert is available or show/hide carefully
-            }
+            jQuery('.results-excel-alert').show();
         } else {
-            jQuery('.secondary-only-alert').show();
             if (isSecondarySchool) {
-               jQuery('.questions-column-header, .questions-column-cell').show();
+                jQuery('.secondary-only-alert').show();
+                jQuery('.questions-column-header, .questions-column-cell').show();
+                jQuery('.results-excel-alert').hide();
+            } else {
+                jQuery('.secondary-only-alert').hide();
+                jQuery('.results-excel-alert').show();
             }
         }
+        syncResultsExcelAvailability();
 
         // Load existing results after enabling form
         loadExistingResults(classSubjectID, examID);
@@ -3080,6 +3426,8 @@ function enableResultsForm(exam = null) {
     }
     jQuery('.question-mark-input, .toggle-question-btn').prop('disabled', false);
     jQuery('#resultsForm button[type="submit"]').prop('disabled', false);
+    syncMarksInputsMaxAttr();
+    syncResultsExcelAvailability();
 }
 
 // Helper function to show error message
@@ -3131,7 +3479,7 @@ jQuery(document).on('click', '.toggle-question-btn', function() {
         const val = jQuery(this).val();
 
         if (isDisabled) {
-            // This optional question was NOT selected — remove it from cache
+            // This optional question was NOT selected; remove it from cache
             delete examQuestionData.marksByStudent[studentID][questionId];
         } else if (val !== '' && val !== null && val !== undefined) {
             examQuestionData.marksByStudent[studentID][questionId] = val;
@@ -3249,7 +3597,327 @@ function checkIfEditMode(examID, classSubjectID) {
     return hasResults;
 }
 
-// Download Excel Template
+// --- Results table search / sort / Excel (direct marks / no-qn format) ---
+
+function initResultsTableTools() {
+    jQuery('#resultsStudentSearch').off('input.resultsTools').on('input.resultsTools', function() {
+        applyResultsSearchSort();
+    });
+    jQuery('#resultsStudentSort').off('change.resultsTools').on('change.resultsTools', function() {
+        applyResultsSearchSort();
+    });
+    syncResultsExcelAvailability();
+}
+
+function syncResultsExcelAvailability() {
+    const canExcel = isDirectMarksEntryMode() && !!jQuery('#exam_id').val();
+    if (canExcel) {
+        jQuery('.results-excel-alert').show();
+        if (isSecondarySchool) {
+            jQuery('.secondary-only-alert').hide();
+        }
+    } else if (isSecondarySchool && jQuery('#exam_id').val()) {
+        const exam = window.examDataCache && window.examDataCache[jQuery('#exam_id').val()];
+        if (!(exam && exam.allow_no_format == 1)) {
+            jQuery('.results-excel-alert').hide();
+            jQuery('.secondary-only-alert').show();
+        }
+    }
+    jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').prop('disabled', !canExcel);
+}
+
+function getResultsSortLabel(sortBy) {
+    if (sortBy === 'sex') return 'Sex';
+    if (sortBy === 'alphabet') return 'Alphabet (Name)';
+    return 'Index No.';
+}
+
+function genderSortRank(gender) {
+    const g = String(gender || '').toLowerCase();
+    if (g.indexOf('f') === 0 || g.indexOf('k') === 0) return 1; // Female / Kike first
+    if (g.indexOf('m') === 0) return 2;
+    return 3;
+}
+
+function naturalIndexCompare(a, b) {
+    const sa = String(a || '');
+    const sb = String(b || '');
+    return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function applyResultsSearchSort() {
+    const $tbody = jQuery('#resultsTableBody');
+    if (!$tbody.length) return;
+
+    const q = String(jQuery('#resultsStudentSearch').val() || '').trim().toLowerCase();
+    const sortBy = jQuery('#resultsStudentSort').val() || 'index';
+
+    const pairs = [];
+    $tbody.children('tr.result-student-row').each(function() {
+        const $main = jQuery(this);
+        const sid = $main.data('student-id');
+        const $detail = $tbody.find(`#question_details_${sid}`);
+        pairs.push({
+            $main: $main,
+            $detail: $detail,
+            name: String($main.data('sort-name') || ''),
+            index: String($main.data('sort-index') || ''),
+            gender: String($main.data('sort-gender') || ''),
+            search: String($main.data('search-text') || '')
+        });
+    });
+
+    pairs.sort(function(a, b) {
+        if (sortBy === 'alphabet') {
+            return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+        }
+        if (sortBy === 'sex') {
+            const gr = genderSortRank(a.gender) - genderSortRank(b.gender);
+            if (gr !== 0) return gr;
+            return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+        }
+        // default: index no
+        const idx = naturalIndexCompare(a.index, b.index);
+        if (idx !== 0) return idx;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
+
+    let visible = 0;
+    pairs.forEach(function(pair, i) {
+        const match = !q || pair.search.indexOf(q) !== -1;
+        pair.$main.toggleClass('is-search-hidden', !match);
+        if (pair.$detail.length) {
+            pair.$detail.toggleClass('is-search-hidden', !match);
+        }
+        $tbody.append(pair.$main);
+        if (pair.$detail.length) {
+            $tbody.append(pair.$detail);
+        }
+        if (match) {
+            visible++;
+            pair.$main.find('.result-row-num').text(visible);
+        }
+    });
+
+    const total = pairs.length;
+    const sortLabel = getResultsSortLabel(sortBy);
+    jQuery('#resultsVisibleCount').text(
+        q ? `${visible} of ${total} Â· sorted by ${sortLabel}` : `${total} student(s) Â· sorted by ${sortLabel}`
+    );
+}
+
+function excelRowGet(row, keys) {
+    if (!row) return '';
+    const map = {};
+    Object.keys(row).forEach(function(k) {
+        map[String(k).trim().toLowerCase()] = row[k];
+    });
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i].toLowerCase();
+        if (map[key] !== undefined && map[key] !== null && map[key] !== '') {
+            return map[key];
+        }
+    }
+    return '';
+}
+
+function normalizeExcelMatchText(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function buildResultsStudentLookup() {
+    const byId = {};
+    const byIndex = {};
+    const byName = {};
+    jQuery('#resultsForm .result-student-row').each(function() {
+        const $row = jQuery(this);
+        const sid = String($row.data('student-id') || '');
+        if (!sid) return;
+        const name = normalizeExcelMatchText($row.data('sort-name') || $row.children('td').eq(1).clone().children().remove().end().text());
+        const indexNo = normalizeExcelMatchText($row.data('sort-index') || $row.children('td').eq(2).text());
+        byId[sid] = sid;
+        if (indexNo && indexNo !== 'n/a') {
+            if (!byIndex[indexNo]) byIndex[indexNo] = [];
+            byIndex[indexNo].push(sid);
+        }
+        if (name) {
+            if (!byName[name]) byName[name] = [];
+            byName[name].push(sid);
+        }
+    });
+    return { byId: byId, byIndex: byIndex, byName: byName };
+}
+
+function resolveStudentIdFromExcelRow(row, lookup) {
+    // Support AJAX-normalized rows + raw Excel header maps
+    const studentID = excelRowGet(row, ['student_id', 'Student ID', 'studentID', 'ID']);
+    if (studentID !== '' && studentID !== null && studentID !== undefined) {
+        const sid = String(studentID).trim();
+        if (lookup.byId[sid]) return sid;
+    }
+
+    const indexNo = normalizeExcelMatchText(excelRowGet(row, [
+        'index_no', 'Index No.', 'Index No', 'Index Number', 'Index',
+        'examination_number', 'Admission Number', 'Admission No.'
+    ]));
+    const name = normalizeExcelMatchText(excelRowGet(row, [
+        'student_name', 'Student Name', 'Name', 'Full Name'
+    ]));
+
+    // Prefer exact name + index when both present
+    if (name && indexNo) {
+        const nameHits = lookup.byName[name] || [];
+        const indexHits = lookup.byIndex[indexNo] || [];
+        const both = nameHits.filter(function(id) { return indexHits.indexOf(id) !== -1; });
+        if (both.length === 1) return both[0];
+        if (indexHits.length === 1) return indexHits[0];
+        if (nameHits.length === 1) return nameHits[0];
+        return null;
+    }
+
+    if (indexNo) {
+        const hits = lookup.byIndex[indexNo] || [];
+        return hits.length === 1 ? hits[0] : null;
+    }
+
+    if (name) {
+        const hits = lookup.byName[name] || [];
+        return hits.length === 1 ? hits[0] : null;
+    }
+
+    return null;
+}
+
+function applyExcelRowsToResultsForm(rows) {
+    const maxMarks = getResultMarksMax();
+    const lookup = buildResultsStudentLookup();
+    let filled = 0;
+    let skipped = 0;
+    let overMax = 0;
+
+    (rows || []).forEach(function(row) {
+        const sid = resolveStudentIdFromExcelRow(row, lookup);
+        if (!sid) {
+            skipped++;
+            return;
+        }
+
+        const $marks = jQuery(`#resultsForm .marks-input[data-student="${sid}"]`);
+        if (!$marks.length || $marks.prop('disabled')) {
+            skipped++;
+            return;
+        }
+
+        let marks = excelRowGet(row, ['marks', 'Marks', 'Score', 'Total']);
+        if (marks === '' || marks === null || marks === undefined) {
+            skipped++;
+            return;
+        }
+        marks = String(marks).trim();
+        if (marks === '' || isNaN(parseFloat(marks))) {
+            skipped++;
+            return;
+        }
+
+        const marksNum = parseFloat(marks);
+        $marks.val(marksNum);
+        // Always auto-calculate grade & remark from marks (same as typing by hand)
+        autoCalculateGrade(sid);
+
+        if (maxMarks > 0 && marksNum > maxMarks) {
+            overMax++;
+            validateDirectMarksInput($marks);
+        }
+        filled++;
+    });
+
+    return { filled: filled, skipped: skipped, overMax: overMax };
+}
+
+function getExportColumnsChoiceLabel(mode) {
+    if (mode === 'name') return 'Name only';
+    if (mode === 'index') return 'Index No. only';
+    return 'Name and Index No.';
+}
+
+function writeResultsExcelFile(classSubjectID, exportMode) {
+    applyResultsSearchSort();
+
+    const maxMarks = getResultMarksMax();
+    const sortBy = jQuery('#resultsStudentSort').val() || 'index';
+    const sortLabel = getResultsSortLabel(sortBy);
+    const examName = jQuery('#exam_id option:selected').text() || 'Exam';
+    const modeLabel = getExportColumnsChoiceLabel(exportMode);
+
+    const header = [];
+    if (exportMode === 'name' || exportMode === 'both') header.push('Student Name');
+    if (exportMode === 'index' || exportMode === 'both') header.push('Index No.');
+    header.push('Marks');
+
+    const aoa = [header];
+    let exported = 0;
+
+    jQuery('#resultsTableBody tr.result-student-row').each(function() {
+        const $row = jQuery(this);
+        if ($row.hasClass('is-search-hidden')) return;
+        const name = $row.children('td').eq(1).clone().children().remove().end().text().trim();
+        const indexNo = $row.children('td').eq(2).text().trim();
+        const marks = $row.find('.marks-input').val() || '';
+        const rowData = [];
+        if (exportMode === 'name' || exportMode === 'both') rowData.push(name);
+        if (exportMode === 'index' || exportMode === 'both') rowData.push(indexNo);
+        rowData.push(marks);
+        aoa.push(rowData);
+        exported++;
+    });
+
+    if (exported === 0) {
+        Swal.fire({
+            title: 'No students',
+            text: 'No students to export (check search filter).',
+            icon: 'warning',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = header.map(function(h) {
+        if (h === 'Student Name') return { wch: 28 };
+        if (h === 'Index No.') return { wch: 16 };
+        return { wch: 10 };
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Results');
+
+    const meta = XLSX.utils.aoa_to_sheet([
+        ['Export columns', modeLabel + ' + Marks'],
+        ['Exported sort', sortLabel],
+        ['Max marks (for validation)', maxMarks],
+        ['Examination', examName],
+        ['Class subject ID', classSubjectID],
+        ['Rows', exported],
+        ['Note', 'Fill Marks only. On import, grade and remark are calculated automatically.']
+    ]);
+    XLSX.utils.book_append_sheet(wb, meta, 'Export Info');
+
+    const safeMode = String(exportMode).replace(/[^a-z0-9_-]/gi, '');
+    const safeSort = String(sortBy).replace(/[^a-z0-9_-]/gi, '');
+    XLSX.writeFile(wb, `Results_${safeMode}_sort-${safeSort}.xlsx`);
+
+    Swal.fire({
+        title: 'Exported',
+        text: `${exported} student(s) Â· ${modeLabel} + Marks Â· sorted by ${sortLabel}`,
+        icon: 'success',
+        timer: 2400,
+        showConfirmButton: false
+    });
+}
+
+// Download Excel Template: ask columns first (name / index / both) + Marks only
 function downloadExcelTemplate(classSubjectID) {
     const examID = jQuery('#exam_id').val();
 
@@ -3263,10 +3931,56 @@ function downloadExcelTemplate(classSubjectID) {
         return;
     }
 
-    window.location.href = `/download_excel_template/${classSubjectID}/${examID}`;
+    if (!isDirectMarksEntryMode()) {
+        Swal.fire({
+            title: 'Not available',
+            text: 'Excel export is only for exams without question format.',
+            icon: 'info',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+
+    if (typeof XLSX === 'undefined') {
+        Swal.fire({
+            title: 'Error!',
+            text: 'Excel library failed to load. Please refresh the page.',
+            icon: 'error',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Export with',
+        html: `
+            <p class="mb-2 text-left" style="font-size:0.9rem;">Choose student columns. <strong>Marks</strong> is always included.</p>
+            <div class="text-left" style="line-height:1.9;">
+                <label class="d-block"><input type="radio" name="export_cols_mode" value="name"> Name only + Marks</label>
+                <label class="d-block"><input type="radio" name="export_cols_mode" value="index"> Index No. only + Marks</label>
+                <label class="d-block"><input type="radio" name="export_cols_mode" value="both" checked> Name + Index No. + Marks</label>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Export',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#940000',
+        preConfirm: function() {
+            const selected = document.querySelector('input[name="export_cols_mode"]:checked');
+            return selected ? selected.value : 'both';
+        }
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        writeResultsExcelFile(classSubjectID, result.value || 'both');
+    });
 }
 
 // Show Upload Excel Modal
+function uploadExcelResults(classSubjectID) {
+    showUploadExcelModal(classSubjectID);
+}
+
 function showUploadExcelModal(classSubjectID) {
     const examID = jQuery('#exam_id').val();
 
@@ -3280,6 +3994,16 @@ function showUploadExcelModal(classSubjectID) {
         return;
     }
 
+    if (!isDirectMarksEntryMode()) {
+        Swal.fire({
+            title: 'Not available',
+            text: 'Excel import is only for exams without question format.',
+            icon: 'info',
+            confirmButtonColor: '#940000'
+        });
+        return;
+    }
+
     jQuery('#upload_class_subject_id').val(classSubjectID);
     jQuery('#upload_exam_id').val(examID);
     jQuery('#excel_file').val('');
@@ -3287,7 +4011,7 @@ function showUploadExcelModal(classSubjectID) {
     jQuery('#uploadExcelModal').modal('show');
 
     // Update file label when file is selected
-    jQuery('#excel_file').on('change', function() {
+    jQuery('#excel_file').off('change.excelLabel').on('change.excelLabel', function() {
         var fileName = jQuery(this).val().split('\\').pop();
         if (fileName) {
             jQuery('#excel_file_label').html('<i class="bi bi-file-earmark-excel-fill"></i> ' + fileName);
@@ -3643,4 +4367,7 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
 });
 </script>
 
+@include('Teacher.partials.home_package_modal')
+
 @include('includes.footer')
+

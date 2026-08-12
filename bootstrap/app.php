@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\ForcePasswordChange;
+use App\Http\Middleware\RequireAcademicYear;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             ForcePasswordChange::class,
+            RequireAcademicYear::class,
             // Temporarily disabled during live 504 incident (DB write after every request).
             // \App\Http\Middleware\LogUserActivity::class,
             // LogWebVisitor disabled: sync/geo IP was exhausting PHP workers → live 504s.

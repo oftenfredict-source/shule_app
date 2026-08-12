@@ -4,18 +4,217 @@
     $qeLockedSubclassID = $qeLockedSubclassID ?? null;
     $qeLockedSubclassLabel = $qeLockedSubclassLabel ?? '';
     $qeCanQuickRegister = $qeCanQuickRegister ?? true;
+    $qeTeacherLocked = $qeMode === 'teacher' && !empty($qeLockedSubclassID);
 @endphp
+
+@once
+{{-- Self-contained styles: works on Bootstrap 4 (teacher) and Bootstrap 5 (admin) --}}
+<style>
+    #quickRegisterStudentModal .modal-content,
+    #quickTemplateDownloadModal .modal-content,
+    #quickImportStudentsModal .modal-content,
+    #enrollStudentModal .modal-content {
+        border-radius: 0 !important;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+        overflow: hidden;
+        font-family: "Century Gothic", CenturyGothic, AppleGothic, sans-serif;
+    }
+    #quickRegisterStudentModal .modal-header,
+    #quickTemplateDownloadModal .modal-header,
+    #quickImportStudentsModal .modal-header,
+    #enrollStudentModal .modal-header {
+        background: #f5f5f5 !important;
+        border-bottom: 2px solid #940000 !important;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.85rem 1rem;
+    }
+    #quickRegisterStudentModal .modal-title,
+    #quickTemplateDownloadModal .modal-title,
+    #quickImportStudentsModal .modal-title,
+    #enrollStudentModal .modal-title {
+        color: #940000 !important;
+        font-weight: 700;
+        margin: 0;
+        font-size: 1.1rem;
+    }
+    #quickRegisterStudentModal .modal-body,
+    #quickTemplateDownloadModal .modal-body,
+    #quickImportStudentsModal .modal-body,
+    #enrollStudentModal .modal-body {
+        background: whitesmoke !important;
+        padding: 1rem 1.15rem;
+    }
+    #quickRegisterStudentModal .modal-footer,
+    #quickTemplateDownloadModal .modal-footer,
+    #quickImportStudentsModal .modal-footer,
+    #enrollStudentModal .modal-footer {
+        background: #f5f5f5 !important;
+        border-top: 1px solid #e5e5e5;
+        padding: 0.75rem 1rem;
+    }
+
+    /* Close button — Bootstrap 4 .close + BS5 .btn-close fallback */
+    #quickRegisterStudentModal .qe-modal-close,
+    #quickTemplateDownloadModal .qe-modal-close,
+    #quickImportStudentsModal .qe-modal-close,
+    #enrollStudentModal .qe-modal-close {
+        background: transparent;
+        border: 0;
+        font-size: 1.6rem;
+        line-height: 1;
+        color: #940000;
+        opacity: 0.75;
+        padding: 0 0.25rem;
+        margin: 0;
+        cursor: pointer;
+        font-weight: 700;
+    }
+    #quickRegisterStudentModal .qe-modal-close:hover,
+    #quickTemplateDownloadModal .qe-modal-close:hover,
+    #quickImportStudentsModal .qe-modal-close:hover,
+    #enrollStudentModal .qe-modal-close:hover {
+        opacity: 1;
+        color: #7a0000;
+    }
+
+    #quickRegisterStudentModal .form-control,
+    #quickRegisterStudentModal .form-select,
+    #quickTemplateDownloadModal .form-control,
+    #quickImportStudentsModal .form-control,
+    #enrollStudentModal .form-control,
+    #enrollStudentModal .form-select {
+        border-radius: 0 !important;
+        border: 1px solid #ced4da;
+        height: calc(1.5em + 0.75rem + 2px);
+        padding: 0.375rem 0.75rem;
+        background-color: #fff;
+        color: #212529;
+        width: 100%;
+        display: block;
+        font-size: 0.95rem;
+        box-shadow: none;
+        appearance: auto;
+        -webkit-appearance: menulist;
+    }
+    #quickRegisterStudentModal textarea.form-control,
+    #enrollStudentModal textarea.form-control {
+        height: auto;
+        min-height: 80px;
+    }
+    #quickRegisterStudentModal .form-control:focus,
+    #quickRegisterStudentModal .form-select:focus,
+    #quickImportStudentsModal .form-control:focus,
+    #enrollStudentModal .form-control:focus,
+    #enrollStudentModal .form-select:focus {
+        border-color: #940000;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.2);
+    }
+    #quickRegisterStudentModal .form-label,
+    #quickImportStudentsModal .form-label,
+    #enrollStudentModal .form-label {
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+        color: #212529;
+        display: inline-block;
+    }
+    /* Bootstrap 4 does not have fw-bold / form-select / btn-close */
+    #quickRegisterStudentModal .fw-bold,
+    #quickTemplateDownloadModal .fw-bold,
+    #quickImportStudentsModal .fw-bold,
+    #enrollStudentModal .fw-bold {
+        font-weight: 700 !important;
+    }
+    #quickRegisterStudentModal .d-flex,
+    #quickImportStudentsModal .d-flex,
+    #enrollStudentModal .d-flex {
+        display: flex !important;
+    }
+    #quickRegisterStudentModal .flex-wrap,
+    #quickImportStudentsModal .flex-wrap {
+        flex-wrap: wrap !important;
+    }
+    #quickRegisterStudentModal .align-items-center {
+        align-items: center !important;
+    }
+    #quickRegisterStudentModal .justify-content-between {
+        justify-content: space-between !important;
+    }
+    #quickRegisterStudentModal .form-control[type="file"],
+    #quickImportStudentsModal .form-control[type="file"] {
+        height: auto;
+        padding: 0.4rem 0.5rem;
+        line-height: 1.4;
+    }
+    #quickRegisterStudentModal .input-group-text {
+        border-radius: 0 !important;
+        background: #f5f5f5;
+        border: 1px solid #ced4da;
+        font-weight: 600;
+    }
+    #quickRegisterStudentModal .input-group > .form-control {
+        width: 1%;
+        flex: 1 1 auto;
+    }
+    #quickRegisterStudentModal .row {
+        margin-left: -8px;
+        margin-right: -8px;
+    }
+    #quickRegisterStudentModal .row > [class*="col-"] {
+        padding-left: 8px;
+        padding-right: 8px;
+        margin-bottom: 0.85rem;
+    }
+    #quickRegisterStudentModal .qe-step-badge,
+    .qe-step-badge {
+        border-radius: 0 !important;
+        padding: 0.4rem 0.75rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    #quickRegisterStudentModal .btn,
+    #quickTemplateDownloadModal .btn,
+    #quickImportStudentsModal .btn,
+    #enrollStudentModal .btn {
+        border-radius: 0 !important;
+    }
+    #quickRegisterStudentModal .btn-secondary,
+    #quickTemplateDownloadModal .btn-secondary,
+    #quickImportStudentsModal .btn-secondary,
+    #enrollStudentModal .btn-secondary {
+        background: #6c757d;
+        border-color: #6c757d;
+        color: #fff;
+    }
+
+    /* Ensure modal sits above page widgets */
+    #quickRegisterStudentModal,
+    #quickTemplateDownloadModal,
+    #quickImportStudentsModal,
+    #enrollStudentModal {
+        z-index: 1055;
+    }
+    .modal-backdrop {
+        z-index: 1050;
+    }
+</style>
+@endonce
 
 @if($qeCanQuickRegister)
 {{-- ========== Quick Student Registration ========== --}}
-<div class="modal fade" id="quickRegisterStudentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content" style="border-radius:0;">
-            <div class="modal-header" style="background:#f5f5f5;border-bottom:2px solid #940000;">
-                <h5 class="modal-title" style="color:#940000;">
+<div class="modal fade" id="quickRegisterStudentModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
                     <i class="bi bi-lightning-charge-fill"></i> Quick Student Registration
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close qe-modal-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <form id="quickRegisterStudentForm" enctype="multipart/form-data">
                 @csrf
@@ -26,22 +225,22 @@
                     </div>
 
                     <div class="qe-reg-step" id="qeRegStep1">
-                        <div class="row g-3">
+                        <div class="row">
                             <div class="col-md-4">
                                 <label class="form-label fw-bold">First Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="first_name" id="qe_first_name" required style="border-radius:0;">
+                                <input type="text" class="form-control" name="first_name" id="qe_first_name" required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-bold">Middle Name</label>
-                                <input type="text" class="form-control" name="middle_name" id="qe_middle_name" style="border-radius:0;">
+                                <input type="text" class="form-control" name="middle_name" id="qe_middle_name">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-bold">Last Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="last_name" id="qe_last_name" required style="border-radius:0;">
+                                <input type="text" class="form-control" name="last_name" id="qe_last_name" required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-bold">Sex <span class="text-danger">*</span></label>
-                                <select class="form-select" name="gender" id="qe_gender" required style="border-radius:0;">
+                                <select class="form-control" name="gender" id="qe_gender" required>
                                     <option value="">Select</option>
                                     <option value="Male">Male</option>
                                     <option value="Female">Female</option>
@@ -50,15 +249,21 @@
                             <div class="col-md-8">
                                 <label class="form-label fw-bold">Student Photo</label>
                                 <div class="d-flex flex-wrap" style="gap:8px;">
-                                    <input type="file" class="form-control" name="student_photo" id="qe_student_photo" accept="image/*" style="border-radius:0;max-width:280px;">
-                                    <button type="button" class="btn btn-outline-secondary" id="qeStudentCameraBtn" style="border-radius:0;">
+                                    <input type="file" class="form-control" name="student_photo" id="qe_student_photo" accept="image/*" style="max-width:280px;">
+                                    <button type="button" class="btn btn-outline-secondary" id="qeStudentCameraBtn">
                                         <i class="bi bi-camera"></i> Camera
                                     </button>
                                 </div>
                                 <div class="mt-2"><img id="qeStudentPhotoPreview" src="" alt="" style="max-height:80px;display:none;border:1px solid #dee2e6;"></div>
                             </div>
                         </div>
-                        <p class="small text-muted mt-3 mb-0">Admission number will be auto-generated. Student is saved without class — enroll later.</p>
+                        <p class="small text-muted mt-3 mb-0">
+                            @if($qeTeacherLocked)
+                                Admission number will be auto-generated. Student will be <strong>registered and enrolled</strong> into <strong style="color:#940000;">{{ $qeLockedSubclassLabel }}</strong>.
+                            @else
+                                Admission number will be auto-generated. Student is saved without class — enroll later.
+                            @endif
+                        </p>
                     </div>
 
                     <div class="qe-reg-step d-none" id="qeRegStep2">
@@ -89,22 +294,22 @@
 
                         <div id="qeParentNewFields">
                             <p class="small text-muted mb-2">Enter parent details below (new parent).</p>
-                            <div class="row g-3">
+                            <div class="row">
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">First Name <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" name="parent_first_name" id="qe_parent_first_name" style="border-radius:0;">
+                                    <input type="text" class="form-control" name="parent_first_name" id="qe_parent_first_name">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Middle Name</label>
-                                    <input type="text" class="form-control" name="parent_middle_name" id="qe_parent_middle_name" style="border-radius:0;">
+                                    <input type="text" class="form-control" name="parent_middle_name" id="qe_parent_middle_name">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Last Name <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" name="parent_last_name" id="qe_parent_last_name" style="border-radius:0;">
+                                    <input type="text" class="form-control" name="parent_last_name" id="qe_parent_last_name">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Sex <span class="text-danger">*</span></label>
-                                    <select class="form-select" name="parent_gender" id="qe_parent_gender" style="border-radius:0;">
+                                    <select class="form-control" name="parent_gender" id="qe_parent_gender">
                                         <option value="">Select</option>
                                         <option value="Male">Male</option>
                                         <option value="Female">Female</option>
@@ -113,8 +318,8 @@
                                 <div class="col-md-8">
                                     <label class="form-label fw-bold">Parent Photo</label>
                                     <div class="d-flex flex-wrap" style="gap:8px;">
-                                        <input type="file" class="form-control" name="parent_photo" id="qe_parent_photo" accept="image/*" style="border-radius:0;max-width:280px;">
-                                        <button type="button" class="btn btn-outline-secondary" id="qeParentCameraBtn" style="border-radius:0;">
+                                        <input type="file" class="form-control" name="parent_photo" id="qe_parent_photo" accept="image/*" style="max-width:280px;">
+                                        <button type="button" class="btn btn-outline-secondary" id="qeParentCameraBtn">
                                             <i class="bi bi-camera"></i> Camera
                                         </button>
                                     </div>
@@ -134,14 +339,14 @@
                         <canvas id="qeCameraCanvas" style="display:none;"></canvas>
                         <p class="small text-white-50 mt-2 mb-2" id="qeCameraHint">Align face, then tap Capture</p>
                         <p class="small text-warning mt-2 mb-2 d-none" id="qeCameraFallbackHint">
-                            Live camera needs HTTPS or localhost. Use the button below to take or choose a photo.
+                            Live preview haiwezi kwenye HTTP. Bonyeza button hapa chini kuchukua/kuchagua picha (simu itafungua kamera).
                         </p>
                         <p class="small text-danger mt-2 mb-2 d-none" id="qeCameraError"></p>
                         <button type="button" class="btn w-100 mb-2" id="qeCameraCaptureBtn" style="background:#940000;color:#fff;border-radius:0;" disabled>
                             <i class="bi bi-camera-fill"></i> Capture Photo
                         </button>
                         <button type="button" class="btn btn-light w-100 d-none" id="qeCameraPickBtn" style="border-radius:0;">
-                            <i class="bi bi-image"></i> Take / Choose Photo
+                            <i class="bi bi-camera"></i> Take / Choose Photo
                         </button>
                     </div>
                 </div>
@@ -159,7 +364,7 @@
 </div>
 @endif
 
-{{-- Quick Template download (optional demo data) --}}
+{{-- Quick Template download (optional demo data + optional enrollment) --}}
 @if($qeCanQuickRegister)
 <div class="modal fade" id="quickTemplateDownloadModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -168,9 +373,35 @@
                 <h5 class="modal-title" style="color:#940000;">
                     <i class="bi bi-download"></i> Quick Template
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close qe-modal-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <div class="modal-body" style="background:whitesmoke;">
+                @if($qeTeacherLocked)
+                <div class="alert mb-3" style="border-radius:0;border-left:4px solid #940000;background:#fff;">
+                    <strong>Class teacher template</strong>
+                    <p class="mb-0 mt-2 small">Wanafunzi wote watasajiliwa na <strong>ku-enroll moja kwa moja</strong> kwenye <strong style="color:#940000;">{{ $qeLockedSubclassLabel }}</strong>. Hakuna haja ya Subclass ID kwenye Excel.</p>
+                </div>
+                @else
+                <div class="mb-3 p-3" style="background:#fff;border:1px solid #dee2e6;border-radius:0;">
+                    <div class="fw-bold mb-2" style="color:#212529;">Export type</div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="qeTemplateExportType" id="qeTemplateWithoutEnrollment" value="0" checked>
+                        <label class="form-check-label" for="qeTemplateWithoutEnrollment">
+                            <strong>Without enrollment</strong>
+                            <span class="d-block small text-muted">Register students only — enroll later.</span>
+                        </label>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="radio" name="qeTemplateExportType" id="qeTemplateWithEnrollment" value="1">
+                        <label class="form-check-label" for="qeTemplateWithEnrollment">
+                            <strong>With enrollment</strong>
+                            <span class="d-block small text-muted">Includes <em>Stream / Subclass ID</em> column + <strong>Valid Subclasses</strong> sheet (IDs za stream) — jaza ID ili kusajili na ku-enroll moja kwa moja.</span>
+                        </label>
+                    </div>
+                </div>
+                @endif
                 @include('Admin.partials.quick_demo_data_toggle', ['toggleId' => 'qeTemplateWithDemoData'])
                 <p class="small text-muted mb-0">OFF = template tupu (mfano mmoja tu). ON = wanafunzi 2,000 wa demo (majina ya Kitanzania).</p>
             </div>
@@ -185,7 +416,7 @@
 </div>
 @endif
 
-{{-- Quick Import (minimal columns, no enrollment) --}}
+{{-- Quick Import (minimal columns; optional enrollment via Stream/Subclass ID) --}}
 @if($qeCanQuickRegister)
 <div class="modal fade" id="quickImportStudentsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -194,23 +425,49 @@
                 <h5 class="modal-title" style="color:#940000;">
                     <i class="bi bi-file-earmark-excel"></i> Quick Import Students
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close qe-modal-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <form id="quickImportStudentsForm" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body" style="background:whitesmoke;">
+                    @if($qeTeacherLocked)
                     <div class="alert mb-3" style="border-radius:0;border-left:4px solid #940000;background:#fff;">
-                        <strong>Quick Upload — maana yake nini?</strong>
-                        <p class="mb-2 mt-2 small">Una-upload taarifa <strong>chache tu</strong> (mwanafunzi + mzazi). Mwanafunzi na mzazi wanajisajili kwenye mfumo — <strong>hakuna enrollment ya darasa bado</strong>.</p>
+                        <strong>Quick Import — {{ $qeLockedSubclassLabel }}</strong>
+                        <p class="mb-2 mt-2 small">Upload taarifa chache (mwanafunzi + mzazi). Kila mwanafunzi <strong>atasajiliwa na ku-enroll moja kwa moja</strong> kwenye stream yako — <strong>hakuna Subclass ID</strong> kwenye Excel.</p>
                         <ol class="mb-0 ps-3 small">
                             <li>Download <strong>Quick Template</strong> (safu chache tu).</li>
-                            <li>Jaza jina la mwanafunzi, jinsia, na namba ya simu ya mzazi (255 + tarakimu 9).</li>
-                            <li>Ikiwa mzazi tayari yupo kwenye shule, atatumika tena (FK tu) — majina ya mzazi hayahitajiki tena kwa simu ile ile.</li>
-                            <li>Baada ya upload, chagua filter <strong>Not Enrolled</strong> kwenye orodha ya wanafunzi.</li>
-                            <li>Enrollment ya darasa ifanywe baadaye kupitia <strong>Enroll Student</strong> au <strong>Enroll Now</strong>.</li>
+                            <li>Jaza jina, jinsia, na simu ya mzazi (255 + tarakimu 9).</li>
+                            <li>Ikiwa mzazi tayari yupo, atatumika tena.</li>
+                            <li>Upload — wanafunzi wataonekana kwenye darasa lako mara moja.</li>
                         </ol>
                     </div>
-                    <div class="text-center mb-3">
+                    @else
+                    <div class="alert mb-3" style="border-radius:0;border-left:4px solid #940000;background:#fff;">
+                        <strong>Quick Upload — maana yake nini?</strong>
+                        <p class="mb-2 mt-2 small">Una-upload taarifa <strong>chache</strong> (mwanafunzi + mzazi). Unaweza pia <strong>ku-enroll moja kwa moja</strong> ukitumia template ya <em>With enrollment</em>.</p>
+                        <ol class="mb-0 ps-3 small">
+                            <li>Download <strong>Quick Template</strong> — chagua <em>Without enrollment</em> au <em>With enrollment</em>.</li>
+                            <li>Jaza jina la mwanafunzi, jinsia, na namba ya simu ya mzazi (255 + tarakimu 9).</li>
+                            <li>Ikiwa mzazi tayari yupo kwenye shule, atatumika tena (FK tu).</li>
+                            <li><strong>With enrollment:</strong> jaza <em>Stream / Subclass ID</em> kutoka sheet ya <strong>Valid Subclasses</strong> (kama Import yenye details nyingi).</li>
+                            <li>Without enrollment → baada ya upload chagua filter <strong>Not Enrolled</strong>, kisha <strong>Enroll Student</strong>.</li>
+                        </ol>
+                    </div>
+                    <div class="mb-3 p-3" style="background:#fff;border:1px solid #dee2e6;border-radius:0;">
+                        <div class="fw-bold mb-2">Template / import mode</div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="qeImportExportType" id="qeImportWithoutEnrollment" value="0" checked>
+                            <label class="form-check-label" for="qeImportWithoutEnrollment">Without enrollment</label>
+                        </div>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="radio" name="qeImportExportType" id="qeImportWithEnrollment" value="1">
+                            <label class="form-check-label" for="qeImportWithEnrollment">With enrollment (Stream IDs + Valid Subclasses)</label>
+                        </div>
+                    </div>
+                    @endif
+                    <div class="mb-3">
                         @include('Admin.partials.quick_demo_data_toggle', ['toggleId' => 'qeImportWithDemoData'])
                     </div>
                     <div class="text-center mb-3">
@@ -244,7 +501,9 @@
                 <h5 class="modal-title" style="color:#940000;">
                     <i class="bi bi-person-check-fill"></i> Enroll Student
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close qe-modal-close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <div class="modal-body" style="background:whitesmoke;">
                 <ul class="nav nav-tabs mb-3" id="enrollStudentTabs" role="tablist" style="border-bottom:1px solid #dee2e6;">
@@ -274,7 +533,7 @@
                                 </button>
                             @else
                                 <label class="form-label fw-bold">Select Class</label>
-                                <select class="form-select" id="qeEnrollSubclassSelect" style="border-radius:0;">
+                                <select class="form-control" id="qeEnrollSubclassSelect">
                                     <option value="">-- Search / Select Class (e.g. Form One B) --</option>
                                 </select>
                                 <button type="button" class="btn mt-3" id="qeEnrollGoStudentsBtn" style="background:#940000;color:#fff;border-radius:0;" disabled>
@@ -334,7 +593,7 @@
                             <input type="hidden" id="qeEnrolledSubclassID" value="{{ $qeLockedSubclassID }}">
                         @else
                             <label class="form-label fw-bold">Select Class</label>
-                            <select class="form-select mb-3" id="qeEnrolledSubclassSelect" style="border-radius:0;">
+                            <select class="form-control mb-3" id="qeEnrolledSubclassSelect">
                                 <option value="">-- Search / Select Class --</option>
                             </select>
                             <input type="hidden" id="qeEnrolledSubclassID" value="">
@@ -384,6 +643,7 @@
         lockedSubclassID: @json($qeLockedSubclassID ? (int)$qeLockedSubclassID : null),
         lockedLabel: @json($qeLockedSubclassLabel),
         canQuickRegister: @json((bool)$qeCanQuickRegister),
+        teacherLocked: @json((bool)$qeTeacherLocked),
         routes: {
             quickRegister: @json(route('quick_register_student')),
             quickTemplate: @json(route('quick_register_template')),
@@ -489,10 +749,23 @@
         $('#qeCameraVideo').removeClass('d-none');
     }
 
+    function qeCanUseLiveCamera() {
+        // Browsers block getUserMedia on http://192.168.x.x (only HTTPS or localhost).
+        if (typeof window.isSecureContext === 'boolean' && !window.isSecureContext) {
+            return false;
+        }
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+            const legacy = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+            return !!legacy;
+        }
+        return true;
+    }
+
     function qePickFromDevice() {
         if (!QE.cameraTarget || !QE.cameraTarget.fileInput) return;
         const input = QE.cameraTarget.fileInput;
         const prevCapture = input.getAttribute('capture');
+        // On phones this opens the native camera; on desktop opens file picker.
         input.setAttribute('capture', 'user');
         input.accept = 'image/*';
         const onChange = function () {
@@ -517,6 +790,8 @@
         $('#qeCameraPickBtn').removeClass('d-none');
         if (message) {
             $('#qeCameraError').removeClass('d-none').text(message);
+        } else {
+            $('#qeCameraError').addClass('d-none').text('');
         }
     }
 
@@ -526,6 +801,13 @@
             preview: previewSel
         };
         if (!QE.cameraTarget.fileInput) return;
+
+        // On HTTP LAN (e.g. http://192.168.1.100) live preview is blocked —
+        // open native camera / file picker immediately (no scary error panel).
+        if (!qeCanUseLiveCamera()) {
+            qePickFromDevice();
+            return;
+        }
 
         $('#qeInlineCameraTitle').html('<i class="bi bi-camera"></i> ' + qeEscape(title || 'Take Photo'));
         $('#qeCameraError').addClass('d-none').text('');
@@ -552,7 +834,6 @@
             });
         };
 
-        // Prefer live camera; browsers usually require HTTPS / localhost.
         tryGetUserMedia({ video: { facingMode: 'user' }, audio: false })
             .catch(function () {
                 return tryGetUserMedia({ video: true, audio: false });
@@ -569,9 +850,7 @@
             .catch(function (err) {
                 const msg = (err && err.name === 'NotAllowedError')
                     ? 'Camera permission denied. Use Take / Choose Photo instead.'
-                    : (!window.isSecureContext
-                        ? 'Open this site via HTTPS or http://localhost for live camera.'
-                        : 'Live camera unavailable. Use Take / Choose Photo.');
+                    : 'Live camera unavailable. Use Take / Choose Photo.';
                 qeShowCameraFallback(msg);
             });
     }
@@ -816,6 +1095,9 @@
         const fd = new FormData(this);
         fd.set('parent_phone', fullPhone);
         if (!parentId) fd.delete('parent_id');
+        if (QE.teacherLocked && QE.lockedSubclassID) {
+            fd.set('subclassID', String(QE.lockedSubclassID));
+        }
         const $btn = $('#qeRegSubmitBtn').prop('disabled', true);
         $.ajax({
             url: QE.routes.quickRegister,
@@ -830,14 +1112,18 @@
                 qeHideModal('quickRegisterStudentModal');
                 const S = qeSwal();
                 if (S) {
+                    const tip = (res.enrolled || QE.teacherLocked)
+                        ? '<p class="mb-0 small">Student enrolled into <strong>' + qeEscape(res.class_label || QE.lockedLabel || 'your class') + '</strong>.</p>'
+                        : '<p class="mb-0 small">Student is not enrolled yet — use Enroll Student.</p>';
                     S.fire({
                         icon: 'success',
                         title: 'Registered',
-                        html: '<p>' + qeEscape(res.message) + '</p><p>Admission: <strong style="color:#940000;">' + qeEscape(res.admission_number) + '</strong></p><p class="mb-0 small">Student is not enrolled yet — use Enroll Student.</p>',
+                        html: '<p>' + qeEscape(res.message) + '</p><p>Admission: <strong style="color:#940000;">' + qeEscape(res.admission_number) + '</strong></p>' + tip,
                         confirmButtonColor: '#940000'
                     }).then(function () {
                         if (typeof reloadData === 'function') reloadData();
                         else if (typeof loadStudents === 'function') loadStudents();
+                        else if (typeof loadSubclassStudents === 'function') loadSubclassStudents();
                     });
                 }
             } else {
@@ -1201,13 +1487,29 @@
         });
     });
 
-    function qeQuickTemplateUrl(withDemo) {
+    function qeQuickTemplateUrl(withDemo, withEnrollment) {
         const base = QE.routes.quickTemplate || '';
-        return withDemo ? (base + (base.indexOf('?') >= 0 ? '&' : '?') + 'with_demo=1') : base;
+        const params = [];
+        if (withDemo) params.push('with_demo=1');
+        if (QE.teacherLocked && QE.lockedSubclassID) {
+            params.push('subclass_id=' + encodeURIComponent(String(QE.lockedSubclassID)));
+        } else if (withEnrollment) {
+            params.push('with_enrollment=1');
+        }
+        if (!params.length) return base;
+        return base + (base.indexOf('?') >= 0 ? '&' : '?') + params.join('&');
     }
 
     function qeIsDemoDataOn($toggle) {
         return $toggle && $toggle.length && $toggle.prop('checked');
+    }
+
+    function qeIsEnrollmentExportOn(scope) {
+        if (QE.teacherLocked) return false;
+        if (scope === 'import') {
+            return $('#qeImportWithEnrollment').is(':checked');
+        }
+        return $('#qeTemplateWithEnrollment').is(':checked');
     }
 
     function qeSyncImportDemoUi() {
@@ -1229,7 +1531,8 @@
 
     $(document).on('click', '#qeImportModalDownloadTemplateBtn', function () {
         const withDemo = qeIsDemoDataOn($('#qeImportWithDemoData'));
-        window.open(qeQuickTemplateUrl(withDemo), '_blank');
+        const withEnrollment = qeIsEnrollmentExportOn('import');
+        window.open(qeQuickTemplateUrl(withDemo, withEnrollment), '_blank');
     });
 
     $(document).on('click', '#quickTemplateDownloadBtn', function (e) {
@@ -1237,12 +1540,16 @@
         e.stopPropagation();
         $('#studentPageActionsDropdown').removeClass('show');
         $('#qeTemplateWithDemoData').prop('checked', false);
+        if ($('#qeTemplateWithoutEnrollment').length) {
+            $('#qeTemplateWithoutEnrollment').prop('checked', true);
+        }
         qeShowModal('quickTemplateDownloadModal');
     });
 
     $('#qeTemplateDownloadConfirmBtn').on('click', function () {
         const withDemo = qeIsDemoDataOn($('#qeTemplateWithDemoData'));
-        window.open(qeQuickTemplateUrl(withDemo), '_blank');
+        const withEnrollment = qeIsEnrollmentExportOn('template');
+        window.open(qeQuickTemplateUrl(withDemo, withEnrollment), '_blank');
         qeHideModal('quickTemplateDownloadModal');
     });
 
@@ -1260,12 +1567,16 @@
         const form = document.getElementById('quickImportStudentsForm');
         if (form) form.reset();
         $('#qeImportWithDemoData').prop('checked', false);
+        if ($('#qeImportWithoutEnrollment').length) {
+            $('#qeImportWithoutEnrollment').prop('checked', true);
+        }
         qeSyncImportDemoUi();
         qeShowModal('quickImportStudentsModal');
     });
     $('#quickImportStudentsForm').on('submit', function (e) {
         e.preventDefault();
         const withDemo = qeIsDemoDataOn($('#qeImportWithDemoData'));
+        const withEnrollment = qeIsEnrollmentExportOn('import');
         const fileInput = document.getElementById('qeExcelFile');
         const hasFile = fileInput && fileInput.files && fileInput.files.length;
 
@@ -1280,6 +1591,11 @@
             fd.append('_token', QE.csrf);
             if (withDemo) {
                 fd.append('with_demo', '1');
+            }
+            if (QE.teacherLocked && QE.lockedSubclassID) {
+                fd.append('subclassID', String(QE.lockedSubclassID));
+            } else if (withEnrollment) {
+                fd.append('with_enrollment', '1');
             }
             if (hasFile) {
                 fd.append('excel_file', fileInput.files[0]);
@@ -1303,18 +1619,26 @@
                 const S = qeSwal();
                 if (res.success && (res.imported || 0) > 0) {
                     qeHideModal('quickImportStudentsModal');
+                    const enrolled = res.enrolled || 0;
                     if ($('#statusFilter').length) {
-                        $('#statusFilter').val('NotEnrolled');
+                        $('#statusFilter').val(enrolled > 0 || QE.teacherLocked ? 'Active' : 'NotEnrolled');
                     }
                     if (S) {
+                        let tip;
+                        if (QE.teacherLocked || enrolled > 0) {
+                            tip = '<p class="mb-0 small">Wanafunzi wame-enroll kwenye <strong>' + qeEscape(res.class_label || QE.lockedLabel || 'class') + '</strong>. Fungua View Students kuwaona.</p>';
+                        } else {
+                            tip = '<p class="mb-0 small">Orodha imebadilishwa kuonyesha <strong>Not Enrolled</strong>. Tumia Enroll Student au Enroll Now kuweka darasani.</p>';
+                        }
                         S.fire({
                             icon: 'success',
                             title: 'Imported',
-                            html: '<p>' + qeEscape(res.message) + '</p><p class="mb-0 small">Orodha imebadilishwa kuonyesha <strong>Not Enrolled</strong>. Tumia Enroll Student au Enroll Now kuweka darasani.</p>',
+                            html: '<p>' + qeEscape(res.message) + '</p>' + tip,
                             confirmButtonColor: '#940000'
                         }).then(function () {
                             if (typeof reloadData === 'function') reloadData();
                             else if (typeof loadStudents === 'function') loadStudents();
+                            else if (typeof loadSubclassStudents === 'function') loadSubclassStudents();
                             else if (typeof handleFilterChange === 'function') handleFilterChange();
                         });
                     }
@@ -1333,9 +1657,9 @@
                 const S = qeSwal();
                 let errText = (xhr.responseJSON && xhr.responseJSON.message) || 'Import failed';
                 if (textStatus === 'timeout') {
-                    errText = 'Import took too long and timed out. Demo import may still be running on the server — refresh the student list and check Not Enrolled filter.';
+                    errText = 'Import took too long and timed out. Demo import may still be running on the server — refresh the student list.';
                 } else if (xhr.status === 0) {
-                    errText = 'Connection lost while importing. Refresh the page and check if students were added (Not Enrolled filter).';
+                    errText = 'Connection lost while importing. Refresh the page and check if students were added.';
                 }
                 if (S) S.fire({
                     icon: 'error',
@@ -1354,10 +1678,15 @@
                 qeRunQuickImport();
                 return;
             }
+            const enrollNote = QE.teacherLocked
+                ? 'na <strong>enrollment</strong> kwenye <strong>' + qeEscape(QE.lockedLabel || 'stream yako') + '</strong>'
+                : (withEnrollment
+                    ? 'na <strong>enrollment</strong> kwenye streams za shule'
+                    : 'bila enrollment');
             S.fire({
                 icon: 'question',
                 title: 'Import demo data?',
-                html: 'Hii itasajili <strong>wanafunzi 2,000 wa demo</strong> (majina ya Kitanzania, bila enrollment).<br><small class="text-muted">Inaweza kuchukua sekunde 30–90. Hakuna SMS kwa wazazi wa demo.</small>',
+                html: 'Hii itasajili <strong>wanafunzi 2,000 wa demo</strong> (majina ya Kitanzania, ' + enrollNote + ').<br><small class="text-muted">Inaweza kuchukua sekunde 30–90' + ((QE.teacherLocked || withEnrollment) ? ' au zaidi' : '') + '. Hakuna SMS kwa wazazi wa demo.</small>',
                 showCancelButton: true,
                 confirmButtonColor: '#940000',
                 cancelButtonColor: '#6c757d',

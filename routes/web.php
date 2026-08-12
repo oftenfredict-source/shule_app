@@ -20,6 +20,7 @@ use App\Http\Controllers\SMS_InformationController;
 use App\Http\Controllers\AccomodationController;
 use App\Http\Controllers\TimeTableController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\HomePackageController;
 use App\Http\Controllers\ManageAttendanceController;
 use App\Http\Controllers\AcademicYearsController;
 use App\Http\Controllers\SelectedAcademicYearController;
@@ -777,6 +778,30 @@ Route::get("parentFeesSummary", [
 Route::get("parentSubjects", [ParentsContoller::class, "parentSubjects"])->name(
     "parentSubjects",
 );
+Route::get("parentHomePackages", [
+    HomePackageController::class,
+    "parentIndex",
+])->name("parentHomePackages");
+Route::get("parentHomePackages/{holidayID}/packages", [
+    HomePackageController::class,
+    "parentHolidayPackages",
+])->name("parentHomePackages.holiday");
+Route::get("parent/home-package-notifications", [
+    HomePackageController::class,
+    "parentNotifications",
+])->name("parent.home_package_notifications");
+Route::post("parent/home-package-notifications/mark-read/{id?}", [
+    HomePackageController::class,
+    "markNotificationRead",
+])->name("parent.home_package_notifications.mark_read");
+Route::get("parent/header-notifications", [
+    ParentsContoller::class,
+    "headerNotifications",
+])->name("parent.header_notifications");
+Route::post("parent/header-notifications/mark-read", [
+    ParentsContoller::class,
+    "markHeaderNotificationsRead",
+])->name("parent.header_notifications.mark_read");
 Route::get("parentPermissions", [
     ParentsContoller::class,
     "manageParentPermissions",
@@ -1052,6 +1077,10 @@ Route::post("save_school_subject", [
     ManageSubjectController::class,
     "save_school_subject",
 ])->name("save_school_subject");
+Route::get("check_subject_code", [
+    ManageSubjectController::class,
+    "check_subject_code",
+])->name("check_subject_code");
 Route::post("update_school_subject", [
     ManageSubjectController::class,
     "update_school_subject",
@@ -1480,6 +1509,10 @@ Route::post("upload_excel_results", [
     TeachersController::class,
     "uploadExcelResults",
 ])->name("upload_excel_results");
+Route::post("parse_excel_results", [
+    TeachersController::class,
+    "parseExcelResultsForForm",
+])->name("parse_excel_results");
 
 // Staff Routes
 Route::get("staffDashboard", [StaffController::class, "staffDashboard"])->name(
@@ -3535,6 +3568,36 @@ Route::get("calendar-data", [
     CalendarController::class,
     "getCalendarData",
 ])->name("calendar.data");
+
+// Home Package (teacher + shared view/download)
+Route::get("home-packages/holidays", [
+    HomePackageController::class,
+    "holidaysForLevel",
+])->name("home_packages.holidays");
+Route::get("home-packages", [
+    HomePackageController::class,
+    "teacherIndex",
+])->name("home_packages.index");
+Route::post("home-packages", [
+    HomePackageController::class,
+    "store",
+])->name("home_packages.store");
+Route::post("home-packages/{homePackageID}", [
+    HomePackageController::class,
+    "update",
+])->name("home_packages.update");
+Route::delete("home-packages/{homePackageID}", [
+    HomePackageController::class,
+    "destroy",
+])->name("home_packages.destroy");
+Route::get("home-packages/{homePackageID}/view", [
+    HomePackageController::class,
+    "viewFile",
+])->name("home_packages.view");
+Route::get("home-packages/{homePackageID}/download", [
+    HomePackageController::class,
+    "downloadFile",
+])->name("home_packages.download");
 
 //manage Attendance routes
 Route::get("manageAttendance", [

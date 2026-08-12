@@ -430,41 +430,65 @@
                     <i class="bx bx-book-open"></i> Ripoti ya Muhula ya Mwanafunzi
                 </h4>
 
+                <div class="alert alert-light border mb-3" style="border-left:4px solid #940000 !important;border-radius:0;">
+                    <i class="bx bx-info-circle"></i>
+                    Anza kwa kuchagua <strong>mwanafunzi</strong>, kisha academic year husika (O Level / A Level) itaonekana kiotomatiki.
+                </div>
+
                 <!-- Step Progress Chain -->
                 <div class="step-chain">
                     <div class="step-chain-progress" id="stepProgress"></div>
                     <div class="step-item active" id="step1-tab">
                         <div class="step-circle">1</div>
-                        <div class="step-label">Mwaka</div>
+                        <div class="step-label">Mwanafunzi</div>
                     </div>
                     <div class="step-item" id="step2-tab">
                         <div class="step-circle">2</div>
-                        <div class="step-label">Muhula</div>
+                        <div class="step-label">Mwaka</div>
                     </div>
                     <div class="step-item" id="step3-tab">
                         <div class="step-circle">3</div>
-                        <div class="step-label">Mwanafunzi</div>
+                        <div class="step-label">Muhula</div>
                     </div>
                 </div>
 
                 <!-- Wizard Content -->
                 <div class="wizard-content">
-                    <!-- Step 1: Year Selection -->
+                    <!-- Step 1: Student -->
                     <div class="wizard-step" id="step1">
-                        <h5 class="font-weight-bold mb-3">Hatua ya 1: Chagua Mwaka wa Masomo</h5>
-                        <div class="selection-grid" id="yearGrid">
-                            @foreach($years as $year)
-                                <div class="selection-card" data-value="{{ $year }}">
-                                    <i class="bx bx-calendar"></i>
-                                    <strong>{{ $year }}</strong>
+                        <h5 class="font-weight-bold mb-3">Hatua ya 1: Chagua Mwanafunzi</h5>
+                        <div class="selection-grid" id="studentGrid">
+                            @foreach($students as $student)
+                                <div class="selection-card"
+                                     data-value="{{ $student->studentID }}"
+                                     data-is-a-level="{{ !empty($student->is_a_level) ? '1' : '0' }}"
+                                     data-level-label="{{ $student->level_label ?? '' }}">
+                                    <i class="bx bx-user"></i>
+                                    <strong>{{ $student->first_name }} {{ $student->last_name }}</strong>
+                                    <br><small class="text-muted">{{ $student->admission_number }}</small>
+                                    @if(!empty($student->level_label))
+                                        <br><small style="color:#940000;font-weight:600;">{{ $student->level_label }}</small>
+                                    @endif
                                 </div>
                             @endforeach
                         </div>
                     </div>
 
-                    <!-- Step 2: Term Selection -->
+                    <!-- Step 2: Academic Year -->
                     <div class="wizard-step d-none" id="step2">
-                        <h5 class="font-weight-bold mb-3">Hatua ya 2: Chagua Muhula</h5>
+                        <h5 class="font-weight-bold mb-3">Hatua ya 2: Chagua Academic Year</h5>
+                        <div class="small text-muted mb-2" id="yearLevelHint"></div>
+                        <div class="selection-grid" id="yearGrid">
+                            <div class="col-12 text-muted small text-center py-3">Chagua mwanafunzi kwanza</div>
+                        </div>
+                        <div id="noYearsMessage" class="alert alert-warning d-none mt-3">
+                            Hakuna academic year husika kwa kiwango cha mwanafunzi huyu.
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Term Selection -->
+                    <div class="wizard-step d-none" id="step3">
+                        <h5 class="font-weight-bold mb-3">Hatua ya 3: Chagua Muhula</h5>
                         <div class="selection-grid" id="termGrid">
                             <div class="selection-card" data-value="first_term">
                                 <i class="bx bx-time-five"></i>
@@ -474,20 +498,6 @@
                                 <i class="bx bx-time"></i>
                                 <strong>Muhula wa Pili</strong>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 3: Student Selection -->
-                    <div class="wizard-step d-none" id="step3">
-                        <h5 class="font-weight-bold mb-3">Hatua ya 3: Chagua Mwanafunzi</h5>
-                        <div class="selection-grid" id="studentGrid">
-                            @foreach($students as $student)
-                                <div class="selection-card" data-value="{{ $student->studentID }}">
-                                    <i class="bx bx-user"></i>
-                                    <strong>{{ $student->first_name }} {{ $student->last_name }}</strong>
-                                    <br><small class="text-muted">{{ $student->admission_number }}</small>
-                                </div>
-                            @endforeach
                         </div>
                     </div>
 
@@ -569,10 +579,49 @@
 $(document).ready(function() {
     let currentStep = 1;
     let selections = {
-        year: '',
-        term: '',
         student: '',
+        year: '',
+        academic_yearID: '',
+        term: '',
         type: 'report'
+    };
+    const ayMode = @json($ayMode ?? 'none');
+    const allAcademicYears = @json($academicYears ?? []);
+    const fallbackYears = @json($years ?? []);
+
+    const renderYearGrid = (isALevel, levelLabel) => {
+        $('#noYearsMessage').addClass('d-none');
+        let years = allAcademicYears.slice();
+        if (ayMode === 'secondary_dual') {
+            years = years.filter(function(y) { return !!y.is_a_level === !!isALevel; });
+            $('#yearLevelHint').text(isALevel
+                ? 'Mwanafunzi ni A Level — chagua academic year ya A Level.'
+                : 'Mwanafunzi ni O Level — chagua academic year ya O Level.');
+        } else {
+            $('#yearLevelHint').text(levelLabel ? ('Kiwango: ' + levelLabel) : '');
+        }
+
+        if (!years.length && fallbackYears.length && ayMode !== 'secondary_dual') {
+            years = fallbackYears.map(function(y) {
+                return { academic_yearID: '', label: String(y), short_label: String(y), calendar_year: y, is_a_level: false };
+            });
+        }
+
+        if (!years.length) {
+            $('#yearGrid').html('');
+            $('#noYearsMessage').removeClass('d-none');
+            return;
+        }
+
+        let html = '';
+        years.forEach(function(ay) {
+            const label = (ayMode === 'secondary_dual' ? (ay.short_label || ay.label) : (ay.label || ay.short_label));
+            html += '<div class="selection-card" data-value="' + ay.calendar_year + '" data-academic-year-id="' + (ay.academic_yearID || '') + '" data-label="' + String(label).replace(/"/g, '&quot;') + '">'
+                + '<i class="bx bx-calendar"></i>'
+                + '<strong>' + label + '</strong>'
+                + '</div>';
+        });
+        $('#yearGrid').html(html);
     };
 
     // Check if session exists to auto-load results on refresh
@@ -640,7 +689,7 @@ $(document).ready(function() {
         }
 
         // Disable next if no selection
-        const key = ['year', 'term', 'student'][currentStep - 1];
+        const key = ['student', 'year', 'term'][currentStep - 1];
         if(!selections[key]) $('#nextBtn, #viewBtn').prop('disabled', true);
         else $('#nextBtn, #viewBtn').prop('disabled', false);
     };
@@ -649,12 +698,26 @@ $(document).ready(function() {
     $(document).on('click', '.selection-card', function() {
         const step = $(this).closest('.wizard-step').attr('id');
         const key = step.replace('step', '');
-        const map = { '1': 'year', '2': 'term', '3': 'student' };
+        const map = { '1': 'student', '2': 'year', '3': 'term' };
         const dataKey = map[key];
 
         $(`#${step} .selection-card`).removeClass('selected');
         $(this).addClass('selected');
         selections[dataKey] = $(this).data('value');
+
+        if (dataKey === 'student') {
+            selections.year = '';
+            selections.academic_yearID = '';
+            selections.term = '';
+            $('#termGrid .selection-card').removeClass('selected');
+            renderYearGrid($(this).data('is-a-level') == 1 || $(this).data('is-a-level') === true, $(this).data('level-label') || '');
+        }
+
+        if (dataKey === 'year') {
+            selections.academic_yearID = $(this).data('academic-year-id') || '';
+            selections.term = '';
+            $('#termGrid .selection-card').removeClass('selected');
+        }
 
         // Auto move to next step if possible
         if(currentStep < 3) {

@@ -51,13 +51,16 @@
         border-color: #940000;
         box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.25);
     }
-    #phone_number.is-valid {
+    #phone_number.is-valid,
+    #quick_phone_number.is-valid {
         border-color: #28a745;
     }
-    #phone_number.is-invalid {
+    #phone_number.is-invalid,
+    #quick_phone_number.is-invalid {
         border-color: #dc3545;
     }
-    #phone_error {
+    #phone_error,
+    #quick_phone_error {
         display: block;
         width: 100%;
         margin-top: 0.25rem;
@@ -361,14 +364,18 @@
                             </a>
                         </div>
                         <div class="mt-4">
-                            <button class="btn btn-success w-100" id="exportUserRolesBtn">
-                                <i class="bi bi-file-earmark-excel"></i> Export User Roles to Excel
+                            <button class="btn btn-warning w-100 text-dark" id="openQuickTeacherRegBtn" data-permission="teacher_create">
+                                <i class="bi bi-lightning-charge"></i> Quick Register Teacher
                             </button>
-                            <button class="btn btn-outline-success w-100 mt-2" id="downloadTeacherImportTemplateBtn">
-                                <i class="bi bi-file-earmark-excel"></i> Download Teachers Excel Template
+                            <button class="btn btn-outline-success w-100 mt-2" id="downloadTeacherImportTemplateBtn" data-permission="teacher_create">
+                                <i class="bi bi-file-earmark-excel"></i> Quick Export Teachers Template
                             </button>
                             <button class="btn btn-primary-custom w-100 mt-2" id="openTeacherImportModalBtn" data-permission="teacher_create">
-                                <i class="bi bi-upload"></i> Upload Teachers Excel
+                                <i class="bi bi-upload"></i> Quick Import Teachers
+                            </button>
+                            <hr>
+                            <button class="btn btn-success w-100" id="exportUserRolesBtn">
+                                <i class="bi bi-file-earmark-excel"></i> Export User Roles to Excel
                             </button>
                             <button class="btn btn-outline-success w-100 mt-2" id="downloadStaffImportTemplateBtn">
                                 <i class="bi bi-file-earmark-excel"></i> Download Staff Excel Template
@@ -2597,18 +2604,91 @@
     </div>
 </div>
 
-<!-- Bulk Teacher Import Modal -->
+<!-- Quick Register Teacher Modal -->
+<div class="modal fade" id="quickTeacherRegModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title"><i class="bi bi-lightning-charge me-2"></i>Quick Register Teacher</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="quickTeacherRegForm">
+                @csrf
+                <input type="hidden" name="quick_reg" value="1">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small mb-3">
+                        Creates login account and sends SMS credentials.<br>
+                        <strong>Username</strong> = Employee No. &nbsp;|&nbsp; <strong>Password</strong> = LastName + staff
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">First Name <span class="text-danger">*</span></label>
+                            <input type="text" name="first_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Surname / Middle</label>
+                            <input type="text" name="middle_name" class="form-control" placeholder="Optional">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Last Name <span class="text-danger">*</span></label>
+                            <input type="text" name="last_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Phone <span class="text-danger">*</span></label>
+                            <input type="text"
+                                   name="phone_number"
+                                   id="quick_phone_number"
+                                   class="form-control"
+                                   pattern="^255\d{9}$"
+                                   maxlength="12"
+                                   placeholder="255614863345"
+                                   inputmode="numeric"
+                                   autocomplete="tel"
+                                   required>
+                            <small class="text-muted">Must start with 255 followed by 9 digits (12 total)</small>
+                            <div class="invalid-feedback" id="quick_phone_error" style="display:none;">
+                                Phone number must have 12 digits: start with 255 followed by 9 digits
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Employee No. Mode</label>
+                            <div class="d-flex gap-3 flex-wrap">
+                                <label class="mb-0"><input type="radio" name="employee_number_mode" value="auto" checked class="js-quick-emp-mode"> Auto (unique)</label>
+                                <label class="mb-0"><input type="radio" name="employee_number_mode" value="custom" class="js-quick-emp-mode"> Custom</label>
+                            </div>
+                        </div>
+                        <div class="col-12" id="quickEmpNoWrap" style="display:none;">
+                            <label class="form-label fw-bold">Employee No. <span class="text-danger">*</span></label>
+                            <input type="text" name="employee_number" id="quick_employee_number" class="form-control" placeholder="Unique employee / check number">
+                        </div>
+                    </div>
+                    <div id="quickTeacherRegErrors" class="alert alert-danger mt-3 d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom" id="quickTeacherRegSubmitBtn">
+                        <i class="bi bi-save"></i> Register &amp; Send SMS
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Import Teachers Modal -->
 <div class="modal fade" id="teacherImportModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Upload Teachers Excel</h5>
+                <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Quick Import Teachers</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info mb-3">
-                    <strong>Note:</strong> Tumia template ya Excel, jaza walimu, kisha upload. Mfumo utawasajili mmoja-mmoja na kuonyesha progress.
+                    <strong>Note:</strong> Use Quick Export template (first_name, middle_name, last_name, phone_number).
+                    employee_number column only if Custom mode. Username = Employee No. Password = LastName + staff. SMS sent per row.
                 </div>
+                <input type="hidden" id="teacherImportEmpMode" value="auto">
 
                 <div class="row g-3">
                     <div class="col-md-8">
@@ -2626,7 +2706,7 @@
                 <div id="teacherImportPreviewWrap" class="mt-3 d-none">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div class="fw-bold">Preview</div>
-                        <div class="small text-muted">Rows: <span id="teacherImportRowCount">0</span></div>
+                        <div class="small text-muted">Rows: <span id="teacherImportRowCount">0</span> · Mode: <span id="teacherImportModeLabel">auto</span></div>
                     </div>
                     <div class="table-responsive" style="max-height: 280px; overflow:auto;">
                         <table class="table table-sm table-bordered mb-0">
@@ -2634,12 +2714,10 @@
                                 <tr>
                                     <th>#</th>
                                     <th>first_name</th>
+                                    <th>middle_name</th>
                                     <th>last_name</th>
-                                    <th>gender</th>
-                                    <th>national_id</th>
-                                    <th>employee_number</th>
-                                    <th>email</th>
                                     <th>phone_number</th>
+                                    <th>employee_number</th>
                                 </tr>
                             </thead>
                             <tbody id="teacherImportPreviewBody"></tbody>
@@ -2659,7 +2737,7 @@
 
                     <div class="mt-3">
                         <button type="button" class="btn btn-primary-custom" id="startTeacherImportBtn">
-                            <i class="bi bi-person-plus"></i> Register Teachers
+                            <i class="bi bi-person-plus"></i> Import &amp; Create Accounts
                         </button>
                         <button type="button" class="btn btn-outline-secondary" id="resetTeacherImportBtn">
                             Reset
@@ -4500,6 +4578,11 @@
             e.stopPropagation();
 
             let formData = new FormData(this);
+            var empMode = $('#teacherForm input[name="employee_number_mode"]:checked').val() || 'auto';
+            formData.set('employee_number_mode', empMode);
+            if (empMode === 'auto') {
+                formData.delete('employee_number');
+            }
 
             var $submitBtn = $(this).find('button[type="submit"]');
             var originalText = $submitBtn.html();
@@ -4513,6 +4596,7 @@
                 contentType: false,
                 success: function(response) {
                     $('#teacherForm')[0].reset();
+                    if (typeof syncAddFormEmpNoMode === 'function') syncAddFormEmpNoMode();
                     $submitBtn.prop('disabled', false).html(originalText);
 
                     var smsInfoHtml = '';
@@ -4527,7 +4611,8 @@
                     Swal.fire({
                         title: 'Teacher Registered Successfully!',
                         html: '<div class="text-center">' +
-                              '<p class="mb-3">Teacher registered successfully</p>' +
+                              '<p class="mb-2">Username (Employee No): <strong>' + (response.employee_number || response.username || 'N/A') + '</strong></p>' +
+                              '<p class="mb-2 small text-muted">Password: LastName + staff</p>' +
                               '<p class="mb-0">Fingerprint ID: <strong style="font-size: 1.2rem; color: #940000;">' + (response.fingerprint_id || 'N/A') + '</strong></p>' +
                               '<p class="mb-0 mt-2 text-muted"><small>Tumia <strong>Send to Fingerprint</strong> ukiwa tayari kusajili kwenye device.</small></p>' +
                               smsInfoHtml +
@@ -6663,9 +6748,13 @@
 
         function requiredMissing(row) {
             var missing = [];
-            ['first_name', 'last_name', 'gender', 'national_id', 'employee_number', 'email', 'phone_number'].forEach(function (k) {
+            var mode = $('#teacherImportEmpMode').val() || window.teacherQuickImportEmpMode || 'auto';
+            ['first_name', 'last_name', 'phone_number'].forEach(function (k) {
                 if (!row[k]) missing.push(k);
             });
+            if (mode === 'custom' && !row.employee_number) {
+                missing.push('employee_number');
+            }
             return missing;
         }
 
@@ -6687,78 +6776,242 @@
                     '<tr>' +
                     '<td>' + (i + 1) + '</td>' +
                     '<td>' + (r.first_name || '') + '</td>' +
+                    '<td>' + (r.middle_name || '') + '</td>' +
                     '<td>' + (r.last_name || '') + '</td>' +
-                    '<td>' + (r.gender || '') + '</td>' +
-                    '<td>' + (r.national_id || '') + '</td>' +
-                    '<td>' + (r.employee_number || '') + '</td>' +
-                    '<td>' + (r.email || '') + '</td>' +
                     '<td>' + (r.phone_number || '') + '</td>' +
+                    '<td>' + (r.employee_number || '') + '</td>' +
                     '</tr>'
                 );
             }
             $('#teacherImportRowCount').text(rows.length);
+            $('#teacherImportModeLabel').text($('#teacherImportEmpMode').val() || 'auto');
             $('#teacherImportPreviewWrap').removeClass('d-none');
             setImportProgress(0, 'Ready', '');
         }
 
         var teacherImportRows = [];
         var staffImportRows = [];
+        window.teacherQuickImportEmpMode = 'auto';
+
+        function syncAddFormEmpNoMode() {
+            var mode = $('input[name="employee_number_mode"]:checked').val() || 'auto';
+            var $inp = $('#employee_number');
+            if (!$inp.length) return;
+            if (mode === 'auto') {
+                $inp.prop('disabled', true).prop('required', false).val('');
+                $('.emp-no-required-star').addClass('d-none');
+            } else {
+                $inp.prop('disabled', false).prop('required', true);
+                $('.emp-no-required-star').removeClass('d-none');
+            }
+        }
+        $(document).on('change', '.js-emp-no-mode', syncAddFormEmpNoMode);
+        syncAddFormEmpNoMode();
+
+        $(document).on('change', '.js-quick-emp-mode', function () {
+            var mode = $('#quickTeacherRegForm input[name="employee_number_mode"]:checked').val();
+            if (mode === 'custom') {
+                $('#quickEmpNoWrap').show();
+                $('#quick_employee_number').prop('required', true);
+            } else {
+                $('#quickEmpNoWrap').hide();
+                $('#quick_employee_number').prop('required', false).val('');
+            }
+        });
+
+        function validateTeacherPhoneInput($input, $errorDiv) {
+            var phoneRegex = /^255\d{9}$/;
+            var phoneValue = String($input.val() || '').replace(/\D/g, '');
+            if (phoneValue.length > 12) phoneValue = phoneValue.substring(0, 12);
+            $input.val(phoneValue);
+
+            if (phoneValue.length === 0) {
+                $input.removeClass('is-invalid is-valid');
+                $errorDiv.hide();
+                return false;
+            }
+
+            if (phoneRegex.test(phoneValue)) {
+                $input.removeClass('is-invalid').addClass('is-valid');
+                $errorDiv.hide();
+                return true;
+            }
+
+            $input.removeClass('is-valid').addClass('is-invalid');
+            if (!phoneValue.startsWith('255')) {
+                $errorDiv.text('Phone number must start with 255').show();
+            } else if (phoneValue.length < 12) {
+                $errorDiv.text('Phone number must have 12 digits. Add ' + (12 - phoneValue.length) + ' more digit(s).').show();
+            } else {
+                $errorDiv.text('Phone number must have 12 digits: start with 255 followed by 9 digits').show();
+            }
+            return false;
+        }
+
+        $(document).on('input blur', '#quick_phone_number', function () {
+            validateTeacherPhoneInput($(this), $('#quick_phone_error'));
+        });
+
+        $('#openQuickTeacherRegBtn').on('click', function () {
+            if (!hasPermission('teacher_create')) {
+                Swal.fire('Access Denied', 'Huna ruhusa ya kusajili walimu (teacher_create).', 'error');
+                return;
+            }
+            $('#quickTeacherRegForm')[0].reset();
+            $('#quickTeacherRegForm input[name="employee_number_mode"][value="auto"]').prop('checked', true).trigger('change');
+            $('#quick_phone_number').removeClass('is-invalid is-valid');
+            $('#quick_phone_error').hide();
+            $('#quickTeacherRegErrors').addClass('d-none').empty();
+            $('#quickTeacherRegModal').modal('show');
+        });
+
+        $('#quickTeacherRegForm').on('submit', function (e) {
+            e.preventDefault();
+            var phoneOk = validateTeacherPhoneInput($('#quick_phone_number'), $('#quick_phone_error'));
+            if (!phoneOk) {
+                $('#quick_phone_number').focus();
+                return false;
+            }
+            var $btn = $('#quickTeacherRegSubmitBtn');
+            var original = $btn.html();
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Saving...');
+            $('#quickTeacherRegErrors').addClass('d-none').empty();
+
+            var fd = new FormData(this);
+            fd.set('quick_reg', '1');
+            var mode = $('#quickTeacherRegForm input[name="employee_number_mode"]:checked').val() || 'auto';
+            fd.set('employee_number_mode', mode);
+            if (mode === 'auto') {
+                fd.delete('employee_number');
+            }
+
+            $.ajax({
+                url: "{{ route('save_teachers') }}",
+                method: 'POST',
+                data: fd,
+                processData: false,
+                contentType: false,
+                success: function (res) {
+                    $btn.prop('disabled', false).html(original);
+                    $('#quickTeacherRegModal').modal('hide');
+                    var smsLine = res.sms_success ? 'SMS sent.' : ('SMS: ' + (res.sms_message || 'not sent'));
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Teacher registered',
+                        html: 'Employee No / Username: <strong>' + (res.employee_number || '') + '</strong><br>Password: LastName + staff<br>' + smsLine,
+                        confirmButtonColor: '#940000'
+                    }).then(function () { location.reload(); });
+                },
+                error: function (xhr) {
+                    $btn.prop('disabled', false).html(original);
+                    var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to register teacher.';
+                    if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        msg = Object.values(xhr.responseJSON.errors).join('<br>');
+                    }
+                    $('#quickTeacherRegErrors').removeClass('d-none').html(msg);
+                }
+            });
+        });
 
         $('#downloadTeacherImportTemplateBtn').on('click', function () {
+            if (!hasPermission('teacher_create')) {
+                Swal.fire('Access Denied', 'Huna ruhusa ya kusajili walimu (teacher_create).', 'error');
+                return;
+            }
             if (typeof XLSX === 'undefined') {
                 Swal.fire('Error', 'Excel library not loaded', 'error');
                 return;
             }
 
-            var headers = [
-                'first_name', 'middle_name', 'last_name', 'gender',
-                'national_id', 'employee_number', 'email', 'phone_number',
-                'qualification', 'specialization', 'experience',
-                'date_of_birth', 'date_hired', 'address',
-                'bank_account_number', 'position', 'status'
-            ];
+            Swal.fire({
+                title: 'Export template with',
+                html: `
+                    <p class="mb-2 text-start small">Default is Auto (no employee_number column). Custom includes employee_number.</p>
+                    <div class="text-start" style="line-height:1.9;">
+                        <label class="d-block"><input type="radio" name="qe_emp_mode" value="auto" checked> Auto employee no (unique on import)</label>
+                        <label class="d-block"><input type="radio" name="qe_emp_mode" value="custom"> Custom employee no (column in Excel)</label>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Export',
+                confirmButtonColor: '#940000',
+                preConfirm: function () {
+                    var el = document.querySelector('input[name="qe_emp_mode"]:checked');
+                    return el ? el.value : 'auto';
+                }
+            }).then(function (result) {
+                if (!result.isConfirmed) return;
+                var mode = result.value || 'auto';
+                window.teacherQuickImportEmpMode = mode;
 
-            var example = [
-                'John', '', 'Doe', 'Male',
-                '1999010100010001', 'EMP001', 'john.doe@example.com', '255612345678',
-                '', '', '',
-                '2000-01-01', '2026-01-01', '',
-                '', '', 'Active'
-            ];
+                var headers = ['first_name', 'middle_name', 'last_name', 'phone_number'];
+                var example = ['John', 'A', 'Doe', '255612345678'];
+                if (mode === 'custom') {
+                    headers.push('employee_number');
+                    example.push('EMP001');
+                }
 
-            var notes = [
-                ['NOTES'],
-                ['- gender: Male/Female'],
-                ['- phone_number: 255XXXXXXXXX (12 digits)'],
-                ['- status: Active/Inactive (optional, default Active)'],
-                ['- Mfumo utatengeneza fingerprint_id automatically, na password itakuwa first_name (kama usajili wa kawaida).']
-            ];
+                var notes = [
+                    ['NOTES'],
+                    ['- Employee mode: ' + mode],
+                    ['- phone_number: 255XXXXXXXXX (12 digits), unique'],
+                    ['- Username = employee_number (auto-generated if Auto)'],
+                    ['- Password = last_name + staff (e.g. Doestaff)'],
+                    ['- Duplicate phone / employee_number will be rejected']
+                ];
 
-            var wsData = [headers, example, [], ...notes];
-            var wb = XLSX.utils.book_new();
-            var ws = XLSX.utils.aoa_to_sheet(wsData);
-            ws['!cols'] = headers.map(function () { return { wch: 20 }; });
-            XLSX.utils.book_append_sheet(wb, ws, 'Teachers Template');
+                var wsData = [headers, example, [], ...notes];
+                var wb = XLSX.utils.book_new();
+                var ws = XLSX.utils.aoa_to_sheet(wsData);
+                ws['!cols'] = headers.map(function () { return { wch: 18 }; });
+                XLSX.utils.book_append_sheet(wb, ws, 'Quick Teachers');
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+                    ['employee_number_mode', mode],
+                    ['Note', 'Import uses this mode. Auto = server generates unique employee numbers.']
+                ]), 'Export Info');
 
-            var schoolName = '{{ $school->school_name ?? "School" }}';
-            var safeSchoolName = schoolName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            XLSX.writeFile(wb, safeSchoolName + '_teachers_import_template.xlsx');
+                var schoolName = '{{ $school->school_name ?? "School" }}';
+                var safeSchoolName = schoolName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                XLSX.writeFile(wb, safeSchoolName + '_teachers_quick_' + mode + '.xlsx');
+            });
         });
 
         $('#openTeacherImportModalBtn').on('click', function () {
-            // permission guard (same style used elsewhere)
             if (!hasPermission('teacher_create')) {
                 Swal.fire('Access Denied', 'Huna ruhusa ya kusajili walimu (teacher_create).', 'error');
                 return;
             }
-            teacherImportRows = [];
-            $('#teacherImportFile').val('');
-            $('#teacherImportPreviewWrap').addClass('d-none');
-            $('#teacherImportPreviewBody').empty();
-            $('#teacherImportRowCount').text('0');
-            setImportProgress(0, 'Ready', '');
-            var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('teacherImportModal'));
-            m.show();
+
+            Swal.fire({
+                title: 'Import with',
+                html: `
+                    <p class="mb-2 text-start small">Must match the template you exported.</p>
+                    <div class="text-start" style="line-height:1.9;">
+                        <label class="d-block"><input type="radio" name="qi_emp_mode" value="auto" checked> Auto employee no</label>
+                        <label class="d-block"><input type="radio" name="qi_emp_mode" value="custom"> Custom employee no</label>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Continue',
+                confirmButtonColor: '#940000',
+                preConfirm: function () {
+                    var el = document.querySelector('input[name="qi_emp_mode"]:checked');
+                    return el ? el.value : 'auto';
+                }
+            }).then(function (result) {
+                if (!result.isConfirmed) return;
+                var mode = result.value || 'auto';
+                window.teacherQuickImportEmpMode = mode;
+                $('#teacherImportEmpMode').val(mode);
+                $('#teacherImportModeLabel').text(mode);
+                teacherImportRows = [];
+                $('#teacherImportFile').val('');
+                $('#teacherImportPreviewWrap').addClass('d-none');
+                $('#teacherImportPreviewBody').empty();
+                $('#teacherImportRowCount').text('0');
+                setImportProgress(0, 'Ready', '');
+                $('#teacherImportModal').modal('show');
+            });
         });
 
         $('#resetTeacherImportBtn').on('click', function () {
@@ -6821,22 +7074,10 @@
 
                         var row = {
                             first_name: col('first_name'),
-                            middle_name: col('middle_name'),
+                            middle_name: col('middle_name') || col('surname') || col('sname'),
                             last_name: col('last_name'),
-                            gender: normalizeGender(col('gender')),
-                            national_id: col('national_id'),
-                            employee_number: col('employee_number'),
-                            email: col('email'),
                             phone_number: normalizePhone(col('phone_number')),
-                            qualification: col('qualification'),
-                            specialization: col('specialization'),
-                            experience: col('experience'),
-                            date_of_birth: col('date_of_birth'),
-                            date_hired: col('date_hired'),
-                            address: col('address'),
-                            bank_account_number: col('bank_account_number'),
-                            position: col('position'),
-                            status: col('status') || 'Active'
+                            employee_number: col('employee_number')
                         };
 
                         rows.push(row);
@@ -6856,7 +7097,7 @@
 
                     teacherImportRows = rows;
                     renderPreview(rows);
-                    Swal.fire('Ready', 'Preview imekamilika. Bonyeza Register Teachers kuanza.', 'success');
+                    Swal.fire('Ready', 'Preview imekamilika. Bonyeza Import & Create Accounts kuanza.', 'success');
                 } catch (err) {
                     Swal.fire('Error', 'Imeshindikana kusoma file: ' + (err.message || err), 'error');
                 }
@@ -6910,30 +7151,25 @@
                 var pct = Math.round((i / total) * 100);
                 setImportProgress(pct, 'Registering...', 'Row ' + (i + 1) + ' of ' + total + ' — ' + (row.first_name || '') + ' ' + (row.last_name || ''));
 
+                var mode = $('#teacherImportEmpMode').val() || window.teacherQuickImportEmpMode || 'auto';
+                var payload = {
+                    _token: $('meta[name="csrf-token"]').attr('content') || '{{ csrf_token() }}',
+                    quick_reg: 1,
+                    employee_number_mode: mode,
+                    first_name: row.first_name,
+                    middle_name: row.middle_name || '',
+                    last_name: row.last_name,
+                    phone_number: row.phone_number
+                };
+                if (mode === 'custom') {
+                    payload.employee_number = row.employee_number;
+                }
+
                 $.ajax({
                     url: '{{ route("save_teachers") }}',
                     type: 'POST',
                     dataType: 'json',
-                    data: {
-                        _token: $('meta[name=\"csrf-token\"]').attr('content') || '{{ csrf_token() }}',
-                        first_name: row.first_name,
-                        middle_name: row.middle_name,
-                        last_name: row.last_name,
-                        gender: row.gender,
-                        national_id: row.national_id,
-                        employee_number: row.employee_number,
-                        email: row.email,
-                        phone_number: row.phone_number,
-                        qualification: row.qualification,
-                        specialization: row.specialization,
-                        experience: row.experience,
-                        date_of_birth: row.date_of_birth,
-                        date_hired: row.date_hired,
-                        address: row.address,
-                        bank_account_number: row.bank_account_number,
-                        position: row.position,
-                        status: row.status
-                    }
+                    data: payload
                 }).done(function (res) {
                     if (res && res.success) ok++;
                     else {
@@ -7056,8 +7292,7 @@
             $('#staffImportPreviewBody').empty();
             $('#staffImportRowCount').text('0');
             setStaffImportProgress(0, 'Ready', '');
-            var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('staffImportModal'));
-            m.show();
+            $('#staffImportModal').modal('show');
         });
 
         $('#resetStaffImportBtn').on('click', function () {

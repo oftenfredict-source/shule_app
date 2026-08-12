@@ -11273,27 +11273,29 @@ class ResultManagementController extends Controller
             );
         }
 
-        $query = Result::where("examID", $examID);
-
+        $baseQuery = Result::where("examID", $examID);
         if ($subclassID) {
-            $query->where("subclassID", $subclassID);
+            $baseQuery->where("subclassID", $subclassID);
         } elseif ($classID) {
             $subclassIDs = Subclass::where("classID", $classID)->pluck(
                 "subclassID",
             );
-            $query->whereIn("subclassID", $subclassIDs);
+            $baseQuery->whereIn("subclassID", $subclassIDs);
         }
 
-        $query->update(["parent_status" => $status]);
+        (clone $baseQuery)->update(["parent_status" => $status]);
 
         if ($status === "enabled") {
-            // Create notifications for parents
-            $results = $query->with("student.parent")->get();
+            // Create notifications for parents (fresh query after publish)
+            $studentIDs = (clone $baseQuery)
+                ->distinct()
+                ->pluck("studentID")
+                ->filter()
+                ->unique()
+                ->values();
             $exam = Examination::find($examID);
 
-            $uniqueStudents = $results->pluck("studentID")->unique();
-
-            foreach ($uniqueStudents as $studentID) {
+            foreach ($studentIDs as $studentID) {
                 $student = Student::find($studentID);
                 if ($student && $student->parentID) {
                     ParentResultNotification::updateOrCreate(
