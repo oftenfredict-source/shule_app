@@ -3798,6 +3798,271 @@ class FeesController extends Controller
     }
 
     /**
+     * Quick Record Payment: search students by name / admission number.
+     */
+    public function quick_record_search_students(Request $request)
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+
+        if (!$userType || !$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $q = trim((string) $request->input('q', ''));
+        if (mb_strlen($q) < 2) {
+            return response()->json([
+                'success' => true,
+                'students' => [],
+                'message' => 'Type at least 2 characters',
+            ]);
+        }
+
+        $students = Student::with(['subclass.class'])
+            ->where('schoolID', $schoolID)
+            ->where(function ($query) use ($q) {
+                $like = '%' . $q . '%';
+                $query->where('first_name', 'like', $like)
+                    ->orWhere('last_name', 'like', $like)
+                    ->orWhere('middle_name', 'like', $like)
+                    ->orWhere('admission_number', 'like', $like)
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$like])
+                    ->orWhereRaw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) LIKE ?", [$like]);
+            })
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->limit(25)
+            ->get()
+            ->map(function (Student $s) {
+                $className = $s->subclass->class->class_name ?? '';
+                $subclassName = $s->subclass->subclass_name ?? '';
+                $classLabel = trim($className . ' ' . $subclassName) ?: '—';
+                $fullName = trim(($s->first_name ?? '') . ' ' . ($s->middle_name ? $s->middle_name . ' ' : '') . ($s->last_name ?? ''));
+
+                return [
+                    'studentID' => $s->studentID,
+                    'name' => $fullName,
+                    'admission_number' => $s->admission_number,
+                    'class_label' => $classLabel,
+                    'status' => $s->status,
+                    'has_sponsor' => !empty($s->sponsor_id),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'students' => $students,
+        ]);
+    }
+
+    /**
+     * Quick Record Payment: fees / control numbers for a student (recordable bills).
+     */
+    public function quick_record_student_fees(Request $request, $studentID)
+    {
+        $userType = Session::get('user_type');
+        $schoolID = Session::get('schoolID');
+
+        if (!$userType || !$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $student = Student::with(['subclass.class', 'sponsor'])
+            ->where('schoolID', $schoolID)
+            ->where('studentID', $studentID)
+            ->first();
+
+        if (!$student) {
+            return response()->json(['success' => false, 'message' => 'Student not found'], 404);
+        }
+
+        $classID = $student->subclass->classID ?? null;
+        $resolved = $this->resolvePaymentsAcademicYear((int) $schoolID, $request, $classID);
+        $yearIDs = $resolved['academicYearIDs'] ?? [];
+        if (empty($yearIDs) && !empty($resolved['academicYearID'])) {
+            $yearIDs = [(int) $resolved['academicYearID']];
+        }
+
+        $paymentsQuery = Payment::with(['academicYear', 'fee_payments'])
+            ->where('schoolID', $schoolID)
+            ->where('studentID', $studentID);
+
+        if (!empty($yearIDs)) {
+            $paymentsQuery->whereIn('academic_yearID', $yearIDs);
+        }
+
+        $payments = $paymentsQuery->orderByDesc('paymentID')->get();
+        if ($payments->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'student' => [
+                    'studentID' => $student->studentID,
+                    'name' => trim($student->first_name . ' ' . ($student->middle_name ? $student->middle_name . ' ' : '') . $student->last_name),
+                    'admission_number' => $student->admission_number,
+                    'has_sponsor' => !empty($student->sponsor_id) || !empty($student->sponsor),
+                ],
+                'academic_year' => $resolved['yearLabel'] ?? '',
+                'academic_year_id' => $resolved['academicYearID'] ?? null,
+                'is_closed_year' => (bool) ($resolved['isClosedYear'] ?? false),
+                'fees' => [],
+                'message' => 'Hakuna bili / control number kwa mwanafunzi huyu katika academic year husika.',
+            ]);
+        }
+
+        $feeIDs = $payments->pluck('feeID')->filter()->unique()->values()->all();
+        $feesMap = empty($feeIDs)
+            ? collect()
+            : Fee::whereIn('feeID', $feeIDs)->get()->keyBy('feeID');
+
+        $multiAccounts = $payments->filter(fn ($p) => !empty($p->feeID))->values();
+        $isMulti = $multiAccounts->isNotEmpty();
+        $isClosed = (bool) ($resolved['isClosedYear'] ?? false);
+        $feeOptions = [];
+
+        if ($isMulti) {
+            foreach ($multiAccounts as $mp) {
+                $fee = $feesMap->get($mp->feeID);
+                $feeName = $fee->fee_name ?? 'Fee';
+                $ay = $mp->academicYear;
+                $yearLabel = $ay ? (string) ($ay->year_name ?: $ay->year) : ($resolved['yearLabel'] ?? '');
+                $yearClosed = $ay && (($ay->status ?? '') === 'Closed');
+
+                $feeOptions[] = [
+                    'key' => 'p' . $mp->paymentID . '_f' . $mp->feeID,
+                    'mode' => 'multi',
+                    'paymentID' => $mp->paymentID,
+                    'feeID' => $mp->feeID,
+                    'fee_name' => $feeName,
+                    'control_number' => $mp->control_number,
+                    'amount_required' => (float) $mp->amount_required,
+                    'amount_paid' => (float) $mp->amount_paid,
+                    'balance' => (float) $mp->balance,
+                    'sponsor_balance' => (float) ($mp->sponsor_balance ?? 0),
+                    'parent_balance' => (float) ($mp->parent_balance ?? 0),
+                    'academic_year' => $yearLabel,
+                    'academic_year_id' => $mp->academic_yearID,
+                    'can_record' => !$yearClosed && !$isClosed,
+                    'payment' => $mp,
+                    'label' => $feeName . ' · CN ' . ($mp->control_number ?: '—') . ' (Bal: ' . number_format((float) $mp->balance, 0) . '/=)',
+                ];
+            }
+        } else {
+            foreach ($payments as $payment) {
+                $ay = $payment->academicYear;
+                $yearLabel = $ay ? (string) ($ay->year_name ?: $ay->year) : ($resolved['yearLabel'] ?? '');
+                $yearClosed = $ay && (($ay->status ?? '') === 'Closed');
+                $fps = $payment->fee_payments ?? collect();
+                if (is_string($fps)) {
+                    $fps = json_decode($fps, true) ?: [];
+                }
+
+                $feeOptions[] = [
+                    'key' => 'p' . $payment->paymentID . '_any',
+                    'mode' => 'unified',
+                    'paymentID' => $payment->paymentID,
+                    'feeID' => 'any',
+                    'fee_name' => 'Lipa kwa ada yoyote (Automatic Priority)',
+                    'control_number' => $payment->control_number,
+                    'amount_required' => (float) $payment->amount_required,
+                    'amount_paid' => (float) $payment->amount_paid,
+                    'balance' => (float) $payment->balance,
+                    'sponsor_balance' => (float) ($payment->sponsor_balance ?? 0),
+                    'parent_balance' => (float) ($payment->parent_balance ?? 0),
+                    'academic_year' => $yearLabel,
+                    'academic_year_id' => $payment->academic_yearID,
+                    'can_record' => !$yearClosed && !$isClosed,
+                    'payment' => $payment,
+                    'label' => 'Control Number ' . ($payment->control_number ?: '—') . ' · Ada yoyote (Bal: ' . number_format((float) $payment->balance, 0) . '/=)',
+                ];
+
+                foreach ($fps as $fp) {
+                    $fp = (object) $fp;
+                    $fid = $fp->feeID ?? null;
+                    if (!$fid) {
+                        continue;
+                    }
+                    $fname = $fp->fee_name ?? 'Fee';
+                    $bal = (float) ($fp->balance ?? 0);
+                    $feeOptions[] = [
+                        'key' => 'p' . $payment->paymentID . '_f' . $fid,
+                        'mode' => 'unified',
+                        'paymentID' => $payment->paymentID,
+                        'feeID' => $fid,
+                        'fee_name' => $fname,
+                        'control_number' => $payment->control_number,
+                        'amount_required' => (float) ($fp->fee_total_amount ?? $fp->amount_required ?? 0),
+                        'amount_paid' => (float) ($fp->amount_paid ?? 0),
+                        'balance' => $bal,
+                        'sponsor_balance' => (float) ($payment->sponsor_balance ?? 0),
+                        'parent_balance' => (float) ($payment->parent_balance ?? 0),
+                        'academic_year' => $yearLabel,
+                        'academic_year_id' => $payment->academic_yearID,
+                        'can_record' => !$yearClosed && !$isClosed,
+                        'payment' => $payment,
+                        'label' => $fname . ' · CN ' . ($payment->control_number ?: '—') . ' (Bal: ' . number_format($bal, 0) . '/=)',
+                    ];
+                }
+            }
+        }
+
+        $recordable = collect($feeOptions)->where('can_record', true)->values()->all();
+
+        $multiPayload = [];
+        if ($isMulti) {
+            foreach ($multiAccounts as $mp) {
+                $fee = $feesMap->get($mp->feeID);
+                $multiPayload[] = [
+                    'paymentID' => $mp->paymentID,
+                    'feeID' => $mp->feeID,
+                    'fee_name' => $fee->fee_name ?? 'Fee',
+                    'control_number' => $mp->control_number,
+                    'amount_required' => (float) $mp->amount_required,
+                    'amount_paid' => (float) $mp->amount_paid,
+                    'balance' => (float) $mp->balance,
+                    'sponsor_balance' => (float) ($mp->sponsor_balance ?? 0),
+                    'parent_balance' => (float) ($mp->parent_balance ?? 0),
+                    'fee_payments' => $mp->fee_payments ?? [],
+                ];
+            }
+        }
+
+        // Avoid sending huge nested Eloquent in each fee option
+        $feesForClient = array_map(function ($opt) {
+            $payment = $opt['payment'] ?? null;
+            $opt['payment'] = $payment ? [
+                'paymentID' => $payment->paymentID ?? ($opt['paymentID'] ?? null),
+                'feeID' => $payment->feeID ?? null,
+                'control_number' => $payment->control_number ?? ($opt['control_number'] ?? null),
+                'amount_required' => (float) ($payment->amount_required ?? $opt['amount_required'] ?? 0),
+                'amount_paid' => (float) ($payment->amount_paid ?? $opt['amount_paid'] ?? 0),
+                'balance' => (float) ($payment->balance ?? $opt['balance'] ?? 0),
+                'sponsor_balance' => (float) ($payment->sponsor_balance ?? $opt['sponsor_balance'] ?? 0),
+                'parent_balance' => (float) ($payment->parent_balance ?? $opt['parent_balance'] ?? 0),
+                'academic_yearID' => $payment->academic_yearID ?? ($opt['academic_year_id'] ?? null),
+                'fee_payments' => $payment->fee_payments ?? [],
+            ] : null;
+            return $opt;
+        }, $recordable);
+
+        return response()->json([
+            'success' => true,
+            'student' => [
+                'studentID' => $student->studentID,
+                'name' => trim($student->first_name . ' ' . ($student->middle_name ? $student->middle_name . ' ' : '') . $student->last_name),
+                'admission_number' => $student->admission_number,
+                'has_sponsor' => !empty($student->sponsor_id) || !empty($student->sponsor),
+            ],
+            'academic_year' => $resolved['yearLabel'] ?? '',
+            'academic_year_id' => $resolved['academicYearID'] ?? null,
+            'is_closed_year' => $isClosed,
+            'is_multi_account' => $isMulti,
+            'fees' => $feesForClient,
+            'multi_accounts' => $multiPayload,
+        ]);
+    }
+
+    /**
      * How much of the payment deadline / must-pay threshold has been covered.
      * Multi-account CNs: min(amount_paid, required_fees_amount).
      * Single/unified: prefer stored required_fees_paid (allocation-aware).

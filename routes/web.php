@@ -3923,6 +3923,14 @@ Route::get("payments/report", function () {
 Route::post("record_payment", [FeesController::class, "record_payment"])->name(
     "record_payment",
 );
+Route::get("quick_record_search_students", [
+    FeesController::class,
+    "quick_record_search_students",
+])->name("quick_record_search_students");
+Route::get("quick_record_student_fees/{studentID}", [
+    FeesController::class,
+    "quick_record_student_fees",
+])->name("quick_record_student_fees");
 Route::get("get_payment_records", [
     FeesController::class,
     "get_payment_records",

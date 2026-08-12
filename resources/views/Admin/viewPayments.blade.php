@@ -697,6 +697,28 @@
     .spinner-border.text-primary {
         color: #940000 !important;
     }
+    #quickRecordStudentResults .quick-student-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border: 0;
+        border-bottom: 1px solid #f0e0e0;
+        background: #fff;
+        padding: 10px 12px;
+        cursor: pointer;
+    }
+    #quickRecordStudentResults .quick-student-item:hover {
+        background: #fff5f5;
+    }
+    #quickRecordStudentResults .quick-student-item .qs-name {
+        font-weight: 700;
+        color: #940000;
+    }
+    #quickRecordStudentResults .quick-student-item .qs-meta {
+        font-size: 12px;
+        color: #777;
+    }
+
     .form-control:focus, .form-select:focus {
         border-color: #940000 !important;
         box-shadow: 0 0 0 0.2rem rgba(148, 0, 0, 0.15) !important;
@@ -741,6 +763,9 @@
                             <i class="bi bi-credit-card me-2"></i> Payments Management & Control Numbers
                         </h4>
                         <div class="d-flex flex-wrap justify-content-center gap-2">
+                            <button class="btn btn-warning text-dark fw-bold shadow-sm" type="button" id="quickRecordPaymentBtn">
+                                <i class="bi bi-cash-coin"></i> Record Payment
+                            </button>
                             <button class="btn btn-light text-primary-custom fw-bold shadow-sm" type="button" id="generateControlNumbersBtn">
                                 <i class="bi bi-key"></i> Generate CN
                             </button>
@@ -1338,6 +1363,66 @@
                     <button type="submit" class="btn btn-primary-custom">Update Balances</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Record Payment (student + fee picker) -->
+<div class="modal fade" id="quickRecordPaymentModal" tabindex="-1" aria-labelledby="quickRecordPaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quickRecordPaymentModalLabel">
+                    <i class="bi bi-lightning-charge me-2"></i> Quick Record Payment
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-light border mb-3" style="border-left:4px solid #940000 !important;">
+                    <small class="text-muted">
+                        Chagua mwanafunzi, kisha aina ya ada. Baada ya hapo utajaza kiasi na njia ya malipo.
+                        Academic year inatumia ile ya header.
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">1. Tafuta / Chagua Mwanafunzi <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-primary-custom"></i></span>
+                        <input type="text" class="form-control" id="quickRecordStudentSearch"
+                               placeholder="Andika jina au admission number..." autocomplete="off">
+                    </div>
+                    <div id="quickRecordStudentResults" class="border mt-1 bg-white" style="max-height:220px;overflow-y:auto;display:none;"></div>
+                    <div id="quickRecordSelectedStudent" class="mt-2 p-2 border bg-light" style="display:none;">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <div class="fw-bold text-primary-custom" id="quickRecordStudentName">—</div>
+                                <small class="text-muted" id="quickRecordStudentMeta">—</small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="quickRecordClearStudent">Badilisha</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="quickRecordFeeSection" style="display:none;">
+                    <label class="form-label fw-bold">2. Chagua Aina ya Ada <span class="text-danger">*</span></label>
+                    <select class="form-select" id="quickRecordFeeSelect">
+                        <option value="">— Chagua fee —</option>
+                    </select>
+                    <small class="text-muted d-block mt-1" id="quickRecordFeeHint"></small>
+                    <div id="quickRecordFeeEmpty" class="alert alert-warning mt-2 mb-0 py-2" style="display:none;">
+                        Hakuna bili inayoweza kurekodiwa kwa mwanafunzi huyu (hakuna CN au mwaka umefungwa).
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light text-primary-custom border" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary-custom" id="quickRecordContinueBtn" disabled>
+                    Endelea kurekodi <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -4047,6 +4132,186 @@
             
             togglePaymentMethodFields('Cash');
             $('#recordPaymentModal').modal('show');
+        });
+
+        // ===== Quick Record Payment (header button) =====
+        var quickRecordState = {
+            student: null,
+            fees: [],
+            multiAccounts: [],
+            isMulti: false,
+            searchTimer: null,
+            searchResults: []
+        };
+
+        function resetQuickRecordModal() {
+            quickRecordState.student = null;
+            quickRecordState.fees = [];
+            quickRecordState.multiAccounts = [];
+            quickRecordState.isMulti = false;
+            $('#quickRecordStudentSearch').val('').prop('disabled', false);
+            $('#quickRecordStudentResults').hide().empty();
+            $('#quickRecordSelectedStudent').hide();
+            $('#quickRecordFeeSection').hide();
+            $('#quickRecordFeeSelect').html('<option value="">— Chagua fee —</option>');
+            $('#quickRecordFeeEmpty').hide();
+            $('#quickRecordFeeHint').text('');
+            $('#quickRecordContinueBtn').prop('disabled', true);
+        }
+
+        function openRecordPaymentFromQuick(feeOption) {
+            if (!feeOption || !feeOption.paymentID) return;
+
+            var payment = feeOption.payment || {};
+            var multiAccounts = quickRecordState.isMulti ? (quickRecordState.multiAccounts || []) : [];
+            var preselectFeeId = (feeOption.feeID && feeOption.feeID !== 'any') ? feeOption.feeID : '';
+            var academicYearLabel = feeOption.academic_year || headerAcademicYearLabel || '';
+            var academicYearId = feeOption.academic_year_id || headerAcademicYearID || '';
+            var isSponsored = quickRecordState.student && quickRecordState.student.has_sponsor ? 'yes' : 'no';
+
+            $('#record_payment_id').val(feeOption.paymentID);
+            $('#record_control_number').val(feeOption.control_number || payment.control_number || '');
+            $('#record_academic_year_label').val(academicYearLabel || '—');
+            $('#record_academic_year_id').val(academicYearId || '');
+
+            populateRecordPaymentFeeSelect(payment, multiAccounts, {
+                preselectFeeId: preselectFeeId
+            });
+
+            if (!multiAccounts.length) {
+                $('#record_amount_required').val(parseFloat(feeOption.amount_required || payment.amount_required || 0).toLocaleString() + '/=');
+                $('#record_balance').val(parseFloat(feeOption.balance || payment.balance || 0).toLocaleString() + '/=');
+                $('#recordPaymentModal').data('sponsor-balance', parseFloat(feeOption.sponsor_balance || payment.sponsor_balance || 0));
+                $('#recordPaymentModal').data('parent-balance', parseFloat(feeOption.parent_balance || payment.parent_balance || 0));
+            } else {
+                // Ensure selected fee option drives paymentID / balances
+                $('#record_fee_id').trigger('change');
+            }
+
+            $('#record_paid_amount').val('').removeClass('is-invalid');
+            $('#record_reference_number').val('');
+            $('#record_payment_date').val(new Date().toISOString().split('T')[0]);
+            $('#record_payment_source').val('Cash');
+            $('#record_payment_by').val('Parent');
+            $('#record_bank_name').val('');
+            $('#record_notes').val(academicYearLabel ? ('[Academic Year: ' + academicYearLabel + '] ') : '');
+
+            if (isSponsored === 'yes') {
+                $('#record_payment_by_container').show();
+                $('#record_payment_by').val('Parent').trigger('change');
+            } else {
+                $('#record_payment_by_container').hide();
+                $('#record_payment_by').val('Parent');
+                $('#payer_balance_detail_section').hide();
+            }
+
+            togglePaymentMethodFields('Cash');
+            $('#quickRecordPaymentModal').modal('hide');
+            setTimeout(function() {
+                $('#recordPaymentModal').modal('show');
+            }, 350);
+        }
+
+        $('#quickRecordPaymentBtn').on('click', function() {
+            resetQuickRecordModal();
+            $('#quickRecordPaymentModal').modal('show');
+            setTimeout(function() { $('#quickRecordStudentSearch').focus(); }, 300);
+        });
+
+        $('#quickRecordClearStudent').on('click', function() {
+            resetQuickRecordModal();
+            $('#quickRecordStudentSearch').focus();
+        });
+
+        $('#quickRecordStudentSearch').on('input', function() {
+            var q = ($(this).val() || '').trim();
+            $('#quickRecordContinueBtn').prop('disabled', true);
+            if (quickRecordState.searchTimer) clearTimeout(quickRecordState.searchTimer);
+            if (q.length < 2) {
+                $('#quickRecordStudentResults').hide().empty();
+                return;
+            }
+            quickRecordState.searchTimer = setTimeout(function() {
+                $('#quickRecordStudentResults').show().html('<div class="p-2 text-muted small">Inatafuta...</div>');
+                $.get('{{ route("quick_record_search_students") }}', { q: q })
+                    .done(function(res) {
+                        var list = (res && res.students) ? res.students : [];
+                        quickRecordState.searchResults = list;
+                        if (!list.length) {
+                            $('#quickRecordStudentResults').html('<div class="p-2 text-muted small">Hakuna mwanafunzi aliyepatikana</div>');
+                            return;
+                        }
+                        var html = '';
+                        list.forEach(function(s, idx) {
+                            html += '<button type="button" class="quick-student-item" data-idx="' + idx + '">'
+                                + '<div class="qs-name">' + $('<div>').text(s.name || '').html() + '</div>'
+                                + '<div class="qs-meta">' + $('<div>').text((s.admission_number || '') + ' · ' + (s.class_label || '') + (s.status ? ' · ' + s.status : '')).html() + '</div>'
+                                + '</button>';
+                        });
+                        $('#quickRecordStudentResults').html(html);
+                    })
+                    .fail(function() {
+                        $('#quickRecordStudentResults').html('<div class="p-2 text-danger small">Imeshindikana kutafuta</div>');
+                    });
+            }, 280);
+        });
+
+        $(document).on('click', '#quickRecordStudentResults .quick-student-item', function() {
+            var idx = parseInt($(this).data('idx'), 10);
+            var s = quickRecordState.searchResults[idx];
+            if (!s || !s.studentID) return;
+            quickRecordState.student = s;
+            $('#quickRecordStudentSearch').val(s.name || '').prop('disabled', true);
+            $('#quickRecordStudentResults').hide().empty();
+            $('#quickRecordStudentName').text(s.name || '—');
+            $('#quickRecordStudentMeta').text((s.admission_number || '') + ' · ' + (s.class_label || ''));
+            $('#quickRecordSelectedStudent').show();
+            $('#quickRecordFeeSection').show();
+            $('#quickRecordFeeSelect').html('<option value="">Inapakia ada...</option>').prop('disabled', true);
+            $('#quickRecordFeeEmpty').hide();
+            $('#quickRecordContinueBtn').prop('disabled', true);
+
+            $.get('{{ url("quick_record_student_fees") }}/' + s.studentID, {
+                academic_year_id: headerAcademicYearID || '',
+                use_request_year: headerAcademicYearID ? 1 : 0
+            }).done(function(res) {
+                quickRecordState.fees = (res && res.fees) ? res.fees : [];
+                quickRecordState.multiAccounts = (res && res.multi_accounts) ? res.multi_accounts : [];
+                quickRecordState.isMulti = !!(res && res.is_multi_account);
+                if (res && res.student) {
+                    quickRecordState.student = Object.assign({}, quickRecordState.student, res.student);
+                }
+
+                var $sel = $('#quickRecordFeeSelect').empty().prop('disabled', false);
+                if (!quickRecordState.fees.length) {
+                    $sel.append('<option value="">— Hakuna fee —</option>');
+                    $('#quickRecordFeeEmpty').show();
+                    $('#quickRecordFeeHint').text(res.message || '');
+                    return;
+                }
+                $('#quickRecordFeeEmpty').hide();
+                $sel.append('<option value="">— Chagua fee —</option>');
+                quickRecordState.fees.forEach(function(f, idx) {
+                    $sel.append($('<option></option>').attr('value', String(idx)).text(f.label || f.fee_name));
+                });
+                $('#quickRecordFeeHint').text('Academic Year: ' + ((res && res.academic_year) || headerAcademicYearLabel || '—'));
+            }).fail(function() {
+                $('#quickRecordFeeSelect').html('<option value="">Hitilafu</option>').prop('disabled', true);
+                $('#quickRecordFeeEmpty').show().text('Imeshindikana kupakia ada.');
+            });
+        });
+
+        $('#quickRecordFeeSelect').on('change', function() {
+            var idx = $(this).val();
+            $('#quickRecordContinueBtn').prop('disabled', idx === '' || idx === null);
+        });
+
+        $('#quickRecordContinueBtn').on('click', function() {
+            var idx = $('#quickRecordFeeSelect').val();
+            if (idx === '' || idx === null) return;
+            var feeOption = quickRecordState.fees[parseInt(idx, 10)];
+            if (!feeOption) return;
+            openRecordPaymentFromQuick(feeOption);
         });
 
         // Fee Selection Change Handler
