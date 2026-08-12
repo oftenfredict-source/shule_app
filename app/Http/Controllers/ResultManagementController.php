@@ -3785,6 +3785,284 @@ class ResultManagementController extends Controller
         return response()->json(["success" => true]);
     }
 
+    /**
+     * Accept only plain positive integers for SMS NAFASI.
+     * Client may send arrays when jQuery .data('position') collides with UI position coords.
+     *
+     * @return array{0: ?int, 1: ?int}
+     */
+    private function resolveResultSmsPosition(
+        mixed $rawPosition,
+        mixed $rawTotal,
+        Student $student,
+        string $type,
+        mixed $term,
+        mixed $yearForQuery,
+        string $schoolType,
+        int $schoolID,
+        ?int $examID,
+        mixed $week,
+        array $academicYearIDs,
+        string $rankBy = "average",
+    ): array {
+        $position = $this->sanitizePositiveInt($rawPosition);
+        $total = $this->sanitizePositiveInt($rawTotal);
+
+        if ($position !== null && $total !== null && $position <= $total) {
+            return [$position, $total];
+        }
+
+        try {
+            $computed = $this->computeStudentRankForSms(
+                $student,
+                $type,
+                $term,
+                $yearForQuery,
+                $schoolType,
+                $schoolID,
+                $examID,
+                $week,
+                $academicYearIDs,
+                $rankBy,
+            );
+            if ($computed[0] !== null && $computed[1] !== null) {
+                return $computed;
+            }
+        } catch (\Throwable $e) {
+            \Log::warning("resolveResultSmsPosition recompute failed: " . $e->getMessage());
+        }
+
+        // Prefer a valid total even if rank is unknown
+        if ($position !== null && $total !== null) {
+            return [$position, $total];
+        }
+
+        return [null, null];
+    }
+
+    private function sanitizePositiveInt(mixed $value): ?int
+    {
+        if (is_array($value) || is_object($value) || $value === null || $value === "") {
+            return null;
+        }
+        if (is_string($value)) {
+            $value = trim($value);
+            // Reject "N/A", "5 out of 29", coordinates noise, etc.
+            if ($value === "" || !preg_match('/^\d+$/', $value)) {
+                return null;
+            }
+        }
+        $int = filter_var($value, FILTER_VALIDATE_INT, [
+            "options" => ["min_range" => 1],
+        ]);
+
+        return $int === false ? null : (int) $int;
+    }
+
+    /**
+     * Rank student within subclass (mchepuo), fallback to main class — same idea as individual report.
+     *
+     * @return array{0: ?int, 1: ?int}
+     */
+    private function computeStudentRankForSms(
+        Student $student,
+        string $type,
+        mixed $term,
+        mixed $yearForQuery,
+        string $schoolType,
+        int $schoolID,
+        ?int $examID,
+        mixed $week,
+        array $academicYearIDs,
+        string $rankBy = "average",
+    ): array {
+        $studentClassID = null;
+        $studentSubclassID =
+            $student->subclassID ?? ($student->old_subclassID ?? null);
+        if ($student->subclass && $student->subclass->class) {
+            $studentClassID = $student->subclass->class->classID;
+            $studentSubclassID =
+                $studentSubclassID ?: $student->subclass->subclassID;
+        } elseif ($student->oldSubclass && $student->oldSubclass->class) {
+            $studentClassID = $student->oldSubclass->class->classID;
+            $studentSubclassID =
+                $studentSubclassID ?: $student->oldSubclass->subclassID;
+        }
+
+        if (!$studentClassID && !$studentSubclassID) {
+            return [null, null];
+        }
+
+        $enrollmentSvc = app(\App\Services\StudentEnrollmentService::class);
+        $classStudentsQuery = Student::where("schoolID", $schoolID)
+            ->where("status", "Active")
+            ->with(["subclass.class", "oldSubclass.class"]);
+
+        if ($studentClassID) {
+            $enrolledInClass = $enrollmentSvc->studentIDsInClass(
+                (int) $studentClassID,
+                (int) $schoolID,
+                "Active",
+            );
+            if (!empty($enrolledInClass)) {
+                $classStudentsQuery->whereIn("studentID", $enrolledInClass);
+            } else {
+                $classStudentsQuery->where(function ($query) use ($studentClassID) {
+                    $query
+                        ->whereHas("subclass", function ($q) use ($studentClassID) {
+                            $q->where("classID", $studentClassID);
+                        })
+                        ->orWhereHas("oldSubclass", function ($q) use ($studentClassID) {
+                            $q->where("classID", $studentClassID);
+                        });
+                });
+            }
+        } else {
+            $classStudentsQuery->where(function ($query) use ($studentSubclassID) {
+                $query
+                    ->where("subclassID", $studentSubclassID)
+                    ->orWhere("old_subclassID", $studentSubclassID);
+            });
+        }
+
+        $classStudents = $classStudentsQuery->get();
+        if ($classStudents->isEmpty()) {
+            return [null, null];
+        }
+
+        $caExamIDs = $examID ? [$examID] : null;
+        if ($type !== "report" && $examID) {
+            $caDef = $this->resolveCaDefinition($schoolID, $examID, null);
+            if ($caDef && !empty($caDef->test_ids)) {
+                $caExamIDs = array_values(
+                    array_unique(array_merge([$examID], (array) $caDef->test_ids)),
+                );
+            }
+        }
+
+        if ($type === "report") {
+            $classResultsData = $this->getTermReport(
+                $classStudents,
+                $term,
+                $yearForQuery,
+                $schoolType,
+                null,
+                $schoolID,
+                $academicYearIDs,
+            );
+        } else {
+            $classResultsData = $this->getExamResults(
+                $classStudents,
+                $term,
+                $yearForQuery,
+                $schoolType,
+                $caExamIDs,
+                $week ?: null,
+                null,
+                $schoolID,
+                $academicYearIDs,
+            );
+        }
+
+        $rows = [];
+        foreach ($classStudents as $classStudent) {
+            if (!isset($classResultsData[$classStudent->studentID])) {
+                continue;
+            }
+            $studentResultData = $classResultsData[$classStudent->studentID];
+            if ($type === "report") {
+                $rows[] = [
+                    "student" => $classStudent,
+                    "average_marks" => $studentResultData["average_marks"] ?? 0,
+                    "total_marks" => $studentResultData["total_marks"] ?? 0,
+                    "total_points" => $studentResultData["total_points"] ?? 9999,
+                    "division" => $studentResultData["division"] ?? null,
+                    "is_all_incomplete" => !empty($studentResultData["is_all_incomplete"]),
+                    "subjects" => $studentResultData["subjects"] ?? [],
+                ];
+            } else {
+                foreach ($studentResultData as $er) {
+                    if (!is_array($er)) {
+                        continue;
+                    }
+                    if (
+                        $examID &&
+                        isset($er["exam"]) &&
+                        (int) ($er["exam"]->examID ?? 0) !== (int) $examID
+                    ) {
+                        continue;
+                    }
+                    $rows[] = [
+                        "student" => $classStudent,
+                        "total_marks" => $er["total_marks"] ?? 0,
+                        "average_marks" => $er["average_marks"] ?? 0,
+                        "total_points" => $er["total_points"] ?? 9999,
+                        "best_seven_total_marks" => $er["best_seven_total_marks"] ?? 0,
+                        "division" => $er["division"] ?? null,
+                        "is_all_incomplete" => !empty($er["is_all_incomplete"]),
+                        "subjects" => $er["subjects"] ?? [],
+                    ];
+                    break;
+                }
+            }
+        }
+
+        if (empty($rows)) {
+            return [null, null];
+        }
+
+        $reportDivisionStyle = $type === "report";
+        $sortList = function (array &$list) use (
+            $rankBy,
+            $schoolType,
+            $reportDivisionStyle,
+        ) {
+            usort($list, function ($a, $b) use (
+                $rankBy,
+                $schoolType,
+                $reportDivisionStyle,
+            ) {
+                return $this->compareStudentsForPosition(
+                    $a,
+                    $b,
+                    $rankBy,
+                    $schoolType,
+                    $reportDivisionStyle,
+                );
+            });
+        };
+
+        // Prefer subclass/stream pool (matches board when a stream is filtered)
+        $pool = $rows;
+        if ($studentSubclassID) {
+            $pool = array_values(
+                array_filter($rows, function ($row) use ($studentSubclassID) {
+                    $st = $row["student"];
+                    $sid =
+                        $st->subclassID ??
+                        ($st->old_subclassID ??
+                            ($st->subclass->subclassID ??
+                                ($st->oldSubclass->subclassID ?? null)));
+                    return (int) $sid === (int) $studentSubclassID;
+                }),
+            );
+            if (empty($pool)) {
+                $pool = $rows;
+            }
+        }
+
+        $sortList($pool);
+        $total = count($pool);
+        $sid = (int) $student->studentID;
+        foreach ($pool as $index => $row) {
+            if ((int) ($row["student"]->studentID ?? 0) === $sid) {
+                return [$index + 1, $total];
+            }
+        }
+
+        return [null, $total > 0 ? $total : null];
+    }
+
     public function sendResultSms(Request $request)
     {
         \Illuminate\Support\Facades\Log::info(
@@ -4159,8 +4437,32 @@ class ResultManagementController extends Controller
         }
 
         $division = $request->input("division", "");
-        $position = $request->input("position", "");
-        $totalStudentsCount = $request->input("totalStudentsCount", "");
+        if (is_array($division)) {
+            $division = "";
+        }
+        $division = trim((string) $division);
+        // Strip non-ASCII so GSM/UCS gateways do not replace chars with "?"
+        $division = preg_replace('/[^\x20-\x7E]/', '', $division) ?? "";
+
+        $rankBy = strtolower(trim((string) $request->input("rank_by", "average")));
+        if (!in_array($rankBy, ["average", "division"], true)) {
+            $rankBy = "average";
+        }
+
+        [$position, $totalStudentsCount] = $this->resolveResultSmsPosition(
+            $request->input("position"),
+            $request->input("totalStudentsCount"),
+            $student,
+            (string) $type,
+            $term,
+            $yearForQuery,
+            $schoolType,
+            (int) $schoolID,
+            $actualExamID ? (int) $actualExamID : ($examID ? (int) $examID : null),
+            $week && $week !== "all" ? $week : null,
+            is_array($academicYearIDs) ? $academicYearIDs : [],
+            $rankBy,
+        );
 
         // Determine Exam Context Name
         $examNameContext =
@@ -4176,6 +4478,7 @@ class ResultManagementController extends Controller
         }
 
         // Construct Premium SMS Format
+        // Avoid "|" (GSM-7 extended) — some handsets/gateways render it as "?"
         $msg = "";
         if (!($school && $school->senderID)) {
             $msg .= "{$schoolName}\n";
@@ -4184,14 +4487,13 @@ class ResultManagementController extends Controller
         $msg .= "YAFUATAYO NI MATOKEO YA {$studentName} KATIKA {$examNameContext}.\n";
 
         $summaryLabel = $type === "report" ? "WASTANI" : "JUMLA";
-        $summary = "{$summaryLabel}: " . round((float) $summaryTotal);
-        if ($schoolType === "Secondary" && $division) {
-            $summary .= " | DIV: {$division}";
+        $msg .= "{$summaryLabel}: " . round((float) $summaryTotal) . "\n";
+        if ($schoolType === "Secondary" && $division !== "") {
+            $msg .= "DIV: {$division}\n";
         }
-        if ($position && $totalStudentsCount) {
-            $summary .= " | NAFASI: {$position}/{$totalStudentsCount}";
+        if ($position !== null && $totalStudentsCount !== null) {
+            $msg .= "NAFASI: {$position}/{$totalStudentsCount}\n";
         }
-        $msg .= $summary . "\n";
 
         $msg .= "------------------------\n";
         $msg .= "MASOMO YAFUATAYO:\n";

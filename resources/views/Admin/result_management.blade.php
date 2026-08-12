@@ -1319,8 +1319,10 @@
                                         }
                                         
                                         // Assign positions within this class (starting from 1 for each class)
+                                        $classTotalStudents = count($classStudents);
                                         foreach ($classStudents as $index => $student) {
                                             $classStudents[$index]['position'] = $index + 1;
+                                            $classStudents[$index]['total_class_students'] = $classTotalStudents;
                                         }
                                         
                                         // Add to sorted array
@@ -1408,8 +1410,10 @@
                                         }
                                         
                                         // Assign positions within this class
+                                        $classTotalStudents = count($classStudents);
                                         foreach ($classStudents as $index => $student) {
                                             $classStudents[$index]['position'] = $index + 1;
+                                            $classStudents[$index]['total_class_students'] = $classTotalStudents;
                                         }
                                         
                                         $finalExamStudents = array_merge($finalExamStudents, $classStudents);
@@ -1752,7 +1756,8 @@
                                                         'grade' => $subj['grade'] ?? null
                                                     ];
                                                 }, $s['result']['subjects']) : [],
-                                                'position' => $s['position'] ?? null
+                                                'position' => $s['position'] ?? null,
+                                                'totalStudentsCount' => $s['total_class_students'] ?? null,
                                             ];
                                         }, $examStudents),
                                         'schoolName' => $school->school_name ?? Session::get('school_name', 'ShuleXpert')
@@ -3230,7 +3235,8 @@
                                                     ];
                                                 }, $s['subjects'] ?? [])),
                                                 'examsSummary' => $examsSummary,
-                                                'position' => $s['position'] ?? null
+                                                'position' => $s['position'] ?? null,
+                                                'totalStudentsCount' => $s['total_class_students'] ?? null,
                                             ];
                                         }, $reportStudents),
                                         'schoolName' => $school->school_name ?? Session::get('school_name', 'ShuleXpert')
@@ -10541,14 +10547,15 @@ $(document).ready(function() {
                     subjects: subjectsForSms,
                     totalMarks: student.totalMarks != null ? student.totalMarks : (student.marks != null ? student.marks : ''),
                     division: student.division || '',
-                    position: student.position || '',
+                    position: (student.position != null && student.position !== '') ? student.position : '',
                     grade: student.grade || '',
                     week: context.week || '',
                     examID: context.examID || student.examID || '',
                     type: context.type || '',
                     term: context.term || '',
                     year: context.year || '',
-                    totalStudentsCount: context.totalCount || studentsData.length
+                    rank_by: context.rank_by || $('#rank_by').val() || 'average',
+                    totalStudentsCount: student.totalStudentsCount || student.total_class_students || context.totalCount || studentsData.length
                 };
 
                 const randomId = Math.random().toString(36).substr(2, 5);
@@ -10558,14 +10565,17 @@ $(document).ready(function() {
                     ? '<span class="status-marker text-muted small"><i class="bi bi-hourglass"></i> Pending...</span>' 
                     : '<span class="text-danger small"><i class="bi bi-telephone-x"></i> No Phone</span>';
                 
-                // Construct data attributes
+                // Use attr() not .data('position') — jQuery UI / layout code stores {top,left} under data key "position"
+                const posVal = (student.position != null && student.position !== '') ? String(student.position) : '';
+                const totalVal = String(student.totalStudentsCount || student.total_class_students || context.totalCount || studentsData.length || '');
                 let dataAttrs = `data-student-id="${studentId}" data-phone="${phone}" `;
                 dataAttrs += `data-week="${context.week || ''}" data-exam-id="${context.examID || ''}" `;
                 dataAttrs += `data-type="${context.type || ''}" data-term="${context.term || ''}" data-year="${context.year || ''}" `;
+                dataAttrs += `data-rank-by="${context.rank_by || $('#rank_by').val() || 'average'}" `;
                 dataAttrs += `data-subject="${student.subject || context.subject || ''}" `;
                 dataAttrs += `data-marks="${student.marks || ''}" data-grade="${student.grade || ''}" `;
-                dataAttrs += `data-division="${student.division || ''}" data-position="${student.position || ''}" `;
-                dataAttrs += `data-total-count="${context.totalCount || studentsData.length}" `;
+                dataAttrs += `data-division="${student.division || ''}" data-position="${posVal}" `;
+                dataAttrs += `data-total-count="${totalVal}" `;
                 
                 list.append(`
                     <tr ${dataAttrs}>
@@ -10637,6 +10647,7 @@ $(document).ready(function() {
             type: $('#type').val() || data.type || '',
             term: $('#term').val() || data.term || '',
             year: $('#year').val() || data.year || '',
+            rank_by: $('#rank_by').val() || data.rank_by || 'average',
             totalCount: data.totalStudents || students.length
         });
     });
@@ -10697,6 +10708,7 @@ $(document).ready(function() {
             type: $('#type').val() || data.type || 'exam',
             term: $('#term').val() || data.term || '',
             year: $('#year').val() || data.year || '',
+            rank_by: $('#rank_by').val() || data.rank_by || 'average',
             totalCount: data.totalStudents || students.length
         });
     });
@@ -10761,21 +10773,29 @@ $(document).ready(function() {
             row.addClass('bg-warning-light'); // Highlight the active row
             statusCol.html('<div class="spinner-border spinner-border-sm text-primary" role="status"></div> <span class="small text-primary font-weight-bold">Sending...</span>');
             
-            const studentId = String(row.data('student-id'));
+            const studentId = String(row.attr('data-student-id') || row.data('student-id') || '');
             const board = (window._smsBoardByStudent && window._smsBoardByStudent[studentId]) || {};
+            // Prefer board snapshot; read position via attr() to avoid jQuery .data('position') UI coords collision
+            const posRaw = board.position != null && board.position !== ''
+                ? board.position
+                : (row.attr('data-position') || '');
+            const totalRaw = board.totalStudentsCount != null && board.totalStudentsCount !== ''
+                ? board.totalStudentsCount
+                : (row.attr('data-total-count') || '');
             const data = {
                 studentID: studentId,
-                subject: row.data('subject'),
-                marks: row.data('marks'),
-                grade: row.data('grade') || board.grade || '',
-                week: row.data('week') || board.week || '',
-                examID: row.data('exam-id') || board.examID || '',
-                type: row.data('type') || board.type || '',
-                term: row.data('term') || board.term || '',
-                year: row.data('year') || board.year || '',
-                division: row.data('division') || board.division || '',
-                position: row.data('position') || board.position || '',
-                totalStudentsCount: row.data('total-count') || board.totalStudentsCount || '',
+                subject: row.attr('data-subject') || row.data('subject') || '',
+                marks: row.attr('data-marks') || row.data('marks') || '',
+                grade: row.attr('data-grade') || board.grade || '',
+                week: row.attr('data-week') || board.week || '',
+                examID: row.attr('data-exam-id') || board.examID || '',
+                type: row.attr('data-type') || board.type || '',
+                term: row.attr('data-term') || board.term || '',
+                year: row.attr('data-year') || board.year || '',
+                rank_by: row.attr('data-rank-by') || board.rank_by || $('#rank_by').val() || 'average',
+                division: row.attr('data-division') || board.division || '',
+                position: posRaw,
+                totalStudentsCount: totalRaw,
                 totalMarks: board.totalMarks != null ? board.totalMarks : '',
                 // Exact subject lines as filtered on manageResults board
                 subjects: JSON.stringify(Array.isArray(board.subjects) ? board.subjects : []),
