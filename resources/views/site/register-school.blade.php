@@ -28,13 +28,13 @@
         <div class="row justify-content-center">
             <div class="col-lg-10">
                 <div class="mb-4" style="border:1px solid #e5e5e5;padding:16px 18px;background:#fff;">
-                    <h4 style="color:#940000;font-weight:700;margin-bottom:8px;">Usajili wa Shule — ShuleXpert</h4>
+                    <h4 style="color:#940000;font-weight:700;margin-bottom:8px;">School Registration — ShuleXpert</h4>
                     <p class="mb-2" style="color:#555;">
-                        Jaza fomu hii ili kuomba kujiunga na ShuleXpert. Baada ya kuwasilisha, maombi yatakuwa
-                        <strong>Pending</strong> hadi timu yetu iyaverify. <strong>Hautapokea login credentials</strong>
-                        mpaka baada ya verification.
+                        Fill in this form to apply to join ShuleXpert. After submission, your application will remain
+                        <strong>Pending</strong> until our team verifies it. <strong>You will not receive login credentials</strong>
+                        until after verification.
                     </p>
-                    <p class="mb-0 small text-muted">Hatua: 1) Jaza taarifa → 2) Thibitisha simu kwa OTP → 3) Submit</p>
+                    <p class="mb-0 small text-muted">Steps: 1) Fill in your details → 2) Submit Registration → 3) Verify phone with OTP → 4) Application is saved</p>
                 </div>
 
                 <form id="schoolRegForm" method="POST" action="{{ route('site.register_school.submit') }}" style="border:1px solid #e5e5e5;padding:24px;background:#fff;">
@@ -111,19 +111,10 @@
                             @error('email')<small class="text-danger">{{ $message }}</small>@enderror
                         </div>
                         <div class="col-md-6 form-group mb-3">
-                            <label class="font-weight-bold">Phone (OTP) <span class="text-danger">*</span></label>
-                            <div class="d-flex" style="gap:8px;">
-                                <input type="text" name="phone" id="phone" class="form-control" value="{{ old('phone', '255') }}" required placeholder="2557XXXXXXXX" maxlength="12">
-                                <button type="button" class="btn" id="btnSendOtp" style="background:#940000;color:#fff;white-space:nowrap;border-radius:0;">Send OTP</button>
-                            </div>
+                            <label class="font-weight-bold">Phone <span class="text-danger">*</span></label>
+                            <input type="text" name="phone" id="phone" class="form-control" value="{{ old('phone', '255') }}" required placeholder="2557XXXXXXXX" maxlength="12">
                             @error('phone')<small class="text-danger d-block">{{ $message }}</small>@enderror
-                            <div id="otpBox" style="display:none;margin-top:10px;">
-                                <div class="d-flex" style="gap:8px;max-width:360px;">
-                                    <input type="text" id="otpInput" class="form-control" placeholder="Enter 6-digit OTP" maxlength="6" inputmode="numeric">
-                                    <button type="button" class="btn btn-dark" id="btnVerifyOtp" style="border-radius:0;white-space:nowrap;">Verify</button>
-                                </div>
-                                <small id="otpStatus" class="d-block mt-2" style="color:#666;"></small>
-                            </div>
+                            <small class="text-muted">An OTP will be sent after you click Submit Registration.</small>
                         </div>
                         <div class="col-12 form-group mb-3">
                             <label class="font-weight-bold">Address</label>
@@ -135,9 +126,21 @@
                         </div>
                     </div>
 
+                    {{-- OTP step: shown after Submit, before save --}}
+                    <div id="otpStep" style="display:none;margin:18px 0;padding:16px;border:1px solid #e0cdcd;background:#fffaf9;">
+                        <h6 style="color:#940000;font-weight:700;margin-bottom:8px;">Verify phone with OTP</h6>
+                        <p class="mb-2 small" id="otpIntro" style="color:#555;">We have sent an OTP to your phone. Enter the code to complete registration.</p>
+                        <div class="d-flex flex-wrap" style="gap:8px;max-width:420px;">
+                            <input type="text" id="otpInput" class="form-control" placeholder="Enter 6-digit OTP" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+                            <button type="button" class="btn btn-dark" id="btnVerifyOtp" style="border-radius:0;white-space:nowrap;">Verify & Save</button>
+                            <button type="button" class="btn btn-outline-secondary" id="btnResendOtp" style="border-radius:0;white-space:nowrap;">Resend OTP</button>
+                        </div>
+                        <small id="otpStatus" class="d-block mt-2" style="color:#666;"></small>
+                    </div>
+
                     <div class="d-flex flex-wrap align-items-center justify-content-between mt-3" style="gap:12px;">
-                        <small class="text-muted" id="verifyHint">Thibitisha simu kwa OTP kabla ya kuwasilisha.</small>
-                        <button type="submit" class="btn btn-lg" id="btnSubmit" disabled style="background:#940000;color:#fff;border-radius:0;font-weight:700;">
+                        <small class="text-muted" id="verifyHint">Fill in the form, then click Submit Registration — an OTP will be sent to your phone.</small>
+                        <button type="submit" class="btn btn-lg" id="btnSubmit" style="background:#940000;color:#fff;border-radius:0;font-weight:700;">
                             Submit Registration
                         </button>
                     </div>
@@ -149,17 +152,22 @@
 
 <script>
 (function () {
+    var form = document.getElementById('schoolRegForm');
     var phoneInput = document.getElementById('phone');
     var otpToken = document.getElementById('otp_token');
-    var otpBox = document.getElementById('otpBox');
+    var otpStep = document.getElementById('otpStep');
     var otpInput = document.getElementById('otpInput');
     var otpStatus = document.getElementById('otpStatus');
-    var btnSend = document.getElementById('btnSendOtp');
+    var otpIntro = document.getElementById('otpIntro');
     var btnVerify = document.getElementById('btnVerifyOtp');
+    var btnResend = document.getElementById('btnResendOtp');
     var btnSubmit = document.getElementById('btnSubmit');
     var verifyHint = document.getElementById('verifyHint');
     var verified = false;
     var verifiedPhone = '';
+    var otpSent = false;
+    var sendingOtp = false;
+    var allowingSubmit = false;
 
     function csrf() {
         var m = document.querySelector('meta[name="csrf-token"]');
@@ -177,13 +185,21 @@
     function isValidTzMobile(phone) {
         return /^255[67]\d{8}$/.test(phone);
     }
+    function setStatus(msg, ok) {
+        otpStatus.style.color = ok ? '#1a7f37' : '#940000';
+        otpStatus.textContent = msg || '';
+    }
     function resetVerification() {
         verified = false;
         verifiedPhone = '';
+        otpSent = false;
         otpToken.value = '';
-        btnSubmit.disabled = true;
-        verifyHint.textContent = 'Thibitisha simu kwa OTP kabla ya kuwasilisha.';
+        otpInput.value = '';
+        otpStep.style.display = 'none';
+        btnSubmit.style.display = '';
+        verifyHint.textContent = 'Fill in the form, then click Submit Registration — an OTP will be sent to your phone.';
         verifyHint.style.color = '#666';
+        setStatus('', true);
     }
 
     phoneInput.addEventListener('input', function () {
@@ -192,9 +208,8 @@
             d = '255' + d.replace(/^255/, '').replace(/^0+/, '');
         }
         phoneInput.value = d.slice(0, 12);
-        if (verified && phoneInput.value !== verifiedPhone) {
+        if ((otpSent || verified) && verifiedPhone && phoneInput.value !== verifiedPhone) {
             resetVerification();
-            otpBox.style.display = 'none';
         }
     });
 
@@ -202,23 +217,23 @@
         phoneInput.value = '255';
     }
 
-    btnSend.addEventListener('click', function () {
+    function sendOtp() {
         var phone = normalizePhone(phoneInput.value);
         phoneInput.value = phone;
         if (!isValidTzMobile(phone)) {
-            otpBox.style.display = 'block';
-            otpStatus.style.color = '#940000';
-            otpStatus.textContent = 'Enter a valid number: 2557XXXXXXXX or 2556XXXXXXXX';
-            return;
+            otpStep.style.display = 'block';
+            setStatus('Enter a valid number: 2557XXXXXXXX or 2556XXXXXXXX', false);
+            return Promise.resolve(false);
         }
-        resetVerification();
-        btnSend.disabled = true;
-        btnSend.textContent = 'Sending...';
-        otpBox.style.display = 'block';
-        otpStatus.style.color = '#666';
-        otpStatus.textContent = 'Sending OTP...';
 
-        fetch('{{ route('site.register_school.send_otp') }}', {
+        sendingOtp = true;
+        btnSubmit.disabled = true;
+        btnResend.disabled = true;
+        setStatus('Sending OTP...', true);
+        otpStep.style.display = 'block';
+        otpStep.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        return fetch('{{ route('site.register_school.send_otp') }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -231,36 +246,87 @@
         .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
         .then(function (res) {
             if (!res.body || !res.body.success) {
-                otpStatus.style.color = '#940000';
-                otpStatus.textContent = (res.body && res.body.message) ? res.body.message : 'Failed to send OTP.';
-                return;
+                setStatus((res.body && res.body.message) ? res.body.message : 'Failed to send OTP.', false);
+                return false;
             }
             otpToken.value = res.body.otp_token || '';
-            otpStatus.style.color = '#1a7f37';
-            otpStatus.textContent = res.body.message || 'OTP sent.';
+            otpSent = true;
+            verifiedPhone = phone;
+            verified = false;
+            otpIntro.textContent = 'We sent an OTP to ' + (res.body.masked_phone || 'your phone') + '. Enter the code to complete registration.';
+            setStatus(res.body.message || 'OTP sent.', true);
+            verifyHint.textContent = 'Enter the OTP you received, then click Verify & Save.';
+            verifyHint.style.color = '#940000';
+            btnSubmit.style.display = 'none';
             otpInput.focus();
+            return true;
         })
         .catch(function () {
-            otpStatus.style.color = '#940000';
-            otpStatus.textContent = 'Network error while sending OTP.';
+            setStatus('Network error while sending OTP.', false);
+            return false;
         })
         .finally(function () {
-            btnSend.disabled = false;
-            btnSend.textContent = 'Send OTP';
+            sendingOtp = false;
+            btnSubmit.disabled = false;
+            btnResend.disabled = false;
         });
+    }
+
+    form.addEventListener('submit', function (e) {
+        if (allowingSubmit && verified) {
+            return; // proceed to server save
+        }
+        e.preventDefault();
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        var phone = normalizePhone(phoneInput.value);
+        phoneInput.value = phone;
+        if (!isValidTzMobile(phone)) {
+            otpStep.style.display = 'block';
+            setStatus('Enter a valid number: 2557XXXXXXXX or 2556XXXXXXXX', false);
+            return;
+        }
+
+        // Already verified for this phone → save
+        if (verified && verifiedPhone === phone && otpToken.value) {
+            allowingSubmit = true;
+            form.submit();
+            return;
+        }
+
+        // First submit → send OTP, do not save yet
+        if (sendingOtp) return;
+        sendOtp();
+    });
+
+    btnResend.addEventListener('click', function () {
+        if (sendingOtp) return;
+        verified = false;
+        sendOtp();
     });
 
     btnVerify.addEventListener('click', function () {
         var phone = normalizePhone(phoneInput.value);
         var otp = digitsOnly(otpInput.value);
         phoneInput.value = phone;
+
         if (!otpToken.value) {
-            otpStatus.style.color = '#940000';
-            otpStatus.textContent = 'Request OTP first.';
+            setStatus('Click Submit Registration first to receive an OTP.', false);
             return;
         }
+        if (!otp || otp.length < 4) {
+            setStatus('Enter a valid OTP (6 digits).', false);
+            return;
+        }
+
         btnVerify.disabled = true;
+        btnResend.disabled = true;
         btnVerify.textContent = 'Verifying...';
+
         fetch('{{ route('site.register_school.verify_otp') }}', {
             method: 'POST',
             headers: {
@@ -274,35 +340,25 @@
         .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
         .then(function (res) {
             if (!res.body || !res.body.success) {
-                otpStatus.style.color = '#940000';
-                otpStatus.textContent = (res.body && res.body.message) ? res.body.message : 'OTP verification failed.';
+                setStatus((res.body && res.body.message) ? res.body.message : 'Incorrect OTP.', false);
                 return;
             }
             verified = true;
             verifiedPhone = phone;
-            btnSubmit.disabled = false;
-            otpStatus.style.color = '#1a7f37';
-            otpStatus.textContent = res.body.message || 'Phone verified.';
-            verifyHint.textContent = 'Simu imethibitishwa — unaweza kuwasilisha.';
+            setStatus(res.body.message || 'Phone verified. Saving your registration...', true);
+            verifyHint.textContent = 'Phone verified — saving your application...';
             verifyHint.style.color = '#1a7f37';
+            allowingSubmit = true;
+            form.submit();
         })
         .catch(function () {
-            otpStatus.style.color = '#940000';
-            otpStatus.textContent = 'Network error while verifying OTP.';
+            setStatus('Network error while verifying OTP.', false);
         })
         .finally(function () {
             btnVerify.disabled = false;
-            btnVerify.textContent = 'Verify';
+            btnResend.disabled = false;
+            btnVerify.textContent = 'Verify & Save';
         });
-    });
-
-    document.getElementById('schoolRegForm').addEventListener('submit', function (e) {
-        if (!verified) {
-            e.preventDefault();
-            otpBox.style.display = 'block';
-            otpStatus.style.color = '#940000';
-            otpStatus.textContent = 'Thibitisha namba ya simu kwa OTP kabla ya kuwasilisha.';
-        }
     });
 })();
 </script>

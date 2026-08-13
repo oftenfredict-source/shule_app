@@ -105,7 +105,7 @@
                         </div>
                         <div class="col-lg-12">
                             <p id="verifyGateMsg" class="mb-10" style="color:#940000;font-size:13px;">
-                                Thibitisha namba yako ya simu kwa OTP kwanza — huwezi kutuma ujumbe bila verification.
+                                Verify your phone number with OTP first — you cannot send a message without verification.
                             </p>
                             <button class="primary-btn text-uppercase" id="btnSubmitContact" type="submit"
                                     style="float:right;" disabled title="Verify phone OTP first">
@@ -333,7 +333,7 @@
             setVerified(false, '');
             otpBox.style.display = 'block';
             otpStatus.style.color = '#940000';
-            otpStatus.textContent = 'Thibitisha namba yako ya simu kwa OTP kabla ya kutuma.';
+            otpStatus.textContent = 'Verify your phone number with OTP before sending.';
             return false;
         }
     });

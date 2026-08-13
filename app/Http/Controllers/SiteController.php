@@ -1008,7 +1008,7 @@ class SiteController extends Controller
         return view('site.register-school', [
             'seo' => [
                 'title' => 'Register Your School — ShuleXpert',
-                'description' => 'Sajili shule yako kwenye ShuleXpert. Jaza fomu, thibitisha simu kwa OTP. Timu yetu itaverify kabla ya kuanzisha akaunti.',
+                'description' => 'Sajili shule yako kwenye ShuleXpert. Jaza fomu, wasilisha, kisha thibitisha simu kwa OTP. Timu yetu itaverify kabla ya kuanzisha akaunti.',
                 'keywords' => 'Register school Tanzania, sajili shule, ShuleXpert onboarding',
                 'canonical' => $this->publicUrl('/register-school'),
                 'type' => 'website',
@@ -1145,7 +1145,7 @@ class SiteController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Phone verified. You can now submit your school registration.',
+            'message' => 'Phone verified. Saving your registration...',
             'phone' => $phone,
         ]);
     }
@@ -1191,7 +1191,7 @@ class SiteController extends Controller
         if (!$ok) {
             return back()
                 ->withInput()
-                ->withErrors(['phone' => 'Thibitisha namba yako ya simu kwa OTP kabla ya kuwasilisha maombi.']);
+                ->withErrors(['phone' => 'Verify your phone number with OTP before submitting the application.']);
         }
 
         $submitKey = 'school-reg-submit:' . $request->ip() . ':' . $phone;
@@ -1226,7 +1226,7 @@ class SiteController extends Controller
 
         return redirect()
             ->route('site.register_school')
-            ->with('success', 'Asante! Maombi ya usajili wa shule yamepokelewa na yako Pending. Timu ya ShuleXpert itaverify — hautapokea login credentials mpaka baada ya verification.');
+            ->with('success', 'Thank you! Your school registration application has been received and is Pending. The ShuleXpert team will verify it — you will not receive login credentials until after verification.');
     }
 
     /**
@@ -1431,7 +1431,7 @@ class SiteController extends Controller
         if (!$ok) {
             return back()
                 ->withInput()
-                ->withErrors(['phone' => 'Thibitisha namba yako ya simu kwa OTP kabla ya kutuma ujumbe.']);
+                ->withErrors(['phone' => 'Verify your phone number with OTP before sending the message.']);
         }
 
         // Extra guard: one contact submission per verified phone/IP window
@@ -1455,6 +1455,6 @@ class SiteController extends Controller
 
         session()->forget(['contact_otp', 'contact_otp_verified']);
 
-        return back()->with('success', 'Asante! Ujumbe wako umepokelewa. Tutawasiliana nawe hivi karibuni.');
+        return back()->with('success', 'Thank you! Your message has been received. We will contact you soon.');
     }
 }
