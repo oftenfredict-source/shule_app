@@ -151,239 +151,251 @@
     $ssmPlatformsJson = \App\Support\SchoolSocialMedia::platformsForJs();
 @endphp
 <script>
-window.SchoolSocialMediaUI = window.SchoolSocialMediaUI || (function() {
-    const PLATFORMS = @json($ssmPlatformsJson);
-
-    function platformMeta(key) {
-        return PLATFORMS.find(function(p) { return p.key === key; }) || null;
+(function bootSchoolSocialMediaUI() {
+    // Pages like /school often use jQuery.noConflict() — never rely on global $.
+    if (!window.jQuery) {
+        setTimeout(bootSchoolSocialMediaUI, 50);
+        return;
+    }
+    if (window.SchoolSocialMediaUI && window.SchoolSocialMediaUI.bind) {
+        return;
     }
 
-    function esc(str) {
-        return String(str || '')
-            .replace(/&/g, '&amp;')
-            .replace(/"/g, '&quot;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
+    window.SchoolSocialMediaUI = (function($) {
+        const PLATFORMS = @json($ssmPlatformsJson);
 
-    function selectedPlatforms($wrap) {
-        const selected = [];
-        $wrap.find('.ssm-platform').each(function() {
-            const v = $(this).val();
-            if (v) selected.push(v);
-        });
-        return selected;
-    }
+        function platformMeta(key) {
+            return PLATFORMS.find(function(p) { return p.key === key; }) || null;
+        }
 
-    function setPickerButton($row, key) {
-        const meta = platformMeta(key);
-        const $btn = $row.find('.ssm-picker-btn');
-        if (!meta) {
+        function esc(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function selectedPlatforms($wrap) {
+            const selected = [];
+            $wrap.find('.ssm-platform').each(function() {
+                const v = $(this).val();
+                if (v) selected.push(v);
+            });
+            return selected;
+        }
+
+        function setPickerButton($row, key) {
+            const meta = platformMeta(key);
+            const $btn = $row.find('.ssm-picker-btn');
+            if (!meta) {
+                $btn.html(
+                    '<span class="ssm-picker-icon ssm-picker-icon-empty"><i class="bx bx-link"></i></span>'
+                    + '<span class="ssm-picker-label text-muted">-- Select social media --</span>'
+                    + '<i class="bx bx-chevron-down ssm-picker-caret"></i>'
+                );
+                return;
+            }
             $btn.html(
-                '<span class="ssm-picker-icon ssm-picker-icon-empty"><i class="bx bx-link"></i></span>'
-                + '<span class="ssm-picker-label text-muted">-- Select social media --</span>'
+                '<span class="ssm-picker-icon" style="background:' + meta.color + ';"><i class="bx ' + meta.icon + '"></i></span>'
+                + '<span class="ssm-picker-label">' + esc(meta.label) + '</span>'
                 + '<i class="bx bx-chevron-down ssm-picker-caret"></i>'
             );
-            return;
         }
-        $btn.html(
-            '<span class="ssm-picker-icon" style="background:' + meta.color + ';"><i class="bx ' + meta.icon + '"></i></span>'
-            + '<span class="ssm-picker-label">' + esc(meta.label) + '</span>'
-            + '<i class="bx bx-chevron-down ssm-picker-caret"></i>'
-        );
-    }
 
-    function closeAllPickers($wrap) {
-        $wrap.find('.ssm-picker-menu').attr('hidden', true);
-        $wrap.find('.ssm-picker-btn').attr('aria-expanded', 'false');
-    }
+        function closeAllPickers($wrap) {
+            $wrap.find('.ssm-picker-menu').attr('hidden', true);
+            $wrap.find('.ssm-picker-btn').attr('aria-expanded', 'false');
+        }
 
-    function refreshDisabledOptions($wrap) {
-        const selected = selectedPlatforms($wrap);
-        $wrap.find('.ssm-row').each(function() {
-            const $row = $(this);
-            const current = $row.find('.ssm-platform').val() || '';
-            $row.find('.ssm-picker-option').each(function() {
-                const val = $(this).attr('data-value') || '';
-                if (!val) {
-                    $(this).removeClass('is-disabled is-selected');
-                    return;
-                }
-                const taken = selected.indexOf(val) !== -1 && val !== current;
-                $(this).toggleClass('is-disabled', taken);
-                $(this).toggleClass('is-selected', val === current);
+        function refreshDisabledOptions($wrap) {
+            const selected = selectedPlatforms($wrap);
+            $wrap.find('.ssm-row').each(function() {
+                const $row = $(this);
+                const current = $row.find('.ssm-platform').val() || '';
+                $row.find('.ssm-picker-option').each(function() {
+                    const val = $(this).attr('data-value') || '';
+                    if (!val) {
+                        $(this).removeClass('is-disabled is-selected');
+                        return;
+                    }
+                    const taken = selected.indexOf(val) !== -1 && val !== current;
+                    $(this).toggleClass('is-disabled', taken);
+                    $(this).toggleClass('is-selected', val === current);
+                });
             });
-        });
-        $wrap.find('.ssm-add-btn').toggle(selected.length < PLATFORMS.length);
-    }
-
-    function updateRowType($row) {
-        const key = $row.find('.ssm-platform').val();
-        const meta = platformMeta(key);
-        const $input = $row.find('.ssm-value');
-        const $label = $row.find('.ssm-value-label');
-        setPickerButton($row, key);
-        if (!meta) {
-            $input.attr('placeholder', 'Select a platform first');
-            $label.text('Link / Phone');
-            return;
+            $wrap.find('.ssm-add-btn').toggle(selected.length < PLATFORMS.length);
         }
-        $input.attr('placeholder', meta.placeholder);
-        $label.text(meta.type === 'phone' ? 'Phone Number' : 'Profile Link');
-        $input.attr('type', meta.type === 'phone' ? 'tel' : 'url');
-    }
 
-    function buildPickerMenuHtml(selected) {
-        let html = ''
-            + '<button type="button" class="ssm-picker-option" data-value="" data-label="-- Select social media --">'
-            + '  <span class="ssm-picker-icon ssm-picker-icon-empty"><i class="bx bx-link"></i></span>'
-            + '  <span>-- Select social media --</span>'
-            + '</button>';
-        PLATFORMS.forEach(function(p) {
-            const sel = (selected === p.key) ? ' is-selected' : '';
-            html += ''
-                + '<button type="button" class="ssm-picker-option' + sel + '"'
-                + ' data-value="' + p.key + '"'
-                + ' data-label="' + esc(p.label) + '"'
-                + ' data-icon="' + p.icon + '"'
-                + ' data-color="' + p.color + '">'
-                + '  <span class="ssm-picker-icon" style="background:' + p.color + ';"><i class="bx ' + p.icon + '"></i></span>'
-                + '  <span>' + esc(p.label) + '</span>'
+        function updateRowType($row) {
+            const key = $row.find('.ssm-platform').val();
+            const meta = platformMeta(key);
+            const $input = $row.find('.ssm-value');
+            const $label = $row.find('.ssm-value-label');
+            setPickerButton($row, key);
+            if (!meta) {
+                $input.attr('placeholder', 'Select a platform first');
+                $label.text('Link / Phone');
+                return;
+            }
+            $input.attr('placeholder', meta.placeholder);
+            $label.text(meta.type === 'phone' ? 'Phone Number' : 'Profile Link');
+            $input.attr('type', meta.type === 'phone' ? 'tel' : 'url');
+        }
+
+        function buildPickerMenuHtml(selected) {
+            let html = ''
+                + '<button type="button" class="ssm-picker-option" data-value="" data-label="-- Select social media --">'
+                + '  <span class="ssm-picker-icon ssm-picker-icon-empty"><i class="bx bx-link"></i></span>'
+                + '  <span>-- Select social media --</span>'
                 + '</button>';
-        });
-        return html;
-    }
+            PLATFORMS.forEach(function(p) {
+                const sel = (selected === p.key) ? ' is-selected' : '';
+                html += ''
+                    + '<button type="button" class="ssm-picker-option' + sel + '"'
+                    + ' data-value="' + p.key + '"'
+                    + ' data-label="' + esc(p.label) + '"'
+                    + ' data-icon="' + p.icon + '"'
+                    + ' data-color="' + p.color + '">'
+                    + '  <span class="ssm-picker-icon" style="background:' + p.color + ';"><i class="bx ' + p.icon + '"></i></span>'
+                    + '  <span>' + esc(p.label) + '</span>'
+                    + '</button>';
+            });
+            return html;
+        }
 
-    function buildRowHtml(index, selected, value) {
-        const meta = platformMeta(selected);
-        const label = meta ? (meta.type === 'phone' ? 'Phone Number' : 'Profile Link') : 'Link / Phone';
-        const ph = meta ? meta.placeholder : 'Select a platform first';
-        const inputType = meta && meta.type === 'phone' ? 'tel' : 'url';
-        const btnInner = meta
-            ? ('<span class="ssm-picker-icon" style="background:' + meta.color + ';"><i class="bx ' + meta.icon + '"></i></span>'
-                + '<span class="ssm-picker-label">' + esc(meta.label) + '</span>'
-                + '<i class="bx bx-chevron-down ssm-picker-caret"></i>')
-            : ('<span class="ssm-picker-icon ssm-picker-icon-empty"><i class="bx bx-link"></i></span>'
-                + '<span class="ssm-picker-label text-muted">-- Select social media --</span>'
-                + '<i class="bx bx-chevron-down ssm-picker-caret"></i>');
+        function buildRowHtml(index, selected, value) {
+            const meta = platformMeta(selected);
+            const label = meta ? (meta.type === 'phone' ? 'Phone Number' : 'Profile Link') : 'Link / Phone';
+            const ph = meta ? meta.placeholder : 'Select a platform first';
+            const inputType = meta && meta.type === 'phone' ? 'tel' : 'url';
+            const btnInner = meta
+                ? ('<span class="ssm-picker-icon" style="background:' + meta.color + ';"><i class="bx ' + meta.icon + '"></i></span>'
+                    + '<span class="ssm-picker-label">' + esc(meta.label) + '</span>'
+                    + '<i class="bx bx-chevron-down ssm-picker-caret"></i>')
+                : ('<span class="ssm-picker-icon ssm-picker-icon-empty"><i class="bx bx-link"></i></span>'
+                    + '<span class="ssm-picker-label text-muted">-- Select social media --</span>'
+                    + '<i class="bx bx-chevron-down ssm-picker-caret"></i>');
 
-        return ''
-            + '<div class="ssm-row" data-index="' + index + '">'
-            + '  <div class="row g-2 align-items-end">'
-            + '    <div class="col-md-5">'
-            + '      <label class="small fw-bold">Platform</label>'
-            + '      <div class="ssm-picker">'
-            + '        <input type="hidden" class="ssm-platform" name="social_media[' + index + '][platform]" value="' + esc(selected) + '">'
-            + '        <button type="button" class="ssm-picker-btn" aria-haspopup="listbox" aria-expanded="false">' + btnInner + '</button>'
-            + '        <div class="ssm-picker-menu" role="listbox" hidden>' + buildPickerMenuHtml(selected) + '</div>'
-            + '      </div>'
-            + '    </div>'
-            + '    <div class="col-md-6">'
-            + '      <label class="small fw-bold ssm-value-label">' + label + '</label>'
-            + '      <input class="form-control form-control-sm ssm-value" type="' + inputType + '" name="social_media[' + index + '][value]" value="' + esc(value) + '" placeholder="' + esc(ph) + '">'
-            + '    </div>'
-            + '    <div class="col-md-1 d-flex align-items-end">'
-            + '      <button type="button" class="btn btn-sm btn-outline-danger ssm-remove" title="Remove"><i class="bx bx-trash"></i></button>'
-            + '    </div>'
-            + '  </div>'
-            + '</div>';
-    }
+            return ''
+                + '<div class="ssm-row" data-index="' + index + '">'
+                + '  <div class="row g-2 align-items-end">'
+                + '    <div class="col-md-5">'
+                + '      <label class="small fw-bold">Platform</label>'
+                + '      <div class="ssm-picker">'
+                + '        <input type="hidden" class="ssm-platform" name="social_media[' + index + '][platform]" value="' + esc(selected) + '">'
+                + '        <button type="button" class="ssm-picker-btn" aria-haspopup="listbox" aria-expanded="false">' + btnInner + '</button>'
+                + '        <div class="ssm-picker-menu" role="listbox" hidden>' + buildPickerMenuHtml(selected) + '</div>'
+                + '      </div>'
+                + '    </div>'
+                + '    <div class="col-md-6">'
+                + '      <label class="small fw-bold ssm-value-label">' + label + '</label>'
+                + '      <input class="form-control form-control-sm ssm-value" type="' + inputType + '" name="social_media[' + index + '][value]" value="' + esc(value) + '" placeholder="' + esc(ph) + '">'
+                + '    </div>'
+                + '    <div class="col-md-1 d-flex align-items-end">'
+                + '      <button type="button" class="btn btn-sm btn-outline-danger ssm-remove" title="Remove"><i class="bx bx-trash"></i></button>'
+                + '    </div>'
+                + '  </div>'
+                + '</div>';
+        }
 
-    function reindex($wrap) {
-        $wrap.find('.ssm-row').each(function(i) {
-            $(this).attr('data-index', i);
-            $(this).find('.ssm-platform').attr('name', 'social_media[' + i + '][platform]');
-            $(this).find('.ssm-value').attr('name', 'social_media[' + i + '][value]');
-        });
-    }
-
-    function bind($wrap) {
-        if ($wrap.data('ssm-bound')) return;
-        $wrap.data('ssm-bound', 1);
-
-        $wrap.on('change', '.ssm-enable', function() {
-            $wrap.find('.ssm-fields').toggle(this.checked);
-            if (this.checked && $wrap.find('.ssm-row').length === 0) {
-                $wrap.find('.ssm-rows').append(buildRowHtml(0, '', ''));
-            }
-            refreshDisabledOptions($wrap);
-        });
-
-        $wrap.on('click', '.ssm-picker-btn', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const $menu = $(this).siblings('.ssm-picker-menu');
-            const open = !$menu.attr('hidden');
-            closeAllPickers($wrap);
-            if (!open) {
-                $menu.removeAttr('hidden');
-                $(this).attr('aria-expanded', 'true');
-                refreshDisabledOptions($wrap);
-            }
-        });
-
-        $wrap.on('click', '.ssm-picker-option', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            if ($(this).hasClass('is-disabled')) return;
-            const $row = $(this).closest('.ssm-row');
-            const val = $(this).attr('data-value') || '';
-            $row.find('.ssm-platform').val(val);
-            closeAllPickers($wrap);
-            updateRowType($row);
-            refreshDisabledOptions($wrap);
-        });
-
-        $(document).on('click.ssmPicker', function(e) {
-            if (!$(e.target).closest($wrap).length) {
-                closeAllPickers($wrap);
-            }
-        });
-
-        $wrap.on('click', '.ssm-add-btn', function() {
-            const idx = $wrap.find('.ssm-row').length;
-            if (selectedPlatforms($wrap).length >= PLATFORMS.length) return;
-            $wrap.find('.ssm-rows').append(buildRowHtml(idx, '', ''));
-            reindex($wrap);
-            refreshDisabledOptions($wrap);
-        });
-
-        $wrap.on('click', '.ssm-remove', function() {
-            const $rows = $wrap.find('.ssm-row');
-            if ($rows.length <= 1) {
-                const $row = $rows.first();
-                $row.find('.ssm-platform').val('');
-                $row.find('.ssm-value').val('');
-                updateRowType($row);
-            } else {
-                $(this).closest('.ssm-row').remove();
-            }
-            reindex($wrap);
-            refreshDisabledOptions($wrap);
-        });
-
-        refreshDisabledOptions($wrap);
-        $wrap.find('.ssm-row').each(function() { updateRowType($(this)); });
-    }
-
-    function loadItems($wrap, enabled, items) {
-        $wrap.find('.ssm-enable').prop('checked', !!enabled);
-        $wrap.find('.ssm-fields').toggle(!!enabled);
-        const $rows = $wrap.find('.ssm-rows');
-        $rows.empty();
-        const list = Array.isArray(items) ? items : [];
-        if (!list.length) {
-            $rows.append(buildRowHtml(0, '', ''));
-        } else {
-            list.forEach(function(item, i) {
-                $rows.append(buildRowHtml(i, item.platform || '', item.value || ''));
+        function reindex($wrap) {
+            $wrap.find('.ssm-row').each(function(i) {
+                $(this).attr('data-index', i);
+                $(this).find('.ssm-platform').attr('name', 'social_media[' + i + '][platform]');
+                $(this).find('.ssm-value').attr('name', 'social_media[' + i + '][value]');
             });
         }
-        refreshDisabledOptions($wrap);
-        $wrap.find('.ssm-row').each(function() { updateRowType($(this)); });
-    }
 
-    return { bind: bind, loadItems: loadItems, platforms: PLATFORMS };
+        function bind($wrap) {
+            if (!$wrap || !$wrap.length) return;
+            if ($wrap.data('ssm-bound')) return;
+            $wrap.data('ssm-bound', 1);
+
+            $wrap.on('change', '.ssm-enable', function() {
+                $wrap.find('.ssm-fields').toggle(this.checked);
+                if (this.checked && $wrap.find('.ssm-row').length === 0) {
+                    $wrap.find('.ssm-rows').append(buildRowHtml(0, '', ''));
+                }
+                refreshDisabledOptions($wrap);
+            });
+
+            $wrap.on('click', '.ssm-picker-btn', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const $menu = $(this).siblings('.ssm-picker-menu');
+                const open = !$menu.attr('hidden');
+                closeAllPickers($wrap);
+                if (!open) {
+                    $menu.removeAttr('hidden');
+                    $(this).attr('aria-expanded', 'true');
+                    refreshDisabledOptions($wrap);
+                }
+            });
+
+            $wrap.on('click', '.ssm-picker-option', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if ($(this).hasClass('is-disabled')) return;
+                const $row = $(this).closest('.ssm-row');
+                const val = $(this).attr('data-value') || '';
+                $row.find('.ssm-platform').val(val);
+                closeAllPickers($wrap);
+                updateRowType($row);
+                refreshDisabledOptions($wrap);
+            });
+
+            $(document).on('click.ssmPicker', function(e) {
+                if (!$(e.target).closest($wrap).length) {
+                    closeAllPickers($wrap);
+                }
+            });
+
+            $wrap.on('click', '.ssm-add-btn', function() {
+                const idx = $wrap.find('.ssm-row').length;
+                if (selectedPlatforms($wrap).length >= PLATFORMS.length) return;
+                $wrap.find('.ssm-rows').append(buildRowHtml(idx, '', ''));
+                reindex($wrap);
+                refreshDisabledOptions($wrap);
+            });
+
+            $wrap.on('click', '.ssm-remove', function() {
+                const $rows = $wrap.find('.ssm-row');
+                if ($rows.length <= 1) {
+                    const $row = $rows.first();
+                    $row.find('.ssm-platform').val('');
+                    $row.find('.ssm-value').val('');
+                    updateRowType($row);
+                } else {
+                    $(this).closest('.ssm-row').remove();
+                }
+                reindex($wrap);
+                refreshDisabledOptions($wrap);
+            });
+
+            refreshDisabledOptions($wrap);
+            $wrap.find('.ssm-row').each(function() { updateRowType($(this)); });
+        }
+
+        function loadItems($wrap, enabled, items) {
+            $wrap.find('.ssm-enable').prop('checked', !!enabled);
+            $wrap.find('.ssm-fields').toggle(!!enabled);
+            const $rows = $wrap.find('.ssm-rows');
+            $rows.empty();
+            const list = Array.isArray(items) ? items : [];
+            if (!list.length) {
+                $rows.append(buildRowHtml(0, '', ''));
+            } else {
+                list.forEach(function(item, i) {
+                    $rows.append(buildRowHtml(i, item.platform || '', item.value || ''));
+                });
+            }
+            refreshDisabledOptions($wrap);
+            $wrap.find('.ssm-row').each(function() { updateRowType($(this)); });
+        }
+
+        return { bind: bind, loadItems: loadItems, platforms: PLATFORMS };
+    })(window.jQuery);
 })();
 </script>
 @endonce
@@ -391,11 +403,11 @@ window.SchoolSocialMediaUI = window.SchoolSocialMediaUI || (function() {
 <script>
 (function() {
     function init() {
-        if (!window.jQuery || !window.SchoolSocialMediaUI) {
+        if (!window.jQuery || !window.SchoolSocialMediaUI || !window.SchoolSocialMediaUI.bind) {
             setTimeout(init, 50);
             return;
         }
-        const $wrap = jQuery('#{{ $ssmId }}_wrap');
+        const $wrap = window.jQuery('#{{ $ssmId }}_wrap');
         if ($wrap.length) {
             window.SchoolSocialMediaUI.bind($wrap);
         }
