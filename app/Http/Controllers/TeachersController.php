@@ -4565,10 +4565,159 @@ class TeachersController extends Controller
                 ? $school->school_type
                 : "Secondary";
 
+        // Scope for bulk Add/View Results (class → subclass → subject cascade)
+        $bulkResultScope = $classSubjects
+            ->map(function ($cs) {
+                $classID = (int) ($cs->classID ?: optional($cs->subclass)->classID);
+                $className =
+                    optional($cs->class)->class_name
+                    ?? optional(optional($cs->subclass)->class)->class_name
+                    ?? "";
+                $subclassName = optional($cs->subclass)->subclass_name ?? "";
+                $displaySubclass = $subclassName
+                    ? trim($className . " " . $subclassName)
+                    : ($className ?: "Class");
+
+                return [
+                    "class_subjectID" => (int) $cs->class_subjectID,
+                    "classID" => $classID,
+                    "class_name" => $className,
+                    "subclassID" => $cs->subclassID
+                        ? (int) $cs->subclassID
+                        : null,
+                    "subclass_name" => $subclassName,
+                    "subclass_display" => $displaySubclass,
+                    "subjectID" => (int) $cs->subjectID,
+                    "subject_name" => optional($cs->subject)->subject_name ?? "",
+                    "is_duo" => !empty($cs->is_duo_subject),
+                ];
+            })
+            ->filter(function ($row) {
+                return $row["classID"] > 0 && $row["subjectID"] > 0;
+            })
+            ->values();
+
         return view(
             "Teacher.teacher_subjects",
-            compact("classSubjects", "schoolType", "resultButtonStatus"),
+            compact(
+                "classSubjects",
+                "schoolType",
+                "resultButtonStatus",
+                "bulkResultScope",
+            ),
         );
+    }
+
+    /**
+     * Resolve class_subjectID for teacher bulk results (no auto-create).
+     * All Subclasses → map of streams where this teacher teaches the subject.
+     */
+    public function teacherResolveClassSubject(Request $request)
+    {
+        $teacherID = (int) Session::get("teacherID");
+        $schoolID = (int) Session::get("schoolID");
+        $userType = Session::get("user_type");
+
+        if (!$teacherID || $userType !== "Teacher") {
+            return response()->json(["error" => "Unauthorized."], 403);
+        }
+
+        $classID = (int) $request->get("classID");
+        $subjectID = (int) $request->get("subjectID");
+        $subclassID = $request->get("subclassID");
+
+        if (!$classID || !$subjectID) {
+            return response()->json(
+                ["error" => "Class and subject are required."],
+                422,
+            );
+        }
+
+        $ownsClass = ClassModel::where("classID", $classID)
+            ->where("schoolID", $schoolID)
+            ->exists();
+        if (!$ownsClass) {
+            return response()->json(["error" => "Class not found."], 404);
+        }
+
+        $query = ClassSubject::with(["subject", "class", "subclass"])
+            ->where("classID", $classID)
+            ->where("subjectID", $subjectID)
+            ->where("status", "Active")
+            ->whereHas("subject", function ($q) {
+                $q->where("status", "Active");
+            });
+
+        if (!empty($subclassID) && $subclassID !== "all") {
+            $query->where("subclassID", (int) $subclassID);
+        }
+
+        $classSubjects = $query
+            ->get()
+            ->filter(function ($cs) use ($teacherID) {
+                return $this->teacherOwnsOrTeachesClassSubject($cs, $teacherID);
+            })
+            ->values();
+
+        if ($classSubjects->isEmpty()) {
+            return response()->json(
+                [
+                    "error" =>
+                        "You do not teach this subject in the selected class/stream.",
+                ],
+                404,
+            );
+        }
+
+        $allSubclasses =
+            empty($subclassID) || $subclassID === "all";
+
+        if (!$allSubclasses) {
+            $cs = $classSubjects->first();
+            return response()->json([
+                "success" => true,
+                "all_subclasses" => false,
+                "class_subjectID" => (int) $cs->class_subjectID,
+                "classID" => $classID,
+                "subjectID" => $subjectID,
+                "class_name" =>
+                    optional($cs->class)->class_name
+                    ?? optional(optional($cs->subclass)->class)->class_name,
+            ]);
+        }
+
+        $map = [];
+        foreach ($classSubjects as $cs) {
+            if ($cs->subclassID) {
+                $map[(int) $cs->subclassID] = (int) $cs->class_subjectID;
+            }
+        }
+
+        // Also include sibling streams where subject exists AND teacher teaches
+        // (already filtered above). If teacher only has class-level CS (null subclass):
+        if (empty($map)) {
+            $cs = $classSubjects->first();
+            return response()->json([
+                "success" => true,
+                "all_subclasses" => false,
+                "class_subjectID" => (int) $cs->class_subjectID,
+                "classID" => $classID,
+                "subjectID" => $subjectID,
+            ]);
+        }
+
+        return response()->json([
+            "success" => true,
+            "all_subclasses" => true,
+            "class_subjectID" => (int) $classSubjects->first()->class_subjectID,
+            "class_subject_map" => $map,
+            "classID" => $classID,
+            "subjectID" => $subjectID,
+            "class_name" =>
+                optional($classSubjects->first()->class)->class_name
+                ?? optional(optional($classSubjects->first()->subclass)->class)
+                    ->class_name,
+        ]);
     }
 
     /**
@@ -4590,6 +4739,29 @@ class TeachersController extends Controller
         )
             ->where("teacherID", $teacherID)
             ->exists();
+    }
+
+    /**
+     * Teacher teaches this subject in the class (any stream / duo paper).
+     */
+    private function teacherOwnsOrTeachesSubjectInClass(
+        $classID,
+        $subjectID,
+        $teacherID,
+    ): bool {
+        if (!$classID || !$subjectID || !$teacherID) {
+            return false;
+        }
+        $rows = ClassSubject::where("classID", $classID)
+            ->where("subjectID", $subjectID)
+            ->where("status", "Active")
+            ->get();
+        foreach ($rows as $cs) {
+            if ($this->teacherOwnsOrTeachesClassSubject($cs, $teacherID)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -6030,6 +6202,20 @@ class TeachersController extends Controller
                     $teacherID,
                 );
 
+                // Bulk / all-subclasses: allow if teacher teaches this subject anywhere in the class
+                if (
+                    !$isOwner &&
+                    request()->get("all_subclasses") &&
+                    $classSubject->classID &&
+                    $classSubject->subjectID
+                ) {
+                    $isOwner = $this->teacherOwnsOrTeachesSubjectInClass(
+                        $classSubject->classID,
+                        $classSubject->subjectID,
+                        $teacherID,
+                    );
+                }
+
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
                 if (!$isOwner) {
@@ -6149,6 +6335,34 @@ class TeachersController extends Controller
             );
             $allSubclasses = (bool) request()->get("all_subclasses");
 
+            // Subclasses that actually have this subject (and teacher teaches, for teachers)
+            $subjectSubclassIds = [];
+            if ($allSubclasses && $classID) {
+                $siblingCs = ClassSubject::where("classID", $classID)
+                    ->where("subjectID", $classSubject->subjectID)
+                    ->where("status", "Active")
+                    ->whereNotNull("subclassID")
+                    ->get();
+
+                if ($userType !== "Admin" && $userType !== "Staff") {
+                    $siblingCs = $siblingCs->filter(function ($cs) use (
+                        $teacherID,
+                    ) {
+                        return $this->teacherOwnsOrTeachesClassSubject(
+                            $cs,
+                            $teacherID,
+                        );
+                    });
+                }
+
+                $subjectSubclassIds = $siblingCs
+                    ->pluck("subclassID")
+                    ->map(fn($id) => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all();
+            }
+
             if ($subclassID && !$allSubclasses) {
                 $enrollments = $enrollmentService->enrollmentsInSubclass(
                     (int) $subclassID,
@@ -6161,6 +6375,22 @@ class TeachersController extends Controller
                     $schoolID,
                     "all",
                 );
+                // Only students whose stream has this subject assigned
+                if (!empty($subjectSubclassIds)) {
+                    $enrollments = $enrollments
+                        ->filter(function ($enr) use ($subjectSubclassIds) {
+                            return $enr->subclassID &&
+                                in_array(
+                                    (int) $enr->subclassID,
+                                    $subjectSubclassIds,
+                                    true,
+                                );
+                        })
+                        ->values();
+                } elseif ($allSubclasses) {
+                    // No matching streams → empty list
+                    $enrollments = collect();
+                }
             }
 
             if ($isOptional) {
@@ -6553,6 +6783,19 @@ class TeachersController extends Controller
                     $classSubject,
                     $teacherID,
                 );
+
+                if (
+                    !$isOwner &&
+                    $request->get("all_subclasses") &&
+                    $classSubject->classID &&
+                    $classSubject->subjectID
+                ) {
+                    $isOwner = $this->teacherOwnsOrTeachesSubjectInClass(
+                        $classSubject->classID,
+                        $classSubject->subjectID,
+                        $teacherID,
+                    );
+                }
 
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
@@ -7454,6 +7697,19 @@ class TeachersController extends Controller
                     $teacherID,
                 );
 
+                if (
+                    !$isOwner &&
+                    $request->get("all_subclasses") &&
+                    $classSubject->classID &&
+                    $classSubject->subjectID
+                ) {
+                    $isOwner = $this->teacherOwnsOrTeachesSubjectInClass(
+                        $classSubject->classID,
+                        $classSubject->subjectID,
+                        $teacherID,
+                    );
+                }
+
                 // Check if assigned via TeacherResultAssignment
                 $isAssigned = false;
                 if (!$isOwner) {
@@ -7617,6 +7873,24 @@ class TeachersController extends Controller
                 ->orderBy("created_at", "desc")
                 ->get()
                 ->unique("examID")
+                ->values()
+                ->filter(function ($exam) use ($classSubject) {
+                    // Hide exams where this main class was excluded at create time
+                    $classID = (int) ($classSubject->classID
+                        ?: optional($classSubject->subclass)->classID);
+                    if (!$classID) {
+                        return true;
+                    }
+                    $except = $exam->except_class_ids ?? [];
+                    if (is_string($except)) {
+                        $except = json_decode($except, true) ?: [];
+                    }
+                    if (!is_array($except) || empty($except)) {
+                        return true;
+                    }
+                    $except = array_map("intval", $except);
+                    return !in_array($classID, $except, true);
+                })
                 ->values()
                 ->map(function ($exam) use ($schoolID, $classSubject) {
                     // Check if term is closed
@@ -8123,6 +8397,18 @@ class TeachersController extends Controller
                     $classSubject,
                     $teacherID,
                 );
+                if (
+                    !$isOwner &&
+                    $request->get("all_subclasses") &&
+                    $classSubject->classID &&
+                    $classSubject->subjectID
+                ) {
+                    $isOwner = $this->teacherOwnsOrTeachesSubjectInClass(
+                        $classSubject->classID,
+                        $classSubject->subjectID,
+                        $teacherID,
+                    );
+                }
                 $isAssigned = false;
                 if (!$isOwner) {
                     $isAssigned = TeacherResultAssignment::where(
@@ -8161,6 +8447,27 @@ class TeachersController extends Controller
                     [
                         "error" =>
                             "Examination results entry is disabled or exam not found.",
+                    ],
+                    403,
+                );
+            }
+
+            // Block save if this class was excluded from the exam
+            $exceptClassIds = $examination->except_class_ids ?? [];
+            if (is_string($exceptClassIds)) {
+                $exceptClassIds = json_decode($exceptClassIds, true) ?: [];
+            }
+            $examClassID = (int) ($classSubject->classID
+                ?: optional($classSubject->subclass)->classID);
+            if (
+                $examClassID &&
+                is_array($exceptClassIds) &&
+                in_array($examClassID, array_map("intval", $exceptClassIds), true)
+            ) {
+                return response()->json(
+                    [
+                        "error" =>
+                            "This class was excluded from the selected examination.",
                     ],
                     403,
                 );

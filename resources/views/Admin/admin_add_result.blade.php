@@ -1987,13 +1987,13 @@ function getResultsExcelAndToolsHtml(classSubjectID) {
                         <strong>Excel Import/Export:</strong> Choose Name / Index columns, fill Marks only. Upload auto-calculates grade/remark, then Save.
                     </div>
                     <div class="results-excel-actions">
-                        <button type="button" class="btn btn-sm btn-outline-info" onclick="fillRandomPrimaryResults()" id="fillRandomBtn" disabled>
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="fillRandomPrimaryResults()" id="fillRandomBtn" aria-disabled="true">
                             <i class="bi bi-dice-5"></i> Fill Random
                         </button>
-                        <button type="button" class="btn btn-sm btn-success" onclick="downloadExcelTemplate(${classSubjectID})" id="downloadExcelBtn" disabled>
+                        <button type="button" class="btn btn-sm btn-success js-export-results-excel" data-class-subject-id="${classSubjectID}" id="downloadExcelBtn" aria-disabled="true">
                             <i class="bi bi-download"></i> Export Excel
                         </button>
-                        <button type="button" class="btn btn-sm btn-primary ml-1" onclick="uploadExcelResults(${classSubjectID})" id="uploadExcelBtn" disabled>
+                        <button type="button" class="btn btn-sm btn-primary ml-1 js-import-results-excel" data-class-subject-id="${classSubjectID}" id="uploadExcelBtn" aria-disabled="true">
                             <i class="bi bi-upload"></i> Import Excel
                         </button>
                     </div>
@@ -3095,6 +3095,7 @@ function addResults(classSubjectID, isEdit = false) {
 }
 
 function addResultsContinue(classSubjectID, isEdit = false, componentID = null, paperName = null, targetSelector = '#addEditResultsModalBody') {
+    window.currentResultsClassSubjectID = classSubjectID;
     const loader = showPremiumLoading(
         targetSelector === '#duoResultsContinueArea' ? 'duoResultsContinueArea' : 'addEditResultsModalBody',
         "Preparing Details...",
@@ -3666,7 +3667,7 @@ function showExcelImportFeedback(result) {
 
 // Handle exam selection - enable/disable Excel buttons
 function handleExamSelection(classSubjectID, examID) {
-    jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').prop('disabled', true);
+    setResultsExcelButtonsEnabled(false);
     jQuery('#test_week_group, #test_week_display_group').hide();
     jQuery('#test_week').prop('required', false).val('');
     if (!examID) {
@@ -3680,15 +3681,14 @@ function handleExamSelection(classSubjectID, examID) {
         const enterResult = exam.enter_result === true || exam.enter_result === 1;
         if (!enterResult) {
             disableResultsForm();
-            jQuery('#downloadExcelBtn').prop('disabled', true);
-            jQuery('#uploadExcelBtn').prop('disabled', true);
+            setResultsExcelButtonsEnabled(false);
             showResultsStatusError('You are not allowed to enter results for this examination. Result entry has been disabled.');
             resetQuestionData();
             return;
         }
 
         enableResultsForm(exam);
-        jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').prop('disabled', false);
+        setResultsExcelButtonsEnabled(true);
         jQuery('.results-status-error').remove();
 
         if (exam.allow_no_format == 1) {
@@ -3712,16 +3712,15 @@ function handleExamSelection(classSubjectID, examID) {
         const enterResult = selectedOption.data('enter-result') === true || selectedOption.data('enter-result') === 1;
         if (!enterResult) {
             disableResultsForm();
-            jQuery('#downloadExcelBtn').prop('disabled', true);
-            jQuery('#uploadExcelBtn').prop('disabled', true);
+            setResultsExcelButtonsEnabled(false);
             showResultsStatusError('You are not allowed to enter results for this examination. Result entry has been disabled.');
             resetQuestionData();
             return;
         }
         enableResultsForm();
-        jQuery('#downloadExcelBtn').prop('disabled', false);
-        jQuery('#uploadExcelBtn').prop('disabled', false);
+        setResultsExcelButtonsEnabled(true);
         jQuery('.results-status-error').remove();
+        syncResultsExcelAvailability();
         loadExistingResults(classSubjectID, examID);
         loadExamQuestionData(classSubjectID, examID);
     }
@@ -3954,7 +3953,23 @@ function syncResultsExcelAvailability() {
             jQuery('.secondary-only-alert').show();
         }
     }
-    jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').prop('disabled', !canExcel);
+    setResultsExcelButtonsEnabled(canExcel);
+}
+
+/** Keep Excel buttons clickable so Safari/Mac get feedback instead of a dead click. */
+function setResultsExcelButtonsEnabled(enabled) {
+    jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').each(function() {
+        const $b = jQuery(this);
+        $b.prop('disabled', false);
+        $b.removeClass('disabled');
+        $b.attr('aria-disabled', enabled ? 'false' : 'true');
+        $b.toggleClass('btn-excel-locked', !enabled);
+        $b.css({
+            opacity: enabled ? '' : '0.65',
+            cursor: enabled ? '' : 'not-allowed',
+            pointerEvents: 'auto'
+        });
+    });
 }
 
 function getResultsSortLabel(sortBy) {
@@ -4123,6 +4138,30 @@ function getExportColumnsChoiceLabel(mode) {
     return 'Name and Index No.';
 }
 
+function downloadWorkbookAsXlsx(wb, filename) {
+    if (typeof XLSX === 'undefined') {
+        throw new Error('Excel library failed to load');
+    }
+    const safeName = String(filename || 'Results.xlsx').replace(/[\\/:*?"<>|]+/g, '_');
+    const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([out], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = safeName;
+    a.style.display = 'none';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 2000);
+    return true;
+}
+
 function writeResultsExcelFile(classSubjectID, exportMode) {
     applyResultsSearchSort();
     const maxMarks = getResultMarksMax();
@@ -4150,8 +4189,7 @@ function writeResultsExcelFile(classSubjectID, exportMode) {
         exported++;
     });
     if (exported === 0) {
-        Swal.fire({ title: 'No students', text: 'No students to export (check search filter).', icon: 'warning', confirmButtonColor: '#940000' });
-        return;
+        throw new Error('No students to export (check search filter).');
     }
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols'] = header.map(function(h) {
@@ -4172,17 +4210,12 @@ function writeResultsExcelFile(classSubjectID, exportMode) {
     ]), 'Export Info');
     const safeMode = String(exportMode).replace(/[^a-z0-9_-]/gi, '');
     const safeSort = String(sortBy).replace(/[^a-z0-9_-]/gi, '');
-    XLSX.writeFile(wb, `Results_${safeMode}_sort-${safeSort}.xlsx`);
-    Swal.fire({
-        title: 'Exported',
-        text: `${exported} student(s) · ${modeLabel} + Marks · sorted by ${sortLabel}`,
-        icon: 'success',
-        timer: 2400,
-        showConfirmButton: false
-    });
+    downloadWorkbookAsXlsx(wb, 'Results_' + safeMode + '_sort-' + safeSort + '.xlsx');
+    return { exported: exported, modeLabel: modeLabel, sortLabel: sortLabel };
 }
 
 function downloadExcelTemplate(classSubjectID) {
+    classSubjectID = classSubjectID || window.currentResultsClassSubjectID;
     const examID = jQuery('#exam_id').val();
     if (!examID) {
         Swal.fire({ title: 'Error!', text: 'Please select an examination first.', icon: 'error', confirmButtonColor: '#940000' });
@@ -4212,17 +4245,71 @@ function downloadExcelTemplate(classSubjectID) {
         cancelButtonText: 'Cancel',
         confirmButtonColor: '#940000',
         preConfirm: function() {
-            const selected = document.querySelector('input[name="export_cols_mode"]:checked');
-            return selected ? selected.value : 'both';
+            const selected = document.querySelector('.swal2-container input[name="export_cols_mode"]:checked')
+                || document.querySelector('input[name="export_cols_mode"]:checked');
+            const mode = selected ? selected.value : 'both';
+            try {
+                return writeResultsExcelFile(classSubjectID, mode);
+            } catch (err) {
+                Swal.showValidationMessage((err && err.message) ? err.message : 'Export failed');
+                return false;
+            }
         }
     }).then(function(result) {
-        if (!result.isConfirmed) return;
-        writeResultsExcelFile(classSubjectID, result.value || 'both');
+        if (!result.isConfirmed || !result.value) return;
+        const info = result.value;
+        Swal.fire({
+            title: 'Exported',
+            text: info.exported + ' student(s) · ' + info.modeLabel + ' + Marks · sorted by ' + info.sortLabel,
+            icon: 'success',
+            timer: 2400,
+            showConfirmButton: false
+        });
     });
 }
 
+window.downloadExcelTemplate = downloadExcelTemplate;
+window.writeResultsExcelFile = writeResultsExcelFile;
+window.downloadWorkbookAsXlsx = downloadWorkbookAsXlsx;
+
+jQuery(document).off('click.resultsExcelExport').on('click.resultsExcelExport', '#downloadExcelBtn, .js-export-results-excel', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const $btn = jQuery(this);
+    const locked = $btn.attr('aria-disabled') === 'true' || $btn.hasClass('btn-excel-locked');
+    if (locked) {
+        if (!jQuery('#exam_id').val()) {
+            Swal.fire({ title: 'Select exam', text: 'Please select an examination first.', icon: 'info', confirmButtonColor: '#940000' });
+        } else if (!isDirectMarksEntryMode()) {
+            Swal.fire({ title: 'Not available', text: 'Excel export is only for exams without question format.', icon: 'info', confirmButtonColor: '#940000' });
+        } else {
+            Swal.fire({ title: 'Not available', text: 'Excel export is not available for this examination yet.', icon: 'info', confirmButtonColor: '#940000' });
+        }
+        return;
+    }
+    downloadExcelTemplate($btn.data('class-subject-id') || window.currentResultsClassSubjectID);
+});
+
+jQuery(document).off('click.resultsExcelImport').on('click.resultsExcelImport', '#uploadExcelBtn, .js-import-results-excel', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const $btn = jQuery(this);
+    const locked = $btn.attr('aria-disabled') === 'true' || $btn.hasClass('btn-excel-locked');
+    if (locked) {
+        if (!jQuery('#exam_id').val()) {
+            Swal.fire({ title: 'Select exam', text: 'Please select an examination first.', icon: 'info', confirmButtonColor: '#940000' });
+        } else if (!isDirectMarksEntryMode()) {
+            Swal.fire({ title: 'Not available', text: 'Excel import is only for exams without question format.', icon: 'info', confirmButtonColor: '#940000' });
+        } else {
+            Swal.fire({ title: 'Not available', text: 'Excel import is not available for this examination yet.', icon: 'info', confirmButtonColor: '#940000' });
+        }
+        return;
+    }
+    uploadExcelResults($btn.data('class-subject-id') || window.currentResultsClassSubjectID);
+});
+
 function uploadExcelResults(classSubjectID) {
-    showUploadExcelModal(classSubjectID);
+    showUploadExcelModal(classSubjectID || window.currentResultsClassSubjectID);
 }
 
 function showUploadExcelModal(classSubjectID) {

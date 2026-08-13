@@ -302,6 +302,65 @@
                         <h4 class="mb-0">
                             <i class="bi bi-book"></i> My Subjects
                         </h4>
+                        @if(!empty($resultButtonStatus))
+                        <button type="button" class="btn btn-light btn-sm mb-1 mb-md-0" id="btnOpenBulkResults"
+                                style="border-radius:0;font-weight:600;color:#940000;">
+                            <i class="bi bi-plus-circle"></i> Add Result
+                        </button>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Class Results Modal (like Admin add-results filters) -->
+            <div class="modal fade" id="bulkResultsFilterModal" tabindex="-1" role="dialog" aria-labelledby="bulkResultsFilterModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content" style="border-radius:0;">
+                        <div class="modal-header bg-primary-custom text-white">
+                            <h5 class="modal-title" id="bulkResultsFilterModalLabel">
+                                <i class="bi bi-plus-circle"></i> Add Result
+                            </h5>
+                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="small text-muted mb-3">
+                                Select a class you teach, then stream(s) and subject. Use <strong>All Subclasses</strong> to enter marks for every stream that takes the subject (e.g. Form 5 PCM + PCB + PMC Physics) in one form.
+                            </p>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="small fw-bold text-muted"><i class="bi bi-columns"></i> Class</label>
+                                    <select class="form-control" id="bulkClassID">
+                                        <option value="">Select Class</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="small fw-bold text-muted"><i class="bi bi-list-ul"></i> Subclass</label>
+                                    <select class="form-control" id="bulkSubclassID" disabled>
+                                        <option value="">All Subclasses</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="small fw-bold text-muted"><i class="bi bi-book"></i> Subject</label>
+                                    <select class="form-control" id="bulkSubjectID" disabled>
+                                        <option value="">Select Subject</option>
+                                    </select>
+                                    <small class="text-muted" id="bulkDuoHint" style="display:none;">
+                                        <i class="bi bi-layers"></i> DUO subject — you will pick a paper next.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-success" id="bulkBtnViewResult" disabled>
+                                <i class="bi bi-eye"></i> View
+                            </button>
+                            <button type="button" class="btn btn-primary-custom" id="bulkBtnAddResult" disabled>
+                                <i class="bi bi-pencil-square"></i> Add
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -740,6 +799,19 @@ if (typeof $ === 'undefined') {
 
 const isSecondarySchool = @json(strtolower($schoolType ?? 'Secondary')) === 'secondary';
 const questionColspan = isSecondarySchool ? 7 : 6;
+window.teacherBulkResultScope = @json($bulkResultScope ?? []);
+window._allSubclassesMode = false;
+window._classSubjectMap = {};
+
+function withAllSubclassesParam(url) {
+    if (!window._allSubclassesMode) return url;
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'all_subclasses=1';
+}
+
+function resetTeacherBulkMode() {
+    window._allSubclassesMode = false;
+    window._classSubjectMap = {};
+}
 // Helper for Premium Progress Bar Loading
 // LocalStorage Cache Logic for Offline Persistence
 const RESULTS_CACHE_PREFIX = 'shulelink_marks_cache_';
@@ -1350,10 +1422,14 @@ function loadExamQuestionData(classSubjectID, examID) {
     }
 
     const componentID = jQuery('#component_id').val() || window.selectedComponentID || '';
-    const qs = componentID ? `?componentID=${encodeURIComponent(componentID)}` : '';
+    let url = `/get_exam_paper_question_data/${classSubjectID}/${examID}`;
+    if (componentID) {
+        url += (url.indexOf('?') >= 0 ? '&' : '?') + 'componentID=' + encodeURIComponent(componentID);
+    }
+    url = withAllSubclassesParam(url);
 
     jQuery.ajax({
-        url: `/get_exam_paper_question_data/${classSubjectID}/${examID}${qs}`,
+        url: url,
         method: 'GET',
         success: function(response) {
             if (!response.success) {
@@ -1734,7 +1810,7 @@ function viewStudents(classSubjectID) {
     const loader = showPremiumLoading('studentsModalBody', "Loading Student List...", "Fetching all registered students for this subject...");
 
     jQuery.ajax({
-        url: '/get_subject_students/' + classSubjectID,
+        url: withAllSubclassesParam('/get_subject_students/' + classSubjectID),
         method: 'GET',
         success: function(response) {
             loader.update(100, "Formatting student list...");
@@ -1850,13 +1926,17 @@ function viewStudents(classSubjectID) {
 
 // View Results
 function viewResults(classSubjectID) {
+    if (!window._bulkResultsLaunch) {
+        resetTeacherBulkMode();
+    }
+    window._bulkResultsLaunch = false;
     // Get subject name and class from the card
     const card = jQuery(`i.view-results[onclick="viewResults(${classSubjectID})"]`).closest('.card');
     const item = card.closest('.subject-item');
-    const subjectName = card.find('.card-title').text().trim().replace(/\s*DUO\s*$/i, '').trim();
-    const className = card.find('strong').first().text().trim();
-    const mainClassName = item.data('main-class') || className;
-    const isDuoSubject = String(item.data('is-duo')) === '1';
+    let subjectName = card.length ? card.find('.card-title').text().trim().replace(/\s*DUO\s*$/i, '').trim() : (window.currentViewSubject || 'Subject');
+    let className = card.length ? card.find('strong').first().text().trim() : (window.currentViewClass || '');
+    const mainClassName = (item.length && item.data('main-class')) || window.currentViewMainClass || className;
+    const isDuoSubject = item.length ? String(item.data('is-duo')) === '1' : !!window.currentViewIsDuo;
     
     const teacherName = "{{ Auth::user()->name ?? 'N/A' }}";
     
@@ -1873,7 +1953,7 @@ function viewResults(classSubjectID) {
 
     // First get examinations for this subject (for_view = include closed-entry exams with saved marks)
     jQuery.ajax({
-        url: '/get_examinations_for_subject/' + classSubjectID + '?for_view=1',
+        url: withAllSubclassesParam('/get_examinations_for_subject/' + classSubjectID + '?for_view=1'),
         method: 'GET',
         success: function(examResponse) {
             loader.update(100, "Finalizing interface...");
@@ -2074,7 +2154,7 @@ function loadResultsForExam(classSubjectID, examID, testWeek = null) {
         return;
     }
 
-    let url = `/get_subject_results/${classSubjectID}/${examID}`;
+    let url = withAllSubclassesParam(`/get_subject_results/${classSubjectID}/${examID}`);
     const data = {};
     if (testWeek) data.test_week = testWeek;
 
@@ -2452,7 +2532,7 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
     if (componentID) data.componentID = componentID;
 
     jQuery.ajax({
-        url: `/get_subject_results/${classSubjectID}/${examID}`,
+        url: withAllSubclassesParam(`/get_subject_results/${classSubjectID}/${examID}`),
         method: 'GET',
         data: data,
         success: function(response) {
@@ -2598,6 +2678,11 @@ function viewDuoPapers(payload) {
 
 // Add Results: for duo subjects, pick paper BEFORE exam
 function addResults(classSubjectID, isEdit = false) {
+    // Card entry is always single-stream unless opened via Class Results bulk filter
+    if (!window._bulkResultsLaunch) {
+        resetTeacherBulkMode();
+    }
+    window._bulkResultsLaunch = false;
     const modalTitle = isEdit ? 'Edit Results' : 'Add Results';
     const item = jQuery(`.subject-item`).has(`[onclick*="addResults(${classSubjectID})"], [onclick*="editResults(${classSubjectID})"]`).first();
     if (item.length) {
@@ -2690,12 +2775,12 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
     );
 
     jQuery.ajax({
-        url: '/get_subject_students/' + classSubjectID,
+        url: withAllSubclassesParam('/get_subject_students/' + classSubjectID),
         method: 'GET',
         success: function(studentsResponse) {
             loader.update(70, "Fetching examinations...");
             jQuery.ajax({
-                url: '/get_examinations_for_subject/' + classSubjectID,
+                url: withAllSubclassesParam('/get_examinations_for_subject/' + classSubjectID),
                 method: 'GET',
                 success: function(examsResponse) {
                     loader.update(100, "Finalizing interface...");
@@ -2707,6 +2792,7 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
                     }
 
                     setTimeout(() => {
+                    window.currentResultsClassSubjectID = classSubjectID;
                     const paperBanner = componentID ? `
                         <div class="alert alert-success py-2">
                             <i class="bi bi-check-circle"></i> Entering results for paper:
@@ -2774,13 +2860,13 @@ function loadAddResultsExamForm(classSubjectID, isEdit, componentID, paperName, 
                                             <strong>Excel Import/Export:</strong> Choose Name / Index columns, fill Marks only. Upload auto-calculates grade/remark, then Save.
                                         </div>
                                         <div class="results-excel-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-info" onclick="fillRandomPrimaryResults()" id="fillRandomBtn" disabled>
+                                            <button type="button" class="btn btn-sm btn-outline-info" onclick="fillRandomPrimaryResults()" id="fillRandomBtn" aria-disabled="true">
                                                 <i class="bi bi-dice-5"></i> Fill Random
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-success" onclick="downloadExcelTemplate(${classSubjectID})" id="downloadExcelBtn" disabled>
+                                            <button type="button" class="btn btn-sm btn-success js-export-results-excel" data-class-subject-id="${classSubjectID}" id="downloadExcelBtn" aria-disabled="true">
                                                 <i class="bi bi-download"></i> Export Excel
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-primary ml-1" onclick="uploadExcelResults(${classSubjectID})" id="uploadExcelBtn" disabled>
+                                            <button type="button" class="btn btn-sm btn-primary ml-1 js-import-results-excel" data-class-subject-id="${classSubjectID}" id="uploadExcelBtn" aria-disabled="true">
                                                 <i class="bi bi-upload"></i> Import Excel
                                             </button>
                                         </div>
@@ -3135,6 +3221,7 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
             examID: examID,
             componentID: jQuery('#component_id').val() || window.selectedComponentID || null,
             test_week: jQuery('#test_week').val(),
+            all_subclasses: window._allSubclassesMode ? 1 : 0,
             results: JSON.stringify(results) // Stringify to bypass PHP max_input_vars limit
         },
         success: function(response) {
@@ -3324,7 +3411,7 @@ function showExcelImportFeedback(result) {
 }
 // Handle exam selection - enable/disable Excel buttons
 function handleExamSelection(classSubjectID, examID) {
-    jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').prop('disabled', true);
+    setResultsExcelButtonsEnabled(false);
     jQuery('#test_week_group, #test_week_display_group').hide();
     jQuery('#test_week').prop('required', false).val('');
     if (!examID) {
@@ -3340,8 +3427,7 @@ function handleExamSelection(classSubjectID, examID) {
 
         if (!enterResult) {
             disableResultsForm();
-            jQuery('#downloadExcelBtn').prop('disabled', true);
-            jQuery('#uploadExcelBtn').prop('disabled', true);
+            setResultsExcelButtonsEnabled(false);
             showResultsStatusError('You are not allowed to enter results for this examination. Result entry has been disabled.');
             resetQuestionData();
             return;
@@ -3349,7 +3435,7 @@ function handleExamSelection(classSubjectID, examID) {
 
         // If enter_result is true, enable form - no other checks
         enableResultsForm(exam);
-        jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').prop('disabled', false);
+        setResultsExcelButtonsEnabled(true);
         jQuery('.results-status-error').remove();
 
 
@@ -3380,17 +3466,16 @@ function handleExamSelection(classSubjectID, examID) {
 
         if (!enterResult) {
             disableResultsForm();
-            jQuery('#downloadExcelBtn').prop('disabled', true);
-            jQuery('#uploadExcelBtn').prop('disabled', true);
+            setResultsExcelButtonsEnabled(false);
             showResultsStatusError('You are not allowed to enter results for this examination. Result entry has been disabled.');
             resetQuestionData();
             return;
         }
 
         enableResultsForm();
-        jQuery('#downloadExcelBtn').prop('disabled', false);
-        jQuery('#uploadExcelBtn').prop('disabled', false);
+        setResultsExcelButtonsEnabled(true);
         jQuery('.results-status-error').remove();
+        syncResultsExcelAvailability();
         loadExistingResults(classSubjectID, examID);
         loadExamQuestionData(classSubjectID, examID);
     }
@@ -3623,7 +3708,24 @@ function syncResultsExcelAvailability() {
             jQuery('.secondary-only-alert').show();
         }
     }
-    jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').prop('disabled', !canExcel);
+    setResultsExcelButtonsEnabled(canExcel);
+}
+
+/** Keep Excel buttons clickable so Safari/Mac get feedback instead of a dead click. */
+function setResultsExcelButtonsEnabled(enabled) {
+    jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').each(function() {
+        const $b = jQuery(this);
+        // Never use native disabled / Bootstrap .disabled — both swallow clicks on Safari/macOS.
+        $b.prop('disabled', false);
+        $b.removeClass('disabled');
+        $b.attr('aria-disabled', enabled ? 'false' : 'true');
+        $b.toggleClass('btn-excel-locked', !enabled);
+        $b.css({
+            opacity: enabled ? '' : '0.65',
+            cursor: enabled ? '' : 'not-allowed',
+            pointerEvents: 'auto'
+        });
+    });
 }
 
 function getResultsSortLabel(sortBy) {
@@ -3843,6 +3945,34 @@ function getExportColumnsChoiceLabel(mode) {
     return 'Name and Index No.';
 }
 
+/**
+ * Safari / macOS often block XLSX.writeFile after async dialogs.
+ * Blob + temporary <a download> keeps the download reliable.
+ */
+function downloadWorkbookAsXlsx(wb, filename) {
+    if (typeof XLSX === 'undefined') {
+        throw new Error('Excel library failed to load');
+    }
+    const safeName = String(filename || 'Results.xlsx').replace(/[\\/:*?"<>|]+/g, '_');
+    const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([out], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = safeName;
+    a.style.display = 'none';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() {
+        if (a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 2000);
+    return true;
+}
+
 function writeResultsExcelFile(classSubjectID, exportMode) {
     applyResultsSearchSort();
 
@@ -3875,13 +4005,7 @@ function writeResultsExcelFile(classSubjectID, exportMode) {
     });
 
     if (exported === 0) {
-        Swal.fire({
-            title: 'No students',
-            text: 'No students to export (check search filter).',
-            icon: 'warning',
-            confirmButtonColor: '#940000'
-        });
-        return;
+        throw new Error('No students to export (check search filter).');
     }
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -3906,19 +4030,14 @@ function writeResultsExcelFile(classSubjectID, exportMode) {
 
     const safeMode = String(exportMode).replace(/[^a-z0-9_-]/gi, '');
     const safeSort = String(sortBy).replace(/[^a-z0-9_-]/gi, '');
-    XLSX.writeFile(wb, `Results_${safeMode}_sort-${safeSort}.xlsx`);
+    downloadWorkbookAsXlsx(wb, 'Results_' + safeMode + '_sort-' + safeSort + '.xlsx');
 
-    Swal.fire({
-        title: 'Exported',
-        text: `${exported} student(s) Â· ${modeLabel} + Marks Â· sorted by ${sortLabel}`,
-        icon: 'success',
-        timer: 2400,
-        showConfirmButton: false
-    });
+    return { exported: exported, modeLabel: modeLabel, sortLabel: sortLabel };
 }
 
 // Download Excel Template: ask columns first (name / index / both) + Marks only
 function downloadExcelTemplate(classSubjectID) {
+    classSubjectID = classSubjectID || window.currentResultsClassSubjectID;
     const examID = jQuery('#exam_id').val();
 
     if (!examID) {
@@ -3966,19 +4085,77 @@ function downloadExcelTemplate(classSubjectID) {
         confirmButtonText: 'Export',
         cancelButtonText: 'Cancel',
         confirmButtonColor: '#940000',
+        // Run download here (still in confirm-click gesture) — required for Safari/macOS
         preConfirm: function() {
-            const selected = document.querySelector('input[name="export_cols_mode"]:checked');
-            return selected ? selected.value : 'both';
+            const selected = document.querySelector('.swal2-container input[name="export_cols_mode"]:checked')
+                || document.querySelector('input[name="export_cols_mode"]:checked');
+            const mode = selected ? selected.value : 'both';
+            try {
+                return writeResultsExcelFile(classSubjectID, mode);
+            } catch (err) {
+                Swal.showValidationMessage((err && err.message) ? err.message : 'Export failed');
+                return false;
+            }
         }
     }).then(function(result) {
-        if (!result.isConfirmed) return;
-        writeResultsExcelFile(classSubjectID, result.value || 'both');
+        if (!result.isConfirmed || !result.value) return;
+        const info = result.value;
+        Swal.fire({
+            title: 'Exported',
+            text: info.exported + ' student(s) · ' + info.modeLabel + ' + Marks · sorted by ' + info.sortLabel,
+            icon: 'success',
+            timer: 2400,
+            showConfirmButton: false
+        });
     });
 }
 
+window.downloadExcelTemplate = downloadExcelTemplate;
+window.writeResultsExcelFile = writeResultsExcelFile;
+window.downloadWorkbookAsXlsx = downloadWorkbookAsXlsx;
+
+// Event delegation (more reliable than inline onclick on Mac/Safari)
+jQuery(document).off('click.resultsExcelExport').on('click.resultsExcelExport', '#downloadExcelBtn, .js-export-results-excel', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const $btn = jQuery(this);
+    const locked = $btn.attr('aria-disabled') === 'true' || $btn.hasClass('btn-excel-locked');
+    if (locked) {
+        if (!jQuery('#exam_id').val()) {
+            Swal.fire({ title: 'Select exam', text: 'Please select an examination first.', icon: 'info', confirmButtonColor: '#940000' });
+        } else if (!isDirectMarksEntryMode()) {
+            Swal.fire({ title: 'Not available', text: 'Excel export is only for exams without question format.', icon: 'info', confirmButtonColor: '#940000' });
+        } else {
+            Swal.fire({ title: 'Not available', text: 'Excel export is not available for this examination yet.', icon: 'info', confirmButtonColor: '#940000' });
+        }
+        return;
+    }
+    const classSubjectID = $btn.data('class-subject-id') || window.currentResultsClassSubjectID;
+    downloadExcelTemplate(classSubjectID);
+});
+
+jQuery(document).off('click.resultsExcelImport').on('click.resultsExcelImport', '#uploadExcelBtn, .js-import-results-excel', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const $btn = jQuery(this);
+    const locked = $btn.attr('aria-disabled') === 'true' || $btn.hasClass('btn-excel-locked');
+    if (locked) {
+        if (!jQuery('#exam_id').val()) {
+            Swal.fire({ title: 'Select exam', text: 'Please select an examination first.', icon: 'info', confirmButtonColor: '#940000' });
+        } else if (!isDirectMarksEntryMode()) {
+            Swal.fire({ title: 'Not available', text: 'Excel import is only for exams without question format.', icon: 'info', confirmButtonColor: '#940000' });
+        } else {
+            Swal.fire({ title: 'Not available', text: 'Excel import is not available for this examination yet.', icon: 'info', confirmButtonColor: '#940000' });
+        }
+        return;
+    }
+    const classSubjectID = $btn.data('class-subject-id') || window.currentResultsClassSubjectID;
+    uploadExcelResults(classSubjectID);
+});
+
 // Show Upload Excel Modal
 function uploadExcelResults(classSubjectID) {
-    showUploadExcelModal(classSubjectID);
+    showUploadExcelModal(classSubjectID || window.currentResultsClassSubjectID);
 }
 
 function showUploadExcelModal(classSubjectID) {
@@ -4377,6 +4554,192 @@ jQuery(document).on('click', '.deselect-student-btn', function() {
         }
     });
 });
+
+// ---- Class Results (bulk across streams) ----
+(function() {
+    const scope = window.teacherBulkResultScope || [];
+
+    function uniqueClasses() {
+        const map = {};
+        scope.forEach(function(r) {
+            if (!r.classID) return;
+            map[r.classID] = r.class_name || ('Class #' + r.classID);
+        });
+        return Object.keys(map).map(function(id) {
+            return { classID: id, class_name: map[id] };
+        }).sort(function(a, b) {
+            return String(a.class_name).localeCompare(String(b.class_name));
+        });
+    }
+
+    function subclassesForClass(classID) {
+        const map = {};
+        scope.forEach(function(r) {
+            if (String(r.classID) !== String(classID) || !r.subclassID) return;
+            map[r.subclassID] = r.subclass_display || r.subclass_name || ('Stream #' + r.subclassID);
+        });
+        return Object.keys(map).map(function(id) {
+            return { subclassID: id, label: map[id] };
+        }).sort(function(a, b) {
+            return String(a.label).localeCompare(String(b.label));
+        });
+    }
+
+    function subjectsFor(classID, subclassID) {
+        const map = {};
+        scope.forEach(function(r) {
+            if (String(r.classID) !== String(classID)) return;
+            if (subclassID && String(r.subclassID) !== String(subclassID)) return;
+            // All subclasses: subject appears if taught in any stream of class
+            const key = String(r.subjectID);
+            if (!map[key]) {
+                map[key] = {
+                    subjectID: r.subjectID,
+                    subject_name: r.subject_name,
+                    is_duo: !!r.is_duo
+                };
+            } else if (r.is_duo) {
+                map[key].is_duo = true;
+            }
+        });
+        return Object.keys(map).map(function(k) { return map[k]; })
+            .sort(function(a, b) {
+                return String(a.subject_name).localeCompare(String(b.subject_name));
+            });
+    }
+
+    function fillClasses() {
+        const $c = jQuery('#bulkClassID');
+        $c.html('<option value="">Select Class</option>');
+        uniqueClasses().forEach(function(c) {
+            $c.append('<option value="' + c.classID + '">' + jQuery('<div>').text(c.class_name).html() + '</option>');
+        });
+    }
+
+    function fillSubclasses(classID) {
+        const $s = jQuery('#bulkSubclassID');
+        $s.html('<option value="">All Subclasses</option>');
+        if (!classID) {
+            $s.prop('disabled', true);
+            return;
+        }
+        subclassesForClass(classID).forEach(function(s) {
+            $s.append('<option value="' + s.subclassID + '">' + jQuery('<div>').text(s.label).html() + '</option>');
+        });
+        $s.prop('disabled', false);
+    }
+
+    function fillSubjects(classID, subclassID) {
+        const $sub = jQuery('#bulkSubjectID');
+        $sub.html('<option value="">Select Subject</option>');
+        if (!classID) {
+            $sub.prop('disabled', true);
+            syncBulkActionButtons();
+            return;
+        }
+        subjectsFor(classID, subclassID || '').forEach(function(s) {
+            $sub.append(
+                '<option value="' + s.subjectID + '" data-is-duo="' + (s.is_duo ? '1' : '0') + '">' +
+                jQuery('<div>').text(s.subject_name).html() + (s.is_duo ? ' [DUO]' : '') +
+                '</option>'
+            );
+        });
+        $sub.prop('disabled', false);
+        syncBulkActionButtons();
+    }
+
+    function syncBulkActionButtons() {
+        const ok = !!jQuery('#bulkClassID').val() && !!jQuery('#bulkSubjectID').val();
+        jQuery('#bulkBtnAddResult, #bulkBtnViewResult').prop('disabled', !ok);
+        const isDuo = String(jQuery('#bulkSubjectID option:selected').data('is-duo')) === '1';
+        jQuery('#bulkDuoHint').toggle(isDuo);
+    }
+
+    function launchBulk(action) {
+        const classID = jQuery('#bulkClassID').val();
+        const subclassID = jQuery('#bulkSubclassID').val();
+        const subjectID = jQuery('#bulkSubjectID').val();
+        if (!classID || !subjectID) {
+            Swal.fire('Error', 'Please select a Class and Subject.', 'error');
+            return;
+        }
+
+        const className = jQuery('#bulkClassID option:selected').text().trim();
+        const subjectName = jQuery('#bulkSubjectID option:selected').text().replace(/\s*\[DUO\]\s*$/i, '').trim();
+        window.currentResultClassName = className;
+        window.currentViewMainClass = className;
+        window.currentViewSubject = subjectName;
+        window.currentViewClass = subclassID
+            ? jQuery('#bulkSubclassID option:selected').text().trim()
+            : (className + ' (All streams)');
+        window.currentViewIsDuo = String(jQuery('#bulkSubjectID option:selected').data('is-duo')) === '1';
+        window.currentResultIsALevel = typeof isALevelClassName === 'function'
+            ? isALevelClassName(className)
+            : false;
+
+        Swal.fire({
+            title: 'Mapping Subject...',
+            html: 'Finding your teaching assignment for the selected class and subject.',
+            allowOutsideClick: false,
+            didOpen: function() { Swal.showLoading(); }
+        });
+
+        jQuery.ajax({
+            url: '{{ route("teacher.resolve_class_subject") }}',
+            method: 'GET',
+            data: { classID: classID, subclassID: subclassID || '', subjectID: subjectID },
+            success: function(res) {
+                Swal.close();
+                if (!(res && res.success && res.class_subjectID)) {
+                    Swal.fire('Error', (res && res.error) || 'Could not map this subject.', 'error');
+                    return;
+                }
+                window._allSubclassesMode = !!res.all_subclasses;
+                window._classSubjectMap = res.class_subject_map || {};
+                window._bulkResultsLaunch = true;
+                jQuery('#bulkResultsFilterModal').modal('hide');
+                if (action === 'add') {
+                    if (typeof addResults === 'function') addResults(res.class_subjectID);
+                } else if (typeof viewResults === 'function') {
+                    viewResults(res.class_subjectID);
+                }
+            },
+            error: function(xhr) {
+                Swal.close();
+                const msg = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message))
+                    ? (xhr.responseJSON.error || xhr.responseJSON.message)
+                    : 'Could not fetch subject mapping.';
+                Swal.fire('Error', msg, 'error');
+            }
+        });
+    }
+
+    jQuery(document).on('click', '#btnOpenBulkResults', function() {
+        if (!scope.length) {
+            Swal.fire('No subjects', 'You have no assigned subjects to enter results for.', 'info');
+            return;
+        }
+        fillClasses();
+        jQuery('#bulkSubclassID').html('<option value="">All Subclasses</option>').prop('disabled', true);
+        jQuery('#bulkSubjectID').html('<option value="">Select Subject</option>').prop('disabled', true);
+        syncBulkActionButtons();
+        jQuery('#bulkResultsFilterModal').modal('show');
+    });
+
+    jQuery(document).on('change', '#bulkClassID', function() {
+        const classID = jQuery(this).val();
+        fillSubclasses(classID);
+        fillSubjects(classID, '');
+    });
+
+    jQuery(document).on('change', '#bulkSubclassID', function() {
+        fillSubjects(jQuery('#bulkClassID').val(), jQuery(this).val());
+    });
+
+    jQuery(document).on('change', '#bulkSubjectID', syncBulkActionButtons);
+    jQuery(document).on('click', '#bulkBtnAddResult', function() { launchBulk('add'); });
+    jQuery(document).on('click', '#bulkBtnViewResult', function() { launchBulk('view'); });
+})();
 </script>
 
 @include('Teacher.partials.home_package_modal')

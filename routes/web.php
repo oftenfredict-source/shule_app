@@ -1292,6 +1292,10 @@ Route::get("teacherSubjects", [
     TeachersController::class,
     "teacherSubjects",
 ])->name("teacherSubjects");
+Route::get("teacher/resolve-class-subject", [
+    TeachersController::class,
+    "teacherResolveClassSubject",
+])->name("teacher.resolve_class_subject");
 Route::get("teacher/scheme-of-work", [
     TeachersController::class,
     "schemeOfWork",
