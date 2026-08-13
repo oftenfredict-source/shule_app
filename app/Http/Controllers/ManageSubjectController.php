@@ -1701,9 +1701,10 @@ class ManageSubjectController extends Controller
                 ->pluck('studentID')
                 ->toArray();
 
-            $selectedStudents = $request->selectedStudents ?? [];
-            $toAdd = array_diff($selectedStudents, $currentElectors);
-            $toRemove = array_diff($currentElectors, $selectedStudents);
+            $selectedStudents = array_values(array_unique(array_map('intval', $request->selectedStudents ?? [])));
+            $currentElectors = array_map('intval', $currentElectors);
+            $toAdd = array_values(array_diff($selectedStudents, $currentElectors));
+            $toRemove = array_values(array_diff($currentElectors, $selectedStudents));
 
             $enrolledIds = app(StudentEnrollmentService::class)->studentIDsInSubclass(
                 (int) $request->subclassID,

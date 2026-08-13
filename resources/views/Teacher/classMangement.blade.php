@@ -7924,26 +7924,22 @@
                                     html += '<tbody>';
 
                                     response.students.forEach(function (student, index) {
-                                        var isElected = electedStudentIDs.includes(student.studentID);
-                                        html += '<tr data-student-id="' + student.studentID + '">';
+                                        var sid = String(student.studentID);
+                                        var isElected = electedStudentIDs.some(function (id) {
+                                            return String(id) === sid;
+                                        });
+                                        html += '<tr data-student-id="' + sid + '">';
                                         html += '<td>' + (index + 1) + '</td>';
                                         html += '<td>' + student.first_name + ' ' + student.last_name + '</td>';
                                         html += '<td>' + (student.admission_number || 'N/A') + '</td>';
                                         html += '<td style="text-align: center;">';
+                                        html += '<input type="checkbox" class="form-check-input election-checkbox" ';
+                                        html += 'data-student-id="' + sid + '" ';
+                                        html += 'value="' + sid + '"';
                                         if (isElected) {
-                                            html += '<button class="btn btn-sm btn-danger deselect-student-btn" ';
-                                            html += 'data-student-id="' + student.studentID + '" ';
-                                            html += 'data-class-subject-id="' + classSubjectID + '" ';
-                                            html += 'data-student-name="' + student.first_name + ' ' + student.last_name + '" ';
-                                            html += 'title="Deselect Student">';
-                                            html += '<i class="bi bi-x-circle"></i> Deselect';
-                                            html += '</button>';
-                                        } else {
-                                            html += '<input type="checkbox" class="form-check-input election-checkbox" ';
-                                            html += 'data-student-id="' + student.studentID + '" ';
-                                            html += 'value="' + student.studentID + '" ';
-                                            html += '>';
+                                            html += ' checked';
                                         }
+                                        html += '>';
                                         html += '</td>';
                                         html += '</tr>';
                                     });
@@ -7952,6 +7948,9 @@
                                     html += '</table>';
                                     html += '</div>';
 
+                                    if ($.fn.DataTable && $.fn.DataTable.isDataTable('#teacherElectionStudentsTable')) {
+                                        $('#teacherElectionStudentsTable').DataTable().destroy();
+                                    }
                                     $('#teacherElectionStudentsContainer').html(html);
 
                                     // Initialize DataTable
@@ -7959,6 +7958,7 @@
                                         $('#teacherElectionStudentsTable').DataTable({
                                             "pageLength": 25,
                                             "order": [[1, "asc"]],
+                                            "deferRender": false,
                                             "language": {
                                                 "search": "Search students:"
                                             }
@@ -8049,21 +8049,26 @@
                 }
 
                 var selectedStudents = [];
+                var seen = {};
+                function pushStudentId(rawId) {
+                    if (rawId === undefined || rawId === null || rawId === '') return;
+                    var id = String(rawId);
+                    if (seen[id]) return;
+                    seen[id] = true;
+                    selectedStudents.push(id);
+                }
                 if ($.fn.DataTable.isDataTable('#teacherElectionStudentsTable')) {
                     var table = $('#teacherElectionStudentsTable').DataTable();
-                    table.rows().every(function () {
+                    table.rows({ page: 'all' }).every(function () {
                         var $row = $(this.node());
                         var $checkbox = $row.find('.election-checkbox');
-                        if ($checkbox.is(':checked') && $row.find('.deselect-student-btn').length === 0) {
-                            selectedStudents.push($checkbox.val());
+                        if ($checkbox.length && $checkbox.is(':checked')) {
+                            pushStudentId($checkbox.val() || $checkbox.data('student-id') || $row.data('student-id'));
                         }
                     });
                 } else {
                     $('#teacherElectionStudentsContainer .election-checkbox:checked').each(function () {
-                        var $row = $(this).closest('tr');
-                        if ($row.find('.deselect-student-btn').length === 0) {
-                            selectedStudents.push($(this).val());
-                        }
+                        pushStudentId($(this).val() || $(this).data('student-id'));
                     });
                 }
 
@@ -8232,12 +8237,12 @@
             $(document).on('click', '#electionSelectAllBtn', function () {
                 if ($.fn.DataTable.isDataTable('#teacherElectionStudentsTable')) {
                     var table = $('#teacherElectionStudentsTable').DataTable();
-                    table.rows().every(function () {
-                        var $row = $(this.node());
-                        $row.find('.election-checkbox').prop('checked', true);
+                    table.rows({ page: 'all' }).every(function () {
+                        $(this.node()).find('.election-checkbox').prop('checked', true);
                     });
+                } else {
+                    $('#teacherElectionStudentsContainer .election-checkbox').prop('checked', true);
                 }
-                $('.election-checkbox').prop('checked', true);
 
                 Swal.fire({
                     icon: 'success',
@@ -8254,12 +8259,12 @@
             $(document).on('click', '#electionDeselectAllBtn', function () {
                 if ($.fn.DataTable.isDataTable('#teacherElectionStudentsTable')) {
                     var table = $('#teacherElectionStudentsTable').DataTable();
-                    table.rows().every(function () {
-                        var $row = $(this.node());
-                        $row.find('.election-checkbox').prop('checked', false);
+                    table.rows({ page: 'all' }).every(function () {
+                        $(this.node()).find('.election-checkbox').prop('checked', false);
                     });
+                } else {
+                    $('#teacherElectionStudentsContainer .election-checkbox').prop('checked', false);
                 }
-                $('.election-checkbox').prop('checked', false);
 
                 Swal.fire({
                     icon: 'info',
