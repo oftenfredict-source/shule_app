@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\School;
 use App\Models\SchoolRegistrationRequest;
+use App\Models\OtpPhoneBlock;
 use App\Models\SchoolAttendanceSmsSchedule;
 use App\Models\SchoolFingerprintAttendanceSmsSchedule;
 use App\Models\ClassModel;
@@ -227,13 +228,45 @@ class SuperAdminController extends Controller
             'all' => SchoolRegistrationRequest::count(),
         ];
         $publicRegisterUrl = 'https://test.shulexpert.com/register-school';
+        $blockedOtpPhones = OtpPhoneBlock::query()
+            ->forContext(OtpPhoneBlock::CONTEXT_SCHOOL_REGISTRATION)
+            ->blocked()
+            ->orderByDesc('blocked_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get();
 
         return view('SuperAdmin.school_registration_requests', compact(
             'requests',
             'counts',
             'status',
-            'publicRegisterUrl'
+            'publicRegisterUrl',
+            'blockedOtpPhones'
         ));
+    }
+
+    public function releaseBlockedRegistrationOtpPhone(Request $request, $id)
+    {
+        if ($resp = $this->ensureSuperAdmin()) {
+            return $resp;
+        }
+
+        $row = OtpPhoneBlock::query()
+            ->forContext(OtpPhoneBlock::CONTEXT_SCHOOL_REGISTRATION)
+            ->findOrFail($id);
+
+        $row->is_blocked = false;
+        $row->otp_send_count = 0;
+        $row->blocked_at = null;
+        $row->block_reason = null;
+        $row->released_at = now();
+        $row->released_by = Session::get('userID') ?: Session::get('id');
+        $row->save();
+
+        return back()->with(
+            'success',
+            'Phone ' . $row->phone . ' has been released and can receive registration OTPs again.'
+        );
     }
 
     public function verifySchoolRegistrationRequest(Request $request, $id)

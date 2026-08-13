@@ -12,7 +12,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3" style="gap:12px;">
         <div>
             <h4 class="fw-bold mb-0" style="color: var(--brand);">School Registration Requests</h4>
-            <p class="text-muted small mb-0">From public landing form — Pending until verified (no credentials on verify)</p>
+            <p class="text-muted small mb-0">From public landing form. Pending until verified (no credentials on verify).</p>
         </div>
         <div class="d-flex flex-wrap" style="gap:8px;">
             <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCopyRegLink"
@@ -149,6 +149,53 @@
 
     <div class="mt-3">
         {{ $requests->links() }}
+    </div>
+
+    <div class="card border mt-4">
+        <div class="card-header bg-white">
+            <strong style="color:#940000;">Blocked OTP Phones (School Registration)</strong>
+            <div class="small text-muted">
+                A phone is blocked after {{ \App\Models\OtpPhoneBlock::MAX_OTP_SENDS }} OTP requests until an admin releases it.
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Phone</th>
+                            <th>OTP Sends</th>
+                            <th>Blocked At</th>
+                            <th>Reason</th>
+                            <th width="140">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse(($blockedOtpPhones ?? collect()) as $block)
+                            <tr>
+                                <td class="fw-bold">{{ $block->phone }}</td>
+                                <td>{{ (int) $block->otp_send_count }}</td>
+                                <td class="small">{{ $block->blocked_at?->format('d M Y H:i') ?: '-' }}</td>
+                                <td class="small">{{ $block->block_reason ?: 'OTP abuse limit' }}</td>
+                                <td>
+                                    <form method="POST" action="{{ route('superadmin.schools.registration_otp_blocks.release', $block->id) }}">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-brand"
+                                                onclick="return confirm('Release this phone so it can receive OTPs again?')">
+                                            Release
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No blocked phones.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\OnlineApplicationApplyTokenService;
 use App\Services\SmsService;
+use App\Models\OtpPhoneBlock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -1044,6 +1045,11 @@ class SiteController extends Controller
             ], 422);
         }
 
+        $otpGate = $this->assertSchoolRegOtpPhoneAllowed($phone);
+        if ($otpGate !== null) {
+            return $otpGate;
+        }
+
         $phoneKey = 'school-reg-otp-phone:' . $phone;
         if (RateLimiter::tooManyAttempts($phoneKey, 3)) {
             $seconds = RateLimiter::availableIn($phoneKey);
@@ -1081,6 +1087,8 @@ class SiteController extends Controller
                 'message' => 'Failed to send OTP SMS. Please try again shortly.',
             ], 500);
         }
+
+        $this->recordSchoolRegOtpSend($phone);
 
         return response()->json([
             'success' => true,
@@ -1328,10 +1336,73 @@ class SiteController extends Controller
         ]);
 
         session()->forget(['school_reg_otp', 'school_reg_otp_verified']);
+        $this->clearSchoolRegOtpTracking($phone);
 
         return redirect()
             ->route('site.register_school')
             ->with('success', 'Thank you! Your school registration application has been received and is Pending. The ShuleXpert team will verify it. You will not receive login credentials until after verification.');
+    }
+
+    /**
+     * Block check before sending school-registration OTP.
+     */
+    private function assertSchoolRegOtpPhoneAllowed(string $phone): ?\Illuminate\Http\JsonResponse
+    {
+        $row = OtpPhoneBlock::query()
+            ->where('phone', $phone)
+            ->where('context', OtpPhoneBlock::CONTEXT_SCHOOL_REGISTRATION)
+            ->first();
+
+        if ($row && $row->is_blocked) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This phone number is blocked from receiving registration OTPs. Contact ShuleXpert support / admin to release it.',
+                'blocked' => true,
+            ], 403);
+        }
+
+        return null;
+    }
+
+    /**
+     * Count OTP sends; auto-block after MAX_OTP_SENDS until admin releases.
+     */
+    private function recordSchoolRegOtpSend(string $phone): void
+    {
+        $row = OtpPhoneBlock::query()->firstOrCreate(
+            [
+                'phone' => $phone,
+                'context' => OtpPhoneBlock::CONTEXT_SCHOOL_REGISTRATION,
+            ],
+            [
+                'otp_send_count' => 0,
+                'is_blocked' => false,
+            ],
+        );
+
+        if ($row->is_blocked) {
+            return;
+        }
+
+        $row->otp_send_count = (int) $row->otp_send_count + 1;
+        $row->last_otp_at = now();
+
+        if ($row->otp_send_count >= OtpPhoneBlock::MAX_OTP_SENDS) {
+            $row->is_blocked = true;
+            $row->blocked_at = now();
+            $row->block_reason = 'Exceeded ' . OtpPhoneBlock::MAX_OTP_SENDS . ' OTP requests';
+        }
+
+        $row->save();
+    }
+
+    private function clearSchoolRegOtpTracking(string $phone): void
+    {
+        OtpPhoneBlock::query()
+            ->where('phone', $phone)
+            ->where('context', OtpPhoneBlock::CONTEXT_SCHOOL_REGISTRATION)
+            ->where('is_blocked', false)
+            ->delete();
     }
 
     /**

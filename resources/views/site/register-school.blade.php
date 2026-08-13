@@ -126,7 +126,6 @@
                             <input type="text" name="phone" id="phone" class="form-control" value="{{ old('phone', '255') }}" required placeholder="2557XXXXXXXX" maxlength="12" autocomplete="tel">
                             <small id="phoneFeedback" class="d-block mt-1" style="min-height:18px;"></small>
                             @error('phone')<small class="text-danger d-block">{{ $message }}</small>@enderror
-                            <small class="text-muted">An OTP will be sent after you click Submit Registration.</small>
                         </div>
                         <div class="col-12 form-group mb-3">
                             <label class="font-weight-bold">Address</label>
@@ -222,7 +221,7 @@
             .then(function (json) {
                 var rows = (json && json.data) ? json.data : [];
                 fillSelect(regionSelect, rows, 'Select region', oldRegion);
-                regionLoadHint.textContent = 'Source: Tanzania locations API';
+                regionLoadHint.textContent = '';
                 if (oldRegion) {
                     var slug = selectedSlug(regionSelect);
                     if (slug) {

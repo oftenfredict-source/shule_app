@@ -442,6 +442,10 @@ Route::post("super-admin/schools/registration-requests/{id}/reject", [
     SuperAdminController::class,
     "rejectSchoolRegistrationRequest",
 ])->name("superadmin.schools.registration_requests.reject");
+Route::post("super-admin/schools/registration-otp-blocks/{id}/release", [
+    SuperAdminController::class,
+    "releaseBlockedRegistrationOtpPhone",
+])->name("superadmin.schools.registration_otp_blocks.release");
 Route::get("super-admin/schools", [
     SuperAdminController::class,
     "schools",
