@@ -247,6 +247,9 @@ Route::post("/contact", [SiteController::class, "contactSubmit"])
     ->name("site.contact.submit");
 
 Route::get("/register-school", [SiteController::class, "registerSchool"])->name("site.register_school");
+Route::post("/register-school/check-field", [SiteController::class, "registerSchoolCheckField"])
+    ->middleware("throttle:30,1")
+    ->name("site.register_school.check_field");
 Route::post("/register-school/send-otp", [SiteController::class, "registerSchoolSendOtp"])
     ->middleware("throttle:5,1")
     ->name("site.register_school.send_otp");

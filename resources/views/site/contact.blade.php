@@ -105,7 +105,7 @@
                         </div>
                         <div class="col-lg-12">
                             <p id="verifyGateMsg" class="mb-10" style="color:#940000;font-size:13px;">
-                                Verify your phone number with OTP first — you cannot send a message without verification.
+                                Verify your phone number with OTP first. You cannot send a message without verification.
                             </p>
                             <button class="primary-btn text-uppercase" id="btnSubmitContact" type="submit"
                                     style="float:right;" disabled title="Verify phone OTP first">

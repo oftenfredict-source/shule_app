@@ -1007,8 +1007,8 @@ class SiteController extends Controller
     {
         return view('site.register-school', [
             'seo' => [
-                'title' => 'Register Your School — ShuleXpert',
-                'description' => 'Sajili shule yako kwenye ShuleXpert. Jaza fomu, wasilisha, kisha thibitisha simu kwa OTP. Timu yetu itaverify kabla ya kuanzisha akaunti.',
+                'title' => 'Register Your School | ShuleXpert',
+                'description' => 'Register your school on ShuleXpert. Fill the form, submit, then verify your phone with OTP. Our team verifies before account setup.',
                 'keywords' => 'Register school Tanzania, sajili shule, ShuleXpert onboarding',
                 'canonical' => $this->publicUrl('/register-school'),
                 'type' => 'website',
@@ -1032,6 +1032,15 @@ class SiteController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Enter a valid Tanzania mobile number starting with 255 (e.g. 2557XXXXXXXX).',
+            ], 422);
+        }
+
+        $phoneTaken = $this->isSchoolRegistrationFieldTaken('phone', $phone);
+        if ($phoneTaken) {
+            return response()->json([
+                'success' => false,
+                'message' => $phoneTaken,
+                'available' => false,
             ], 422);
         }
 
@@ -1150,6 +1159,79 @@ class SiteController extends Controller
         ]);
     }
 
+    /**
+     * Realtime uniqueness check for phone / email / registration_number.
+     */
+    public function registerSchoolCheckField(Request $request)
+    {
+        $field = strtolower(trim((string) $request->input('field', '')));
+        if (!in_array($field, ['phone', 'email', 'registration_number'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid field.',
+            ], 422);
+        }
+
+        $raw = trim((string) $request->input('value', ''));
+        if ($raw === '') {
+            return response()->json([
+                'success' => true,
+                'available' => true,
+                'message' => '',
+            ]);
+        }
+
+        $value = $raw;
+        if ($field === 'phone') {
+            $normalized = $this->normalizeContactPhone($raw);
+            if (!$normalized) {
+                return response()->json([
+                    'success' => true,
+                    'available' => true,
+                    'message' => '',
+                    'incomplete' => true,
+                ]);
+            }
+            $value = $normalized;
+        } elseif ($field === 'email') {
+            if (!filter_var($raw, FILTER_VALIDATE_EMAIL)) {
+                return response()->json([
+                    'success' => true,
+                    'available' => true,
+                    'message' => '',
+                    'incomplete' => true,
+                ]);
+            }
+            $value = strtolower($raw);
+        } else {
+            // registration_number — wait until a few chars typed
+            if (mb_strlen($raw) < 2) {
+                return response()->json([
+                    'success' => true,
+                    'available' => true,
+                    'message' => '',
+                    'incomplete' => true,
+                ]);
+            }
+            $value = $raw;
+        }
+
+        $takenMessage = $this->isSchoolRegistrationFieldTaken($field, $value);
+        if ($takenMessage) {
+            return response()->json([
+                'success' => true,
+                'available' => false,
+                'message' => $takenMessage,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'available' => true,
+            'message' => 'Available.',
+        ]);
+    }
+
     public function registerSchoolSubmit(Request $request)
     {
         $request->validate([
@@ -1194,6 +1276,29 @@ class SiteController extends Controller
                 ->withErrors(['phone' => 'Verify your phone number with OTP before submitting the application.']);
         }
 
+        $dupErrors = [];
+        $phoneTaken = $this->isSchoolRegistrationFieldTaken('phone', $phone);
+        if ($phoneTaken) {
+            $dupErrors['phone'] = $phoneTaken;
+        }
+        $emailRaw = trim((string) $request->input('email', ''));
+        if ($emailRaw !== '') {
+            $emailTaken = $this->isSchoolRegistrationFieldTaken('email', strtolower($emailRaw));
+            if ($emailTaken) {
+                $dupErrors['email'] = $emailTaken;
+            }
+        }
+        $regNo = trim((string) $request->input('registration_number', ''));
+        if ($regNo !== '') {
+            $regTaken = $this->isSchoolRegistrationFieldTaken('registration_number', $regNo);
+            if ($regTaken) {
+                $dupErrors['registration_number'] = $regTaken;
+            }
+        }
+        if ($dupErrors !== []) {
+            return back()->withInput()->withErrors($dupErrors);
+        }
+
         $submitKey = 'school-reg-submit:' . $request->ip() . ':' . $phone;
         if (RateLimiter::tooManyAttempts($submitKey, 3)) {
             return back()
@@ -1226,7 +1331,7 @@ class SiteController extends Controller
 
         return redirect()
             ->route('site.register_school')
-            ->with('success', 'Thank you! Your school registration application has been received and is Pending. The ShuleXpert team will verify it — you will not receive login credentials until after verification.');
+            ->with('success', 'Thank you! Your school registration application has been received and is Pending. The ShuleXpert team will verify it. You will not receive login credentials until after verification.');
     }
 
     /**
@@ -1254,6 +1359,108 @@ class SiteController extends Controller
         }
 
         return $digits;
+    }
+
+    /**
+     * Return an error message if phone/email/registration_number is already used
+     * by an active school or a pending/ready registration request; otherwise null.
+     */
+    private function isSchoolRegistrationFieldTaken(string $field, string $value): ?string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        $labels = [
+            'phone' => 'Phone number',
+            'email' => 'Email',
+            'registration_number' => 'Registration number',
+        ];
+        $label = $labels[$field] ?? 'Value';
+
+        if ($field === 'phone') {
+            $normalized = $this->normalizeContactPhone($value) ?? $value;
+            $local9 = str_starts_with($normalized, '255')
+                ? substr($normalized, 3)
+                : $normalized;
+            $variants = array_values(array_unique(array_filter([
+                $normalized,
+                '0' . $local9,
+                $local9,
+                '+' . $normalized,
+            ])));
+
+            $existsSchool = \App\Models\School::query()
+                ->whereNotNull('phone')
+                ->where('phone', '!=', '')
+                ->where(function ($q) use ($variants) {
+                    foreach ($variants as $v) {
+                        $q->orWhere('phone', $v);
+                    }
+                })
+                ->exists();
+            if ($existsSchool) {
+                return "{$label} is already taken.";
+            }
+
+            $existsRequest = \App\Models\SchoolRegistrationRequest::query()
+                ->whereIn('status', ['pending', 'ready'])
+                ->whereNotNull('phone')
+                ->where('phone', '!=', '')
+                ->where(function ($q) use ($variants) {
+                    foreach ($variants as $v) {
+                        $q->orWhere('phone', $v);
+                    }
+                })
+                ->exists();
+            if ($existsRequest) {
+                return "{$label} is already used in a pending registration.";
+            }
+
+            return null;
+        }
+
+        if ($field === 'email') {
+            $email = strtolower($value);
+            $existsSchool = \App\Models\School::query()
+                ->whereRaw('LOWER(TRIM(email)) = ?', [$email])
+                ->exists();
+            if ($existsSchool) {
+                return "{$label} is already taken.";
+            }
+            $existsRequest = \App\Models\SchoolRegistrationRequest::query()
+                ->whereIn('status', ['pending', 'ready'])
+                ->whereRaw('LOWER(TRIM(email)) = ?', [$email])
+                ->exists();
+            if ($existsRequest) {
+                return "{$label} is already used in a pending registration.";
+            }
+
+            return null;
+        }
+
+        // registration_number
+        $reg = mb_strtolower($value);
+        $existsSchool = \App\Models\School::query()
+            ->whereNotNull('registration_number')
+            ->where('registration_number', '!=', '')
+            ->whereRaw('LOWER(TRIM(registration_number)) = ?', [$reg])
+            ->exists();
+        if ($existsSchool) {
+            return "{$label} is already taken.";
+        }
+        $existsRequest = \App\Models\SchoolRegistrationRequest::query()
+            ->whereIn('status', ['pending', 'ready'])
+            ->whereNotNull('registration_number')
+            ->where('registration_number', '!=', '')
+            ->whereRaw('LOWER(TRIM(registration_number)) = ?', [$reg])
+            ->exists();
+        if ($existsRequest) {
+            return "{$label} is already used in a pending registration.";
+        }
+
+        return null;
     }
 
     private function maskPhone(string $phone): string
