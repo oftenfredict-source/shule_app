@@ -240,7 +240,7 @@
         }
 
         if (!function_exists('getAutomaticComment')) {
-            function getAutomaticComment($gradeOrDivision) {
+            function getAutomaticComment($gradeOrDivision, array $weakSubjects = []) {
                 $raw = strtoupper(trim((string) $gradeOrDivision));
                 // Support "I.10", "DIVISION I", etc.
                 $key = $raw;
@@ -251,44 +251,36 @@
                 }
 
                 if (in_array($key, ['I', 'DIV I', 'DIVISION I'], true) || $key === 'I') {
-                    return 'Hongera! Umeonyesha ufaulu bora sana. Endelea na juhudi hizo hizo.';
-                }
-                if ($key === 'II') {
-                    return 'Ufaulu mzuri sana. Endelea kufanya bidii ili kufikia daraja la kwanza.';
-                }
-                if ($key === 'III') {
-                    return 'Ufaulu mzuri, lakini unahitaji juhudi zaidi ili kuboresha.';
-                }
-                if ($key === 'IV') {
-                    return 'Ufaulu wa wastani. Unahitaji kuongeza bidii kwa kiasi kikubwa.';
-                }
-                if ($key === '0' || $key === 'FAIL') {
-                    return 'Ufaulu duni. Tafuta ushauri wa kitaaluma na fanya bidii zaidi.';
-                }
-
-                if ($key === 'A') {
-                    return 'Hongera! Umeonyesha ufaulu bora sana. Endelea na ari hiyo.';
-                }
-                if ($key === 'B') {
-                    return 'Ufaulu mzuri sana. Fanya bidii zaidi kwa matokeo bora.';
-                }
-                if ($key === 'C') {
-                    return 'Ufaulu mzuri. Unahitaji juhudi zaidi.';
-                }
-                if ($key === 'D') {
-                    return 'Ufaulu wa wastani. Zingatia masomo yako zaidi.';
-                }
-                if ($key === 'E' || $key === 'F') {
-                    return 'Ufaulu duni. Unahitaji msaada wa haraka na muda zaidi wa kusoma.';
+                    $base = 'Hongera! Umeonyesha ufaulu bora sana. Endelea na juhudi hizo hizo.';
+                } elseif ($key === 'II') {
+                    $base = 'Ufaulu mzuri sana. Endelea kufanya bidii ili kufikia daraja la kwanza.';
+                } elseif ($key === 'III') {
+                    $base = 'Ufaulu mzuri, lakini unahitaji juhudi zaidi ili kuboresha.';
+                } elseif ($key === 'IV') {
+                    $base = 'Ufaulu wa wastani. Unahitaji kuongeza bidii kwa kiasi kikubwa.';
+                } elseif ($key === '0' || $key === 'FAIL') {
+                    $base = 'Ufaulu duni. Tafuta ushauri wa kitaaluma na fanya bidii zaidi.';
+                } elseif ($key === 'A') {
+                    $base = 'Hongera! Umeonyesha ufaulu bora sana. Endelea na ari hiyo.';
+                } elseif ($key === 'B') {
+                    $base = 'Ufaulu mzuri sana. Fanya bidii zaidi kwa matokeo bora.';
+                } elseif ($key === 'C') {
+                    $base = 'Ufaulu mzuri. Unahitaji juhudi zaidi.';
+                } elseif ($key === 'D') {
+                    $base = 'Ufaulu wa wastani. Zingatia masomo yako zaidi.';
+                } elseif ($key === 'E' || $key === 'F') {
+                    $base = 'Ufaulu duni. Unahitaji msaada wa haraka na muda zaidi wa kusoma.';
+                } else {
+                    $base = 'Juhudi nzuri. Endelea kufanya kazi kwa bidii ili kuboresha matokeo yako.';
                 }
 
-                return 'Juhudi nzuri. Endelea kufanya kazi kwa bidii ili kuboresha matokeo yako.';
+                return pdfAppendWeakSubjectsAdvice($base, $weakSubjects, 'teacher');
             }
         }
 
-        /** Headmaster remarks — direct points; no "Mkuu wa Shule" wording; different from class teacher */
+        /** Headmaster remarks — overall first, then weak subjects; no "Mkuu wa Shule" wording */
         if (!function_exists('getAutomaticHeadComment')) {
-            function getAutomaticHeadComment($gradeOrDivision) {
+            function getAutomaticHeadComment($gradeOrDivision, array $weakSubjects = []) {
                 $raw = strtoupper(trim((string) $gradeOrDivision));
                 $key = $raw;
                 if (preg_match('/^(I|II|III|IV|0)\b/', $raw, $m)) {
@@ -298,38 +290,133 @@
                 }
 
                 if ($key === 'I') {
-                    return 'Ninapongeza ufaulu wako bora. Dumisha nidhamu na kiwango hiki cha juu.';
-                }
-                if ($key === 'II') {
-                    return 'Matokeo yako ni ya kuridhisha. Endelea kujitahidi ili kufikia ufaulu wa daraja la kwanza.';
-                }
-                if ($key === 'III') {
-                    return 'Ufaulu wako umeonekana. Ongeza juhudi na ushirikiane na walimu ili kuboresha zaidi.';
-                }
-                if ($key === 'IV') {
-                    return 'Matokeo yako yanaonyesha haja ya bidii zaidi. Fuata ushauri wa kitaaluma kwa uboreshaji.';
-                }
-                if ($key === '0' || $key === 'FAIL') {
-                    return 'Matokeo haya hayaridhishi. Ninakuhimiza kuongeza muda wa kujifunza na kutafuta msaada wa karibu.';
-                }
-
-                if ($key === 'A') {
-                    return 'Ninapongeza matokeo yako bora. Endelea kuongoza kwa mfano mzuri.';
-                }
-                if ($key === 'B') {
-                    return 'Ufaulu mzuri umeonekana. Fanya bidii kidogo zaidi ili kufikia kiwango cha juu kabisa.';
-                }
-                if ($key === 'C') {
-                    return 'Matokeo yako yanaridhisha kwa kiasi. Zidisha bidii ili kupata ufaulu bora zaidi.';
-                }
-                if ($key === 'D') {
-                    return 'Kiwango chako kinahitaji kuboreshwa. Fanya kazi kwa bidii na ufuate maelekezo ya walimu.';
-                }
-                if ($key === 'E' || $key === 'F') {
-                    return 'Matokeo haya yanahitaji mabadiliko ya haraka. Panga ratiba ya masomo na utafute msaada wa kitaaluma.';
+                    $base = 'Ninapongeza ufaulu wako bora. Dumisha nidhamu na kiwango hiki cha juu.';
+                } elseif ($key === 'II') {
+                    $base = 'Matokeo yako ni ya kuridhisha. Endelea kujitahidi ili kufikia ufaulu wa daraja la kwanza.';
+                } elseif ($key === 'III') {
+                    $base = 'Ufaulu wako umeonekana. Ongeza juhudi na ushirikiane na walimu ili kuboresha zaidi.';
+                } elseif ($key === 'IV') {
+                    $base = 'Matokeo yako yanaonyesha haja ya bidii zaidi. Fuata ushauri wa kitaaluma kwa uboreshaji.';
+                } elseif ($key === '0' || $key === 'FAIL') {
+                    $base = 'Matokeo haya hayaridhishi. Ninakuhimiza kuongeza muda wa kujifunza na kutafuta msaada wa karibu.';
+                } elseif ($key === 'A') {
+                    $base = 'Ninapongeza matokeo yako bora. Endelea kuongoza kwa mfano mzuri.';
+                } elseif ($key === 'B') {
+                    $base = 'Ufaulu mzuri umeonekana. Fanya bidii kidogo zaidi ili kufikia kiwango cha juu kabisa.';
+                } elseif ($key === 'C') {
+                    $base = 'Matokeo yako yanaridhisha kwa kiasi. Zidisha bidii ili kupata ufaulu bora zaidi.';
+                } elseif ($key === 'D') {
+                    $base = 'Kiwango chako kinahitaji kuboreshwa. Fanya kazi kwa bidii na ufuate maelekezo ya walimu.';
+                } elseif ($key === 'E' || $key === 'F') {
+                    $base = 'Matokeo haya yanahitaji mabadiliko ya haraka. Panga ratiba ya masomo na utafute msaada wa kitaaluma.';
+                } else {
+                    $base = 'Endelea kujitahidi katika masomo yako. Ufaulu unategemea nidhamu na bidii endelevu.';
                 }
 
-                return 'Endelea kujitahidi katika masomo yako. Ufaulu unategemea nidhamu na bidii endelevu.';
+                return pdfAppendWeakSubjectsAdvice($base, $weakSubjects, 'head');
+            }
+        }
+
+        if (!function_exists('pdfIsWeakSubjectGrade')) {
+            /** Subject grades that need more effort ("hajapata vizuri"). */
+            function pdfIsWeakSubjectGrade($grade, bool $isSecondary = true, bool $isALevel = false): bool
+            {
+                $g = strtoupper(trim((string) $grade));
+                if (
+                    $g === '' ||
+                    $g === 'N/A' ||
+                    $g === '-' ||
+                    $g === '—' ||
+                    strcasecmp($g, 'INCOMPLETE') === 0
+                ) {
+                    return false;
+                }
+                // Take letter only from values like "F" or rare "F - Fail"
+                if (preg_match('/^([A-FS])\b/', $g, $m)) {
+                    $g = $m[1];
+                }
+
+                if ($isSecondary) {
+                    if ($isALevel) {
+                        return in_array($g, ['E', 'S', 'F'], true);
+                    }
+                    // O-Level: D = inaridhisha, E/F = dhaifu
+                    return in_array($g, ['D', 'E', 'F'], true);
+                }
+
+                return in_array($g, ['E', 'F'], true);
+            }
+        }
+
+        if (!function_exists('pdfCollectWeakSubjectNames')) {
+            /**
+             * @param  array<int, array<string, mixed>>  $subjects
+             * @return list<string>
+             */
+            function pdfCollectWeakSubjectNames(
+                array $subjects,
+                bool $isSecondary = true,
+                bool $isALevel = false,
+            ): array {
+                $weak = [];
+                foreach ($subjects as $subj) {
+                    if (!is_array($subj)) {
+                        continue;
+                    }
+                    if (!empty($subj['is_incomplete'])) {
+                        continue;
+                    }
+                    $name = trim((string) ($subj['subject_name'] ?? ''));
+                    if ($name === '' || strtoupper($name) === 'EXAMS') {
+                        continue;
+                    }
+                    $grade = $subj['grade'] ?? null;
+                    if (pdfIsWeakSubjectGrade($grade, $isSecondary, $isALevel)) {
+                        $weak[] = $name;
+                    }
+                }
+
+                return array_values(array_unique($weak));
+            }
+        }
+
+        if (!function_exists('pdfAppendWeakSubjectsAdvice')) {
+            function pdfAppendWeakSubjectsAdvice(
+                string $baseComment,
+                array $weakSubjects,
+                string $role = 'teacher',
+            ): string {
+                $weakSubjects = array_values(
+                    array_filter(
+                        array_map(
+                            static fn($n) => trim((string) $n),
+                            $weakSubjects,
+                        ),
+                        static fn($n) => $n !== '',
+                    ),
+                );
+                if ($weakSubjects === []) {
+                    return $baseComment;
+                }
+
+                $maxNames = 4;
+                $shown = array_slice($weakSubjects, 0, $maxNames);
+                $list = implode(', ', $shown);
+                if (count($weakSubjects) > $maxNames) {
+                    $list .= ' na mengine';
+                }
+
+                if ($role === 'head') {
+                    return rtrim($baseComment, " \t.") .
+                        '. Zingatia kuongeza bidii kwenye masomo: ' .
+                        $list .
+                        '.';
+                }
+
+                return rtrim($baseComment, " \t.") .
+                    '. Ongeza bidii kwenye masomo: ' .
+                    $list .
+                    '.';
             }
         }
     @endphp
@@ -2067,14 +2154,34 @@
         $teacherSignBase64 = $teacher ? getSmartBase64($teacher->signature) : null;
 
         $commentVal = null;
-        if(isset($detailedSingleData)) {
+        $weakSubjectsForComment = [];
+        $isSecondaryForComment = strtolower((string) ($schoolType ?? 'Secondary')) === 'secondary';
+        $classNameForComment = $student->subclass->class->class_name
+            ?? ($student->oldSubclass->class->class_name ?? '');
+        $isALevelForComment = $isSecondaryForComment && function_exists('pdfIsALevelClassName')
+            ? pdfIsALevelClassName($classNameForComment)
+            : false;
+
+        if (isset($detailedSingleData)) {
             $commentVal = $detailedSingleData['division'] ?? $detailedSingleData['grade'] ?? null;
-        } elseif($result) {
+            $weakSubjectsForComment = pdfCollectWeakSubjectNames(
+                is_array($detailedSingleData['subjects'] ?? null)
+                    ? $detailedSingleData['subjects']
+                    : [],
+                $isSecondaryForComment,
+                $isALevelForComment,
+            );
+        } elseif ($result) {
             $reportRes = ($filters['type'] === 'report') ? $result : (is_array($result) && !empty($result) ? $result[0] : null);
             $commentVal = $reportRes['division'] ?? $reportRes['grade'] ?? null;
+            $weakSubjectsForComment = pdfCollectWeakSubjectNames(
+                is_array($reportRes['subjects'] ?? null) ? $reportRes['subjects'] : [],
+                $isSecondaryForComment,
+                $isALevelForComment,
+            );
         }
-        $teacherComment = getAutomaticComment($commentVal);
-        $headComment = getAutomaticHeadComment($commentVal);
+        $teacherComment = getAutomaticComment($commentVal, $weakSubjectsForComment);
+        $headComment = getAutomaticHeadComment($commentVal, $weakSubjectsForComment);
     @endphp
     <table class="official-remarks-table">
         <tr>

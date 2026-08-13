@@ -4498,6 +4498,9 @@ class ResultManagementController extends Controller
         $msg .= "------------------------\n";
         $msg .= "MASOMO YAFUATAYO:\n";
         $msg .= $resultsString;
+        $msg .= "\n------------------------\n";
+        $msg .= "Ingia kuona matokeo kamili:\n";
+        $msg .= "https://shulexpert.com/login";
 
         $message = $msg;
         \Log::info(
