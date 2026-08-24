@@ -218,6 +218,105 @@ class FingerprintAttendanceSmsController extends Controller
         ]);
     }
 
+    public function statusFilterRecipients(Request $request)
+    {
+        $schoolID = (int) Session::get('schoolID');
+        if (! $schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $status = $request->input('attendance_status');
+        if (! in_array($status, ['Present', 'Absent'], true)) {
+            return response()->json(['success' => false, 'message' => 'Chagua Status (Present / Absent).'], 422);
+        }
+
+        $filterType = $request->input('filter_type');
+        if (! in_array($filterType, ['day', 'date_range', 'month', 'year'], true)) {
+            return response()->json(['success' => false, 'message' => 'Invalid filter type.'], 422);
+        }
+
+        $range = $this->smsService->resolveReportFilterPeriod(
+            $filterType,
+            $request->input('date'),
+            $request->input('year'),
+            $request->input('month'),
+            $request->input('from_date'),
+            $request->input('to_date')
+        );
+        if (! $range) {
+            return response()->json(['success' => false, 'message' => 'Invalid period.'], 422);
+        }
+
+        $studentIds = $request->input('student_ids');
+        if (is_array($studentIds)) {
+            $studentIds = array_map('intval', $studentIds);
+        } else {
+            $studentIds = null;
+        }
+
+        $rows = $this->smsService->buildStatusFilterRecipients($schoolID, $status, $range, $studentIds);
+        $sample = null;
+        $first = $rows->first();
+        if ($first) {
+            $sample = $this->smsService->buildStatusFilterSample(
+                $schoolID,
+                (int) $first['studentID'],
+                $status,
+                $range
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'status' => $status,
+            'status_label' => $this->smsService->statusFilterLabel($status),
+            'period_label' => $range['label'],
+            'recipients' => $rows->values(),
+            'sample' => $sample,
+        ]);
+    }
+
+    public function sendStatusFilter(Request $request)
+    {
+        $schoolID = (int) Session::get('schoolID');
+        $sentBy = Session::get('userID');
+        if (! $schoolID) {
+            return response()->json(['success' => false, 'error' => 'Access denied'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'studentID' => 'required|integer|exists:students,studentID',
+            'attendance_status' => 'required|in:Present,Absent',
+            'filter_type' => 'required|in:day,date_range,month,year',
+            'date' => 'nullable|date',
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date',
+            'year' => 'nullable',
+            'month' => 'nullable',
+            'message_template' => 'nullable|string|max:2000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
+        }
+
+        $result = $this->smsService->sendStatusFilterForStudent(
+            $schoolID,
+            (int) $request->input('studentID'),
+            $request->input('attendance_status'),
+            $request->input('filter_type'),
+            $sentBy ? (int) $sentBy : null,
+            $request->input('date'),
+            $request->input('year'),
+            $request->input('month'),
+            $request->input('from_date'),
+            $request->input('to_date'),
+            $request->input('message_template')
+        );
+
+        return response()->json($result, ($result['success'] ?? false) ? 200 : 422);
+    }
+
     private function resolveReferenceDate(Request $request): Carbon
     {
         $date = $request->input('reference_date');

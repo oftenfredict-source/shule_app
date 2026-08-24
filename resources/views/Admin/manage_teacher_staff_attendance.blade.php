@@ -323,6 +323,14 @@
                         </select>
                     </div>
                     <div class="col-md-2">
+                        <label class="mb-1 fw-bold text-primary-custom">Status</label>
+                        <select id="tsReportStatus" class="form-control">
+                            <option value="all" selected>All</option>
+                            <option value="Present">Present only</option>
+                            <option value="Absent">Absent only</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <button type="button" class="btn btn-primary-custom btn-block" id="tsGenerateReport">
                             <i class="bi bi-funnel"></i> Generate Report
                         </button>
@@ -337,8 +345,8 @@
             <div id="tsReportMeta" class="mb-2"></div>
             <div id="tsReportContent">
                 <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle"></i> Chagua filters hapo juu kisha bonyeza <strong>Generate Report</strong>.
-                    Working days zinatoka kwenye school calendar (weekends, holidays, na non-working events).
+                    <i class="bi bi-info-circle"></i> Chagua filters hapo juu (Day / Month / … + Person Type + <strong>Status</strong>) kisha bonyeza <strong>Generate Report</strong>.
+                    Status: <strong>All</strong>, <strong>Present only</strong>, au <strong>Absent only (Watoro)</strong> — utaona idadi waliopatikana.
                 </div>
             </div>
         </div>
@@ -1146,7 +1154,8 @@
         var type = $('#tsReportFilterType').val();
         var params = {
             filter_type: type,
-            person_type: $('#tsReportPersonType').val()
+            person_type: $('#tsReportPersonType').val(),
+            attendance_status: $('#tsReportStatus').val() || 'all'
         };
         if (type === 'day') {
             params.date = $('#tsReportDate').val();
@@ -1160,6 +1169,29 @@
             params.year = $('#tsReportYear').val();
         }
         return params;
+    }
+
+    function filterTsReportRowsByStatus(rows, statusFilter, isDayReport) {
+        if (!statusFilter || statusFilter === 'all') return rows || [];
+        return (rows || []).filter(function (row) {
+            if (isDayReport) {
+                var st = row.day_status || 'Absent';
+                if (statusFilter === 'Present') {
+                    return ['Present', 'Late', 'Early'].indexOf(st) >= 0;
+                }
+                if (statusFilter === 'Absent') {
+                    return st === 'Absent';
+                }
+                return true;
+            }
+            if (statusFilter === 'Present') {
+                return Number(row.present_days || 0) > 0;
+            }
+            if (statusFilter === 'Absent') {
+                return Number(row.absent_days || 0) > 0;
+            }
+            return true;
+        });
     }
 
     function buildTsPeopleCollapsePanel(panelId, title, people, titleClass) {
@@ -1250,15 +1282,29 @@
                     }
                 }
                 metaHtml += '</div></div>';
+
+                var statusFilter = params.attendance_status || 'all';
+                var isDayReport = res.filter_type === 'day';
+                var allRows = res.data || [];
+                var rows = filterTsReportRowsByStatus(allRows, statusFilter, isDayReport);
+
+                if (statusFilter !== 'all') {
+                    var statusLabel = statusFilter === 'Absent' ? 'Absent only (Watoro)' : 'Present only';
+                    metaHtml += '<div class="alert alert-light border py-2 px-3 mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">';
+                    metaHtml += '<div><strong><i class="bi bi-funnel"></i> Status filter:</strong> ' + statusLabel + '</div>';
+                    metaHtml += '<div><strong>Waliopatikana:</strong> <span class="badge bg-primary-custom" style="background:#940000;font-size:1rem;">' + rows.length + '</span>';
+                    metaHtml += ' <span class="text-muted small">/ ' + allRows.length + ' total</span></div>';
+                    metaHtml += '</div>';
+                }
+
                 $meta.html(metaHtml);
 
-                var rows = res.data || [];
                 if (!rows.length) {
-                    $content.html('<div class="alert alert-info mb-0">No teachers or staff found for this filter.</div>');
+                    $content.html('<div class="alert alert-info mb-0">No teachers or staff found for this filter' +
+                        (statusFilter !== 'all' ? ' (Status: ' + statusFilter + ')' : '') + '.</div>');
                     return;
                 }
 
-                var isDayReport = res.filter_type === 'day';
                 var showCompleteCol = !!res.period_incomplete && !isDayReport;
                 var html = '<div class="table-responsive"><table id="tsReportTable" class="table table-striped table-hover table-sm mb-0 w-100">' +
                     '<thead><tr>' +

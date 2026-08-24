@@ -3627,6 +3627,14 @@ Route::post("attendance-sms/send", [
     AttendanceSmsController::class,
     "send",
 ])->name("attendance_sms.send");
+Route::get("attendance-status-sms/recipients", [
+    AttendanceSmsController::class,
+    "statusFilterRecipients",
+])->name("attendance_status_sms.recipients");
+Route::post("attendance-status-sms/send", [
+    AttendanceSmsController::class,
+    "sendStatusFilter",
+])->name("attendance_status_sms.send");
 Route::get("fingerprint-attendance-sms/schedule-info", [
     FingerprintAttendanceSmsController::class,
     "scheduleInfo",
@@ -3643,6 +3651,14 @@ Route::post("fingerprint-attendance-sms/send-bulk", [
     FingerprintAttendanceSmsController::class,
     "sendBulk",
 ])->name("fingerprint_attendance_sms.send_bulk");
+Route::get("fingerprint-attendance-status-sms/recipients", [
+    FingerprintAttendanceSmsController::class,
+    "statusFilterRecipients",
+])->name("fingerprint_attendance_status_sms.recipients");
+Route::post("fingerprint-attendance-status-sms/send", [
+    FingerprintAttendanceSmsController::class,
+    "sendStatusFilter",
+])->name("fingerprint_attendance_status_sms.send");
 Route::get("manageTeacherStaffAttendance", [
     ManageAttendanceController::class,
     "manageTeacherStaffAttendance",

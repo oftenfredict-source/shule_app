@@ -149,6 +149,137 @@ class AttendanceSmsController extends Controller
         return response()->json($result, $status);
     }
 
+    public function statusFilterRecipients(Request $request)
+    {
+        $schoolID = (int) Session::get('schoolID');
+        $teacherID = Session::get('teacherID');
+        $userType = Session::get('user_type');
+
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'message' => 'Access denied'], 403);
+        }
+
+        $status = $request->input('attendance_status');
+        if (!in_array($status, ['Present', 'Absent', 'Sick', 'Excused'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chagua Attendance Status (Present / Absent / Sick / Permission) kisha search.',
+            ], 422);
+        }
+
+        $searchType = $request->input('search_type');
+        if (!in_array($searchType, ['date', 'date_range', 'month', 'year'], true)) {
+            return response()->json(['success' => false, 'message' => 'Invalid search type.'], 422);
+        }
+
+        $subclassID = $request->input('subclassID') ? (int) $request->input('subclassID') : null;
+        if ($subclassID && !$this->canAccessSubclass($schoolID, $subclassID, $teacherID, $userType)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access to this class.'], 403);
+        }
+
+        $classID = null;
+        $isCoordinatorView = $request->input('coordinator') === 'true';
+        if ($isCoordinatorView && $request->input('classID')) {
+            try {
+                $classID = (int) \Illuminate\Support\Facades\Crypt::decrypt($request->input('classID'));
+            } catch (\Exception $e) {
+                $classID = (int) $request->input('classID');
+            }
+        }
+
+        $range = $this->attendanceSmsService->resolveFilterPeriod(
+            $searchType,
+            $request->input('date'),
+            $request->input('year'),
+            $request->input('month'),
+            $request->input('from_date'),
+            $request->input('to_date')
+        );
+
+        if (!$range) {
+            return response()->json(['success' => false, 'message' => 'Invalid period for filter.'], 422);
+        }
+
+        $rows = $this->attendanceSmsService->buildStatusFilterRecipients(
+            $schoolID,
+            $status,
+            $searchType,
+            $request->input('date'),
+            $request->input('year'),
+            $request->input('month'),
+            $request->input('from_date'),
+            $request->input('to_date'),
+            $subclassID,
+            $classID,
+            $isCoordinatorView,
+            $request->input('enrollment_status', 'Active')
+        );
+
+        $sample = null;
+        $first = $rows->first();
+        if ($first) {
+            $sample = $this->attendanceSmsService->buildStatusFilterSample(
+                $schoolID,
+                (int) $first['studentID'],
+                $status,
+                $range
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'status' => $status,
+            'status_label' => $this->attendanceSmsService->statusFilterLabel($status),
+            'period_label' => $range['label'],
+            'recipients' => $rows->values(),
+            'sample' => $sample,
+        ]);
+    }
+
+    public function sendStatusFilter(Request $request)
+    {
+        $schoolID = (int) Session::get('schoolID');
+        $sentBy = Session::get('userID');
+
+        if (!$schoolID) {
+            return response()->json(['success' => false, 'error' => 'Access denied'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'studentID' => 'required|integer|exists:students,studentID',
+            'attendance_status' => 'required|in:Present,Absent,Sick,Excused',
+            'search_type' => 'required|in:date,date_range,month,year',
+            'date' => 'nullable|date',
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date',
+            'year' => 'nullable',
+            'month' => 'nullable',
+            'message_template' => 'nullable|string|max:2000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'error' => $validator->errors()->first()], 422);
+        }
+
+        $result = $this->attendanceSmsService->sendStatusFilterForStudent(
+            $schoolID,
+            (int) $request->input('studentID'),
+            $request->input('attendance_status'),
+            $request->input('search_type'),
+            $sentBy ? (int) $sentBy : null,
+            $request->input('date'),
+            $request->input('year'),
+            $request->input('month'),
+            $request->input('from_date'),
+            $request->input('to_date'),
+            $request->input('message_template')
+        );
+
+        $http = ($result['success'] ?? false) ? 200 : 422;
+
+        return response()->json($result, $http);
+    }
+
     private function resolveReferenceDate(Request $request): Carbon
     {
         $date = $request->input('reference_date');

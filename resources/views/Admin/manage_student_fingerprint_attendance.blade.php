@@ -149,6 +149,14 @@
                         </select>
                     </div>
                     <div class="col-md-2">
+                        <label class="mb-1 fw-bold text-primary-custom">Status</label>
+                        <select id="sfReportStatus" class="form-control">
+                            <option value="all" selected>All</option>
+                            <option value="Present">Present only</option>
+                            <option value="Absent">Absent only</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <button type="button" class="btn btn-primary-custom btn-block" id="sfGenerateReport">
                             <i class="bi bi-funnel"></i> Generate Report
                         </button>
@@ -156,6 +164,11 @@
                     <div class="col-md-2">
                         <button type="button" class="btn btn-danger btn-block" id="sfDownloadReportPdf" disabled>
                             <i class="bi bi-file-pdf"></i> Download PDF
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-primary-custom btn-block" id="sfSendStatusFilterSmsBtn" style="display:none;" disabled>
+                            <i class="bi bi-chat-dots"></i> Send SMS
                         </button>
                     </div>
                 </div>
@@ -221,6 +234,59 @@
 </div>
 
 @include('partials.fingerprint_attendance_sms_modal')
+
+<!-- Fingerprint status-filter SMS modal -->
+<div class="modal fade" id="sfStatusSmsModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title"><i class="bi bi-chat-dots"></i> Send SMS — Fingerprint Status Filter</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="sfStatusSmsDisabled" class="alert alert-warning d-none"></div>
+                <div id="sfStatusSmsContent" class="d-none">
+                    <div class="alert alert-info mb-3">
+                        <div><strong>Status:</strong> <span id="sfStatusSmsStatusLabel">—</span></div>
+                        <div><strong>Period:</strong> <span id="sfStatusSmsPeriodLabel">—</span></div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="font-weight-bold mb-0">SMS Sample</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="sfStatusSmsReset">Reset</button>
+                        </div>
+                        <div class="small text-muted mb-2">Hariri maandishi. Values zilizofungwa (njano) haziwezi kuhaririwa.</div>
+                        <div id="sfStatusSmsEditor" class="form-control" contenteditable="true" style="min-height:130px;white-space:pre-wrap;border-radius:0;"></div>
+                        <style>#sfStatusSmsEditor .sms-locked{background:#fff3cd;border:1px solid #f0d78c;color:#7a5b00;padding:0 4px;font-weight:600;user-select:none;}</style>
+                        <div id="sfStatusSmsTemplateError" class="text-danger small mt-1 d-none"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="sfStatusSmsSelectAll">
+                            <label class="custom-control-label font-weight-bold" for="sfStatusSmsSelectAll">Select All</label>
+                        </div>
+                        <span class="badge badge-success" id="sfStatusSmsCount">Receivers: 0</span>
+                    </div>
+                    <div class="table-responsive" style="max-height:280px;">
+                        <table class="table table-sm table-hover">
+                            <thead class="bg-light sticky-top"><tr><th></th><th>Parent Of</th><th>Days</th><th>Phone</th><th>Status</th></tr></thead>
+                            <tbody id="sfStatusSmsList"></tbody>
+                        </table>
+                    </div>
+                    <div id="sfStatusSmsProgress" class="mt-3 d-none">
+                        <div class="progress" style="height:20px;"><div id="sfStatusSmsBar" class="progress-bar bg-success" style="width:0%">0%</div></div>
+                        <div id="sfStatusSmsSummary" class="small text-center mt-1"></div>
+                    </div>
+                </div>
+                <div id="sfStatusSmsLoading" class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" id="sfStatusSmsCancel">Cancel</button>
+                <button type="button" class="btn btn-primary-custom" id="sfStatusSmsStart" disabled><i class="bi bi-send"></i> Start Sending SMS</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @include('includes.footer')
 
@@ -398,7 +464,8 @@
         var params = {
             filter_type: type,
             classID: $('#sfReportMainClass').val() || '',
-            subclassID: $('#sfReportSubclass').val() || ''
+            subclassID: $('#sfReportSubclass').val() || '',
+            attendance_status: $('#sfReportStatus').val() || 'all'
         };
         if (type === 'day') {
             params.date = $('#sfReportDate').val();
@@ -499,6 +566,21 @@
                 $('#sfReportMeta').html(metaHtml);
 
                 var rows = res.data || [];
+                var statusFilter = params.attendance_status || 'all';
+                if (statusFilter === 'Present') {
+                    rows = rows.filter(function (r) { return Number(r.present_days || 0) > 0; });
+                } else if (statusFilter === 'Absent') {
+                    rows = rows.filter(function (r) { return Number(r.absent_days || 0) > 0; });
+                }
+                sfLastReportRows = rows;
+
+                var statusSmsBtn = $('#sfSendStatusFilterSmsBtn');
+                if (statusFilter !== 'all' && rows.length) {
+                    statusSmsBtn.show().prop('disabled', false);
+                } else {
+                    statusSmsBtn.hide().prop('disabled', true);
+                }
+
                 if (!rows.length) {
                     $('#sfReportArea').html('<div class="alert alert-info mb-0">No students found for this filter.</div>');
                     return;
@@ -688,6 +770,190 @@
         }
         window.openFingerprintAttendanceSmsModal(opts);
     });
+
+    // Status-filter SMS (Present/Absent only)
+    var sfStatusSmsSending = false;
+    var sfStatusSmsSample = null;
+    var sfStatusSmsFilter = null;
+
+    function sfEsc(str) {
+        return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function sfLocked(token, value) {
+        return '<span class="sms-locked" contenteditable="false" data-token="' + sfEsc(token) + '">' + sfEsc(value).replace(/\n/g,'<br>') + '</span>';
+    }
+    function sfRenderSample(sample) {
+        var editor = document.getElementById('sfStatusSmsEditor');
+        if (!editor || !sample) return;
+        var tokens = sample.sample_tokens || {};
+        var html = sfEsc(sample.template || '');
+        Object.keys(tokens).forEach(function (k) {
+            html = html.split(sfEsc('{' + k + '}')).join(sfLocked(k, tokens[k]));
+        });
+        editor.innerHTML = html.replace(/\n/g, '<br>');
+        $('#sfStatusSmsTemplateError').addClass('d-none');
+    }
+    function sfSerializeTemplate() {
+        var editor = document.getElementById('sfStatusSmsEditor');
+        if (!editor) return '';
+        function walk(node) {
+            var out = '';
+            node.childNodes.forEach(function (child) {
+                if (child.nodeType === Node.TEXT_NODE) { out += child.nodeValue; return; }
+                if (child.nodeType !== Node.ELEMENT_NODE) return;
+                if (child.classList && child.classList.contains('sms-locked')) {
+                    out += '{' + (child.getAttribute('data-token') || '') + '}';
+                    return;
+                }
+                var tag = child.tagName.toLowerCase();
+                if (tag === 'br') { out += '\n'; return; }
+                if (tag === 'div' || tag === 'p') {
+                    if (out && !out.endsWith('\n')) out += '\n';
+                    out += walk(child);
+                    if (!out.endsWith('\n')) out += '\n';
+                    return;
+                }
+                out += walk(child);
+            });
+            return out;
+        }
+        return walk(editor).replace(/\n{3,}/g, '\n\n').trim();
+    }
+    function sfValidateTemplate(tpl) {
+        var required = (sfStatusSmsSample && sfStatusSmsSample.required_tokens) || ['STUDENT_NAME','PERIOD','STATUS_LINE','DAY_LIST'];
+        var missing = required.filter(function (t) { return tpl.indexOf('{' + t + '}') === -1; });
+        if (missing.length) {
+            $('#sfStatusSmsTemplateError').removeClass('d-none').text('Usifute values: ' + missing.map(function (t){return '{'+t+'}';}).join(', '));
+            return false;
+        }
+        $('#sfStatusSmsTemplateError').addClass('d-none');
+        return true;
+    }
+    function sfStatusUpdateCount() {
+        var n = $('#sfStatusSmsList .sf-status-cb:checked:not(:disabled)').length;
+        $('#sfStatusSmsCount').text('Receivers: ' + n);
+        $('#sfStatusSmsStart').prop('disabled', n === 0 || sfStatusSmsSending);
+    }
+
+    $('#sfSendStatusFilterSmsBtn').on('click', function () {
+        if (!sfLastReportParams || !sfLastReportRows.length) return;
+        var status = sfLastReportParams.attendance_status;
+        if (!status || status === 'all') {
+            alert('Chagua Status (Present only / Absent only) kisha Generate Report.');
+            return;
+        }
+        sfStatusSmsFilter = Object.assign({}, sfLastReportParams, {
+            student_ids: sfLastReportRows.map(function (r) { return r.student_id; })
+        });
+        sfStatusSmsSample = null;
+        $('#sfStatusSmsDisabled').addClass('d-none');
+        $('#sfStatusSmsContent').addClass('d-none');
+        $('#sfStatusSmsLoading').removeClass('d-none');
+        $('#sfStatusSmsProgress').addClass('d-none');
+        $('#sfStatusSmsList').empty();
+        $('#sfStatusSmsModal').modal('show');
+
+        $.get('{{ route("fingerprint_attendance_status_sms.recipients") }}', sfStatusSmsFilter)
+            .done(function (res) {
+                $('#sfStatusSmsLoading').addClass('d-none');
+                if (!res.success) {
+                    $('#sfStatusSmsDisabled').removeClass('d-none').text(res.message || 'Failed');
+                    return;
+                }
+                $('#sfStatusSmsContent').removeClass('d-none');
+                $('#sfStatusSmsStatusLabel').text(res.status_label || status);
+                $('#sfStatusSmsPeriodLabel').text(res.period_label || '');
+                sfStatusSmsSample = res.sample || null;
+                if (sfStatusSmsSample) sfRenderSample(sfStatusSmsSample);
+                var list = $('#sfStatusSmsList');
+                list.empty();
+                (res.recipients || []).forEach(function (row) {
+                    var phone = String(row.parentPhone || '').trim();
+                    var hasPhone = phone && !['null','undefined','n/a'].includes(phone.toLowerCase());
+                    var id = 'sf_st_' + row.studentID;
+                    list.append(
+                        '<tr data-student-id="' + row.studentID + '">' +
+                        '<td><input type="checkbox" class="sf-status-cb" id="' + id + '" ' + (hasPhone ? '' : 'disabled') + '></td>' +
+                        '<td>Parent of ' + sfEsc(row.studentName) + '</td>' +
+                        '<td><span class="badge bg-danger">' + (row.days_count || 0) + '</span></td>' +
+                        '<td>' + (hasPhone ? sfEsc(phone) : '<span class="text-danger">No Phone</span>') + '</td>' +
+                        '<td class="sf-status-col">' + (hasPhone ? '<span class="text-muted small">Pending</span>' : '<span class="text-danger small">No Phone</span>') + '</td></tr>'
+                    );
+                });
+                if (!(res.recipients || []).length) {
+                    list.append('<tr><td colspan="5" class="text-center text-muted">No parents found.</td></tr>');
+                }
+                $('#sfStatusSmsSelectAll').prop('checked', false);
+                sfStatusUpdateCount();
+            })
+            .fail(function (xhr) {
+                $('#sfStatusSmsLoading').addClass('d-none');
+                $('#sfStatusSmsDisabled').removeClass('d-none').text((xhr.responseJSON && xhr.responseJSON.message) || 'Failed to load.');
+            });
+    });
+
+    $('#sfStatusSmsReset').on('click', function () { if (sfStatusSmsSample) sfRenderSample(sfStatusSmsSample); });
+    $('#sfStatusSmsSelectAll').on('change', function () {
+        $('#sfStatusSmsList .sf-status-cb:not(:disabled)').prop('checked', $(this).is(':checked'));
+        sfStatusUpdateCount();
+    });
+    $(document).on('change', '.sf-status-cb', sfStatusUpdateCount);
+
+    $('#sfStatusSmsStart').on('click', async function () {
+        var rows = $('#sfStatusSmsList .sf-status-cb:checked').closest('tr');
+        if (!rows.length || sfStatusSmsSending || !sfStatusSmsFilter) return;
+        var tpl = sfSerializeTemplate();
+        if (!sfValidateTemplate(tpl)) {
+            alert('Usifute values zilizofungwa kwenye SMS sample.');
+            return;
+        }
+        if (!confirm('Send SMS to ' + rows.length + ' parent(s)?')) return;
+
+        sfStatusSmsSending = true;
+        $('#sfStatusSmsStart').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+        $('#sfStatusSmsCancel').prop('disabled', true);
+        $('#sfStatusSmsEditor').attr('contenteditable', 'false');
+        $('#sfStatusSmsProgress').removeClass('d-none');
+        var total = rows.length, delivered = 0, failed = 0;
+
+        for (var i = 0; i < total; i++) {
+            var row = $(rows[i]);
+            var col = row.find('.sf-status-col');
+            col.html('<span class="spinner-border spinner-border-sm"></span>');
+            try {
+                var response = await $.ajax({
+                    url: '{{ route("fingerprint_attendance_status_sms.send") }}',
+                    type: 'POST',
+                    data: Object.assign({}, sfStatusSmsFilter, {
+                        studentID: row.data('student-id'),
+                        message_template: tpl,
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    })
+                });
+                if (response.success) {
+                    col.html('<span class="text-success small">Delivered</span>');
+                    delivered++;
+                } else {
+                    col.html('<span class="text-danger small">' + (response.error || 'Failed') + '</span>');
+                    failed++;
+                }
+            } catch (err) {
+                col.html('<span class="text-danger small">Error</span>');
+                failed++;
+            }
+            var done = delivered + failed;
+            var pct = Math.round((done / total) * 100);
+            $('#sfStatusSmsBar').css('width', pct + '%').text(pct + '%');
+            $('#sfStatusSmsSummary').html('<span class="text-success">' + delivered + ' Delivered</span> | <span class="text-danger">' + failed + ' Failed</span>');
+        }
+
+        sfStatusSmsSending = false;
+        $('#sfStatusSmsStart').html('<i class="bi bi-send"></i> Start Sending SMS');
+        $('#sfStatusSmsCancel').prop('disabled', false);
+        $('#sfStatusSmsEditor').attr('contenteditable', 'true');
+        sfStatusUpdateCount();
+    });
+
     $('#sfSaveWorkTime').on('click', function () {
         $.post('{{ route("attendance.student_work_time.save") }}', {
             _token: $('meta[name="csrf-token"]').attr('content'),

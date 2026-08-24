@@ -595,4 +595,374 @@ class StudentFingerprintAttendanceSmsService
 
         return (int) $date->day === min($configuredDay, $lastDay);
     }
+
+    /**
+     * @return array{start: Carbon, end: Carbon, label: string}|null
+     */
+    public function resolveReportFilterPeriod(
+        string $filterType,
+        ?string $date = null,
+        ?string $year = null,
+        ?string $month = null,
+        ?string $fromDate = null,
+        ?string $toDate = null
+    ): ?array {
+        if ($filterType === 'day' && $date) {
+            $d = Carbon::parse($date)->startOfDay();
+
+            return [
+                'start' => $d->copy(),
+                'end' => $d->copy(),
+                'label' => 'tarehe '.$d->format('d/m/Y'),
+            ];
+        }
+
+        if ($filterType === 'date_range' && $fromDate && $toDate) {
+            $start = Carbon::parse($fromDate)->startOfDay();
+            $end = Carbon::parse($toDate)->startOfDay();
+
+            return [
+                'start' => $start,
+                'end' => $end,
+                'label' => $start->format('d/m/Y').' - '.$end->format('d/m/Y'),
+            ];
+        }
+
+        if ($filterType === 'month' && $year && $month) {
+            $start = Carbon::create((int) $year, (int) $month, 1)->startOfMonth();
+
+            return [
+                'start' => $start->copy(),
+                'end' => $start->copy()->endOfMonth()->startOfDay(),
+                'label' => 'mwezi '.$start->format('F Y'),
+            ];
+        }
+
+        if ($filterType === 'year' && $year) {
+            $start = Carbon::create((int) $year, 1, 1)->startOfYear();
+
+            return [
+                'start' => $start->copy(),
+                'end' => $start->copy()->endOfYear()->startOfDay(),
+                'label' => 'mwaka '.$year,
+            ];
+        }
+
+        return null;
+    }
+
+    public function statusFilterLabel(string $status): string
+    {
+        return match ($status) {
+            'Present' => 'Present',
+            'Absent' => 'Absent',
+            default => $status,
+        };
+    }
+
+    public function defaultStatusFilterTemplate(bool $includeSchool = false): string
+    {
+        $lines = [];
+        if ($includeSchool) {
+            $lines[] = '{SCHOOL_NAME}';
+        }
+        $lines[] = 'MZAZI WA {STUDENT_NAME}';
+        $lines[] = 'Yafuatayo ni mahudhurio ya fingerprint {PERIOD}';
+        $lines[] = '{STATUS_LINE}';
+        $lines[] = '{DAY_LIST}';
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param  array<int, int>|null  $studentIds
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function buildStatusFilterRecipients(
+        int $schoolID,
+        string $status,
+        array $range,
+        ?array $studentIds = null
+    ): Collection {
+        if (! in_array($status, ['Present', 'Absent'], true)) {
+            return collect();
+        }
+
+        $workTime = StudentWorkTimeSetting::forSchool($schoolID);
+        $workingDates = $this->workingDaysService->getWorkingDates(
+            $schoolID,
+            $range['start'],
+            $range['end']
+        );
+
+        $query = Student::with(['parent', 'subclass.class'])->where('schoolID', $schoolID);
+        if ($studentIds !== null) {
+            if (empty($studentIds)) {
+                return collect();
+            }
+            $query->whereIn('studentID', $studentIds);
+        } else {
+            $enrolled = app(\App\Services\StudentEnrollmentService::class)
+                ->activeEnrollments($schoolID)
+                ->pluck('studentID')
+                ->unique()
+                ->values()
+                ->all();
+            if (empty($enrolled)) {
+                return collect();
+            }
+            $query->whereIn('studentID', $enrolled);
+        }
+
+        $students = $query->orderBy('first_name')->get();
+        $rows = collect();
+
+        foreach ($students as $student) {
+            $tokens = $this->buildStatusFilterTokens(
+                $schoolID,
+                $student,
+                $status,
+                $range,
+                $workingDates,
+                (string) $workTime->work_start_time
+            );
+            if ($tokens === null) {
+                continue;
+            }
+            $daysCount = (int) ($tokens['DAYS_COUNT'] ?? 0);
+            if ($daysCount < 1) {
+                continue;
+            }
+
+            $name = trim(implode(' ', array_filter([
+                $student->first_name,
+                $student->middle_name,
+                $student->last_name,
+            ])));
+
+            $rows->push([
+                'studentID' => $student->studentID,
+                'studentName' => $name,
+                'parentPhone' => $this->resolveParentPhone($student),
+                'days_count' => $daysCount,
+            ]);
+        }
+
+        return $rows->values();
+    }
+
+    /**
+     * @param  array<int, string>  $workingDates
+     * @return array<string, string>|null
+     */
+    public function buildStatusFilterTokens(
+        int $schoolID,
+        Student $student,
+        string $status,
+        array $range,
+        array $workingDates,
+        string $workStartTime = '07:30:00'
+    ): ?array {
+        $school = School::find($schoolID);
+        $firstName = $student->first_name ?: trim(implode(' ', array_filter([
+            $student->first_name,
+            $student->middle_name,
+            $student->last_name,
+        ])));
+
+        $records = StudentFingerprintAttendance::where('studentID', $student->studentID)
+            ->whereBetween('attendance_date', [
+                $range['start']->format('Y-m-d'),
+                $range['end']->format('Y-m-d'),
+            ])
+            ->get()
+            ->keyBy(fn ($r) => Carbon::parse($r->attendance_date)->format('Y-m-d'));
+
+        $dayLines = [];
+        $dayPhrase = $status === 'Present' ? 'alikuwepo (check-in)' : 'hakuwepo (hakuna check-in)';
+
+        if ($status === 'Absent') {
+            foreach ($workingDates as $workDate) {
+                $rec = $records->get($workDate);
+                if (! $rec || empty($rec->check_in_time)) {
+                    $d = Carbon::parse($workDate);
+                    $dayLines[] = $d->format('d/m/Y').' '.$d->format('l').' - '.$dayPhrase;
+                }
+            }
+        } else {
+            foreach ($records as $dateStr => $rec) {
+                if (empty($rec->check_in_time)) {
+                    continue;
+                }
+                $d = Carbon::parse($dateStr);
+                $dayLines[] = $d->format('d/m/Y').' '.$d->format('l').' - '.$dayPhrase;
+            }
+        }
+
+        $daysCount = count($dayLines);
+        if ($daysCount < 1) {
+            return null;
+        }
+
+        $statusLine = $status === 'Present'
+            ? "Amehudhuria siku {$daysCount}"
+            : "Haja hudhuria siku {$daysCount}";
+
+        $tokens = [
+            'STUDENT_NAME' => $firstName,
+            'PERIOD' => (string) $range['label'],
+            'STATUS_LINE' => $statusLine,
+            'DAY_LIST' => implode("\n", $dayLines),
+            'DAYS_COUNT' => (string) $daysCount,
+        ];
+
+        if (! ($school && $school->senderID)) {
+            $tokens['SCHOOL_NAME'] = $school?->school_name ?? 'Shule';
+        }
+
+        return $tokens;
+    }
+
+    /**
+     * @param  array<string, string>  $tokens
+     */
+    public function fillStatusFilterTemplate(string $template, array $tokens): string
+    {
+        $msg = $template;
+        foreach ($tokens as $key => $value) {
+            $msg = str_replace('{'.$key.'}', $value, $msg);
+        }
+        $msg = str_replace('{SCHOOL_NAME}', '', $msg);
+        $msg = preg_replace("/\n{3,}/", "\n\n", $msg) ?? $msg;
+        $msg = trim($msg);
+
+        return strlen($msg) > 480 ? substr($msg, 0, 477).'...' : $msg;
+    }
+
+    /**
+     * @return array{template: string, sample_tokens: array<string, string>, sample_message: string, required_tokens: array<int, string>}|null
+     */
+    public function buildStatusFilterSample(
+        int $schoolID,
+        int $studentID,
+        string $status,
+        array $range
+    ): ?array {
+        $student = Student::where('schoolID', $schoolID)->where('studentID', $studentID)->first();
+        if (! $student) {
+            return null;
+        }
+
+        $workTime = StudentWorkTimeSetting::forSchool($schoolID);
+        $workingDates = $this->workingDaysService->getWorkingDates($schoolID, $range['start'], $range['end']);
+        $tokens = $this->buildStatusFilterTokens(
+            $schoolID,
+            $student,
+            $status,
+            $range,
+            $workingDates,
+            (string) $workTime->work_start_time
+        );
+        if ($tokens === null) {
+            return null;
+        }
+
+        $includeSchool = isset($tokens['SCHOOL_NAME']);
+        $template = $this->defaultStatusFilterTemplate($includeSchool);
+
+        return [
+            'template' => $template,
+            'sample_tokens' => $tokens,
+            'sample_message' => $this->fillStatusFilterTemplate($template, $tokens),
+            'required_tokens' => ['STUDENT_NAME', 'PERIOD', 'STATUS_LINE', 'DAY_LIST'],
+        ];
+    }
+
+    /**
+     * @return array{success: bool, message?: string, error?: string}
+     */
+    public function sendStatusFilterForStudent(
+        int $schoolID,
+        int $studentID,
+        string $status,
+        string $filterType,
+        ?int $sentBy = null,
+        ?string $date = null,
+        ?string $year = null,
+        ?string $month = null,
+        ?string $fromDate = null,
+        ?string $toDate = null,
+        ?string $messageTemplate = null
+    ): array {
+        $range = $this->resolveReportFilterPeriod($filterType, $date, $year, $month, $fromDate, $toDate);
+        if (! $range) {
+            return ['success' => false, 'error' => 'Invalid period filter.'];
+        }
+        if (! in_array($status, ['Present', 'Absent'], true)) {
+            return ['success' => false, 'error' => 'Invalid status.'];
+        }
+
+        if ($messageTemplate !== null && trim($messageTemplate) !== '') {
+            foreach (['{STUDENT_NAME}', '{PERIOD}', '{STATUS_LINE}', '{DAY_LIST}'] as $required) {
+                if (stripos($messageTemplate, $required) === false) {
+                    return ['success' => false, 'error' => 'SMS sample must keep locked values: '.$required];
+                }
+            }
+        }
+
+        $student = Student::with(['parent'])->where('schoolID', $schoolID)->where('studentID', $studentID)->first();
+        if (! $student) {
+            return ['success' => false, 'error' => 'Student not found.'];
+        }
+
+        $phone = $this->resolveParentPhone($student);
+        if (! $phone) {
+            return ['success' => false, 'error' => 'No valid parent phone number.'];
+        }
+
+        $workTime = StudentWorkTimeSetting::forSchool($schoolID);
+        $workingDates = $this->workingDaysService->getWorkingDates($schoolID, $range['start'], $range['end']);
+        $tokens = $this->buildStatusFilterTokens(
+            $schoolID,
+            $student,
+            $status,
+            $range,
+            $workingDates,
+            (string) $workTime->work_start_time
+        );
+        if ($tokens === null) {
+            return ['success' => false, 'error' => 'No matching fingerprint days to send.'];
+        }
+
+        $template = ($messageTemplate !== null && trim($messageTemplate) !== '')
+            ? $messageTemplate
+            : $this->defaultStatusFilterTemplate(isset($tokens['SCHOOL_NAME']));
+        $message = $this->fillStatusFilterTemplate($template, $tokens);
+
+        $smsService = new SmsService();
+        $result = $smsService->sendSms($phone, $message);
+
+        if ($result['success'] ?? false) {
+            $periodKey = substr(md5($status.'|'.$filterType.'|'.$range['start']->format('Y-m-d').'|'.$range['end']->format('Y-m-d')), 0, 16);
+            FingerprintAttendanceSmsLog::updateOrCreate(
+                [
+                    'schoolID' => $schoolID,
+                    'studentID' => $studentID,
+                    'schedule_type' => 'status_filter',
+                    'period_key' => $periodKey,
+                ],
+                [
+                    'phone' => $phone,
+                    'status' => 'sent',
+                    'message' => $message,
+                    'sent_by' => $sentBy,
+                    'sent_at' => Carbon::now(),
+                ]
+            );
+
+            return ['success' => true, 'message' => $message];
+        }
+
+        return ['success' => false, 'error' => $result['message'] ?? 'Failed to send SMS'];
+    }
 }

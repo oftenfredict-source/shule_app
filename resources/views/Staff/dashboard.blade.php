@@ -176,7 +176,7 @@
                                 </div>
                                 <ul class="mb-0" style="padding-left: 18px;">
                                     @foreach($permissions as $permission)
-                                        <li>{{ $permission->name }}</li>
+                                        <li>{{ is_object($permission) ? ($permission->name ?? '') : $permission }}</li>
                                     @endforeach
                                 </ul>
                             </div>

@@ -967,17 +967,20 @@ class ManageAttendanceController extends Controller
                 return response()->json(['success' => false, 'message' => 'Access denied'], 403);
             }
 
-            $searchType = $request->input('search_type'); // date, year, month, week, day, subclass, all_school
+            $searchType = $request->input('search_type'); // date, date_range, year, month, week, day, subclass, all_school
             $subclassID = $request->input('subclassID');
             $classID = $request->input('classID');
             $isCoordinatorView = $request->input('coordinator') === 'true';
             $date = $request->input('date');
+            $fromDate = $request->input('from_date');
+            $toDate = $request->input('to_date');
             $year = $request->input('year');
             $month = $request->input('month');
             $week = $request->input('week');
             $day = $request->input('day');
             $studentID = $request->input('studentID');
             $enrollmentStatus = $request->input('enrollment_status', 'Active');
+            $attendanceStatus = $request->input('attendance_status', 'all');
 
             $yearIds = app(SelectedAcademicYearService::class)->selectedYearIds((int) $schoolID);
             if (empty($yearIds)) {
@@ -1032,6 +1035,11 @@ class ManageAttendanceController extends Controller
                         $query->whereDate('attendances.attendance_date', $date);
                     }
                     break;
+                case 'date_range':
+                    if ($fromDate && $toDate) {
+                        $query->whereBetween('attendances.attendance_date', [$fromDate, $toDate]);
+                    }
+                    break;
                 case 'year':
                     if ($year) {
                         $query->whereYear('attendances.attendance_date', $year);
@@ -1069,6 +1077,10 @@ class ManageAttendanceController extends Controller
                     break;
             }
 
+            if ($attendanceStatus && $attendanceStatus !== 'all') {
+                $query->where('attendances.status', $attendanceStatus);
+            }
+
             // Filter by student if provided
             if ($studentID) {
                 $query->where('attendances.studentID', $studentID);
@@ -1083,7 +1095,21 @@ class ManageAttendanceController extends Controller
             $stats = $this->calculateAttendanceStats($attendances, $searchType, $date, $year, $month, $week, $subclassID, $schoolID);
 
             // Get attendance by class with student details
-            $attendanceByClass = $this->getAttendanceByClass($searchType, $date, $year, $month, $week, $subclassID, $schoolID, $classID, $isCoordinatorView, $enrollmentStatus);
+            $attendanceByClass = $this->getAttendanceByClass(
+                $searchType,
+                $date,
+                $year,
+                $month,
+                $week,
+                $subclassID,
+                $schoolID,
+                $classID,
+                $isCoordinatorView,
+                $enrollmentStatus,
+                $attendanceStatus,
+                $fromDate,
+                $toDate
+            );
 
             return response()->json([
                 'success' => true,
@@ -1267,13 +1293,30 @@ class ManageAttendanceController extends Controller
         ];
     }
 
-    private function getAttendanceByClass($searchType, $date = null, $year = null, $month = null, $week = null, $subclassID = null, $schoolID = null, $classID = null, $isCoordinatorView = false, $enrollmentStatus = 'Active')
+    private function getAttendanceByClass(
+        $searchType,
+        $date = null,
+        $year = null,
+        $month = null,
+        $week = null,
+        $subclassID = null,
+        $schoolID = null,
+        $classID = null,
+        $isCoordinatorView = false,
+        $enrollmentStatus = 'Active',
+        $attendanceStatus = 'all',
+        $fromDate = null,
+        $toDate = null
+    )
     {
-        if (!in_array($searchType, ['date', 'month', 'year']) || !$schoolID) {
+        if (!in_array($searchType, ['date', 'date_range', 'month', 'year']) || !$schoolID) {
             return [];
         }
 
         $enrollmentService = app(StudentEnrollmentService::class);
+        $statusFilter = in_array($attendanceStatus, ['Present', 'Absent', 'Sick', 'Excused'], true)
+            ? $attendanceStatus
+            : 'all';
 
         // Get subclasses query
         $subclassesQuery = DB::table('subclasses')
@@ -1330,15 +1373,15 @@ class ManageAttendanceController extends Controller
                     }
                 });
 
-            // Apply date filters
-            if ($searchType == 'date' && $date) {
-                $attendanceCheckQuery->whereDate('attendance_date', $date);
-            } elseif ($searchType == 'month' && $year && $month) {
-                $attendanceCheckQuery->whereYear('attendance_date', $year)
-                                  ->whereMonth('attendance_date', $month);
-            } elseif ($searchType == 'year' && $year) {
-                $attendanceCheckQuery->whereYear('attendance_date', $year);
-            }
+            $this->applyAttendancePeriodToQuery(
+                $attendanceCheckQuery,
+                $searchType,
+                $date,
+                $year,
+                $month,
+                $fromDate,
+                $toDate
+            );
 
             $hasAttendance = $attendanceCheckQuery->exists();
 
@@ -1380,15 +1423,15 @@ class ManageAttendanceController extends Controller
                     }
                 });
 
-            // Apply date filters
-            if ($searchType == 'date' && $date) {
-                $attendanceStatsQuery->whereDate('attendance_date', $date);
-            } elseif ($searchType == 'month' && $year && $month) {
-                $attendanceStatsQuery->whereYear('attendance_date', $year)
-                                  ->whereMonth('attendance_date', $month);
-            } elseif ($searchType == 'year' && $year) {
-                $attendanceStatsQuery->whereYear('attendance_date', $year);
-            }
+            $this->applyAttendancePeriodToQuery(
+                $attendanceStatsQuery,
+                $searchType,
+                $date,
+                $year,
+                $month,
+                $fromDate,
+                $toDate
+            );
 
             $attendanceStats = $attendanceStatsQuery
                 ->select(
@@ -1412,7 +1455,7 @@ class ManageAttendanceController extends Controller
             $sickPercentage = 0;
             $excusedPercentage = 0;
 
-            if (in_array($searchType, ['month', 'year']) && $totalStudents > 0) {
+            if (in_array($searchType, ['month', 'year', 'date_range']) && $totalStudents > 0) {
                 // For month/year, calculate percentage of students
                 $presentPercentage = $totalRecords > 0 ? round(($present / $totalRecords) * 100, 2) : 0;
                 $absentPercentage = $totalRecords > 0 ? round(($absent / $totalRecords) * 100, 2) : 0;
@@ -1422,7 +1465,7 @@ class ManageAttendanceController extends Controller
 
             // Students via enrollment roster (header year + status)
             $studentsBase = DB::table('students')
-                ->leftJoin('attendances', function($join) use ($schoolID, $subclass, $searchType, $date, $year, $month, $enrolledIDs) {
+                ->leftJoin('attendances', function($join) use ($schoolID, $subclass, $searchType, $date, $year, $month, $fromDate, $toDate, $enrolledIDs) {
                     $join->on('students.studentID', '=', 'attendances.studentID')
                          ->where('attendances.schoolID', $schoolID)
                          ->where(function ($q) use ($subclass, $enrolledIDs) {
@@ -1434,6 +1477,8 @@ class ManageAttendanceController extends Controller
 
                     if ($searchType == 'date' && $date) {
                         $join->whereDate('attendances.attendance_date', $date);
+                    } elseif ($searchType == 'date_range' && $fromDate && $toDate) {
+                        $join->whereBetween('attendances.attendance_date', [$fromDate, $toDate]);
                     } elseif ($searchType == 'month' && $year && $month) {
                         $join->whereYear('attendances.attendance_date', $year)
                             ->whereMonth('attendances.attendance_date', $month);
@@ -1475,6 +1520,21 @@ class ManageAttendanceController extends Controller
                     return $row;
                 });
 
+            if ($statusFilter !== 'all') {
+                $dayField = match ($statusFilter) {
+                    'Present' => 'days_present',
+                    'Absent' => 'days_absent',
+                    'Sick' => 'days_sick',
+                    'Excused' => 'days_excused',
+                    default => null,
+                };
+                if ($dayField) {
+                    $studentsQuery = $studentsQuery
+                        ->filter(fn ($row) => ((int) ($row->{$dayField} ?? 0)) > 0)
+                        ->values();
+                }
+            }
+
             // Calculate display name
             $subclassName = trim($subclass->subclass_name);
             $displayName = empty($subclassName) 
@@ -1500,7 +1560,34 @@ class ManageAttendanceController extends Controller
             ];
         }
 
+        if ($statusFilter !== 'all') {
+            $result = array_values(array_filter($result, function ($row) {
+                return !empty($row['students']) && count($row['students']) > 0;
+            }));
+        }
+
         return $result;
+    }
+
+    private function applyAttendancePeriodToQuery(
+        $query,
+        string $searchType,
+        $date = null,
+        $year = null,
+        $month = null,
+        $fromDate = null,
+        $toDate = null,
+        string $column = 'attendance_date'
+    ): void {
+        if ($searchType === 'date' && $date) {
+            $query->whereDate($column, $date);
+        } elseif ($searchType === 'date_range' && $fromDate && $toDate) {
+            $query->whereBetween($column, [$fromDate, $toDate]);
+        } elseif ($searchType === 'month' && $year && $month) {
+            $query->whereYear($column, $year)->whereMonth($column, $month);
+        } elseif ($searchType === 'year' && $year) {
+            $query->whereYear($column, $year);
+        }
     }
 
     private function prepareChartData($attendances, $period)
@@ -3867,17 +3954,20 @@ class ManageAttendanceController extends Controller
         }
 
         $searchType = $request->input('search_type');
-        if (!in_array($searchType, ['date', 'month', 'year'], true)) {
+        if (!in_array($searchType, ['date', 'date_range', 'month', 'year'], true)) {
             return redirect()->back()->with('error', 'Invalid search type for PDF export.');
         }
 
         $date = $request->input('date');
+        $fromDate = $request->input('from_date');
+        $toDate = $request->input('to_date');
         $year = $request->input('year');
         $month = $request->input('month');
         $subclassID = $request->input('subclassID');
         $classID = $request->input('classID');
         $isCoordinatorView = $request->input('coordinator') === 'true';
         $enrollmentStatus = $request->input('enrollment_status', 'Active');
+        $attendanceStatus = $request->input('attendance_status', 'all');
 
         $attendanceByClass = $this->getAttendanceByClass(
             $searchType,
@@ -3889,11 +3979,14 @@ class ManageAttendanceController extends Controller
             $schoolID,
             $classID,
             $isCoordinatorView,
-            $enrollmentStatus
+            $enrollmentStatus,
+            $attendanceStatus,
+            $fromDate,
+            $toDate
         );
 
         $school = School::find($schoolID);
-        $periodLabel = $this->buildStudentAttendancePeriodLabel($searchType, $date, $year, $month);
+        $periodLabel = $this->buildStudentAttendancePeriodLabel($searchType, $date, $year, $month, $fromDate, $toDate);
         $scopeLabel = 'All Classes';
 
         if ($subclassID) {
@@ -4025,10 +4118,16 @@ class ManageAttendanceController extends Controller
         string $searchType,
         ?string $date = null,
         ?string $year = null,
-        ?string $month = null
+        ?string $month = null,
+        ?string $fromDate = null,
+        ?string $toDate = null
     ): string {
         if ($searchType === 'date' && $date) {
             return Carbon::parse($date)->format('d M Y');
+        }
+
+        if ($searchType === 'date_range' && $fromDate && $toDate) {
+            return Carbon::parse($fromDate)->format('d/m/Y') . ' - ' . Carbon::parse($toDate)->format('d/m/Y');
         }
 
         if ($searchType === 'month' && $year && $month) {

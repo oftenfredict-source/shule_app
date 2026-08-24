@@ -546,7 +546,7 @@
             <div class="att-filter-panel-head">
                 <i class="bi bi-sliders"></i>
                 <h5>Search System Attendance</h5>
-                <small>Filter records by date, month, or year</small>
+                <small>Filter by date, date range, month, year + status</small>
             </div>
             <div class="att-filter-panel-body">
                 <form id="searchAttendanceForm">
@@ -574,10 +574,22 @@
                             <select class="form-select" id="search_type" name="search_type" required>
                                 <option value="">Select Type</option>
                                 <option value="date">By Date</option>
+                                <option value="date_range">Date Range</option>
                                 <option value="month">By Month</option>
                                 <option value="year">By Year</option>
                             </select>
                             <span class="att-filter-hint">How to search attendance</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Attendance Status</label>
+                            <select class="form-select" id="attendance_status" name="attendance_status">
+                                <option value="all" selected>All Statuses</option>
+                                <option value="Present">Present</option>
+                                <option value="Absent">Absent</option>
+                                <option value="Sick">Sick</option>
+                                <option value="Excused">Permission</option>
+                            </select>
+                            <span class="att-filter-hint">Filter students by status</span>
                         </div>
                         <div class="att-filter-item att-filter-item--medium">
                             <label>Enrollment Status</label>
@@ -595,6 +607,16 @@
                             <label>Date</label>
                             <input type="date" class="form-control" id="date" name="date">
                             <span class="att-filter-hint">Specific day</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium" id="from_date_field" style="display: none;">
+                            <label>From Date</label>
+                            <input type="date" class="form-control" id="from_date" name="from_date">
+                            <span class="att-filter-hint">Range start</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium" id="to_date_field" style="display: none;">
+                            <label>To Date</label>
+                            <input type="date" class="form-control" id="to_date" name="to_date">
+                            <span class="att-filter-hint">Range end</span>
                         </div>
                         <div class="att-filter-item att-filter-item--narrow" id="year_field" style="display: none;">
                             <label>Year</label>
@@ -642,7 +664,7 @@
                     <div class="data-table-card">
                         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                             <h4 class="mb-0">
-                                <i class="bi bi-people"></i> Attendance by Class
+                                <i class="bi bi-bar-chart"></i> Attendance Report
                             </h4>
                             <div class="d-flex gap-3 align-items-center flex-wrap">
                                 <div style="min-width: 250px; flex: 0 0 auto;">
@@ -650,6 +672,9 @@
                                         <option value="">All Classes</option>
                                     </select>
                                 </div>
+                                <button type="button" class="btn btn-primary-custom btn-sm" id="btnSendStatusFilterSms" title="Send SMS to parents of filtered students" style="display: none;">
+                                    <i class="bi bi-chat-dots"></i> Send SMS
+                                </button>
                                 <button type="button" class="btn btn-danger btn-sm" id="exportAttendanceReportPdfBtn" title="Download full attendance report PDF" style="display: none;">
                                     <i class="bi bi-file-earmark-pdf"></i> Download Full PDF
                                 </button>
@@ -1024,6 +1049,8 @@
         
         // Hide all fields
         document.getElementById('date_field').style.display = 'none';
+        document.getElementById('from_date_field').style.display = 'none';
+        document.getElementById('to_date_field').style.display = 'none';
         document.getElementById('year_field').style.display = 'none';
         document.getElementById('month_field').style.display = 'none';
 
@@ -1031,6 +1058,10 @@
         switch(searchType) {
             case 'date':
                 document.getElementById('date_field').style.display = 'flex';
+                break;
+            case 'date_range':
+                document.getElementById('from_date_field').style.display = 'flex';
+                document.getElementById('to_date_field').style.display = 'flex';
                 break;
             case 'year':
                 document.getElementById('year_field').style.display = 'flex';
@@ -1151,6 +1182,23 @@
         const pdfBtn = document.getElementById('exportAttendanceReportPdfBtn');
         if (pdfBtn) {
             pdfBtn.style.display = (data.attendance_by_class && data.attendance_by_class.length > 0) ? 'inline-block' : 'none';
+        }
+
+        const statusSmsBtn = document.getElementById('btnSendStatusFilterSms');
+        const statusFilter = (currentAttendanceSearchParams && currentAttendanceSearchParams.attendance_status)
+            ? currentAttendanceSearchParams.attendance_status
+            : 'all';
+        let filteredStudentCount = 0;
+        if (data.attendance_by_class) {
+            data.attendance_by_class.forEach(function (cls) {
+                if (cls.students) filteredStudentCount += cls.students.length;
+            });
+        }
+        if (statusSmsBtn) {
+            const showSms = statusFilter && statusFilter !== 'all' && filteredStudentCount > 0;
+            statusSmsBtn.style.display = showSms ? 'inline-block' : 'none';
+            statusSmsBtn.dataset.status = statusFilter;
+            statusSmsBtn.dataset.count = String(filteredStudentCount);
         }
 
         // Display attendance by class if available
@@ -2194,407 +2242,152 @@
     function displayAttendanceByClass(attendanceByClass) {
         const content = document.getElementById('attendanceByClassContent');
         const searchType = document.getElementById('search_type').value;
-        
-        let html = '';
-        
-        attendanceByClass.forEach((classData) => {
-            if (!classData.has_attendance) {
-                // No attendance collected - get specific period message
-                let periodMessage = '';
-                if (searchType === 'month') {
-                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-                    const month = document.getElementById('month') ? document.getElementById('month').value : '';
-                    const year = document.getElementById('year') ? document.getElementById('year').value : '';
-                    if (month && year) {
-                        const monthName = monthNames[parseInt(month) - 1];
-                        periodMessage = `in ${monthName} ${year}`;
-                    } else {
-                        periodMessage = getPeriodLabel(searchType);
-                    }
-                } else if (searchType === 'year') {
-                    const year = document.getElementById('year') ? document.getElementById('year').value : '';
-                    if (year) {
-                        periodMessage = `in ${year}`;
-                    } else {
-                        periodMessage = getPeriodLabel(searchType);
-                    }
-                } else if (searchType === 'date') {
-                    const date = document.getElementById('date') ? document.getElementById('date').value : '';
-                    if (date) {
-                        const dateObj = new Date(date);
-                        periodMessage = `on ${dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
-                    } else {
-                        periodMessage = getPeriodLabel(searchType);
-                    }
-                } else {
-                    periodMessage = getPeriodLabel(searchType);
-                }
-                
-                html += `
-                    <div class="card mb-4 border-secondary" data-subclass-id="${classData.subclassID}">
-                        <div class="card-header bg-secondary text-white">
-                            <h5 class="mb-0">
-                                <i class="bi bi-folder"></i> ${classData.display_name || (classData.class_name + ' ' + classData.subclass_name) || classData.subclass_name}
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="alert alert-warning mb-0">
-                                <i class="bi bi-exclamation-triangle"></i> No attendance collected ${periodMessage} for this class.
-                            </div>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
+        const statusFilter = (currentAttendanceSearchParams && currentAttendanceSearchParams.attendance_status)
+            ? currentAttendanceSearchParams.attendance_status
+            : 'all';
 
-            // Has attendance - show statistics
-            html += `
-                <div class="card mb-4" style="border-color: #940000; border-width: 2px;" data-subclass-id="${classData.subclassID}">
-                    <div class="card-header text-white" style="background-color: #940000;">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <h5 class="mb-0">
-                                <i class="bi bi-folder"></i> ${classData.display_name || (classData.class_name + ' ' + classData.subclass_name) || classData.subclass_name}
-                            </h5>
-                            <div class="d-flex gap-2 align-items-center">
-                                <button type="button" class="btn btn-sm btn-danger export-system-class-pdf-btn" data-subclass-id="${classData.subclassID}" title="Download class PDF report">
-                                    <i class="bi bi-file-earmark-pdf"></i> PDF
-                                </button>
-                                <button class="btn btn-sm btn-light toggle-subclass-btn" data-subclass-id="${classData.subclassID}">
-                                    <i class="bi bi-chevron-down"></i> View Students
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="row mb-3">
-            `;
+        let periodTitle = 'SYSTEM ATTENDANCE REPORT';
+        if (searchType === 'month') {
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            const month = document.getElementById('month')?.value || '';
+            const year = document.getElementById('year')?.value || '';
+            if (month && year) periodTitle = 'SYSTEM ATTENDANCE — ' + monthNames[parseInt(month, 10) - 1].toUpperCase() + ' ' + year;
+        } else if (searchType === 'year') {
+            const year = document.getElementById('year')?.value || '';
+            if (year) periodTitle = 'SYSTEM ATTENDANCE — YEAR ' + year;
+        } else if (searchType === 'date') {
+            const date = document.getElementById('date')?.value || '';
+            if (date) periodTitle = 'SYSTEM ATTENDANCE — ' + date;
+        } else if (searchType === 'date_range') {
+            const fromDate = document.getElementById('from_date')?.value || '';
+            const toDate = document.getElementById('to_date')?.value || '';
+            if (fromDate && toDate) periodTitle = 'SYSTEM ATTENDANCE — ' + fromDate + ' TO ' + toDate;
+        }
+        if (statusFilter && statusFilter !== 'all') {
+            periodTitle += ' · ' + (statusFilter === 'Excused' ? 'PERMISSION' : statusFilter.toUpperCase()) + ' ONLY';
+        }
 
-            // Show widgets based on search type
-            if (searchType === 'month' || searchType === 'year') {
-                // Show percentage widgets for month/year
-                html += `
-                            <div class="col-md-3">
-                                <div class="card bg-success">
-                                    <div class="card-body text-center" style="color: #ffffff;">
-                                        <h4 style="color: #ffffff; font-weight: bold;">${classData.present_percentage}%</h4>
-                                        <p class="mb-0" style="color: #ffffff; font-weight: 500;">Present (${classData.present})</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card bg-danger">
-                                    <div class="card-body text-center" style="color: #ffffff;">
-                                        <h4 style="color: #ffffff; font-weight: bold;">${classData.absent_percentage}%</h4>
-                                        <p class="mb-0" style="color: #ffffff; font-weight: 500;">Absent (${classData.absent})</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card bg-warning">
-                                    <div class="card-body text-center" style="color: #000000;">
-                                        <h4 style="color: #000000; font-weight: bold;">${classData.sick_percentage}%</h4>
-                                        <p class="mb-0" style="color: #000000; font-weight: 500;">Sick (${classData.sick})</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card bg-info">
-                                    <div class="card-body text-center" style="color: #ffffff;">
-                                        <h4 style="color: #ffffff; font-weight: bold;">${classData.excused_percentage}%</h4>
-                                        <p class="mb-0" style="color: #ffffff; font-weight: 500;">Permission (${classData.excused})</p>
-                                    </div>
-                                </div>
-                            </div>
-                `;
-            } else {
-                // Show count widgets for date/week
-                html += `
-                            <div class="col-md-3">
-                                <div class="card bg-success">
-                                    <div class="card-body text-center" style="color: #ffffff;">
-                                        <h4 style="color: #ffffff; font-weight: bold;">${classData.present || 0}</h4>
-                                        <p class="mb-0" style="color: #ffffff; font-weight: 500;">Present</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card bg-danger">
-                                    <div class="card-body text-center" style="color: #ffffff;">
-                                        <h4 style="color: #ffffff; font-weight: bold;">${classData.absent || 0}</h4>
-                                        <p class="mb-0" style="color: #ffffff; font-weight: 500;">Absent</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card bg-warning">
-                                    <div class="card-body text-center" style="color: #000000;">
-                                        <h4 style="color: #000000; font-weight: bold;">${classData.sick || 0}</h4>
-                                        <p class="mb-0" style="color: #000000; font-weight: 500;">Sick</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="card bg-info">
-                                    <div class="card-body text-center" style="color: #ffffff;">
-                                        <h4 style="color: #ffffff; font-weight: bold;">${classData.excused || 0}</h4>
-                                        <p class="mb-0" style="color: #ffffff; font-weight: 500;">Permission</p>
-                                    </div>
-                                </div>
-                            </div>
-                `;
-            }
-
-            html += `
-                        </div>
-                        
-                        <!-- Bar Chart for Attendance Percentages -->
-                        <div class="row mb-3">
-                            <div class="col-md-12">
-                                <div class="card">
-                                    <div class="card-header text-white" style="background-color: #940000;">
-                                        <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Attendance Percentages</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <canvas id="classChart_${classData.subclassID}" height="80"></canvas>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="subclass-students" id="subclass-students-${classData.subclassID}" style="display: none;">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover" id="studentsTable_${classData.subclassID}">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Student Name</th>
-                                            <th>Admission No.</th>
-                                            <th>Enrollment</th>
-                                            <th>Gender</th>
-                                            <th>Days Present</th>
-                                            <th>Days Absent</th>
-                                            <th>Days Sick</th>
-                                            <th>Days Permission</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-            `;
-            
-            if (classData.students && classData.students.length > 0) {
-                classData.students.forEach((student, studentIndex) => {
-                    const isActiveEnrolled = !student.enrollment_status || student.enrollment_status === 'Active';
-                    const enrBadgeClass = isActiveEnrolled ? 'bg-success' : 'bg-secondary';
-                    const enr = student.enrollment_status
-                        ? `<span class="badge ${enrBadgeClass}">${student.enrollment_status}</span>${student.enrollmentID ? `<div class="small text-muted">#${student.enrollmentID}</div>` : ''}`
-                        : '<span class="text-muted">—</span>';
-                    const rowStyle = isActiveEnrolled ? '' : 'opacity:0.55;background:#f5f5f5;';
-                    html += `
-                        <tr style="${rowStyle}">
-                            <td>${studentIndex + 1}</td>
-                            <td>${student.first_name} ${student.middle_name || ''} ${student.last_name}</td>
-                            <td>${student.admission_number || 'N/A'}</td>
-                            <td>${enr}</td>
-                            <td>${student.gender || 'N/A'}</td>
-                            <td><span class="badge bg-success">${student.days_present || 0}</span></td>
-                            <td><span class="badge bg-danger">${student.days_absent || 0}</span></td>
-                            <td><span class="badge bg-warning">${student.days_sick || 0}</span></td>
-                            <td><span class="badge bg-info">${student.days_excused || 0}</span></td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button class="btn btn-sm btn-view" onclick="viewStudentDetails(${student.studentID}, '${searchType}')">
-                                        <i class="bi bi-eye"></i> View
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" onclick="downloadStudentAttendancePdf(${student.studentID})" title="Download PDF">
-                                        <i class="bi bi-file-earmark-pdf"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
+        let totalPresent = 0, totalAbsent = 0, totalSick = 0, totalExcused = 0;
+        const flatRows = [];
+        (attendanceByClass || []).forEach((classData) => {
+            totalPresent += Number(classData.present || 0);
+            totalAbsent += Number(classData.absent || 0);
+            totalSick += Number(classData.sick || 0);
+            totalExcused += Number(classData.excused || 0);
+            const className = classData.display_name || ((classData.class_name || '') + ' ' + (classData.subclass_name || '')).trim();
+            (classData.students || []).forEach((student) => {
+                flatRows.push({
+                    studentID: student.studentID,
+                    name: [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' '),
+                    admission: student.admission_number || 'N/A',
+                    gender: student.gender || 'N/A',
+                    class_name: className,
+                    subclassID: classData.subclassID,
+                    enrollment_status: student.enrollment_status || '',
+                    days_present: Number(student.days_present || 0),
+                    days_absent: Number(student.days_absent || 0),
+                    days_sick: Number(student.days_sick || 0),
+                    days_excused: Number(student.days_excused || 0),
                 });
-            } else {
-                html += '<tr><td colspan="10" class="text-center">No enrollments found for the selected academic year / status.</td></tr>';
-            }
-            
-            html += `
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        content.innerHTML = html;
-
-        // Populate dropdown with all classes (including those without attendance)
-        const classDropdown = $('#searchClasses');
-        classDropdown.empty();
-        classDropdown.append('<option value="">All Classes</option>');
-        attendanceByClass.forEach((classData) => {
-            const displayName = classData.display_name || (classData.class_name + ' ' + classData.subclass_name) || classData.subclass_name;
-            const option = $('<option></option>').val(classData.subclassID).text(displayName);
-            classDropdown.append(option);
-        });
-
-        // Initialize DataTables and Charts for each class
-        attendanceByClass.forEach((classData) => {
-            if (classData.has_attendance) {
-                // Initialize DataTable for students table
-                if (classData.students && classData.students.length > 0) {
-                    $(`#studentsTable_${classData.subclassID}`).DataTable({
-                        pageLength: 10,
-                        order: [[0, 'asc']],
-                        language: {
-                            search: "Search:",
-                            lengthMenu: "Show _MENU_ entries",
-                            info: "Showing _START_ to _END_ of _TOTAL_ entries",
-                            infoEmpty: "No entries found",
-                            infoFiltered: "(filtered from _MAX_ total entries)",
-                            zeroRecords: "No matching records found"
-                        },
-                        responsive: true,
-                        columnDefs: [
-                            { orderable: false, targets: 8 } // Disable sorting on Actions column
-                        ]
-                    });
-                }
-
-                // Initialize Bar Chart for attendance percentages
-                const chartCtx = document.getElementById(`classChart_${classData.subclassID}`);
-                if (chartCtx) {
-                    const ctx = chartCtx.getContext('2d');
-                    
-                    let labels = [];
-                    let dataValues = [];
-                    let backgroundColor = [];
-                    
-                    if (searchType === 'month' || searchType === 'year') {
-                        // Show percentages for month/year
-                        labels = ['Present', 'Absent', 'Sick', 'Permission'];
-                        dataValues = [
-                            classData.present_percentage || 0,
-                            classData.absent_percentage || 0,
-                            classData.sick_percentage || 0,
-                            classData.excused_percentage || 0
-                        ];
-                        backgroundColor = ['#28a745', '#dc3545', '#ffc107', '#17a2b8'];
-                    } else {
-                        // Show counts for date
-                        labels = ['Present', 'Absent', 'Sick', 'Permission'];
-                        // Ensure values are numbers to avoid string concatenation
-                        const present = Number(classData.present || 0);
-                        const absent = Number(classData.absent || 0);
-                        const sick = Number(classData.sick || 0);
-                        const excused = Number(classData.excused || 0);
-                        
-                        const total = present + absent + sick + excused;
-                        
-                        dataValues = [
-                            total > 0 ? (present / total * 100).toFixed(2) : 0,
-                            total > 0 ? (absent / total * 100).toFixed(2) : 0,
-                            total > 0 ? (sick / total * 100).toFixed(2) : 0,
-                            total > 0 ? (excused / total * 100).toFixed(2) : 0
-                        ];
-                        backgroundColor = ['#28a745', '#dc3545', '#ffc107', '#17a2b8'];
-                    }
-
-                    new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Percentage (%)',
-                                data: dataValues,
-                                backgroundColor: backgroundColor,
-                                borderColor: backgroundColor,
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    max: 100,
-                                    ticks: {
-                                        callback: function(value) {
-                                            return value + '%';
-                                        }
-                                    }
-                                }
-                            },
-                            plugins: {
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            return context.label + ': ' + context.parsed.y + '%';
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            }
-        });
-
-        document.querySelectorAll('.export-system-class-pdf-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                downloadAttendanceReportPdf(this.getAttribute('data-subclass-id'));
             });
         });
 
-        // Add toggle functionality
-        $('.toggle-subclass-btn').on('click', function() {
-            const subclassID = $(this).data('subclass-id');
-            const classCard = $(this).closest('.card');
-            const studentsDiv = $('#subclass-students-' + subclassID);
-            const widgetsDiv = classCard.find('.row.mb-3').first();
-            const chartDiv = classCard.find('.row.mb-3').last();
-            const icon = $(this).find('i');
-
-            if (studentsDiv.is(':visible')) {
-                // Hide students, show widgets and chart
-                studentsDiv.slideUp();
-                widgetsDiv.slideDown();
-                chartDiv.slideDown();
-                icon.removeClass('bi-chevron-up').addClass('bi-chevron-down');
-                $(this).html('<i class="bi bi-chevron-down"></i> View Students');
-            } else {
-                // Show students, hide widgets and chart
-                widgetsDiv.slideUp();
-                chartDiv.slideUp();
-                studentsDiv.slideDown();
-                icon.removeClass('bi-chevron-down').addClass('bi-chevron-up');
-                $(this).html('<i class="bi bi-chevron-up"></i> Hide Students');
-            }
+        const classDropdown = $('#searchClasses');
+        classDropdown.empty().append('<option value="">All Classes</option>');
+        (attendanceByClass || []).forEach((classData) => {
+            const displayName = classData.display_name || ((classData.class_name || '') + ' ' + (classData.subclass_name || '')).trim();
+            classDropdown.append($('<option></option>').val(classData.subclassID).text(displayName));
         });
 
-        // Add search functionality for classes (dropdown)
-        $('#searchClasses').on('change', function() {
-            const selectedClassID = $(this).val();
-            const searchType = document.getElementById('search_type').value;
-            const periodLabel = getPeriodLabel(searchType);
-            
-            $('.card.mb-4').each(function() {
-                if (selectedClassID === '') {
-                    // Show all classes
-                    $(this).show();
-                } else {
-                    // Show only selected class - check both data attribute and toggle button
-                    const subclassID = $(this).data('subclass-id') || $(this).find('.toggle-subclass-btn').data('subclass-id');
-                    
-                    if (subclassID == selectedClassID) {
+        let html = '<div class="sf-report-title text-center mb-2" style="font-size:1.05rem;font-weight:700;color:#940000;text-transform:uppercase;">' + periodTitle + '</div>';
+        html += '<div class="card border-0 shadow-sm mb-3"><div class="card-body py-2 px-3"><div class="row text-center small g-2">';
+        html += '<div class="col-md-3"><strong>Present</strong><br><span class="text-success fs-5">' + totalPresent + '</span></div>';
+        html += '<div class="col-md-3"><strong>Absent</strong><br><span class="text-danger fs-5">' + totalAbsent + '</span></div>';
+        html += '<div class="col-md-3"><strong>Sick</strong><br><span class="text-warning fs-5">' + totalSick + '</span></div>';
+        html += '<div class="col-md-3"><strong>Permission</strong><br><span class="text-info fs-5">' + totalExcused + '</span></div>';
+        html += '</div><div class="row text-center small g-2 mt-2 pt-2 border-top">';
+        html += '<div class="col-md-4"><strong>Students shown</strong><br><span class="fs-5">' + flatRows.length + '</span></div>';
+        html += '<div class="col-md-4"><strong>Classes</strong><br><span class="fs-5">' + (attendanceByClass || []).length + '</span></div>';
+        html += '<div class="col-md-4"><strong>Status filter</strong><br>' + (statusFilter === 'all' ? 'All' : (statusFilter === 'Excused' ? 'Permission' : statusFilter)) + '</div>';
+        html += '</div></div></div>';
+
+        if (!flatRows.length) {
+            html += '<div class="alert alert-info mb-0">No students found for this filter.</div>';
+            content.innerHTML = html;
+            return;
+        }
+
+        html += '<div class="table-responsive"><table id="systemAttendanceReportTable" class="table table-striped table-hover table-sm mb-0 w-100">';
+        html += '<thead style="background:#940000;color:#fff;"><tr>';
+        html += '<th>#</th><th>Name</th><th>Admission</th><th>Class</th><th>Gender</th>';
+        html += '<th>Present</th><th>Absent</th><th>Sick</th><th>Permission</th><th>Actions</th>';
+        html += '</tr></thead><tbody>';
+
+        flatRows.forEach((row, idx) => {
+            const dim = row.enrollment_status && row.enrollment_status !== 'Active' ? 'opacity:0.55;' : '';
+            html += '<tr style="' + dim + '" data-subclass-id="' + row.subclassID + '">';
+            html += '<td>' + (idx + 1) + '</td>';
+            html += '<td>' + row.name + '</td>';
+            html += '<td>' + row.admission + '</td>';
+            html += '<td>' + row.class_name + '</td>';
+            html += '<td>' + row.gender + '</td>';
+            html += '<td><span class="badge ' + (statusFilter === 'Present' || statusFilter === 'all' ? 'bg-success' : 'bg-secondary') + '">' + row.days_present + '</span></td>';
+            html += '<td><span class="badge ' + (statusFilter === 'Absent' || statusFilter === 'all' ? 'bg-danger' : 'bg-secondary') + '">' + row.days_absent + '</span></td>';
+            html += '<td><span class="badge ' + (statusFilter === 'Sick' || statusFilter === 'all' ? 'bg-warning text-dark' : 'bg-secondary') + '">' + row.days_sick + '</span></td>';
+            html += '<td><span class="badge ' + (statusFilter === 'Excused' || statusFilter === 'all' ? 'bg-info' : 'bg-secondary') + '">' + row.days_excused + '</span></td>';
+            html += '<td><div class="btn-group btn-group-sm">';
+            html += '<button class="btn btn-sm btn-view" onclick="viewStudentDetails(' + row.studentID + ', \'' + searchType + '\')"><i class="bi bi-eye"></i></button>';
+            html += '<button class="btn btn-sm btn-danger" onclick="downloadStudentAttendancePdf(' + row.studentID + ')" title="PDF"><i class="bi bi-file-earmark-pdf"></i></button>';
+            html += '</div></td></tr>';
+        });
+        html += '</tbody></table></div>';
+        content.innerHTML = html;
+
+        if ($.fn.DataTable) {
+            if ($.fn.DataTable.isDataTable('#systemAttendanceReportTable')) {
+                $('#systemAttendanceReportTable').DataTable().destroy();
+            }
+            $('#systemAttendanceReportTable').DataTable({
+                pageLength: 25,
+                order: [[1, 'asc']],
+                language: {
+                    search: 'Search:',
+                    lengthMenu: 'Show _MENU_',
+                    info: 'Showing _START_ to _END_ of _TOTAL_',
+                    zeroRecords: 'No matching records'
+                },
+                columnDefs: [{ orderable: false, targets: 9 }]
+            });
+        }
+
+        $('#searchClasses').off('change.sysReport').on('change.sysReport', function () {
+            const selected = $(this).val();
+            const table = $.fn.DataTable.isDataTable('#systemAttendanceReportTable')
+                ? $('#systemAttendanceReportTable').DataTable()
+                : null;
+            if (table) {
+                $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(function (fn) {
+                    return !fn._sysClassFilter;
+                });
+                if (selected) {
+                    const filterFn = function (settings, data, dataIndex) {
+                        if (settings.nTable.id !== 'systemAttendanceReportTable') return true;
+                        const row = table.row(dataIndex).node();
+                        return row && String(row.getAttribute('data-subclass-id')) === String(selected);
+                    };
+                    filterFn._sysClassFilter = true;
+                    $.fn.dataTable.ext.search.push(filterFn);
+                }
+                table.draw();
+            } else {
+                $('#systemAttendanceReportTable tbody tr').each(function () {
+                    if (!selected || String($(this).data('subclass-id')) === String(selected)) {
                         $(this).show();
                     } else {
                         $(this).hide();
                     }
-                }
-            });
+                });
+            }
         });
     }
 
@@ -2602,7 +2395,8 @@
         const labels = {
             'month': 'in this month',
             'year': 'in this year',
-            'date': 'on this date'
+            'date': 'on this date',
+            'date_range': 'in this date range'
         };
         return labels[searchType] || '';
     }
@@ -2621,7 +2415,7 @@
         const params = new URLSearchParams();
         const merged = { ...currentAttendanceSearchParams, ...extraParams };
 
-        ['search_type', 'date', 'year', 'month', 'classID', 'coordinator', 'subclassID', 'enrollment_status'].forEach(key => {
+        ['search_type', 'date', 'from_date', 'to_date', 'year', 'month', 'classID', 'coordinator', 'subclassID', 'enrollment_status', 'attendance_status'].forEach(key => {
             if (merged[key]) {
                 params.append(key, merged[key]);
             }
@@ -2645,6 +2439,8 @@
         const year = document.getElementById('year') ? document.getElementById('year').value : new Date().getFullYear();
         const month = document.getElementById('month') ? document.getElementById('month').value : String(new Date().getMonth() + 1).padStart(2, '0');
         const date = document.getElementById('date') ? document.getElementById('date').value : '';
+        const fromDate = document.getElementById('from_date') ? document.getElementById('from_date').value : '';
+        const toDate = document.getElementById('to_date') ? document.getElementById('to_date').value : '';
 
         const params = new URLSearchParams();
         params.append('search_type', searchType);
@@ -2653,6 +2449,9 @@
             params.append('month', month);
         } else if (searchType === 'date' && date) {
             params.append('date', date);
+        } else if (searchType === 'date_range') {
+            if (fromDate) params.append('from_date', fromDate);
+            if (toDate) params.append('to_date', toDate);
         }
 
         window.location.href = `{{ url('export_student_attendance_pdf') }}/${studentID}?${params.toString()}`;
@@ -4227,6 +4026,105 @@
 
 @include('partials.attendance_sms_modal')
 
+<!-- Status-filter Attendance SMS Modal -->
+<div class="modal fade" id="attendanceStatusSmsModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary-custom text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-chat-dots"></i> Send SMS — Filtered Attendance
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="attStatusSmsDisabled" class="alert alert-warning d-none"></div>
+                <div id="attStatusSmsContent" class="d-none">
+                    <div class="alert alert-info border-0 shadow-sm mb-3">
+                        <div><strong>Status:</strong> <span id="attStatusSmsStatusLabel">—</span></div>
+                        <div><strong>Period:</strong> <span id="attStatusSmsPeriodLabel">—</span></div>
+                        <div class="small text-muted mt-1">Parents of students matching this filter. SMS lists each matching day.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="font-weight-bold mb-0"><i class="bi bi-chat-left-text"></i> SMS Sample</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="attStatusSmsResetTemplate">Reset</button>
+                        </div>
+                        <div class="small text-muted mb-2">
+                            Unaweza kuhariri maandishi. <strong>Values zilizofungwa</strong> (jina, period, siku) haziwezi kuhaririwa — zinajaza automatic kwa kila mwanafunzi.
+                        </div>
+                        <div id="attStatusSmsEditor"
+                             class="form-control"
+                             contenteditable="true"
+                             style="min-height: 140px; white-space: pre-wrap; line-height: 1.5; border-radius: 0; font-size: 0.92rem;"></div>
+                        <style>
+                            #attStatusSmsEditor .sms-locked {
+                                display: inline;
+                                background: #fff3cd;
+                                border: 1px solid #f0d78c;
+                                color: #7a5b00;
+                                padding: 0 4px;
+                                margin: 0 1px;
+                                border-radius: 2px;
+                                font-weight: 600;
+                                cursor: default;
+                                user-select: none;
+                                white-space: pre-wrap;
+                            }
+                        </style>
+                        <div id="attStatusSmsTemplateError" class="text-danger small mt-1 d-none"></div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="attStatusSmsSelectAll">
+                            <label class="custom-control-label font-weight-bold" for="attStatusSmsSelectAll">Select All</label>
+                        </div>
+                        <span class="badge badge-success" id="attStatusSmsSelectedCount" style="font-size: 1rem;">Receivers: 0</span>
+                    </div>
+                    <div class="table-responsive" style="max-height: 320px;">
+                        <table class="table table-sm table-hover">
+                            <thead class="bg-light sticky-top">
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th>Parent Of</th>
+                                    <th>Days</th>
+                                    <th>Phone</th>
+                                    <th class="text-center" style="width: 120px;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attStatusSmsList"></tbody>
+                        </table>
+                    </div>
+                    <div id="attStatusSmsProgressArea" class="mt-4 d-none">
+                        <hr>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="font-weight-bold text-primary-custom">Sending Progress</span>
+                            <span id="attStatusSmsProgressText" class="small">0 / 0</span>
+                        </div>
+                        <div class="progress" style="height: 22px;">
+                            <div id="attStatusSmsProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 0%;">0%</div>
+                        </div>
+                        <div id="attStatusSmsDeliverySummary" class="text-center small mt-2"></div>
+                    </div>
+                </div>
+                <div id="attStatusSmsLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted small mb-0">Loading parents...</p>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" id="attStatusSmsCancelBtn">Cancel</button>
+                <button type="button" class="btn btn-primary-custom" id="attStatusSmsStartBtn" disabled>
+                    <i class="bi bi-send"></i> Start Sending SMS
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const btn = document.getElementById('btnOpenAttendanceSms');
@@ -4252,6 +4150,8 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (!referenceDate && searchType === 'year') {
             const y = document.getElementById('year')?.value;
             if (y) referenceDate = y + '-01-01';
+        } else if (!referenceDate && searchType === 'date_range') {
+            referenceDate = document.getElementById('from_date')?.value || null;
         }
 
         if (typeof openAttendanceSmsModal === 'function') {
@@ -4269,6 +4169,317 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .catch(() => {});
 });
+
+(function ($) {
+    if (typeof $ !== 'function') return;
+
+    let attStatusSmsSending = false;
+    let attStatusSmsFilter = null;
+    let attStatusSmsSample = null;
+
+    function escapeHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function lockedSpan(token, value) {
+        return '<span class="sms-locked" contenteditable="false" data-token="' + escapeHtml(token) + '">' +
+            escapeHtml(value).replace(/\n/g, '<br>') +
+            '</span>';
+    }
+
+    function renderSmsSampleEditor(sample) {
+        const editor = document.getElementById('attStatusSmsEditor');
+        if (!editor || !sample) return;
+        const tokens = sample.sample_tokens || {};
+        let html = escapeHtml(sample.template || '');
+        Object.keys(tokens).forEach(function (key) {
+            const token = '{' + key + '}';
+            html = html.split(escapeHtml(token)).join(lockedSpan(key, tokens[key]));
+        });
+        html = html.replace(/\n/g, '<br>');
+        editor.innerHTML = html;
+        $('#attStatusSmsTemplateError').addClass('d-none').text('');
+    }
+
+    function serializeSmsSampleTemplate() {
+        const editor = document.getElementById('attStatusSmsEditor');
+        if (!editor) return '';
+
+        function walk(node) {
+            let out = '';
+            node.childNodes.forEach(function (child) {
+                if (child.nodeType === Node.TEXT_NODE) {
+                    out += child.nodeValue;
+                    return;
+                }
+                if (child.nodeType !== Node.ELEMENT_NODE) return;
+                const tag = child.tagName.toLowerCase();
+                if (child.classList && child.classList.contains('sms-locked')) {
+                    out += '{' + (child.getAttribute('data-token') || '') + '}';
+                    return;
+                }
+                if (tag === 'br') {
+                    out += '\n';
+                    return;
+                }
+                if (tag === 'div' || tag === 'p') {
+                    if (out && !out.endsWith('\n')) out += '\n';
+                    out += walk(child);
+                    if (!out.endsWith('\n')) out += '\n';
+                    return;
+                }
+                out += walk(child);
+            });
+            return out;
+        }
+
+        return walk(editor).replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function validateSmsSampleTemplate(template) {
+        const required = (attStatusSmsSample && attStatusSmsSample.required_tokens)
+            ? attStatusSmsSample.required_tokens
+            : ['STUDENT_NAME', 'PERIOD', 'STATUS_LINE', 'DAY_LIST'];
+        const missing = required.filter(function (t) {
+            return template.indexOf('{' + t + '}') === -1;
+        });
+        if (missing.length) {
+            const msg = 'Usifute values zilizofungwa: ' + missing.map(function (t) { return '{' + t + '}'; }).join(', ');
+            $('#attStatusSmsTemplateError').removeClass('d-none').text(msg);
+            return false;
+        }
+        $('#attStatusSmsTemplateError').addClass('d-none').text('');
+        return true;
+    }
+
+    function attStatusSmsUpdateCount() {
+        const count = $('#attStatusSmsList .att-status-sms-cb:checked:not(:disabled)').length;
+        $('#attStatusSmsSelectedCount').text('Receivers: ' + count);
+        $('#attStatusSmsStartBtn').prop('disabled', count === 0 || attStatusSmsSending);
+    }
+
+    function openStatusFilterSmsModal() {
+        if (!currentAttendanceSearchParams) {
+            Swal.fire({ icon: 'warning', title: 'Search first', text: 'Filter attendance first, then send SMS.', confirmButtonColor: '#940000' });
+            return;
+        }
+        const status = currentAttendanceSearchParams.attendance_status;
+        if (!status || status === 'all') {
+            Swal.fire({ icon: 'info', title: 'Select status', text: 'Chagua Attendance Status (eg Absent) kisha search tena.', confirmButtonColor: '#940000' });
+            return;
+        }
+
+        attStatusSmsFilter = { ...currentAttendanceSearchParams };
+        attStatusSmsSample = null;
+        $('#attStatusSmsDisabled').addClass('d-none').text('');
+        $('#attStatusSmsContent').addClass('d-none');
+        $('#attStatusSmsLoading').removeClass('d-none');
+        $('#attStatusSmsProgressArea').addClass('d-none');
+        $('#attStatusSmsStartBtn').prop('disabled', true);
+        $('#attStatusSmsList').empty();
+        $('#attStatusSmsEditor').empty();
+        $('#attendanceStatusSmsModal').modal('show');
+
+        $.get('{{ route("attendance_status_sms.recipients") }}', attStatusSmsFilter)
+            .done(function (res) {
+                $('#attStatusSmsLoading').addClass('d-none');
+                if (!res.success) {
+                    $('#attStatusSmsDisabled').removeClass('d-none').text(res.message || 'Unable to load recipients.');
+                    return;
+                }
+                $('#attStatusSmsContent').removeClass('d-none');
+                $('#attStatusSmsStatusLabel').text(res.status_label || status);
+                $('#attStatusSmsPeriodLabel').text(res.period_label || '');
+
+                attStatusSmsSample = res.sample || null;
+                if (attStatusSmsSample) {
+                    renderSmsSampleEditor(attStatusSmsSample);
+                }
+
+                const list = $('#attStatusSmsList');
+                list.empty();
+                (res.recipients || []).forEach(function (row) {
+                    const phone = String(row.parentPhone || '').trim();
+                    const hasPhone = phone && !['null', 'undefined', 'n/a'].includes(phone.toLowerCase());
+                    const cbId = 'att_status_sms_' + row.studentID;
+                    const disabled = !hasPhone;
+                    let statusHtml = '<span class="text-muted small"><i class="bi bi-hourglass"></i> Pending</span>';
+                    if (!hasPhone) {
+                        statusHtml = '<span class="text-danger small"><i class="bi bi-telephone-x"></i> No Phone</span>';
+                    }
+                    list.append(`
+                        <tr data-student-id="${row.studentID}">
+                            <td class="text-center">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input att-status-sms-cb" id="${cbId}" ${disabled ? 'disabled' : ''}>
+                                    <label class="custom-control-label" for="${cbId}">&nbsp;</label>
+                                </div>
+                            </td>
+                            <td>Parent of ${row.studentName}</td>
+                            <td><span class="badge bg-danger">${row.days_count || 0}</span></td>
+                            <td>${hasPhone ? phone : '<span class="text-danger small">No Phone</span>'}</td>
+                            <td class="text-center att-status-sms-col">${statusHtml}</td>
+                        </tr>
+                    `);
+                });
+                if (!(res.recipients || []).length) {
+                    list.append('<tr><td colspan="5" class="text-center text-muted">No parents found for this filter.</td></tr>');
+                }
+                $('#attStatusSmsSelectAll').prop('checked', false);
+                attStatusSmsUpdateCount();
+            })
+            .fail(function (xhr) {
+                $('#attStatusSmsLoading').addClass('d-none');
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to load recipients.';
+                $('#attStatusSmsDisabled').removeClass('d-none').text(msg);
+            });
+    }
+
+    $(document).on('click', '#btnSendStatusFilterSms', function () {
+        openStatusFilterSmsModal();
+    });
+
+    $(document).on('click', '#attStatusSmsResetTemplate', function () {
+        if (attStatusSmsSample) renderSmsSampleEditor(attStatusSmsSample);
+    });
+
+    $(document).on('keydown', '#attStatusSmsEditor', function (e) {
+        if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        const node = range.startContainer;
+        const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+        if (el && el.closest && el.closest('.sms-locked')) {
+            e.preventDefault();
+            return;
+        }
+        if (e.key === 'Backspace' && range.collapsed) {
+            let prev = null;
+            if (node.nodeType === Node.TEXT_NODE && range.startOffset === 0) {
+                prev = node.previousSibling;
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                prev = node.childNodes[range.startOffset - 1] || null;
+            }
+            if (prev && prev.classList && prev.classList.contains('sms-locked')) {
+                e.preventDefault();
+            }
+        }
+        if (e.key === 'Delete' && range.collapsed) {
+            let next = null;
+            if (node.nodeType === Node.TEXT_NODE && range.startOffset === (node.nodeValue || '').length) {
+                next = node.nextSibling;
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                next = node.childNodes[range.startOffset] || null;
+            }
+            if (next && next.classList && next.classList.contains('sms-locked')) {
+                e.preventDefault();
+            }
+        }
+    });
+
+    $(document).on('change', '#attStatusSmsSelectAll', function () {
+        const checked = $(this).is(':checked');
+        $('#attStatusSmsList .att-status-sms-cb:not(:disabled)').prop('checked', checked);
+        attStatusSmsUpdateCount();
+    });
+
+    $(document).on('change', '.att-status-sms-cb', attStatusSmsUpdateCount);
+
+    $(document).on('click', '#attStatusSmsStartBtn', async function () {
+        const rows = $('#attStatusSmsList .att-status-sms-cb:checked').closest('tr');
+        if (!rows.length || attStatusSmsSending || !attStatusSmsFilter) return;
+
+        const messageTemplate = serializeSmsSampleTemplate();
+        if (!validateSmsSampleTemplate(messageTemplate)) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'SMS sample incomplete',
+                text: 'Usifute values zilizofungwa kwenye sample ya SMS.',
+                confirmButtonColor: '#940000'
+            });
+            return;
+        }
+
+        const confirmed = typeof Swal !== 'undefined'
+            ? await Swal.fire({
+                title: 'Send SMS?',
+                text: 'Send to ' + rows.length + ' parent(s)?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#940000',
+                confirmButtonText: 'Yes, Send',
+            })
+            : { isConfirmed: confirm('Send SMS to ' + rows.length + ' parent(s)?') };
+        if (!confirmed.isConfirmed) return;
+
+        attStatusSmsSending = true;
+        $('#attStatusSmsStartBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Sending...');
+        $('#attStatusSmsCancelBtn').prop('disabled', true);
+        $('.att-status-sms-cb, #attStatusSmsSelectAll').prop('disabled', true);
+        $('#attStatusSmsEditor').attr('contenteditable', 'false');
+        $('#attStatusSmsProgressArea').removeClass('d-none');
+
+        const total = rows.length;
+        let delivered = 0;
+        let failed = 0;
+
+        for (let i = 0; i < total; i++) {
+            const row = $(rows[i]);
+            const statusCol = row.find('.att-status-sms-col');
+            statusCol.html('<span class="spinner-border spinner-border-sm text-primary"></span> Sending...');
+
+            const payload = Object.assign({}, attStatusSmsFilter, {
+                studentID: row.data('student-id'),
+                message_template: messageTemplate,
+                _token: $('meta[name="csrf-token"]').attr('content'),
+            });
+
+            try {
+                const response = await $.ajax({
+                    url: '{{ route("attendance_status_sms.send") }}',
+                    type: 'POST',
+                    data: payload,
+                });
+                if (response.success) {
+                    statusCol.html('<span class="text-success small font-weight-bold"><i class="bi bi-check-circle-fill"></i> Delivered</span>');
+                    delivered++;
+                } else {
+                    statusCol.html('<span class="text-danger small"><i class="bi bi-x-circle"></i> ' + (response.error || 'Failed') + '</span>');
+                    failed++;
+                }
+            } catch (err) {
+                const msg = err.responseJSON && err.responseJSON.error ? err.responseJSON.error : 'Error';
+                statusCol.html('<span class="text-danger small"><i class="bi bi-exclamation-triangle"></i> ' + msg + '</span>');
+                failed++;
+            }
+
+            const done = delivered + failed;
+            const pct = Math.round((done / total) * 100);
+            $('#attStatusSmsProgressBar').css('width', pct + '%').text(pct + '%');
+            $('#attStatusSmsProgressText').text(done + ' / ' + total);
+            $('#attStatusSmsDeliverySummary').html('<span class="text-success">' + delivered + ' Delivered</span> | <span class="text-danger">' + failed + ' Failed</span>');
+        }
+
+        attStatusSmsSending = false;
+        $('#attStatusSmsStartBtn').html('<i class="bi bi-send"></i> Start Sending SMS');
+        $('#attStatusSmsCancelBtn').prop('disabled', false);
+        $('#attStatusSmsEditor').attr('contenteditable', 'true');
+        $('#attStatusSmsList .att-status-sms-cb').each(function () {
+            const r = $(this).closest('tr');
+            if (r.find('.bi-check-circle-fill').length) {
+                $(this).prop('checked', false).prop('disabled', true);
+            } else if (!r.find('.bi-telephone-x').length) {
+                $(this).prop('disabled', false);
+            }
+        });
+        attStatusSmsUpdateCount();
+    });
+})(window.jQuery);
 </script>
 
 @include('includes.footer')
