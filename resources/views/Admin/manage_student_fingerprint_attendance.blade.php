@@ -100,13 +100,13 @@
                     <div class="col-md-2">
                         <label class="mb-1 fw-bold text-primary-custom">Report Type</label>
                         <select id="sfReportFilterType" class="form-control">
-                            <option value="day">Day</option>
+                            <option value="day" selected>Day</option>
                             <option value="date_range">Date Range</option>
-                            <option value="month" selected>Month</option>
+                            <option value="month">Month</option>
                             <option value="year">Year</option>
                         </select>
                     </div>
-                    <div class="col-md-2 sf-report-filter" id="sfReportDayWrap" style="display:none;">
+                    <div class="col-md-2 sf-report-filter" id="sfReportDayWrap">
                         <label class="mb-1">Date</label>
                         <input type="date" id="sfReportDate" class="form-control" value="{{ date('Y-m-d') }}">
                     </div>
@@ -118,7 +118,7 @@
                         <label class="mb-1">To Date</label>
                         <input type="date" id="sfReportToDate" class="form-control" value="{{ date('Y-m-d') }}">
                     </div>
-                    <div class="col-md-2 sf-report-filter" id="sfReportMonthWrap">
+                    <div class="col-md-2 sf-report-filter" id="sfReportMonthWrap" style="display:none;">
                         <label class="mb-1">Month</label>
                         <select id="sfReportMonth" class="form-control">
                             @for($m = 1; $m <= 12; $m++)
@@ -126,7 +126,7 @@
                             @endfor
                         </select>
                     </div>
-                    <div class="col-md-2 sf-report-filter" id="sfReportYearWrap">
+                    <div class="col-md-2 sf-report-filter" id="sfReportYearWrap" style="display:none;">
                         <label class="mb-1">Year</label>
                         <input type="number" id="sfReportYear" class="form-control" value="{{ date('Y') }}" min="2000" max="2100">
                     </div>

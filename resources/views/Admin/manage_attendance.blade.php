@@ -593,8 +593,7 @@
                         <div class="att-filter-item att-filter-item--medium">
                             <label>Search Type <span class="text-danger">*</span></label>
                             <select class="form-select" id="search_type" name="search_type" required>
-                                <option value="">Select Type</option>
-                                <option value="date">By Date</option>
+                                <option value="date" selected>By Date (Day)</option>
                                 <option value="date_range">Date Range</option>
                                 <option value="month">By Month</option>
                                 <option value="year">By Year</option>
@@ -624,9 +623,9 @@
                             </select>
                             <span class="att-filter-hint">Header academic year: <strong>{{ $academicYearLabel ?? '—' }}</strong></span>
                         </div>
-                        <div class="att-filter-item att-filter-item--medium" id="date_field" style="display: none;">
+                        <div class="att-filter-item att-filter-item--medium" id="date_field" style="display: flex;">
                             <label>Date</label>
-                            <input type="date" class="form-control" id="date" name="date">
+                            <input type="date" class="form-control" id="date" name="date" value="{{ date('Y-m-d') }}">
                             <span class="att-filter-hint">Specific day</span>
                         </div>
                         <div class="att-filter-item att-filter-item--medium" id="from_date_field" style="display: none;">
@@ -2340,12 +2339,19 @@
             });
         });
 
-        const classDropdown = $('#searchClasses');
-        classDropdown.empty().append('<option value="">All Classes</option>');
-        (attendanceByClass || []).forEach((classData) => {
-            const displayName = classData.display_name || ((classData.class_name || '') + ' ' + (classData.subclass_name || '')).trim();
-            classDropdown.append($('<option></option>').val(classData.subclassID).text(displayName));
-        });
+        // Use jQuery explicitly — global $ is often overwritten on this layout
+        const $jq = window.jQuery;
+        const classDropdown = document.getElementById('searchClasses');
+        if (classDropdown) {
+            classDropdown.innerHTML = '<option value="">All Classes</option>';
+            (attendanceByClass || []).forEach((classData) => {
+                const displayName = classData.display_name || ((classData.class_name || '') + ' ' + (classData.subclass_name || '')).trim();
+                const opt = document.createElement('option');
+                opt.value = classData.subclassID;
+                opt.textContent = displayName;
+                classDropdown.appendChild(opt);
+            });
+        }
 
         let html = '<div class="sf-report-title text-center mb-2" style="font-size:1.05rem;font-weight:700;color:#940000;text-transform:uppercase;">' + periodTitle + '</div>';
         html += '<div class="card border-0 shadow-sm mb-3"><div class="card-body py-2 px-3"><div class="row text-center small g-2">';
@@ -2361,9 +2367,8 @@
 
         if (!flatRows.length) {
             html += '<div class="alert alert-info mb-0">No students found for this filter.</div>';
-            // Destroy any previous DataTable before replacing HTML
-            if ($.fn.DataTable && $.fn.DataTable.isDataTable('#systemAttendanceReportTable')) {
-                try { $('#systemAttendanceReportTable').DataTable().destroy(); } catch (e) {}
+            if ($jq && $jq.fn.DataTable && $jq.fn.DataTable.isDataTable('#systemAttendanceReportTable')) {
+                try { $jq('#systemAttendanceReportTable').DataTable().destroy(); } catch (e) {}
             }
             content.innerHTML = html;
             return;
@@ -2395,14 +2400,14 @@
         html += '</tbody></table></div>';
 
         // Destroy previous DataTable BEFORE replacing DOM (avoids DataTables "get" TypeError)
-        if ($.fn.DataTable && $.fn.DataTable.isDataTable('#systemAttendanceReportTable')) {
-            try { $('#systemAttendanceReportTable').DataTable().destroy(); } catch (e) {}
+        if ($jq && $jq.fn.DataTable && $jq.fn.DataTable.isDataTable('#systemAttendanceReportTable')) {
+            try { $jq('#systemAttendanceReportTable').DataTable().destroy(); } catch (e) {}
         }
         content.innerHTML = html;
 
-        if ($.fn.DataTable) {
+        if ($jq && $jq.fn.DataTable) {
             try {
-                $('#systemAttendanceReportTable').DataTable({
+                $jq('#systemAttendanceReportTable').DataTable({
                     pageLength: 25,
                     order: [[1, 'asc']],
                     language: {
@@ -2418,21 +2423,23 @@
             }
         }
 
-        $('#searchClasses').off('change.sysReport').on('change.sysReport', function () {
-            const selected = String($(this).val() || '');
-            const $rows = $('#systemAttendanceReportTable tbody tr');
-            if (!selected) {
-                $rows.show();
-                return;
-            }
-            $rows.each(function () {
-                if (String($(this).attr('data-subclass-id')) === selected) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
+        if ($jq) {
+            $jq('#searchClasses').off('change.sysReport').on('change.sysReport', function () {
+                const selected = String($jq(this).val() || '');
+                const $rows = $jq('#systemAttendanceReportTable tbody tr');
+                if (!selected) {
+                    $rows.show();
+                    return;
                 }
+                $rows.each(function () {
+                    if (String($jq(this).attr('data-subclass-id')) === selected) {
+                        $jq(this).show();
+                    } else {
+                        $jq(this).hide();
+                    }
+                });
             });
-        });
+        }
     }
 
     function getPeriodLabel(searchType) {

@@ -284,13 +284,13 @@
                     <div class="col-md-2">
                         <label class="mb-1 fw-bold text-primary-custom">Report Type</label>
                         <select id="tsReportFilterType" class="form-control">
-                            <option value="day">Day</option>
+                            <option value="day" selected>Day</option>
                             <option value="date_range">Date Range</option>
-                            <option value="month" selected>Month</option>
+                            <option value="month">Month</option>
                             <option value="year">Year</option>
                         </select>
                     </div>
-                    <div class="col-md-2 ts-report-filter" id="tsReportDayWrap" style="display:none;">
+                    <div class="col-md-2 ts-report-filter" id="tsReportDayWrap">
                         <label class="mb-1">Date</label>
                         <input type="date" id="tsReportDate" class="form-control" value="{{ date('Y-m-d') }}">
                     </div>
@@ -302,7 +302,7 @@
                         <label class="mb-1">To Date</label>
                         <input type="date" id="tsReportToDate" class="form-control" value="{{ date('Y-m-d') }}">
                     </div>
-                    <div class="col-md-2 ts-report-filter" id="tsReportMonthWrap">
+                    <div class="col-md-2 ts-report-filter" id="tsReportMonthWrap" style="display:none;">
                         <label class="mb-1">Month</label>
                         <select id="tsReportMonth" class="form-control">
                             @for($m = 1; $m <= 12; $m++)
@@ -310,7 +310,7 @@
                             @endfor
                         </select>
                     </div>
-                    <div class="col-md-2 ts-report-filter" id="tsReportYearWrap">
+                    <div class="col-md-2 ts-report-filter" id="tsReportYearWrap" style="display:none;">
                         <label class="mb-1">Year</label>
                         <input type="number" id="tsReportYear" class="form-control" value="{{ date('Y') }}" min="2000" max="2100">
                     </div>
