@@ -106,6 +106,7 @@ class ManageAttendanceController extends Controller
                     // Default subclass - show only class name
                     $subclasses->push((object)[
                         'subclassID' => $subclass->subclassID,
+                        'classID' => $subclass->classID,
                         'subclass_name' => $subclass->subclass_name,
                         'display_name' => $subclass->class->class_name,
                         'class_name' => $subclass->class->class_name,
@@ -114,6 +115,7 @@ class ManageAttendanceController extends Controller
                     // Single subclass with name
                     $subclasses->push((object)[
                         'subclassID' => $subclass->subclassID,
+                        'classID' => $subclass->classID,
                         'subclass_name' => $subclass->subclass_name,
                         'display_name' => $subclass->class->class_name . ' ' . $subclass->subclass_name,
                         'class_name' => $subclass->class->class_name,
@@ -129,6 +131,7 @@ class ManageAttendanceController extends Controller
                     
                     $subclasses->push((object)[
                         'subclassID' => $subclass->subclassID,
+                        'classID' => $subclass->classID,
                         'subclass_name' => $subclass->subclass_name,
                         'display_name' => $displayName,
                         'class_name' => $subclass->class->class_name,
@@ -141,6 +144,10 @@ class ManageAttendanceController extends Controller
         $subclasses = $subclasses->sortBy(function($item) {
             return $item->class_name . ' ' . $item->subclass_name;
         })->values();
+
+        $mainClasses = ClassModel::where('schoolID', $schoolID)
+            ->orderBy('class_name')
+            ->get(['classID', 'class_name']);
 
         // Get school details for exports
         $school = School::where('schoolID', $schoolID)->first();
@@ -164,6 +171,7 @@ class ManageAttendanceController extends Controller
 
         return view('Admin.manage_attendance', compact(
             'subclasses',
+            'mainClasses',
             'school_details',
             'isCoordinatorView',
             'selectedClass',
@@ -1026,6 +1034,13 @@ class ManageAttendanceController extends Controller
             } elseif ($subclassID) {
                 // Regular subclass filter
                 $query->where('attendances.subclassID', $subclassID);
+            } elseif ($classID) {
+                try {
+                    $decryptedClassID = Crypt::decrypt($classID);
+                } catch (\Exception $e) {
+                    $decryptedClassID = $classID;
+                }
+                $query->where('subclasses.classID', $decryptedClassID);
             }
 
             // Apply search filters
@@ -1339,6 +1354,14 @@ class ManageAttendanceController extends Controller
         } elseif ($subclassID) {
             // Regular subclass filter
             $subclassesQuery->where('subclasses.subclassID', $subclassID);
+        } elseif ($classID) {
+            // Admin/staff filter by main class (all streams)
+            try {
+                $decryptedClassID = Crypt::decrypt($classID);
+            } catch (\Exception $e) {
+                $decryptedClassID = $classID;
+            }
+            $subclassesQuery->where('subclasses.classID', $decryptedClassID);
         }
 
         $subclasses = $subclassesQuery->select(
@@ -1556,7 +1579,7 @@ class ManageAttendanceController extends Controller
                 'absent_percentage' => $absentPercentage,
                 'sick_percentage' => $sickPercentage,
                 'excused_percentage' => $excusedPercentage,
-                'students' => $studentsQuery
+                'students' => collect($studentsQuery)->values()->all(),
             ];
         }
 

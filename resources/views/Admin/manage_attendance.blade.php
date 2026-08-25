@@ -546,7 +546,7 @@
             <div class="att-filter-panel-head">
                 <i class="bi bi-sliders"></i>
                 <h5>Search System Attendance</h5>
-                <small>Filter by date, date range, month, year + status</small>
+                <small>Filter by class, stream, date, month, year + status</small>
             </div>
             <div class="att-filter-panel-body">
                 <form id="searchAttendanceForm">
@@ -559,14 +559,35 @@
                             <span class="att-filter-hint"><i class="bi bi-lock-fill"></i> Coordinator class (locked)</span>
                         </div>
                         <div class="att-filter-item att-filter-item--medium">
-                            <label>Subclass</label>
+                            <label>Subclass / Stream</label>
                             <select class="form-select" id="subclassFilter" name="subclassID">
-                                <option value="">All Subclasses</option>
+                                <option value="">All Streams</option>
                                 @foreach($coordinatorSubclasses as $subclass)
                                     <option value="{{ $subclass->subclassID }}">{{ $subclass->display_name }}</option>
                                 @endforeach
                             </select>
-                            <span class="att-filter-hint">Optional subclass filter</span>
+                            <span class="att-filter-hint">All streams or one stream</span>
+                        </div>
+                        @else
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Main Class</label>
+                            <select class="form-select" id="sysMainClassFilter" name="classID">
+                                <option value="">All Classes</option>
+                                @foreach(($mainClasses ?? []) as $mc)
+                                    <option value="{{ $mc->classID }}">{{ $mc->class_name }}</option>
+                                @endforeach
+                            </select>
+                            <span class="att-filter-hint">All or one main class</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Subclass / Stream</label>
+                            <select class="form-select" id="sysSubclassFilter" name="subclassID">
+                                <option value="">All Streams</option>
+                                @foreach($subclasses as $subclass)
+                                    <option value="{{ $subclass->subclassID }}" data-class-id="{{ $subclass->classID ?? '' }}">{{ $subclass->display_name }}</option>
+                                @endforeach
+                            </select>
+                            <span class="att-filter-hint">All streams or one stream</span>
                         </div>
                         @endif
                         <div class="att-filter-item att-filter-item--medium">
@@ -1162,10 +1183,11 @@
             }
         })
         .catch(error => {
+            console.error('Attendance search error:', error);
             Swal.fire({
                 icon: 'error',
                 title: 'Error!',
-                text: 'An error occurred while searching',
+                text: (error && error.message) ? error.message : 'An error occurred while searching',
                 confirmButtonColor: '#940000'
             });
         })
@@ -1174,6 +1196,32 @@
             submitBtn.innerHTML = originalText;
         });
     });
+
+    // Main class → subclass/stream options
+    (function () {
+        const mainSel = document.getElementById('sysMainClassFilter');
+        const subSel = document.getElementById('sysSubclassFilter');
+        if (!mainSel || !subSel) return;
+        const allOptions = Array.from(subSel.querySelectorAll('option[data-class-id]')).map(function (opt) {
+            return { value: opt.value, text: opt.textContent, classId: String(opt.getAttribute('data-class-id') || '') };
+        });
+        function refreshSubclassOptions() {
+            const classId = String(mainSel.value || '');
+            const current = subSel.value;
+            subSel.innerHTML = '<option value="">All Streams</option>';
+            allOptions.forEach(function (o) {
+                if (!classId || o.classId === classId) {
+                    const opt = document.createElement('option');
+                    opt.value = o.value;
+                    opt.textContent = o.text;
+                    opt.setAttribute('data-class-id', o.classId);
+                    if (o.value === current) opt.selected = true;
+                    subSel.appendChild(opt);
+                }
+            });
+        }
+        mainSel.addEventListener('change', refreshSubclassOptions);
+    })();
 
     function displayAttendanceResults(data) {
         // Show results section
@@ -2313,6 +2361,10 @@
 
         if (!flatRows.length) {
             html += '<div class="alert alert-info mb-0">No students found for this filter.</div>';
+            // Destroy any previous DataTable before replacing HTML
+            if ($.fn.DataTable && $.fn.DataTable.isDataTable('#systemAttendanceReportTable')) {
+                try { $('#systemAttendanceReportTable').DataTable().destroy(); } catch (e) {}
+            }
             content.innerHTML = html;
             return;
         }
@@ -2341,53 +2393,45 @@
             html += '</div></td></tr>';
         });
         html += '</tbody></table></div>';
+
+        // Destroy previous DataTable BEFORE replacing DOM (avoids DataTables "get" TypeError)
+        if ($.fn.DataTable && $.fn.DataTable.isDataTable('#systemAttendanceReportTable')) {
+            try { $('#systemAttendanceReportTable').DataTable().destroy(); } catch (e) {}
+        }
         content.innerHTML = html;
 
         if ($.fn.DataTable) {
-            if ($.fn.DataTable.isDataTable('#systemAttendanceReportTable')) {
-                $('#systemAttendanceReportTable').DataTable().destroy();
+            try {
+                $('#systemAttendanceReportTable').DataTable({
+                    pageLength: 25,
+                    order: [[1, 'asc']],
+                    language: {
+                        search: 'Search:',
+                        lengthMenu: 'Show _MENU_',
+                        info: 'Showing _START_ to _END_ of _TOTAL_',
+                        zeroRecords: 'No matching records'
+                    },
+                    columnDefs: [{ orderable: false, targets: 9 }]
+                });
+            } catch (e) {
+                console.error('DataTable init error:', e);
             }
-            $('#systemAttendanceReportTable').DataTable({
-                pageLength: 25,
-                order: [[1, 'asc']],
-                language: {
-                    search: 'Search:',
-                    lengthMenu: 'Show _MENU_',
-                    info: 'Showing _START_ to _END_ of _TOTAL_',
-                    zeroRecords: 'No matching records'
-                },
-                columnDefs: [{ orderable: false, targets: 9 }]
-            });
         }
 
         $('#searchClasses').off('change.sysReport').on('change.sysReport', function () {
-            const selected = $(this).val();
-            const table = $.fn.DataTable.isDataTable('#systemAttendanceReportTable')
-                ? $('#systemAttendanceReportTable').DataTable()
-                : null;
-            if (table) {
-                $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(function (fn) {
-                    return !fn._sysClassFilter;
-                });
-                if (selected) {
-                    const filterFn = function (settings, data, dataIndex) {
-                        if (settings.nTable.id !== 'systemAttendanceReportTable') return true;
-                        const row = table.row(dataIndex).node();
-                        return row && String(row.getAttribute('data-subclass-id')) === String(selected);
-                    };
-                    filterFn._sysClassFilter = true;
-                    $.fn.dataTable.ext.search.push(filterFn);
-                }
-                table.draw();
-            } else {
-                $('#systemAttendanceReportTable tbody tr').each(function () {
-                    if (!selected || String($(this).data('subclass-id')) === String(selected)) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
+            const selected = String($(this).val() || '');
+            const $rows = $('#systemAttendanceReportTable tbody tr');
+            if (!selected) {
+                $rows.show();
+                return;
             }
+            $rows.each(function () {
+                if (String($(this).attr('data-subclass-id')) === selected) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
         });
     }
 
