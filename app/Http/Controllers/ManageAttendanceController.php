@@ -4030,19 +4030,47 @@ class ManageAttendanceController extends Controller
             }
         }
 
-        $normalized = collect($attendanceByClass)->map(function ($item) {
+        $normalized = collect($attendanceByClass)->map(function ($item) use ($attendanceStatus) {
             $row = is_array($item) ? $item : (array) $item;
-            $row['students'] = collect($row['students'] ?? [])->map(fn ($s) => (array) $s)->values()->all();
+            $students = collect($row['students'] ?? [])->map(fn ($s) => (array) $s)->values()->all();
+            $row['students'] = $students;
+
+            // When filtered, class stats must match the filtered student list
+            if ($attendanceStatus && $attendanceStatus !== 'all') {
+                $row['present'] = collect($students)->sum(fn ($s) => (int) ($s['days_present'] ?? 0));
+                $row['absent'] = collect($students)->sum(fn ($s) => (int) ($s['days_absent'] ?? 0));
+                $row['sick'] = collect($students)->sum(fn ($s) => (int) ($s['days_sick'] ?? 0));
+                $row['excused'] = collect($students)->sum(fn ($s) => (int) ($s['days_excused'] ?? 0));
+                $row['filtered_student_count'] = count($students);
+                $dayField = match ($attendanceStatus) {
+                    'Present' => 'days_present',
+                    'Absent' => 'days_absent',
+                    'Sick' => 'days_sick',
+                    'Excused' => 'days_excused',
+                    default => null,
+                };
+                $row['filtered_days_total'] = $dayField
+                    ? collect($students)->sum(fn ($s) => (int) ($s[$dayField] ?? 0))
+                    : 0;
+            }
 
             return $row;
         })->values()->all();
 
+        $statusMeta = $this->attendanceStatusReportMeta($attendanceStatus);
+        $reportTitle = $statusMeta['title'];
+        $reportDescription = $statusMeta['description'];
+
         $data = [
             'school' => $school,
-            'title' => 'Student Attendance Report - ' . $periodLabel,
+            'title' => $reportTitle . ' - ' . $periodLabel,
+            'report_heading' => $reportTitle,
+            'report_description' => $reportDescription,
             'period_label' => $periodLabel,
             'scope_label' => $scopeLabel,
             'search_type' => $searchType,
+            'attendance_status' => $attendanceStatus ?: 'all',
+            'status_label' => $statusMeta['label'],
             'attendanceByClass' => $normalized,
             'generated_at' => now()->format('d M Y H:i'),
         ];
@@ -4055,9 +4083,45 @@ class ManageAttendanceController extends Controller
         ]);
         $pdf->setPaper('A4', 'portrait');
 
-        $filename = 'Student_Attendance_Report_' . date('YmdHis') . '.pdf';
+        $filename = $statusMeta['filename_prefix'] . '_' . date('YmdHis') . '.pdf';
 
         return $pdf->download($filename);
+    }
+
+    private function attendanceStatusReportMeta(string $attendanceStatus = 'all'): array
+    {
+        return match ($attendanceStatus) {
+            'Absent' => [
+                'title' => 'Ripoti ya Watoro (Absentee Report)',
+                'label' => 'Absent (Watoro)',
+                'description' => 'Orodha ya wanafunzi waliokosekana (watoro) katika kipindi kilichochaguliwa.',
+                'filename_prefix' => 'Ripoti_ya_Watoro',
+            ],
+            'Present' => [
+                'title' => 'Ripoti ya Waliohudhuria (Present Report)',
+                'label' => 'Present',
+                'description' => 'Orodha ya wanafunzi waliohudhuria katika kipindi kilichochaguliwa.',
+                'filename_prefix' => 'Ripoti_ya_Waliohudhuria',
+            ],
+            'Sick' => [
+                'title' => 'Ripoti ya Wagonjwa (Sick Report)',
+                'label' => 'Sick',
+                'description' => 'Orodha ya wanafunzi waliokuwa wagonjwa katika kipindi kilichochaguliwa.',
+                'filename_prefix' => 'Ripoti_ya_Wagonjwa',
+            ],
+            'Excused' => [
+                'title' => 'Ripoti ya Ruhusa (Permission Report)',
+                'label' => 'Permission',
+                'description' => 'Orodha ya wanafunzi wenye ruhusa katika kipindi kilichochaguliwa.',
+                'filename_prefix' => 'Ripoti_ya_Ruhusa',
+            ],
+            default => [
+                'title' => 'Student Attendance Report',
+                'label' => 'All Statuses',
+                'description' => 'Ripoti ya mahudhurio ya wanafunzi kwa kipindi kilichochaguliwa.',
+                'filename_prefix' => 'Student_Attendance_Report',
+            ],
+        };
     }
 
     public function exportStudentAttendancePdf($studentID, Request $request)

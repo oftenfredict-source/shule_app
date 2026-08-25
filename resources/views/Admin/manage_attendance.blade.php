@@ -551,45 +551,6 @@
             <div class="att-filter-panel-body">
                 <form id="searchAttendanceForm">
                     <div class="att-filter-row">
-                        @if(isset($isCoordinatorView) && $isCoordinatorView && $selectedClass)
-                        <div class="att-filter-item att-filter-item--medium">
-                            <label>Main Class</label>
-                            <input type="text" class="form-control" value="{{ $selectedClass->class_name }}" readonly style="background:#f3f4f6;cursor:not-allowed;">
-                            <input type="hidden" name="classID" id="lockedClassID" value="{{ $classIDParam }}">
-                            <span class="att-filter-hint"><i class="bi bi-lock-fill"></i> Coordinator class (locked)</span>
-                        </div>
-                        <div class="att-filter-item att-filter-item--medium">
-                            <label>Subclass / Stream</label>
-                            <select class="form-select" id="subclassFilter" name="subclassID">
-                                <option value="">All Streams</option>
-                                @foreach($coordinatorSubclasses as $subclass)
-                                    <option value="{{ $subclass->subclassID }}">{{ $subclass->display_name }}</option>
-                                @endforeach
-                            </select>
-                            <span class="att-filter-hint">All streams or one stream</span>
-                        </div>
-                        @else
-                        <div class="att-filter-item att-filter-item--medium">
-                            <label>Main Class</label>
-                            <select class="form-select" id="sysMainClassFilter" name="classID">
-                                <option value="">All Classes</option>
-                                @foreach(($mainClasses ?? []) as $mc)
-                                    <option value="{{ $mc->classID }}">{{ $mc->class_name }}</option>
-                                @endforeach
-                            </select>
-                            <span class="att-filter-hint">All or one main class</span>
-                        </div>
-                        <div class="att-filter-item att-filter-item--medium">
-                            <label>Subclass / Stream</label>
-                            <select class="form-select" id="sysSubclassFilter" name="subclassID">
-                                <option value="">All Streams</option>
-                                @foreach($subclasses as $subclass)
-                                    <option value="{{ $subclass->subclassID }}" data-class-id="{{ $subclass->classID ?? '' }}">{{ $subclass->display_name }}</option>
-                                @endforeach
-                            </select>
-                            <span class="att-filter-hint">All streams or one stream</span>
-                        </div>
-                        @endif
                         <div class="att-filter-item att-filter-item--medium">
                             <label>Search Type <span class="text-danger">*</span></label>
                             <select class="form-select" id="search_type" name="search_type" required>
@@ -599,29 +560,6 @@
                                 <option value="year">By Year</option>
                             </select>
                             <span class="att-filter-hint">How to search attendance</span>
-                        </div>
-                        <div class="att-filter-item att-filter-item--medium">
-                            <label>Attendance Status</label>
-                            <select class="form-select" id="attendance_status" name="attendance_status">
-                                <option value="all" selected>All Statuses</option>
-                                <option value="Present">Present</option>
-                                <option value="Absent">Absent</option>
-                                <option value="Sick">Sick</option>
-                                <option value="Excused">Permission</option>
-                            </select>
-                            <span class="att-filter-hint">Filter students by status</span>
-                        </div>
-                        <div class="att-filter-item att-filter-item--medium">
-                            <label>Enrollment Status</label>
-                            <select class="form-select" id="enrollment_status" name="enrollment_status">
-                                <option value="Active" selected>Active</option>
-                                <option value="Completed">Completed</option>
-                                <option value="Transferred">Transferred</option>
-                                <option value="Dropped">Dropped</option>
-                                <option value="Cancelled">Cancelled</option>
-                                <option value="all">All enrollments</option>
-                            </select>
-                            <span class="att-filter-hint">Header academic year: <strong>{{ $academicYearLabel ?? '—' }}</strong></span>
                         </div>
                         <div class="att-filter-item att-filter-item--medium" id="date_field" style="display: flex;">
                             <label>Date</label>
@@ -664,6 +602,68 @@
                                 <option value="12">December</option>
                             </select>
                             <span class="att-filter-hint">Month name</span>
+                        </div>
+                        @if(isset($isCoordinatorView) && $isCoordinatorView && $selectedClass)
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Main Class</label>
+                            <input type="text" class="form-control" value="{{ $selectedClass->class_name }}" readonly style="background:#f3f4f6;cursor:not-allowed;">
+                            <input type="hidden" name="classID" id="lockedClassID" value="{{ $classIDParam }}">
+                            <span class="att-filter-hint"><i class="bi bi-lock-fill"></i> Coordinator class (locked)</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Subclass / Stream</label>
+                            <select class="form-select" id="subclassFilter" name="subclassID">
+                                <option value="">All Streams</option>
+                                @foreach($coordinatorSubclasses as $subclass)
+                                    <option value="{{ $subclass->subclassID }}">{{ $subclass->display_name }}</option>
+                                @endforeach
+                            </select>
+                            <span class="att-filter-hint">All streams or one stream</span>
+                        </div>
+                        @else
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Main Class</label>
+                            <select class="form-select" id="sysMainClassFilter" name="classID">
+                                <option value="">All Classes</option>
+                                @foreach(($mainClasses ?? []) as $mc)
+                                    <option value="{{ $mc->classID }}">{{ $mc->class_name }}</option>
+                                @endforeach
+                            </select>
+                            <span class="att-filter-hint">All or one main class</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Subclass / Stream</label>
+                            <select class="form-select" id="sysSubclassFilter" name="subclassID">
+                                <option value="">All Streams</option>
+                                @foreach($subclasses as $subclass)
+                                    <option value="{{ $subclass->subclassID }}" data-class-id="{{ $subclass->classID ?? '' }}">{{ $subclass->display_name }}</option>
+                                @endforeach
+                            </select>
+                            <span class="att-filter-hint">All streams or one stream</span>
+                        </div>
+                        @endif
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Attendance Status</label>
+                            <select class="form-select" id="attendance_status" name="attendance_status">
+                                <option value="all" selected>All Statuses</option>
+                                <option value="Present">Present</option>
+                                <option value="Absent">Absent</option>
+                                <option value="Sick">Sick</option>
+                                <option value="Excused">Permission</option>
+                            </select>
+                            <span class="att-filter-hint">Filter students by status</span>
+                        </div>
+                        <div class="att-filter-item att-filter-item--medium">
+                            <label>Enrollment Status</label>
+                            <select class="form-select" id="enrollment_status" name="enrollment_status">
+                                <option value="Active" selected>Active</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Transferred">Transferred</option>
+                                <option value="Dropped">Dropped</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="all">All enrollments</option>
+                            </select>
+                            <span class="att-filter-hint">Header academic year: <strong>{{ $academicYearLabel ?? '—' }}</strong></span>
                         </div>
                         <div class="att-filter-action">
                             <button type="submit" class="att-filter-btn">
@@ -1227,14 +1227,25 @@
         document.getElementById('resultsSection').style.display = 'block';
 
         const pdfBtn = document.getElementById('exportAttendanceReportPdfBtn');
+        const statusFilterEarly = (currentAttendanceSearchParams && currentAttendanceSearchParams.attendance_status)
+            ? currentAttendanceSearchParams.attendance_status
+            : 'all';
         if (pdfBtn) {
             pdfBtn.style.display = (data.attendance_by_class && data.attendance_by_class.length > 0) ? 'inline-block' : 'none';
+            const pdfLabels = {
+                Absent: '<i class="bi bi-file-earmark-pdf"></i> Download Watoro PDF',
+                Present: '<i class="bi bi-file-earmark-pdf"></i> Download Present PDF',
+                Sick: '<i class="bi bi-file-earmark-pdf"></i> Download Sick PDF',
+                Excused: '<i class="bi bi-file-earmark-pdf"></i> Download Permission PDF'
+            };
+            pdfBtn.innerHTML = pdfLabels[statusFilterEarly] || '<i class="bi bi-file-earmark-pdf"></i> Download Full PDF';
+            pdfBtn.title = statusFilterEarly === 'Absent'
+                ? 'Download Ripoti ya Watoro PDF'
+                : 'Download attendance report PDF';
         }
 
         const statusSmsBtn = document.getElementById('btnSendStatusFilterSms');
-        const statusFilter = (currentAttendanceSearchParams && currentAttendanceSearchParams.attendance_status)
-            ? currentAttendanceSearchParams.attendance_status
-            : 'all';
+        const statusFilter = statusFilterEarly;
         let filteredStudentCount = 0;
         if (data.attendance_by_class) {
             data.attendance_by_class.forEach(function (cls) {
@@ -2311,18 +2322,28 @@
             if (fromDate && toDate) periodTitle = 'SYSTEM ATTENDANCE — ' + fromDate + ' TO ' + toDate;
         }
         if (statusFilter && statusFilter !== 'all') {
-            periodTitle += ' · ' + (statusFilter === 'Excused' ? 'PERMISSION' : statusFilter.toUpperCase()) + ' ONLY';
+            const statusTitle = {
+                Present: 'WALIOHUDHURIA',
+                Absent: 'WATORO',
+                Sick: 'WAGONJWA',
+                Excused: 'RUHUSA'
+            };
+            periodTitle += ' · ' + (statusTitle[statusFilter] || statusFilter.toUpperCase()) + ' ONLY';
         }
 
         let totalPresent = 0, totalAbsent = 0, totalSick = 0, totalExcused = 0;
         const flatRows = [];
         (attendanceByClass || []).forEach((classData) => {
-            totalPresent += Number(classData.present || 0);
-            totalAbsent += Number(classData.absent || 0);
-            totalSick += Number(classData.sick || 0);
-            totalExcused += Number(classData.excused || 0);
             const className = classData.display_name || ((classData.class_name || '') + ' ' + (classData.subclass_name || '')).trim();
             (classData.students || []).forEach((student) => {
+                const daysPresent = Number(student.days_present || 0);
+                const daysAbsent = Number(student.days_absent || 0);
+                const daysSick = Number(student.days_sick || 0);
+                const daysExcused = Number(student.days_excused || 0);
+                totalPresent += daysPresent;
+                totalAbsent += daysAbsent;
+                totalSick += daysSick;
+                totalExcused += daysExcused;
                 flatRows.push({
                     studentID: student.studentID,
                     name: [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' '),
@@ -2331,10 +2352,10 @@
                     class_name: className,
                     subclassID: classData.subclassID,
                     enrollment_status: student.enrollment_status || '',
-                    days_present: Number(student.days_present || 0),
-                    days_absent: Number(student.days_absent || 0),
-                    days_sick: Number(student.days_sick || 0),
-                    days_excused: Number(student.days_excused || 0),
+                    days_present: daysPresent,
+                    days_absent: daysAbsent,
+                    days_sick: daysSick,
+                    days_excused: daysExcused,
                 });
             });
         });
@@ -2353,17 +2374,40 @@
             });
         }
 
+        const statusMeta = {
+            Present: { label: 'Present', sw: 'Waliohudhuria', color: 'text-success', daysKey: 'days_present', daysLabel: 'Total present days' },
+            Absent: { label: 'Absent (Watoro)', sw: 'Watoro', color: 'text-danger', daysKey: 'days_absent', daysLabel: 'Total absent days' },
+            Sick: { label: 'Sick', sw: 'Wagonjwa', color: 'text-warning', daysKey: 'days_sick', daysLabel: 'Total sick days' },
+            Excused: { label: 'Permission', sw: 'Ruhusa', color: 'text-info', daysKey: 'days_excused', daysLabel: 'Total permission days' }
+        };
+        const filteredMeta = statusMeta[statusFilter] || null;
+        const filteredDaysTotal = filteredMeta
+            ? flatRows.reduce((sum, r) => sum + Number(r[filteredMeta.daysKey] || 0), 0)
+            : 0;
+
         let html = '<div class="sf-report-title text-center mb-2" style="font-size:1.05rem;font-weight:700;color:#940000;text-transform:uppercase;">' + periodTitle + '</div>';
-        html += '<div class="card border-0 shadow-sm mb-3"><div class="card-body py-2 px-3"><div class="row text-center small g-2">';
-        html += '<div class="col-md-3"><strong>Present</strong><br><span class="text-success fs-5">' + totalPresent + '</span></div>';
-        html += '<div class="col-md-3"><strong>Absent</strong><br><span class="text-danger fs-5">' + totalAbsent + '</span></div>';
-        html += '<div class="col-md-3"><strong>Sick</strong><br><span class="text-warning fs-5">' + totalSick + '</span></div>';
-        html += '<div class="col-md-3"><strong>Permission</strong><br><span class="text-info fs-5">' + totalExcused + '</span></div>';
-        html += '</div><div class="row text-center small g-2 mt-2 pt-2 border-top">';
-        html += '<div class="col-md-4"><strong>Students shown</strong><br><span class="fs-5">' + flatRows.length + '</span></div>';
-        html += '<div class="col-md-4"><strong>Classes</strong><br><span class="fs-5">' + (attendanceByClass || []).length + '</span></div>';
-        html += '<div class="col-md-4"><strong>Status filter</strong><br>' + (statusFilter === 'all' ? 'All' : (statusFilter === 'Excused' ? 'Permission' : statusFilter)) + '</div>';
-        html += '</div></div></div>';
+        html += '<div class="card border-0 shadow-sm mb-3"><div class="card-body py-2 px-3">';
+
+        if (filteredMeta) {
+            html += '<div class="row text-center small g-2">';
+            html += '<div class="col-md-4"><strong>' + filteredMeta.sw + '</strong><br><span class="fs-5 ' + filteredMeta.color + '">' + flatRows.length + '</span><div class="text-muted">students</div></div>';
+            html += '<div class="col-md-4"><strong>' + filteredMeta.daysLabel + '</strong><br><span class="fs-5 ' + filteredMeta.color + '">' + filteredDaysTotal + '</span></div>';
+            html += '<div class="col-md-4"><strong>Classes</strong><br><span class="fs-5">' + (attendanceByClass || []).length + '</span></div>';
+            html += '</div>';
+            html += '<div class="text-center small text-muted mt-2 pt-2 border-top">Filter: <strong>' + filteredMeta.label + '</strong> only</div>';
+        } else {
+            html += '<div class="row text-center small g-2">';
+            html += '<div class="col-md-3"><strong>Present</strong><br><span class="text-success fs-5">' + totalPresent + '</span></div>';
+            html += '<div class="col-md-3"><strong>Absent</strong><br><span class="text-danger fs-5">' + totalAbsent + '</span></div>';
+            html += '<div class="col-md-3"><strong>Sick</strong><br><span class="text-warning fs-5">' + totalSick + '</span></div>';
+            html += '<div class="col-md-3"><strong>Permission</strong><br><span class="text-info fs-5">' + totalExcused + '</span></div>';
+            html += '</div><div class="row text-center small g-2 mt-2 pt-2 border-top">';
+            html += '<div class="col-md-4"><strong>Students shown</strong><br><span class="fs-5">' + flatRows.length + '</span></div>';
+            html += '<div class="col-md-4"><strong>Classes</strong><br><span class="fs-5">' + (attendanceByClass || []).length + '</span></div>';
+            html += '<div class="col-md-4"><strong>Status filter</strong><br>All</div>';
+            html += '</div>';
+        }
+        html += '</div></div>';
 
         if (!flatRows.length) {
             html += '<div class="alert alert-info mb-0">No students found for this filter.</div>';
@@ -2374,10 +2418,22 @@
             return;
         }
 
+        const showAllDayCols = !filteredMeta;
         html += '<div class="table-responsive"><table id="systemAttendanceReportTable" class="table table-striped table-hover table-sm mb-0 w-100">';
         html += '<thead style="background:#940000;color:#fff;"><tr>';
         html += '<th>#</th><th>Name</th><th>Admission</th><th>Class</th><th>Gender</th>';
-        html += '<th>Present</th><th>Absent</th><th>Sick</th><th>Permission</th><th>Actions</th>';
+        if (showAllDayCols) {
+            html += '<th>Present</th><th>Absent</th><th>Sick</th><th>Permission</th>';
+        } else if (statusFilter === 'Present') {
+            html += '<th>Present days</th>';
+        } else if (statusFilter === 'Absent') {
+            html += '<th>Absent days</th>';
+        } else if (statusFilter === 'Sick') {
+            html += '<th>Sick days</th>';
+        } else if (statusFilter === 'Excused') {
+            html += '<th>Permission days</th>';
+        }
+        html += '<th>Actions</th>';
         html += '</tr></thead><tbody>';
 
         flatRows.forEach((row, idx) => {
@@ -2388,10 +2444,20 @@
             html += '<td>' + row.admission + '</td>';
             html += '<td>' + row.class_name + '</td>';
             html += '<td>' + row.gender + '</td>';
-            html += '<td><span class="badge ' + (statusFilter === 'Present' || statusFilter === 'all' ? 'bg-success' : 'bg-secondary') + '">' + row.days_present + '</span></td>';
-            html += '<td><span class="badge ' + (statusFilter === 'Absent' || statusFilter === 'all' ? 'bg-danger' : 'bg-secondary') + '">' + row.days_absent + '</span></td>';
-            html += '<td><span class="badge ' + (statusFilter === 'Sick' || statusFilter === 'all' ? 'bg-warning text-dark' : 'bg-secondary') + '">' + row.days_sick + '</span></td>';
-            html += '<td><span class="badge ' + (statusFilter === 'Excused' || statusFilter === 'all' ? 'bg-info' : 'bg-secondary') + '">' + row.days_excused + '</span></td>';
+            if (showAllDayCols) {
+                html += '<td><span class="badge bg-success">' + row.days_present + '</span></td>';
+                html += '<td><span class="badge bg-danger">' + row.days_absent + '</span></td>';
+                html += '<td><span class="badge bg-warning text-dark">' + row.days_sick + '</span></td>';
+                html += '<td><span class="badge bg-info">' + row.days_excused + '</span></td>';
+            } else if (statusFilter === 'Present') {
+                html += '<td><span class="badge bg-success">' + row.days_present + '</span></td>';
+            } else if (statusFilter === 'Absent') {
+                html += '<td><span class="badge bg-danger">' + row.days_absent + '</span></td>';
+            } else if (statusFilter === 'Sick') {
+                html += '<td><span class="badge bg-warning text-dark">' + row.days_sick + '</span></td>';
+            } else if (statusFilter === 'Excused') {
+                html += '<td><span class="badge bg-info">' + row.days_excused + '</span></td>';
+            }
             html += '<td><div class="btn-group btn-group-sm">';
             html += '<button class="btn btn-sm btn-view" onclick="viewStudentDetails(' + row.studentID + ', \'' + searchType + '\')"><i class="bi bi-eye"></i></button>';
             html += '<button class="btn btn-sm btn-danger" onclick="downloadStudentAttendancePdf(' + row.studentID + ')" title="PDF"><i class="bi bi-file-earmark-pdf"></i></button>';
@@ -2405,6 +2471,7 @@
         }
         content.innerHTML = html;
 
+        const actionsCol = showAllDayCols ? 9 : 6;
         if ($jq && $jq.fn.DataTable) {
             try {
                 $jq('#systemAttendanceReportTable').DataTable({
@@ -2416,7 +2483,7 @@
                         info: 'Showing _START_ to _END_ of _TOTAL_',
                         zeroRecords: 'No matching records'
                     },
-                    columnDefs: [{ orderable: false, targets: 9 }]
+                    columnDefs: [{ orderable: false, targets: actionsCol }]
                 });
             } catch (e) {
                 console.error('DataTable init error:', e);

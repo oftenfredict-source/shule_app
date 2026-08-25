@@ -87,7 +87,10 @@
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div>{{ $school->address ?? '' }}</div>
         <div>Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
-        <div class="report-title">STUDENT ATTENDANCE REPORT</div>
+        <div class="report-title">{{ strtoupper($report_heading ?? 'STUDENT ATTENDANCE REPORT') }}</div>
+        @if(!empty($report_description))
+            <div style="margin-top:6px;font-size:11px;color:#555;">{{ $report_description }}</div>
+        @endif
     </div>
 
     <div class="info-section">
@@ -100,42 +103,84 @@
             </tr>
             <tr>
                 <td class="label">Search Type:</td>
-                <td>{{ ucfirst($search_type) }}</td>
+                <td>{{ ucfirst(str_replace('_', ' ', $search_type)) }}</td>
+                <td class="label">Status:</td>
+                <td>{{ $status_label ?? 'All Statuses' }}</td>
+            </tr>
+            <tr>
                 <td class="label">Date Generated:</td>
-                <td>{{ $generated_at }}</td>
+                <td colspan="3">{{ $generated_at }}</td>
             </tr>
         </table>
     </div>
+
+    @php
+        $statusFilter = $attendance_status ?? 'all';
+        $isFiltered = $statusFilter && $statusFilter !== 'all';
+    @endphp
 
     @forelse($attendanceByClass as $classData)
         <div class="class-block">
             <div class="class-title">{{ $classData['display_name'] ?? ($classData['class_name'] . ' ' . $classData['subclass_name']) }}</div>
 
-            @if(empty($classData['has_attendance']))
+            @if(empty($classData['has_attendance']) && empty($classData['students']))
                 <div class="no-data">No attendance collected {{ $period_label }} for this class.</div>
                 @continue
             @endif
 
-            <table class="stats-grid">
-                <tr>
-                    <td>
-                        <div class="stat-val" style="color:#198754;">{{ $classData['present'] ?? 0 }}</div>
-                        <div class="stat-label">Present @if(in_array($search_type, ['month','year'])) ({{ $classData['present_percentage'] ?? 0 }}%) @endif</div>
-                    </td>
-                    <td>
-                        <div class="stat-val" style="color:#dc3545;">{{ $classData['absent'] ?? 0 }}</div>
-                        <div class="stat-label">Absent @if(in_array($search_type, ['month','year'])) ({{ $classData['absent_percentage'] ?? 0 }}%) @endif</div>
-                    </td>
-                    <td>
-                        <div class="stat-val" style="color:#fd7e14;">{{ $classData['sick'] ?? 0 }}</div>
-                        <div class="stat-label">Sick @if(in_array($search_type, ['month','year'])) ({{ $classData['sick_percentage'] ?? 0 }}%) @endif</div>
-                    </td>
-                    <td>
-                        <div class="stat-val" style="color:#0dcaf0;">{{ $classData['excused'] ?? 0 }}</div>
-                        <div class="stat-label">Permission @if(in_array($search_type, ['month','year'])) ({{ $classData['excused_percentage'] ?? 0 }}%) @endif</div>
-                    </td>
-                </tr>
-            </table>
+            @if($isFiltered)
+                <table class="stats-grid">
+                    <tr>
+                        <td>
+                            <div class="stat-val" style="color:#940000;">{{ $classData['filtered_student_count'] ?? count($classData['students'] ?? []) }}</div>
+                            <div class="stat-label">
+                                @if($statusFilter === 'Absent') Watoro
+                                @elseif($statusFilter === 'Present') Waliohudhuria
+                                @elseif($statusFilter === 'Sick') Wagonjwa
+                                @elseif($statusFilter === 'Excused') Ruhusa
+                                @else Students
+                                @endif
+                            </div>
+                        </td>
+                        <td>
+                            <div class="stat-val" style="color:#dc3545;">{{ $classData['filtered_days_total'] ?? 0 }}</div>
+                            <div class="stat-label">
+                                @if($statusFilter === 'Absent') Absent days
+                                @elseif($statusFilter === 'Present') Present days
+                                @elseif($statusFilter === 'Sick') Sick days
+                                @elseif($statusFilter === 'Excused') Permission days
+                                @else Days
+                                @endif
+                            </div>
+                        </td>
+                        <td colspan="2">
+                            <div class="stat-val" style="color:#555;">{{ $status_label ?? $statusFilter }}</div>
+                            <div class="stat-label">Filter</div>
+                        </td>
+                    </tr>
+                </table>
+            @else
+                <table class="stats-grid">
+                    <tr>
+                        <td>
+                            <div class="stat-val" style="color:#198754;">{{ $classData['present'] ?? 0 }}</div>
+                            <div class="stat-label">Present @if(in_array($search_type, ['month','year','date_range'])) ({{ $classData['present_percentage'] ?? 0 }}%) @endif</div>
+                        </td>
+                        <td>
+                            <div class="stat-val" style="color:#dc3545;">{{ $classData['absent'] ?? 0 }}</div>
+                            <div class="stat-label">Absent @if(in_array($search_type, ['month','year','date_range'])) ({{ $classData['absent_percentage'] ?? 0 }}%) @endif</div>
+                        </td>
+                        <td>
+                            <div class="stat-val" style="color:#fd7e14;">{{ $classData['sick'] ?? 0 }}</div>
+                            <div class="stat-label">Sick @if(in_array($search_type, ['month','year','date_range'])) ({{ $classData['sick_percentage'] ?? 0 }}%) @endif</div>
+                        </td>
+                        <td>
+                            <div class="stat-val" style="color:#0dcaf0;">{{ $classData['excused'] ?? 0 }}</div>
+                            <div class="stat-label">Permission @if(in_array($search_type, ['month','year','date_range'])) ({{ $classData['excused_percentage'] ?? 0 }}%) @endif</div>
+                        </td>
+                    </tr>
+                </table>
+            @endif
 
             @if(!empty($classData['students']) && count($classData['students']) > 0)
                 <table class="data-table">
@@ -145,10 +190,20 @@
                             <th>Student Name</th>
                             <th>Adm No.</th>
                             <th class="center">Gender</th>
-                            <th class="center">Present</th>
-                            <th class="center">Absent</th>
-                            <th class="center">Sick</th>
-                            <th class="center">Permission</th>
+                            @if(!$isFiltered)
+                                <th class="center">Present</th>
+                                <th class="center">Absent</th>
+                                <th class="center">Sick</th>
+                                <th class="center">Permission</th>
+                            @elseif($statusFilter === 'Present')
+                                <th class="center">Present days</th>
+                            @elseif($statusFilter === 'Absent')
+                                <th class="center">Absent days</th>
+                            @elseif($statusFilter === 'Sick')
+                                <th class="center">Sick days</th>
+                            @elseif($statusFilter === 'Excused')
+                                <th class="center">Permission days</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
@@ -162,10 +217,20 @@
                                 <td>{{ $name }}</td>
                                 <td>{{ $s->admission_number ?? 'N/A' }}</td>
                                 <td class="center">{{ $s->gender ?? 'N/A' }}</td>
-                                <td class="center badge-p">{{ $s->days_present ?? 0 }}</td>
-                                <td class="center badge-a">{{ $s->days_absent ?? 0 }}</td>
-                                <td class="center badge-s">{{ $s->days_sick ?? 0 }}</td>
-                                <td class="center badge-e">{{ $s->days_excused ?? 0 }}</td>
+                                @if(!$isFiltered)
+                                    <td class="center badge-p">{{ $s->days_present ?? 0 }}</td>
+                                    <td class="center badge-a">{{ $s->days_absent ?? 0 }}</td>
+                                    <td class="center badge-s">{{ $s->days_sick ?? 0 }}</td>
+                                    <td class="center badge-e">{{ $s->days_excused ?? 0 }}</td>
+                                @elseif($statusFilter === 'Present')
+                                    <td class="center badge-p">{{ $s->days_present ?? 0 }}</td>
+                                @elseif($statusFilter === 'Absent')
+                                    <td class="center badge-a">{{ $s->days_absent ?? 0 }}</td>
+                                @elseif($statusFilter === 'Sick')
+                                    <td class="center badge-s">{{ $s->days_sick ?? 0 }}</td>
+                                @elseif($statusFilter === 'Excused')
+                                    <td class="center badge-e">{{ $s->days_excused ?? 0 }}</td>
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>
