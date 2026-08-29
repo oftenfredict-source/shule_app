@@ -69,6 +69,34 @@
         background: #940000;
     }
 
+    /* View Class / Subclass subjects modals — scrollable body + visible scrollbar */
+    #viewClassSubjectsModal .modal-body,
+    #viewSubclassSubjectsModal .modal-body {
+        max-height: 70vh;
+        overflow-y: scroll !important;
+        overflow-x: hidden;
+        scrollbar-width: thin;
+        scrollbar-color: #940000 #f1f1f1;
+    }
+    #viewClassSubjectsModal .modal-body::-webkit-scrollbar,
+    #viewSubclassSubjectsModal .modal-body::-webkit-scrollbar {
+        width: 10px;
+        display: block !important;
+    }
+    #viewClassSubjectsModal .modal-body::-webkit-scrollbar-track,
+    #viewSubclassSubjectsModal .modal-body::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    #viewClassSubjectsModal .modal-body::-webkit-scrollbar-thumb,
+    #viewSubclassSubjectsModal .modal-body::-webkit-scrollbar-thumb {
+        background: #940000;
+        border-radius: 4px;
+    }
+    #viewClassSubjectsModal .modal-body::-webkit-scrollbar-thumb:hover,
+    #viewSubclassSubjectsModal .modal-body::-webkit-scrollbar-thumb:hover {
+        background: #7a0000;
+    }
+
     .modal-content {
         border-radius: 0 !important;
         border: none !important;
@@ -882,7 +910,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+            <div class="modal-body custom-scrollbar" id="viewClassSubjectsModalBody">
                 <!-- Search Box -->
                 <div class="mb-3" id="classSubjectsSearchContainer" style="display: none;">
                     <div class="input-group">
@@ -925,7 +953,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" id="subclassSubjectsModalBody">
+            <div class="modal-body custom-scrollbar" id="subclassSubjectsModalBody">
                 <div class="text-center py-4">
                     <div class="spinner-border text-primary-custom" role="status">
                         <span class="visually-hidden">Loading...</span>
