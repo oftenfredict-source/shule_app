@@ -2305,15 +2305,15 @@
             : 'all';
 
         let periodTitle = 'SYSTEM ATTENDANCE REPORT';
-        if (searchType === 'month') {
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                if (searchType === 'month') {
+                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             const month = document.getElementById('month')?.value || '';
             const year = document.getElementById('year')?.value || '';
             if (month && year) periodTitle = 'SYSTEM ATTENDANCE, ' + monthNames[parseInt(month, 10) - 1].toUpperCase() + ' ' + year;
-        } else if (searchType === 'year') {
+                } else if (searchType === 'year') {
             const year = document.getElementById('year')?.value || '';
             if (year) periodTitle = 'SYSTEM ATTENDANCE, YEAR ' + year;
-        } else if (searchType === 'date') {
+                } else if (searchType === 'date') {
             const date = document.getElementById('date')?.value || '';
             if (date) periodTitle = 'SYSTEM ATTENDANCE, ' + date;
         } else if (searchType === 'date_range') {
@@ -2395,7 +2395,7 @@
             html += '<div class="col-md-4"><strong>Classes</strong><br><span class="fs-5">' + (attendanceByClass || []).length + '</span></div>';
             html += '</div>';
             html += '<div class="text-center small text-muted mt-2 pt-2 border-top">Filter: <strong>' + filteredMeta.label + '</strong> only</div>';
-        } else {
+                    } else {
             html += '<div class="row text-center small g-2">';
             html += '<div class="col-md-3"><strong>Present</strong><br><span class="text-success fs-5">' + totalPresent + '</span></div>';
             html += '<div class="col-md-3"><strong>Absent</strong><br><span class="text-danger fs-5">' + totalAbsent + '</span></div>';
@@ -2501,11 +2501,11 @@
                 $rows.each(function () {
                     if (String($jq(this).attr('data-subclass-id')) === selected) {
                         $jq(this).show();
-                    } else {
+                } else {
                         $jq(this).hide();
-                    }
-                });
+                }
             });
+        });
         }
     }
 

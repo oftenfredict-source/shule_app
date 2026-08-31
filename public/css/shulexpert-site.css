@@ -805,11 +805,19 @@ b, sup, sub, u, del { color: var(--sx-primary); }
     pointer-events: none;
 }
 
-/* Brand logo — rounded across public site (not splash) */
-.sx-logo:not(.sx-splash-logo),
-#logo .sx-brand img {
-    border-radius: 12px;
-    object-fit: cover;
+/* Brand logo — flat, no shadow or animation */
+.sx-logo,
+.sx-splash-logo,
+#logo .sx-brand img,
+.sx-auth-logo {
+    border-radius: 0;
+    object-fit: contain;
+    box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
 }
 
 /* Brand logo in header */
@@ -1490,7 +1498,6 @@ body.sx-mobile-nav-open {
     height: 64px;
     object-fit: contain;
     margin-bottom: 18px;
-    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.35));
 }
 .sx-auth-art h2 {
     color: #fff;

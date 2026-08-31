@@ -65,7 +65,7 @@
         #sx-splash{position:fixed;inset:0;z-index:99999;background:#fff!important;display:flex;align-items:center;justify-content:center;transition:opacity .45s ease,visibility .45s ease}
         #sx-splash.hide{opacity:0;visibility:hidden;pointer-events:none}
         #sx-splash .sx-splash-inner{text-align:center;width:min(280px,82vw);background:transparent!important;border:none!important;box-shadow:none!important;padding:0}
-        #sx-splash .sx-splash-logo{display:block!important;width:auto!important;height:auto!important;max-width:140px;max-height:140px;margin:0 auto 28px;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;object-fit:contain!important}
+        #sx-splash .sx-splash-logo{display:block!important;width:auto!important;height:auto!important;max-width:140px;max-height:140px;margin:0 auto 28px;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;filter:none!important;-webkit-filter:none!important;animation:none!important;transition:none!important;transform:none!important;object-fit:contain!important}
         #sx-splash .sx-splash-bar{width:100%;height:4px;margin:0 auto 16px;background:rgba(148,0,0,.12);border-radius:999px;overflow:hidden}
         #sx-splash .sx-splash-bar-fill{display:block;height:100%;width:0;background:#940000;border-radius:999px;animation:sxSplashLoad 1.35s ease-out forwards}
         #sx-splash .sx-splash-powered{margin:0;font-size:12px;font-weight:600;color:#666}
