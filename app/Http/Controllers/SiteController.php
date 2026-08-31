@@ -34,7 +34,7 @@ class SiteController extends Controller
                 'icon' => 'fa-graduation-cap',
                 'image' => 'images/student.png',
                 'hero' => 'images/class.png',
-                'body' => 'Manage Students is the school’s student registry for the selected academic year. Admins filter by class, subclass, gender, health, enrollment status and promotion status; quick-register or bulk-upload students; enroll them into classes; run Move Students between streams; and update exit outcomes (promoted, repeated, graduated, transferred, dropout). Each profile keeps enrollment history, results, attendance, payments, library and fees — with PDF/Excel export.',
+                'body' => 'Manage Students is the school’s student registry for the selected academic year. Admins filter by class, subclass, gender, health, enrollment status and promotion status; quick-register or bulk-upload students; enroll them into classes; run Move Students between streams; and update exit outcomes (promoted, repeated, graduated, transferred, dropout). Each profile keeps enrollment history, results, attendance, payments, library and fees, with PDF/Excel export.',
                 'points' => [
                     'Filter by class, enrollment & promotion status for the selected year',
                     'Quick Register, Enroll Student, and Excel bulk upload',
@@ -51,7 +51,7 @@ class SiteController extends Controller
                 'icon' => 'fa-wpforms',
                 'image' => 'images/student.png',
                 'hero' => 'images/class.png',
-                'body' => 'Schools share a public online application link. Admins configure form questions, sections and application spaces per class for the active year, then review applications (Pending, Confirmed, Rejected), download application PDFs, and show applicants the school fee structure — without paper queues.',
+                'body' => 'Schools share a public online application link. Admins configure form questions, sections and application spaces per class for the active year, then review applications (Pending, Confirmed, Rejected), download application PDFs, and show applicants the school fee structure, without paper queues.',
                 'points' => [
                     'Copy/share public application link per school',
                     'Configurable form questions, sections & class application spaces',
@@ -83,7 +83,7 @@ class SiteController extends Controller
                 'icon' => 'fa-money',
                 'image' => 'images/fees.png',
                 'hero' => 'images/fees.png',
-                'body' => 'Define official fee structures (single or multi-account), installments and deadlines; apply discount conditions and Student Fee Agreements; generate and SMS control numbers; record and verify payments with invoices and filtered PDF reports — including pending, incomplete, paid, overpaid and outstanding balances.',
+                'body' => 'Define official fee structures (single or multi-account), installments and deadlines; apply discount conditions and Student Fee Agreements; generate and SMS control numbers; record and verify payments with invoices and filtered PDF reports, including pending, incomplete, paid, overpaid and outstanding balances.',
                 'points' => [
                     'Single & multi-account fee structures with installments',
                     'Discount conditions and Student Fee Agreements',
@@ -117,7 +117,7 @@ class SiteController extends Controller
                 'icon' => 'fa-file-text-o',
                 'image' => 'images/exams.png',
                 'hero' => 'images/exam.jpg',
-                'body' => 'Manage Examinations covers exams, halls, papers, supervisors and approval. Results show pass/fail, rankings and missing marks; admins assign teachers or enter marks; generate Term Reports (divisions/points for secondary & A-Level); Publish/Unpublish to parents; and send result SMS — alongside Topic Analysis for question-level insight.',
+                'body' => 'Manage Examinations covers exams, halls, papers, supervisors and approval. Results show pass/fail, rankings and missing marks; admins assign teachers or enter marks; generate Term Reports (divisions/points for secondary & A-Level); Publish/Unpublish to parents; and send result SMS, alongside Topic Analysis for question-level insight.',
                 'points' => [
                     'Exam papers, halls, supervisors & approval workflow',
                     'Result entry, rankings, missing-result reminders',
@@ -134,7 +134,7 @@ class SiteController extends Controller
                 'icon' => 'fa-line-chart',
                 'image' => 'images/results.png',
                 'hero' => 'images/results.png',
-                'body' => 'Topic Analysis (Results menu) analyses entered exam marks question by question. Filter by academic year (header), term, exam, class, subclass and subject. Only Active enrollments are included — including optional-subject electors. You see overall pass/fail, average and % per question, best and weakest topics, optional-question uptake, stream aggregation, and a student-by-question marks matrix. Export a PDF report and send performance comments to subject teachers.',
+                'body' => 'Topic Analysis (Results menu) analyses entered exam marks question by question. Filter by academic year (header), term, exam, class, subclass and subject. Only Active enrollments are included, including optional-subject electors. You see overall pass/fail, average and % per question, best and weakest topics, optional-question uptake, stream aggregation, and a student-by-question marks matrix. Export a PDF report and send performance comments to subject teachers.',
                 'points' => [
                     'Filters: year, term, exam, class, subclass & subject',
                     'Per-question averages, % scores, best & worst topics',
@@ -168,7 +168,7 @@ class SiteController extends Controller
                 'icon' => 'fa-clock-o',
                 'image' => 'images/time_table.png',
                 'hero' => 'images/timetable.jpg',
-                'body' => 'Build Session Timetables with session types, times, prepo and free periods. Optional subjects may share one period (e.g. Physics + History) with validation so only Optional subjects run in parallel. Exam Timetable covers school-wide exam days, halls, supervisors, shuffle/swap, and supervisor SMS — synced with exam result schedules.',
+                'body' => 'Build Session Timetables with session types, times, prepo and free periods. Optional subjects may share one period (e.g. Physics + History) with validation so only Optional subjects run in parallel. Exam Timetable covers school-wide exam days, halls, supervisors, shuffle/swap, and supervisor SMS, synced with exam result schedules.',
                 'points' => [
                     'Class session timetable with breaks, prepo & free sessions',
                     'Optional subjects sharing the same period (validated)',
@@ -181,11 +181,11 @@ class SiteController extends Controller
             'lesson-plans' => [
                 'slug' => 'lesson-plans',
                 'title' => 'Lesson Plans',
-                'short' => 'Digital lesson plan software for teachers — create, manage, send to admin, sign, and download PDF.',
+                'short' => 'Digital lesson plan software for teachers, create, manage, send to admin, sign, and download PDF.',
                 'icon' => 'fa-file-text-o',
                 'image' => 'images/time_table.png',
                 'hero' => 'images/timetable.jpg',
-                'body' => 'ShuleXpert Lesson Plans is a complete digital lesson plan system for schools. Teachers create lesson plans from class sessions (competence, objectives, teaching/learning activities, resources, reflection and evaluation), reuse previous plans, save drafts, filter and manage plans by subject/class/date, send plans to administrators for review, and download individual or bulk PDF lesson plans. Admins and supervisors open Lesson Plans Management, filter by teacher/class/subject, view full plans, and Sign Lesson Plan digitally. Built for Tanzanian and African schools that need accountable, printable, curriculum-aligned lesson planning — not paper folders.',
+                'body' => 'ShuleXpert Lesson Plans is a complete digital lesson plan system for schools. Teachers create lesson plans from class sessions (competence, objectives, teaching/learning activities, resources, reflection and evaluation), reuse previous plans, save drafts, filter and manage plans by subject/class/date, send plans to administrators for review, and download individual or bulk PDF lesson plans. Admins and supervisors open Lesson Plans Management, filter by teacher/class/subject, view full plans, and Sign Lesson Plan digitally. Built for Tanzanian and African schools that need accountable, printable, curriculum-aligned lesson planning, not paper folders.',
                 'points' => [
                     'Create lesson plans from timetable sessions (date, subject, class)',
                     'Competence, objectives, activities, resources, reflection & evaluation',
@@ -201,7 +201,7 @@ class SiteController extends Controller
                 'seo_sections' => [
                     [
                         'heading' => 'Why schools choose ShuleXpert Lesson Plans',
-                        'text' => 'Paper lesson plans get lost, unsigned, and hard to audit. ShuleXpert Lesson Plans keeps every plan online: tied to the real class session, ready for PDF download, and ready for admin signature. Teachers spend less time rewriting the same plan and more time teaching. School leaders see who sent plans, who signed them, and what was taught — with a clear digital trail.',
+                        'text' => 'Paper lesson plans get lost, unsigned, and hard to audit. ShuleXpert Lesson Plans keeps every plan online: tied to the real class session, ready for PDF download, and ready for admin signature. Teachers spend less time rewriting the same plan and more time teaching. School leaders see who sent plans, who signed them, and what was taught, with a clear digital trail.',
                     ],
                     [
                         'heading' => 'Lesson plan workflow teachers actually use',
@@ -209,18 +209,18 @@ class SiteController extends Controller
                     ],
                     [
                         'heading' => 'Lesson plan software for Tanzania and beyond',
-                        'text' => 'Search for lesson plan software, digital lesson plan system, teacher lesson plan PDF, mpango wa somo, or school lesson plan management — ShuleXpert delivers a production module already used inside live schools: create, manage, sign, and export. Pair it with Scheme of Work, Timetable, Logbook, and Topic Analysis for a full academic planning stack.',
+                        'text' => 'Search for lesson plan software, digital lesson plan system, teacher lesson plan PDF, mpango wa somo, or school lesson plan management, ShuleXpert delivers a production module already used inside live schools: create, manage, sign, and export. Pair it with Scheme of Work, Timetable, Logbook, and Topic Analysis for a full academic planning stack.',
                     ],
                 ],
             ],
             'scheme-of-work' => [
                 'slug' => 'scheme-of-work',
                 'title' => 'Scheme of Work',
-                'short' => 'Digital scheme of work for teachers — create, manage, reuse, track progress, export PDF/Excel.',
+                'short' => 'Digital scheme of work for teachers, create, manage, reuse, track progress, export PDF/Excel.',
                 'icon' => 'fa-book',
                 'image' => 'images/time_table.png',
                 'hero' => 'images/timetable.jpg',
-                'body' => 'ShuleXpert Scheme of Work is a dedicated module for termly and yearly teaching schemes. Teachers create a scheme of work per subject/class, fill month-ordered topic rows, manage and update schemes, reuse an existing scheme for a new year, add remarks, and export PDF or Excel. Admins open Scheme of Work Progress to see completion percentage per teacher and subject, then open detailed schemes for supervision. Separate from Lesson Plans — scheme sets the long-range plan; lesson plans deliver each period.',
+                'body' => 'ShuleXpert Scheme of Work is a dedicated module for termly and yearly teaching schemes. Teachers create a scheme of work per subject/class, fill month-ordered topic rows, manage and update schemes, reuse an existing scheme for a new year, add remarks, and export PDF or Excel. Admins open Scheme of Work Progress to see completion percentage per teacher and subject, then open detailed schemes for supervision. Separate from Lesson Plans, scheme sets the long-range plan; lesson plans deliver each period.',
                 'points' => [
                     'Create scheme of work per subject and class',
                     'Month-ordered scheme table with topics and coverage rows',
@@ -234,8 +234,8 @@ class SiteController extends Controller
                 'seo_priority' => 'high',
                 'seo_sections' => [
                     [
-                        'heading' => 'Scheme of Work — long-range teaching plan',
-                        'text' => 'A scheme of work maps what will be taught across months for each subject. ShuleXpert digitises that table: teachers create and maintain schemes, reuse last year’s scheme, and export for files and inspections. Admins monitor progress so incomplete schemes are visible early — not at the end of term.',
+                        'heading' => 'Scheme of Work: long-range teaching plan',
+                        'text' => 'A scheme of work maps what will be taught across months for each subject. ShuleXpert digitises that table: teachers create and maintain schemes, reuse last year’s scheme, and export for files and inspections. Admins monitor progress so incomplete schemes are visible early, not at the end of term.',
                     ],
                     [
                         'heading' => 'Separate from Lesson Plans (on purpose)',
@@ -243,7 +243,7 @@ class SiteController extends Controller
                     ],
                     [
                         'heading' => 'Scheme of work software schools search for',
-                        'text' => 'Whether you search scheme of work software, digital scheme of work Tanzania, teacher scheme of work PDF, or mpango wa kazi — ShuleXpert Scheme of Work is a live school module with create, manage, reuse, progress tracking, and export — not a static template download.',
+                        'text' => 'Whether you search scheme of work software, digital scheme of work Tanzania, teacher scheme of work PDF, or mpango wa kazi, ShuleXpert Scheme of Work is a live school module with create, manage, reuse, progress tracking, and export, not a static template download.',
                     ],
                 ],
             ],
@@ -254,7 +254,7 @@ class SiteController extends Controller
                 'icon' => 'fa-calendar',
                 'image' => 'images/time_table.png',
                 'hero' => 'images/timetable.jpg',
-                'body' => 'Academic Years Management registers years used across enrollment, fees and admissions. The School Calendar shows a 12-month grid for the selected year — add holidays (including bulk) and events, view month stats, and download a calendar PDF so the whole school shares one official plan.',
+                'body' => 'Academic Years Management registers years used across enrollment, fees and admissions. The School Calendar shows a 12-month grid for the selected year, add holidays (including bulk) and events, view month stats, and download a calendar PDF so the whole school shares one official plan.',
                 'points' => [
                     'Register and set current/active academic years',
                     'Terms linked to each academic year',
@@ -385,7 +385,7 @@ class SiteController extends Controller
                 'icon' => 'fa-check-square-o',
                 'image' => 'images/teacher.png',
                 'hero' => 'images/teacher.png',
-                'body' => 'HR Permission lists student vs teacher/staff requests. Permission Approvals queues requests through configurable approval chains — approve/reject with comments, view attachments and progress. Parents and staff/teachers submit from their portals; approvers see a pending count badge.',
+                'body' => 'HR Permission lists student vs teacher/staff requests. Permission Approvals queues requests through configurable approval chains, approve/reject with comments, view attachments and progress. Parents and staff/teachers submit from their portals; approvers see a pending count badge.',
                 'points' => [
                     'Student and teacher/staff permission tabs',
                     'Multi-level permission_approval_chains',
@@ -465,7 +465,7 @@ class SiteController extends Controller
                 'icon' => 'fa-money',
                 'image' => 'images/accountant.png',
                 'hero' => 'images/accountant.png',
-                'body' => 'Capture school expenses with category tags and a pending-approval badge for review. Keep searchable history and an audit trail for accountants and school leaders — distinct from student fee payments.',
+                'body' => 'Capture school expenses with category tags and a pending-approval badge for review. Keep searchable history and an audit trail for accountants and school leaders, distinct from student fee payments.',
                 'points' => [
                     'Expense recording with categories',
                     'Pending approval badge and workflow',
@@ -497,7 +497,7 @@ class SiteController extends Controller
                 'icon' => 'fa-sitemap',
                 'image' => 'images/results.png',
                 'hero' => 'images/results.png',
-                'body' => 'Departments Management sets HODs, members and linked subjects (with HOD SMS). Goals and departmental tasks cascade: HODs assign work, members submit steps for review, and admins approve operational tasks — keeping strategic performance visible across the school.',
+                'body' => 'Departments Management sets HODs, members and linked subjects (with HOD SMS). Goals and departmental tasks cascade: HODs assign work, members submit steps for review, and admins approve operational tasks, keeping strategic performance visible across the school.',
                 'points' => [
                     'Departments with HOD, members & linked subjects',
                     'Goal and task cascades across departments',
@@ -525,7 +525,7 @@ class SiteController extends Controller
             'task-management' => [
                 'slug' => 'task-management',
                 'title' => 'Task Management',
-                'short' => 'Admin review of teacher/department tasks — approve, reject, notify.',
+                'short' => 'Admin review of teacher/department tasks, approve, reject, notify.',
                 'icon' => 'fa-tasks',
                 'image' => 'images/roles.png',
                 'hero' => 'images/roles.png',
@@ -545,7 +545,7 @@ class SiteController extends Controller
                 'icon' => 'fa-pencil-square-o',
                 'image' => 'images/teacher.png',
                 'hero' => 'images/teacher.png',
-                'body' => 'Teachers work from their portal: enter and manage subject results, view Topic Analysis where permitted, prepare Scheme of Work and Lesson Plans as separate modules, fill teaching logbooks, submit permissions, and complete Daily Duty Reports when on duty — all under role-based menu permissions.',
+                'body' => 'Teachers work from their portal: enter and manage subject results, view Topic Analysis where permitted, prepare Scheme of Work and Lesson Plans as separate modules, fill teaching logbooks, submit permissions, and complete Daily Duty Reports when on duty, all under role-based menu permissions.',
                 'points' => [
                     'Subject result entry and related tools',
                     'Dedicated Scheme of Work module',
@@ -577,7 +577,7 @@ class SiteController extends Controller
                 'icon' => 'fa-handshake-o',
                 'image' => 'images/fees.png',
                 'hero' => 'images/fees.png',
-                'body' => 'Manage Sponsors registers organizations or individuals (contact person, phone, email, status). Sponsors appear on student payment views so fee support is tracked beside billing — with Active/Inactive control and normalized phone numbers.',
+                'body' => 'Manage Sponsors registers organizations or individuals (contact person, phone, email, status). Sponsors appear on student payment views so fee support is tracked beside billing, with Active/Inactive control and normalized phone numbers.',
                 'points' => [
                     'Sponsor name, contact, phone, email & description',
                     'Active/Inactive status',
@@ -616,10 +616,10 @@ class SiteController extends Controller
                 'name' => 'Developer',
                 'role' => 'Senior Developer',
                 'tagline' => 'ShuleXpert web platform, mobile applications & school software delivery.',
-                'bio' => 'Builds and maintains ShuleXpert on web and mobile — from school portals and APIs to parent and teacher apps schools use every day.',
-                'more_bio' => "Full-stack Web & App Developer (Backend + Frontend).\n\nDesigns and ships production systems for schools and organisations across Tanzania — secure APIs, responsive dashboards, and reliable mobile experiences.\n\nFocus: secure APIs, responsive dashboards, clean UX, and reliable deployments that schools trust every day.",
+                'bio' => 'Builds and maintains ShuleXpert on web and mobile, from school portals and APIs to parent and teacher apps schools use every day.',
+                'more_bio' => "Full-stack Web & App Developer (Backend + Frontend).\n\nDesigns and ships production systems for schools and organisations across Tanzania, secure APIs, responsive dashboards, and reliable mobile experiences.\n\nFocus: secure APIs, responsive dashboards, clean UX, and reliable deployments that schools trust every day.",
                 'image' => 'images/H.jpg',
-                'featured' => true,
+                'featured' => false,
                 'phone' => '0614863345',
                 'email' => null,
                 'location' => 'Moshi, Kilimanjaro, Tanzania',
@@ -629,10 +629,10 @@ class SiteController extends Controller
                     'MySQL',
                 ],
                 'projects' => [
-                    'USHIRIKA PLUSS — partnership-union management backend',
-                    'ShuleXpert — full-stack school platform (25+ schools)',
-                    'Hostel Booking System — web + mobile with 20+ payment options',
-                    'OFICELink — office operations backend (20+ offices)',
+                    'USHIRIKA PLUSS, partnership-union management backend',
+                    'ShuleXpert, full-stack school platform (25+ schools)',
+                    'Hostel Booking System, web + mobile with 20+ payment options',
+                    'OFICELink, office operations backend (20+ offices)',
                 ],
                 'social' => [
                     ['icon' => 'fa-phone', 'label' => 'Call', 'url' => 'tel:+255614863345'],
@@ -645,7 +645,7 @@ class SiteController extends Controller
                 'name' => 'System Analyst',
                 'role' => 'System Analyst',
                 'tagline' => 'Requirements, workflows & school operations mapping.',
-                'bio' => 'Translates real school processes into ShuleXpert modules — fees, attendance, exams, and reporting that match how administrators actually work.',
+                'bio' => 'Translates real school processes into ShuleXpert modules, fees, attendance, exams, and reporting that match how administrators actually work.',
                 'more_bio' => "System Analyst & workflow designer.\n\nKey contributions:\n- Requirement mapping: translate real school operations (fees, attendance, exams, reporting) into clear module workflows.\n- Process definition: define data flows, validation rules, and reporting logic.\n- Integration planning: coordinate with frontend/backend teams to keep modules consistent.\n\nFocus: stable workflows, scalability, and accurate school operations data.",
                 'image' => 'images/B.jpg',
                 'featured' => false,
@@ -673,7 +673,7 @@ class SiteController extends Controller
                 'name' => 'UI/UX Designer',
                 'role' => 'UI & UX Designer',
                 'tagline' => 'Interfaces parents, teachers & admins love to use.',
-                'bio' => 'Shapes the ShuleXpert experience — clear portals, mobile-friendly layouts, and brand-consistent design across the public site and school dashboards.',
+                'bio' => 'Shapes the ShuleXpert experience, clear portals, mobile-friendly layouts, and brand-consistent design across the public site and school dashboards.',
                 'more_bio' => "UI/UX Designer.\n\nKey contributions:\n- Design parent, teacher and admin experiences that are easy to use on mobile and web.\n- Create wireframes and consistent components across ShuleXpert portals.\n- Improve forms, navigation, and accessibility to reduce user effort.\n\nFocus: usability, responsive design, and brand-consistent UI across the public site and school dashboards.",
                 'image' => 'images/L.jpg',
                 'featured' => false,
@@ -750,12 +750,12 @@ class SiteController extends Controller
             'teamMembers' => self::teamMembers(),
             'seo' => [
                 'title' => 'Mfumo Bora wa Shule Tanzania | ShuleXpert School Management System',
-                'description' => 'ShuleXpert ni mfumo bora wa shule Tanzania na duniani — better school management system & school software: fees, biometric attendance, exams, lesson plans, scheme of work, parent portal. Mfumo wa taaluma na usimamizi wa shule. Powered by EmCa Techonology.',
+                'description' => 'ShuleXpert ni mfumo bora wa shule Tanzania na duniani, better school management system & school software: fees, biometric attendance, exams, lesson plans, scheme of work, parent portal. Mfumo wa taaluma na usimamizi wa shule. Powered by EmCa Techonology.',
                 'keywords' => $keywords,
                 'canonical' => $this->publicUrl('/'),
                 'type' => 'website',
                 'image' => $this->publicUrl('/images/shuleXpert.jpg'),
-                'image_alt' => 'ShuleXpert — mfumo bora wa shule Tanzania na school management system',
+                'image_alt' => 'ShuleXpert, mfumo bora wa shule Tanzania na school management system',
                 'robots' => 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
                 'breadcrumbs' => [
                     ['name' => 'Home', 'url' => $this->publicUrl('/')],
@@ -771,8 +771,8 @@ class SiteController extends Controller
         return view('site.team', [
             'teamMembers' => $members,
             'seo' => [
-                'title' => 'Our Team — ShuleXpert | EmCa Techonology',
-                'description' => 'Meet the EmCa Techonology team behind ShuleXpert — Senior Developer, System Analyst, and UI/UX Designer building school management for the world.',
+                'title' => 'Our Team | ShuleXpert | EmCa Techonology',
+                'description' => 'Meet the EmCa Techonology team behind ShuleXpert, Senior Developer, System Analyst, and UI/UX Designer building school management for the world.',
                 'keywords' => 'ShuleXpert team, Senior Developer, EmCa Techonology developers, school software engineers Tanzania, UI UX designer ShuleXpert',
                 'canonical' => $this->publicUrl('/team'),
                 'type' => 'website',
@@ -806,7 +806,7 @@ class SiteController extends Controller
             'member' => $member,
             'otherMembers' => $others,
             'seo' => [
-                'title' => $name . ' — ' . $role . ' | ShuleXpert · EmCa Techonology',
+                'title' => $name . ' | ' . $role . ' | ShuleXpert · EmCa Techonology',
                 'description' => $desc,
                 'keywords' => implode(', ', array_filter([
                     $name,
@@ -831,8 +831,8 @@ class SiteController extends Controller
     {
         return view('site.about', [
             'seo' => [
-                'title' => 'About ShuleXpert — EmCa Techonology',
-                'description' => 'Learn about ShuleXpert, the school management platform built by EmCa Techonology for schools worldwide — from preschool to advanced level.',
+                'title' => 'About ShuleXpert | EmCa Techonology',
+                'description' => 'Learn about ShuleXpert, the school management platform built by EmCa Techonology for schools worldwide, from preschool to advanced level.',
                 'keywords' => 'About ShuleXpert, EmCa Techonology, school software worldwide',
                 'canonical' => $this->publicUrl('/about'),
                 'type' => 'website',
@@ -849,7 +849,7 @@ class SiteController extends Controller
         return view('site.modules', [
             'modules' => $modules,
             'seo' => [
-                'title' => 'ShuleXpert Modules (' . $count . ') — School Management Features',
+                'title' => 'ShuleXpert Modules (' . $count . ') | School Management Features',
                 'description' => 'Browse ' . $count . ' ShuleXpert modules led by Lesson Plans and Scheme of Work, plus ' . $highlights . ', and more. Live school capabilities by EmCa Techonology.',
                 'keywords' => 'ShuleXpert modules, lesson plan software, scheme of work software, school management system modules, school fees control number, biometric attendance, exam results, topic analysis, timetable, duty book, library, inventory, character assessment, student ID cards, printing unit, permission requests, school visitors, SMS alerts, budget expenses financial reports, EmCa Techonology',
                 'canonical' => $this->publicUrl('/modules'),
@@ -890,11 +890,11 @@ class SiteController extends Controller
         // Lesson Plans: strongest SEO page on the site. Scheme of Work: very strong.
         if (($module['seo_priority'] ?? '') === 'highest') {
             $title = 'Lesson Plan Software for Schools | Digital Lesson Plans, PDF & Admin Sign-Off | ShuleXpert';
-            $description = 'Best digital lesson plan software for schools in Tanzania & Africa. Teachers create lesson plans from sessions, reuse plans, send to admin, get supervisor signature, and download PDF. ShuleXpert Lesson Plans by EmCa Techonology — mpango wa somo online.';
+            $description = 'Best digital lesson plan software for schools in Tanzania & Africa. Teachers create lesson plans from sessions, reuse plans, send to admin, get supervisor signature, and download PDF. ShuleXpert Lesson Plans by EmCa Techonology, mpango wa somo online.';
             $keywords = $keywordBase . ', lesson plan software Tanzania, digital lesson plan system, teacher lesson plan PDF download, school lesson plan management, create lesson plan online free school, lesson plan template competence based, supervisor signed lesson plan, mpango wa somo shule, best lesson plan app for teachers Africa, ShuleXpert, EmCa Techonology';
         } elseif (($module['seo_priority'] ?? '') === 'high') {
             $title = 'Scheme of Work Software for Schools | Digital Schemes, Progress & PDF/Excel | ShuleXpert';
-            $description = 'Digital scheme of work software for teachers and admins. Create schemes by subject, reuse yearly schemes, track Scheme of Work Progress, export PDF & Excel. Separate from Lesson Plans. ShuleXpert by EmCa Techonology — mpango wa kazi wa mwaka.';
+            $description = 'Digital scheme of work software for teachers and admins. Create schemes by subject, reuse yearly schemes, track Scheme of Work Progress, export PDF & Excel. Separate from Lesson Plans. ShuleXpert by EmCa Techonology, mpango wa kazi wa mwaka.';
             $keywords = $keywordBase . ', scheme of work software Tanzania, digital scheme of work system, teacher scheme of work PDF, scheme of work progress dashboard, create scheme of work online, scheme of work template school, mpango wa kazi wa mwaka, ShuleXpert, EmCa Techonology';
         } else {
             $title = $module['title'] . ' Module | ShuleXpert School Management System';
@@ -916,7 +916,7 @@ class SiteController extends Controller
                 'canonical' => $canonical,
                 'type' => 'article',
                 'image' => $ogImage,
-                'image_alt' => $module['title'] . ' — ShuleXpert module',
+                'image_alt' => $module['title'] . ', ShuleXpert module',
                 'modified_time' => now()->toAtomString(),
                 'robots' => 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
                 'breadcrumb_name' => $module['title'],
@@ -933,7 +933,7 @@ class SiteController extends Controller
     {
         return view('site.pricing', [
             'seo' => [
-                'title' => 'ShuleXpert Pricing — TZS 1,000,000 Installation + TZS 500/Student/Month',
+                'title' => 'ShuleXpert Pricing | TZS 1,000,000 Installation + TZS 500/Student/Month',
                 'description' => 'ShuleXpert pricing by EmCa Techonology: one-time installation fee of TZS 1,000,000 (training, experts, cloud storage, setup) and monthly TZS 500 per student for SMS, support and platform services.',
                 'keywords' => 'ShuleXpert pricing, school management cost Tanzania, installation fee 1000000, 500 TZS per student, EmCa Techonology',
                 'canonical' => $this->publicUrl('/pricing'),
@@ -951,7 +951,7 @@ class SiteController extends Controller
     {
         return view('site.services', [
             'seo' => [
-                'title' => 'ShuleXpert Services — Implementation, Training & Support',
+                'title' => 'ShuleXpert Services | Implementation, Training & Support',
                 'description' => 'ShuleXpert services by EmCa Techonology: school digitization, training, biometric support, SMS communication, hosting and continuous user support.',
                 'keywords' => 'ShuleXpert services, school software training worldwide, biometric attendance support, EmCa Techonology',
                 'canonical' => $this->publicUrl('/services'),
@@ -964,7 +964,7 @@ class SiteController extends Controller
     {
         return view('site.faq', [
             'seo' => [
-                'title' => 'ShuleXpert FAQ — Pricing, Modules & Support',
+                'title' => 'ShuleXpert FAQ | Pricing, Modules & Support',
                 'description' => 'Frequently asked questions about ShuleXpert installation fee (TZS 1,000,000), monthly TZS 500 per student, control numbers, biometric attendance and EmCa Techonology support.',
                 'keywords' => 'ShuleXpert FAQ, school software pricing worldwide, control number fees, EmCa Techonology support',
                 'canonical' => $this->publicUrl('/faq'),
@@ -977,8 +977,8 @@ class SiteController extends Controller
     {
         return view('site.download', [
             'seo' => [
-                'title' => 'Download ShuleXpert App & Online School Application — Tanzania',
-                'description' => 'Download the ShuleXpert Android APK for teachers and parents, or apply to participating schools online. Real-time alerts, admissions, fees and school communication — powered by EmCa Techonology, Moshi Tanzania.',
+                'title' => 'Download ShuleXpert App & Online School Application | Tanzania',
+                'description' => 'Download the ShuleXpert Android APK for teachers and parents, or apply to participating schools online. Real-time alerts, admissions, fees and school communication, powered by EmCa Techonology, Moshi Tanzania.',
                 'keywords' => 'download ShuleXpert APK, ShuleXpert Android app, school management app Tanzania, online school application Tanzania, apply to school online, ShuleXpert mobile app, EmCa Techonology, school admission online',
                 'canonical' => $this->publicUrl('/download'),
                 'type' => 'website',
@@ -992,7 +992,7 @@ class SiteController extends Controller
     {
         return view('site.contact', [
             'seo' => [
-                'title' => 'Contact ShuleXpert — EmCa Techonology',
+                'title' => 'Contact ShuleXpert | EmCa Techonology',
                 'description' => 'Contact ShuleXpert / EmCa Techonology in Moshi, Kilimanjaro. Call '.config('shulexpert.phone_display').' or email emca@emca.tech.',
                 'keywords' => 'Contact ShuleXpert, EmCa Techonology Moshi, school software support',
                 'canonical' => $this->publicUrl('/contact'),
@@ -1002,7 +1002,7 @@ class SiteController extends Controller
     }
 
     /**
-     * Public school self-registration (landing) — OTP required; saved as pending (no login credentials).
+     * Public school self-registration (landing), OTP required; saved as pending (no login credentials).
      */
     public function registerSchool()
     {
@@ -1212,7 +1212,7 @@ class SiteController extends Controller
             }
             $value = strtolower($raw);
         } else {
-            // registration_number — wait until a few chars typed
+            // registration_number, wait until a few chars typed
             if (mb_strlen($raw) < 2) {
                 return response()->json([
                     'success' => true,

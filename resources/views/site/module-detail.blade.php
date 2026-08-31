@@ -70,7 +70,7 @@
                     @if(($module['slug'] ?? '') === 'lesson-plans')
                         <div class="mb-20">
                             <h4 style="font-size:16px;color:#940000;font-weight:700;">Is this digital lesson plan software for teachers?</h4>
-                            <p style="font-size:14px;line-height:1.7;color:#444;">Yes — create from sessions, reuse plans, send to admin, get supervisor signature, download PDF (mpango wa somo online).</p>
+                            <p style="font-size:14px;line-height:1.7;color:#444;">Yes, create from sessions, reuse plans, send to admin, get supervisor signature, download PDF (mpango wa somo online).</p>
                         </div>
                         <div class="mb-20">
                             <h4 style="font-size:16px;color:#940000;font-weight:700;">Is Lesson Plans separate from Scheme of Work?</h4>
@@ -79,7 +79,7 @@
                     @elseif(($module['slug'] ?? '') === 'scheme-of-work')
                         <div class="mb-20">
                             <h4 style="font-size:16px;color:#940000;font-weight:700;">Is this scheme of work software for schools?</h4>
-                            <p style="font-size:14px;line-height:1.7;color:#444;">Yes — create/manage schemes, reuse yearly, track progress, export PDF/Excel.</p>
+                            <p style="font-size:14px;line-height:1.7;color:#444;">Yes, create/manage schemes, reuse yearly, track progress, export PDF/Excel.</p>
                         </div>
                         <div class="mb-20">
                             <h4 style="font-size:16px;color:#940000;font-weight:700;">How is it different from Lesson Plans?</h4>
@@ -153,7 +153,7 @@
         '@type' => 'WebPage',
         '@id' => $moduleUrl . '#webpage',
         'url' => $moduleUrl,
-        'name' => $module['title'] . ' — ShuleXpert',
+        'name' => $module['title'] . ', ShuleXpert',
         'description' => $module['short'],
         'inLanguage' => 'en-TZ',
         'isPartOf' => [
@@ -173,7 +173,7 @@
         '@type' => 'Service',
         '@id' => $moduleUrl . '#service',
         'name' => $module['title'],
-        'alternateName' => $module['title'] . ' — ShuleXpert',
+        'alternateName' => $module['title'] . ', ShuleXpert',
         'description' => $module['body'],
         'serviceType' => 'School management software module',
         'category' => 'EducationTechnology',
@@ -248,7 +248,7 @@
                 'name' => 'Is ShuleXpert a digital lesson plan software for teachers?',
                 'acceptedAnswer' => [
                     '@type' => 'Answer',
-                    'text' => 'Yes. ShuleXpert Lesson Plans lets teachers create digital lesson plans from class sessions, reuse previous plans, send plans to admin, receive supervisor signatures, and download PDF lesson plans — built for schools in Tanzania and Africa.',
+                    'text' => 'Yes. ShuleXpert Lesson Plans lets teachers create digital lesson plans from class sessions, reuse previous plans, send plans to admin, receive supervisor signatures, and download PDF lesson plans, built for schools in Tanzania and Africa.',
                 ],
             ],
             [

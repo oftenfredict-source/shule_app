@@ -1,4 +1,4 @@
-{{-- Unique cinematic splash — Powered by EmCa Techonology --}}
+{{-- Unique cinematic splash, Powered by EmCa Techonology --}}
 <div id="sx-splash" aria-hidden="true">
     <div class="sx-splash-grid"></div>
     <div class="sx-splash-orb"></div>

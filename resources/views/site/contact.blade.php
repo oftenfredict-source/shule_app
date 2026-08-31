@@ -28,7 +28,7 @@
                     <div class="icon"><i class="fa fa-map-marker"></i></div>
                     <div class="contact-details">
                         <h5>Moshi, Kilimanjaro</h5>
-                        <p>Tanzania — EmCa Techonology office</p>
+                        <p>Tanzania, EmCa Techonology office</p>
                     </div>
                 </div>
                 <div class="sx-contact-box single-contact-address d-flex flex-row">
@@ -64,7 +64,7 @@
                                    class="common-input mb-20 form-control" required type="email">
                             @error('email')<small class="text-danger d-block mb-10">{{ $message }}</small>@enderror
 
-                            <label class="mb-5" style="font-size:13px;color:#555;">Phone (Tanzania — starts with 255)</label>
+                            <label class="mb-5" style="font-size:13px;color:#555;">Phone (Tanzania, starts with 255)</label>
                             <div class="d-flex mb-10" style="gap:8px;">
                                 <input name="phone" id="contact_phone" placeholder="2557XXXXXXXX"
                                        value="{{ old('phone', '255') }}"

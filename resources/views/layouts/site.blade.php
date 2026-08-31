@@ -11,7 +11,7 @@
 
     @php
         $seo = $seo ?? [];
-        $pageTitle = $seo['title'] ?? 'ShuleXpert — School Management System';
+        $pageTitle = $seo['title'] ?? 'ShuleXpert | School Management System';
         $pageDesc = $seo['description'] ?? 'ShuleXpert school management platform by EmCa Techonology.';
         $pageKeywords = $seo['keywords'] ?? 'ShuleXpert, school management, EmCa Techonology';
         $canonical = $seo['canonical'] ?? url()->current();

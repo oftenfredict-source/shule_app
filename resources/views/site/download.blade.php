@@ -27,7 +27,7 @@
                 <h2 style="color:#940000;font-weight:800;">ShuleXpert on mobile</h2>
                 <p style="font-size:15px;line-height:1.8;margin-top:14px;">
                     Stay connected with real-time alerts for teachers and parents. Download the Android APK to access
-                    sessions, notifications and school updates on the go — anywhere in Tanzania and beyond.
+                    sessions, notifications and school updates on the go, anywhere in Tanzania and beyond.
                 </p>
                 <ul class="sx-point-list mt-30">
                     <li>Teacher session &amp; timetable alerts</li>
@@ -58,7 +58,7 @@
                 <h2 style="color:#940000;font-weight:800;">Apply to school online</h2>
                 <p style="font-size:15px;line-height:1.8;margin-top:14px;max-width:560px;">
                     Parents and guardians can browse participating schools, check available class spaces,
-                    view school details, and submit a student application online — no paperwork queues.
+                    view school details, and submit a student application online, no paperwork queues.
                 </p>
                 <ul class="sx-point-list mt-20">
                     <li>Search schools by name, region or district</li>
@@ -110,7 +110,7 @@
         'operatingSystem' => 'Android',
         'applicationCategory' => 'EducationalApplication',
         'applicationSubCategory' => 'School Management',
-        'description' => 'Android app for ShuleXpert teachers and parents — session alerts, attendance, results and school notifications.',
+        'description' => 'Android app for ShuleXpert teachers and parents, session alerts, attendance, results and school notifications.',
         'url' => url('/download'),
         'downloadUrl' => url('/shuleXpert.apk'),
         'installUrl' => url('/download'),

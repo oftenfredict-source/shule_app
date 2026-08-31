@@ -49,12 +49,12 @@
 
                     <h5 style="color:#222;font-weight:700;margin:28px 0 12px;border-top:1px solid #f0dada;padding-top:18px;">What this covers</h5>
                     <ul class="sx-point-list">
-                        <li><strong>Professional training</strong> — hands-on sessions for Admin, Teachers, Staff &amp; Accountant users</li>
-                        <li><strong>Expert facilitator fees</strong> — specialists who deliver onboarding and role-based coaching</li>
-                        <li><strong>Secure cloud storage setup</strong> — school data hosting, backups &amp; environment provisioning</li>
-                        <li><strong>System configuration</strong> — academic years, classes, fee structures, roles &amp; branding</li>
-                        <li><strong>Go-live support</strong> — supervised launch checklist and first-week hypercare</li>
-                        <li><strong>Data migration assistance</strong> — import guidance for students, parents &amp; existing records</li>
+                        <li><strong>Professional training</strong>: hands-on sessions for Admin, Teachers, Staff &amp; Accountant users</li>
+                        <li><strong>Expert facilitator fees</strong>: specialists who deliver onboarding and role-based coaching</li>
+                        <li><strong>Secure cloud storage setup</strong>: school data hosting, backups &amp; environment provisioning</li>
+                        <li><strong>System configuration</strong>: academic years, classes, fee structures, roles &amp; branding</li>
+                        <li><strong>Go-live support</strong>: supervised launch checklist and first-week hypercare</li>
+                        <li><strong>Data migration assistance</strong>: import guidance for students, parents &amp; existing records</li>
                     </ul>
                 </div>
             </div>
@@ -76,12 +76,12 @@
 
                     <h5 style="color:#222;font-weight:700;margin:28px 0 12px;border-top:1px solid #f0dada;padding-top:18px;">What this covers</h5>
                     <ul class="sx-point-list">
-                        <li><strong>SMS notification services</strong> — results, attendance, fee reminders &amp; school announcements</li>
-                        <li><strong>Continuous user support</strong> — helpdesk for Admin, Teachers, Parents &amp; Staff</li>
-                        <li><strong>Platform updates &amp; security</strong> — ongoing improvements, patches &amp; monitoring</li>
-                        <li><strong>Parent portal access</strong> — fees, results, attendance &amp; permissions online</li>
-                        <li><strong>System uptime &amp; backups</strong> — reliable hosting with routine data protection</li>
-                        <li><strong>Feature enhancements</strong> — new modules and UX improvements as ShuleXpert grows</li>
+                        <li><strong>SMS notification services</strong>: results, attendance, fee reminders &amp; school announcements</li>
+                        <li><strong>Continuous user support</strong>: helpdesk for Admin, Teachers, Parents &amp; Staff</li>
+                        <li><strong>Platform updates &amp; security</strong>: ongoing improvements, patches &amp; monitoring</li>
+                        <li><strong>Parent portal access</strong>: fees, results, attendance &amp; permissions online</li>
+                        <li><strong>System uptime &amp; backups</strong>: reliable hosting with routine data protection</li>
+                        <li><strong>Feature enhancements</strong>: new modules and UX improvements as ShuleXpert grows</li>
                     </ul>
                 </div>
             </div>
@@ -123,7 +123,7 @@
             <div class="col-lg-8 mx-auto text-center">
                 <p style="color:#555;margin-bottom:22px;">
                     Need a quotation for your school size, biometric devices, or multi-campus setup?
-                    Talk to EmCa Techonology — we will tailor onboarding to your needs.
+                    Talk to EmCa Techonology, we will tailor onboarding to your needs.
                 </p>
                 <a href="{{ route('site.contact') }}" class="primary-btn text-uppercase">Request Quotation</a>
                 <a href="{{ route('online_application') }}" class="primary-btn wh text-uppercase ml-10">Online Application</a>

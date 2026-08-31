@@ -29,7 +29,7 @@
         </div>
         <div class="row mt-50">
             <div class="col-12 text-center">
-                <p class="sx-team-page-note">Powered by <strong>EmCa Techonology</strong> — Moshi, Kilimanjaro</p>
+                <p class="sx-team-page-note">Powered by <strong>EmCa Techonology</strong>: Moshi, Kilimanjaro</p>
                 <a href="{{ route('site.contact') }}" class="primary-btn text-uppercase mt-20">Work With Us</a>
             </div>
         </div>
@@ -76,7 +76,7 @@
     $peopleSchema = [
         '@context' => 'https://schema.org',
         '@type' => 'ItemList',
-        'name' => 'ShuleXpert Team — EmCa Techonology',
+        'name' => 'ShuleXpert Team | EmCa Techonology',
         'description' => 'The team behind ShuleXpert school management platform.',
         'itemListElement' => collect($teamMembers)->values()->map(function ($member, $index) {
             return [

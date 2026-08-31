@@ -24,7 +24,7 @@
                 <div class="single-feature">
                     <div class="title"><h4>End-to-End Platform</h4></div>
                     <div class="desc-wrap">
-                        <p>People, academics, fees, attendance, exams, library, store, hostel, SMS, and performance — one system.</p>
+                        <p>People, academics, fees, attendance, exams, library, store, hostel, SMS, and performance, one system.</p>
                         <a href="{{ route('site.modules') }}">See Modules</a>
                     </div>
                 </div>
@@ -60,7 +60,7 @@
             <div class="col-lg-6 info-area-right">
                 <h1>Who we are</h1>
                 <p>
-                    ShuleXpert is a multi-tenant school management SaaS that helps schools run operations digitally —
+                    ShuleXpert is a multi-tenant school management SaaS that helps schools run operations digitally,
                     from student enrollment and fee collection with control numbers, to biometric attendance, examinations,
                     parent communication, and strategic performance management.
                 </p>

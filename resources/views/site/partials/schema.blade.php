@@ -13,7 +13,7 @@
         ],
         'url' => $homeUrl,
         'logo' => $publicBase . '/images/shuleXpert.jpg',
-        'description' => 'Mfumo bora wa shule Tanzania na duniani — better school management system and school software by EmCa Techonology.',
+        'description' => 'Mfumo bora wa shule Tanzania na duniani, better school management system and school software by EmCa Techonology.',
         'email' => 'emca@emca.tech',
         'telephone' => config('shulexpert.phone_e164'),
         'address' => [
@@ -49,7 +49,7 @@
         'alternateName' => ['Mfumo bora wa shule Tanzania', 'School management system ShuleXpert'],
         'url' => $homeUrl,
         'inLanguage' => ['sw', 'en'],
-        'description' => 'ShuleXpert — mfumo bora wa shule Tanzania, better school management system, school software na mfumo wa taaluma.',
+        'description' => 'ShuleXpert, mfumo bora wa shule Tanzania, better school management system, school software na mfumo wa taaluma.',
         'publisher' => [
             '@type' => 'Organization',
             'name' => 'EmCa Techonology',
@@ -79,7 +79,7 @@
         'operatingSystem' => 'Web, Android, iOS',
         'inLanguage' => ['sw', 'en'],
         'keywords' => 'Mfumo bora wa shule Tanzania, Better school management system, ShuleXpert, shulesoft, Mifumo ya shule, Mfumo wa shule, School system, school software, Mfumo wa taaluma, Mifumo bora ya shule Duniani, school management system Tanzania',
-        'description' => 'ShuleXpert ni mfumo bora wa shule Tanzania na mifumo bora ya shule duniani — complete school management software for fees, attendance, exams, lesson plans, scheme of work and parent communication.',
+        'description' => 'ShuleXpert ni mfumo bora wa shule Tanzania na mifumo bora ya shule duniani, complete school management software for fees, attendance, exams, lesson plans, scheme of work and parent communication.',
         'featureList' => [
             'Fees & control numbers',
             'Biometric attendance',

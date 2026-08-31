@@ -31,7 +31,7 @@
             <div class="sx-member-hero__photo-wrap">
                 <div class="sx-member-hero__ring" aria-hidden="true"></div>
                 <div class="sx-member-hero__photo">
-                    <img src="{{ asset($member['image']) }}" alt="{{ $name }} — {{ $role }} at EmCa Techonology" width="480" height="480">
+                    <img src="{{ asset($member['image']) }}" alt="{{ $name }}, {{ $role }} at EmCa Techonology" width="480" height="480">
                 </div>
             </div>
 
@@ -106,7 +106,7 @@
             <div class="col-lg-5">
                 <aside class="sx-member-panel sx-member-panel--cta">
                     <h2>Let’s talk</h2>
-                    <p>Need ShuleXpert, a custom school system, or a mobile app? Reach {{ $name }} directly — we build software that schools and organisations rely on.</p>
+                    <p>Need ShuleXpert, a custom school system, or a mobile app? Reach {{ $name }} directly, we build software that schools and organisations rely on.</p>
                     <div class="sx-member-actions sx-member-actions--stack">
                         @if($phone && $phoneHref)
                             <a href="{{ $phoneHref }}" class="sx-member-btn sx-member-btn--solid">
@@ -425,7 +425,7 @@
         '@type' => 'ProfilePage',
         '@id' => $profileUrl . '#webpage',
         'url' => $profileUrl,
-        'name' => $name . ' — ' . $role,
+        'name' => $name . ' | ' . $role,
         'description' => $seo['description'] ?? ($member['bio'] ?? ''),
         'inLanguage' => 'en-TZ',
         'isPartOf' => [

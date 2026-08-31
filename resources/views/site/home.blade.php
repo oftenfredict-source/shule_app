@@ -57,7 +57,7 @@
                         <h4>Parent Portal</h4>
                     </div>
                     <div class="desc-wrap">
-                        <p>Results, attendance, fees, and permissions — always available on web and mobile.</p>
+                        <p>Results, attendance, fees, and permissions, always available on web and mobile.</p>
                         <a href="{{ route('site.module', 'parent-portal') }}">Learn More</a>
                     </div>
                 </div>
@@ -73,7 +73,7 @@
             <div class="menu-content pb-70 col-lg-8">
                 <div class="title text-center">
                     <h2 class="mb-10">Modules that power your school</h2>
-                    <p>Start with <strong>Lesson Plans</strong> and <strong>Scheme of Work</strong> — plus fees, exams, attendance and more from the live ShuleXpert system.</p>
+                    <p>Start with <strong>Lesson Plans</strong> and <strong>Scheme of Work</strong>: plus fees, exams, attendance and more from the live ShuleXpert system.</p>
                 </div>
             </div>
         </div>
@@ -123,16 +123,16 @@
 <section class="info-area pb-120 sx-soft-band sx-home-info">
     <div class="sx-home-info-inner">
         <div class="sx-home-info-media">
-            <img src="{{ asset('images/african-children-primary-school-classroom-johannesburg-south-africa-september-176110088.webp') }}" alt="ShuleXpert mfumo bora wa shule Tanzania — school management system in classrooms" loading="lazy" decoding="async">
+            <img src="{{ asset('images/african-children-primary-school-classroom-johannesburg-south-africa-september-176110088.webp') }}" alt="ShuleXpert mfumo bora wa shule Tanzania, school management system in classrooms" loading="lazy" decoding="async">
         </div>
         <div class="sx-home-info-body">
             <h2>Built for schools worldwide</h2>
             <p>
-                From single campuses to multi-branch institutions, <strong>ShuleXpert</strong> unifies administration, academics, finance, and parent communication —
+                From single campuses to multi-branch institutions, <strong>ShuleXpert</strong> unifies administration, academics, finance, and parent communication,
                 with school-level branding, academic-year awareness, and role-based portals for Admin, Teachers, Staff, Parents, and Watchmen.
             </p>
             <p class="sx-home-info-gap">
-                No more scattered spreadsheets. One <strong>school system</strong> for enrollments, fees, attendance, exams, library, store, hostel, discipline, and strategic performance —
+                No more scattered spreadsheets. One <strong>school system</strong> for enrollments, fees, attendance, exams, library, store, hostel, discipline, and strategic performance,
                 <strong>mfumo wa shule</strong> schools trust across Tanzania and beyond.
             </p>
             <a href="{{ route('site.about') }}" class="primary-btn text-uppercase sx-home-info-btn">About ShuleXpert</a>
@@ -146,10 +146,10 @@
         <div class="row justify-content-center">
             <div class="col-lg-10">
                 <div class="title text-center mb-40">
-                    <h2 id="sx-seo-home-heading" class="mb-10">Mfumo bora wa shule Tanzania — better school management system</h2>
+                    <h2 id="sx-seo-home-heading" class="mb-10">Mfumo bora wa shule Tanzania, better school management system</h2>
                     <p class="sx-seo-home-lead">
                         Unatafuta <strong>mfumo wa shule</strong>, <strong>mifumo ya shule</strong>, <strong>school software</strong>, au
-                        <strong>school management system</strong>? <strong>ShuleXpert</strong> ni mfumo namba moja wa shule Tanzania —
+                        <strong>school management system</strong>? <strong>ShuleXpert</strong> ni mfumo namba moja wa shule Tanzania,
                         school system kamili kwa usimamizi wa taaluma, fedha, mahudhurio na mawasiliano na wazazi.
                     </p>
                 </div>
@@ -159,7 +159,7 @@
                         <p>
                             <strong>Mifumo bora ya shule Tanzania</strong> inahitaji zaidi ya spreadsheet. ShuleXpert inatoa
                             <strong>mfumo wa taaluma</strong>, ada na control numbers, biometric attendance, mitihani na matokeo,
-                            lesson plans, scheme of work, na parent portal — kwenye jukwaa moja. Ni <strong>better school management system</strong>
+                            lesson plans, scheme of work, na parent portal, kwenye jukwaa moja. Ni <strong>better school management system</strong>
                             kwa preschool, primary, secondary na advanced.
                         </p>
                         <p>
@@ -179,7 +179,7 @@
                             <a href="{{ route('online_application') }}">online school application</a>.
                         </p>
                         <ul class="sx-seo-home-list">
-                            <li>Mfumo wa shule Tanzania — web + mobile</li>
+                            <li>Mfumo wa shule Tanzania, web + mobile</li>
                             <li>School management software for Africa &amp; worldwide</li>
                             <li>Mfumo wa mitihani, ada, na mahudhurio</li>
                             <li>Parent portal &amp; SMS alerts</li>
@@ -265,7 +265,7 @@
             <div class="col-12 col-lg-4">
                 <div class="single-review" style="background:#fff;border:1px solid #f0dada;padding:28px;margin-bottom:20px;">
                     <div class="star"><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span><span class="fa fa-star checked"></span></div>
-                    <p class="mt-20">I get attendance and results on my phone. Fee balances are clear — I always know what I owe.</p>
+                    <p class="mt-20">I get attendance and results on my phone. Fee balances are clear, I always know what I owe.</p>
                     <h4 class="mt-20" style="color:#940000;">Parent</h4>
                     <p>Primary School, Arusha</p>
                 </div>
@@ -300,7 +300,7 @@
                 'name' => 'Je, ShuleXpert ni mfumo bora wa shule Tanzania?',
                 'acceptedAnswer' => [
                     '@type' => 'Answer',
-                    'text' => 'Ndiyo. ShuleXpert ni mfumo bora wa shule Tanzania na school management system kamili — ada, mahudhurio ya biometric, mitihani, lesson plans, scheme of work, parent portal na SMS. Imejengwa na EmCa Techonology kwa shule duniani.',
+                    'text' => 'Ndiyo. ShuleXpert ni mfumo bora wa shule Tanzania na school management system kamili, ada, mahudhurio ya biometric, mitihani, lesson plans, scheme of work, parent portal na SMS. Imejengwa na EmCa Techonology kwa shule duniani.',
                 ],
             ],
             [
@@ -308,7 +308,7 @@
                 'name' => 'What is the best school management system / school software for Tanzania?',
                 'acceptedAnswer' => [
                     '@type' => 'Answer',
-                    'text' => 'ShuleXpert is a better school management system and school software for Tanzania and worldwide: fees with control numbers, biometric attendance, exams and results, parent portal, timetable, and online admission — one school system for admin, teachers, staff and parents.',
+                    'text' => 'ShuleXpert is a better school management system and school software for Tanzania and worldwide: fees with control numbers, biometric attendance, exams and results, parent portal, timetable, and online admission, one school system for admin, teachers, staff and parents.',
                 ],
             ],
             [
@@ -316,7 +316,7 @@
                 'name' => 'Mfumo wa taaluma na mifumo ya shule inajumuisha nini?',
                 'acceptedAnswer' => [
                     '@type' => 'Answer',
-                    'text' => 'Mfumo wa taaluma wa ShuleXpert unajumuisha lesson plans, scheme of work, timetable, exams, topic analysis, attendance na parent communication — sehemu ya mifumo bora ya shule Tanzania na duniani.',
+                    'text' => 'Mfumo wa taaluma wa ShuleXpert unajumuisha lesson plans, scheme of work, timetable, exams, topic analysis, attendance na parent communication, sehemu ya mifumo bora ya shule Tanzania na duniani.',
                 ],
             ],
             [

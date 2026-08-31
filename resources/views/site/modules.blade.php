@@ -23,7 +23,7 @@
             <div class="menu-content pb-70 col-lg-8">
                 <div class="title text-center">
                     <h1 class="mb-10">Complete ShuleXpert module suite</h1>
-                    <p>Each module below reflects a live capability in the ShuleXpert system — including dedicated <strong>Lesson Plans</strong> and <strong>Scheme of Work</strong> modules, plus fees, exams, topic analysis, attendance, timetable, library, SMS and school operations.</p>
+                    <p>Each module below reflects a live capability in the ShuleXpert system, including dedicated <strong>Lesson Plans</strong> and <strong>Scheme of Work</strong> modules, plus fees, exams, topic analysis, attendance, timetable, library, SMS and school operations.</p>
                 </div>
             </div>
         </div>

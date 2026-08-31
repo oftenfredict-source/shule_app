@@ -1,27 +1,18 @@
 @php
     $variant = $variant ?? 'home';
-    $isLead = !empty($member['featured']);
-    $colClass = $isLead ? 'sx-team-col-lead' : '';
-    if ($isLead) {
-        $colClass .= ' order-lg-2';
-    } elseif (($member['slug'] ?? '') === 'system-analyst') {
-        $colClass .= ' order-lg-1';
-    } else {
-        $colClass .= ' order-lg-3';
-    }
 @endphp
-<div class="col-lg-4 col-md-6 {{ $colClass }} sx-team-col">
+<div class="col-lg-4 col-md-6 sx-team-col">
     @php
         $details = $member['more_bio'] ?? ($member['bio'] ?? $member['tagline'] ?? '');
         $slug = $member['slug'] ?? '';
     @endphp
-    <article id="{{ $slug ? ('team-member-' . $slug) : null }}" class="sx-team-card {{ $isLead ? 'sx-team-card--lead' : '' }} sx-team-card--{{ $variant }}" itemscope itemtype="https://schema.org/Person">
+    <article id="{{ $slug ? ('team-member-' . $slug) : null }}" class="sx-team-card sx-team-card--{{ $variant }}" itemscope itemtype="https://schema.org/Person">
         <div class="sx-team-card__glow" aria-hidden="true"></div>
         <div class="sx-team-card__inner">
             <div class="sx-team-card__frame">
                 <div class="sx-team-card__ring" aria-hidden="true"></div>
                 <div class="sx-team-card__photo">
-                    <img src="{{ asset($member['image']) }}" alt="{{ $member['name'] }} — {{ $member['role'] }} · EmCa Techonology" loading="lazy" itemprop="image">
+                    <img src="{{ asset($member['image']) }}" alt="{{ $member['name'] }}, {{ $member['role'] }} · EmCa Techonology" loading="lazy" itemprop="image">
                 </div>
             </div>
             <div class="sx-team-card__body">
