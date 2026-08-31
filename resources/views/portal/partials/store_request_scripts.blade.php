@@ -1,4 +1,4 @@
-﻿<script>
+<script>
 (function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     let availableStockList = @json($availableStockList);
@@ -899,7 +899,7 @@
             const lines = selections.map(s => {
                 const items = s.quantity * (parseFloat(s.opt.items_each) || 1);
                 const leafName = s.unit.leaf_unit_name || 'item';
-                return `<li><strong>${escapeHtml(s.unit.label)}</strong> â€” 1 Ã— ${escapeHtml(s.opt.label)} = ${items} ${escapeHtml(leafName)}</li>`;
+                return `<li><strong>${escapeHtml(s.unit.label)}</strong> â€” 1 Ã- ${escapeHtml(s.opt.label)} = ${items} ${escapeHtml(leafName)}</li>`;
             }).join('');
             const totalItems = selections.reduce((sum, s) =>
                 sum + (s.quantity * (parseFloat(s.opt.items_each) || 1)), 0);
@@ -928,7 +928,7 @@
         const remainingAfter = Math.max(0, (parseFloat(unit.remaining_items) || 0) - totalItems);
         const lines = selections.map(s => {
             const items = s.quantity * (parseFloat(s.opt.items_each) || 1);
-            return `<li><strong>${s.quantity} Ã— ${escapeHtml(s.opt.label)}</strong> = ${items} ${escapeHtml(leafName)}</li>`;
+            return `<li><strong>${s.quantity} Ã- ${escapeHtml(s.opt.label)}</strong> = ${items} ${escapeHtml(leafName)}</li>`;
         }).join('');
 
         $preview.html(
@@ -1139,7 +1139,7 @@
         } else {
             $('#issueTakeQtyHint').text(
                 'Max ' + maxQty + ' Â· each = ' + itemsEach + ' ' + leafName
-                + ' (total items = quantity Ã— ' + itemsEach + ')'
+                + ' (total items = quantity Ã- ' + itemsEach + ')'
             );
         }
     }

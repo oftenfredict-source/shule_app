@@ -149,7 +149,7 @@
     font-family: 'FontAwesome' !important;
 }
 
-/* Sidebar links: NO inner scrollbar — only outer #left-panel scrolls */
+/* Sidebar links: NO inner scrollbar, only outer #left-panel scrolls */
 .sidebar-links-container {
     overflow: visible !important;
     overflow-x: visible !important;
@@ -720,7 +720,7 @@
                                     $classTeacherSubclassIds = \App\Models\Subclass::where('teacherID', $teacherID)->pluck('subclassID')->toArray();
                                     $coordinatorClassIds = \App\Models\ClassModel::where('teacherID', $teacherID)->pluck('classID')->toArray();
 
-                                    // HOD logic — find departments where this teacher is head
+                                    // HOD logic, find departments where this teacher is head
                                     $hodDepartments = \App\Models\Department::where('head_teacherID', $teacherID)->get();
                                     $hodDepartmentIds = $hodDepartments->pluck('departmentID')->toArray();
                                     $hodSubjectIds = !empty($hodDepartmentIds)

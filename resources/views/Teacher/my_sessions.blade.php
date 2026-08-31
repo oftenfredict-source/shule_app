@@ -1163,7 +1163,7 @@ window.assignTask = function(sessionTimetableID, date, startTime, endTime) {
 };
 
 window.openLessonPlan = function(sessionTimetableID, day, startTime, endTime, subjectName, className, date) {
-    // Native fetch — do not depend on jQuery being ready (onclick can fire before $ loads)
+    // Native fetch, do not depend on jQuery being ready (onclick can fire before $ loads)
     function showNotAllowed(msg) {
         if (typeof Swal !== 'undefined' && Swal.fire) {
             Swal.fire({

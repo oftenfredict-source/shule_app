@@ -663,7 +663,7 @@
                                 <option value="Cancelled">Cancelled</option>
                                 <option value="all">All enrollments</option>
                             </select>
-                            <span class="att-filter-hint">Header academic year: <strong>{{ $academicYearLabel ?? '—' }}</strong></span>
+                            <span class="att-filter-hint">Header academic year: <strong>{{ $academicYearLabel ?? '-' }}</strong></span>
                         </div>
                         <div class="att-filter-action">
                             <button type="submit" class="att-filter-btn">
@@ -758,7 +758,7 @@
                                 <option value="Cancelled">Cancelled</option>
                                 <option value="all">All enrollments</option>
                             </select>
-                            <span class="att-filter-hint">Header year: <strong>{{ $academicYearLabel ?? '—' }}</strong></span>
+                            <span class="att-filter-hint">Header year: <strong>{{ $academicYearLabel ?? '-' }}</strong></span>
                         </div>
                         <div class="att-filter-item att-filter-item--medium" id="fingerprint_date_field" style="display: none;">
                             <label>Date</label>
@@ -2309,17 +2309,17 @@
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             const month = document.getElementById('month')?.value || '';
             const year = document.getElementById('year')?.value || '';
-            if (month && year) periodTitle = 'SYSTEM ATTENDANCE — ' + monthNames[parseInt(month, 10) - 1].toUpperCase() + ' ' + year;
+            if (month && year) periodTitle = 'SYSTEM ATTENDANCE, ' + monthNames[parseInt(month, 10) - 1].toUpperCase() + ' ' + year;
         } else if (searchType === 'year') {
             const year = document.getElementById('year')?.value || '';
-            if (year) periodTitle = 'SYSTEM ATTENDANCE — YEAR ' + year;
+            if (year) periodTitle = 'SYSTEM ATTENDANCE, YEAR ' + year;
         } else if (searchType === 'date') {
             const date = document.getElementById('date')?.value || '';
-            if (date) periodTitle = 'SYSTEM ATTENDANCE — ' + date;
+            if (date) periodTitle = 'SYSTEM ATTENDANCE, ' + date;
         } else if (searchType === 'date_range') {
             const fromDate = document.getElementById('from_date')?.value || '';
             const toDate = document.getElementById('to_date')?.value || '';
-            if (fromDate && toDate) periodTitle = 'SYSTEM ATTENDANCE — ' + fromDate + ' TO ' + toDate;
+            if (fromDate && toDate) periodTitle = 'SYSTEM ATTENDANCE, ' + fromDate + ' TO ' + toDate;
         }
         if (statusFilter && statusFilter !== 'all') {
             const statusTitle = {
@@ -2360,7 +2360,7 @@
             });
         });
 
-        // Use jQuery explicitly — global $ is often overwritten on this layout
+        // Use jQuery explicitly, global $ is often overwritten on this layout
         const $jq = window.jQuery;
         const classDropdown = document.getElementById('searchClasses');
         if (classDropdown) {
@@ -4150,7 +4150,7 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title">
-                    <i class="bi bi-chat-dots"></i> Send SMS — Filtered Attendance
+                    <i class="bi bi-chat-dots"></i> Send SMS, Filtered Attendance
                 </h5>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -4160,8 +4160,8 @@
                 <div id="attStatusSmsDisabled" class="alert alert-warning d-none"></div>
                 <div id="attStatusSmsContent" class="d-none">
                     <div class="alert alert-info border-0 shadow-sm mb-3">
-                        <div><strong>Status:</strong> <span id="attStatusSmsStatusLabel">—</span></div>
-                        <div><strong>Period:</strong> <span id="attStatusSmsPeriodLabel">—</span></div>
+                        <div><strong>Status:</strong> <span id="attStatusSmsStatusLabel">-</span></div>
+                        <div><strong>Period:</strong> <span id="attStatusSmsPeriodLabel">-</span></div>
                         <div class="small text-muted mt-1">Parents of students matching this filter. SMS lists each matching day.</div>
                     </div>
 
@@ -4171,7 +4171,7 @@
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="attStatusSmsResetTemplate">Reset</button>
                         </div>
                         <div class="small text-muted mb-2">
-                            Unaweza kuhariri maandishi. <strong>Values zilizofungwa</strong> (jina, period, siku) haziwezi kuhaririwa — zinajaza automatic kwa kila mwanafunzi.
+                            Unaweza kuhariri maandishi. <strong>Values zilizofungwa</strong> (jina, period, siku) haziwezi kuhaririwa, zinajaza automatic kwa kila mwanafunzi.
                         </div>
                         <div id="attStatusSmsEditor"
                              class="form-control"
@@ -4282,7 +4282,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(info => {
             if (info && info.success && info.auto_enabled) {
                 const hint = document.getElementById('attendanceSmsAutoHint');
-                if (hint) hint.textContent = 'Auto SMS is on — you can still send manually here.';
+                if (hint) hint.textContent = 'Auto SMS is on, you can still send manually here.';
             }
         })
         .catch(() => {});

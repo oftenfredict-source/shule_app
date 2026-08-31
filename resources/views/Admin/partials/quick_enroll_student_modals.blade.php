@@ -56,7 +56,7 @@
         padding: 0.75rem 1rem;
     }
 
-    /* Close button — Bootstrap 4 .close + BS5 .btn-close fallback */
+    /* Close button, Bootstrap 4 .close + BS5 .btn-close fallback */
     #quickRegisterStudentModal .qe-modal-close,
     #quickTemplateDownloadModal .qe-modal-close,
     #quickImportStudentsModal .qe-modal-close,
@@ -261,7 +261,7 @@
                             @if($qeTeacherLocked)
                                 Admission number will be auto-generated. Student will be <strong>registered and enrolled</strong> into <strong style="color:#940000;">{{ $qeLockedSubclassLabel }}</strong>.
                             @else
-                                Admission number will be auto-generated. Student is saved without class — enroll later.
+                                Admission number will be auto-generated. Student is saved without class, enroll later.
                             @endif
                         </p>
                     </div>
@@ -280,7 +280,7 @@
                         <div id="qeParentFoundBox" class="alert d-none mb-3" style="background:#fff;border:1px solid #940000;border-radius:0;">
                             <input type="hidden" name="parent_id" id="qe_parent_id" value="">
                             <div class="fw-bold mb-1" style="color:#940000;">Parent found</div>
-                            <strong id="qeParentFoundName">—</strong>
+                            <strong id="qeParentFoundName">-</strong>
                             <div class="small text-muted" id="qeParentFoundMeta"></div>
                             <div class="d-flex flex-wrap mt-2" style="gap:8px;">
                                 <button type="button" class="btn btn-sm" id="qeUseParentBtn" style="background:#940000;color:#fff;border-radius:0;">
@@ -390,14 +390,14 @@
                         <input class="form-check-input" type="radio" name="qeTemplateExportType" id="qeTemplateWithoutEnrollment" value="0" checked>
                         <label class="form-check-label" for="qeTemplateWithoutEnrollment">
                             <strong>Without enrollment</strong>
-                            <span class="d-block small text-muted">Register students only — enroll later.</span>
+                            <span class="d-block small text-muted">Register students only, enroll later.</span>
                         </label>
                     </div>
                     <div class="form-check mb-0">
                         <input class="form-check-input" type="radio" name="qeTemplateExportType" id="qeTemplateWithEnrollment" value="1">
                         <label class="form-check-label" for="qeTemplateWithEnrollment">
                             <strong>With enrollment</strong>
-                            <span class="d-block small text-muted">Includes <em>Stream / Subclass ID</em> column + <strong>Valid Subclasses</strong> sheet (IDs za stream) — jaza ID ili kusajili na ku-enroll moja kwa moja.</span>
+                            <span class="d-block small text-muted">Includes <em>Stream / Subclass ID</em> column + <strong>Valid Subclasses</strong> sheet (IDs za stream), jaza ID ili kusajili na ku-enroll moja kwa moja.</span>
                         </label>
                     </div>
                 </div>
@@ -434,21 +434,21 @@
                 <div class="modal-body" style="background:whitesmoke;">
                     @if($qeTeacherLocked)
                     <div class="alert mb-3" style="border-radius:0;border-left:4px solid #940000;background:#fff;">
-                        <strong>Quick Import — {{ $qeLockedSubclassLabel }}</strong>
-                        <p class="mb-2 mt-2 small">Upload taarifa chache (mwanafunzi + mzazi). Kila mwanafunzi <strong>atasajiliwa na ku-enroll moja kwa moja</strong> kwenye stream yako — <strong>hakuna Subclass ID</strong> kwenye Excel.</p>
+                        <strong>Quick Import, {{ $qeLockedSubclassLabel }}</strong>
+                        <p class="mb-2 mt-2 small">Upload taarifa chache (mwanafunzi + mzazi). Kila mwanafunzi <strong>atasajiliwa na ku-enroll moja kwa moja</strong> kwenye stream yako, <strong>hakuna Subclass ID</strong> kwenye Excel.</p>
                         <ol class="mb-0 ps-3 small">
                             <li>Download <strong>Quick Template</strong> (safu chache tu).</li>
                             <li>Jaza jina, jinsia, na simu ya mzazi (255 + tarakimu 9).</li>
                             <li>Ikiwa mzazi tayari yupo, atatumika tena.</li>
-                            <li>Upload — wanafunzi wataonekana kwenye darasa lako mara moja.</li>
+                            <li>Upload, wanafunzi wataonekana kwenye darasa lako mara moja.</li>
                         </ol>
                     </div>
                     @else
                     <div class="alert mb-3" style="border-radius:0;border-left:4px solid #940000;background:#fff;">
-                        <strong>Quick Upload — maana yake nini?</strong>
+                        <strong>Quick Upload, maana yake nini?</strong>
                         <p class="mb-2 mt-2 small">Una-upload taarifa <strong>chache</strong> (mwanafunzi + mzazi). Unaweza pia <strong>ku-enroll moja kwa moja</strong> ukitumia template ya <em>With enrollment</em>.</p>
                         <ol class="mb-0 ps-3 small">
-                            <li>Download <strong>Quick Template</strong> — chagua <em>Without enrollment</em> au <em>With enrollment</em>.</li>
+                            <li>Download <strong>Quick Template</strong>: chagua <em>Without enrollment</em> au <em>With enrollment</em>.</li>
                             <li>Jaza jina la mwanafunzi, jinsia, na namba ya simu ya mzazi (255 + tarakimu 9).</li>
                             <li>Ikiwa mzazi tayari yupo kwenye shule, atatumika tena (FK tu).</li>
                             <li><strong>With enrollment:</strong> jaza <em>Stream / Subclass ID</em> kutoka sheet ya <strong>Valid Subclasses</strong> (kama Import yenye details nyingi).</li>
@@ -478,7 +478,7 @@
                     <div class="mb-0" id="qeImportFileWrap">
                         <label for="qeExcelFile" class="form-label fw-bold">Excel file <span class="text-danger qe-import-file-required">*</span></label>
                         <input class="form-control" type="file" id="qeExcelFile" name="excel_file" accept=".xlsx,.xls,.csv" style="border-radius:0;">
-                        <p class="small text-muted mt-1 mb-0 qe-import-file-hint">Required unless <strong>With demo data</strong> is ON — then import runs without a file.</p>
+                        <p class="small text-muted mt-1 mb-0 qe-import-file-hint">Required unless <strong>With demo data</strong> is ON, then import runs without a file.</p>
                     </div>
                 </div>
                 <div class="modal-footer" style="background:#f5f5f5;">
@@ -529,7 +529,7 @@
                                 </div>
                                 <input type="hidden" id="qeEnrollSubclassID" value="{{ $qeLockedSubclassID }}">
                                 <button type="button" class="btn" id="qeEnrollGoStudentsBtn" style="background:#940000;color:#fff;border-radius:0;">
-                                    Next — Select Students
+                                    Next, Select Students
                                 </button>
                             @else
                                 <label class="form-label fw-bold">Select Class</label>
@@ -537,7 +537,7 @@
                                     <option value="">-- Search / Select Class (e.g. Form One B) --</option>
                                 </select>
                                 <button type="button" class="btn mt-3" id="qeEnrollGoStudentsBtn" style="background:#940000;color:#fff;border-radius:0;" disabled>
-                                    Next — Select Students
+                                    Next, Select Students
                                 </button>
                                 <input type="hidden" id="qeEnrollSubclassID" value="">
                             @endif
@@ -545,11 +545,11 @@
 
                         <div id="qeEnrollStepStudents" class="d-none">
                             <div class="d-flex justify-content-between align-items-center flex-wrap mb-2" style="gap:8px;">
-                                <h6 class="mb-0" style="color:#940000;" id="qeEnrollInClassTitle">Enroll student in class —</h6>
+                                <h6 class="mb-0" style="color:#940000;" id="qeEnrollInClassTitle">Enroll student in class -</h6>
                                 <button type="button" class="btn btn-sm btn-outline-secondary" id="qeEnrollBackClassBtn" style="border-radius:0;">Change Class</button>
                             </div>
                             <div class="alert small mb-2" style="background:#fff;border:1px solid #940000;border-radius:0;">
-                                Students already enrolled in another class can be selected — their previous Active enrollment will be <strong>closed</strong> (status updated, history kept), then they join this class.
+                                Students already enrolled in another class can be selected, their previous Active enrollment will be <strong>closed</strong> (status updated, history kept), then they join this class.
                             </div>
                             <div class="d-flex flex-wrap align-items-center mb-2" style="gap:12px;">
                                 <label class="mb-0 small">
@@ -802,7 +802,7 @@
         };
         if (!QE.cameraTarget.fileInput) return;
 
-        // On HTTP LAN (e.g. http://192.168.1.100) live preview is blocked —
+        // On HTTP LAN (e.g. http://192.168.1.100) live preview is blocked,
         // open native camera / file picker immediately (no scary error panel).
         if (!qeCanUseLiveCamera()) {
             qePickFromDevice();
@@ -998,7 +998,7 @@
                 qeShowFoundParent(res.parent, full);
                 return;
             }
-            // Not found / other school: no popup — continue as new parent
+            // Not found / other school: no popup, continue as new parent
             QE.pendingParent = null;
             $('#qe_parent_id').val('');
             $('#qeParentFoundBox').addClass('d-none');
@@ -1013,7 +1013,7 @@
                 });
             }
         }).fail(function () {
-            // Silent fail — user can still register new parent
+            // Silent fail, user can still register new parent
             QE.pendingParent = null;
             $('#qe_parent_id').val('');
             $('#qeParentFoundBox').addClass('d-none');
@@ -1114,7 +1114,7 @@
                 if (S) {
                     const tip = (res.enrolled || QE.teacherLocked)
                         ? '<p class="mb-0 small">Student enrolled into <strong>' + qeEscape(res.class_label || QE.lockedLabel || 'your class') + '</strong>.</p>'
-                        : '<p class="mb-0 small">Student is not enrolled yet — use Enroll Student.</p>';
+                        : '<p class="mb-0 small">Student is not enrolled yet, use Enroll Student.</p>';
                     S.fire({
                         icon: 'success',
                         title: 'Registered',
@@ -1282,7 +1282,7 @@
             return hay.indexOf(q) !== -1;
         });
         if (!rows.length) {
-            $('#qeEnrollStudentsBody').html('<tr><td colspan="5" class="text-center text-muted">No students match — try search or turn off &quot;Not enrolled only&quot; to include enrolled students.</td></tr>');
+            $('#qeEnrollStudentsBody').html('<tr><td colspan="5" class="text-center text-muted">No students match, try search or turn off &quot;Not enrolled only&quot; to include enrolled students.</td></tr>');
             qeUpdateEnrollSelected();
             return;
         }
@@ -1519,11 +1519,11 @@
         if (on) {
             $file.prop('required', false).val('');
             $wrap.find('.qe-import-file-required').addClass('d-none');
-            $wrap.find('.qe-import-file-hint').html('<span class="text-success">Demo ON — bonyeza Upload &amp; Import kuongeza wanafunzi 2,000 bila faili.</span>');
+            $wrap.find('.qe-import-file-hint').html('<span class="text-success">Demo ON, bonyeza Upload &amp; Import kuongeza wanafunzi 2,000 bila faili.</span>');
         } else {
             $file.prop('required', true);
             $wrap.find('.qe-import-file-required').removeClass('d-none');
-            $wrap.find('.qe-import-file-hint').text('Required unless With demo data is ON — then import runs without a file.');
+            $wrap.find('.qe-import-file-hint').text('Required unless With demo data is ON, then import runs without a file.');
         }
     }
 
@@ -1657,7 +1657,7 @@
                 const S = qeSwal();
                 let errText = (xhr.responseJSON && xhr.responseJSON.message) || 'Import failed';
                 if (textStatus === 'timeout') {
-                    errText = 'Import took too long and timed out. Demo import may still be running on the server — refresh the student list.';
+                    errText = 'Import took too long and timed out. Demo import may still be running on the server, refresh the student list.';
                 } else if (xhr.status === 0) {
                     errText = 'Connection lost while importing. Refresh the page and check if students were added.';
                 }

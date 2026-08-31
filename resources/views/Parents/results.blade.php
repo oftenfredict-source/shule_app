@@ -610,8 +610,8 @@ $(document).ready(function() {
         if (ayMode === 'secondary_dual') {
             years = years.filter(function(y) { return !!y.is_a_level === !!isALevel; });
             $('#yearLevelHint').text(isALevel
-                ? 'Mwanafunzi ni A Level — chagua academic year ya A Level.'
-                : 'Mwanafunzi ni O Level — chagua academic year ya O Level.');
+                ? 'Mwanafunzi ni A Level, chagua academic year ya A Level.'
+                : 'Mwanafunzi ni O Level, chagua academic year ya O Level.');
         } else {
             $('#yearLevelHint').text(levelLabel ? ('Kiwango: ' + levelLabel) : '');
         }
@@ -901,7 +901,7 @@ $(document).ready(function() {
             <tr><td class="label">Nafasi:</td><td>${position}</td></tr>
         `);
 
-        // Marks Table — conditional on whether exam has CA
+        // Marks Table, conditional on whether exam has CA
         const hasCa = data.has_ca;
 
         let headHtml = '';

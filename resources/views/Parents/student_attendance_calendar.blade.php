@@ -201,7 +201,7 @@
                     <h5 class="mb-0 fw-bold">{{ $student->first_name }} {{ $student->last_name }}</h5>
                     <small class="text-muted">
                         {{ trim(($student->subclass->class->class_name ?? '') . ' ' . ($student->subclass->subclass_name ?? '')) }}
-                        &bull; Usajili: {{ $student->admission_number ?? '—' }}
+                        &bull; Usajili: {{ $student->admission_number ?? '-' }}
                     </small>
                 </div>
                 <span class="badge bg-light text-dark border">{{ $modeBadge }}</span>
@@ -234,7 +234,7 @@
                                              data-date-label="{{ $cell['date_label'] ?? '' }}"
                                              data-status-label="{{ $cell['label'] ?? '' }}"
                                              data-status-key="{{ $cell['status'] ?? '' }}"
-                                             aria-label="{{ ($cell['date_label'] ?? '') . ' — ' . ($cell['label'] ?? '') }}">
+                                             aria-label="{{ ($cell['date_label'] ?? '') . ', ' . ($cell['label'] ?? '') }}">
                                             <span class="att-hover-tip">{{ $cell['date_label'] ?? '' }}<br>{{ $cell['label'] ?? '' }}</span>
                                             <i class="bx {{ $cell['icon'] }}"></i>
                                         </div>

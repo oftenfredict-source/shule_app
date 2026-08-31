@@ -54,9 +54,9 @@
                                 <small class="d-block text-muted">{{ $req['requester_type_label'] }}</small>
                             </td>
                             <td class="small">{{ $req['items_summary'] }}</td>
-                            <td>{{ $req['expected_return_date'] ?? '—' }}</td>
+                            <td>{{ $req['expected_return_date'] ?? '-' }}</td>
                             <td class="small">{{ $req['requested_at'] }}</td>
-                            <td class="small">{{ $req['notes'] ?? '—' }}</td>
+                            <td class="small">{{ $req['notes'] ?? '-' }}</td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-success btn-approve-request" data-id="{{ $req['requestID'] }}"><i class="fa fa-check"></i> Confirm</button>
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-reject-request" data-id="{{ $req['requestID'] }}"><i class="fa fa-times"></i> Reject</button>
@@ -99,8 +99,8 @@
                             </td>
                             <td class="small">{{ $req['items_summary'] }}</td>
                             <td class="small">{{ $req['requested_at'] }}</td>
-                            <td class="small">{{ $req['reviewed_at'] ?? '—' }}<br><small class="text-muted">{{ $req['reviewed_by'] ?? '' }}</small></td>
-                            <td class="small">{{ $req['review_notes'] ?? '—' }}</td>
+                            <td class="small">{{ $req['reviewed_at'] ?? '-' }}<br><small class="text-muted">{{ $req['reviewed_by'] ?? '' }}</small></td>
+                            <td class="small">{{ $req['review_notes'] ?? '-' }}</td>
                         </tr>
                         @empty
                         <tr><td colspan="7" class="text-center text-muted py-4">No reviewed requests yet.</td></tr>

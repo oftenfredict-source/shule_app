@@ -152,7 +152,7 @@
 @endphp
 <script>
 (function bootSchoolSocialMediaUI() {
-    // Pages like /school often use jQuery.noConflict() — never rely on global $.
+    // Pages like /school often use jQuery.noConflict(), never rely on global $.
     if (!window.jQuery) {
         setTimeout(bootSchoolSocialMediaUI, 50);
         return;

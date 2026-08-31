@@ -1008,7 +1008,7 @@
                     </div>
                     <div class="row mt-3 border-top pt-3">
                         <div class="col-md-12">
-                            <label class="small font-weight-bold text-uppercase" style="font-size: 9px; color: #940000;">4. Select Assessment Sectors (Order of Assessment) — max <span class="cat-limit-label">${categoriesLimit}</span></label>
+                            <label class="small font-weight-bold text-uppercase" style="font-size: 9px; color: #940000;">4. Select Assessment Sectors (Order of Assessment), max <span class="cat-limit-label">${categoriesLimit}</span></label>
                             <div class="d-flex flex-wrap gap-2 category-selection-grid" id="categories_${rowId}">
                                 ${getCategoryCheckboxesHtml(rowId)}
                             </div>
@@ -1463,7 +1463,7 @@
                             </div>
                             <div class="row mt-3 border-top pt-3">
                                 <div class="col-md-12">
-                                    <label class="small font-weight-bold text-uppercase" style="font-size: 9px; color: #940000;">4. Select Assessment Sectors (Order of Assessment) — max <span class="cat-limit-label">${categoriesLimit}</span></label>
+                                    <label class="small font-weight-bold text-uppercase" style="font-size: 9px; color: #940000;">4. Select Assessment Sectors (Order of Assessment), max <span class="cat-limit-label">${categoriesLimit}</span></label>
                                     <div class="d-flex flex-wrap gap-2 category-selection-grid" id="categories_${rowId}">
                                         ${getCategoryCheckboxesHtml(rowId, normalizeSelectedCategoryIds(grp.selected_categories || []))}
                                     </div>
@@ -1831,7 +1831,7 @@
                 ? '<span class="badge badge-success ml-1" style="border-radius:0; font-size:10px;">Active</span>'
                 : `<span class="badge badge-secondary ml-1" style="border-radius:0; font-size:10px;">${enrStatus}</span>`;
             const classLabel = s.subclass_name
-                ? ($('#filterClass option:selected').text() + ' — ' + s.subclass_name)
+                ? ($('#filterClass option:selected').text() + ', ' + s.subclass_name)
                 : $('#filterClass option:selected').text();
             
             html += `

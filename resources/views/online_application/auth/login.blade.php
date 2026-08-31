@@ -1,7 +1,7 @@
 @php
     $skipSplash = true;
     $seo = [
-        'title' => 'Login to Apply Online — ShuleXpert Online Admission',
+        'title' => 'Login to Apply Online | ShuleXpert Online Admission',
         'description' => 'Login to your ShuleXpert online application account with your phone number and password to apply to schools and track admission status.',
         'keywords' => 'login online application, ShuleXpert admission login, apply school online Tanzania',
         'canonical' => app(\App\Services\OnlineApplicationApplyTokenService::class)->publicAbsoluteUrl('/online-application/account/login'),
@@ -28,7 +28,7 @@
 
                     <div class="sx-auth-form-wrap">
                         <h3><i class="fa fa-sign-in" style="margin-right:8px;"></i>Login to Apply Online</h3>
-                        <p class="sx-auth-sub">This login is only for online school applications — not for school staff or parent accounts.</p>
+                        <p class="sx-auth-sub">This login is only for online school applications, not for school staff or parent accounts.</p>
 
                         <div id="oaLoginAlert" class="alert d-none" role="alert"></div>
 
@@ -196,7 +196,7 @@
     $schema = [
         '@context' => 'https://schema.org',
         '@type' => 'WebPage',
-        'name' => 'Login to Apply Online — ShuleXpert',
+        'name' => 'Login to Apply Online | ShuleXpert',
         'description' => 'Login to your ShuleXpert online school application account.',
         'url' => route('online_application.auth.login'),
     ];

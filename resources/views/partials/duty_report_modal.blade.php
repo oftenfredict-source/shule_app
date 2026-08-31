@@ -90,7 +90,7 @@
 
                             <p class="small text-muted mb-2 font-weight-bold" id="duty_enrollment_scope_note">
                                 <i class="fa fa-lock mr-1" style="color: #940000;"></i>
-                                Counts from <strong>Active enrollments</strong> only (header academic year) — not editable. Use Sync to refresh.
+                                Counts from <strong>Active enrollments</strong> only (header academic year), not editable. Use Sync to refresh.
                             </p>
 
                             <div class="table-responsive">

@@ -14,7 +14,7 @@
                 <form id="inventoryActorForm">
                     <input type="hidden" id="actorEditId" value="">
 
-                    {{-- Person fields nje ya scroll — Select2 focus hairudishi scroll chini --}}
+                    {{-- Person fields nje ya scroll, Select2 focus hairudishi scroll chini --}}
                     <div id="actorPersonFieldsStrip" class="store-actors-person-strip" style="display:none;">
                         <div class="row">
                             <div class="col-md-4 form-group mb-2">

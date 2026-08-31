@@ -542,7 +542,7 @@
                     toast: true,
                     position: 'top-end',
                     icon: 'info',
-                    title: 'Draft saved — opens again with your data.',
+                    title: 'Draft saved, opens again with your data.',
                     showConfirmButton: false,
                     timer: 2500
                 });
@@ -1650,7 +1650,7 @@
                 success: function (resp) {
                     if (resp && resp.success && resp.found && resp.data) {
                         applyLessonPlanFields(resp.data);
-                        finishRestore('Previous lesson plan for this subject loaded — edit and save.');
+                        finishRestore('Previous lesson plan for this subject loaded, edit and save.');
                     } else {
                         finishRestore(null);
                     }

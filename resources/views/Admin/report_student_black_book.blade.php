@@ -373,12 +373,12 @@
     }
 
     function getResolutionText(r) {
-        if (r.status !== 'resolved' && r.status !== 'monitored') return '—';
+        if (r.status !== 'resolved' && r.status !== 'monitored') return '-';
         let resolution = r.resolve_method === 'parent_call'
-            ? 'Parent Call — ' + (r.resolved_by_name || '')
-            : ((r.punishment_category || 'Punishment') + ' — ' + (r.punishment_description || '').substring(0, 80));
+            ? 'Parent Call, ' + (r.resolved_by_name || '')
+            : ((r.punishment_category || 'Punishment') + ', ' + (r.punishment_description || '').substring(0, 80));
         if (r.status === 'monitored') {
-            resolution += ' [Monitoring until ' + (r.monitoring_deadline || '—') + ']';
+            resolution += ' [Monitoring until ' + (r.monitoring_deadline || '-') + ']';
         }
         return resolution;
     }
@@ -441,7 +441,7 @@
                 '<div class="mt-2"><span class="badge badge-light border">' + escapeHtml(r.problem_category) + ' (' + r.problem_weight + '%)</span></div>' +
                 '<div class="mt-2">' + statusBadge(r.status) + '</div>' +
                 '<div class="bb-report-desc">' + escapeHtml(r.description || '') + '</div>' +
-                (resolution !== '—' ? '<div class="bb-report-resolution"><strong>Resolution:</strong> ' + escapeHtml(resolution) + '</div>' : '') +
+                (resolution !== '-' ? '<div class="bb-report-resolution"><strong>Resolution:</strong> ' + escapeHtml(resolution) + '</div>' : '') +
                 '</div></div>';
         }).join('');
     }

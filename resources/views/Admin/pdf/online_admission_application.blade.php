@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Online Application — {{ $meta['application_number'] ?? '' }}</title>
+    <title>Online Application, {{ $meta['application_number'] ?? '' }}</title>
     <style>
         @page { margin: 12mm 10mm 16mm 10mm; }
         body { font-family: Helvetica, Arial, sans-serif; font-size: 10.5px; color: #333; line-height: 1.45; }
@@ -142,33 +142,33 @@
             @if(!empty($school->phone)) Tel: {{ $school->phone }} · @endif
             Online Admission Application
         </div>
-        <div class="report-title">APPLICATION DETAILS — {{ $meta['application_number'] ?? '' }}</div>
+        <div class="report-title">APPLICATION DETAILS, {{ $meta['application_number'] ?? '' }}</div>
     </div>
 
     <table class="meta-table">
         <tr>
             <td class="label">Reference</td>
-            <td>{{ $meta['application_number'] ?? '—' }}</td>
+            <td>{{ $meta['application_number'] ?? '-' }}</td>
             <td class="label">Status</td>
-            <td><span class="badge">{{ $meta['status'] ?? '—' }}</span></td>
+            <td><span class="badge">{{ $meta['status'] ?? '-' }}</span></td>
         </tr>
         <tr>
             <td class="label">Student</td>
-            <td>{{ $meta['student_name'] ?? '—' }}</td>
+            <td>{{ $meta['student_name'] ?? '-' }}</td>
             <td class="label">Class</td>
-            <td>{{ $meta['class_name'] ?? '—' }}</td>
+            <td>{{ $meta['class_name'] ?? '-' }}</td>
         </tr>
         <tr>
             <td class="label">Parent</td>
-            <td>{{ $meta['parent_name'] ?? '—' }}</td>
+            <td>{{ $meta['parent_name'] ?? '-' }}</td>
             <td class="label">Phone</td>
-            <td>{{ $meta['parent_phone'] ?? '—' }}</td>
+            <td>{{ $meta['parent_phone'] ?? '-' }}</td>
         </tr>
         <tr>
             <td class="label">Academic Year</td>
-            <td>{{ $meta['academic_year'] ?? '—' }}</td>
+            <td>{{ $meta['academic_year'] ?? '-' }}</td>
             <td class="label">Submitted</td>
-            <td>{{ $meta['submitted_at'] ?? '—' }}</td>
+            <td>{{ $meta['submitted_at'] ?? '-' }}</td>
         </tr>
     </table>
 
@@ -205,12 +205,12 @@
                                 @endif
                             @elseif(!empty($field['filename']))
                                 <span class="file-name">{{ $field['filename'] }}</span>
-                                <div class="muted">Uploaded document — open from Online Admission to view/download.</div>
+                                <div class="muted">Uploaded document, open from Online Admission to view/download.</div>
                             @else
                                 <span class="muted">No file uploaded</span>
                             @endif
                         @else
-                            {{ $field['value'] ?? '—' }}
+                            {{ $field['value'] ?? '-' }}
                         @endif
                     </td>
                 </tr>

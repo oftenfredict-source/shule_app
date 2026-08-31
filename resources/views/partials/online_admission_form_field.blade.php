@@ -92,7 +92,7 @@
                 id="{{ $inputId }}" name="{{ $inputName }}"
                 accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp"
                 @if($field->is_required && !$preview && !$editing) required @endif>
-            <small class="text-muted">PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP — max 10MB</small>
+            <small class="text-muted">PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP, max 10MB</small>
             @if($editing && $existingFile)
                 <small class="d-block text-success mt-1">Current file: {{ $existingFile }} (leave empty to keep)</small>
             @endif
@@ -109,7 +109,7 @@
                 pattern="255[67][0-9]{8}"
                 title="Phone must start with 255 (e.g. 255712345678)"
                 @if($field->is_required && !$preview) required @endif>
-            <small class="text-muted d-block mt-1">Must start with <strong>255</strong> — continue with your 9-digit mobile number.</small>
+            <small class="text-muted d-block mt-1">Must start with <strong>255</strong>: continue with your 9-digit mobile number.</small>
         @else
             <input type="text" class="form-control @error($oldKey) is-invalid @enderror"
                 id="{{ $inputId }}" name="{{ $inputName }}" value="{{ $value }}"

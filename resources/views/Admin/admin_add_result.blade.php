@@ -122,7 +122,7 @@
         display: none !important;
     }
 
-    /* View / Add Results modals — visible branded scrollbar */
+    /* View / Add Results modals, visible branded scrollbar */
     #viewResultsModal .modal-body,
     #viewResultsModal #resultsModalBody,
     #addEditResultsModal .modal-body,
@@ -308,7 +308,7 @@
                             @endforeach
                         </select>
                         <small class="text-muted" id="duoSubjectHint" style="display:none;">
-                            <i class="bi bi-layers"></i> This is a <strong>DUO</strong> subject — you will select a paper before entering marks.
+                            <i class="bi bi-layers"></i> This is a <strong>DUO</strong> subject, you will select a paper before entering marks.
                         </small>
                     </div>
 
@@ -612,7 +612,7 @@ function getResultsCacheKey() {
     const classSubjectID = jQuery('#class_subject_id').val();
     const examID = jQuery('#exam_id').val();
     const testWeek = jQuery('#test_week').val() || 'none';
-    // Duo papers must be isolated — without componentID, PHY1/PHY2 share one cache and restore wrong totals
+    // Duo papers must be isolated, without componentID, PHY1/PHY2 share one cache and restore wrong totals
     const componentID = jQuery('#component_id').val() || window.selectedComponentID || '0';
     if (!classSubjectID || !examID) return null;
     return `${RESULTS_CACHE_PREFIX}${classSubjectID}_${examID}_${testWeek}_c${componentID}`;
@@ -690,7 +690,7 @@ function restoreMarksFromCache() {
                 restoredCount++;
             }
         } else {
-            // No main cached — derive from question marks only
+            // No main cached, derive from question marks only
             updateStudentTotal(studentID);
         }
     });
@@ -1859,7 +1859,7 @@ function updateStudentTotal(studentID) {
     const $mainMarksInput = jQuery(`#marks_${studentID}`);
 
     if (hasMarks) {
-        // Question-level marks entered — update the total
+        // Question-level marks entered, update the total
         if (isDuoResultMode() && parseFloat(displayTotal) > getResultMarksMax()) {
             $optionalWarning.text('Paper total exceeds max marks (' + getResultMarksMax() + ').').removeClass('d-none');
         }
@@ -1872,7 +1872,7 @@ function updateStudentTotal(studentID) {
     }
     // If no question marks are entered (hasMarks = false), preserve the existing
     // marks input value (could be from loadExistingResults or manual entry).
-    // Do NOT clear it — that would delete marks from students who have results
+    // Do NOT clear it, that would delete marks from students who have results
     // saved in the results table but do not have question-level breakdown yet.
 }
 
@@ -2166,7 +2166,7 @@ function viewStudents(classSubjectID) {
     });
 }
 
-// View Results — same as teacher: header academic year (O/A), duo papers, Index No.
+// View Results, same as teacher: header academic year (O/A), duo papers, Index No.
 function viewResults(classSubjectID) {
     let subjectName, className, mainClassName;
     const card = jQuery(`i.view-results[onclick="viewResults(${classSubjectID})"]`).closest('.card');
@@ -2209,7 +2209,7 @@ function viewResults(classSubjectID) {
             if (examResponse.success && examResponse.examinations && examResponse.examinations.length > 0) {
                 const headerYearIds = (examResponse.header_academic_year_ids || []).map(Number).filter(Boolean);
                 const headerYearId = examResponse.header_academic_yearID || (headerYearIds[0] || null);
-                const headerYearLabel = examResponse.header_academic_year_label || '—';
+                const headerYearLabel = examResponse.header_academic_year_label || '-';
                 window.currentViewIsALevel = !!(examResponse.is_a_level);
                 window.currentResultClassName = examResponse.class_name || mainClassName;
                 window.currentResultIsALevel = !!(examResponse.is_a_level) || isALevelClassName(window.currentResultClassName);
@@ -2655,7 +2655,7 @@ function generateExamOptions(exams, forView = false) {
         })
         .map(function(e) {
             const open = e.enter_result === true || e.enter_result === 1;
-            const closedTag = forView && !open ? ' — entry closed' : '';
+            const closedTag = forView && !open ? ', entry closed' : '';
             return `<option value="${e.examID}" data-year="${e.year}" data-term="${e.term}">${e.exam_name} (${e.year_label || e.year})${closedTag}</option>`;
         })
         .join('');
@@ -2937,7 +2937,7 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
                 jQuery('#resultsTableBody .marks-input, #resultsTableBody .grade-input, #resultsTableBody .remark-input').val('');
 
                 // Populate with existing results
-                // Only show marks that are genuinely non-zero (> 0) — zero/null means 'not entered'
+                // Only show marks that are genuinely non-zero (> 0), zero/null means 'not entered'
                 response.results.forEach(function(result) {
                     if (result.studentID) {
                         const rawMarks = parseFloat(result.marks);
@@ -2950,7 +2950,7 @@ function loadExistingResults(classSubjectID, examID, testWeek = null) {
                     }
                 });
             }
-            // Always restore cache — even if no DB results exist yet (first-time entry)
+            // Always restore cache, even if no DB results exist yet (first-time entry)
             setTimeout(restoreMarksFromCache, 600);
         },
         error: function(xhr) {
@@ -3027,7 +3027,7 @@ function autoCalculateGrade(studentID, $row = null) {
     }
 }
 
-// Add Results — duo subjects: pick paper first (same as teacher)
+// Add Results, duo subjects: pick paper first (same as teacher)
 function addResults(classSubjectID, isEdit = false) {
     const modalTitle = isEdit ? 'Edit Results' : 'Add Results';
     jQuery('#addEditResultsModalLabel').html(`<i class="bi bi-${isEdit ? 'pencil' : 'plus-circle'}"></i> ${modalTitle}`);
@@ -3057,7 +3057,7 @@ function addResults(classSubjectID, isEdit = false) {
                         <i class="bi bi-layers"></i>
                         <strong>${paperResponse.subject_name || 'Subject'}</strong> is a <strong>DUO</strong> subject.
                         Select the paper before choosing an examination.
-                        <br><small>Marks max = that paper's marks. No A/B here — Pass/Fail colour only.</small>
+                        <br><small>Marks max = that paper's marks. No A/B here, Pass/Fail colour only.</small>
                     </div>
                     <div class="form-group">
                         <label>Select Paper <span class="text-danger">*</span></label>
@@ -3139,7 +3139,7 @@ function addResultsContinue(classSubjectID, isEdit = false, componentID = null, 
                         <div class="alert alert-success py-2">
                             <i class="bi bi-check-circle"></i> Entering results for paper:
                             <strong>${paperName || ('#' + componentID)}</strong>
-                            ${isDuoResultMode() ? ` &nbsp;|&nbsp; <strong>Max marks: ${getResultMarksMax()}</strong> <small class="text-muted">(no A/B — Pass/Fail colour only)</small>` : ''}
+                            ${isDuoResultMode() ? ` &nbsp;|&nbsp; <strong>Max marks: ${getResultMarksMax()}</strong> <small class="text-muted">(no A/B, Pass/Fail colour only)</small>` : ''}
                         </div>` : '';
 
                     let html = `
@@ -3410,7 +3410,7 @@ jQuery(document).on('submit', '#resultsForm', function(e) {
                     return; // Skip student if no marks at all
                 }
             } else {
-                // We have question marks — recalculate and update total for UI consistency
+                // We have question marks, recalculate and update total for UI consistency
                 const displayTotal = Number.isInteger(total) ? total : total.toFixed(2);
                 jQuery(`#marks_${studentID}`).val(displayTotal);
                 autoCalculateGrade(studentID);
@@ -3811,7 +3811,7 @@ jQuery(document).on('click', '.toggle-question-btn', function() {
         const val = jQuery(this).val();
 
         if (isDisabled) {
-            // This optional question was NOT selected — remove it from cache
+            // This optional question was NOT selected, remove it from cache
             delete examQuestionData.marksByStudent[studentID][questionId];
         } else if (val !== '' && val !== null && val !== undefined) {
             examQuestionData.marksByStudent[studentID][questionId] = val;

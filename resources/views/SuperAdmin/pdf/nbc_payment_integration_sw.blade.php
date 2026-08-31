@@ -184,13 +184,13 @@
         <div class="brand">ShuleXpert</div>
         <div style="font-size: 10px; color: #666;">Jukwaa la Usimamizi wa Shule &mdash; Inaendeshwa na EmCa Techonology</div>
         <div class="doc-title">{{ $title }}</div>
-        <div class="meta-line">Namba ya Hati: {{ $docRef }} &nbsp;|&nbsp; Toleo {{ $version ?? '1.0' }} &nbsp;|&nbsp; {{ $docDate }} &nbsp;|&nbsp; Siri — Kwa Matumizi ya Uunganishaji na NBC</div>
+        <div class="meta-line">Namba ya Hati: {{ $docRef }} &nbsp;|&nbsp; Toleo {{ $version ?? '1.0' }} &nbsp;|&nbsp; {{ $docDate }} &nbsp;|&nbsp; Siri, Kwa Matumizi ya Uunganishaji na NBC</div>
     </div>
 
     <table class="info-table">
         <tr>
             <td class="label">Imetayarishwa Kwa</td>
-            <td>National Bank of Commerce (NBC) — Timu ya Uunganishaji wa Malipo</td>
+            <td>National Bank of Commerce (NBC), Timu ya Uunganishaji wa Malipo</td>
             <td class="label">Imetayarishwa Na</td>
             <td>ShuleXpert / EmCa Techonology</td>
         </tr>
@@ -316,11 +316,11 @@ ShuleXpert  ──Uchunguzi──►  NBC Transaction Status API (kwa reference 
 
     <div class="page-break"></div>
     <div class="header" style="border-bottom: 1.5px solid #940000; margin-bottom: 10px; padding-bottom: 6px;">
-        <div class="brand" style="font-size: 14px;">ShuleXpert × NBC — Maelezo ya API</div>
+        <div class="brand" style="font-size: 14px;">ShuleXpert × NBC, Maelezo ya API</div>
         <div class="meta-line">{{ $docRef }} &nbsp;|&nbsp; Endelezo</div>
     </div>
 
-    <div class="section-title">4. API 1 — Name Lookup API <span class="api-badge">SHULEXPERT</span></div>
+    <div class="section-title">4. API 1, Name Lookup API <span class="api-badge">SHULEXPERT</span></div>
     <p>
         Mlipaji anapoingiza control number kwenye njia ya NBC, NBC hupiga ShuleXpert ili kuthibitisha bili
         na kupata taarifa za kuonyesha mteja pamoja na akaunti ya kuingizia fedha.
@@ -339,7 +339,7 @@ ShuleXpert  ──Uchunguzi──►  NBC Transaction Status API (kwa reference 
   "control_number": "334512345",
   "student_id": "STU-000123",
   "student_full_name": "Amina Juma Hassan",
-  "fee_type": "Ada za Shule — Kidato cha Kwanza (Masomo)",
+  "fee_type": "Ada za Shule, Kidato cha Kwanza (Masomo)",
   "account_number": "01110300XXXX",
   "bank_code": "NBC",
   "currency": "TZS",
@@ -366,7 +366,7 @@ ShuleXpert  ──Uchunguzi──►  NBC Transaction Status API (kwa reference 
         <li>Kisha NBC inaarifu ShuleXpert kupitia Payment Webhook (API 2).</li>
     </ol>
 
-    <div class="section-title">6. API 2 — Payment Notification Webhook <span class="api-badge">SHULEXPERT</span></div>
+    <div class="section-title">6. API 2, Payment Notification Webhook <span class="api-badge">SHULEXPERT</span></div>
     <p>
         Baada ya jaribio la malipo, NBC inatuma matokeo kwa ShuleXpert. ShuleXpert inarekodi majaribio yaliyofanikiwa
         na yaliyoshindikana kwa ukaguzi na huduma kwa wateja.
@@ -405,7 +405,7 @@ ShuleXpert  ──Uchunguzi──►  NBC Transaction Status API (kwa reference 
         </tr>
     </table>
 
-    <div class="section-title">7. API 3 — Transaction Status Inquiry <span class="api-badge" style="background:#0a7a45;">NBC</span></div>
+    <div class="section-title">7. API 3, Transaction Status Inquiry <span class="api-badge" style="background:#0a7a45;">NBC</span></div>
     <p>
         Inatumika mlipaji anaporipoti amelipa lakini ShuleXpert haijapokea (au imechelewa) webhook.
         ShuleXpert hutuma <strong>reference number</strong> ya benki; NBC inarudisha kama muamala umefanikiwa.
@@ -429,11 +429,11 @@ ShuleXpert  ──Uchunguzi──►  NBC Transaction Status API (kwa reference 
 
     <div class="page-break"></div>
     <div class="header" style="border-bottom: 1.5px solid #940000; margin-bottom: 10px; padding-bottom: 6px;">
-        <div class="brand" style="font-size: 14px;">ShuleXpert × NBC — Makato na Hatua Zijazo</div>
+        <div class="brand" style="font-size: 14px;">ShuleXpert × NBC, Makato na Hatua Zijazo</div>
         <div class="meta-line">{{ $docRef }} &nbsp;|&nbsp; Endelezo</div>
     </div>
 
-    <div class="section-title">8. API 4 — Deduction / Makato ya Jukwaa <span class="api-badge" style="background:#0a7a45;">NBC</span></div>
+    <div class="section-title">8. API 4, Deduction / Makato ya Jukwaa <span class="api-badge" style="background:#0a7a45;">NBC</span></div>
     <p>
         ShuleXpert inaomba makato yafanyike <strong>wakati mteja anapolipa</strong>, si kwa kutoa baadaye
         kutoka akaunti ya shule. Shule inapokea ukusanyaji wake kwenye akaunti yake kulingana na mpango,
@@ -477,7 +477,7 @@ ShuleXpert  ──Uchunguzi──►  NBC Transaction Status API (kwa reference 
         <tr>
             <td>Fee structure na control numbers</td>
             <td>Ndiyo</td>
-            <td>—</td>
+            <td>-</td>
         </tr>
         <tr>
             <td>Rejista ya akaunti za shule zilizothibitishwa</td>
@@ -491,12 +491,12 @@ ShuleXpert  ──Uchunguzi──►  NBC Transaction Status API (kwa reference 
         </tr>
         <tr>
             <td>UI / njia za malipo</td>
-            <td>—</td>
+            <td>-</td>
             <td>Ndiyo</td>
         </tr>
         <tr>
             <td>Kuweka fedha akaunti ya shule</td>
-            <td>—</td>
+            <td>-</td>
             <td>Ndiyo</td>
         </tr>
         <tr>
@@ -517,7 +517,7 @@ ShuleXpert  ──Uchunguzi──►  NBC Transaction Status API (kwa reference 
         <tr>
             <td>Usasishaji wa daftari la shule</td>
             <td>Ndiyo</td>
-            <td>—</td>
+            <td>-</td>
         </tr>
     </table>
 
@@ -561,7 +561,7 @@ ShuleXpert  ──Uchunguzi──►  NBC Transaction Status API (kwa reference 
     </table>
 
     <div class="footer">
-        ShuleXpert Modality ya Uunganishaji wa Malipo — Siri &nbsp;|&nbsp; {{ $docRef }} &nbsp;|&nbsp; Imetengenezwa {{ $docDate }} &nbsp;|&nbsp; Powered by EmCa Techonology
+        ShuleXpert Modality ya Uunganishaji wa Malipo, Siri &nbsp;|&nbsp; {{ $docRef }} &nbsp;|&nbsp; Imetengenezwa {{ $docDate }} &nbsp;|&nbsp; Powered by EmCa Techonology
     </div>
 </body>
 </html>

@@ -254,8 +254,8 @@
                 <td class="center">{{ $statusLabel }}</td>
                 <td class="center">{{ !empty($row['check_in_time']) ? formatTsPdfTimeAmPm($row['check_in_time']) : '-' }}</td>
                 <td class="center">{{ !empty($row['check_out_time']) ? formatTsPdfTimeAmPm($row['check_out_time']) : '-' }}</td>
-                <td class="center">{{ $isLate ? 'Ndiyo' : '—' }}</td>
-                <td class="center">{{ $isEarly ? 'Ndiyo' : '—' }}</td>
+                <td class="center">{{ $isLate ? 'Ndiyo' : '-' }}</td>
+                <td class="center">{{ $isEarly ? 'Ndiyo' : '-' }}</td>
                 @else
                 <td class="center">{{ $row['present_days'] }}</td>
                 <td class="center">{{ $row['permitted_days'] ?? 0 }}</td>

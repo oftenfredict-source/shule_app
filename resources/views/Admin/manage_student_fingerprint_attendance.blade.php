@@ -35,7 +35,7 @@
     <div class="row mb-3">
         <div class="col-md-8">
             <h2 class="section-header"><i class="bi bi-fingerprint"></i> Student Fingerprint Attendance</h2>
-            <p class="text-muted mb-0">Live na rekodi za wanafunzi — data inapokelewa kutoka Local Agent (school LAN).</p>
+            <p class="text-muted mb-0">Live na rekodi za wanafunzi, data inapokelewa kutoka Local Agent (school LAN).</p>
             <a href="{{ route('manageAttendance') }}" class="small"><i class="bi bi-arrow-left"></i> Back to Attendance</a>
         </div>
         <div class="col-md-4">
@@ -240,15 +240,15 @@
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-primary-custom text-white">
-                <h5 class="modal-title"><i class="bi bi-chat-dots"></i> Send SMS — Fingerprint Status Filter</h5>
+                <h5 class="modal-title"><i class="bi bi-chat-dots"></i> Send SMS, Fingerprint Status Filter</h5>
                 <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body">
                 <div id="sfStatusSmsDisabled" class="alert alert-warning d-none"></div>
                 <div id="sfStatusSmsContent" class="d-none">
                     <div class="alert alert-info mb-3">
-                        <div><strong>Status:</strong> <span id="sfStatusSmsStatusLabel">—</span></div>
-                        <div><strong>Period:</strong> <span id="sfStatusSmsPeriodLabel">—</span></div>
+                        <div><strong>Status:</strong> <span id="sfStatusSmsStatusLabel">-</span></div>
+                        <div><strong>Period:</strong> <span id="sfStatusSmsPeriodLabel">-</span></div>
                     </div>
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-1">

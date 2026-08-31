@@ -4,7 +4,7 @@
     $admission = $admission ?? null;
     $portalActive = $editing ? 'applications' : 'apply';
     $seo = [
-        'title' => ($editing ? 'Edit Application' : 'Student Application') . ' — ShuleXpert',
+        'title' => ($editing ? 'Edit Application' : 'Student Application') . ', ShuleXpert',
         'description' => 'Complete your online school application with ShuleXpert.',
         'keywords' => 'ShuleXpert application form, school admission',
         'canonical' => $editing
@@ -25,7 +25,7 @@
             <p class="text-muted mb-0">
                 {{ $school->school_name ?? 'School' }}
                 @if(!empty($class))
-                    — {{ $class->class_name ?? '' }}
+                   , {{ $class->class_name ?? '' }}
                 @endif
                 @if($editing && $admission)
                     <br><small>Ref: {{ $admission->application_number }}</small>

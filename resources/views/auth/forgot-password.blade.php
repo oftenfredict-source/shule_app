@@ -1,7 +1,7 @@
 @php
     $skipSplash = true;
     $seo = [
-        'title' => 'Forgot Password — ShuleXpert',
+        'title' => 'Forgot Password | ShuleXpert',
         'description' => 'Reset your ShuleXpert school account password. A new password is sent to your registered phone. Powered by EmCa Techonology.',
         'keywords' => 'ShuleXpert forgot password, reset password, EmCa Techonology',
         'canonical' => url('/forgot-password'),

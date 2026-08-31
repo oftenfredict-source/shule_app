@@ -169,7 +169,7 @@
             <h2 class="section-header">
                 <i class="bi bi-fingerprint"></i> Teacher and Staff Attendance
             </h2>
-            <p class="text-muted mb-0">Fingerprint attendance kwa walimu na wafanyakazi wengine — sync kutoka ZKTeco device.</p>
+            <p class="text-muted mb-0">Fingerprint attendance kwa walimu na wafanyakazi wengine, sync kutoka ZKTeco device.</p>
         </div>
         <div class="col-md-4">
             <div class="row g-2">
@@ -346,7 +346,7 @@
             <div id="tsReportContent">
                 <div class="alert alert-info mb-0">
                     <i class="bi bi-info-circle"></i> Chagua filters hapo juu (Day / Month / … + Person Type + <strong>Status</strong>) kisha bonyeza <strong>Generate Report</strong>.
-                    Status: <strong>All</strong>, <strong>Present only</strong>, au <strong>Absent only (Watoro)</strong> — utaona idadi waliopatikana.
+                    Status: <strong>All</strong>, <strong>Present only</strong>, au <strong>Absent only (Watoro)</strong>: utaona idadi waliopatikana.
                 </div>
             </div>
         </div>
@@ -362,7 +362,7 @@
                             <div class="alert alert-light border small mb-3">
                                 <strong><i class="bi bi-info-circle"></i> Check-in window:</strong>
                                 Kuanzia masaa 3 kabla ya muda wa kuingia hadi masaa 2 baada ya muda wa kuingia
-                                (mfano 8:00 AM → 5:00 AM–10:00 AM), kidole chochote kinasomwa kama <strong>Sign In</strong> tu —
+                                (mfano 8:00 AM → 5:00 AM–10:00 AM), kidole chochote kinasomwa kama <strong>Sign In</strong> tu,
                                 hata mtu akiweka mara 2 au zaidi. Baada ya dirisha hilo, kidole kinasomwa kama <strong>Sign Out</strong>.
                             </div>
                             <div class="form-group">
@@ -505,7 +505,7 @@
     function tsLiveEventMessage(item) {
         if (item.action === 'Sign In') return 'Signed in successfully.';
         if (item.action === 'Sign Out') return 'Signed out successfully.';
-        if (item.action === 'Permitted') return 'Approved permission — counted as Permitted.';
+        if (item.action === 'Permitted') return 'Approved permission, counted as Permitted.';
         if (item.action === 'Ignored') return 'Duplicate punch ignored (check-in window).';
         if (item.action === 'Ready') return 'This user already signed in and signed out.';
         if (item.action === 'Unknown' || item.matched === false) {
@@ -528,7 +528,7 @@
         var toast = document.createElement('div');
         toast.className = 'ts-toast ' + type;
         toast.innerHTML =
-            '<div class="ts-toast-title">' + escapeHtml((ev.user_name || ('ID ' + ev.user_id)) + ' — ' + action) + '</div>' +
+            '<div class="ts-toast-title">' + escapeHtml((ev.user_name || ('ID ' + ev.user_id)) + ', ' + action) + '</div>' +
             '<div class="ts-toast-meta">' + escapeHtml((ev.person_type ? ev.person_type + ' • ' : '') + formatTsLiveTime(ev.record_time)) + '</div>' +
             '<div class="ts-toast-msg">' + escapeHtml(tsLiveEventMessage(ev)) + '</div>';
 
@@ -1355,8 +1355,8 @@
                         html += '<td>' + statusBadge + '</td>' +
                             '<td>' + (row.check_in_time ? formatAmPm(row.check_in_time) : '-') + '</td>' +
                             '<td>' + (row.check_out_time ? formatAmPm(row.check_out_time) : '-') + '</td>' +
-                            '<td class="text-center">' + (isLate ? '<span class="badge bg-danger">Ndiyo</span>' : '<span class="text-muted">—</span>') + '</td>' +
-                            '<td class="text-center">' + (isEarly ? '<span class="badge bg-info">Ndiyo</span>' : '<span class="text-muted">—</span>') + '</td>';
+                            '<td class="text-center">' + (isLate ? '<span class="badge bg-danger">Ndiyo</span>' : '<span class="text-muted">-</span>') + '</td>' +
+                            '<td class="text-center">' + (isEarly ? '<span class="badge bg-info">Ndiyo</span>' : '<span class="text-muted">-</span>') + '</td>';
                     } else {
                         html += '<td><span class="badge bg-success">' + row.present_days + '</span></td>' +
                             '<td><span class="badge" style="background-color:#6f42c1;">' + (row.permitted_days || 0) + '</span></td>' +
@@ -1749,7 +1749,7 @@
         $('#tsSendSmsBtn').on('click', sendTsAttendanceSms);
         $('#tsSaveWorkTime').on('click', saveTsWorkTime);
 
-        // Non-critical initialisation — guarded so any runtime error here does
+        // Non-critical initialisation, guarded so any runtime error here does
         // not stop the handlers above from working.
         try {
             $('#tsRecordsDateFilter').val('{{ date("Y-m-d") }}');

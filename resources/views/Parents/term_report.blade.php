@@ -595,8 +595,8 @@ $(document).ready(function() {
         if (ayMode === 'secondary_dual') {
             years = years.filter(function(y) { return !!y.is_a_level === !!isALevel; });
             $('#yearLevelHint').text(isALevel
-                ? 'Mwanafunzi ni A Level — chagua academic year ya A Level.'
-                : 'Mwanafunzi ni O Level — chagua academic year ya O Level.');
+                ? 'Mwanafunzi ni A Level, chagua academic year ya A Level.'
+                : 'Mwanafunzi ni O Level, chagua academic year ya O Level.');
         } else {
             $('#yearLevelHint').text(levelLabel ? ('Kiwango: ' + levelLabel) : '');
         }

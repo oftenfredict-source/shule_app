@@ -184,13 +184,13 @@
         <div class="brand">ShuleXpert</div>
         <div style="font-size: 10px; color: #666;">School Management Platform &mdash; Powered by EmCa Techonology</div>
         <div class="doc-title">{{ $title }}</div>
-        <div class="meta-line">Document Ref: {{ $docRef }} &nbsp;|&nbsp; Version {{ $version ?? '1.0' }} &nbsp;|&nbsp; {{ $docDate }} &nbsp;|&nbsp; Confidential — For NBC Integration Use</div>
+        <div class="meta-line">Document Ref: {{ $docRef }} &nbsp;|&nbsp; Version {{ $version ?? '1.0' }} &nbsp;|&nbsp; {{ $docDate }} &nbsp;|&nbsp; Confidential, For NBC Integration Use</div>
     </div>
 
     <table class="info-table">
         <tr>
             <td class="label">Prepared For</td>
-            <td>National Bank of Commerce (NBC) — Payment Integration Team</td>
+            <td>National Bank of Commerce (NBC), Payment Integration Team</td>
             <td class="label">Prepared By</td>
             <td>ShuleXpert / EmCa Techonology</td>
         </tr>
@@ -317,11 +317,11 @@ ShuleXpert  ──Inquiry──►  NBC Transaction Status API (by reference num
 
     <div class="page-break"></div>
     <div class="header" style="border-bottom: 1.5px solid #940000; margin-bottom: 10px; padding-bottom: 6px;">
-        <div class="brand" style="font-size: 14px;">ShuleXpert × NBC — API Specifications</div>
+        <div class="brand" style="font-size: 14px;">ShuleXpert × NBC, API Specifications</div>
         <div class="meta-line">{{ $docRef }} &nbsp;|&nbsp; Continued</div>
     </div>
 
-    <div class="section-title">4. API 1 — Name Lookup API <span class="api-badge">SHULEXPERT</span></div>
+    <div class="section-title">4. API 1, Name Lookup API <span class="api-badge">SHULEXPERT</span></div>
     <p>
         When a payer enters a control number on an NBC channel, NBC calls ShuleXpert to confirm the bill
         and retrieve display + settlement data.
@@ -340,7 +340,7 @@ ShuleXpert  ──Inquiry──►  NBC Transaction Status API (by reference num
   "control_number": "334512345",
   "student_id": "STU-000123",
   "student_full_name": "Amina Juma Hassan",
-  "fee_type": "School Fees — Form One (Tuition)",
+  "fee_type": "School Fees, Form One (Tuition)",
   "account_number": "01110300XXXX",
   "bank_code": "NBC",
   "currency": "TZS",
@@ -367,7 +367,7 @@ ShuleXpert  ──Inquiry──►  NBC Transaction Status API (by reference num
         <li>NBC then notifies ShuleXpert via the Payment Webhook (API 2).</li>
     </ol>
 
-    <div class="section-title">6. API 2 — Payment Notification Webhook <span class="api-badge">SHULEXPERT</span></div>
+    <div class="section-title">6. API 2, Payment Notification Webhook <span class="api-badge">SHULEXPERT</span></div>
     <p>
         After a payment attempt, NBC posts the result to ShuleXpert. ShuleXpert records both successful and failed attempts
         for auditability and support.
@@ -406,7 +406,7 @@ ShuleXpert  ──Inquiry──►  NBC Transaction Status API (by reference num
         </tr>
     </table>
 
-    <div class="section-title">7. API 3 — Transaction Status Inquiry <span class="api-badge" style="background:#0a7a45;">NBC</span></div>
+    <div class="section-title">7. API 3, Transaction Status Inquiry <span class="api-badge" style="background:#0a7a45;">NBC</span></div>
     <p>
         Used when a payer reports payment but ShuleXpert has not received (or has delayed) the webhook.
         ShuleXpert sends the bank <strong>reference number</strong>; NBC returns whether the transaction succeeded.
@@ -430,11 +430,11 @@ ShuleXpert  ──Inquiry──►  NBC Transaction Status API (by reference num
 
     <div class="page-break"></div>
     <div class="header" style="border-bottom: 1.5px solid #940000; margin-bottom: 10px; padding-bottom: 6px;">
-        <div class="brand" style="font-size: 14px;">ShuleXpert × NBC — Deduction &amp; Next Steps</div>
+        <div class="brand" style="font-size: 14px;">ShuleXpert × NBC, Deduction &amp; Next Steps</div>
         <div class="meta-line">{{ $docRef }} &nbsp;|&nbsp; Continued</div>
     </div>
 
-    <div class="section-title">8. API 4 — Deduction / Platform Commission <span class="api-badge" style="background:#0a7a45;">NBC</span></div>
+    <div class="section-title">8. API 4, Deduction / Platform Commission <span class="api-badge" style="background:#0a7a45;">NBC</span></div>
     <p>
         ShuleXpert requests that deduction happen <strong>at the moment the client pays</strong>, not by later
         withdrawing from the school account. The school receives the fee collection as designed for their
@@ -479,7 +479,7 @@ ShuleXpert  ──Inquiry──►  NBC Transaction Status API (by reference num
         <tr>
             <td>Fee structure &amp; control numbers</td>
             <td>Yes</td>
-            <td>—</td>
+            <td>-</td>
         </tr>
         <tr>
             <td>Verified school account registry</td>
@@ -493,12 +493,12 @@ ShuleXpert  ──Inquiry──►  NBC Transaction Status API (by reference num
         </tr>
         <tr>
             <td>Payment UI / channels</td>
-            <td>—</td>
+            <td>-</td>
             <td>Yes</td>
         </tr>
         <tr>
             <td>Credit school account</td>
-            <td>—</td>
+            <td>-</td>
             <td>Yes</td>
         </tr>
         <tr>
@@ -519,7 +519,7 @@ ShuleXpert  ──Inquiry──►  NBC Transaction Status API (by reference num
         <tr>
             <td>School ledger update</td>
             <td>Yes</td>
-            <td>—</td>
+            <td>-</td>
         </tr>
     </table>
 
@@ -562,7 +562,7 @@ ShuleXpert  ──Inquiry──►  NBC Transaction Status API (by reference num
     </table>
 
     <div class="footer">
-        ShuleXpert Payment Integration Modality — Confidential &nbsp;|&nbsp; {{ $docRef }} &nbsp;|&nbsp; Page generated {{ $docDate }} &nbsp;|&nbsp; Powered by EmCa Techonology
+        ShuleXpert Payment Integration Modality, Confidential &nbsp;|&nbsp; {{ $docRef }} &nbsp;|&nbsp; Page generated {{ $docDate }} &nbsp;|&nbsp; Powered by EmCa Techonology
     </div>
 </body>
 </html>

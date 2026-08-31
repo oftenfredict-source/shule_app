@@ -144,7 +144,7 @@
             font-family: 'FontAwesome' !important;
         }
 
-        /* Sidebar links: NO inner scrollbar — only outer #left-panel scrolls */
+        /* Sidebar links: NO inner scrollbar, only outer #left-panel scrolls */
         .sidebar-links-container {
             overflow: visible !important;
             overflow-x: visible !important;

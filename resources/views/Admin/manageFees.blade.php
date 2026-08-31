@@ -47,7 +47,7 @@
         color: #ffffff;
     }
 
-    /* Create Fee chooser — no overlap, brand hover */
+    /* Create Fee chooser, no overlap, brand hover */
     #feeTypeChooserModal .modal-dialog {
         z-index: 1060;
     }
@@ -652,7 +652,7 @@
                                                     @if($fee->bankAccount)
                                                         <span class="badge bg-light text-dark border">{{ $fee->bankAccount->displayLabel() }}</span>
                                                     @else
-                                                        <span class="text-muted">—</span>
+                                                        <span class="text-muted">-</span>
                                                     @endif
                                                 </td>
                                                 <td class="text-end border-end"><strong>{{ number_format($fee->amount, 0) }}/=</strong></td>
@@ -861,9 +861,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Installment Cycle <span class="text-danger">*</span></label>
                         <select class="form-select" id="installmentTypeSelect">
-                            <option value="Quarter">Quarter — 4 installments per year</option>
-                            <option value="Term">Term — 2 installments per year</option>
-                            <option value="Month">Month — 12 installments per year</option>
+                            <option value="Quarter">Quarter, 4 installments per year</option>
+                            <option value="Term">Term, 2 installments per year</option>
+                            <option value="Month">Month, 12 installments per year</option>
                         </select>
                     </div>
                     <div class="table-responsive">
@@ -1862,7 +1862,7 @@
                     (res.fees || []).forEach(function(fee) {
                         const mode = fee.account_mode === 'multi' ? 'Multi' : 'Single';
                         html += '<option value="' + fee.feeID + '">' + safeText(fee.fee_name) +
-                            ' — TZS ' + money(fee.amount) + ' (' + mode + ')</option>';
+                            ', TZS ' + money(fee.amount) + ' (' + mode + ')</option>';
                     });
                     $('#installmentFeeSelect').html(html).prop('disabled', false);
                 })
@@ -1943,7 +1943,7 @@
             deadlineFeesCache.forEach(function(fee) {
                 html += '<option value="' + fee.feeID + '"' +
                     (String(selected) === String(fee.feeID) ? ' selected' : '') + '>' +
-                    safeText(fee.fee_name) + ' — TZS ' + money(fee.amount) + '</option>';
+                    safeText(fee.fee_name) + ', TZS ' + money(fee.amount) + '</option>';
             });
             return html;
         }
@@ -2642,7 +2642,7 @@
                     let badge = a.status === 'approved' ? 'success' : (a.status === 'rejected' ? 'danger' : 'warning text-dark');
                     let notes = a.status === 'rejected' && a.rejection_reason
                         ? '<span class="text-danger small">' + a.rejection_reason + '</span>'
-                        : (a.otp_verified_at || '—');
+                        : (a.otp_verified_at || '-');
                     html += '<tr>' +
                         '<td class="fw-bold">' + a.account_number + (a.account_name ? '<br><small class="text-muted">' + a.account_name + '</small>' : '') + '</td>' +
                         '<td>' + a.bank_name + (a.bank_code ? ' <small>(' + a.bank_code + ')</small>' : '') + '</td>' +
@@ -4352,7 +4352,7 @@
             $('#editFeeForm')[0].reset();
         });
 
-        // Export PDF — multi-class checkboxes, then generate
+        // Export PDF, multi-class checkboxes, then generate
         function runFeesStructurePdfExport(classIDs, classLabel) {
             let url = '{{ route("admin.export_fees_structure_pdf") }}';
             const params = [];

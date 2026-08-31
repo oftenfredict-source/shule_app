@@ -7,7 +7,7 @@
     $examViewMore = [
         'title' => $exam->exam_name,
         'fields' => [
-            ['label' => 'Term / Year', 'value' => $termYear ?: '—'],
+            ['label' => 'Term / Year', 'value' => $termYear ?: '-'],
             ['label' => 'Status', 'value' => $statusLabel],
             ['label' => 'Approval', 'value' => $approvalLabel],
             ['label' => 'Expected Students', 'value' => (string) ($exam->expected_students ?? 0)],
@@ -19,7 +19,7 @@
 <tr data-exam-id="{{ $exam->examID }}" data-view-more='@json($examViewMore)'>
     <td>{{ $rowIndex ?? 1 }}</td>
     <td class="font-weight-bold">{{ $exam->exam_name }}</td>
-    <td>{{ $termYear ?: '—' }}</td>
+    <td>{{ $termYear ?: '-' }}</td>
     <td>
         <span class="exam-status-pill exam-status-{{ str_replace('_', '-', $exam->status ?? 'scheduled') }}">{{ $statusLabel }}</span>
         @if($approvalLabel === 'Pending')

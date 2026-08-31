@@ -135,7 +135,7 @@
 
     @if($section === 'dashboard')
         @if(!empty($dashboard['inventory_detail']))
-            <div class="section-head">Inventory by Item — Package &amp; Stock Status</div>
+            <div class="section-head">Inventory by Item, Package &amp; Stock Status</div>
             <table class="data-table">
                 <thead>
                     <tr>
@@ -157,12 +157,12 @@
                     @foreach($dashboard['inventory_detail'] as $i => $row)
                         <tr>
                             <td>{{ $i + 1 }}</td>
-                            <td><strong>{{ $row['item_name'] ?? '—' }}</strong></td>
-                            <td>{{ $row['category_name'] ?? '—' }}</td>
-                            <td>{{ $row['store_type'] ?? '—' }}</td>
-                            <td>{{ $row['package_display'] ?? '—' }}</td>
-                            <td>{{ $row['has_sub_package'] ?? '—' }}</td>
-                            <td style="font-size:9px;">{{ $row['package_structure'] ?? '—' }}</td>
+                            <td><strong>{{ $row['item_name'] ?? '-' }}</strong></td>
+                            <td>{{ $row['category_name'] ?? '-' }}</td>
+                            <td>{{ $row['store_type'] ?? '-' }}</td>
+                            <td>{{ $row['package_display'] ?? '-' }}</td>
+                            <td>{{ $row['has_sub_package'] ?? '-' }}</td>
+                            <td style="font-size:9px;">{{ $row['package_structure'] ?? '-' }}</td>
                             <td>{{ $row['labels_in_store'] ?? 0 }}</td>
                             <td>{{ $row['labels_issued'] ?? 0 }}</td>
                             <td>{{ $row['labels_partial'] ?? 0 }}</td>
@@ -182,12 +182,12 @@
                     @foreach($dashboard['recent_requisitions'] as $i => $row)
                         <tr>
                             <td>{{ $i + 1 }}</td>
-                            <td>{{ $row['item_name'] ?? '—' }}</td>
-                            <td>{{ $row['label'] ?? '—' }}</td>
-                            <td>{{ $row['take_display'] ?? '—' }}</td>
-                            <td>{{ $row['recipient_name'] ?? '—' }}</td>
-                            <td>{{ $row['issued_at'] ?? '—' }}</td>
-                            <td>{{ ucfirst($row['status'] ?? '—') }}</td>
+                            <td>{{ $row['item_name'] ?? '-' }}</td>
+                            <td>{{ $row['label'] ?? '-' }}</td>
+                            <td>{{ $row['take_display'] ?? '-' }}</td>
+                            <td>{{ $row['recipient_name'] ?? '-' }}</td>
+                            <td>{{ $row['issued_at'] ?? '-' }}</td>
+                            <td>{{ ucfirst($row['status'] ?? '-') }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -202,9 +202,9 @@
                     @foreach($dashboard['overdue_list'] as $i => $row)
                         <tr>
                             <td>{{ $i + 1 }}</td>
-                            <td>{{ $row['item_name'] ?? '—' }}</td>
-                            <td>{{ $row['recipient_name'] ?? '—' }}</td>
-                            <td>{{ $row['expected_return_date'] ?? '—' }}</td>
+                            <td>{{ $row['item_name'] ?? '-' }}</td>
+                            <td>{{ $row['recipient_name'] ?? '-' }}</td>
+                            <td>{{ $row['expected_return_date'] ?? '-' }}</td>
                             <td>{{ $row['days_overdue'] ?? 0 }}</td>
                         </tr>
                     @endforeach
@@ -220,7 +220,7 @@
                     @foreach($dashboard['category_breakdown'] as $i => $row)
                         <tr>
                             <td>{{ $i + 1 }}</td>
-                            <td>{{ $row['category_name'] ?? '—' }}</td>
+                            <td>{{ $row['category_name'] ?? '-' }}</td>
                             <td>{{ $row['item_count'] ?? 0 }}</td>
                         </tr>
                     @endforeach
@@ -238,8 +238,8 @@
                                 @if($ri === 0)
                                     <td rowspan="{{ $item['rowspan'] }}">{{ $item['item_name'] }}</td>
                                 @endif
-                                <td>{{ $row['row_type'] === 'unit' ? ($row['unit_name'] ?? '—') : ($row['package_display'] ?? '—') }}</td>
-                                <td>{{ $row['row_type'] === 'unit' ? ($row['quantity'] ?? '—') : ($row['package_quantity'] ?? '—') }}</td>
+                                <td>{{ $row['row_type'] === 'unit' ? ($row['unit_name'] ?? '-') : ($row['package_display'] ?? '-') }}</td>
+                                <td>{{ $row['row_type'] === 'unit' ? ($row['quantity'] ?? '-') : ($row['package_quantity'] ?? '-') }}</td>
                             </tr>
                         @endforeach
                     @endforeach
@@ -251,9 +251,9 @@
     @elseif($section === 'report' && ($report_type ?? '') === 'specific_item')
         @if(!empty($report_item))
             <table class="meta-table">
-                <tr><td class="meta-label">Item</td><td>{{ $report_item['item_name'] ?? '—' }}</td></tr>
-                <tr><td class="meta-label">Category</td><td>{{ $report_item['category_name'] ?? '—' }}</td></tr>
-                <tr><td class="meta-label">Measurement</td><td>{{ $report_item['measurement_type'] ?? '—' }}</td></tr>
+                <tr><td class="meta-label">Item</td><td>{{ $report_item['item_name'] ?? '-' }}</td></tr>
+                <tr><td class="meta-label">Category</td><td>{{ $report_item['category_name'] ?? '-' }}</td></tr>
+                <tr><td class="meta-label">Measurement</td><td>{{ $report_item['measurement_type'] ?? '-' }}</td></tr>
             </table>
         @endif
 
@@ -264,9 +264,9 @@
                 <tbody>
                     @foreach($stock_breakdown as $row)
                         <tr>
-                            <td>{{ $row['display'] ?? '—' }}</td>
+                            <td>{{ $row['display'] ?? '-' }}</td>
                             <td>{{ $row['labels'] ?? 0 }}</td>
-                            <td>{{ $row['remaining_items'] ?? '—' }}</td>
+                            <td>{{ $row['remaining_items'] ?? '-' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -281,10 +281,10 @@
                     @foreach($report_rows as $i => $row)
                         <tr>
                             <td>{{ $i + 1 }}</td>
-                            <td>{{ $row['recipient_name'] ?? '—' }}</td>
-                            <td>{{ $row['take_display'] ?? '—' }}</td>
-                            <td>{{ $row['issued_at'] ?? '—' }}</td>
-                            <td>{{ $row['status_label'] ?? ($row['status'] ?? '—') }}</td>
+                            <td>{{ $row['recipient_name'] ?? '-' }}</td>
+                            <td>{{ $row['take_display'] ?? '-' }}</td>
+                            <td>{{ $row['issued_at'] ?? '-' }}</td>
+                            <td>{{ $row['status_label'] ?? ($row['status'] ?? '-') }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -299,10 +299,10 @@
                     @foreach($incident_rows as $i => $row)
                         <tr>
                             <td>{{ $i + 1 }}</td>
-                            <td>{{ ucfirst($row['incident_type'] ?? '—') }}</td>
-                            <td>{{ $row['responsible_name'] ?? '—' }}</td>
-                            <td>{{ $row['take_display'] ?? '—' }}</td>
-                            <td>{{ $row['reason'] ?? '—' }}</td>
+                            <td>{{ ucfirst($row['incident_type'] ?? '-') }}</td>
+                            <td>{{ $row['responsible_name'] ?? '-' }}</td>
+                            <td>{{ $row['take_display'] ?? '-' }}</td>
+                            <td>{{ $row['reason'] ?? '-' }}</td>
                         </tr>
                     @endforeach
                 </tbody>

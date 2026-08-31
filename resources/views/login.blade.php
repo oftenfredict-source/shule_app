@@ -1,7 +1,7 @@
 @php
     $skipSplash = true;
     $seo = [
-        'title' => 'School Login — ShuleXpert',
+        'title' => 'School Login | ShuleXpert',
         'description' => 'Secure school member login to ShuleXpert. Powered by EmCa Techonology.',
         'keywords' => 'ShuleXpert login, school portal, EmCa Techonology',
         'canonical' => url('/login'),
@@ -19,7 +19,7 @@
                     <aside class="sx-auth-art sx-auth-art-bg" style="--sx-auth-art-bg: url('{{ asset('img/carousel-1.jpg') }}')">
                         <div>
                             <h2>Welcome back</h2>
-                            <p>Sign in to manage fees, attendance, exams, SMS alerts, and every module that runs your school — all in one place.</p>
+                            <p>Sign in to manage fees, attendance, exams, SMS alerts, and every module that runs your school, all in one place.</p>
                         </div>
                         <div class="sx-auth-powered">Powered by EmCa Techonology</div>
                     </aside>

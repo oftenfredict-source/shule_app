@@ -130,7 +130,7 @@
                             @endphp
                             <tr>
                                 <td>{{ $school->school_name }}</td>
-                                <td>{{ $school->environment ?? '—' }}</td>
+                                <td>{{ $school->environment ?? '-' }}</td>
                                 <td>
                                     <span class="badge schedule-pill {{ $sch === 'none' ? 'bg-secondary' : 'bg-success' }}">
                                         {{ ucfirst($sch) }}

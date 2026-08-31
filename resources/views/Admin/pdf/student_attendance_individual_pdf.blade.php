@@ -154,13 +154,13 @@
                     };
                     $dateStr = $att->attendance_date
                         ? \Carbon\Carbon::parse($att->attendance_date)->format('d M Y')
-                        : '—';
+                        : '-';
                 @endphp
                 <tr>
                     <td class="center">{{ $idx + 1 }}</td>
                     <td>{{ $dateStr }}</td>
-                    <td class="center {{ $statusClass }}">{{ $att->status ?? '—' }}</td>
-                    <td>{{ $att->remark ?? '—' }}</td>
+                    <td class="center {{ $statusClass }}">{{ $att->status ?? '-' }}</td>
+                    <td>{{ $att->remark ?? '-' }}</td>
                 </tr>
             @empty
                 <tr>

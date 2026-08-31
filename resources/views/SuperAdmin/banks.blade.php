@@ -55,7 +55,7 @@
                             <tr data-bank-id="{{ $bank->bankID }}">
                                 <td>{{ $i + 1 }}</td>
                                 <td class="fw-bold">{{ $bank->bank_name }}</td>
-                                <td>{{ $bank->bank_code ?: '—' }}</td>
+                                <td>{{ $bank->bank_code ?: '-' }}</td>
                                 <td>
                                     @if($bank->status === 'Active')
                                         <span class="badge bg-success">Active</span>

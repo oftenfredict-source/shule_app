@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>{{ $title ?? 'TANGE — Teachers Particular' }}</title>
+    <title>{{ $title ?? 'TANGE, Teachers Particular' }}</title>
     <style>
         @page { margin: 8mm 10mm 14mm 10mm; }
         body {
@@ -322,7 +322,7 @@
         $schoolLogoBase64 = tangeGetSmartBase64($school->school_logo ?? ($school->logo ?? ''));
         $schoolStampBase64 = tangeGetSmartBase64($school->school_stamp ?? '');
         $schoolSignBase64 = tangeGetSmartBase64($school->school_signature ?? '');
-        $reportTitle = $title ?? 'TANGE — TEACHERS PARTICULAR';
+        $reportTitle = $title ?? 'TANGE, TEACHERS PARTICULAR';
         $totalTeachers = $list->count();
         $isBulk = $totalTeachers > 1;
         $generatedAt = now()->format('d M Y H:i');
@@ -343,7 +343,7 @@
                     <td class="header-photo">
                         <div class="photo-placeholder">
                             <div class="photo-placeholder-inner">
-                                <div class="photo-placeholder-initials">—</div>
+                                <div class="photo-placeholder-initials">-</div>
                                 <div class="photo-placeholder-label">No Photo</div>
                             </div>
                         </div>
@@ -365,7 +365,7 @@
                 $expYears = $row->years_of_experience ?? null;
                 $completion = isset($row->tange_completion_percent) ? (int) $row->tange_completion_percent : null;
                 $pageTitle = $isBulk
-                    ? 'TANGE — TEACHERS PARTICULAR | ALL TEACHERS'
+                    ? 'TANGE, TEACHERS PARTICULAR | ALL TEACHERS'
                     : strtoupper($reportTitle);
 
                 $teacherPhotoBase64 = null;
@@ -467,11 +467,11 @@
                 <table class="stats-grid">
                     <tr>
                         <td>
-                            <div class="stat-val">{{ $ageYears !== null ? $ageYears : '—' }}</div>
+                            <div class="stat-val">{{ $ageYears !== null ? $ageYears : '-' }}</div>
                             <div class="stat-label">Age (Years)</div>
                         </td>
                         <td>
-                            <div class="stat-val">{{ $expYears !== null ? $expYears : '—' }}</div>
+                            <div class="stat-val">{{ $expYears !== null ? $expYears : '-' }}</div>
                             <div class="stat-label">Experience</div>
                         </td>
                         <td>
@@ -483,7 +483,7 @@
                             <div class="stat-label">Rank</div>
                         </td>
                         <td>
-                            <div class="stat-val">{{ $completion !== null ? $completion . '%' : '—' }}</div>
+                            <div class="stat-val">{{ $completion !== null ? $completion . '%' : '-' }}</div>
                             <div class="stat-label">TANGE Fill</div>
                         </td>
                     </tr>
@@ -492,7 +492,7 @@
                 <div class="teacher-name-bar">
                     {{ $val($fullName !== '' ? $fullName : null) }}
                     @if(!empty($row->employee_number))
-                        — C/N: {{ $row->employee_number }}
+                       , C/N: {{ $row->employee_number }}
                     @endif
                 </div>
 
@@ -528,7 +528,7 @@
                 </table>
 
                 <div class="section-title">2. Service Dates &amp; Tenure</div>
-                <p class="section-desc">Key career milestones — birth, employment, confirmation, rank, and retirement dates.</p>
+                <p class="section-desc">Key career milestones, birth, employment, confirmation, rank, and retirement dates.</p>
                 <table class="data-table">
                     <tr>
                         <th>Date of Birth</th>

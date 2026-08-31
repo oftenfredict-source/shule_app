@@ -160,7 +160,7 @@
                             $cid = (int) $paper['componentID'];
                             $m = array_key_exists($cid, $paperMarks) ? $paperMarks[$cid] : null;
                         @endphp
-                        <td>{{ $m !== null && $m !== '' ? $m : '—' }}</td>
+                        <td>{{ $m !== null && $m !== '' ? $m : '-' }}</td>
                     @endforeach
                     <td>
                         @if($result->percentage !== null && $result->percentage !== '')
@@ -168,8 +168,7 @@
                             @if($result->student_raw_total !== null)
                                 <br><span class="muted" style="font-size:8px;">{{ $result->student_raw_total }}/{{ $paperMaxTotal }}</span>
                             @endif
-                        @else
-                            —
+                        @else,
                         @endif
                     </td>
                 @else

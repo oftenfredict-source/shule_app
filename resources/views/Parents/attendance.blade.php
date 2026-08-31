@@ -180,7 +180,7 @@
                         <div class="flex-grow-1 min-width-0">
                             <div class="fw-bold text-truncate">{{ $st->first_name }} {{ $st->last_name }}</div>
                             <div class="small text-muted text-truncate">{{ $className ?: 'Darasa haijulikani' }}</div>
-                            <div class="small text-muted">Usajili: {{ $st->admission_number ?? '—' }}</div>
+                            <div class="small text-muted">Usajili: {{ $st->admission_number ?? '-' }}</div>
                         </div>
                         <div class="rate-badge">{{ $stats['attendance_rate'] }}%</div>
                     </div>

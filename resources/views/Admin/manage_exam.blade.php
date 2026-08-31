@@ -82,7 +82,7 @@
     .manage-exam-wrapper [class*=" bi-"]::before {
         font-family: bootstrap-icons !important;
     }
-    /* Legacy nav-tabs (unused — exam uses inventory-style list-group tabs) */
+    /* Legacy nav-tabs (unused, exam uses inventory-style list-group tabs) */
     .badge-status-wait-approval {
         background-color: #dc3545;
         color: white;
@@ -600,7 +600,7 @@
                                     <i class="bi bi-calendar"></i> Academic Year
                                 </label>
                                 <input type="text" class="form-control" id="filter_year_display"
-                                       value="{{ $headerAcademicYearLabel ?? '—' }}" readonly
+                                       value="{{ $headerAcademicYearLabel ?? '-' }}" readonly
                                        style="background-color: #e9ecef; font-weight: 600; cursor: not-allowed;"
                                        title="Change O-Level / A-Level year from the header selector">
                                 @foreach(($selectedYearIds ?? []) as $hid)
@@ -1005,7 +1005,7 @@
                                                 <div class="d-inline-flex align-items-center" style="gap:8px;">
                                                     <span style="font-size:11px;font-weight:700;color:#940000;text-transform:uppercase;letter-spacing:0.3px;">O-Level</span>
                                                     <span class="form-control form-control-sm d-inline-block mb-0" style="width:auto;min-width:100px;font-weight:600;background:#f5f5f5;cursor:default;">
-                                                        {{ $oCreateYear['year_name'] ?? ($primaryCreateYear['year_name'] ?? '—') }}{{ !empty($oCreateYear['is_current']) ? ' ★' : '' }}
+                                                        {{ $oCreateYear['year_name'] ?? ($primaryCreateYear['year_name'] ?? '-') }}{{ !empty($oCreateYear['is_current']) ? ' ★' : '' }}
                                                     </span>
                                                 </div>
                                             @endif
@@ -1033,7 +1033,7 @@
                                     <input type="hidden" id="academic_yearID" name="academic_yearID" value="{{ $primaryCreateYear['academic_yearID'] ?? '' }}">
                                     <input type="hidden" id="year" name="year" value="{{ $primaryCreateYear['year'] ?? ($currentYear ?? date('Y')) }}">
                                     <small class="text-muted">
-                                        Same Active years as header —
+                                        Same Active years as header,
                                         @if($hasDualYears)
                                             this exam is for <strong>O-Level</strong> and <strong>A-Level</strong>
                                         @else
@@ -1649,7 +1649,7 @@ jQuery(document).ready(function($) {
         }
     });
 
-    // Close dropdown when clicking on dropdown items (do not stop propagation — action handlers on document need the event)
+    // Close dropdown when clicking on dropdown items (do not stop propagation, action handlers on document need the event)
     $(document).on('click', '.exam-action-dropdown .dropdown-item', function() {
         const $dropdown = $(this).closest('.dropdown');
         setTimeout(function() {
@@ -1951,7 +1951,7 @@ jQuery(document).ready(function($) {
         } else if (examCategory === 'test') {
             // Show test type selection dropdown
             $('#test_type_group').stop(true, true).show();
-            $('#test_type').prop('required', true).val(''); // Admin must pick type — do NOT default to all_terms
+            $('#test_type').prop('required', true).val(''); // Admin must pick type, do NOT default to all_terms
             
             // Hide exam name fields initially (will be shown based on test type)
             $('#exam_name_text_group').hide();
@@ -1959,7 +1959,7 @@ jQuery(document).ready(function($) {
             $('#exam_name').prop('required', false);
             $('#exam_name_type').prop('required', false);
             
-            // Show term selection — leave empty so admin chooses First/Second (or All for weekly/monthly)
+            // Show term selection, leave empty so admin chooses First/Second (or All for weekly/monthly)
             $('#term_group').show();
             $('#term').prop('required', true).val('');
             
@@ -3431,7 +3431,7 @@ jQuery(document).ready(function($) {
             let opts = '';
             (s.alternates || []).forEach(function (a) {
                 const selected = String(a.subclassID) === String(s.suggested_subclassID || '') ? 'selected' : '';
-                opts += `<option value="${a.subclassID}" data-range="${(a.grade_range || '').replace(/"/g, '&quot;')}" ${selected}>${a.label} (${a.grade_range || 'no limit'})${a.qualifies ? '' : ' — below range'}</option>`;
+                opts += `<option value="${a.subclassID}" data-range="${(a.grade_range || '').replace(/"/g, '&quot;')}" ${selected}>${a.label} (${a.grade_range || 'no limit'})${a.qualifies ? '' : ', below range'}</option>`;
             });
             if (!opts) {
                 opts = '<option value="">No destination subclasses</option>';
@@ -3467,7 +3467,7 @@ jQuery(document).ready(function($) {
         const examID = $(this).data('exam-id');
         const examName = $(this).data('exam-name') || 'Examination';
         examShiftState.examID = examID;
-        $('#examShiftModalTitle').text('Shift Students — ' + examName);
+        $('#examShiftModalTitle').text('Shift Students, ' + examName);
         $('#examShiftTableBody').html('<tr><td colspan="7" class="text-center">Loading preview...</td></tr>');
         $('#examShiftModal').modal('show');
 
@@ -3775,7 +3775,7 @@ jQuery(document).ready(function($) {
         // Disable button and show loading
         btn.prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Loading...');
 
-        // Get search filters (academic year always from header — #filter_year is locked)
+        // Get search filters (academic year always from header, #filter_year is locked)
         const search = $('#search_exam_name').val() || '';
         const year = $('#filter_year').val() || '';
         const status = $('#filter_status').val() || '';

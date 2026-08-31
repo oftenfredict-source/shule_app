@@ -85,7 +85,7 @@
 
             <div id="classesPanel" class="mt-4 p-3 d-none">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold mb-0"><i class="bx bx-group"></i> Madarasa — <span id="schoolNameLabel"></span></h6>
+                    <h6 class="fw-bold mb-0"><i class="bx bx-group"></i> Madarasa, <span id="schoolNameLabel"></span></h6>
                     <span class="badge bg-light text-dark border" id="enabledCountBadge">0 imeruhusiwa</span>
                 </div>
                 <p class="text-muted small mb-3">

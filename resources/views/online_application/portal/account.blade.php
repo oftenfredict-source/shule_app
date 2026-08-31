@@ -2,7 +2,7 @@
     $skipSplash = true;
     $portalActive = 'account';
     $seo = [
-        'title' => 'My Account — ShuleXpert Online Admission',
+        'title' => 'My Account | ShuleXpert Online Admission',
         'robots' => 'noindex, follow',
     ];
     $displayPhone = $user->phone;

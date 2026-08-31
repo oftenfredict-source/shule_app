@@ -1,4 +1,4 @@
-﻿    const canCreate = {!! !empty($canCreate) ? 'true' : 'false' !!};
+    const canCreate = {!! !empty($canCreate) ? 'true' : 'false' !!};
     const canUpdate = {!! !empty($canUpdate) ? 'true' : 'false' !!};
     const canDelete = {!! !empty($canDelete) ? 'true' : 'false' !!};
     let notEnrolledSelectedIds = new Set();
@@ -1015,7 +1015,7 @@
                 return;
             }
 
-            // Bootstrap 5 native (no getOrCreateInstance — may be missing on older builds)
+            // Bootstrap 5 native (no getOrCreateInstance, may be missing on older builds)
             if (window.bootstrap && bootstrap.Modal) {
                 try {
                     let instance = (typeof bootstrap.Modal.getInstance === 'function')
@@ -1427,7 +1427,7 @@
                             icon: 'success',
                             title: 'Move Completed',
                             html: escapeHtmlStudent(res.message || 'Done') +
-                                (res.batchID ? '<br><small>Batch #' + res.batchID + ' — you can Undo from menu</small>' : ''),
+                                (res.batchID ? '<br><small>Batch #' + res.batchID + ', you can Undo from menu</small>' : ''),
                             confirmButtonColor: '#940000'
                         }).then(function () {
                             closeStudentModal('moveStudentsModal');
@@ -1467,7 +1467,7 @@
                         '<td>' + escapeHtmlStudent(b.created_at || '') + '</td>' +
                         '<td>' + (b.can_undo
                             ? '<button type="button" class="btn btn-sm undo-move-batch-btn" data-batch-id="' + b.batchID + '" style="background:#940000;color:#fff;border-radius:0;">Undo</button>'
-                            : '<span class="text-muted small">—</span>') + '</td>' +
+                            : '<span class="text-muted small">-</span>') + '</td>' +
                         '</tr>';
                 });
                 html += '</tbody></table></div>';
@@ -1485,7 +1485,7 @@
             $('#undoMoveConfirmWordWrap').addClass('d-none');
             $('#undoMoveConfirmYesNo').val('');
             $('#undoMoveConfirmWord').val('');
-            $('#undoMoveConfirmBatchLabel').text('—');
+            $('#undoMoveConfirmBatchLabel').text('-');
             $('#undoMoveExecuteBtn').prop('disabled', true).html('Confirm \u0026 Undo');
         }
 
@@ -1585,14 +1585,14 @@
             singleMoveState.destinations = payload.destinations || [];
 
             if (payload.student) {
-                $('#singleMoveStudentName').text(payload.student.full_name || '—');
-                $('#singleMoveCurrentClass').text(payload.student.current_class || '—');
+                $('#singleMoveStudentName').text(payload.student.full_name || '-');
+                $('#singleMoveCurrentClass').text(payload.student.current_class || '-');
             }
 
             if (!singleMoveState.destinations.length) {
                 $('#singleMoveDestWrap').removeClass('d-none');
                 $('#singleMoveClass').html('<option value="">No destinations available</option>');
-                $('#singleMoveSubclass').html('<option value="">—</option>').prop('disabled', true);
+                $('#singleMoveSubclass').html('<option value="">-</option>').prop('disabled', true);
                 $('#singleMoveActionHint').show().text('No eligible destinations for this move type.');
                 $('#singleMoveConfirmBtn').prop('disabled', true);
                 return;
@@ -1611,7 +1611,7 @@
             $('#singleMoveActionHint').hide().text('');
             $('#singleMoveConfirmBtn').prop('disabled', true);
 
-            // Internal: often one class — auto-select
+            // Internal: often one class, auto-select
             if (singleMoveState.type === 'internal' && singleMoveState.classes.length === 1) {
                 $('#singleMoveClass').val(String(singleMoveState.classes[0].classID)).trigger('change');
             }
@@ -1620,8 +1620,8 @@
         $(document).on('click', '.single-move-student-btn', function () {
             singleMoveState.studentID = $(this).data('student-id');
             resetSingleMoveUI();
-            $('#singleMoveStudentName').text($(this).data('student-name') || '—');
-            $('#singleMoveCurrentClass').text($(this).data('current-class') || '—');
+            $('#singleMoveStudentName').text($(this).data('student-name') || '-');
+            $('#singleMoveCurrentClass').text($(this).data('current-class') || '-');
             $('#singleMoveConfirmPanel').addClass('d-none');
             $('#singleMoveConfirmYesNo').val('');
             $('#singleMoveConfirmWord').val('');
@@ -1808,8 +1808,8 @@
         $(document).on('click', '.edit-enrollment-status-btn', function () {
             editEnrollmentState.studentID = $(this).data('student-id');
             resetEditEnrollmentConfirm();
-            $('#editEnrollmentStudentName').text($(this).data('student-name') || '—');
-            $('#editEnrollmentCurrentClass').text($(this).data('current-class') || '—');
+            $('#editEnrollmentStudentName').text($(this).data('student-name') || '-');
+            $('#editEnrollmentCurrentClass').text($(this).data('current-class') || '-');
             openStudentModal('editEnrollmentStatusModal');
         });
 
@@ -1819,7 +1819,7 @@
             $('.edit-enrollment-action-btn').css({ background: '#fff' });
             $(this).css({ background: '#940000', color: '#fff' });
             const titles = {
-                Dropped: 'Mark enrollment as Dropped (expelled / stopped — promotion: Dropout)?',
+                Dropped: 'Mark enrollment as Dropped (expelled / stopped, promotion: Dropout)?',
                 Transferred: 'Mark enrollment as Transferred (left school)?',
                 Truancy: 'Mark as Truancy (Long-term absentee)?',
                 Dropout: 'Mark as Dropout (stopped schooling)?'
@@ -2119,7 +2119,7 @@
         // Initialize default view (mobile=grid, desktop=list)
         setStudentView(studentGetView(), false);
 
-        // Actions dropdown toggle (⋮) — row actions
+        // Actions dropdown toggle (⋮), row actions
         $(document).on('click', '.student-action-toggle', function (e) {
             e.preventDefault();
             e.stopPropagation();
@@ -3517,7 +3517,7 @@ Would you like to try direct registration anyway, or use the manual method?`;
                         error: function (xhr, textStatus) {
                             let msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Delete failed';
                             if (textStatus === 'timeout') {
-                                msg = 'Delete timed out. Refresh and check the Not Enrolled list — some students may have been removed.';
+                                msg = 'Delete timed out. Refresh and check the Not Enrolled list, some students may have been removed.';
                             }
                             Swal.fire({ icon: 'error', title: 'Error', text: msg });
                         }

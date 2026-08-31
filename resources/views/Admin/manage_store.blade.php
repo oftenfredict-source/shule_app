@@ -253,7 +253,7 @@
         color: #6c757d;
         margin-top: 6px;
     }
-    /* Searchable selects in Add/Edit Item modals — same width as item name input */
+    /* Searchable selects in Add/Edit Item modals, same width as item name input */
     .item-select-field {
         width: 100%;
     }
@@ -450,7 +450,7 @@
         outline: none;
     }
 
-    /* Actors modal — scroll ndani ya tab content tu (hairuki juu) */
+    /* Actors modal, scroll ndani ya tab content tu (hairuki juu) */
     #inventoryActorsModal .modal-dialog {
         display: flex;
         align-items: flex-start;
@@ -529,7 +529,7 @@
         padding: 0.75rem 1rem;
     }
 
-    /* Store modals — let the browser/viewport handle scrolling (no inner modal-body scrollbars) */
+    /* Store modals, let the browser/viewport handle scrolling (no inner modal-body scrollbars) */
     .store-modal .modal-dialog {
         margin: 0.75rem auto;
     }
@@ -550,7 +550,7 @@
         scroll-margin: 0 !important;
         scroll-margin-block: 0 !important;
     }
-    /* Inline Add Stock expand — no sticky (was covering Save Stock button) */
+    /* Inline Add Stock expand, no sticky (was covering Save Stock button) */
     #addItemStockModal.collapse,
     #addItemStockModal.collapsing {
         position: relative;
@@ -843,7 +843,7 @@
         vertical-align: middle !important;
     }
 
-    /* Responsive navigation — horizontal tabs (Bootstrap 4.1 local haija list-group-horizontal) */
+    /* Responsive navigation, horizontal tabs (Bootstrap 4.1 local haija list-group-horizontal) */
     .store-menu-wrap {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -1063,7 +1063,7 @@
         gap: 12px;
         margin-bottom: 1.25rem;
     }
-    /* Dashboard has 10 stats — keep rows balanced (5 + 5) instead of 7 + 3 */
+    /* Dashboard has 10 stats, keep rows balanced (5 + 5) instead of 7 + 3 */
     #storeDashboardSummary {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -1529,7 +1529,7 @@
                 <div class="store-section-toolbar">
                     <div>
                         <div class="section-title">Store Dashboard <span id="dashboardFilterBadge" class="text-muted small font-weight-normal"></span></div>
-                        <p class="text-muted small mb-0">Overview of inventory, stock, requisitions, and returns. Updated: <span id="dashboardGeneratedAt">{{ $dashboardStats['generated_at'] ?? '—' }}</span></p>
+                        <p class="text-muted small mb-0">Overview of inventory, stock, requisitions, and returns. Updated: <span id="dashboardGeneratedAt">{{ $dashboardStats['generated_at'] ?? '-' }}</span></p>
                     </div>
                     <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center" style="gap:8px;">
                         {!! $storePdfBtn('dashboard') !!}
@@ -1622,7 +1622,7 @@
                                 $buildSpecLines = null;
                                 $buildSpecLines = function ($spec, $depth = 0) use (&$buildSpecLines, $allSpecs, $fmtQty) {
                                     $lines = [];
-                                    $pad = str_repeat('— ', $depth);
+                                    $pad = str_repeat('- ', $depth);
                                     if ($spec->has_sub_package) {
                                         $child = $allSpecs->first(fn ($c) => (int) $c->parent_specID === (int) $spec->specID);
                                         $childName = $child?->package?->package_name ?? 'sub-package';
@@ -1647,8 +1647,8 @@
                                 $itemViewMore = [
                                     'title' => $item->item_name,
                                     'fields' => [
-                                        ['label' => 'Category', 'value' => $item->category->category_name ?? '—'],
-                                        ['label' => 'Measurement Type', 'value' => $item->measurementType->type_name ?? '—'],
+                                        ['label' => 'Category', 'value' => $item->category->category_name ?? '-'],
+                                        ['label' => 'Measurement Type', 'value' => $item->measurementType->type_name ?? '-'],
                                         ['label' => 'Units of Measure', 'value' => $itemUnits, 'type' => 'tags'],
                                         ['label' => 'Has Packages', 'value' => $item->has_packages ? 'Yes' : 'No'],
                                         ['label' => 'Package Details', 'value' => $itemPackages, 'type' => 'tags'],
@@ -1722,7 +1722,7 @@
                                     </div>
 
                                     <div id="stockItemInfo" class="alert alert-light border small py-2" style="display:none;">
-                                        <strong>Measurement Type:</strong> <span id="stockMeasurementType">—</span>
+                                        <strong>Measurement Type:</strong> <span id="stockMeasurementType">-</span>
                                     </div>
 
                                     <div class="form-group">
@@ -1787,8 +1787,8 @@
                                             <label class="font-weight-bold">Requisition Status <span class="text-danger">*</span></label>
                                             <select class="form-control" id="stockRequisitionStatus">
                                                 <option value="">Select...</option>
-                                                <option value="can_return">Can Return — item can be returned after use (e.g. books, laptops)</option>
-                                                <option value="cant_return">Can't Return — item is consumed on use (e.g. chalk box, supplies)</option>
+                                                <option value="can_return">Can Return, item can be returned after use (e.g. books, laptops)</option>
+                                                <option value="cant_return">Can't Return, item is consumed on use (e.g. chalk box, supplies)</option>
                                             </select>
                                         </div>
                                     </div>
@@ -1848,13 +1848,13 @@
                                     $pkgUnitLabel = $entry->unit->unit_name ?? '-';
                                 }
                                 $stockViewMore = [
-                                    'title' => ($entry->item->item_name ?? 'Stock') . ' — Stock Details',
+                                    'title' => ($entry->item->item_name ?? 'Stock') . ', Stock Details',
                                     'layout' => 'widgets',
                                     'sections' => [
                                         [
                                             'title' => 'Stock Summary',
                                             'widgets' => array_filter([
-                                                ['label' => 'Item', 'value' => $entry->item->item_name ?? '—'],
+                                                ['label' => 'Item', 'value' => $entry->item->item_name ?? '-'],
                                                 ['label' => 'Store Method', 'value' => $entry->store_method === 'package' ? 'Package' : 'Unit Measure'],
                                                 ['label' => 'Package / Unit', 'value' => $pkgUnitLabel],
                                                 ['label' => 'Available Labels', 'value' => (string) $availableQty, 'danger' => $availableQty === 0],
@@ -1862,7 +1862,7 @@
                                                 ['label' => 'Labels Touched', 'value' => (string) $issuedQty],
                                                 ['label' => 'Total Labels Received', 'value' => (string) $entry->quantity],
                                                 ['label' => 'Requisition Status', 'value' => $entry->requisition_status === 'can_return' ? 'Can Return' : "Can't Return"],
-                                                ['label' => 'Date Added', 'value' => $entry->created_at ? $entry->created_at->format('d M Y, H:i') : '—'],
+                                                ['label' => 'Date Added', 'value' => $entry->created_at ? $entry->created_at->format('d M Y, H:i') : '-'],
                                             ]),
                                         ],
                                         [
@@ -1986,24 +1986,24 @@
                                     ? (($studentClassMap[$req->recipient_id] ?? null) ?: null)
                                     : null;
                                 $isOverdue = false;
-                                $returnStatusHtml = '<span class="text-muted">—</span>';
-                                $expectedReturnHtml = '<span class="text-muted">—</span>';
+                                $returnStatusHtml = '<span class="text-muted">-</span>';
+                                $expectedReturnHtml = '<span class="text-muted">-</span>';
 
                                 if ($req->requisition_status === 'can_return') {
                                     if ($req->status === 'returned') {
                                         $returnCond = $req->return_condition === 'bad' ? 'damaged' : $req->return_condition;
                                         if ($returnCond === 'damaged') {
-                                            $returnStatusHtml = '<span class="store-badge-pill store-badge-defective">Returned — Damaged</span>';
+                                            $returnStatusHtml = '<span class="store-badge-pill store-badge-defective">Returned, Damaged</span>';
                                         } elseif ($returnCond === 'lost') {
-                                            $returnStatusHtml = '<span class="store-badge-pill store-badge-overdue">Returned — Lost</span>';
+                                            $returnStatusHtml = '<span class="store-badge-pill store-badge-overdue">Returned, Lost</span>';
                                         } else {
-                                            $returnStatusHtml = '<span class="store-badge-pill store-badge-return-yes">Returned — Good</span>';
+                                            $returnStatusHtml = '<span class="store-badge-pill store-badge-return-yes">Returned, Good</span>';
                                         }
                                     } else {
                                         $isOverdue = $req->expected_return_date && $req->expected_return_date->isPast();
                                         $returnStatusHtml = $isOverdue
-                                            ? '<span class="store-badge-pill store-badge-overdue">Not Returned — Overdue</span>'
-                                            : '<span class="store-badge-pill store-badge-pending">Not Returned — Pending</span>';
+                                            ? '<span class="store-badge-pill store-badge-overdue">Not Returned, Overdue</span>'
+                                            : '<span class="store-badge-pill store-badge-pending">Not Returned, Pending</span>';
                                     }
                                     if ($req->expected_return_date) {
                                         $expectedReturnHtml = '<span class="' . ($isOverdue && $req->status === 'issued' ? 'req-return-overdue' : '') . '">'
@@ -2013,24 +2013,24 @@
                                     $returnStatusHtml = '<span class="store-badge-pill store-badge-return-no">Can\'t Return</span>';
                                 }
 
-                                $returnStatusText = '—';
+                                $returnStatusText = '-';
                                 if ($req->requisition_status === 'can_return') {
                                     if ($req->status === 'returned') {
                                         $rc = $req->return_condition === 'bad' ? 'damaged' : $req->return_condition;
                                         $returnStatusText = match ($rc) {
-                                            'damaged' => 'Returned — Damaged',
-                                            'lost' => 'Returned — Lost',
-                                            default => 'Returned — Good',
+                                            'damaged' => 'Returned, Damaged',
+                                            'lost' => 'Returned, Lost',
+                                            default => 'Returned, Good',
                                         };
                                     } else {
-                                        $returnStatusText = $isOverdue ? 'Not Returned — Overdue' : 'Not Returned — Pending';
+                                        $returnStatusText = $isOverdue ? 'Not Returned, Overdue' : 'Not Returned, Pending';
                                     }
                                 } else {
                                     $returnStatusText = "Can't Return";
                                 }
 
                                 $reqViewMore = [
-                                    'title' => ($req->item->item_name ?? 'Item') . ' — Requisition',
+                                    'title' => ($req->item->item_name ?? 'Item') . ', Requisition',
                                     'layout' => 'widgets',
                                     'sections' => [
                                         [
@@ -2039,31 +2039,31 @@
                                                 ['label' => 'Recipient', 'value' => $req->recipient_name],
                                                 ['label' => 'Type', 'value' => $recipientTypeLabel],
                                                 $recipientClassName ? ['label' => 'Class', 'value' => $recipientClassName] : null,
-                                                ['label' => 'Item', 'value' => $req->item->item_name ?? '—'],
+                                                ['label' => 'Item', 'value' => $req->item->item_name ?? '-'],
                                                 ['label' => 'Label', 'value' => $req->label],
-                                                ['label' => 'Package / Unit', 'value' => $req->package_unit_display ?? '—'],
-                                                ['label' => 'Taken', 'value' => $req->take_display ?: ($req->package_unit_display ?? '—')],
+                                                ['label' => 'Package / Unit', 'value' => $req->package_unit_display ?? '-'],
+                                                ['label' => 'Taken', 'value' => $req->take_display ?: ($req->package_unit_display ?? '-')],
                                                 ['label' => 'Quantity Taken', 'value' => (string) ($req->quantity_taken ?: 1)],
                                                 ['label' => 'Return Policy', 'value' => $req->requisition_status === 'can_return' ? 'Can Return' : "Can't Return"],
-                                                ['label' => 'Issued By', 'value' => $req->issued_by ?? '—'],
-                                                ['label' => 'Issued At', 'value' => $req->issued_at ? $req->issued_at->format('d M Y, H:i') : '—'],
-                                                ['label' => 'Notes', 'value' => $req->notes ?: '—'],
+                                                ['label' => 'Issued By', 'value' => $req->issued_by ?? '-'],
+                                                ['label' => 'Issued At', 'value' => $req->issued_at ? $req->issued_at->format('d M Y, H:i') : '-'],
+                                                ['label' => 'Notes', 'value' => $req->notes ?: '-'],
                                             ]),
                                         ],
                                         [
                                             'title' => 'Return Details',
                                             'widgets' => array_filter([
-                                                $req->requisition_status === 'can_return' ? ['label' => 'Expected Return', 'value' => $req->expected_return_date ? $req->expected_return_date->format('d M Y') : '—', 'danger' => $isOverdue && $req->status === 'issued'] : null,
+                                                $req->requisition_status === 'can_return' ? ['label' => 'Expected Return', 'value' => $req->expected_return_date ? $req->expected_return_date->format('d M Y') : '-', 'danger' => $isOverdue && $req->status === 'issued'] : null,
                                                 ['label' => 'Return Status', 'value' => $returnStatusText],
                                                 $req->status === 'returned' ? ['label' => 'Quantity Returned', 'value' => (string) ($req->quantity_returned ?: $req->quantity_taken ?: 1)] : null,
-                                                $req->status === 'returned' ? ['label' => 'Returned On', 'value' => $req->returned_at ? $req->returned_at->format('d M Y') : '—'] : null,
+                                                $req->status === 'returned' ? ['label' => 'Returned On', 'value' => $req->returned_at ? $req->returned_at->format('d M Y') : '-'] : null,
                                                 $req->status === 'returned' && $req->return_description ? ['label' => 'Return Description', 'value' => $req->return_description] : null,
                                                 $req->status === 'returned' ? ['label' => 'Return Status', 'value' => match ($req->return_condition === 'bad' ? 'damaged' : $req->return_condition) {
                                                     'damaged' => 'Damaged',
                                                     'lost' => 'Lost',
                                                     default => 'Good',
                                                 }] : null,
-                                                in_array($req->return_condition, ['bad', 'damaged', 'lost'], true) ? ['label' => 'Reason', 'value' => $req->bad_description ?: '—', 'danger' => true] : null,
+                                                in_array($req->return_condition, ['bad', 'damaged', 'lost'], true) ? ['label' => 'Reason', 'value' => $req->bad_description ?: '-', 'danger' => true] : null,
                                                 in_array($req->return_condition, ['bad', 'damaged', 'lost'], true) ? ['label' => 'Responsible Person', 'value' => $req->recipient_name . ' (' . $recipientTypeLabel . ($recipientClassName ? ' · ' . $recipientClassName : '') . ')', 'danger' => true] : null,
                                             ]),
                                         ],
@@ -2160,7 +2160,7 @@
                 <div class="store-section-toolbar">
                     <div>
                         <div class="section-title">Lost Items</div>
-                        <p class="text-muted small mb-0">Record items that were lost. Same workflow as damaged items — track responsible person, reason, and resolution.</p>
+                        <p class="text-muted small mb-0">Record items that were lost. Same workflow as damaged items, track responsible person, reason, and resolution.</p>
                     </div>
                     <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center" style="gap:8px;">
                         {!! $storePdfBtn('lost') !!}
@@ -2418,7 +2418,7 @@
                                 <option value="{{ $cat->categoryID }}">{{ $cat->category_name }}</option>
                             @endforeach
                         </select>
-                        <small class="text-muted">Chagua category unayotaka kuona report yake — au All Categories kwa zote.</small>
+                        <small class="text-muted">Chagua category unayotaka kuona report yake, au All Categories kwa zote.</small>
                     </div>
 
                     {{-- Step 2: Report type (after category context) --}}
@@ -2428,7 +2428,7 @@
                         </label>
                         <select class="form-control w-100" id="reportTypeSelect">
                             <option value="all_inventory" selected>All Items Inventory Report</option>
-                            <option value="requisition">Requisition Report — waliochukua items</option>
+                            <option value="requisition">Requisition Report, waliochukua items</option>
                             <option value="specific_item">Specific Item Report</option>
                         </select>
                     </div>
@@ -2471,9 +2471,9 @@
                                     <option value="not_returned">Not Returned Yet</option>
                                     <option value="overdue">Overdue</option>
                                     <option value="returned">Returned (Any)</option>
-                                    <option value="returned_good">Returned — Good</option>
-                                    <option value="returned_damaged">Returned — Damaged</option>
-                                    <option value="returned_lost">Returned — Lost</option>
+                                    <option value="returned_good">Returned, Good</option>
+                                    <option value="returned_damaged">Returned, Damaged</option>
+                                    <option value="returned_lost">Returned, Lost</option>
                                 </select>
                                 <small class="text-muted">Inatumika kwa items zenye Can Return</small>
                             </div>
@@ -3082,7 +3082,7 @@
                                 <option value="{{ $cat->categoryID }}">{{ $cat->category_name }}</option>
                             @endforeach
                         </select>
-                        <small class="text-muted">Chagua category kwanza kufupisha orodha ya items — au All Categories kwa zote.</small>
+                        <small class="text-muted">Chagua category kwanza kufupisha orodha ya items, au All Categories kwa zote.</small>
                     </div>
 
                     <div class="form-group">
@@ -3094,7 +3094,7 @@
                     </div>
 
                     <div id="issueStockInfo" class="alert alert-light border small py-2" style="display:none;">
-                        <strong>Package / Unit:</strong> <span id="issuePackageUnit">—</span>
+                        <strong>Package / Unit:</strong> <span id="issuePackageUnit">-</span>
                         &nbsp;|&nbsp;
                         <strong>Available:</strong> <span id="issueAvailableCount">0</span> unit(s)
                     </div>
@@ -3187,9 +3187,9 @@
                         <label class="font-weight-bold">Return Status <span class="text-danger">*</span></label>
                         <select class="form-control" id="returnCondition" required>
                             <option value="">Select return status...</option>
-                            <option value="good">Good — return to stock</option>
-                            <option value="damaged">Damaged — record as damaged item</option>
-                            <option value="lost">Lost — record as lost item</option>
+                            <option value="good">Good, return to stock</option>
+                            <option value="damaged">Damaged, record as damaged item</option>
+                            <option value="lost">Lost, record as lost item</option>
                         </select>
                     </div>
 
@@ -3265,7 +3265,7 @@
                     </div>
 
                     <div id="incidentStockInfo" class="alert alert-light border small py-2" style="display:none;">
-                        <strong>Package / Unit:</strong> <span id="incidentPackageUnit">—</span>
+                        <strong>Package / Unit:</strong> <span id="incidentPackageUnit">-</span>
                         &nbsp;|&nbsp;
                         <strong>Available:</strong> <span id="incidentAvailableCount">0</span> unit(s)
                     </div>
@@ -3395,8 +3395,8 @@
                         <label class="font-weight-bold">Resolve Method <span class="text-danger">*</span></label>
                         <select class="form-control" id="resolveIncidentMethod" required>
                             <option value="">Select method...</option>
-                            <option value="cash">Cash — person pays compensation</option>
-                            <option value="replace_new">Replace New — restore item to stock</option>
+                            <option value="cash">Cash, person pays compensation</option>
+                            <option value="replace_new">Replace New, restore item to stock</option>
                         </select>
                     </div>
                     <div class="form-group mb-0" id="resolvePaymentAmountWrap" style="display:none;">
@@ -3751,7 +3751,7 @@
 
     function renderTagsHtml(values) {
         if (!Array.isArray(values) || !values.length) {
-            return '<span class="text-muted">—</span>';
+            return '<span class="text-muted">-</span>';
         }
         return '<div class="store-view-tags-wrap">' + values.map(v => `<span class="store-tag">${escapeHtml(v)}</span>`).join('') + '</div>';
     }
@@ -3779,7 +3779,7 @@
                     if (w.type === 'tags') {
                         valueHtml = renderTagsHtml(w.value);
                     } else {
-                        valueHtml = escapeHtml(w.value != null && w.value !== '' ? w.value : '—');
+                        valueHtml = escapeHtml(w.value != null && w.value !== '' ? w.value : '-');
                     }
                     $grid.append(`
                         <div class="store-view-widget${dangerClass}${wideClass}">
@@ -3800,7 +3800,7 @@
             if (field.type === 'tags') {
                 content = renderTagsHtml(field.value);
             } else {
-                content = escapeHtml(field.value || '—');
+                content = escapeHtml(field.value || '-');
             }
             $body.append(`
                 <div class="store-view-field mb-3">
@@ -3826,7 +3826,7 @@
             data.units.forEach(u => {
                 const $tr = $('<tr></tr>');
                 $tr.append(`<td>${escapeHtml(u.unit_name)}</td>`);
-                $tr.append(`<td>${escapeHtml(u.abbreviation || '—')}</td>`);
+                $tr.append(`<td>${escapeHtml(u.abbreviation || '-')}</td>`);
                 const $actions = $('<td></td>');
                 const $editBtn = $('<button type="button" class="btn btn-sm btn-link p-0 btn-edit-unit"><i class="fa fa-edit text-primary"></i></button>');
                 $editBtn.data({ id: u.unitID, name: u.unit_name, abbr: u.abbreviation || '' });
@@ -4332,7 +4332,7 @@
         updatePackageLevelFields($level);
 
         $level.find('> .form-row .pkg-spec-package').off('change.pkgblock').on('change.pkgblock', function () {
-            // Parent package changed — refresh sub-package options (block ancestors as main).
+            // Parent package changed, refresh sub-package options (block ancestors as main).
             $level.find('> .pkg-child-wrap > .pkg-level-block').each(function () {
                 refreshPackageOptionsForLevel($(this));
             });
@@ -4580,10 +4580,10 @@
     function renderStoreDashboard(data) {
         if (!data) return;
         storeDashboardData = data;
-        $('#dashboardGeneratedAt').text(data.generated_at || '—');
+        $('#dashboardGeneratedAt').text(data.generated_at || '-');
         const filterLabel = data.filter_label || 'All Categories';
         $('#dashboardFilterBadge').text(
-            filterLabel !== 'All Categories' ? '— ' + filterLabel : ''
+            filterLabel !== 'All Categories' ? '- ' + filterLabel : ''
         );
         $('#dashboardCategoryPanelTitle').html(
             data.categoryID
@@ -5550,7 +5550,7 @@
             return;
         }
 
-        $('#stockMeasurementType').text(selectedStockItem.measurement_type || '—');
+        $('#stockMeasurementType').text(selectedStockItem.measurement_type || '-');
         $('#stockItemInfo').show();
         updateStockSaveButton();
     }
@@ -5560,7 +5560,7 @@
         let html = '<option value="">Select package level to stock...</option>';
         stockable.forEach(spec => {
             const value = spec.specID || spec.packageID;
-            html += `<option value="${value}">${escapeHtml(spec.package_name)} — ${escapeHtml(spec.chain_summary || '')}</option>`;
+            html += `<option value="${value}">${escapeHtml(spec.package_name)}, ${escapeHtml(spec.chain_summary || '')}</option>`;
         });
         return html;
     }
@@ -5629,7 +5629,7 @@
         if (method === 'package') {
             const stockable = getStockablePackages(selectedStockItem);
             if (!selectedStockItem.has_packages || !stockable.length) {
-                $('#stockPackageError').text('No package in this item. This item was not registered with packages — use Unit Measure instead.').show();
+                $('#stockPackageError').text('No package in this item. This item was not registered with packages, use Unit Measure instead.').show();
                 updateStockSaveButton();
                 return;
             }
@@ -6082,7 +6082,7 @@
                     return;
                 }
                 if ((batch.labels || []).some(l => !l)) {
-                    showAlert('Jaza label zote — hakuna label tupu.', 'danger');
+                    showAlert('Jaza label zote, hakuna label tupu.', 'danger');
                     $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
                     updateStockSaveButton();
                     return;
@@ -6090,7 +6090,7 @@
             }
             const allLabels = collectAllStockLabels();
             if (allLabels.length !== new Set(allLabels).size) {
-                showAlert('Labels zinazofanana haziruhusiwi — kila label iwe ya kipekee.', 'danger');
+                showAlert('Labels zinazofanana haziruhusiwi, kila label iwe ya kipekee.', 'danger');
                 $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
                 updateStockSaveButton();
                 return;
@@ -6121,7 +6121,7 @@
                 return;
             }
             if (labels.some(l => !l)) {
-                showAlert('Jaza label zote — hakuna label tupu.', 'danger');
+                showAlert('Jaza label zote, hakuna label tupu.', 'danger');
                 $btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Stock');
                 updateStockSaveButton();
                 return;
@@ -6256,7 +6256,7 @@
         requestersList.filter(r => r.type === type).forEach(r => {
             let label = r.name;
             if (r.employee_number) label += ` (${r.employee_number})`;
-            if (type === 'student' && r.class_name) label += ` — ${r.class_name}`;
+            if (type === 'student' && r.class_name) label += `, ${r.class_name}`;
             $sel.append(new Option(label, `${r.type}:${r.id}`, false, false));
         });
         if ($sel.hasClass('select2-hidden-accessible')) {
@@ -6296,8 +6296,8 @@
                 ? '<span class="store-badge-pill store-badge-return-yes ml-1">Can Return</span>'
                 : '<span class="store-badge-pill store-badge-return-no ml-1">Can\'t Return</span>';
             const remainText = u.store_method === 'package'
-                ? ` — ${escapeHtml(u.package_unit_display)} · left ${u.remaining_items}/${u.initial_items} ${escapeHtml(u.leaf_unit_name || 'item')}`
-                : ` — ${escapeHtml(u.package_unit_display)}`;
+                ? `, ${escapeHtml(u.package_unit_display)} · left ${u.remaining_items}/${u.initial_items} ${escapeHtml(u.leaf_unit_name || 'item')}`
+                : `, ${escapeHtml(u.package_unit_display)}`;
             $list.append(`
                 <div class="custom-control custom-checkbox mb-2">
                     <input type="checkbox" class="custom-control-input issue-label-checkbox"
@@ -6371,7 +6371,7 @@
             $('#issueTakeChainInfo')
                 .html(
                     '<strong>Selected labels:</strong> ' + escapeHtml(units.map(u => u.label).join(', ')) +
-                    '<br><span class="text-muted">By Main Package — quantity auto = 1 kwa kila label iliyochaguliwa.</span>'
+                    '<br><span class="text-muted">By Main Package, quantity auto = 1 kwa kila label iliyochaguliwa.</span>'
                 )
                 .show();
             $('#issueTakeMethodWrap, #issueTakeTargetWrap, #issueTakeQtyWrap').hide();
@@ -6475,7 +6475,7 @@
         if (isPartial) {
             if (child) {
                 bodyHtml = `
-                    <div class="issue-hier-child-info">${escapeHtml(unit.label)} — chagua ${escapeHtml(child.package_name)} ngapi:</div>
+                    <div class="issue-hier-child-info">${escapeHtml(unit.label)}, chagua ${escapeHtml(child.package_name)} ngapi:</div>
                     <div class="form-group mb-0">
                         <label class="small font-weight-bold">Idadi ya ${escapeHtml(child.package_name)}(s)</label>
                         <input type="number" class="form-control form-control-sm ${partialQtyClass}"
@@ -6517,7 +6517,7 @@
                         <input type="radio" class="custom-control-input ${modeRadioClass}" name="${radioName}"
                             id="${unitId}_partial" value="partial">
                         <label class="custom-control-label" for="${unitId}_partial">
-                            <strong>Chukua ${escapeHtml(child.package_name)}(s) tu</strong> — si ${escapeHtml(hierarchy.first_sub_name)} nzima
+                            <strong>Chukua ${escapeHtml(child.package_name)}(s) tu</strong>: si ${escapeHtml(hierarchy.first_sub_name)} nzima
                         </label>
                     </div>
                     <div class="issue-hier-partial-wrap mt-2" style="display:none;">
@@ -6740,7 +6740,7 @@
             return { valid: false, message: 'Kamilisha maelezo ya kuchukua (method, package, idadi).' };
         }
         if (!validateTakeQuantityInputs(prefix, unit)) {
-            return { valid: false, message: 'Sahihisha idadi — haiwezi zidi kiwango cha juu (max) kilichoonyeshwa.' };
+            return { valid: false, message: 'Sahihisha idadi, haiwezi zidi kiwango cha juu (max) kilichoonyeshwa.' };
         }
         if (!selections.every(s => s.quantity > 0 && s.quantity <= s.max_qty)) {
             return { valid: false, message: 'Idadi ya kuchukua ni kubwa kuliko inavyoruhusiwa kwa kiwango hicho.' };
@@ -6771,7 +6771,7 @@
     function buildTakeCheckboxRow(opt, idx, prefix) {
         const leafName = opt.leaf_unit_name || 'item';
         const indent = opt.chain_position > 0
-            ? '<span class="issue-take-chain-indent">' + '— '.repeat(Math.max(0, opt.chain_position - 1)) + '</span>'
+            ? '<span class="issue-take-chain-indent">' + '- '.repeat(Math.max(0, opt.chain_position - 1)) + '</span>'
             : '';
         const availBadge = opt.available_qty != null
             ? `<span class="issue-take-avail-badge">${opt.available_qty} ${escapeHtml(opt.label)}(s) available</span>`
@@ -6869,7 +6869,7 @@
             const lines = selections.map(s => {
                 const items = s.quantity * (parseFloat(s.opt.items_each) || 1);
                 const leafName = s.unit.leaf_unit_name || 'item';
-                return `<li><strong>${escapeHtml(s.unit.label)}</strong> — 1 × ${escapeHtml(s.opt.label)} = ${items} ${escapeHtml(leafName)}</li>`;
+                return `<li><strong>${escapeHtml(s.unit.label)}</strong>: 1 × ${escapeHtml(s.opt.label)} = ${items} ${escapeHtml(leafName)}</li>`;
             }).join('');
             const totalItems = selections.reduce((sum, s) =>
                 sum + (s.quantity * (parseFloat(s.opt.items_each) || 1)), 0);
@@ -7512,7 +7512,7 @@
         const $sel = $('#incidentResponsibleSelect');
         $sel.empty();
         if (!type || type === 'other') {
-            $sel.prop('disabled', true).append('<option value="">—</option>');
+            $sel.prop('disabled', true).append('<option value="">-</option>');
             toggleIncidentResponsibleFields();
             return;
         }
@@ -7520,7 +7520,7 @@
         requestersList.filter(r => r.type === type).forEach(r => {
             let label = r.name;
             if (r.employee_number) label += ` (${r.employee_number})`;
-            if (type === 'student' && r.class_name) label += ` — ${r.class_name}`;
+            if (type === 'student' && r.class_name) label += `, ${r.class_name}`;
             $sel.append(new Option(label, String(r.id), false, false));
         });
         if ($sel.hasClass('select2-hidden-accessible')) $sel.select2('destroy');
@@ -7565,7 +7565,7 @@
             $('#incidentTakeChainInfo')
                 .html(
                     '<strong>Selected labels:</strong> ' + escapeHtml(units.map(u => u.label).join(', ')) +
-                    '<br><span class="text-muted">By Main Package — quantity auto = 1 kwa kila label iliyochaguliwa.</span>'
+                    '<br><span class="text-muted">By Main Package, quantity auto = 1 kwa kila label iliyochaguliwa.</span>'
                 )
                 .show();
             $('#incidentTakeMethodWrap, #incidentTakeTargetWrap, #incidentTakeQtyWrap').hide();
@@ -7609,8 +7609,8 @@
         $('#incidentStockInfo, #incidentLabelsSection').show();
         units.forEach(u => {
             const remainText = u.store_method === 'package'
-                ? ` — ${escapeHtml(u.package_unit_display)} · left ${u.remaining_items}/${u.initial_items} ${escapeHtml(u.leaf_unit_name || 'item')}`
-                : ` — ${escapeHtml(u.package_unit_display)}`;
+                ? `, ${escapeHtml(u.package_unit_display)} · left ${u.remaining_items}/${u.initial_items} ${escapeHtml(u.leaf_unit_name || 'item')}`
+                : `, ${escapeHtml(u.package_unit_display)}`;
             $list.append(`
                 <div class="custom-control custom-checkbox mb-2">
                     <input type="checkbox" class="custom-control-input incident-label-checkbox"
@@ -8238,8 +8238,8 @@
         const viewMore = {
             title: item.item_name,
             fields: [
-                { label: 'Category', value: item.category_name || '—' },
-                { label: 'Measurement Type', value: item.measurement_type || '—' },
+                { label: 'Category', value: item.category_name || '-' },
+                { label: 'Measurement Type', value: item.measurement_type || '-' },
                 { label: 'Units of Measure', value: item.unit_names || [], type: 'tags' },
                 { label: 'Has Packages', value: item.has_packages ? 'Yes' : 'No' },
                 { label: 'Package Details', value: item.package_lines || [], type: 'tags' },
@@ -8295,21 +8295,21 @@
         const inStockLabels = entry.in_stock_labels || [];
         const issuedLabels = entry.issued_labels || [];
         const viewMore = {
-            title: (entry.item_name || 'Stock') + ' — Stock Details',
+            title: (entry.item_name || 'Stock') + ', Stock Details',
             layout: 'widgets',
             sections: [
                 {
                     title: 'Stock Summary',
                     widgets: [
-                        { label: 'Item', value: entry.item_name || '—' },
+                        { label: 'Item', value: entry.item_name || '-' },
                         { label: 'Store Method', value: entry.store_method === 'package' ? 'Package' : 'Unit Measure' },
-                        { label: 'Package / Unit', value: entry.pkg_unit_label || '—' },
+                        { label: 'Package / Unit', value: entry.pkg_unit_label || '-' },
                         { label: 'Available Labels', value: String(entry.available_qty), danger: entry.available_qty === 0 },
                         entry.remaining_items != null ? { label: 'Items Remaining', value: String(entry.remaining_items) } : null,
                         { label: 'Labels Touched', value: String(entry.issued_qty) },
                         { label: 'Total Labels Received', value: String(entry.quantity) },
                         { label: 'Requisition Status', value: entry.requisition_status === 'can_return' ? 'Can Return' : "Can't Return" },
-                        { label: 'Date Added', value: entry.created_at || '—' },
+                        { label: 'Date Added', value: entry.created_at || '-' },
                     ].filter(Boolean),
                 },
                 {
@@ -8383,7 +8383,7 @@
 
     function buildRequisitionRow(req) {
         const viewMore = {
-            title: (req.item_name || 'Item') + ' — Requisition',
+            title: (req.item_name || 'Item') + ', Requisition',
             layout: 'widgets',
             sections: [
                 {
@@ -8395,12 +8395,12 @@
                         { label: 'Item', value: req.item_name },
                         { label: 'Label', value: req.label },
                         { label: 'Package / Unit', value: req.package_unit_display },
-                        { label: 'Taken', value: req.take_display || '—' },
+                        { label: 'Taken', value: req.take_display || '-' },
                         { label: 'Quantity Taken', value: String(req.quantity_taken || 1) },
                         { label: 'Return Policy', value: req.requisition_status === 'can_return' ? 'Can Return' : "Can't Return" },
-                        { label: 'Issued By', value: req.issued_by || '—' },
-                        { label: 'Issued At', value: req.issued_at || '—' },
-                        { label: 'Notes', value: req.notes || '—' },
+                        { label: 'Issued By', value: req.issued_by || '-' },
+                        { label: 'Issued At', value: req.issued_at || '-' },
+                        { label: 'Notes', value: req.notes || '-' },
                     ].filter(Boolean),
                 },
                 {
@@ -8412,7 +8412,7 @@
                         req.status === 'returned' ? { label: 'Returned On', value: req.returned_at } : null,
                         req.status === 'returned' && req.return_description ? { label: 'Return Description', value: req.return_description } : null,
                         req.status === 'returned' ? { label: 'Return Status', value: returnConditionLabel(req.return_condition) } : null,
-                        ['damaged', 'lost', 'bad'].includes(req.return_condition) ? { label: 'Reason', value: req.bad_description || '—', danger: true } : null,
+                        ['damaged', 'lost', 'bad'].includes(req.return_condition) ? { label: 'Reason', value: req.bad_description || '-', danger: true } : null,
                         ['damaged', 'lost', 'bad'].includes(req.return_condition) ? { label: 'Responsible Person', value: req.recipient_name + ' (' + req.recipient_type_label + (req.class_name ? ' · ' + req.class_name : '') + ')', danger: true } : null,
                     ].filter(Boolean),
                 },
@@ -8467,7 +8467,7 @@
         const typeLabel = incidentTypeLabel(inc);
         const byLabel = inc.incident_type === 'lost' ? 'Lost By' : 'Damaged By';
         const viewMore = {
-            title: (inc.item_name || 'Item') + ' — ' + typeLabel,
+            title: (inc.item_name || 'Item') + ', ' + typeLabel,
             layout: 'widgets',
             sections: [
                 {
@@ -8479,16 +8479,16 @@
                         { label: 'Item', value: inc.item_name },
                         { label: 'Label', value: inc.label },
                         { label: 'Package / Unit', value: inc.package_unit_display },
-                        { label: 'Affected', value: inc.take_display || '—' },
+                        { label: 'Affected', value: inc.take_display || '-' },
                         { label: 'Quantity', value: String(inc.quantity_affected || 1) },
-                        { label: 'Reason', value: inc.reason || '—' },
+                        { label: 'Reason', value: inc.reason || '-' },
                         { label: 'Payment', value: inc.payment_status === 'paid' ? 'Paid' : 'Pending' },
                         inc.payment_amount !== null ? { label: 'Amount', value: String(inc.payment_amount) } : null,
                         { label: 'Resolve Status', value: inc.resolve_status === 'resolved' ? 'Resolved' : 'Open' },
                         inc.resolve_method ? { label: 'Resolve Method', value: inc.resolve_method_label } : null,
-                        { label: 'Recorded By', value: inc.recorded_by || '—' },
-                        { label: 'Recorded At', value: inc.recorded_at || '—' },
-                        inc.resolved_at && inc.resolved_at !== '—' ? { label: 'Resolved At', value: inc.resolved_at } : null,
+                        { label: 'Recorded By', value: inc.recorded_by || '-' },
+                        { label: 'Recorded At', value: inc.recorded_at || '-' },
+                        inc.resolved_at && inc.resolved_at !== '-' ? { label: 'Resolved At', value: inc.resolved_at } : null,
                         inc.notes ? { label: 'Notes', value: inc.notes } : null,
                     ].filter(Boolean),
                 },
@@ -8542,7 +8542,7 @@
                 <br><small class="text-muted">${escapeHtml(inc.responsible_type_label)}</small>
                 ${inc.class_name ? `<br><small class="text-muted">Class: ${escapeHtml(inc.class_name)}</small>` : ''}
             </td>
-            <td class="small">${escapeHtml(inc.reason || '—')}</td>
+            <td class="small">${escapeHtml(inc.reason || '-')}</td>
             <td>${inc.status_html}</td>
             ${actionsDropdownHtml(`
                 <button type="button" class="dropdown-item store-view-more-trigger"><i class="fa fa-eye text-muted"></i> View More</button>
@@ -8929,7 +8929,7 @@
 
         $('#inventoryReportMeta').text(
             'Category: ' + (summary.filter_label || 'All Categories') +
-            ' · Stock snapshot as of ' + (summary.as_of_label || '—') +
+            ' · Stock snapshot as of ' + (summary.as_of_label || '-') +
             ' · Issued in ' + (summary.month_label || 'this month') + ': ' + (summary.issued_this_month || 0)
         );
 
@@ -8954,9 +8954,9 @@
                 if (row.row_type === 'unit') {
                     html += '<td class="text-center">' + escapeHtmlReport(row.unit_name) + '</td>';
                     html += '<td class="text-center font-weight-bold">' + escapeHtmlReport(row.quantity) + '</td>';
-                    html += '<td class="text-center text-muted">—</td><td class="text-center text-muted">—</td>';
+                    html += '<td class="text-center text-muted">-</td><td class="text-center text-muted">-</td>';
                 } else {
-                    html += '<td class="text-center text-muted">—</td><td class="text-center text-muted">—</td>';
+                    html += '<td class="text-center text-muted">-</td><td class="text-center text-muted">-</td>';
                     html += '<td class="text-center">' + escapeHtmlReport(row.package_display) + '</td>';
                     html += '<td class="text-center font-weight-bold">' + escapeHtmlReport(row.package_quantity) + '</td>';
                 }
@@ -8978,7 +8978,7 @@
 
         $('#requisitionReportMeta').text(
             'Category: ' + (summary.filter_label || 'All Categories') +
-            ' · Period: ' + (summary.period_label || '—') +
+            ' · Period: ' + (summary.period_label || '-') +
             ' · Unique recipients: ' + (summary.unique_recipients || 0)
         );
 
@@ -9021,10 +9021,10 @@
                         ${row.take_display ? '<br><small class="text-primary-custom">' + escapeHtmlReport(row.take_display) + '</small>' : ''}
                     </td>
                     <td>${policy}</td>
-                    <td>${row.return_status_html || '—'}</td>
-                    <td>${row.expected_return_html || '—'}</td>
-                    <td class="small">${escapeHtmlReport(row.issued_at || '—')}</td>
-                    <td class="small">${escapeHtmlReport(row.returned_at || '—')}</td>
+                    <td>${row.return_status_html || '-'}</td>
+                    <td>${row.expected_return_html || '-'}</td>
+                    <td class="small">${escapeHtmlReport(row.issued_at || '-')}</td>
+                    <td class="small">${escapeHtmlReport(row.returned_at || '-')}</td>
                 </tr>
             `);
         });
@@ -9079,9 +9079,9 @@
                         <td></td>
                         <td><strong>${escapeHtmlReport(r.recipient_name)}</strong><br><small class="text-muted">${escapeHtmlReport(r.recipient_type_label)}</small></td>
                         <td><small>${escapeHtmlReport(r.label)}</small>${r.take_display ? '<br><small class="text-primary-custom">' + escapeHtmlReport(r.take_display) + '</small>' : ''}</td>
-                        <td>${r.return_status_html || '—'}</td>
-                        <td class="small">${escapeHtmlReport(r.issued_at || '—')}</td>
-                        <td class="small">${escapeHtmlReport(r.returned_at || '—')}</td>
+                        <td>${r.return_status_html || '-'}</td>
+                        <td class="small">${escapeHtmlReport(r.issued_at || '-')}</td>
+                        <td class="small">${escapeHtmlReport(r.returned_at || '-')}</td>
                     </tr>
                 `);
             });
@@ -9098,9 +9098,9 @@
                         <td>${inc.incident_type === 'lost' ? 'Lost' : 'Damaged'}</td>
                         <td><strong>${escapeHtmlReport(inc.responsible_name)}</strong></td>
                         <td><small>${escapeHtmlReport(inc.label)}</small>${inc.take_display ? '<br><small>' + escapeHtmlReport(inc.take_display) + '</small>' : ''}</td>
-                        <td class="small">${escapeHtmlReport(inc.reason || '—')}</td>
-                        <td>${inc.status_html || '—'}</td>
-                        <td class="small">${escapeHtmlReport(inc.recorded_at || '—')}</td>
+                        <td class="small">${escapeHtmlReport(inc.reason || '-')}</td>
+                        <td>${inc.status_html || '-'}</td>
+                        <td class="small">${escapeHtmlReport(inc.recorded_at || '-')}</td>
                     </tr>
                 `);
             });
@@ -9372,13 +9372,13 @@
                 const $grid = $body.find('.store-view-widget-grid').last();
                 (section.widgets || []).forEach(widget => {
                     const cls = widget.danger ? ' widget-danger' : (widget.wide ? ' widget-wide' : '');
-                    $grid.append(`<div class="store-view-widget${cls}"><div class="widget-label">${escapeHtml(widget.label)}</div><div class="widget-value">${escapeHtml(widget.value || '—')}</div></div>`);
+                    $grid.append(`<div class="store-view-widget${cls}"><div class="widget-label">${escapeHtml(widget.label)}</div><div class="widget-value">${escapeHtml(widget.value || '-')}</div></div>`);
                 });
             });
             return;
         }
         (data.fields || []).forEach(field => {
-            $body.append(`<div class="store-view-field mb-3"><div class="store-view-label">${escapeHtml(field.label)}</div><div class="store-view-value">${escapeHtml(field.value || '—')}</div></div>`);
+            $body.append(`<div class="store-view-field mb-3"><div class="store-view-label">${escapeHtml(field.label)}</div><div class="store-view-value">${escapeHtml(field.value || '-')}</div></div>`);
         });
     }
 
@@ -9668,7 +9668,7 @@
     $('#inventoryActorsModal').on('shown.bs.modal', function () {
         initActorFormSelect2();
         syncActorModalFooter();
-        // Zima Bootstrap focus trap — husababisha scroll kurudi juu na Select2 kutoweza kuandika
+        // Zima Bootstrap focus trap, husababisha scroll kurudi juu na Select2 kutoweza kuandika
         $(document).off('focusin.bs.modal');
     });
 

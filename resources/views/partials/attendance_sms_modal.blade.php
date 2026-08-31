@@ -23,8 +23,8 @@
 
                 <div id="attendanceSmsContent" class="d-none">
                     <div class="alert alert-info border-0 shadow-sm mb-3">
-                        <div><strong>Schedule:</strong> <span id="attSmsScheduleLabel">—</span></div>
-                        <div><strong>Period:</strong> <span id="attSmsPeriodLabel">—</span></div>
+                        <div><strong>Schedule:</strong> <span id="attSmsScheduleLabel">-</span></div>
+                        <div><strong>Period:</strong> <span id="attSmsPeriodLabel">-</span></div>
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center mb-3">

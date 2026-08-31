@@ -3,7 +3,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 <style>
-    /* Class Management — brand color scheme */
+    /* Class Management, brand color scheme */
     .class-mgmt-page {
         --cm-white: #FFFFFF;
         --cm-red: #940000;
@@ -255,7 +255,7 @@
         box-shadow: 0 8px 25px rgba(148, 0, 0, 0.12) !important;
     }
 
-    /* Widget grid spacing (Bootstrap 4 safe — no gx/gy) */
+    /* Widget grid spacing (Bootstrap 4 safe, no gx/gy) */
     .class-mgmt-widgets {
         margin-left: -8px;
         margin-right: -8px;
@@ -626,7 +626,7 @@
                 <h6 class="card-title mb-0 fw-bold">Teacher Signature</h6>
                 <small class="text-muted" id="teacherSignatureWidgetHint">
                     @if(!empty($teacherHasSignature))
-                        Ready — View / Edit / Delete
+                        Ready, View / Edit / Delete
                     @else
                         Add your signature for reports
                     @endif
@@ -2469,7 +2469,7 @@
                 }
             });
 
-            // Teacher Signature (add / view / edit / delete — no duplicate uploads)
+            // Teacher Signature (add / view / edit / delete, no duplicate uploads)
             var teacherHasSignature = {{ !empty($teacherHasSignature) ? 'true' : 'false' }};
 
             function setTeacherSigUi(hasSig, url) {
@@ -2477,7 +2477,7 @@
                 if (hasSig && url) {
                     $('#teacherSigPreviewImg').attr('src', url).show();
                     $('#teacherSigEmptyPreview').hide();
-                    $('#teacherSignatureWidgetHint').text('Ready — View / Edit / Delete');
+                    $('#teacherSignatureWidgetHint').text('Ready, View / Edit / Delete');
                     $('#teacherSigViewBlock').show();
                     $('#teacherSigUploadBlock').hide();
                     $('#teacherSigCancelEditBtn').hide();
@@ -6032,7 +6032,7 @@
                                 html += '<td><strong>' + (result.total_marks || 0) + '</strong></td>';
                                 html += '<td><strong>' + (result.average_marks ? result.average_marks.toFixed(2) : '0.00') + '</strong></td>';
                                 html += '<td><span class="badge ' + gradeClass + '" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;">' + gradeOrDivision + '</span></td>';
-                                var classPosText = '—';
+                                var classPosText = '-';
                                 if (canEnter && result.class_position) {
                                     classPosText = result.class_position;
                                     if (result.total_class_students) {
@@ -7016,7 +7016,7 @@
                 $('#attendance_date').attr('max', today);
             });
 
-            // Fingerprint Attendance — separate modal (Local Agent / API, same as admin)
+            // Fingerprint Attendance, separate modal (Local Agent / API, same as admin)
             $('#fingerprintAttendanceBtn').on('click', function () {
                 if (typeof window.openTeacherFingerprintAttendanceModal === 'function') {
                     window.openTeacherFingerprintAttendanceModal();

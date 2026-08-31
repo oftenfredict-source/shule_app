@@ -1,4 +1,4 @@
-{{-- Teacher / coordinator fingerprint attendance (API from Local Agent — same as admin, scoped to class) --}}
+{{-- Teacher / coordinator fingerprint attendance (API from Local Agent, same as admin, scoped to class) --}}
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 <style>
     #fingerprintAttendanceModal .attendance-device-bar {
@@ -31,7 +31,7 @@
             <div class="modal-header bg-primary-custom text-white">
                 <h5 class="modal-title">
                     <i class="bi bi-fingerprint"></i> Student Fingerprint Attendance
-                    <small class="d-block" style="font-size:0.75rem;opacity:0.9;">Data from Local Agent (school LAN) — {{ $subclassDisplayName ?? 'Your class' }}</small>
+                    <small class="d-block" style="font-size:0.75rem;opacity:0.9;">Data from Local Agent (school LAN), {{ $subclassDisplayName ?? 'Your class' }}</small>
                 </h5>
                 <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
             </div>

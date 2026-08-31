@@ -3666,7 +3666,7 @@
 
                 var optionsHtml = '<option value="">-- Chagua device --</option>';
                 devices.forEach(function (d) {
-                    var location = d.location ? ' — ' + d.location : '';
+                    var location = d.location ? ', ' + d.location : '';
                     optionsHtml += '<option value="' + d.id + '">' + d.label + ' (' + d.ip + ':' + d.port + ')' + location + '</option>';
                 });
 
@@ -7149,7 +7149,7 @@
 
                 var row = teacherImportRows[i];
                 var pct = Math.round((i / total) * 100);
-                setImportProgress(pct, 'Registering...', 'Row ' + (i + 1) + ' of ' + total + ' — ' + (row.first_name || '') + ' ' + (row.last_name || ''));
+                setImportProgress(pct, 'Registering...', 'Row ' + (i + 1) + ' of ' + total + ', ' + (row.first_name || '') + ' ' + (row.last_name || ''));
 
                 var mode = $('#teacherImportEmpMode').val() || window.teacherQuickImportEmpMode || 'auto';
                 var payload = {
@@ -7441,7 +7441,7 @@
 
                 var row = staffImportRows[i];
                 var pct = Math.round((i / total) * 100);
-                setStaffImportProgress(pct, 'Registering...', 'Row ' + (i + 1) + ' of ' + total + ' — ' + (row.first_name || '') + ' ' + (row.last_name || ''));
+                setStaffImportProgress(pct, 'Registering...', 'Row ' + (i + 1) + ' of ' + total + ', ' + (row.first_name || '') + ' ' + (row.last_name || ''));
 
                 $.ajax({
                     url: '{{ route("save_other_staff") }}',

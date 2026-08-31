@@ -2,7 +2,7 @@
     $skipSplash = true;
     $portalActive = 'password';
     $seo = [
-        'title' => 'Change Password — ShuleXpert Online Admission',
+        'title' => 'Change Password | ShuleXpert Online Admission',
         'robots' => 'noindex, follow',
     ];
 @endphp

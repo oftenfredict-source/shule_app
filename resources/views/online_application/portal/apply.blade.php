@@ -2,7 +2,7 @@
     $skipSplash = true;
     $portalActive = 'apply';
     $seo = [
-        'title' => 'Apply to Schools — ShuleXpert Online Admission',
+        'title' => 'Apply to Schools | ShuleXpert Online Admission',
         'robots' => 'noindex, follow',
     ];
 @endphp

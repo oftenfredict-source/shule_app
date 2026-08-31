@@ -17,7 +17,7 @@
         . '. View available classes, admission spaces, and fee structure, then submit your student admission application on ShuleXpert by EmCa Techonology.';
     // Public marketing landing is indexable; portal chrome (logged-in) stays noindex.
     $seo = [
-        'title' => $schoolName . ' Online Application — Apply Now | ShuleXpert',
+        'title' => $schoolName . ' Online Application, Apply Now | ShuleXpert',
         'description' => \Illuminate\Support\Str::limit($seoDesc, 160, ''),
         'keywords' => implode(', ', array_filter([
             $schoolName,
@@ -223,7 +223,7 @@
                                                 @foreach($fee->breakdowns as $b)
                                                     <li>
                                                         {{ $b->item_name ?? $b->name ?? 'Item' }}
-                                                        — {{ number_format((float) ($b->amount ?? 0), 0) }} TZS
+                                                       , {{ number_format((float) ($b->amount ?? 0), 0) }} TZS
                                                     </li>
                                                 @endforeach
                                             </ul>
@@ -453,7 +453,7 @@ document.addEventListener('DOMContentLoaded', function () {
     $offerSchema = [
         '@context' => 'https://schema.org',
         '@type' => 'Offer',
-        'name' => 'Online admission application — ' . $schoolName,
+        'name' => 'Online admission application | ' . $schoolName,
         'url' => $schoolUrl,
         'description' => 'Submit a student admission application online to ' . $schoolName . ' via ShuleXpert.',
         'availability' => 'https://schema.org/InStock',

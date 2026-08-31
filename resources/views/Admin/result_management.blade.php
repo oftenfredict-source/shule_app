@@ -35,7 +35,7 @@
         color: #940000 !important;
     }
 
-    /* Student details modal — wider so subject tables fit */
+    /* Student details modal, wider so subject tables fit */
     #studentDetailsModal .modal-dialog {
         max-width: min(1140px, 96vw);
         width: 96%;
@@ -505,7 +505,7 @@
                                 </select>
                             </div>
 
-                            <!-- Academic Year (from header — not pickable here) -->
+                            <!-- Academic Year (from header, not pickable here) -->
                             <div class="col-md-2 mb-3">
                                 <label class="form-label">
                                     <i class="bi bi-calendar"></i> Academic Year
@@ -901,14 +901,14 @@
                                                         @if(!empty($student->result_enrollmentID))
                                                             <span class="badge badge-light border text-dark">#{{ $student->result_enrollmentID }}</span>
                                                         @else
-                                                            <span class="text-muted">—</span>
+                                                            <span class="text-muted">-</span>
                                                         @endif
                                                     </td>
                                                     <td>
                                                         @if($enrStatus)
                                                             <span class="enrollment-status-pill {{ $enrBadgeClass }}">{{ $enrStatus }}</span>
                                                         @else
-                                                            <span class="text-muted">—</span>
+                                                            <span class="text-muted">-</span>
                                                         @endif
                                                     </td>
                                                     <td>
@@ -1480,7 +1480,7 @@
                                         ->get()
                                         ->groupBy('subclassID');
 
-                                    // 2. Loop through each student — one row per subject (duo = total only)
+                                    // 2. Loop through each student, one row per subject (duo = total only)
                                     foreach ($examStudents as $examStudent) {
                                         $gender = $examStudent['student']->gender ?? '';
                                         $subclassID = $examStudent['student']->subclassID ?? $examStudent['student']->oldSubclassID ?? null;
@@ -2608,14 +2608,14 @@
                                                                     @if(!empty($st->result_enrollmentID))
                                                                         <span class="badge badge-light border text-dark">#{{ $st->result_enrollmentID }}</span>
                                                                     @else
-                                                                        <span class="text-muted">—</span>
+                                                                        <span class="text-muted">-</span>
                                                                     @endif
                                                                 </td>
                                                                 <td>
                                                                     @if($enrStatus)
                                                                         <span class="enrollment-status-pill {{ $enrBadgeClass }}">{{ $enrStatus }}</span>
                                                                     @else
-                                                                        <span class="text-muted">—</span>
+                                                                        <span class="text-muted">-</span>
                                                                     @endif
                                                                 </td>
                                                                 <td>{{ $examStudent['class_name'] ?? 'N/A' }}</td>
@@ -2875,7 +2875,7 @@
                                             }
                                         }
 
-                                        // Count divisions ('0' is valid — do not use truthy check on $division)
+                                        // Count divisions ('0' is valid, do not use truthy check on $division)
                                         if (in_array($division, ['I', 'II', 'III', 'IV', '0'], true)) {
                                             if (!isset($divisionStats[$division])) $divisionStats[$division] = 0;
                                             $divisionStats[$division]++;
@@ -3222,7 +3222,7 @@
                                                 'studentName' => trim($st->first_name . ' ' . ($st->middle_name ?? '') . ' ' . $st->last_name),
                                                 'parentPhone' => $pPhone,
                                                 'className' => $s['class_name'] ?? 'N/A',
-                                                // Report board shows average — keep numeric for SMS summary
+                                                // Report board shows average, keep numeric for SMS summary
                                                 'totalMarks' => round((float) ($s['average_marks'] ?? 0), 1),
                                                 'grade' => $s['grade'] ?? null,
                                                 'division' => $s['division'] ?? null,
@@ -4887,7 +4887,7 @@ $(document).ready(function() {
                                         ${renderRemarkCellHtml(subject.grade, isSecondaryExamSingle, isALevelExamDetails)}
                                     </tr>`;
                                 } else {
-                                    // Single Exam View — duo shows papers + total
+                                    // Single Exam View, duo shows papers + total
                                     const marks = subject.marks !== null && subject.marks !== '' ? 
                                         parseFloat(subject.marks).toFixed(0) : 'N/A';
                                     let subjectLabel = `<div class="font-weight-bold">${subject.subject_name}</div>`;
@@ -6149,7 +6149,7 @@ $(document).ready(function() {
 
     // =========================================================
     // SERVER-SIDE PDF DOWNLOAD HELPER (DomPDF via fetch blob)
-    // Validates real PDF bytes before saving — avoids corrupt .pdf files
+    // Validates real PDF bytes before saving, avoids corrupt .pdf files
     // =========================================================
     function askPdfDownloadOptions(opts) {
         opts = opts || {};
@@ -6366,7 +6366,7 @@ $(document).ready(function() {
         });
     }
 
-    /** @deprecated use askPdfDownloadOptions — kept for bulk_single callers that expect string watermark */
+    /** @deprecated use askPdfDownloadOptions, kept for bulk_single callers that expect string watermark */
     function askPdfWatermarkOption() {
         return askPdfDownloadOptions({ showNameMode: false }).then(function(result) {
             if (!result.isConfirmed) {
@@ -6850,7 +6850,7 @@ $(document).ready(function() {
             logoStackBottom = logoY + logoHeight;
         }
 
-        // School name header (centered) — org name above school name when under organization
+        // School name header (centered), org name above school name when under organization
         if (orgName) {
             doc.setFontSize(11);
             doc.setTextColor(85, 85, 85);
@@ -7338,7 +7338,7 @@ $(document).ready(function() {
 
         const $btn = $(this);
 
-        // No detailed view — use server-side DomPDF natively
+        // No detailed view, use server-side DomPDF natively
         console.log('Using server-side DomPDF export for class');
         const classVal    = $('#class').val() || '';
         const subclassVal = $('#subclass').val() || '';
@@ -7974,7 +7974,7 @@ $(document).ready(function() {
         }
     }
 
-    // Export All Excel — server-side (same filters/option logic as Export All PDF)
+    // Export All Excel, server-side (same filters/option logic as Export All PDF)
     $(document).off('click.sxExportExcel', '#exportAllExcel').on('click.sxExportExcel', '#exportAllExcel', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -8012,7 +8012,7 @@ $(document).ready(function() {
     });
 
     function exportAllStudentsPDF() {
-        // Legacy fallback — now main export is handled by #exportAllPdf click handler above
+        // Legacy fallback, now main export is handled by #exportAllPdf click handler above
         // using server-side DomPDF via fetch blob. This function is kept for any direct calls.
         $('#exportAllPdf').trigger('click');
     }
@@ -8467,7 +8467,7 @@ $(document).ready(function() {
             const teacherSignImg = images[5];
             let yPos = 15;
             
-            // Org logo above school logo (left) — no org name
+            // Org logo above school logo (left), no org name
             let leftLogoY = yPos;
             if (orgImg) {
                 const orgW = logoWidth * 0.85;
@@ -8487,7 +8487,7 @@ $(document).ready(function() {
                 doc.addImage(studentImg, 'PNG', pageWidth - 15 - studentImageWidth, yPos, studentImageWidth, studentActualHeight);
             }
             
-            // School name (center, between logo and image) — org name above
+            // School name (center, between logo and image), org name above
             if (orgName) {
                 doc.setFontSize(10);
                 doc.setTextColor(85, 85, 85);
@@ -8936,7 +8936,7 @@ $(document).ready(function() {
                 doc.addImage(studentImg, 'PNG', pageWidth - 15 - studentImageWidth, yPos, studentImageWidth, studentActualHeight);
             }
             
-            // School name (center, between logo and image) — org name above
+            // School name (center, between logo and image), org name above
             if (orgName) {
                 doc.setFontSize(10);
                 doc.setTextColor(85, 85, 85);
@@ -10014,12 +10014,12 @@ $(document).ready(function() {
                                 <div class="col-md-6">
                                     <label class="form-label font-weight-bold" for="defSchoolClosingDate">Closing Date (Kufunga)</label>
                                     <input type="date" class="form-control" id="defSchoolClosingDate" name="school_closing_date">
-                                    <small class="text-muted">Optional — shown on individual term report when set.</small>
+                                    <small class="text-muted">Optional, shown on individual term report when set.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label font-weight-bold" for="defSchoolOpeningDate">Opening Date (Kufungua)</label>
                                     <input type="date" class="form-control" id="defSchoolOpeningDate" name="school_opening_date">
-                                    <small class="text-muted">Optional — leave empty to hide Taarifa dates on report.</small>
+                                    <small class="text-muted">Optional, leave empty to hide Taarifa dates on report.</small>
                                 </div>
                             </div>
 
@@ -10565,7 +10565,7 @@ $(document).ready(function() {
                     ? '<span class="status-marker text-muted small"><i class="bi bi-hourglass"></i> Pending...</span>' 
                     : '<span class="text-danger small"><i class="bi bi-telephone-x"></i> No Phone</span>';
                 
-                // Use attr() not .data('position') — jQuery UI / layout code stores {top,left} under data key "position"
+                // Use attr() not .data('position'), jQuery UI / layout code stores {top,left} under data key "position"
                 const posVal = (student.position != null && student.position !== '') ? String(student.position) : '';
                 const totalVal = String(student.totalStudentsCount || student.total_class_students || context.totalCount || studentsData.length || '');
                 let dataAttrs = `data-student-id="${studentId}" data-phone="${phone}" `;
@@ -11172,10 +11172,10 @@ $(document).ready(function() {
                 .html('<i class="bi bi-check-circle"></i> Percent total is 100%. Ready to save.');
         } else if (remaining > 0) {
             box.removeClass('d-none alert-success').addClass('alert-warning')
-                .html('<i class="bi bi-exclamation-triangle"></i> Remaining <strong>' + remaining + '%</strong> — please select exam / assign %.');
+                .html('<i class="bi bi-exclamation-triangle"></i> Remaining <strong>' + remaining + '%</strong>: please select exam / assign %.');
         } else {
             box.removeClass('d-none alert-success').addClass('alert-warning')
-                .html('<i class="bi bi-exclamation-triangle"></i> Over by <strong>' + Math.abs(remaining) + '%</strong> — reduce some percents (must total 100%).');
+                .html('<i class="bi bi-exclamation-triangle"></i> Over by <strong>' + Math.abs(remaining) + '%</strong>: reduce some percents (must total 100%).');
         }
     }
 
@@ -11235,7 +11235,7 @@ $(document).ready(function() {
                 } else if (excludeId) {
                     box.html('<span class="text-info font-weight-bold"><i class="bi bi-pencil"></i> Editing existing report definition for this term / year.</span>');
                 } else {
-                    box.html('<span class="text-success"><i class="bi bi-check-circle"></i> No report defined yet for this term / year — available to define.</span>');
+                    box.html('<span class="text-success"><i class="bi bi-check-circle"></i> No report defined yet for this term / year, available to define.</span>');
                 }
             },
             error: function() {
@@ -11390,7 +11390,7 @@ $(document).ready(function() {
             if (Math.abs(sum - 100) > 0.05) {
                 const rem = Math.round((100 - sum) * 100) / 100;
                 Swal.fire('Percent Total', rem > 0
-                    ? ('Remaining ' + rem + '% — please select exam / assign %.')
+                    ? ('Remaining ' + rem + '%, please select exam / assign %.')
                     : ('Percents must total 100% (currently ' + sum + '%).'), 'warning');
                 return;
             }
@@ -11531,7 +11531,7 @@ $(document).ready(function() {
         
         loadExamsForDefinition(def.exam_ids || []);
         $('#define-report-tab').tab('show');
-        // Editing existing definition — do not treat self as conflict
+        // Editing existing definition, do not treat self as conflict
         reportDefConflict = false;
         $('#reportDefStatusFeedback').empty();
         checkReportDefinitionExists();
@@ -11631,10 +11631,10 @@ $(document).ready(function() {
                 .html('<i class="bi bi-check-circle"></i> Percent total is 100%. Ready to save.');
         } else if (remaining > 0) {
             box.removeClass('d-none alert-success').addClass('alert-warning')
-                .html('<i class="bi bi-exclamation-triangle"></i> Remaining <strong>' + remaining + '%</strong> — please select exam / assign %.');
+                .html('<i class="bi bi-exclamation-triangle"></i> Remaining <strong>' + remaining + '%</strong>: please select exam / assign %.');
         } else {
             box.removeClass('d-none alert-success').addClass('alert-warning')
-                .html('<i class="bi bi-exclamation-triangle"></i> Over by <strong>' + Math.abs(remaining) + '%</strong> — must total 100%.');
+                .html('<i class="bi bi-exclamation-triangle"></i> Over by <strong>' + Math.abs(remaining) + '%</strong>: must total 100%.');
         }
     }
 
@@ -11822,7 +11822,7 @@ $(document).ready(function() {
             if (Math.abs(sum - 100) > 0.05) {
                 const rem = Math.round((100 - sum) * 100) / 100;
                 Swal.fire('Percent Total', rem > 0
-                    ? ('Remaining ' + rem + '% — please select exam / assign %.')
+                    ? ('Remaining ' + rem + '%, please select exam / assign %.')
                     : ('Percents must total 100% (currently ' + sum + '%).'), 'warning');
                 return;
             }

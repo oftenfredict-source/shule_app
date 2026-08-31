@@ -1,4 +1,4 @@
-﻿@if($user_type == 'Admin')
+@if($user_type == 'Admin')
 @include('includes.Admin_nav')
 @elseif($user_type == 'Staff')
 @include('includes.staff_nav')
@@ -890,7 +890,7 @@
         color: #940000;
         font-weight: 700;
     }
-    /* Hide default BS5 SVG glyph if present — use × so it works on BS4 too */
+    /* Hide default BS5 SVG glyph if present, use × so it works on BS4 too */
     .modal-header .btn-close {
         background-image: none !important;
     }
@@ -2328,7 +2328,7 @@
                 <div id="undoMoveBatchesList">Loading...</div>
                 <div id="undoMoveConfirmBox" class="d-none p-3 mt-3" style="border:1px dashed #940000; background:#fff;">
                     <p class="mb-2 fw-bold" style="color:#940000;">
-                        Undo move batch #<span id="undoMoveConfirmBatchLabel">—</span>?
+                        Undo move batch #<span id="undoMoveConfirmBatchLabel">-</span>?
                     </p>
                     <p class="small text-muted mb-1">This restores students to previous enrollments. Type <strong>yes</strong> or <strong>no</strong></p>
                     <input type="text" class="form-control mb-2" id="undoMoveConfirmYesNo" placeholder="yes / no" style="border-radius:0;" autocomplete="off">
@@ -2358,8 +2358,8 @@
             </div>
             <div class="modal-body">
                 <div class="p-3 mb-3" style="background:#f5f5f5; border:1px solid #940000;">
-                    <div><strong id="singleMoveStudentName">—</strong></div>
-                    <div class="small text-muted">Current class: <span id="singleMoveCurrentClass">—</span></div>
+                    <div><strong id="singleMoveStudentName">-</strong></div>
+                    <div class="small text-muted">Current class: <span id="singleMoveCurrentClass">-</span></div>
                 </div>
 
                 <label class="form-label fw-bold">Move type</label>
@@ -2423,8 +2423,8 @@
             </div>
             <div class="modal-body">
                 <div class="p-3 mb-3" style="background:#f5f5f5; border:1px solid #940000;">
-                    <div><strong id="editEnrollmentStudentName">—</strong></div>
-                    <div class="small text-muted">Current class: <span id="editEnrollmentCurrentClass">—</span></div>
+                    <div><strong id="editEnrollmentStudentName">-</strong></div>
+                    <div class="small text-muted">Current class: <span id="editEnrollmentCurrentClass">-</span></div>
                 </div>
                 <p class="small text-muted mb-3">
                     Use when the student leaves the school or stops attending.

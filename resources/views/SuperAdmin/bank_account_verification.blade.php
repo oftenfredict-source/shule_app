@@ -70,7 +70,7 @@
 <div class="container-fluid mt-3">
     <div class="page-hero">
         <h4><i class="bx bx-check-shield me-2"></i>Bank Account Verification</h4>
-        <p class="mb-0 text-muted small">Select a school to review pending bank accounts for Multi Account Fees. Approve or reject — school Admin will receive SMS.</p>
+        <p class="mb-0 text-muted small">Select a school to review pending bank accounts for Multi Account Fees. Approve or reject, school Admin will receive SMS.</p>
     </div>
 
     <div class="card border shadow-sm mb-3">
@@ -155,7 +155,7 @@ $(function () {
             }
             let html = '';
             res.accounts.forEach(function (a) {
-                let actions = '—';
+                let actions = '-';
                 if (a.status === 'pending' || a.status === 'rejected') {
                     actions = '<button class="btn btn-sm btn-success btn-approve me-1" data-id="' + a.accountID + '"><i class="bx bx-check"></i> Approve</button>' +
                         '<button class="btn btn-sm btn-outline-danger btn-reject" data-id="' + a.accountID + '"><i class="bx bx-x"></i> Reject</button>';
@@ -164,11 +164,11 @@ $(function () {
                 }
                 html += '<tr>' +
                     '<td class="fw-bold">' + a.account_number + '</td>' +
-                    '<td>' + (a.account_name || '—') + '</td>' +
+                    '<td>' + (a.account_name || '-') + '</td>' +
                     '<td>' + a.bank_name + (a.bank_code ? ' <small class="text-muted">(' + a.bank_code + ')</small>' : '') + '</td>' +
                     '<td>' + statusBadge(a.status) + '</td>' +
-                    '<td>' + (a.otp_verified_at || '—') + '</td>' +
-                    '<td class="small">' + (a.status === 'rejected' && a.rejection_reason ? ('<span class="text-danger">' + a.rejection_reason + '</span>') : (a.reviewed_at || '—')) + '</td>' +
+                    '<td>' + (a.otp_verified_at || '-') + '</td>' +
+                    '<td class="small">' + (a.status === 'rejected' && a.rejection_reason ? ('<span class="text-danger">' + a.rejection_reason + '</span>') : (a.reviewed_at || '-')) + '</td>' +
                     '<td class="text-end text-nowrap">' + actions + '</td>' +
                     '</tr>';
             });

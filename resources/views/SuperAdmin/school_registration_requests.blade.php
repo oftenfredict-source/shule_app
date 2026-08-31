@@ -100,7 +100,7 @@
                                 </td>
                                 <td class="small">
                                     <div>{{ $row->phone }}</div>
-                                    <div class="text-muted">{{ $row->email ?: '—' }}</div>
+                                    <div class="text-muted">{{ $row->email ?: '-' }}</div>
                                 </td>
                                 <td>
                                     @if($row->status === 'pending')
@@ -129,7 +129,7 @@
                                             </button>
                                         </form>
                                     @else
-                                        <span class="text-muted small">—</span>
+                                        <span class="text-muted small">-</span>
                                     @endif
                                     @if($row->notes)
                                         <div class="small text-muted mt-1" title="{{ $row->notes }}">Note: {{ \Illuminate\Support\Str::limit($row->notes, 40) }}</div>

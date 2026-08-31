@@ -40,7 +40,7 @@
                             <div class="form-group">
                                 <label>File (PDF / DOC / DOCX) <span id="hpFileRequired">*</span></label>
                                 <input type="file" class="form-control-file" id="hpFile" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-                                <small class="text-muted d-block" id="hpFileHint">You cannot upload twice for the same holiday on this subject — edit or delete first.</small>
+                                <small class="text-muted d-block" id="hpFileHint">You cannot upload twice for the same holiday on this subject, edit or delete first.</small>
                                 <small class="text-info d-none d-block mt-1" id="hpCurrentFile"></small>
                             </div>
                             <div class="alert alert-warning d-none" id="hpHolidayTakenAlert">
@@ -188,7 +188,7 @@
             $('#hpFile').val('');
             $('#hpCurrentFile').addClass('d-none').text('');
             $('#hpFileRequired').show();
-            $('#hpFileHint').text('You cannot upload twice for the same holiday on this subject — edit or delete first.');
+            $('#hpFileHint').text('You cannot upload twice for the same holiday on this subject, edit or delete first.');
             $('#hpHolidayTakenAlert').addClass('d-none');
             $('#hpSaveBtn').text('Save').prop('disabled', false);
             loadHolidaysInto('#hpHoliday', false);

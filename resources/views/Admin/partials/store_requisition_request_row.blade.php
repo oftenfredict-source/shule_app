@@ -2,28 +2,28 @@
     $isPending = ($req['status'] ?? '') === 'requested';
     $canApprove = !empty($req['can_approve']) && $isPending;
     $statusPlain = match ($req['status'] ?? '') {
-        'requested' => !empty($req['is_new']) ? 'Requested — New' : 'Requested',
+        'requested' => !empty($req['is_new']) ? 'Requested, New' : 'Requested',
         'rejected' => 'Rejected',
         'cancelled' => 'Cancelled',
         'approved' => 'Approved',
-        default => ucfirst($req['status'] ?? '—'),
+        default => ucfirst($req['status'] ?? '-'),
     };
     $reqViewMore = [
-        'title' => 'Item Request — ' . ($req['requester_name'] ?? ''),
+        'title' => 'Item Request | ' . ($req['requester_name'] ?? ''),
         'layout' => 'widgets',
         'sections' => [[
             'title' => 'Request Details',
             'widgets' => array_values(array_filter([
-                ['label' => 'Requester', 'value' => $req['requester_name'] ?? '—'],
-                ['label' => 'Type', 'value' => $req['requester_type_label'] ?? '—'],
+                ['label' => 'Requester', 'value' => $req['requester_name'] ?? '-'],
+                ['label' => 'Type', 'value' => $req['requester_type_label'] ?? '-'],
                 ['label' => 'Status', 'value' => $statusPlain],
-                ['label' => 'Items Requested', 'value' => $req['items_summary'] ?? '—'],
-                ['label' => 'Expected Return', 'value' => $req['expected_return_date'] ?? '—'],
-                ['label' => 'Requested', 'value' => $req['requested_at'] ?? '—'],
-                ['label' => 'Requested By', 'value' => $req['requested_by'] ?? '—'],
-                !$isPending ? ['label' => 'Reviewed', 'value' => ($req['reviewed_at'] ?? '—') . ($req['reviewed_by'] ? ' by ' . $req['reviewed_by'] : '')] : null,
+                ['label' => 'Items Requested', 'value' => $req['items_summary'] ?? '-'],
+                ['label' => 'Expected Return', 'value' => $req['expected_return_date'] ?? '-'],
+                ['label' => 'Requested', 'value' => $req['requested_at'] ?? '-'],
+                ['label' => 'Requested By', 'value' => $req['requested_by'] ?? '-'],
+                !$isPending ? ['label' => 'Reviewed', 'value' => ($req['reviewed_at'] ?? '-') . ($req['reviewed_by'] ? ' by ' . $req['reviewed_by'] : '')] : null,
                 !$isPending && !empty($req['review_notes']) ? ['label' => 'Review Notes', 'value' => $req['review_notes']] : null,
-                ['label' => 'Notes', 'value' => $req['notes'] ?? '—'],
+                ['label' => 'Notes', 'value' => $req['notes'] ?? '-'],
             ])),
         ]],
     ];
@@ -44,9 +44,9 @@
         @endif
     </td>
     <td class="small">{{ $req['items_summary'] }}</td>
-    <td class="small text-muted">—</td>
+    <td class="small text-muted">-</td>
     <td>{!! $req['status_html'] ?? '' !!}</td>
-    <td>{{ $req['expected_return_date'] ?? '—' }}</td>
+    <td>{{ $req['expected_return_date'] ?? '-' }}</td>
     <td class="store-actions-cell">
         <div class="dropdown store-action-dropdown">
             <button class="btn btn-sm store-action-toggle" type="button" data-toggle="dropdown" aria-label="Actions"><i class="fa fa-ellipsis-v"></i></button>

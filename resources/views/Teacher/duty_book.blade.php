@@ -325,7 +325,7 @@ $(document).ready(function() {
             } else {
                 $('#dailyDutyForm input, #dailyDutyForm textarea').prop('readonly', false);
                 $('#dailyDutyForm input[type="number"]').css('background-color', '#fff');
-                // Attendance grid locked to Active enrollments (header year) — not editable
+                // Attendance grid locked to Active enrollments (header year), not editable
                 $('#attendance_table input').prop('readonly', true).css('background-color', '#f8f9fa');
                 $('#attendance_percentage').prop('readonly', true).css('background-color', '#e8f5e9');
                 $('#saveDraft, #saveAndSend, #syncFromAttendance').show();
@@ -341,7 +341,7 @@ $(document).ready(function() {
             if (response.academic_year_label) {
                 $('#duty_enrollment_scope_note').html(
                     '<i class="fa fa-lock mr-1" style="color: #940000;"></i> Counts from <strong>Active enrollments</strong> only' +
-                    ' (' + response.academic_year_label + ') — not editable. Use Sync to refresh.'
+                    ' (' + response.academic_year_label + '), not editable. Use Sync to refresh.'
                 );
             }
 

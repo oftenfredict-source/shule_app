@@ -67,7 +67,7 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
-    /* Header: flex row — years/icons scroll; avatar never overlaps */
+    /* Header: flex row, years/icons scroll; avatar never overlaps */
     #header .header-menu {
         display: flex !important;
         flex-wrap: nowrap !important;
@@ -230,7 +230,7 @@
         display: block;
     }
 
-    /* Offset page under fixed mobile bar — keep footer at bottom */
+    /* Offset page under fixed mobile bar, keep footer at bottom */
     .right-panel,
     #right-panel {
         padding-top: 52px !important;

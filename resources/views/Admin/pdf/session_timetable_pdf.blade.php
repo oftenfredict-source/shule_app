@@ -192,7 +192,7 @@
 
         $formatCell = function (array $list) {
             if (empty($list)) {
-                return '<span style="color:#bbb;">—</span>';
+                return '<span style="color:#bbb;">-</span>';
             }
             $seen = [];
             $unique = [];
@@ -221,14 +221,14 @@
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div>{{ $school->address ?? '' }}</div>
         <div>Phone: {{ $school->phone ?? '' }}@if(!empty($school->email)) | Email: {{ $school->email }}@endif</div>
-        <div class="report-title">{{ $reportTitle ?? ('SESSION TIMETABLE — ' . strtoupper($classLabel)) }}</div>
+        <div class="report-title">{{ $reportTitle ?? ('SESSION TIMETABLE, ' . strtoupper($classLabel)) }}</div>
     </div>
 
     <div class="info-section">
         <table class="info-table">
             <tr>
                 <td class="label">Class / Stream:</td>
-                <td>{{ $classLabel ?: '—' }}</td>
+                <td>{{ $classLabel ?: '-' }}</td>
                 <td class="label">Date Generated:</td>
                 <td>{{ date('d M Y H:i') }}</td>
             </tr>
@@ -237,8 +237,7 @@
                 <td>
                     @if($definition)
                         {{ $definition->session_start_time ?? '' }} – {{ $definition->session_end_time ?? '' }}
-                    @else
-                        —
+                    @else,
                     @endif
                 </td>
                 <td class="label">Prepo:</td>

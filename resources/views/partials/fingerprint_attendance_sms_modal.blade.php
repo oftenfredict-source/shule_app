@@ -18,8 +18,8 @@
 
                 <div id="fpAttSmsContent" class="d-none">
                     <div class="alert alert-info border-0 shadow-sm mb-3">
-                        <div><strong>Period:</strong> <span id="fpAttSmsPeriodLabel">—</span></div>
-                        <div><strong>Schedule:</strong> <span id="fpAttSmsScheduleLabel">—</span></div>
+                        <div><strong>Period:</strong> <span id="fpAttSmsPeriodLabel">-</span></div>
+                        <div><strong>Schedule:</strong> <span id="fpAttSmsScheduleLabel">-</span></div>
                         <div class="small text-muted mt-1" id="fpAttSmsScheduleNote"></div>
                     </div>
 
@@ -131,8 +131,8 @@
                 }
 
                 $('#fpAttSmsContent').removeClass('d-none');
-                $('#fpAttSmsPeriodLabel').text(res.period_label || '—');
-                $('#fpAttSmsScheduleLabel').text(res.schedule_label || res.schedule || '—');
+                $('#fpAttSmsPeriodLabel').text(res.period_label || '-');
+                $('#fpAttSmsScheduleLabel').text(res.schedule_label || res.schedule || '-');
                 $('#fpAttSmsScheduleNote').text(
                     res.configured
                         ? (res.auto_summary || 'School schedule configured.')

@@ -469,7 +469,7 @@
                     @if($activeYear)
                         <p class="mb-0 mt-2"><strong>Active year:</strong> {{ $activeYear->year_name ?? $activeYear->year }}</p>
                     @else
-                        <p class="text-danger mb-0 mt-2">No active academic year — set one before configuring spaces.</p>
+                        <p class="text-danger mb-0 mt-2">No active academic year, set one before configuring spaces.</p>
                     @endif
                     @if(!empty($publicApplicationUrl))
                         <div class="mt-3 d-flex flex-wrap align-items-center gap-2">
@@ -1142,10 +1142,10 @@
             $grid.append(
                 '<article class="oa-app-card">' +
                     '<div class="oa-app-card__ref">' + escapeHtml(row.application_number || '') + '</div>' +
-                    '<h3 class="oa-app-card__name">' + escapeHtml(row.student_name || '—') + '</h3>' +
-                    '<p class="oa-app-card__meta"><i class="fa fa-phone"></i> ' + escapeHtml(row.parent_phone || '—') + '</p>' +
-                    '<p class="oa-app-card__meta"><i class="fa fa-graduation-cap"></i> ' + escapeHtml(row.class_name || '—') + '</p>' +
-                    '<p class="oa-app-card__meta"><i class="fa fa-clock-o"></i> ' + escapeHtml(row.created_at || '—') + '</p>' +
+                    '<h3 class="oa-app-card__name">' + escapeHtml(row.student_name || '-') + '</h3>' +
+                    '<p class="oa-app-card__meta"><i class="fa fa-phone"></i> ' + escapeHtml(row.parent_phone || '-') + '</p>' +
+                    '<p class="oa-app-card__meta"><i class="fa fa-graduation-cap"></i> ' + escapeHtml(row.class_name || '-') + '</p>' +
+                    '<p class="oa-app-card__meta"><i class="fa fa-clock-o"></i> ' + escapeHtml(row.created_at || '-') + '</p>' +
                     '<div class="oa-app-card__footer">' +
                         '<span class="' + statusClass(row.status) + '">' + escapeHtml(row.status || '') + '</span>' +
                         '<button class="btn btn-sm btn-outline-primary-custom btn-view-app" data-id="' + row.id + '">View more</button>' +
@@ -2004,7 +2004,7 @@
         } else if (field.is_file) {
             html += '<div class="oa-app-response-value text-muted">No file uploaded</div>';
         } else {
-            html += '<div class="oa-app-response-value">' + escapeHtml(field.value || '—') + '</div>';
+            html += '<div class="oa-app-response-value">' + escapeHtml(field.value || '-') + '</div>';
         }
         html += '</div>';
         return html;
@@ -2065,12 +2065,12 @@
             var sections = res.sections || [];
 
             var html = '<div class="oa-app-summary">';
-            html += '<div class="oa-app-summary-item"><span>Reference</span><strong>' + escapeHtml(meta.application_number || d.application_number || '—') + '</strong></div>';
-            html += '<div class="oa-app-summary-item"><span>Status</span><strong>' + escapeHtml(meta.status || d.status || '—') + '</strong></div>';
-            html += '<div class="oa-app-summary-item"><span>Student</span><strong>' + escapeHtml(meta.student_name || '—') + '</strong></div>';
-            html += '<div class="oa-app-summary-item"><span>Class</span><strong>' + escapeHtml(meta.class_name || (d.class ? d.class.class_name : '—')) + '</strong></div>';
-            html += '<div class="oa-app-summary-item"><span>Parent</span><strong>' + escapeHtml((meta.parent_name || '—') + (meta.parent_phone ? ' · ' + meta.parent_phone : '')) + '</strong></div>';
-            html += '<div class="oa-app-summary-item"><span>Submitted</span><strong>' + escapeHtml(meta.submitted_at || '—') + '</strong></div>';
+            html += '<div class="oa-app-summary-item"><span>Reference</span><strong>' + escapeHtml(meta.application_number || d.application_number || '-') + '</strong></div>';
+            html += '<div class="oa-app-summary-item"><span>Status</span><strong>' + escapeHtml(meta.status || d.status || '-') + '</strong></div>';
+            html += '<div class="oa-app-summary-item"><span>Student</span><strong>' + escapeHtml(meta.student_name || '-') + '</strong></div>';
+            html += '<div class="oa-app-summary-item"><span>Class</span><strong>' + escapeHtml(meta.class_name || (d.class ? d.class.class_name : '-')) + '</strong></div>';
+            html += '<div class="oa-app-summary-item"><span>Parent</span><strong>' + escapeHtml((meta.parent_name || '-') + (meta.parent_phone ? ' · ' + meta.parent_phone : '')) + '</strong></div>';
+            html += '<div class="oa-app-summary-item"><span>Submitted</span><strong>' + escapeHtml(meta.submitted_at || '-') + '</strong></div>';
             html += '</div>';
 
             if (!sections.length) {

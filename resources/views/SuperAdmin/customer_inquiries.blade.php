@@ -204,7 +204,7 @@
                 '<div class="col-md-6"><div class="small text-muted">Customer</div><div class="fw-bold">' + escapeHtml(data.name) + '</div></div>' +
                 '<div class="col-md-6"><div class="small text-muted">Received</div><div>' + escapeHtml(data.created_at) + '</div></div>' +
                 '<div class="col-md-6"><div class="small text-muted">Email</div><div><a href="mailto:' + escapeHtml(data.email) + '">' + escapeHtml(data.email) + '</a></div></div>' +
-                '<div class="col-md-6"><div class="small text-muted">Phone</div><div>' + escapeHtml(data.phone || '—') + '</div></div>' +
+                '<div class="col-md-6"><div class="small text-muted">Phone</div><div>' + escapeHtml(data.phone || '-') + '</div></div>' +
                 '<div class="col-12"><div class="small text-muted">Subject</div><div class="fw-bold">' + escapeHtml(data.subject) + '</div></div>' +
             '</div>' +
             '<div class="border p-3" style="background:#fffafa; white-space:pre-wrap;">' + escapeHtml(data.message) + '</div>'
@@ -265,7 +265,7 @@
                 {
                     data: null,
                     render: function (data, type, row) {
-                        return '<div class="small">' + escapeHtml(row.email) + '</div><div class="small text-muted">' + escapeHtml(row.phone || '—') + '</div>';
+                        return '<div class="small">' + escapeHtml(row.email) + '</div><div class="small text-muted">' + escapeHtml(row.phone || '-') + '</div>';
                     }
                 },
                 { data: 'subject', render: function (d) { return escapeHtml(d); } },
@@ -322,7 +322,7 @@
                                 '</div>' +
                                 '<div class="ci-meta mb-2"><strong>' + escapeHtml(row.name) + '</strong></div>' +
                                 '<div class="ci-meta mb-1"><i class="bx bx-envelope"></i> ' + escapeHtml(row.email) + '</div>' +
-                                '<div class="ci-meta mb-2"><i class="bx bx-phone"></i> ' + escapeHtml(row.phone || '—') + '</div>' +
+                                '<div class="ci-meta mb-2"><i class="bx bx-phone"></i> ' + escapeHtml(row.phone || '-') + '</div>' +
                                 '<p class="small text-muted mb-3">' + escapeHtml(row.message_preview) + '</p>' +
                                 '<div class="d-flex justify-content-between align-items-center">' +
                                     '<span class="small text-muted">' + escapeHtml(row.created_at) + '</span>' +

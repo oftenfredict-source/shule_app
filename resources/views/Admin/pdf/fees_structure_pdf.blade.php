@@ -17,7 +17,7 @@
 
         .section-title { font-size: 11.5px; font-weight: bold; color: #940000; border-bottom: 1.5px solid #940000; padding-bottom: 4px; margin-top: 14px; margin-bottom: 8px; }
 
-        /* Overview widgets — equal width, full page balance */
+        /* Overview widgets, equal width, full page balance */
         .stats-grid { width: 100%; margin-bottom: 14px; border-collapse: collapse; table-layout: fixed; }
         .stats-grid td {
             width: 20%;
@@ -153,7 +153,7 @@
                 $isMulti = ($fee->account_mode ?? 'single') === 'multi';
                 $accountLabel = ($fee->bankAccount && method_exists($fee->bankAccount, 'displayLabel'))
                     ? $fee->bankAccount->displayLabel()
-                    : ($isMulti ? '—' : 'Shared / Single');
+                    : ($isMulti ? '-' : 'Shared / Single');
                 $breakdowns = ($fee->has_breakdown && $fee->breakdowns && $fee->breakdowns->count())
                     ? $fee->breakdowns->values()
                     : collect();
@@ -202,7 +202,7 @@
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div>{{ $school->address ?? '' }}</div>
         <div>Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
-        <div class="report-title">{{ $reportTitle ?? ('OFFICIAL FEES STRUCTURE — ' . ($scopeLabel ?? 'ALL CLASSES') . ' | ' . $yearLabel) }}</div>
+        <div class="report-title">{{ $reportTitle ?? ('OFFICIAL FEES STRUCTURE, ' . ($scopeLabel ?? 'ALL CLASSES') . ' | ' . $yearLabel) }}</div>
     </div>
 
     <div class="info-section">
@@ -303,15 +303,15 @@
                                 @endif
                             </td>
                             <td rowspan="{{ $feeRowspan }}">{{ !empty($row['is_multi']) ? 'Multi' : 'Single' }}</td>
-                            <td rowspan="{{ $feeRowspan }}">{{ $row['account_label'] ?? '—' }}</td>
+                            <td rowspan="{{ $feeRowspan }}">{{ $row['account_label'] ?? '-' }}</td>
                         @endif
 
                         @if(($row['type'] ?? '') === 'fee_breakdown')
-                            <td>{{ $row['breakdown']->item_name ?? '—' }}</td>
+                            <td>{{ $row['breakdown']->item_name ?? '-' }}</td>
                             <td class="amount-col">{{ number_format((float) ($row['breakdown']->amount ?? 0), 0) }}</td>
                         @else
                             <td class="muted">Direct amount</td>
-                            <td class="amount-col muted">—</td>
+                            <td class="amount-col muted">-</td>
                         @endif
 
                         @if(!empty($row['is_first_breakdown']))

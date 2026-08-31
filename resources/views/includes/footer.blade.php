@@ -29,7 +29,7 @@
     margin-left: 280px !important;
     min-height: 100vh;
     position: relative;
-    /* Do NOT set z-index here — it traps modals under the fixed sidebar */
+    /* Do NOT set z-index here, it traps modals under the fixed sidebar */
     z-index: auto !important;
   }
 
@@ -140,7 +140,7 @@
   body.open #left-panel .dropdown-nav-item > .submenu {
     display: none !important;
     position: fixed !important;
-    /* left/top set by JS — do not use !important here or flyout sticks to top */
+    /* left/top set by JS, do not use !important here or flyout sticks to top */
     left: 84px;
     top: 0;
     min-width: 250px;
@@ -209,7 +209,7 @@
   }
   } /* end desktop collapsed sidebar */
 
-  /* Sidebar toggle button (desktop header) — keep visible, original theme margins OK on desktop */
+  /* Sidebar toggle button (desktop header), keep visible, original theme margins OK on desktop */
   #header .menutoggle,
   a#menuToggle.menutoggle,
   .header .menutoggle {
@@ -242,7 +242,7 @@
     color: #940000 !important;
   }
 
-  /* Mobile app bar (ShuleXpert + 3 dots) — matches teachers mobile header */
+  /* Mobile app bar (ShuleXpert + 3 dots), matches teachers mobile header */
   .mobile-app-bar {
     display: none;
   }
@@ -446,7 +446,7 @@
       display: block;
     }
 
-    /* Offset content below fixed app bar — do not break footer to bottom */
+    /* Offset content below fixed app bar, do not break footer to bottom */
     .right-panel,
     #right-panel {
       padding-top: 52px !important;
@@ -562,7 +562,7 @@
 
     /*
      * Profile + flag side-by-side (horizontal).
-     * Do not use body.open here — theme style.css .open = 70px icon rail + font-size:0.
+     * Do not use body.open here, theme style.css .open = 70px icon rail + font-size:0.
      */
     #header .header-menu > .col-sm-5 {
       display: flex !important;
@@ -649,7 +649,7 @@
       max-width: min(300px, 86vw) !important;
     }
 
-    /* Logo — original size (not tiny square rail) */
+    /* Logo, original size (not tiny square rail) */
     #left-panel .navbar-header,
     body.mobile-drawer-open #left-panel .navbar-header {
       display: flex !important;
@@ -724,7 +724,7 @@
       box-sizing: border-box !important;
     }
 
-    /* Full-width readable links — beat theme .open font-size:0 / max-width:60px */
+    /* Full-width readable links, beat theme .open font-size:0 / max-width:60px */
     body.mobile-drawer-open #left-panel .sidebar-links-container > ul > li,
     body.mobile-drawer-open #left-panel .navbar-nav li,
     #left-panel .sidebar-links-container > ul > li {
@@ -990,7 +990,7 @@
                 var mobile = isMobileSidebar();
 
                 if (mobile) {
-                    /* Theme .open = 70px + font-size:0 — never keep it on mobile */
+                    /* Theme .open = 70px + font-size:0, never keep it on mobile */
                     if (document.body.classList.contains('open')) {
                         document.body.classList.remove('open');
                         document.body.classList.add('mobile-drawer-open');
@@ -1022,12 +1022,12 @@
             ensureSidebarBackdrop();
             syncMobileSidebar();
 
-            // Desktop #menuToggle: main.js toggles body.open — sync backdrop only
+            // Desktop #menuToggle: main.js toggles body.open, sync backdrop only
             jQuery(document).on('click', '#menuToggle', function () {
                 setTimeout(syncMobileSidebar, 0);
             });
 
-            // Mobile top-bar 3-dot — use mobile-drawer-open (NOT body.open)
+            // Mobile top-bar 3-dot, use mobile-drawer-open (NOT body.open)
             // Skip if teacher/staff nav already bound a dedicated handler (avoids double-toggle)
             if (!window.__sxTeacherMobileToggleBound) {
                 jQuery(document).on('click', '#mobileSidebarToggle', function (e) {

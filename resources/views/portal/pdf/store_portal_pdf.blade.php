@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>My Store Portal — {{ ucfirst($section ?? 'dashboard') }}</title>
+    <title>My Store Portal, {{ ucfirst($section ?? 'dashboard') }}</title>
     <style>
         body { font-family: Helvetica, Arial, sans-serif; font-size: 10px; color: #333; line-height: 1.35; }
         .header { text-align: center; margin-bottom: 16px; border-bottom: 2px solid #940000; padding-bottom: 8px; }
@@ -29,11 +29,11 @@
 
     <div class="header">
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
-        <div class="report-title">My Store Portal — {{ ucfirst(str_replace('_', ' ', $section ?? 'dashboard')) }}</div>
+        <div class="report-title">My Store Portal, {{ ucfirst(str_replace('_', ' ', $section ?? 'dashboard')) }}</div>
     </div>
 
     <table class="meta-table">
-        <tr><td class="meta-label">Requester</td><td>{{ $requester['name'] ?? '—' }} ({{ ucfirst($requester['type'] ?? $portalRole ?? '') }})</td></tr>
+        <tr><td class="meta-label">Requester</td><td>{{ $requester['name'] ?? '-' }} ({{ ucfirst($requester['type'] ?? $portalRole ?? '') }})</td></tr>
         <tr><td class="meta-label">Generated</td><td>{{ $generated_at ?? now()->format('d M Y, H:i') }}</td></tr>
     </table>
 
@@ -63,9 +63,9 @@
                     <tr>
                         <td>{{ $i + 1 }}</td>
                         <td>{{ $req['items_summary'] }}</td>
-                        <td>{{ $req['expected_return_date'] ?? '—' }}</td>
+                        <td>{{ $req['expected_return_date'] ?? '-' }}</td>
                         <td>{{ $req['requested_at'] }}</td>
-                        <td>{{ $req['notes'] ?? '—' }}</td>
+                        <td>{{ $req['notes'] ?? '-' }}</td>
                     </tr>
                     @endforeach
                 </tbody>
@@ -85,7 +85,7 @@
                         <td>{{ ucfirst($req['status']) }}</td>
                         <td>{{ $req['items_summary'] }}</td>
                         <td>{{ $req['requested_at'] }}</td>
-                        <td>{{ $req['reviewed_at'] ?? '—' }}</td>
+                        <td>{{ $req['reviewed_at'] ?? '-' }}</td>
                     </tr>
                     @endforeach
                 </tbody>
@@ -108,7 +108,7 @@
                         <td>{{ $req['label'] }}</td>
                         <td>{{ $req['take_display'] }}</td>
                         <td>{{ strip_tags($req['return_status_html'] ?? '') }}</td>
-                        <td>{{ $req['expected_return_date'] ?? '—' }}</td>
+                        <td>{{ $req['expected_return_date'] ?? '-' }}</td>
                         <td>{{ $req['issued_at'] }}</td>
                     </tr>
                     @endforeach
@@ -131,7 +131,7 @@
                         <td>{{ ucfirst($inc['incident_type']) }}</td>
                         <td>{{ $inc['item_name'] }}</td>
                         <td>{{ $inc['label'] }}</td>
-                        <td>{{ $inc['reason'] ?? '—' }}</td>
+                        <td>{{ $inc['reason'] ?? '-' }}</td>
                         <td>{{ strip_tags($inc['resolve_status_html'] ?? '') }}</td>
                         <td>{{ $inc['recorded_at'] }}</td>
                     </tr>

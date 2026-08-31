@@ -22,4 +22,4 @@
         required
     >
 </div>
-<p class="sx-tz-phone-hint mb-0 mt-1">Must start with <strong>255</strong> — continue with your 9-digit mobile number.</p>
+<p class="sx-tz-phone-hint mb-0 mt-1">Must start with <strong>255</strong>: continue with your 9-digit mobile number.</p>

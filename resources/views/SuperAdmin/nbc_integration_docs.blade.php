@@ -52,13 +52,13 @@
         <div class="card-body">
             <h6 class="fw-bold text-primary mb-2" style="color:#940000 !important;">Integration modules covered</h6>
             <div>
-                <span class="api-chip">1. Name Lookup API — ShuleXpert</span>
-                <span class="api-chip">2. Payment Webhook — ShuleXpert</span>
-                <span class="api-chip">3. Status Inquiry — NBC</span>
-                <span class="api-chip">4. Deduction / Commission — NBC</span>
+                <span class="api-chip">1. Name Lookup API, ShuleXpert</span>
+                <span class="api-chip">2. Payment Webhook, ShuleXpert</span>
+                <span class="api-chip">3. Status Inquiry, NBC</span>
+                <span class="api-chip">4. Deduction / Commission, NBC</span>
             </div>
             <p class="text-muted small mb-0 mt-2">
-                Font: Century Gothic &nbsp;|&nbsp; Layout: official report style with ShuleXpert logo &amp; watermark &nbsp;|&nbsp; No live API coding in this step — documentation only.
+                Font: Century Gothic &nbsp;|&nbsp; Layout: official report style with ShuleXpert logo &amp; watermark &nbsp;|&nbsp; No live API coding in this step, documentation only.
             </p>
         </div>
     </div>

@@ -18,7 +18,7 @@
 
 <div class="col-12 mt-2">
     <h6 class="text-primary-custom fw-bold border-bottom pb-2 mb-3">
-        <i class="bi bi-card-checklist"></i> TANGE — Teachers Particular
+        <i class="bi bi-card-checklist"></i> TANGE, Teachers Particular
     </h6>
 </div>
 

@@ -1,8 +1,8 @@
 @php
     $skipSplash = true;
     $seo = [
-        'title' => 'Online School Application Tanzania — Apply to Schools | ShuleXpert',
-        'description' => 'Apply to primary and secondary schools online with ShuleXpert. Search schools in Tanzania by region or district, check class availability, view school details, and submit your student admission application in minutes. Free for parents — powered by EmCa Techonology.',
+        'title' => 'Online School Application Tanzania | Apply to Schools | ShuleXpert',
+        'description' => 'Apply to primary and secondary schools online with ShuleXpert. Search schools in Tanzania by region or district, check class availability, view school details, and submit your student admission application in minutes. Free for parents, powered by EmCa Techonology.',
         'keywords' => 'online school application Tanzania, apply to school online, school admission Tanzania, ShuleXpert online application, primary school application, secondary school application, student admission online, school enrollment Tanzania, apply school Moshi, EmCa Techonology, ShuleXpert admission portal',
         'canonical' => app(\App\Services\OnlineApplicationApplyTokenService::class)->publicAbsoluteUrl('/online-application'),
         'type' => 'website',
@@ -35,7 +35,7 @@
             <h2>Online school application in Tanzania</h2>
             <p class="sx-apply-intro">
                 Search participating primary and secondary schools, check available class spaces for student admission,
-                and submit your application online — free for parents and guardians. Powered by
+                and submit your application online, free for parents and guardians. Powered by
                 <strong>EmCa Techonology</strong>.
             </p>
         </div>
@@ -147,7 +147,7 @@
         '@type' => 'WebPage',
         '@id' => route('online_application') . '#webpage',
         'url' => route('online_application'),
-        'name' => 'Online School Application — ShuleXpert',
+        'name' => 'Online School Application | ShuleXpert',
         'description' => 'Search participating schools in Tanzania and submit a student admission application online through ShuleXpert.',
         'inLanguage' => 'en-TZ',
         'isPartOf' => [

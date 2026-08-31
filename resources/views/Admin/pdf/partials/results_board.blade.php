@@ -1,4 +1,4 @@
-﻿{{-- Excel-like class board (landscape). Styles extend results.blade.php --}}
+{{-- Excel-like class board (landscape). Styles extend results.blade.php --}}
 @php
     if (!function_exists('pdfBoardVerticalLabel')) {
         /** Excel-style vertical header, centred in cell (DomPDF-safe) */
@@ -297,7 +297,7 @@
         display: inline-block;
         letter-spacing: 0.3px;
     }
-    /* TOTAL / AVERAGE — same font as marks; TOTAL wider so long values don't overlap */
+    /* TOTAL / AVERAGE, same font as marks; TOTAL wider so long values don't overlap */
     table.board-results td.board-num-cell {
         white-space: nowrap !important;
         word-wrap: normal !important;

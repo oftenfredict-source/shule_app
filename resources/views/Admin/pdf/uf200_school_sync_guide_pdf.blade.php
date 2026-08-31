@@ -58,7 +58,7 @@
     </div>
 
     <div class="summary-box">
-        <strong>Muhtasari:</strong> UF200-S ni device ya <strong>TCP/IP (standalone)</strong> — haina ADMS/Push kwenye menu ya Comm.
+        <strong>Muhtasari:</strong> UF200-S ni device ya <strong>TCP/IP (standalone)</strong>: haina ADMS/Push kwenye menu ya Comm.
         Server ya live (cPanel) <strong>haiwezi</strong> kufikia IP ya ndani <span class="mono">192.168.x.x</span>.
         Suluhisho: <strong>PC moja shuleni</strong> yenye Laragon + ShuleXpert inasoma device kwenye LAN na kuandika kwenye database ya mfumo (live au local).
     </div>
@@ -74,24 +74,24 @@
             <tr>
                 <td><strong>test.shulexpert.com</strong> (cPanel)</td>
                 <td style="color:#c00;">Hapana</td>
-                <td>Server iko internet; device iko LAN ya shule — haziwezi kuongea moja kwa moja.</td>
+                <td>Server iko internet; device iko LAN ya shule, haziwezi kuongea moja kwa moja.</td>
             </tr>
             <tr>
                 <td><strong>Laragon / PC shuleni</strong></td>
                 <td style="color:#080;">Ndiyo</td>
-                <td>PC na device ziko network moja — TCP port <span class="mono">4370</span> inafanya kazi.</td>
+                <td>PC na device ziko network moja, TCP port <span class="mono">4370</span> inafanya kazi.</td>
             </tr>
             <tr>
-                <td><strong>UF200-S — Comm menu</strong></td>
+                <td><strong>UF200-S, Comm menu</strong></td>
                 <td>Ethernet + PC Connection tu</td>
-                <td>Model hii haina Cloud Server / ADMS — ni kawaida.</td>
+                <td>Model hii haina Cloud Server / ADMS, ni kawaida.</td>
             </tr>
         </table>
     </div>
 
     <div class="section">
         <div class="section-title">2. Mfumo unaopendekezwa (School LAN Sync)</div>
-        <div class="diagram">[Walimu / Staff]  --->  [UF200-S Device]  &lt;---LAN---&gt;  [PC ya Shule — Laragon + ShuleXpert]
+        <div class="diagram">[Walimu / Staff]  --->  [UF200-S Device]  &lt;---LAN---&gt;  [PC ya Shule, Laragon + ShuleXpert]
                                                               |
                                                               |  Internet (HTTPS / MySQL)
                                                               v
@@ -100,12 +100,12 @@
                                                               v
                                                     [Live Site: {{ $liveUrl }}]</div>
         <p><strong>Kila siku:</strong> Watu wanaweka kidole kwenye device kama kawaida (hakuna mabadiliko).</p>
-        <p><strong>Sync:</strong> PC ya shule inavuta rekodi kutoka device na kuziweka kwenye database — data inaonekana kwenye live site.</p>
+        <p><strong>Sync:</strong> PC ya shule inavuta rekodi kutoka device na kuziweka kwenye database, data inaonekana kwenye live site.</p>
     </div>
 
     <div class="warn-box">
-        <strong>Muhimu — VPN kwenye PC haisaidii sync kwenye website ya live:</strong>
-        Ukibonyeza Sync kwenye <span class="mono">{{ $liveUrl }}</span>, ni <strong>server ya cPanel</strong> inayojaribu kuunganisha device — si PC yako.
+        <strong>Muhimu, VPN kwenye PC haisaidii sync kwenye website ya live:</strong>
+        Ukibonyeza Sync kwenye <span class="mono">{{ $liveUrl }}</span>, ni <strong>server ya cPanel</strong> inayojaribu kuunganisha device, si PC yako.
         VPN inasaidia tu ikiwa <strong>sync inafanywa kwenye PC ya shule</strong> (Laragon), si kwenye browser ya live site.
     </div>
 
@@ -117,7 +117,7 @@
             <tr><th>Kitu</th><th>Maelezo</th></tr>
             <tr><td>ZKTeco UF200-S</td><td>Serial mf. TRU725... &bull; Firmware Ver 8.0.4.2+ &bull; Comm: Ethernet + PC Connection</td></tr>
             <tr><td>Network</td><td>Device na PC ziko subnet moja (mf. <span class="mono">192.168.100.x</span>)</td></tr>
-            <tr><td>PC ya shule</td><td>Windows + Laragon (PHP 8.x, MySQL) — iwekwe kuwaka sync</td></tr>
+            <tr><td>PC ya shule</td><td>Windows + Laragon (PHP 8.x, MySQL), iwekwe kuwaka sync</td></tr>
             <tr><td>ShuleXpert</td><td>Copy ya project kwenye PC (mf. <span class="mono">C:\laragon\www\ShuleXpert</span>)</td></tr>
             <tr><td>Internet</td><td>PC ina internet ikiwa unatumia database ya remote (cPanel)</td></tr>
         </table>
@@ -128,16 +128,16 @@
         <p><strong>Menu → Comm → Ethernet</strong></p>
         <ol>
             <li>Weka <strong>IP Address</strong> ya device (mf. <span class="mono">192.168.100.109</span>)</li>
-            <li><strong>Subnet Mask</strong> — sawa na router (mf. <span class="mono">255.255.255.0</span>)</li>
-            <li><strong>Gateway</strong> — IP ya router</li>
+            <li><strong>Subnet Mask</strong>: sawa na router (mf. <span class="mono">255.255.255.0</span>)</li>
+            <li><strong>Gateway</strong>: IP ya router</li>
             <li>Hakikisha device inaonyesha icon ya network juu ya screen</li>
         </ol>
         <p><strong>Menu → Comm → PC Connection</strong></p>
         <ol>
-            <li><strong>Comm Key:</strong> <span class="mono">0</span> (default — lazima ilingane na ShuleXpert)</li>
+            <li><strong>Comm Key:</strong> <span class="mono">0</span> (default, lazima ilingane na ShuleXpert)</li>
             <li><strong>Device ID:</strong> <span class="mono">1</span> (kawaida)</li>
         </ol>
-        <p><strong>Menu → System Info</strong> — andika IP, Serial Number, Firmware kwa kumbukumbu.</p>
+        <p><strong>Menu → System Info</strong>: andika IP, Serial Number, Firmware kwa kumbukumbu.</p>
     </div>
 
     <div class="section">
@@ -161,7 +161,7 @@
     </div>
 
     <div class="section">
-        <div class="section-title">6. Database — Chaguo mbili</div>
+        <div class="section-title">6. Database, Chaguo mbili</div>
         <table class="data-table">
             <tr>
                 <th>Chaguo</th>
@@ -169,23 +169,23 @@
                 <th>Data kwenye live</th>
             </tr>
             <tr>
-                <td><strong>A — Remote MySQL (cPanel)</strong></td>
+                <td><strong>A, Remote MySQL (cPanel)</strong></td>
                 <td>Kwenye PC ya shule, <span class="mono">.env</span> inaelekeza kwenye MySQL ya cPanel. Weka <span class="mono">DB_HOST</span>, <span class="mono">DB_DATABASE</span>, <span class="mono">DB_USERNAME</span>, <span class="mono">DB_PASSWORD</span> kutoka cPanel → Remote MySQL (ruhusu IP ya shule).</td>
-                <td style="color:#080;">Ndiyo — moja kwa moja</td>
+                <td style="color:#080;">Ndiyo, moja kwa moja</td>
             </tr>
             <tr>
-                <td><strong>B — Database ya local</strong></td>
-                <td>PC inatumia MySQL ya Laragon. Live site ina database tofauti — data haisongei mpaka uhamishe manually.</td>
+                <td><strong>B, Database ya local</strong></td>
+                <td>PC inatumia MySQL ya Laragon. Live site ina database tofauti, data haisongei mpaka uhamishe manually.</td>
                 <td style="color:#c00;">Hapana (isipokuwa uhamishe)</td>
             </tr>
         </table>
-        <p><strong>Inapendekezwa:</strong> Chaguo A — sync kwenye PC ya shule inaandika moja kwa moja kwenye database ya <span class="mono">{{ $liveUrl }}</span>.</p>
+        <p><strong>Inapendekezwa:</strong> Chaguo A, sync kwenye PC ya shule inaandika moja kwa moja kwenye database ya <span class="mono">{{ $liveUrl }}</span>.</p>
     </div>
 
     <div class="page-break"></div>
 
     <div class="section">
-        <div class="section-title">7. Mahudhurio ya Walimu / Staff — Hatua za kila siku</div>
+        <div class="section-title">7. Mahudhurio ya Walimu / Staff, Hatua za kila siku</div>
         <p>Nenda: <strong>Attendance → Teacher and Staff Attendance</strong></p>
         <table class="data-table">
             <tr><th>Tab</th><th>Kazi</th><th>Lini</th></tr>
@@ -196,7 +196,7 @@
             </tr>
             <tr>
                 <td><strong>Sync from Device</strong></td>
-                <td><strong>Sync All from Device</strong> — inavuta logs zote zisizohifadhiwa na kuziweka database</td>
+                <td><strong>Sync All from Device</strong>: inavuta logs zote zisizohifadhiwa na kuziweka database</td>
                 <td>Mwisho wa siku / asubuhi</td>
             </tr>
             <tr>
@@ -213,7 +213,7 @@
     </div>
 
     <div class="section">
-        <div class="section-title">8. Ratiba ya Sync (Task Scheduler — Hiari)</div>
+        <div class="section-title">8. Ratiba ya Sync (Task Scheduler, Hiari)</div>
         <p>Ili sync ifanyike bila kubonyeza kila siku, weka <strong>Windows Task Scheduler</strong> kwenye PC ya shule:</p>
         <ol>
             <li>Unda file <span class="mono">sync-attendance.bat</span>:</li>
@@ -235,8 +235,8 @@ echo Sync completed at %date% %time% >> storage\logs\school-sync.log</div>
             <tr><th>Tatizo</th><th>Suluhisho</th></tr>
             <tr><td>Test Connection inashindwa kwenye PC</td><td>Angalia IP, port 4370, Comm Key 0, firewall Windows, device imewashwa</td></tr>
             <tr><td>Sync inafanya kazi local lakini live haina data</td><td>Thibitisha <span class="mono">.env</span> inaelekeza remote MySQL ya cPanel; Remote MySQL iruhusu IP ya shule</td></tr>
-            <tr><td>Live site Test Connection inashindwa</td><td>Hii ni kawaida — usitumie live kwa sync; tumia PC ya shule</td></tr>
-            <tr><td>Hakuna ADMS kwenye Comm</td><td>UF200-S haina Push — tumia njia hii ya LAN sync</td></tr>
+            <tr><td>Live site Test Connection inashindwa</td><td>Hii ni kawaida, usitumie live kwa sync; tumia PC ya shule</td></tr>
+            <tr><td>Hakuna ADMS kwenye Comm</td><td>UF200-S haina Push, tumia njia hii ya LAN sync</td></tr>
             <tr><td>Report ina Present 0</td><td>Hakikisha sync imefanyika; angalia filter ya mwezi; working days kwenye calendar</td></tr>
         </table>
     </div>
@@ -256,7 +256,7 @@ echo Sync completed at %date% %time% >> storage\logs\school-sync.log</div>
     <div class="section" style="margin-top: 20px;">
         <div class="section-title">10. Mawasiliano &amp; Msaada</div>
         <p>Kwa msaada wa kiufundi kuhusu ShuleXpert na fingerprint integration, wasiliana na timu ya <strong>EmCa Techonology</strong> kupitia support channel ya shule yako.</p>
-        <p style="font-size: 9px; color: #666;">Hati hii imetengenezwa kiotomatiki na ShuleXpert — {{ $generated_at }}</p>
+        <p style="font-size: 9px; color: #666;">Hati hii imetengenezwa kiotomatiki na ShuleXpert, {{ $generated_at }}</p>
     </div>
 
     <div class="footer">

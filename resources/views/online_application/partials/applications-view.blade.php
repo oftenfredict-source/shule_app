@@ -55,10 +55,10 @@
                     <tr data-app-row="{{ $app->id }}">
                         <td>{{ $app->application_number }}</td>
                         <td>{{ $studentName }}</td>
-                        <td>{{ $app->school->school_name ?? '—' }}</td>
-                        <td>{{ $app->class->class_name ?? '—' }}</td>
+                        <td>{{ $app->school->school_name ?? '-' }}</td>
+                        <td>{{ $app->class->class_name ?? '-' }}</td>
                         @if($showYear)
-                            <td>{{ $app->academicYear->year_name ?? $app->academicYear->year ?? '—' }}</td>
+                            <td>{{ $app->academicYear->year_name ?? $app->academicYear->year ?? '-' }}</td>
                         @endif
                         <td>
                             <span class="sx-oa-status sx-oa-status--{{ strtolower($app->status) }}">{{ $app->status }}</span>
@@ -91,7 +91,7 @@
                                     </div>
                                 </div>
                             @else
-                                <span class="text-muted">—</span>
+                                <span class="text-muted">-</span>
                             @endif
                         </td>
                     </tr>
@@ -135,10 +135,10 @@
                     @endif
                 </div>
                 <h3 class="sx-oa-app-card__name">{{ $studentName }}</h3>
-                <p class="sx-oa-app-card__meta"><i class="fa fa-university"></i> {{ $app->school->school_name ?? '—' }}</p>
-                <p class="sx-oa-app-card__meta"><i class="fa fa-graduation-cap"></i> {{ $app->class->class_name ?? '—' }}</p>
+                <p class="sx-oa-app-card__meta"><i class="fa fa-university"></i> {{ $app->school->school_name ?? '-' }}</p>
+                <p class="sx-oa-app-card__meta"><i class="fa fa-graduation-cap"></i> {{ $app->class->class_name ?? '-' }}</p>
                 @if($showYear)
-                    <p class="sx-oa-app-card__meta"><i class="fa fa-calendar"></i> {{ $app->academicYear->year_name ?? $app->academicYear->year ?? '—' }}</p>
+                    <p class="sx-oa-app-card__meta"><i class="fa fa-calendar"></i> {{ $app->academicYear->year_name ?? $app->academicYear->year ?? '-' }}</p>
                 @endif
                 <div class="sx-oa-app-card__footer">
                     <span class="sx-oa-status sx-oa-status--{{ strtolower($app->status) }}">{{ $app->status }}</span>

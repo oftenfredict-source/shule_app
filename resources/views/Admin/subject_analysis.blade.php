@@ -44,7 +44,7 @@
             <div class="mb-3 text-dark font-weight-bold border-bottom pb-2">
                 <i class="fa fa-filter"></i>
                 Filtering: Active enrollments for academic year
-                <strong>{{ $academicYearLabel ?? '—' }}</strong>
+                <strong>{{ $academicYearLabel ?? '-' }}</strong>
                 <span class="text-muted">(from header)</span>
             </div>
 

@@ -53,7 +53,7 @@
                     <i class="bx bx-calendar-event"></i> {{ $holiday->holiday_name }}
                 </div>
                 <div class="hp-meta">
-                    {{ optional($holiday->start_date)->format('d/m/Y') }} — {{ optional($holiday->end_date)->format('d/m/Y') }}
+                    {{ optional($holiday->start_date)->format('d/m/Y') }}, {{ optional($holiday->end_date)->format('d/m/Y') }}
                 </div>
             </div>
             <i class="bx bx-chevron-right" style="font-size:22px;color:#940000;"></i>
@@ -121,7 +121,7 @@
                         + (p.subject_code ? '<br><small class="text-muted">' + p.subject_code + '</small>' : '')
                         + '<br><small class="text-muted">' + (p.class_label || '') + '</small></td>'
                         + '<td>' + (p.title || p.original_filename || '') + '<br><small class="text-muted">' + (p.original_filename || '') + '</small></td>'
-                        + '<td>' + (p.teacher_name || '—') + '</td>'
+                        + '<td>' + (p.teacher_name || '-') + '</td>'
                         + '<td class="text-nowrap">'
                         + '<button type="button" class="btn btn-sm btn-outline-primary parent-hp-view" data-url="' + p.view_url + '" data-dl="' + p.download_url + '" data-title="' + (p.subject_name || 'Home Package') + '"><i class="bx bx-show"></i> View</button> '
                         + '<a class="btn btn-sm btn-primary" href="' + p.download_url + '"><i class="bx bx-download"></i> Download</a>'

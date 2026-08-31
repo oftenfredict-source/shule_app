@@ -347,7 +347,7 @@
                                         <option value="">Select Subject</option>
                                     </select>
                                     <small class="text-muted" id="bulkDuoHint" style="display:none;">
-                                        <i class="bi bi-layers"></i> DUO subject — you will pick a paper next.
+                                        <i class="bi bi-layers"></i> DUO subject, you will pick a paper next.
                                     </small>
                                 </div>
                             </div>
@@ -3715,7 +3715,7 @@ function syncResultsExcelAvailability() {
 function setResultsExcelButtonsEnabled(enabled) {
     jQuery('#downloadExcelBtn, #uploadExcelBtn, #fillRandomBtn').each(function() {
         const $b = jQuery(this);
-        // Never use native disabled / Bootstrap .disabled — both swallow clicks on Safari/macOS.
+        // Never use native disabled / Bootstrap .disabled, both swallow clicks on Safari/macOS.
         $b.prop('disabled', false);
         $b.removeClass('disabled');
         $b.attr('aria-disabled', enabled ? 'false' : 'true');
@@ -4085,7 +4085,7 @@ function downloadExcelTemplate(classSubjectID) {
         confirmButtonText: 'Export',
         cancelButtonText: 'Cancel',
         confirmButtonColor: '#940000',
-        // Run download here (still in confirm-click gesture) — required for Safari/macOS
+        // Run download here (still in confirm-click gesture), required for Safari/macOS
         preConfirm: function() {
             const selected = document.querySelector('.swal2-container input[name="export_cols_mode"]:checked')
                 || document.querySelector('input[name="export_cols_mode"]:checked');

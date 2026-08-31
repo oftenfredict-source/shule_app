@@ -1095,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('foundParentDiv').classList.remove('d-none');
                 document.getElementById('newParentDiv').classList.add('d-none');
                 
-                // Auto-confirm reuse: parent_id is already set — student will only get this FK
+                // Auto-confirm reuse: parent_id is already set, student will only get this FK
                 document.querySelectorAll('#newParentDiv input, #newParentDiv textarea, #newParentDiv select').forEach(field => {
                     field.classList.remove('is-invalid');
                     field.removeAttribute('required');
@@ -1780,7 +1780,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 formData.set('subclassID', subclassID);
 
-                // Force existing parent link — must send parent_id so backend skips ParentModel::create
+                // Force existing parent link, must send parent_id so backend skips ParentModel::create
                 const parentIdField = document.getElementById('parentIdField');
                 const resolvedParentId = selectedParentId || (parentIdField ? parentIdField.value : '') || '';
                 if (resolvedParentId) {
@@ -1788,7 +1788,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (parentIdField) {
                         parentIdField.value = String(resolvedParentId);
                     }
-                    // Existing parent: only phone for display + parent_id — clear new-parent payload
+                    // Existing parent: only phone for display + parent_id, clear new-parent payload
                     ['parent_first_name', 'parent_middle_name', 'parent_last_name', 'parent_relationship', 'parent_occupation', 'parent_address', 'parent_email'].forEach(function (key) {
                         formData.delete(key);
                     });
@@ -1840,7 +1840,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 location.reload();
                         });
             } else {
-                        // Handle validation errors — never show raw SQL/DB internals
+                        // Handle validation errors, never show raw SQL/DB internals
                         let errorMessage = data.message || 'Registration failed. Please try again.';
                         let fieldErrors = {};
 

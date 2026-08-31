@@ -150,7 +150,7 @@
                  style="cursor: pointer; border-radius: 0 !important;"
                  title="Tap to view conflicting sessions">
                 <i class="bi bi-exclamation-triangle-fill"></i>
-                <strong id="teacherSessionConflictAlertText">Teachers meet with session conflict — tap to view</strong>
+                <strong id="teacherSessionConflictAlertText">Teachers meet with session conflict, tap to view</strong>
             </div>
 
             <!-- Teacher session conflicts modal -->
@@ -1103,7 +1103,7 @@ $(function() {
                     toast: true,
                     position: 'top-end',
                     icon: 'info',
-                    title: 'Draft saved — opens again with your data.',
+                    title: 'Draft saved, opens again with your data.',
                     showConfirmButton: false,
                     timer: 2500
                 });
@@ -1243,8 +1243,8 @@ $(function() {
                 const n = res.teachers_with_conflicts || 0;
                 if (n > 0) {
                     const label = n === 1
-                        ? '1 teacher meets with session conflict — tap to view'
-                        : (n + ' teachers meet with session conflict — tap to view');
+                        ? '1 teacher meets with session conflict, tap to view'
+                        : (n + ' teachers meet with session conflict, tap to view');
                     $('#teacherSessionConflictAlertText').text(label);
                     $('#teacherSessionConflictAlert').removeClass('d-none');
                 } else {
@@ -3486,7 +3486,7 @@ $(function() {
 
     // Reset edit mode when modal is closed (add to existing handler)
     $('#createTimetableModal').on('hidden.bs.modal', function() {
-        // Keep draft when closing — do not wipe user's unsaved work
+        // Keep draft when closing, do not wipe user's unsaved work
         saveTimetableDraft(true);
         if (skipNextTimetableReset) {
             skipNextTimetableReset = false;
@@ -5592,7 +5592,7 @@ $(function() {
         }
     }
 
-    // Collect session data — one period card may yield multiple Optional subjects
+    // Collect session data, one period card may yield multiple Optional subjects
     function collectSessionData(row, subclassID, day, isPrepo) {
         // Prefer the period's own session-type select (not definition-step selects)
         const sessionTypeSelect = row.find('select.session-type-select').first();

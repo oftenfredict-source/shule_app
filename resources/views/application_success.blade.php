@@ -2,7 +2,7 @@
     $skipSplash = true;
     $portalActive = 'applications';
     $seo = [
-        'title' => 'Application Submitted — ShuleXpert',
+        'title' => 'Application Submitted | ShuleXpert',
         'description' => 'Your ShuleXpert online school application was submitted successfully.',
         'canonical' => route('online_application'),
         'robots' => 'noindex, follow',
@@ -23,7 +23,7 @@
                     <h2>Application submitted successfully!</h2>
                     <p class="sx-apply-success__lead">
                         Thank you, <strong>{{ $studentName }}</strong>, for applying to
-                        <strong>{{ $schoolName }}</strong> — <strong>{{ $className }}</strong>.
+                        <strong>{{ $schoolName }}</strong>: <strong>{{ $className }}</strong>.
                     </p>
 
                     <div class="sx-apply-credentials">

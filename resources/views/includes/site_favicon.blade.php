@@ -1,4 +1,4 @@
-{{-- Favicon — supports dynamic school logo via $seo['favicon'] --}}
+{{-- Favicon, supports dynamic school logo via $seo['favicon'] --}}
 @php
     $v = function (string $relative) {
         $full = public_path(ltrim($relative, '/'));

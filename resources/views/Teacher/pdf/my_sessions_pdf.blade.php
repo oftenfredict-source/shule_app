@@ -138,7 +138,7 @@
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div>{{ $school->address ?? '' }}</div>
         <div>Phone: {{ $school->phone ?? '' }}@if(!empty($school->email)) | Email: {{ $school->email }}@endif</div>
-        <div class="report-title">{{ $reportTitle ?? ('TEACHER SESSIONS — ' . strtoupper($teacherName)) }}</div>
+        <div class="report-title">{{ $reportTitle ?? ('TEACHER SESSIONS, ' . strtoupper($teacherName)) }}</div>
     </div>
 
     <div class="info-section">
@@ -203,7 +203,7 @@
                     @endif
                     <td class="center">{{ $row['date_label'] ?? '' }}</td>
                     <td class="center">{{ $row['time_label'] ?? '' }}</td>
-                    <td class="center">{{ $row['class_label'] ?? '—' }}</td>
+                    <td class="center">{{ $row['class_label'] ?? '-' }}</td>
                     <td>
                         {{ $row['subject_name'] ?? 'N/A' }}
                         @if(!empty($row['is_prepo']))

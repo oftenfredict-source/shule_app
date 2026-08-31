@@ -1,7 +1,7 @@
 @php
     $skipSplash = true;
     $seo = [
-        'title' => 'Create Account to Apply Online — ShuleXpert Online Admission',
+        'title' => 'Create Account to Apply Online | ShuleXpert Online Admission',
         'description' => 'Create your ShuleXpert online application account to apply to schools in Tanzania. Verify your phone with OTP and start submitting student admission applications.',
         'keywords' => 'create online application account, school admission account Tanzania, ShuleXpert apply online, student application registration',
         'canonical' => app(\App\Services\OnlineApplicationApplyTokenService::class)->publicAbsoluteUrl('/online-application/account/register'),
@@ -21,14 +21,14 @@
                     <aside class="sx-auth-art sx-auth-art-bg" style="--sx-auth-art-bg: url('{{ asset('img/carousel-1.jpg') }}')">
                         <div>
                             <h2>Apply to schools online</h2>
-                            <p>Create a dedicated online application account — separate from school staff, teacher, or parent accounts. Verify your phone number and start applying in minutes.</p>
+                            <p>Create a dedicated online application account, separate from school staff, teacher, or parent accounts. Verify your phone number and start applying in minutes.</p>
                         </div>
                         <div class="sx-auth-powered">Powered by EmCa Techonology</div>
                     </aside>
 
                     <div class="sx-auth-form-wrap">
                         <h3><i class="fa fa-user-plus" style="margin-right:8px;"></i>Create Account to Apply</h3>
-                        <p class="sx-auth-sub">Fill in your details below, then click <strong>Create Account</strong>. We will send a verification code to your phone — enter it to save and activate your account.</p>
+                        <p class="sx-auth-sub">Fill in your details below, then click <strong>Create Account</strong>. We will send a verification code to your phone, enter it to save and activate your account.</p>
 
                         <div id="oaRegisterAlert" class="alert d-none" role="alert"></div>
 
@@ -258,7 +258,7 @@
     $schema = [
         '@context' => 'https://schema.org',
         '@type' => 'WebPage',
-        'name' => 'Create Online Application Account — ShuleXpert',
+        'name' => 'Create Online Application Account | ShuleXpert',
         'description' => 'Register for a ShuleXpert online school application account with phone verification.',
         'url' => route('online_application.auth.register'),
     ];

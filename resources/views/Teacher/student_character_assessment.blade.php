@@ -293,7 +293,7 @@
         let html = `<option value="all" 
                             data-timetable-id="${baseAssignment.timetableID}" 
                             data-categories='${JSON.stringify(baseAssignment.selected_categories || [])}'>
-                        All Groups — View All
+                        All Groups, View All
                     </option>`;
 
         if (hasAllAssignment) {
@@ -373,7 +373,7 @@
                 const cardStyle = canAssess ? '' : 'opacity:0.55; background:#f5f5f5;';
                 const assessBtnAttrs = canAssess
                     ? `onclick="toggleAssessDiv(${student.studentID})"`
-                    : 'disabled title="Not editable — enrollment is not Active for the selected academic year"';
+                    : 'disabled title="Not editable, enrollment is not Active for the selected academic year"';
 
                 html += `
                     <div class="col-12 student-item-col" data-name="${fullName}" data-adm="${student.admission_number}">
@@ -387,7 +387,7 @@
                                         <div class="overflow-hidden">
                                             <h5 class="font-weight-bold mb-1" style="color: #2f2f2f;">${fullName} ${enrBadge} ${statusBadge}</h5>
                                             <span class="badge badge-light text-muted small px-2 font-weight-bold" style="border-radius:0;">ADMISSION: ${student.admission_number}</span>
-                                            ${canAssess ? '' : '<div class="small text-muted mt-1">Assessment locked — enrollment not Active</div>'}
+                                            ${canAssess ? '' : '<div class="small text-muted mt-1">Assessment locked, enrollment not Active</div>'}
                                         </div>
                                     </div>
                                     <div class="col-md-4 col-12">

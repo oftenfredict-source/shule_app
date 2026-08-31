@@ -15,7 +15,7 @@
     </style>
 </head>
 <body>
-    <h1>{{ $school->school_name ?? 'School' }} — Black Book Report</h1>
+    <h1>{{ $school->school_name ?? 'School' }}, Black Book Report</h1>
     <div class="meta">Generated: {{ $generated_at }} | Type: {{ ucfirst(str_replace('_', ' ', $type)) }}</div>
 
     @if(empty($rows))
@@ -37,7 +37,7 @@
                     <td>{{ $i + 1 }}</td>
                     <td>{{ $row['student_name'] }}</td>
                     <td>{{ $row['class_name'] }}</td>
-                    <td>{{ $row['admission_number'] ?? '—' }}</td>
+                    <td>{{ $row['admission_number'] ?? '-' }}</td>
                     <td class="count">{{ $row['report_count'] }}</td>
                 </tr>
                 @endforeach
@@ -47,7 +47,7 @@
         @foreach($rows as $row)
             @if(!empty($row['reports']))
             <div class="sub">
-                <strong>{{ $row['student_name'] }}</strong> — incident history:
+                <strong>{{ $row['student_name'] }}</strong>: incident history:
                 <table>
                     <thead>
                         <tr>
@@ -68,9 +68,8 @@
                             <td>
                                 @if($r['status'] === 'resolved')
                                     {{ $r['resolve_method'] === 'parent_call' ? 'Parent Call' : 'Punishment' }}
-                                    @if($r['punishment_category']) — {{ $r['punishment_category'] }} @endif
-                                @else
-                                    —
+                                    @if($r['punishment_category']), {{ $r['punishment_category'] }} @endif
+                                @else,
                                 @endif
                             </td>
                         </tr>

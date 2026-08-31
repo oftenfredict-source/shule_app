@@ -115,7 +115,7 @@
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div>{{ $school->address ?? '' }}</div>
         <div>Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
-        <div class="report-title">{{ $reportTitle ?? ('STUDENT PAYMENT DETAILS — ' . ($yearLabel ?? $year)) }}</div>
+        <div class="report-title">{{ $reportTitle ?? ('STUDENT PAYMENT DETAILS, ' . ($yearLabel ?? $year)) }}</div>
     </div>
 
     <div class="info-section">
@@ -211,8 +211,8 @@
         <tbody>
             @foreach($multiAccounts as $ma)
             <tr>
-                <td><strong>{{ $ma['fee_name'] ?? '—' }}</strong></td>
-                <td>{{ $ma['control_number'] ?? '—' }}</td>
+                <td><strong>{{ $ma['fee_name'] ?? '-' }}</strong></td>
+                <td>{{ $ma['control_number'] ?? '-' }}</td>
                 <td class="amount-col">{{ number_format($ma['amount_required'] ?? 0, 0) }}</td>
                 <td class="amount-col" style="color: #28a745;">{{ number_format($ma['amount_paid'] ?? 0, 0) }}</td>
                 <td class="amount-col" style="color: #940000;">{{ number_format($ma['balance'] ?? 0, 0) }}</td>

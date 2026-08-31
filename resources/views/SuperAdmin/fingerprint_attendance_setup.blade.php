@@ -14,7 +14,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
             <h4 class="fw-bold mb-0" style="color: var(--primary-red);">Fingerprint Attendance Setup</h4>
-            <p class="text-muted small mb-0">Upload desktop app (Local Agent) — setup moja tu kwa mfumo wote</p>
+            <p class="text-muted small mb-0">Upload desktop app (Local Agent), setup moja tu kwa mfumo wote</p>
             @if(!empty($phpUploadLimits))
             <p class="text-muted small mb-0">Server upload limit: <strong>{{ $phpUploadLimits['upload_max_filesize'] ?? '?' }}</strong> (post: {{ $phpUploadLimits['post_max_size'] ?? '?' }})</p>
             @endif
@@ -112,7 +112,7 @@
                     <div class="mb-0">
                         <label class="fw-bold small">SETUP FILE *</label>
                         <input type="file" name="setup_file" class="form-control" required accept=".zip,.exe,.msi,.rar,.7z">
-                        <small class="text-muted">ZIP, EXE, MSI, RAR, 7Z — max 500MB</small>
+                        <small class="text-muted">ZIP, EXE, MSI, RAR, 7Z, max 500MB</small>
                     </div>
                     <div id="uploadProgressWrap" class="fp-upload-progress d-none mt-3">
                         <div class="d-flex justify-content-between small mb-1">

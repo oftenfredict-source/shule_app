@@ -85,7 +85,7 @@
         background-color: #FFF5F5 !important;
     }
 
-    /* Statistics Backgrounds — whitesmoke + #940000 like manage_student */
+    /* Statistics Backgrounds, whitesmoke + #940000 like manage_student */
     .stat-card-accent {
         background-color: whitesmoke !important;
         border: 1px solid #ececec !important;
@@ -284,7 +284,7 @@
         min-height: 110px;
     }
 
-    /* View More modal — desktop */
+    /* View More modal, desktop */
     .view-more-modal-dialog {
         max-width: 95%;
         width: 1200px;
@@ -499,7 +499,7 @@
         width: 100%;
     }
 
-    /* Actions toggle dropdown (three dots) — same pattern as manage_student */
+    /* Actions toggle dropdown (three dots), same pattern as manage_student */
     .payment-action-dropdown {
         display: inline-block;
         position: relative;
@@ -938,8 +938,8 @@
                             </label>
                             <select class="form-select" id="filterDeadline">
                                 <option value="">All</option>
-                                <option value="reached_unpaid">Reached — not paid</option>
-                                <option value="reached_paid">Reached — paid</option>
+                                <option value="reached_unpaid">Reached, not paid</option>
+                                <option value="reached_paid">Reached, paid</option>
                             </select>
                         </div>
                         <div class="col-md-2">
@@ -1398,8 +1398,8 @@
                     <div id="quickRecordSelectedStudent" class="mt-2 p-2 border bg-light" style="display:none;">
                         <div class="d-flex justify-content-between align-items-start gap-2">
                             <div>
-                                <div class="fw-bold text-primary-custom" id="quickRecordStudentName">—</div>
-                                <small class="text-muted" id="quickRecordStudentMeta">—</small>
+                                <div class="fw-bold text-primary-custom" id="quickRecordStudentName">-</div>
+                                <small class="text-muted" id="quickRecordStudentMeta">-</small>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="quickRecordClearStudent">Change</button>
                         </div>
@@ -1409,7 +1409,7 @@
                 <div class="mb-3" id="quickRecordFeeSection" style="display:none;">
                     <label class="form-label fw-bold">2. Select Fee Type <span class="text-danger">*</span></label>
                     <select class="form-select" id="quickRecordFeeSelect">
-                        <option value="">— Select fee —</option>
+                        <option value="">- Select fee -</option>
                     </select>
                     <small class="text-muted d-block mt-1" id="quickRecordFeeHint"></small>
                     <div id="quickRecordFeeEmpty" class="alert alert-warning mt-2 mb-0 py-2" style="display:none;">
@@ -1793,7 +1793,7 @@
                     return (f.account_mode || 'single') === 'multi' || mode === 'mixed';
                 }).forEach(function(f) {
                     html += '<option value="' + f.feeID + '">' + f.fee_name +
-                        (f.account_display ? (' — ' + f.account_display) : '') + '</option>';
+                        (f.account_display ? (', ' + f.account_display) : '') + '</option>';
                 });
                 $fee.html(html);
                 if (previous && $fee.find('option[value="' + previous + '"]').length) {
@@ -2002,7 +2002,7 @@
                             .attr('data-balance', bal)
                             .attr('data-sponsor-balance', ma.sponsor_balance || 0)
                             .attr('data-parent-balance', ma.parent_balance || 0)
-                            .text(feeName + ' · Control Number ' + (ma.control_number || '—') + ' (Bal: ' + bal.toLocaleString() + '/=)')
+                            .text(feeName + ' · Control Number ' + (ma.control_number || '-') + ' (Bal: ' + bal.toLocaleString() + '/=)')
                             .appendTo(feeSelect);
                     });
                 });
@@ -2219,7 +2219,7 @@
                 deadlineMet = true;
             }
             if (deadlineRequired > 0 && !deadlineMet) {
-                col3 += '<div class="small mt-1 text-danger" title="Deadline reached — not yet paid">' +
+                col3 += '<div class="small mt-1 text-danger" title="Deadline reached, not yet paid">' +
                     '<i class="bi bi-clock-history"></i> Deadline: ' +
                     deadlinePaid.toLocaleString() + ' / ' + deadlineRequired.toLocaleString() + '</div>';
             }
@@ -2298,7 +2298,7 @@
                         '<div class="pay-class">' + studentClass + '</div>' +
                         '<div class="mb-2">' + badges + '</div>' +
                         '<div class="pay-meta"><strong>Adm:</strong> ' + (student.admission_number || 'N/A') + '</div>' +
-                        '<div class="pay-meta"><strong>Year:</strong> ' + (item.academic_year || headerAcademicYearLabel || '—') + '</div>' +
+                        '<div class="pay-meta"><strong>Year:</strong> ' + (item.academic_year || headerAcademicYearLabel || '-') + '</div>' +
                         '<div class="pay-amounts">' +
                             (item.focus_fee ? ('<div class="small mb-1"><span class="badge" style="background:#fff5f5;color:#940000;border:1px solid #940000;">' + (item.focus_fee.fee_name || 'Fee') + '</span></div>') : '') +
                             (item.focus_fee && item.focus_fee.control_number ? ('<div class="pay-meta mb-1"><strong>CN:</strong> ' + item.focus_fee.control_number + '</div>') : '') +
@@ -2572,7 +2572,7 @@
             setPaymentView($(this).data('view'), true);
         });
 
-        // Actions dropdown toggle (three dots) — same behavior as manage_student
+        // Actions dropdown toggle (three dots), same behavior as manage_student
         $(document).on('click', '.payment-action-toggle', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -2735,7 +2735,7 @@
         loadPaymentsData();
 
         // ====================================================================
-        // FEE SMS MODAL — shared for "Send Control Numbers" + "Debt Reminders"
+        // FEE SMS MODAL, shared for "Send Control Numbers" + "Debt Reminders"
         // Same UX as result_management.blade.php smsProgressModal
         // ====================================================================
         let feeIsSendingSms    = false;
@@ -3085,9 +3085,9 @@
                             rowHtml += `<td>${r.phone || '<span class="text-muted">-</span>'}</td>`;
                             rowHtml += `<td>${parseFloat(r.balance || 0).toLocaleString()}</td>`;
                         } else {
-                            rowHtml += `<td>${feeEscapeHtml(r.studentName || '—')}</td>`;
+                            rowHtml += `<td>${feeEscapeHtml(r.studentName || '-')}</td>`;
                             rowHtml += `<td><span class="badge" style="background:#fff5f5;color:#940000;border:1px solid #940000;">${feeEscapeHtml(r.fee_name || 'Ada')}</span></td>`;
-                            rowHtml += `<td class="fw-bold">${feeEscapeHtml(r.control_number || '—')}</td>`;
+                            rowHtml += `<td class="fw-bold">${feeEscapeHtml(r.control_number || '-')}</td>`;
                             if (feeSmsType === 'control_number') {
                                 rowHtml += `<td>${r.phone || '<span class="text-muted">-</span>'}</td>`;
                             } else {
@@ -3151,7 +3151,7 @@
                 const metaParts = [];
                 if (studentCol) metaParts.push(studentCol);
                 if (feeCol) metaParts.push(feeCol);
-                if (cnCol && cnCol !== '—') metaParts.push('Control Number: ' + cnCol);
+                if (cnCol && cnCol !== '-') metaParts.push('Control Number: ' + cnCol);
 
                 templateItems.push({
                     key: key,
@@ -3254,7 +3254,7 @@
             openFeeSmsModal('control_number', headerAcademicYearID, '', 'all');
         });
 
-        // ---------- Button: Send Debt Reminders — choose audience first ----------
+        // ---------- Button: Send Debt Reminders, choose audience first ----------
         $('#sendDebtRemindersBtn').off('click').on('click', function(e) {
             e.preventDefault();
             Swal.fire({
@@ -3540,7 +3540,7 @@
             $('#viewMoreModal').data('multiAccounts', multiAccounts);
             $('#viewMoreModal').data('isMultiAccount', isMultiAccountStudent);
             
-            // Extract fee payments — for multi-account aggregate all fee rows
+            // Extract fee payments, for multi-account aggregate all fee rows
             let feePayments = payment.fee_payments || [];
             if (typeof feePayments === 'string') {
                 try { feePayments = JSON.parse(feePayments); } catch (e) { feePayments = []; }
@@ -3560,7 +3560,7 @@
             const tuitionPayments = feePayments.filter(fp => fp.is_required);
             const otherFeePayments = feePayments.filter(fp => !fp.is_required);
             
-            // Debt handling — prefer live prior-years calc from list, then bill debt field
+            // Debt handling, prefer live prior-years calc from list, then bill debt field
             const priorFromList = parseFloat(btn.data('prior-years-owed') || totals.prior_years_owed || 0);
             const billDebt = parseFloat(payment.debt || 0);
             const oldDebt = Math.max(priorFromList, billDebt);
@@ -3588,11 +3588,11 @@
                     var deadlineHtml = (dReq > 0 && !dMet)
                         ? ('<span class="text-danger">' +
                             dPaid.toLocaleString() + ' / ' + dReq.toLocaleString() + '</span>')
-                        : '<span class="text-muted">—</span>';
+                        : '<span class="text-muted">-</span>';
                     mah += '<tr>' +
-                        '<td class="fw-bold" data-label="Fee">' + (ma.fee_name || '—') + '</td>' +
-                        '<td data-label="Account"><span class="badge bg-light text-dark border">' + (ma.account_label || '—') + '</span></td>' +
-                        '<td class="control-number" data-label="Control Number">' + (ma.control_number || '—') + '</td>' +
+                        '<td class="fw-bold" data-label="Fee">' + (ma.fee_name || '-') + '</td>' +
+                        '<td data-label="Account"><span class="badge bg-light text-dark border">' + (ma.account_label || '-') + '</span></td>' +
+                        '<td class="control-number" data-label="Control Number">' + (ma.control_number || '-') + '</td>' +
                         '<td class="text-end" data-label="Required">' + parseFloat(ma.amount_required || 0).toLocaleString() + '</td>' +
                         '<td class="text-end text-success" data-label="Paid">' + parseFloat(ma.amount_paid || 0).toLocaleString() + '</td>' +
                         '<td class="text-end text-danger" data-label="Balance">' + parseFloat(ma.balance || 0).toLocaleString() + '</td>' +
@@ -3618,7 +3618,7 @@
                 });
                 $('#multiAccountsBody').html(mah);
                 $('#multiAccountsSection').show();
-                // Multi-account: each fee has its own CN — hide single-account CN box
+                // Multi-account: each fee has its own CN, hide single-account CN box
                 $('#singleAccountCnWrap').hide();
             } else {
                 $('#multiAccountsBody').empty();
@@ -3684,7 +3684,7 @@
                     'data-is-sponsored="' + (btn.data('student-sponsor') ? 'yes' : 'no') + '" ' +
                     'data-academic-year="' + rowYearLabel + '" ' +
                     'data-academic-year-id="' + rowYearId + '" ' +
-                    'title="Record payment — select fee">' +
+                    'title="Record payment, select fee">' +
                     '<i class="bi bi-cash-coin me-2"></i> Record New Payment' +
                     '</button>';
             } else if (!isClosedYear && payment && payment.paymentID) {
@@ -3833,7 +3833,7 @@
                 $('#otherFeesSection').hide();
             }
             
-            // Build All Transactions section — one toggle per control number
+            // Build All Transactions section, one toggle per control number
             function buildCnTransactionTable(records, paymentID, isClosedYear) {
                 if (!records || !records.length) {
                     return '<div class="text-center py-3 text-muted small">No transactions for this control number.</div>';
@@ -3936,7 +3936,7 @@
                     transactionsHtml += '<button class="btn btn-link w-100 text-start text-decoration-none p-3 d-flex justify-content-between align-items-center" type="button" data-toggle="collapse" data-target="#' + collapseId + '" aria-expanded="false">';
                     transactionsHtml += '<span><i class="bi bi-upc me-2 text-primary-custom"></i>' +
                         '<strong class="text-primary-custom">' + group.control_number + '</strong>' +
-                        ' <span class="text-muted">— ' + group.label + '</span>' +
+                        ' <span class="text-muted">- ' + group.label + '</span>' +
                         (group.account_label ? (' <span class="badge bg-light text-dark border ms-1">' + group.account_label + '</span>') : '') +
                         ' <span class="badge bg-secondary ms-2">' + recordCount + ' txn</span></span>';
                     transactionsHtml += '<i class="bi bi-chevron-down"></i></button>';
@@ -3969,7 +3969,7 @@
 
             if (!studentID) {
                 $loading.hide();
-                $empty.show().text('Student ID missing — cannot load enrollment history.');
+                $empty.show().text('Student ID missing, cannot load enrollment history.');
                 $summary.text('');
                 return;
             }
@@ -3991,11 +3991,11 @@
                         const owed = parseFloat(y.balance || 0);
                         const statusBadge = y.enrollment_status
                             ? '<span class="badge bg-secondary">' + y.enrollment_status + '</span>'
-                            : '<span class="text-muted">—</span>';
+                            : '<span class="text-muted">-</span>';
                         const promoLabel = y.promotion_status_label || y.promotion_status || '';
                         const promoBadge = promoLabel
                             ? '<span class="badge bg-light text-dark border">' + promoLabel + '</span>'
-                            : '<span class="text-muted">—</span>';
+                            : '<span class="text-muted">-</span>';
                         const payBadge = owed > 0
                             ? '<span class="badge bg-danger">Owes</span>'
                             : (y.source === 'none'
@@ -4044,7 +4044,7 @@
                                 'title="Record payment for ' + (y.year_name || 'this year') + '">' +
                                 '<i class="bi bi-cash-coin"></i></button>';
                         } else {
-                            rows += '<span class="text-muted">—</span>';
+                            rows += '<span class="text-muted">-</span>';
                         }
                         rows += '</td>';
                         rows += '</tr>';
@@ -4099,7 +4099,7 @@
                 || payment.academic_yearID
                 || headerAcademicYearID
                 || '';
-            $('#record_academic_year_label').val(academicYearLabel || '—');
+            $('#record_academic_year_label').val(academicYearLabel || '-');
             $('#record_academic_year_id').val(academicYearId || '');
 
             populateRecordPaymentFeeSelect(payment, multiAccounts, {
@@ -4153,7 +4153,7 @@
             $('#quickRecordStudentResults').hide().empty();
             $('#quickRecordSelectedStudent').hide();
             $('#quickRecordFeeSection').hide();
-            $('#quickRecordFeeSelect').html('<option value="">— Select fee —</option>');
+            $('#quickRecordFeeSelect').html('<option value="">- Select fee -</option>');
             $('#quickRecordFeeEmpty').hide();
             $('#quickRecordFeeHint').text('');
             $('#quickRecordContinueBtn').prop('disabled', true);
@@ -4171,7 +4171,7 @@
 
             $('#record_payment_id').val(feeOption.paymentID);
             $('#record_control_number').val(feeOption.control_number || payment.control_number || '');
-            $('#record_academic_year_label').val(academicYearLabel || '—');
+            $('#record_academic_year_label').val(academicYearLabel || '-');
             $('#record_academic_year_id').val(academicYearId || '');
 
             populateRecordPaymentFeeSelect(payment, multiAccounts, {
@@ -4263,7 +4263,7 @@
             quickRecordState.student = s;
             $('#quickRecordStudentSearch').val(s.name || '').prop('disabled', true);
             $('#quickRecordStudentResults').hide().empty();
-            $('#quickRecordStudentName').text(s.name || '—');
+            $('#quickRecordStudentName').text(s.name || '-');
             $('#quickRecordStudentMeta').text((s.admission_number || '') + ' · ' + (s.class_label || ''));
             $('#quickRecordSelectedStudent').show();
             $('#quickRecordFeeSection').show();
@@ -4284,17 +4284,17 @@
 
                 var $sel = $('#quickRecordFeeSelect').empty().prop('disabled', false);
                 if (!quickRecordState.fees.length) {
-                    $sel.append('<option value="">— No fees —</option>');
+                    $sel.append('<option value="">- No fees -</option>');
                     $('#quickRecordFeeEmpty').show();
                     $('#quickRecordFeeHint').text(res.message || '');
                     return;
                 }
                 $('#quickRecordFeeEmpty').hide();
-                $sel.append('<option value="">— Select fee —</option>');
+                $sel.append('<option value="">- Select fee -</option>');
                 quickRecordState.fees.forEach(function(f, idx) {
                     $sel.append($('<option></option>').attr('value', String(idx)).text(f.label || f.fee_name));
                 });
-                $('#quickRecordFeeHint').text('Academic Year: ' + ((res && res.academic_year) || headerAcademicYearLabel || '—'));
+                $('#quickRecordFeeHint').text('Academic Year: ' + ((res && res.academic_year) || headerAcademicYearLabel || '-'));
             }).fail(function() {
                 $('#quickRecordFeeSelect').html('<option value="">Error</option>').prop('disabled', true);
                 $('#quickRecordFeeEmpty').show().text('Failed to load fees.');
@@ -4920,7 +4920,7 @@
             });
         });
 
-        // Send Control Number — preview + editable template modal
+        // Send Control Number, preview + editable template modal
         $(document).on('click', '.send-control-number-btn', function(e) {
             e.preventDefault();
             sendControlNumberSmsWithPreview($(this).data('payment-id'), { button: $(this) });
@@ -4996,7 +4996,7 @@
             });
         });
 
-        // Resend Individual Control SMS — shared editable template modal
+        // Resend Individual Control SMS, shared editable template modal
         $(document).on('click', '.resend-control-sms-btn', function(e) {
             e.preventDefault();
             sendControlNumberSmsWithPreview($(this).data('payment-id'), { button: $(this) });

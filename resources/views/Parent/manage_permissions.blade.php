@@ -242,7 +242,7 @@
                                 </select>
                             </div>
                             <div class="col-md-12 mb-2" id="medicalAttachmentField">
-                                <label class="form-label small font-weight-bold text-uppercase">Kiambatanisho (Hiari — PDF/Picha)</label>
+                                <label class="form-label small font-weight-bold text-uppercase">Kiambatanisho (Hiari, PDF/Picha)</label>
                                 <input type="file" class="form-control" name="attachment" accept=".pdf,.jpg,.jpeg,.png">
                                 <small class="text-muted">Unaweza kuambatisha barua ya daktari au nyaraka nyingine inayounga mkono ombi lako.</small>
                             </div>

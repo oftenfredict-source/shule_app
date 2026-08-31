@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Payments Status Report — {{ $yearLabel ?? $year }}</title>
+    <title>Payments Status Report, {{ $yearLabel ?? $year }}</title>
     <style>
         body { font-family: 'Helvetica', sans-serif; font-size: 11px; color: #333; line-height: 1.4; background: #fff; }
         .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #940000; padding-bottom: 10px; }
@@ -115,7 +115,7 @@
         <div class="school-name">{{ $school->school_name ?? 'School' }}</div>
         <div>{{ $school->address ?? '' }}</div>
         <div>Phone: {{ $school->phone ?? '' }} | Email: {{ $school->email ?? '' }}</div>
-        <div class="report-title">{{ $reportTitle ?? ('PAYMENTS STATUS REPORT — ' . ($yearLabel ?? $year)) }}</div>
+        <div class="report-title">{{ $reportTitle ?? ('PAYMENTS STATUS REPORT, ' . ($yearLabel ?? $year)) }}</div>
     </div>
 
     <div class="info-section">
@@ -211,7 +211,7 @@
                         <strong>{{ data_get($row, 'student.first_name') }} {{ $middle }} {{ data_get($row, 'student.last_name') }}</strong>
                         <div class="muted">{{ data_get($row, 'student.admission_number') }}</div>
                         @if((float) data_get($row, 'student.sponsorship_percentage', 0) > 0)
-                            <div class="muted">Sponsored {{ data_get($row, 'student.sponsorship_percentage') }}% — {{ data_get($row, 'student.sponsor_name', 'Sponsor') }}</div>
+                            <div class="muted">Sponsored {{ data_get($row, 'student.sponsorship_percentage') }}%, {{ data_get($row, 'student.sponsor_name', 'Sponsor') }}</div>
                         @endif
                     </td>
                     <td>
@@ -225,7 +225,7 @@
                         @if($dReq > 0 && !$dMet)
                             <span style="color: #dc3545; font-weight: bold;">{{ number_format($dPaidAmt, 0) }} / {{ number_format($dReq, 0) }}</span>
                         @else
-                            <span class="muted">—</span>
+                            <span class="muted">-</span>
                         @endif
                     </td>
                     <td style="color: {{ $statusColor }}; font-weight: bold;">{{ $status }}</td>

@@ -17,7 +17,7 @@
         background-color: #f8f9fa;
     }
 
-    /* Keep page within right-panel — no horizontal scroll */
+    /* Keep page within right-panel, no horizontal scroll */
     .school-page {
         max-width: 100%;
         width: 100%;

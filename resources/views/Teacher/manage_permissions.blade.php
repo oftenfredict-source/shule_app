@@ -206,7 +206,7 @@
                 @isset($editPermission)
                 <div class="alert alert-warning d-flex align-items-center gap-2 mb-3" style="border-radius:0; border-left: 4px solid #ff9800;">
                     <i class="fa fa-edit text-warning me-2" style="font-size:18px;"></i>
-                    <div><strong>Editing Rejected Request</strong> — Make your corrections below and click <em>Update & Resubmit</em> to send it again for approval.</div>
+                    <div><strong>Editing Rejected Request</strong>: Make your corrections below and click <em>Update & Resubmit</em> to send it again for approval.</div>
                     <a href="{{ url()->current() }}?tab=request" class="btn btn-sm btn-outline-secondary ms-auto" style="border-radius:0;"><i class="fa fa-times"></i> Cancel</a>
                 </div>
                 @endisset

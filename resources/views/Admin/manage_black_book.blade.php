@@ -22,7 +22,7 @@
     .text-primary-custom { color: #940000 !important; }
     .btn-primary-custom { background: #940000; border-color: #940000; color: #fff; }
     .btn-primary-custom:hover { background: #b30000; border-color: #b30000; color: #fff; }
-    /* Force horizontal tabs — teacher_nav uses legacy Bootstrap without list-group-horizontal */
+    /* Force horizontal tabs, teacher_nav uses legacy Bootstrap without list-group-horizontal */
     .bb-menu {
         display: flex !important;
         flex-direction: row !important;
@@ -177,7 +177,7 @@
 <div class="content mt-3">
     <div class="card">
         <div class="card-header bg-primary-custom text-white d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
-            <strong><i class="fa fa-book"></i> Black Book — Discipline Management</strong>
+            <strong><i class="fa fa-book"></i> Black Book, Discipline Management</strong>
             <div class="d-flex flex-wrap" style="gap:8px;">
                 @if($bbRole === 'admin' || ($bbAccess['actor_type'] ?? '') === 'teacher')
                 <a href="{{ route('black_book.report_student') }}" class="btn btn-light btn-sm">
@@ -547,7 +547,7 @@
                     </div>
                     <div class="custom-control custom-switch">
                         <input type="checkbox" class="custom-control-input" id="sendParentSms" checked>
-                        <label class="custom-control-label font-weight-bold" for="sendParentSms" id="sendParentSmsLabel">Send SMS to parent — ON</label>
+                        <label class="custom-control-label font-weight-bold" for="sendParentSms" id="sendParentSmsLabel">Send SMS to parent, ON</label>
                     </div>
                     <small class="text-muted d-block mt-1">Turn OFF if you do not want the parent to receive an SMS for this resolution.</small>
                 </div>
@@ -581,7 +581,7 @@
                     </div>
                     <div class="custom-control custom-switch">
                         <input type="checkbox" class="custom-control-input" id="endPunishmentSendSms" checked>
-                        <label class="custom-control-label font-weight-bold" for="endPunishmentSendSms" id="endPunishmentSendSmsLabel">Send SMS to parent — ON</label>
+                        <label class="custom-control-label font-weight-bold" for="endPunishmentSendSms" id="endPunishmentSendSmsLabel">Send SMS to parent, ON</label>
                     </div>
                     <small class="text-muted d-block mt-1">Turn OFF if you do not want the parent to receive an SMS when punishment ends.</small>
                 </div>
@@ -880,10 +880,10 @@
     }
 
     function getResolvedDetails(r) {
-        let details = '—';
+        let details = '-';
         if (r.resolve_method === 'parent_call') details = 'Parent called. SMS: ' + (r.parent_sms_sent ? 'Sent' : 'Not sent');
         if (r.resolve_method === 'punishment') {
-            details = (r.punishment_category || '') + ' — ' + (r.punishment_description || '');
+            details = (r.punishment_category || '') + ', ' + (r.punishment_description || '');
             if (r.monitoring_ended_at) details += ' (Ended: ' + r.monitoring_ended_at + ')';
         }
         return details;
@@ -1203,10 +1203,10 @@
         const hint = document.getElementById('resolvePunishTypeHint');
         const deadlineWrap = document.getElementById('resolveDeadlineWrap');
         if (type === 'continuous') {
-            hint.textContent = 'Continuous punishment — monitoring required until punishment ends.';
+            hint.textContent = 'Continuous punishment, monitoring required until punishment ends.';
             deadlineWrap.classList.remove('d-none');
         } else {
-            hint.textContent = 'One-time punishment — resolves immediately after assignment.';
+            hint.textContent = 'One-time punishment, resolves immediately after assignment.';
             deadlineWrap.classList.add('d-none');
             document.getElementById('resolveMonitoringDeadline').value = '';
         }
@@ -1304,8 +1304,8 @@
         }
         tbody.innerHTML = rows.map(r =>
             '<tr><td>' + escapeHtml(r.resolved_at || r.created_at) + '</td><td>' + escapeHtml(r.student_name) + '</td><td>' + escapeHtml(r.class_name) + '</td>' +
-            '<td>' + escapeHtml(r.punishment_category || '—') + ' (' + punishmentTypeLabel(r.punishment_type) + ')</td>' +
-            '<td>' + escapeHtml(r.monitoring_deadline || '—') + '</td><td>' + escapeHtml(r.punishment_description || '') + '</td>' +
+            '<td>' + escapeHtml(r.punishment_category || '-') + ' (' + punishmentTypeLabel(r.punishment_type) + ')</td>' +
+            '<td>' + escapeHtml(r.monitoring_deadline || '-') + '</td><td>' + escapeHtml(r.punishment_description || '') + '</td>' +
             '<td><button class="btn btn-sm btn-success end-monitoring-btn" data-id="' + r.reportID + '"><i class="fa fa-check"></i> End Punishment</button></td></tr>'
         ).join('');
         grid.innerHTML = rows.map(r =>
@@ -1313,8 +1313,8 @@
                 '<div class="bb-report-meta"><i class="fa fa-clock-o"></i> ' + escapeHtml(r.resolved_at || r.created_at) + '</div>' +
                 '<div class="bb-report-student">' + escapeHtml(r.student_name) + '</div>' +
                 '<div class="bb-report-class"><i class="fa fa-graduation-cap"></i> ' + escapeHtml(r.class_name) + '</div>' +
-                '<div class="mt-2"><span class="badge badge-light border">' + escapeHtml(r.punishment_category || '—') + ' (' + punishmentTypeLabel(r.punishment_type) + ')</span></div>' +
-                '<div class="small text-muted mt-1"><i class="fa fa-calendar"></i> Deadline: ' + escapeHtml(r.monitoring_deadline || '—') + '</div>' +
+                '<div class="mt-2"><span class="badge badge-light border">' + escapeHtml(r.punishment_category || '-') + ' (' + punishmentTypeLabel(r.punishment_type) + ')</span></div>' +
+                '<div class="small text-muted mt-1"><i class="fa fa-calendar"></i> Deadline: ' + escapeHtml(r.monitoring_deadline || '-') + '</div>' +
                 '<div class="bb-report-desc">' + escapeHtml(r.punishment_description || '') + '</div>' +
                 '<div class="mt-2"><button class="btn btn-sm btn-success end-monitoring-btn" data-id="' + r.reportID + '"><i class="fa fa-check"></i> End Punishment</button></div></div>')
         ).join('');
@@ -1333,7 +1333,7 @@
         const on = document.getElementById('endPunishmentSendSms').checked;
         const label = document.getElementById('endPunishmentSendSmsLabel');
         const msg = document.getElementById('endPunishmentSmsMessage');
-        if (label) label.textContent = on ? 'Send SMS to parent — ON' : 'Send SMS to parent — OFF';
+        if (label) label.textContent = on ? 'Send SMS to parent, ON' : 'Send SMS to parent, OFF';
         if (msg) msg.disabled = !on;
     }
 
@@ -1361,9 +1361,9 @@
         document.getElementById('endPunishmentReportID').value = reportID;
         document.getElementById('endPunishmentInfo').innerHTML =
             '<strong>' + escapeHtml(r.student_name) + '</strong> (' + escapeHtml(r.class_name) + ')<br>' +
-            '<strong>Punishment:</strong> ' + escapeHtml(r.punishment_category || '—') + ' (' + punishmentTypeLabel(r.punishment_type) + ')<br>' +
-            '<strong>Description:</strong> ' + escapeHtml(r.punishment_description || '—') + '<br>' +
-            '<strong>Monitoring deadline:</strong> ' + escapeHtml(r.monitoring_deadline || '—');
+            '<strong>Punishment:</strong> ' + escapeHtml(r.punishment_category || '-') + ' (' + punishmentTypeLabel(r.punishment_type) + ')<br>' +
+            '<strong>Description:</strong> ' + escapeHtml(r.punishment_description || '-') + '<br>' +
+            '<strong>Monitoring deadline:</strong> ' + escapeHtml(r.monitoring_deadline || '-');
         document.getElementById('endPunishmentParentInfo').innerHTML = r.parent_name
             ? '<strong>Parent:</strong> ' + escapeHtml(r.parent_name) + '<br><strong>Phone:</strong> ' + escapeHtml(r.parent_phone || 'Not available')
             : 'No parent record linked to this student.';
@@ -1406,7 +1406,7 @@
             const details = getResolvedDetails(r);
             const method = r.resolve_method === 'parent_call' ? 'Parent Call' : 'Punishment';
             return '<tr><td>' + escapeHtml(r.resolved_at || r.created_at) + '</td><td>' + escapeHtml(r.student_name) + '</td><td>' + escapeHtml(r.problem_category) + '</td>' +
-                '<td>' + escapeHtml(r.resolved_by_name || '—') + '</td><td>' + method + '</td><td>' + escapeHtml(details) + '</td></tr>';
+                '<td>' + escapeHtml(r.resolved_by_name || '-') + '</td><td>' + method + '</td><td>' + escapeHtml(details) + '</td></tr>';
         }).join('');
         grid.innerHTML = rows.map(r => {
             const details = getResolvedDetails(r);
@@ -1415,7 +1415,7 @@
                 '<div class="bb-report-meta"><i class="fa fa-clock-o"></i> ' + escapeHtml(r.resolved_at || r.created_at) + '</div>' +
                 '<div class="bb-report-student">' + escapeHtml(r.student_name) + '</div>' +
                 '<div class="mt-2"><span class="badge badge-light border">' + escapeHtml(r.problem_category) + '</span></div>' +
-                '<div class="small text-muted mt-1">Resolved by: ' + escapeHtml(r.resolved_by_name || '—') + '</div>' +
+                '<div class="small text-muted mt-1">Resolved by: ' + escapeHtml(r.resolved_by_name || '-') + '</div>' +
                 '<div class="small mt-1"><strong>Method:</strong> ' + method + '</div>' +
                 '<div class="bb-report-desc">' + escapeHtml(details) + '</div></div>');
         }).join('');
@@ -1431,7 +1431,7 @@
         const on = document.getElementById('sendParentSms').checked;
         const label = document.getElementById('sendParentSmsLabel');
         const msg = document.getElementById('parentSmsMessage');
-        if (label) label.textContent = on ? 'Send SMS to parent — ON' : 'Send SMS to parent — OFF';
+        if (label) label.textContent = on ? 'Send SMS to parent, ON' : 'Send SMS to parent, OFF';
         if (msg) msg.disabled = !on;
     }
 
@@ -1451,7 +1451,7 @@
             const desc = document.getElementById('resolvePunishDesc').value.trim();
             const deadline = document.getElementById('resolveMonitoringDeadline').value;
             msg = greeting + ', mtoto wako ' + studentName + ' ameripotiwa kwa ' + r.problem_category + '. Adhabu: ' + punLabel;
-            if (desc) msg += ' — ' + desc;
+            if (desc) msg += ', ' + desc;
             if (deadline) msg += '. Utafatiliwa hadi ' + deadline + '.';
             msg += ' Tafadhali wasiliana na shule.';
         }
@@ -1567,10 +1567,10 @@
     }
 
     function showViewMore(title, reports) {
-        document.getElementById('viewMoreTitle').textContent = title + ' — All Reports';
+        document.getElementById('viewMoreTitle').textContent = title + ', All Reports';
         document.getElementById('viewMoreBody').innerHTML = '<table class="table table-sm table-bordered"><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Status</th><th>Resolution</th></tr></thead><tbody>' +
             reports.map(r => {
-                let res = '—';
+                let res = '-';
                 if (r.status === 'resolved' || r.status === 'monitored') {
                     res = r.resolve_method === 'parent_call' ? 'Parent Call' : ('Punishment: ' + (r.punishment_category || '') + ' ' + (r.punishment_description || ''));
                     if (r.status === 'monitored') res += ' [Under Monitoring]';
@@ -1627,12 +1627,12 @@
             grid.innerHTML = '<div class="col-12 text-center text-muted py-4">No data.</div>';
             return;
         }
-        tbody.innerHTML = rows.map(r => '<tr><td>' + escapeHtml(r.student_name) + '</td><td>' + escapeHtml(r.class_name) + '</td><td>' + escapeHtml(r.admission_number || '—') + '</td>' +
+        tbody.innerHTML = rows.map(r => '<tr><td>' + escapeHtml(r.student_name) + '</td><td>' + escapeHtml(r.class_name) + '</td><td>' + escapeHtml(r.admission_number || '-') + '</td>' +
             '<td><strong>' + r.report_count + '</strong></td><td><button class="btn btn-sm btn-outline-danger view-more-analytics" data-json=\'' + JSON.stringify(r.reports).replace(/'/g, '&#39;') + '\' data-name="' + escapeHtml(r.student_name) + '">View More</button></td></tr>').join('');
         grid.innerHTML = rows.map(r =>
             bbReportCard('<div class="bb-card-item"><div class="bb-report-student">' + escapeHtml(r.student_name) + '</div>' +
                 '<div class="bb-report-class"><i class="fa fa-graduation-cap"></i> ' + escapeHtml(r.class_name) + '</div>' +
-                '<div class="small text-muted">Adm: ' + escapeHtml(r.admission_number || '—') + '</div>' +
+                '<div class="small text-muted">Adm: ' + escapeHtml(r.admission_number || '-') + '</div>' +
                 '<div class="mt-2"><span class="bb-weight-badge">' + r.report_count + ' report' + (r.report_count === 1 ? '' : 's') + '</span></div>' +
                 '<div class="mt-2"><button class="btn btn-sm btn-outline-danger view-more-analytics" data-json=\'' + JSON.stringify(r.reports).replace(/'/g, '&#39;') + '\' data-name="' + escapeHtml(r.student_name) + '">View More</button></div></div>')
         ).join('');
@@ -1679,7 +1679,7 @@
         }
     }
 
-    // Init — use server-preloaded data when available (no extra API wait)
+    // Init, use server-preloaded data when available (no extra API wait)
     const initSection = @json($section);
     if (problemCategories.length) renderProblemCategories();
     if (punishmentCategories.length) {

@@ -2,7 +2,7 @@
     $skipSplash = true;
     $portalActive = 'dashboard';
     $seo = [
-        'title' => 'My Application Dashboard — ShuleXpert Online Admission',
+        'title' => 'My Application Dashboard | ShuleXpert Online Admission',
         'description' => 'Manage your online school applications, apply to new schools, and track admission status.',
         'robots' => 'noindex, follow',
     ];

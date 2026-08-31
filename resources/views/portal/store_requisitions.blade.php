@@ -231,7 +231,7 @@
                 <div class="store-section-toolbar">
                     <div>
                         <div class="section-title">Dashboard</div>
-                        <p class="text-muted small mb-0">Summary of your requisitions and requests. Updated: {{ $dash['generated_at'] ?? '—' }}</p>
+                        <p class="text-muted small mb-0">Summary of your requisitions and requests. Updated: {{ $dash['generated_at'] ?? '-' }}</p>
                     </div>
                     <div>{!! $storePdfBtn('dashboard') !!}</div>
                 </div>
@@ -266,9 +266,9 @@
                                         <td>{{ $i + 1 }}</td>
                                         <td><span class="store-badge-pill store-badge-pending">{{ $req['status_label'] ?? 'Requested' }}</span></td>
                                         <td class="small">{{ $req['items_summary'] }}</td>
-                                        <td>{{ $req['expected_return_date'] ?? '—' }}</td>
+                                        <td>{{ $req['expected_return_date'] ?? '-' }}</td>
                                         <td>{{ $req['requested_at'] }}</td>
-                                        <td class="small">{{ $req['notes'] ?? '—' }}</td>
+                                        <td class="small">{{ $req['notes'] ?? '-' }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -296,8 +296,8 @@
                                         <td><span class="store-badge-pill store-badge-{{ $req['status'] === 'approved' ? 'return-yes' : ($req['status'] === 'rejected' ? 'return-no' : 'pending') }}">{{ ucfirst($req['status']) }}</span></td>
                                         <td class="small">{{ $req['items_summary'] }}</td>
                                         <td>{{ $req['requested_at'] }}</td>
-                                        <td>{{ $req['reviewed_at'] ?? '—' }}</td>
-                                        <td class="small">{{ $req['review_notes'] ?? '—' }}</td>
+                                        <td>{{ $req['reviewed_at'] ?? '-' }}</td>
+                                        <td class="small">{{ $req['review_notes'] ?? '-' }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -363,7 +363,7 @@
                                         <td>{{ ucfirst($inc['incident_type']) }}</td>
                                         <td>{{ $inc['item_name'] }}</td>
                                         <td>{{ $inc['label'] }}</td>
-                                        <td class="small">{{ $inc['reason'] ?? '—' }}</td>
+                                        <td class="small">{{ $inc['reason'] ?? '-' }}</td>
                                         <td>{!! $inc['resolve_status_html'] !!}</td>
                                         <td class="small">{{ $inc['recorded_at'] }}</td>
                                     </tr>
@@ -391,7 +391,7 @@
                 <div class="modal-body">
                     <p class="text-muted small mb-3">Submit a request for store items. An administrator will review and approve before items are issued.</p>
                     <div class="portal-requester-box">
-                        <strong>Requester:</strong> {{ $requester['name'] ?? '—' }}
+                        <strong>Requester:</strong> {{ $requester['name'] ?? '-' }}
                         @if(!empty($requester['employee_number']))
                             <span class="text-muted">({{ $requester['employee_number'] }})</span>
                         @endif
@@ -413,7 +413,7 @@
                         </select>
                     </div>
                     <div id="issueStockInfo" class="alert alert-light border small py-2" style="display:none;">
-                        <strong>Package / Unit:</strong> <span id="issuePackageUnit">—</span>
+                        <strong>Package / Unit:</strong> <span id="issuePackageUnit">-</span>
                         &nbsp;|&nbsp;
                         <strong>Available:</strong> <span id="issueAvailableCount">0</span> unit(s)
                     </div>
@@ -507,9 +507,9 @@
                 '<td></td>' +
                 '<td>' + statusBadge + '</td>' +
                 '<td class="small">' + escapeHtml(req.items_summary || '') + '</td>' +
-                '<td>' + escapeHtml(req.expected_return_date || '—') + '</td>' +
+                '<td>' + escapeHtml(req.expected_return_date || '-') + '</td>' +
                 '<td>' + escapeHtml(req.requested_at || '') + '</td>' +
-                '<td class="small">' + escapeHtml(req.notes || '—') + '</td></tr>';
+                '<td class="small">' + escapeHtml(req.notes || '-') + '</td></tr>';
             const $table = $('#portalPendingTable');
             const $tbody = $table.find('tbody');
             $tbody.prepend(row);

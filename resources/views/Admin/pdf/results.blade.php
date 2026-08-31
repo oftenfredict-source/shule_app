@@ -157,7 +157,7 @@
             /** Average: always 2 decimal places (no integer approximation). */
             function pdfFormatAverageMarks($average): string {
                 if ($average === null || $average === '') {
-                    return '—';
+                    return '-';
                 }
                 return number_format((float) $average, 2, '.', '');
             }
@@ -233,7 +233,7 @@
                     strcasecmp($g, 'N/A') === 0 ||
                     $g === '-'
                 ) {
-                    return '—';
+                    return '-';
                 }
                 return $g;
             }
@@ -278,7 +278,7 @@
             }
         }
 
-        /** Headmaster remarks — overall first, then weak subjects; no "Mkuu wa Shule" wording */
+        /** Headmaster remarks, overall first, then weak subjects; no "Mkuu wa Shule" wording */
         if (!function_exists('getAutomaticHeadComment')) {
             function getAutomaticHeadComment($gradeOrDivision, array $weakSubjects = []) {
                 $raw = strtoupper(trim((string) $gradeOrDivision));
@@ -326,7 +326,7 @@
                     $g === '' ||
                     $g === 'N/A' ||
                     $g === '-' ||
-                    $g === '—' ||
+                    $g === '-' ||
                     strcasecmp($g, 'INCOMPLETE') === 0
                 ) {
                     return false;
@@ -456,7 +456,7 @@
             line-height: 1.12 !important;
         }
         body.individual-pdf .student-sheet {
-            /* density wrapper only — do not force avoid (can spill to blank page) */
+            /* density wrapper only, do not force avoid (can spill to blank page) */
         }
         body.individual-pdf .sheet-fill {
             width: 100%;
@@ -622,7 +622,7 @@
             font-size: 10px !important;
             line-height: 1.1 !important;
         }
-        /* Horizontal CA: key + value in one cell (e.g. DISCIPLINE: A) — never wrap */
+        /* Horizontal CA: key + value in one cell (e.g. DISCIPLINE: A), never wrap */
         body.individual-pdf .character-assessment-table.character-assessment-hz {
             table-layout: auto !important;
         }
@@ -705,7 +705,7 @@
             margin-top: 0 !important;
         }
 
-        /* Density expands ONLY padding slightly — never enough to force page 2 */
+        /* Density expands ONLY padding slightly, never enough to force page 2 */
         body.individual-pdf .student-sheet.density-mid table.data td,
         body.individual-pdf .student-sheet.density-mid table.data-table td,
         body.individual-pdf .student-sheet.density-mid table.data.term-report-card td.exam-marks,
@@ -888,7 +888,7 @@
             color: #333;
         }
 
-        /* Individual header — larger logos + header text */
+        /* Individual header, larger logos + header text */
         .header { text-align: center; margin-bottom: 2px; border-bottom: 1.5px solid #940000; padding-bottom: 2px; }
         .header img.school-logo-top,
         .header img.org-logo-top { display: none; }
@@ -1375,7 +1375,7 @@
             font-size: 6px;
             padding: 1px;
         }
-        /* Soft remark chips — readable, not loud layout fills */
+        /* Soft remark chips, readable, not loud layout fills */
         .remark-excellent { background-color: #e8f5e9; color: #1b5e20; }
         .remark-pass { background-color: #f1f8e9; color: #33691e; }
         .remark-good { background-color: #fff8e1; color: #6d4c00; }
@@ -1426,7 +1426,7 @@
                 $studentPhotoBase64 = getSmartBase64(($student->gender ?? '') === 'Female' ? 'images/female.png' : 'images/male.png');
             }
 
-            // Vertical density from subject count — expand when few, stay tight at ~15 (1 page)
+            // Vertical density from subject count, expand when few, stay tight at ~15 (1 page)
             $pdfSubjectCount = 0;
             if (!empty($detailedSingleData['subjects']) && is_array($detailedSingleData['subjects'])) {
                 $pdfSubjectCount = count($detailedSingleData['subjects']);
@@ -1510,7 +1510,7 @@
             @endif
             <div class="report-title">
                 {{ strtoupper(trim($student->first_name . ' ' . ($student->middle_name ?? '') . ' ' . $student->last_name)) }}
-                — {{ $title ?? ($filters['type'] === 'report' ? 'Term Report' : 'Exam Results') }}
+               , {{ $title ?? ($filters['type'] === 'report' ? 'Term Report' : 'Exam Results') }}
             </div>
         </div>
 
@@ -1528,7 +1528,7 @@
                         {{ $filters['type'] === 'exam' ? 'Exam Results' : 'Term Report' }}
                         @if($filters['examID'])
                             @php $exam = \App\Models\Examination::find($filters['examID']); @endphp
-                            @if($exam) — {{ $exam->exam_name }} @endif
+                            @if($exam), {{ $exam->exam_name }} @endif
                         @endif
                     </td>
                     <td class="label">Generated:</td>
@@ -1670,7 +1670,7 @@
                                                 @php
                                                     $pm = isset($paper['marks']) && $paper['marks'] !== null && $paper['marks'] !== ''
                                                         ? number_format((float)$paper['marks'], 0) . '/' . ($paper['max_marks'] ?? '')
-                                                        : '—';
+                                                        : '-';
                                                 @endphp
                                                 <div>{{ $paper['component_name'] ?? 'Paper' }}: {{ $pm }}</div>
                                             @endforeach
@@ -1697,37 +1697,34 @@
                                             }
                                         }
                                         $exMarks = null;
-                                        $exGrade = '—';
+                                        $exGrade = '-';
                                         if ($exResult && isset($exResult['marks']) && $exResult['marks'] !== null && $exResult['marks'] !== '') {
                                             $exMarks = (float) $exResult['marks'];
                                             $rowTotal += $exMarks;
                                             $rowCount++;
-                                            $exGrade = pdfDisplayGrade($exResult['grade'] ?? '—');
+                                            $exGrade = pdfDisplayGrade($exResult['grade'] ?? '-');
                                         } elseif ($exResult && !empty($exResult['grade'])) {
                                             $exGrade = pdfDisplayGrade($exResult['grade']);
                                         }
                                     @endphp
-                                    <td class="exam-marks">{{ $exMarks !== null ? number_format($exMarks, 0) : '—' }}</td>
+                                    <td class="exam-marks">{{ $exMarks !== null ? number_format($exMarks, 0) : '-' }}</td>
                                     <td class="exam-grade">{{ $exGrade }}</td>
                                 @endforeach
                                 <td class="tc bold">
-                                    @if($isIncompleteSubj || $rowCount === 0)
-                                        —
+                                    @if($isIncompleteSubj || $rowCount === 0),
                                     @else
                                         {{ number_format($rowTotal, 0) }}
                                     @endif
                                 </td>
                                 <td class="tc bold">
-                                    @if($isIncompleteSubj)
-                                        —
+                                    @if($isIncompleteSubj),
                                     @elseif(isset($subj['average']) && $subj['average'] !== null && $subj['average'] !== '')
                                         {{ pdfFormatAverageMarks($subj['average']) }}
                                     @elseif($rowCount > 0)
                                         {{ pdfFormatAverageMarks($rowTotal / $rowCount) }}
                                     @elseif(isset($subj['marks']) && $subj['marks'] !== null && $subj['marks'] !== '')
                                         {{ pdfFormatAverageMarks($subj['marks']) }}
-                                    @else
-                                        —
+                                    @else,
                                     @endif
                                 </td>
                                 <td class="daraja-cell">{{ $subjGrade }}</td>
@@ -1737,7 +1734,7 @@
                     </tbody>
                 </table>
 
-                {{-- Summary — same structure for A-Level & O-Level (processing differs in backend) --}}
+                {{-- Summary, same structure for A-Level & O-Level (processing differs in backend) --}}
                 @php
                     $sumDivisionFull = (string) ($detailedSingleData['division'] ?? '');
                     $sumDivisionRoman = $sumDivisionFull;
@@ -1746,14 +1743,14 @@
                     }
                     $sumGradeLetter = $detailedSingleData['gradeLetter']
                         ?? $detailedSingleData['grade']
-                        ?? '—';
+                        ?? '-';
                     if ($isSecondaryPdf && preg_match('/^[0IVX]/i', (string) $sumGradeLetter)) {
-                        $sumGradeLetter = '—';
+                        $sumGradeLetter = '-';
                     }
-                    $mchepuoPos = $detailedSingleData['subclassPosition'] ?? $detailedSingleData['position'] ?? '—';
-                    $mchepuoTotal = $detailedSingleData['subclassTotal'] ?? $detailedSingleData['totalStudentsCount'] ?? '—';
-                    $kidatoPos = $detailedSingleData['classPosition'] ?? $detailedSingleData['position'] ?? '—';
-                    $kidatoTotal = $detailedSingleData['classTotal'] ?? $detailedSingleData['totalStudentsCount'] ?? '—';
+                    $mchepuoPos = $detailedSingleData['subclassPosition'] ?? $detailedSingleData['position'] ?? '-';
+                    $mchepuoTotal = $detailedSingleData['subclassTotal'] ?? $detailedSingleData['totalStudentsCount'] ?? '-';
+                    $kidatoPos = $detailedSingleData['classPosition'] ?? $detailedSingleData['position'] ?? '-';
+                    $kidatoTotal = $detailedSingleData['classTotal'] ?? $detailedSingleData['totalStudentsCount'] ?? '-';
                 @endphp
                 <table class="data summary-grid">
                     <tr>
@@ -1787,11 +1784,11 @@
                         @if($isSecondaryPdf)
                             <td>
                                 <span class="sg-k">Daraja</span> :
-                                <span class="sg-v">{{ $sumDivisionRoman !== '' ? $sumDivisionRoman : '—' }}</span>
+                                <span class="sg-v">{{ $sumDivisionRoman !== '' ? $sumDivisionRoman : '-' }}</span>
                             </td>
                             <td>
                                 <span class="sg-k">Pointi</span> :
-                                <span class="sg-v">{{ $detailedSingleData['totalPoints'] ?? '—' }}</span>
+                                <span class="sg-v">{{ $detailedSingleData['totalPoints'] ?? '-' }}</span>
                             </td>
                         @else
                             <td>
@@ -1825,7 +1822,7 @@
                     </tr>
                 </table>
 
-                {{-- Grade key — colspan/rowspan layout kama report card --}}
+                {{-- Grade key, colspan/rowspan layout kama report card --}}
                 @if($isSecondaryPdf)
                     @php
                         if ($isALevelPdf) {
@@ -1835,8 +1832,8 @@
                                 ['C', '60–69', '3', 'Nzuri', 'III', '13–17', 'C', 'Nzuri'],
                                 ['D', '50–59', '4', 'Inaridhisha', 'IV', '18–19', 'D', 'Inaridhisha'],
                                 ['E', '40–49', '5', 'Tosheleza', '0', '20–21', 'F', 'Mbaya'],
-                                ['S', '35–39', '6', 'Subsidiary', '—', '—', '—', '—'],
-                                ['F', '0–34', '7', 'Mbaya', '—', '—', '—', '—'],
+                                ['S', '35–39', '6', 'Subsidiary', '-', '-', '-', '-'],
+                                ['F', '0–34', '7', 'Mbaya', '-', '-', '-', '-'],
                             ];
                         } else {
                             $gradeKeyRows = [
@@ -1885,7 +1882,7 @@
                     </table>
                 @endif
             @else
-                {{-- Exam (simple, no CA breakdown) — existing layout --}}
+                {{-- Exam (simple, no CA breakdown), existing layout --}}
                 <table class="data">
                     <thead>
                         <tr>
@@ -1933,7 +1930,7 @@
                                                 @php
                                                     $pm = isset($paper['marks']) && $paper['marks'] !== null && $paper['marks'] !== ''
                                                         ? number_format((float)$paper['marks'], 0) . '/' . ($paper['max_marks'] ?? '')
-                                                        : '—';
+                                                        : '-';
                                                 @endphp
                                                 <div>{{ $paper['component_name'] ?? 'Paper' }}: {{ $pm }}</div>
                                             @endforeach
@@ -1965,27 +1962,24 @@
                                                             @php
                                                                 $epm = isset($paper['marks']) && $paper['marks'] !== null && $paper['marks'] !== ''
                                                                     ? number_format((float)$paper['marks'], 0) . '/' . ($paper['max_marks'] ?? '')
-                                                                    : '—';
+                                                                    : '-';
                                                             @endphp
                                                             <div>{{ $paper['component_name'] ?? 'Paper' }}: {{ $epm }}</div>
                                                         @endforeach
                                                     </div>
                                                 @endif
-                                            @else
-                                                —
+                                            @else,
                                             @endif
                                         </td>
                                     @endforeach
                                 @endif
                                 <td class="tc bold">
-                                    @if($isIncompleteSubj)
-                                        —
+                                    @if($isIncompleteSubj),
                                     @elseif(isset($subj['average']) && $subj['average'] !== null && $subj['average'] !== '')
                                         {{ pdfFormatAverageMarks($subj['average']) }}
                                     @elseif(isset($subj['marks']) && $subj['marks'] !== null && $subj['marks'] !== '')
                                         {{ pdfFormatAverageMarks($subj['marks']) }}
-                                    @else
-                                        —
+                                    @else,
                                     @endif
                                 </td>
                                 <td class="daraja-cell">{{ $subjGrade }}</td>
@@ -2094,7 +2088,7 @@
                                                 @php
                                                     $pm = isset($paper['marks']) && $paper['marks'] !== null && $paper['marks'] !== ''
                                                         ? number_format((float)$paper['marks'], 0) . '/' . ($paper['max_marks'] ?? '')
-                                                        : '—';
+                                                        : '-';
                                                 @endphp
                                                 <div>{{ $paper['component_name'] ?? 'Paper' }}: {{ $pm }}</div>
                                             @endforeach
@@ -2121,7 +2115,7 @@
         <p style="color:#940000; font-style:italic; margin-top:10px;">No result data found for this student.</p>
     @endif
 
-    {{-- Character assessment: horizontal — key + value in one cell (e.g. DISCIPLINE: A) --}}
+    {{-- Character assessment: horizontal, key + value in one cell (e.g. DISCIPLINE: A) --}}
     @if(isset($characterAssessments) && isset($characterAssessments[$student->studentID]) && count($characterAssessments[$student->studentID]) > 0)
         @php
             $caRows = collect($characterAssessments[$student->studentID])->values();
@@ -2280,7 +2274,7 @@
 @endforeach
 
 {{-- ====================================================
-     CLASS / SUBCLASS / ALL STUDENTS — Excel-like board (landscape)
+     CLASS / SUBCLASS / ALL STUDENTS, Excel-like board (landscape)
 ==================================================== --}}
 @elseif(!empty($useBoardPdf) && !empty($boardClasses))
     @include('Admin.pdf.partials.results_board')

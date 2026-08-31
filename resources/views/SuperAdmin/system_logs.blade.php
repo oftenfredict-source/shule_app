@@ -430,7 +430,7 @@
                     orderable: true,
                     render: function(email) {
                         if (!email) {
-                            return `<span class="text-muted small">—</span>`;
+                            return `<span class="text-muted small">-</span>`;
                         }
                         return `<a href="mailto:${email}" class="small fw-semibold text-danger">${email}</a>`;
                     }

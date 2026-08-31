@@ -83,17 +83,17 @@
             @php
                 $startDateFmt = $permission->start_date
                     ? (\Carbon\Carbon::parse($permission->start_date)->format('j F Y'))
-                    : '—';
+                    : '-';
                 $endDateFmt = $permission->end_date
                     ? (\Carbon\Carbon::parse($permission->end_date)->format('j F Y'))
-                    : '—';
+                    : '-';
             @endphp
             @if($permission->time_mode === 'days')
                 {{ $startDateFmt }} - {{ $endDateFmt }}
                 <br><span class="badge badge-light border">({{ $permission->days_count }} days)</span>
             @else
                 {{ $startDateFmt }}<br>
-                {{ $permission->start_time ?? '—' }} - {{ $permission->end_time ?? '—' }}
+                {{ $permission->start_time ?? '-' }} - {{ $permission->end_time ?? '-' }}
             @endif
         </td>
         <td>

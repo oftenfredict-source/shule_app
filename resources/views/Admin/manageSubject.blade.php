@@ -69,7 +69,7 @@
         background: #940000;
     }
 
-    /* View Class / Subclass subjects modals — scrollable body + visible scrollbar */
+    /* View Class / Subclass subjects modals, scrollable body + visible scrollbar */
     #viewClassSubjectsModal .modal-body,
     #viewSubclassSubjectsModal .modal-body {
         max-height: 70vh;
@@ -294,7 +294,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
-    /* Select2 inside manageSubjects modals — searchable teacher picker */
+    /* Select2 inside manageSubjects modals, searchable teacher picker */
     .select2-container--default .select2-selection--single {
         border-radius: 0 !important;
         border: 1px solid #ced4da !important;
@@ -751,7 +751,7 @@
                         </small>
                     </div>
                     <div class="alert alert-info mb-3" id="subclassSelectedAlert" style="display: none;">
-                        <i class="bi bi-info-circle"></i> <span id="subclassSelectedAlertText">Subjects already added to this subclass stay as they are. Missing combie subjects load below — assign a teacher for each.</span>
+                        <i class="bi bi-info-circle"></i> <span id="subclassSelectedAlertText">Subjects already added to this subclass stay as they are. Missing combie subjects load below, assign a teacher for each.</span>
                     </div>
 
                     <!-- Dynamic Subjects Container -->
@@ -877,7 +877,7 @@
                     <!-- Duo: per-paper teachers -->
                     <div class="mb-3" id="editDuoPapersWrap" style="display: none;">
                         <label class="form-label fw-bold text-primary-custom">
-                            <i class="bi bi-layers"></i> Duo papers — assign a teacher per paper
+                            <i class="bi bi-layers"></i> Duo papers, assign a teacher per paper
                         </label>
                         <div class="duo-papers-box" id="editDuoPapersBox"></div>
                         <small class="text-muted d-block mt-1">
@@ -1106,7 +1106,7 @@
         }
 
         /**
-         * Searchable teacher dropdown (Select2) — works inside Bootstrap modals.
+         * Searchable teacher dropdown (Select2), works inside Bootstrap modals.
          */
         function initTeacherSearchSelect($el) {
             if (!$el || !$el.length) return;
@@ -1426,7 +1426,7 @@
             return `
                 <div class="mb-3 duo-papers-wrap">
                     <label class="form-label fw-bold text-primary-custom">
-                        <i class="bi bi-layers"></i> Duo papers — assign a teacher per paper
+                        <i class="bi bi-layers"></i> Duo papers, assign a teacher per paper
                     </label>
                     <div class="duo-papers-box">
                         ${rows}
@@ -1493,7 +1493,7 @@
                         <label class="form-label fw-bold">Subject <span class="text-danger">*</span></label>
                         <input type="text" class="form-control class-subject-locked-label" value="${escapeHtml(subjectLabel)}" readonly tabindex="-1">
                         <input type="hidden" name="subjects[${rowIndex}][subjectID]" value="${escapeHtml(subjectID)}" class="subject-select-value" data-locked="1">
-                        <small class="text-muted"><i class="bi bi-lock-fill"></i> Pre-filled from combie${isDuo ? ' (DUO — assign teachers per paper below)' : ' — assign a teacher'}</small>
+                        <small class="text-muted"><i class="bi bi-lock-fill"></i> Pre-filled from combie${isDuo ? ' (DUO, assign teachers per paper below)' : ', assign a teacher'}</small>
                     </div>`;
             } else {
                 subjectBlock = `
@@ -2548,13 +2548,13 @@
             });
         });
 
-        // Handle Subclass Selection Change — load combie defaults / skip already assigned
+        // Handle Subclass Selection Change, load combie defaults / skip already assigned
         $(document).on('change', '#class_subject_subclass_select', function() {
             const subclassID = $(this).val();
 
             if (!subclassID) {
                 $('#subclassSelectedAlert').hide();
-                $('#subclassSelectedAlertText').text('Subjects already added to this subclass stay as they are. Missing combie subjects load below — assign a teacher for each.');
+                $('#subclassSelectedAlertText').text('Subjects already added to this subclass stay as they are. Missing combie subjects load below, assign a teacher for each.');
                 addedSubjectIDsCache = [];
                 resetClassSubjectsContainer(true);
                 return;
@@ -2600,7 +2600,7 @@
                             noteParts.push(
                                 '<strong>To assign now:</strong> ' +
                                 missing.map(s => escapeHtml(s.subject_name)).join(', ') +
-                                ' — select a teacher for each.'
+                                ', select a teacher for each.'
                             );
                         } else {
                             noteParts.push('All combie main subjects are already on this subclass.');
@@ -2741,7 +2741,7 @@
             destroySearchSelectsIn($(this));
             $('#addClassSubjectForm')[0].reset();
             $('#subclassSelectedAlert').hide();
-            $('#subclassSelectedAlertText').text('Subjects already added to this subclass stay as they are. Missing combie subjects load below — assign a teacher for each.');
+            $('#subclassSelectedAlertText').text('Subjects already added to this subclass stay as they are. Missing combie subjects load below, assign a teacher for each.');
             addedSubjectIDsCache = [];
             resetClassSubjectsContainer(false);
             subjectRowCount = 0;
@@ -3720,7 +3720,7 @@
             if (isDuo && papers.length) {
                 $('#editMainTeacherWrap').hide();
                 $('#edit_teacher_select').val('');
-                $('#edit_subject_hint').text('DUO subject — assign a teacher for each paper below');
+                $('#edit_subject_hint').text('DUO subject, assign a teacher for each paper below');
                 var papersHtml = '';
                 papers.forEach(function(paper, i) {
                     papersHtml += `

@@ -1,7 +1,7 @@
 @php
     $skipSplash = true;
     $seo = [
-        'title' => 'Verify Phone — ShuleXpert Online Admission',
+        'title' => 'Verify Phone | ShuleXpert Online Admission',
         'description' => 'Verify your phone number with OTP to activate your ShuleXpert online application account.',
         'canonical' => route('online_application.auth.verify_otp', ['token' => $token]),
         'robots' => 'noindex, follow',
@@ -21,7 +21,7 @@
                         <h3><i class="fa fa-mobile" style="margin-right:8px;"></i>Verify Your Phone</h3>
                         <p class="sx-auth-sub">
                             We sent a 6-digit code to <strong>{{ $maskedPhone }}</strong>.
-                            Enter it below — verification runs automatically when the code is complete.
+                            Enter it below, verification runs automatically when the code is complete.
                         </p>
                         <p class="sx-auth-sub mb-3">
                             Code expires in <strong id="oaOtpCountdown">{{ $otpTtlMinutes }}:00</strong>
