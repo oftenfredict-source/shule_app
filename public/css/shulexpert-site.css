@@ -39,8 +39,12 @@
 
 html, body {
     font-family: 'Century Gothic', CenturyGothic, AppleGothic, sans-serif !important;
-    background: var(--sx-white);
+    background: #ffffff !important;
     color: var(--sx-text);
+}
+
+#main-content {
+    background: #ffffff !important;
 }
 
 h1, h2, h3, h4, h5, h6,
@@ -380,9 +384,7 @@ b, sup, sub, u, del { color: var(--sx-primary); }
     backdrop-filter: blur(6px);
 }
 .gray-bg, .section-bg {
-    background:
-        radial-gradient(ellipse at 100% 0%, rgba(196,58,58,0.08) 0%, transparent 50%),
-        var(--sx-section-grad) !important;
+    background: #ffffff !important;
 }
 
 .footer-area {
@@ -803,8 +805,8 @@ b, sup, sub, u, del { color: var(--sx-primary); }
     pointer-events: none;
 }
 
-/* Brand logo — rounded across public site */
-.sx-logo,
+/* Brand logo — rounded across public site (not splash) */
+.sx-logo:not(.sx-splash-logo),
 #logo .sx-brand img {
     border-radius: 12px;
     object-fit: cover;
@@ -1405,84 +1407,12 @@ body.sx-mobile-nav-open {
     letter-spacing: 0.02em;
 }
 
-/* ============================================================
-   SPLASH — logo, progress bar, powered by
-   ============================================================ */
-#sx-splash {
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    background: #ffffff !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: opacity 0.45s ease, visibility 0.45s ease;
-}
-#sx-splash.hide {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-}
-#sx-splash .sx-splash-inner {
-    text-align: center;
-    width: min(280px, 82vw);
-    background: transparent;
-}
-#sx-splash .sx-splash-logo {
-    width: auto;
-    height: auto;
-    max-width: 120px;
-    max-height: 120px;
-    object-fit: contain;
-    display: block;
-    margin: 0 auto 28px;
-    padding: 0;
-    border: none !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-}
-#sx-splash .sx-splash-bar {
-    width: 100%;
-    height: 4px;
-    margin: 0 auto 16px;
-    background: rgba(148, 0, 0, 0.12);
-    border-radius: 999px;
-    overflow: hidden;
-}
-#sx-splash .sx-splash-bar-fill {
-    display: block;
-    height: 100%;
-    width: 0;
-    background: #940000;
-    border-radius: 999px;
-    animation: sxSplashLoad 1.35s ease-out forwards;
-}
-#sx-splash .sx-splash-powered {
-    margin: 0;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    color: #666666;
-}
-
-@keyframes sxSplashLoad {
-    0% { width: 0; }
-    100% { width: 100%; }
-}
-
-body.sx-splash-lock {
-    overflow: hidden;
-    background: #ffffff !important;
-}
-
 /* Utility */
 .section-gap { padding: 48px 0 56px; }
 .footer-area.section-gap { padding: 70px 0 40px; }
 @media (max-width: 767px) {
     .section-gap { padding: 36px 0 44px; }
     .footer-area.section-gap { padding: 52px 0 32px; }
-    #sx-splash .sx-splash-logo { max-width: 96px; max-height: 96px; }
     .banner-content h1 { font-size: 28px !important; }
 }
 
@@ -1493,10 +1423,7 @@ body.sx-splash-lock {
     min-height: calc(100vh - 120px);
     padding: 130px 0 70px;
     position: relative;
-    background:
-        radial-gradient(ellipse at 12% 20%, rgba(148,0,0,0.22) 0%, transparent 42%),
-        radial-gradient(ellipse at 88% 80%, rgba(196,58,58,0.18) 0%, transparent 45%),
-        linear-gradient(165deg, #0a0610 0%, #1a0a12 30%, #2a0c14 55%, #120810 78%, #04091e 100%);
+    background: #ffffff;
     overflow: hidden;
 }
 .sx-oa-portal-body .sx-auth-stage {
@@ -1504,15 +1431,7 @@ body.sx-splash-lock {
     padding: 36px 0 48px;
 }
 .sx-auth-stage::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image:
-        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
-    pointer-events: none;
+    display: none;
 }
 .sx-auth-panel {
     display: flex;
