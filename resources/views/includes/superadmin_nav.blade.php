@@ -6,6 +6,7 @@
   data-theme="theme-default"
 >
   <head>
+    @include('includes.theme_init')
     <meta charset="utf-8" />
     <meta
       name="viewport"
@@ -192,6 +193,7 @@
     </style>
     
     @stack('styles')
+    <link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}?v={{ filemtime(public_path('css/shulexpert-theme.css')) }}">
   </head>
 
   <body>

@@ -1,0 +1,341 @@
+/* ============================================================
+   ShuleXpert Global Theme — Light (white) / Dark (black)
+   Toggle: data-sx-theme on <html> via includes/theme_toggle
+   ============================================================ */
+
+/* ---------- Theme toggle button ---------- */
+.sx-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #333333;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    flex-shrink: 0;
+}
+.sx-theme-toggle:hover {
+    border-color: #940000;
+    color: #940000;
+}
+.sx-theme-toggle .sx-theme-icon-sun { display: none; }
+.sx-theme-toggle.is-dark .sx-theme-icon-moon { display: none; }
+.sx-theme-toggle.is-dark .sx-theme-icon-sun { display: inline; }
+.sx-theme-toggle.is-dark {
+    background: #111111;
+    border-color: #444444;
+    color: #ffffff;
+}
+.sx-theme-toggle.is-dark:hover {
+    border-color: #ffffff;
+    color: #ffffff;
+}
+.sx-theme-toggle-item { list-style: none; }
+#header .sx-theme-toggle,
+#corp-header .sx-theme-toggle,
+.sx-oa-header__actions .sx-theme-toggle {
+    margin: 0;
+}
+.sx-header-theme-wrap {
+    display: inline-flex;
+    align-items: center;
+    margin-left: auto;
+    margin-right: 12px;
+}
+@media (min-width: 992px) {
+    .sx-header-theme-wrap {
+        margin-left: 0;
+        margin-right: 16px;
+        order: 3;
+    }
+}
+
+/* ============================================================
+   LIGHT MODE — pure white surfaces
+   ============================================================ */
+html[data-sx-theme="light"] {
+    color-scheme: light;
+}
+
+html[data-sx-theme="light"],
+html[data-sx-theme="light"] body {
+    background-color: #ffffff !important;
+    color: #222222 !important;
+}
+
+html[data-sx-theme="light"] #main-content,
+html[data-sx-theme="light"] #right-panel,
+html[data-sx-theme="light"] #corp-main-content,
+html[data-sx-theme="light"] .content,
+html[data-sx-theme="light"] .right-panel,
+html[data-sx-theme="light"] .sx-oa-portal-main,
+html[data-sx-theme="light"] section,
+html[data-sx-theme="light"] .card,
+html[data-sx-theme="light"] .panel,
+html[data-sx-theme="light"] .widget,
+html[data-sx-theme="light"] .modal-content,
+html[data-sx-theme="light"] .dropdown-menu,
+html[data-sx-theme="light"] .table,
+html[data-sx-theme="light"] .gray-bg,
+html[data-sx-theme="light"] .section-bg,
+html[data-sx-theme="light"] [class*="widget"],
+html[data-sx-theme="light"] [class*="card"]:not(.card-img-top),
+html[data-sx-theme="light"] [class*="panel"],
+html[data-sx-theme="light"] #left-panel,
+html[data-sx-theme="light"] #corp-sidebar,
+html[data-sx-theme="light"] .footer-area,
+html[data-sx-theme="light"] .footer-corp,
+html[data-sx-theme="light"] .sx-oa-portal-footer {
+    background-color: #ffffff !important;
+    background-image: none !important;
+}
+
+html[data-sx-theme="light"] #header,
+html[data-sx-theme="light"] #corp-header,
+html[data-sx-theme="light"] .sx-site-header .main-menu,
+html[data-sx-theme="light"] .sx-oa-header {
+    background-color: #ffffff !important;
+}
+
+html[data-sx-theme="light"] .sx-auth-stage {
+    background: #ffffff !important;
+}
+
+/* ============================================================
+   DARK MODE — black surfaces, white text everywhere
+   ============================================================ */
+html[data-sx-theme="dark"] {
+    color-scheme: dark;
+}
+
+html[data-sx-theme="dark"],
+html[data-sx-theme="dark"] body {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+}
+
+html[data-sx-theme="dark"] div,
+html[data-sx-theme="dark"] section,
+html[data-sx-theme="dark"] main,
+html[data-sx-theme="dark"] aside,
+html[data-sx-theme="dark"] header,
+html[data-sx-theme="dark"] footer,
+html[data-sx-theme="dark"] article,
+html[data-sx-theme="dark"] nav,
+html[data-sx-theme="dark"] form,
+html[data-sx-theme="dark"] fieldset,
+html[data-sx-theme="dark"] ul,
+html[data-sx-theme="dark"] ol,
+html[data-sx-theme="dark"] li,
+html[data-sx-theme="dark"] dl,
+html[data-sx-theme="dark"] dt,
+html[data-sx-theme="dark"] dd,
+html[data-sx-theme="dark"] .card,
+html[data-sx-theme="dark"] .card-header,
+html[data-sx-theme="dark"] .card-body,
+html[data-sx-theme="dark"] .card-footer,
+html[data-sx-theme="dark"] .panel,
+html[data-sx-theme="dark"] .panel-body,
+html[data-sx-theme="dark"] .panel-heading,
+html[data-sx-theme="dark"] .widget,
+html[data-sx-theme="dark"] .widget-content,
+html[data-sx-theme="dark"] .modal-content,
+html[data-sx-theme="dark"] .modal-header,
+html[data-sx-theme="dark"] .modal-body,
+html[data-sx-theme="dark"] .modal-footer,
+html[data-sx-theme="dark"] .dropdown-menu,
+html[data-sx-theme="dark"] .list-group-item,
+html[data-sx-theme="dark"] .table,
+html[data-sx-theme="dark"] .table td,
+html[data-sx-theme="dark"] .table th,
+html[data-sx-theme="dark"] .content,
+html[data-sx-theme="dark"] #main-content,
+html[data-sx-theme="dark"] #right-panel,
+html[data-sx-theme="dark"] #left-panel,
+html[data-sx-theme="dark"] #corp-main-content,
+html[data-sx-theme="dark"] #corp-sidebar,
+html[data-sx-theme="dark"] #corp-header,
+html[data-sx-theme="dark"] #header,
+html[data-sx-theme="dark"] .right-panel,
+html[data-sx-theme="dark"] .left-panel,
+html[data-sx-theme="dark"] .gray-bg,
+html[data-sx-theme="dark"] .section-bg,
+html[data-sx-theme="dark"] .bg-white,
+html[data-sx-theme="dark"] .bg-light,
+html[data-sx-theme="dark"] [class*="bg-"],
+html[data-sx-theme="dark"] [class*="widget"],
+html[data-sx-theme="dark"] [class*="card"],
+html[data-sx-theme="dark"] [class*="panel"],
+html[data-sx-theme="dark"] .sx-oa-portal-main,
+html[data-sx-theme="dark"] .sx-oa-portal-footer,
+html[data-sx-theme="dark"] .sx-oa-header,
+html[data-sx-theme="dark"] .footer-area,
+html[data-sx-theme="dark"] .footer-corp,
+html[data-sx-theme="dark"] .sx-auth-stage,
+html[data-sx-theme="dark"] .sx-auth-panel,
+html[data-sx-theme="dark"] .sx-auth-form-wrap,
+html[data-sx-theme="dark"] .sx-site-header,
+html[data-sx-theme="dark"] .sx-site-header .header-top,
+html[data-sx-theme="dark"] .sx-site-header .main-menu,
+html[data-sx-theme="dark"] .sx-mega-panel,
+html[data-sx-theme="dark"] .sx-mobile-nav,
+html[data-sx-theme="dark"] .alert,
+html[data-sx-theme="dark"] .well,
+html[data-sx-theme="dark"] .jumbotron,
+html[data-sx-theme="dark"] .popover,
+html[data-sx-theme="dark"] .tooltip-inner,
+html[data-sx-theme="dark"] .swal2-popup,
+html[data-sx-theme="dark"] .select2-container--default .select2-selection--single,
+html[data-sx-theme="dark"] .select2-dropdown,
+html[data-sx-theme="dark"] .dataTables_wrapper,
+html[data-sx-theme="dark"] .dt-container {
+    background-color: #000000 !important;
+    background-image: none !important;
+    border-color: #333333 !important;
+}
+
+html[data-sx-theme="dark"] *,
+html[data-sx-theme="dark"] *::before,
+html[data-sx-theme="dark"] *::after {
+    color: #ffffff !important;
+}
+
+html[data-sx-theme="dark"] a,
+html[data-sx-theme="dark"] a:visited,
+html[data-sx-theme="dark"] a:hover,
+html[data-sx-theme="dark"] a:active,
+html[data-sx-theme="dark"] label,
+html[data-sx-theme="dark"] span,
+html[data-sx-theme="dark"] p,
+html[data-sx-theme="dark"] h1,
+html[data-sx-theme="dark"] h2,
+html[data-sx-theme="dark"] h3,
+html[data-sx-theme="dark"] h4,
+html[data-sx-theme="dark"] h5,
+html[data-sx-theme="dark"] h6,
+html[data-sx-theme="dark"] small,
+html[data-sx-theme="dark"] strong,
+html[data-sx-theme="dark"] em,
+html[data-sx-theme="dark"] th,
+html[data-sx-theme="dark"] td,
+html[data-sx-theme="dark"] li,
+html[data-sx-theme="dark"] .text-muted,
+html[data-sx-theme="dark"] .text-secondary,
+html[data-sx-theme="dark"] .text-dark,
+html[data-sx-theme="dark"] .text-body,
+html[data-sx-theme="dark"] [class*="text-"] {
+    color: #ffffff !important;
+}
+
+html[data-sx-theme="dark"] input,
+html[data-sx-theme="dark"] textarea,
+html[data-sx-theme="dark"] select,
+html[data-sx-theme="dark"] .form-control,
+html[data-sx-theme="dark"] .custom-select,
+html[data-sx-theme="dark"] .form-select {
+    background-color: #111111 !important;
+    color: #ffffff !important;
+    border-color: #444444 !important;
+}
+
+html[data-sx-theme="dark"] input::placeholder,
+html[data-sx-theme="dark"] textarea::placeholder {
+    color: #aaaaaa !important;
+}
+
+html[data-sx-theme="dark"] .table-striped tbody tr:nth-of-type(odd),
+html[data-sx-theme="dark"] .table-striped tbody tr:nth-of-type(even) {
+    background-color: #000000 !important;
+}
+
+html[data-sx-theme="dark"] .table-hover tbody tr:hover {
+    background-color: #111111 !important;
+}
+
+html[data-sx-theme="dark"] hr {
+    border-color: #333333 !important;
+}
+
+html[data-sx-theme="dark"] img,
+html[data-sx-theme="dark"] video,
+html[data-sx-theme="dark"] canvas,
+html[data-sx-theme="dark"] svg,
+html[data-sx-theme="dark"] picture {
+    background-color: transparent !important;
+}
+
+html[data-sx-theme="dark"] .btn-primary,
+html[data-sx-theme="dark"] .primary-btn,
+html[data-sx-theme="dark"] .btn-danger,
+html[data-sx-theme="dark"] .btn-success,
+html[data-sx-theme="dark"] .btn-warning,
+html[data-sx-theme="dark"] .btn-info,
+html[data-sx-theme="dark"] .btn-secondary,
+html[data-sx-theme="dark"] .btn,
+html[data-sx-theme="dark"] button:not(.sx-theme-toggle) {
+    background-color: #111111 !important;
+    border-color: #555555 !important;
+    color: #ffffff !important;
+}
+
+html[data-sx-theme="dark"] #sx-splash {
+    background: #000000 !important;
+}
+
+html[data-sx-theme="dark"] #sx-splash .sx-splash-powered {
+    color: #ffffff !important;
+}
+
+html[data-sx-theme="dark"] .sx-theme-toggle {
+    background: #111111 !important;
+    border-color: #555555 !important;
+    color: #ffffff !important;
+}
+
+/* Site header nav in dark mode */
+html[data-sx-theme="dark"] .sx-site-header .nav-menu a,
+html[data-sx-theme="dark"] #logo .sx-brand-text,
+html[data-sx-theme="dark"] #logo .sx-brand-sub {
+    color: #ffffff !important;
+}
+
+/* Admin sidebar links */
+html[data-sx-theme="dark"] #left-panel .nav-link,
+html[data-sx-theme="dark"] #left-panel a,
+html[data-sx-theme="dark"] #corp-sidebar a,
+html[data-sx-theme="dark"] #corp-sidebar .menu-link {
+    color: #ffffff !important;
+}
+
+/* Corp portal */
+html[data-sx-theme="dark"] #corp-header-logo .corp-logo-title,
+html[data-sx-theme="dark"] #corp-header-logo .corp-logo-sub,
+html[data-sx-theme="dark"] .corp-login-label,
+html[data-sx-theme="dark"] .corp-login-name {
+    color: #ffffff !important;
+}
+
+/* DataTables / pagination */
+html[data-sx-theme="dark"] .page-link,
+html[data-sx-theme="dark"] .paginate_button {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border-color: #333333 !important;
+}
+
+html[data-sx-theme="dark"] .page-item.active .page-link {
+    background-color: #222222 !important;
+    color: #ffffff !important;
+}
+
+/* SweetAlert2 */
+html[data-sx-theme="dark"] .swal2-title,
+html[data-sx-theme="dark"] .swal2-content,
+html[data-sx-theme="dark"] .swal2-html-container {
+    color: #ffffff !important;
+}

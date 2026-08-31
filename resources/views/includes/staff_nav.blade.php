@@ -2,6 +2,7 @@
 <html class="no-js" lang="en">
 
 <head>
+    @include('includes.theme_init')
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -266,6 +267,7 @@
         }
     </style>
 @include('includes.mobile_app_bar_styles')
+<link rel="stylesheet" href="{{ asset('css/shulexpert-theme.css') }}?v={{ filemtime(public_path('css/shulexpert-theme.css')) }}">
 </head>
 
 <body>
@@ -898,8 +900,8 @@
                 <div class="header-mobile-divider d-lg-none" aria-hidden="true"></div>
 
                 <div class="col-sm-5">
-
-                    <div class="user-area dropdown float-right">
+                    <div class="float-right d-flex align-items-center justify-content-end" style="gap:12px;">
+                    <div class="user-area dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
                             aria-expanded="false">
                             <img class="user-avatar rounded-circle" src="{{ $imgPath }}" alt="User Avatar"
@@ -914,6 +916,7 @@
                                     class="fa fa-key"></i> Change Password</a>
                             <a class="nav-link" href="{{ route('logout') }}"><i class="fa fa-power-off"></i> Logout</a>
                         </div>
+                    </div>
                     </div>
                 </div>
             </div>
