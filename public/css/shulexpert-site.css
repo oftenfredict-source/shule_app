@@ -1412,7 +1412,7 @@ body.sx-mobile-nav-open {
     position: fixed;
     inset: 0;
     z-index: 99999;
-    background: #ffffff;
+    background: #ffffff !important;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1426,16 +1426,21 @@ body.sx-mobile-nav-open {
 #sx-splash .sx-splash-inner {
     text-align: center;
     width: min(280px, 82vw);
+    background: transparent;
 }
 #sx-splash .sx-splash-logo {
-    width: 96px;
-    height: 96px;
+    width: auto;
+    height: auto;
+    max-width: 120px;
+    max-height: 120px;
     object-fit: contain;
     display: block;
     margin: 0 auto 28px;
-    border: none;
-    background: none;
-    box-shadow: none;
+    padding: 0;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 #sx-splash .sx-splash-bar {
     width: 100%;
@@ -1466,7 +1471,10 @@ body.sx-mobile-nav-open {
     100% { width: 100%; }
 }
 
-body.sx-splash-lock { overflow: hidden; }
+body.sx-splash-lock {
+    overflow: hidden;
+    background: #ffffff !important;
+}
 
 /* Utility */
 .section-gap { padding: 48px 0 56px; }
@@ -1474,7 +1482,7 @@ body.sx-splash-lock { overflow: hidden; }
 @media (max-width: 767px) {
     .section-gap { padding: 36px 0 44px; }
     .footer-area.section-gap { padding: 52px 0 32px; }
-    #sx-splash .sx-splash-logo { width: 80px; height: 80px; }
+    #sx-splash .sx-splash-logo { max-width: 96px; max-height: 96px; }
     .banner-content h1 { font-size: 28px !important; }
 }
 
