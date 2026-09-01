@@ -1173,8 +1173,8 @@
                                         
                                         // Filter by subclass if subclass is selected
                                         if ($subclassSelected && $selectedSubclass) {
-                                            $studentSubclassID = $student->subclassID ?? $student->oldSubclassID ?? null;
-                                            if ($studentSubclassID != $selectedSubclass->subclassID) {
+                                            $studentSubclassID = $student->subclassID ?? $student->old_subclassID ?? null;
+                                            if ((int) $studentSubclassID !== (int) $selectedSubclass->subclassID) {
                                                 continue; // Skip students not in selected subclass
                                             }
                                         }
@@ -2625,7 +2625,15 @@
                                                                     <td><span class="badge badge-warning">{{ $examStudent['division'] ?? 'N/A' }}</span></td>
                                                                 @endif
                                                                 <td>
-                                                                    <button class="btn btn-sm btn-primary view-student-details" data-student-id="{{ $st->studentID }}" data-exam-id="{{ $filters['examID'] }}" title="View More Details">
+                                                                    <button class="btn btn-sm btn-primary view-student-details"
+                                                                            data-student-id="{{ $st->studentID }}"
+                                                                            data-exam-id="{{ $filters['examID'] }}"
+                                                                            data-board-position="{{ $examStudent['position'] ?? '' }}"
+                                                                            data-board-total="{{ $examStudent['total_class_students'] ?? '' }}"
+                                                                            data-board-division="{{ $schoolType === 'Primary' ? ($examStudent['grade'] ?? '') : ($examStudent['division'] ?? '') }}"
+                                                                            data-student-name="{{ trim(($st->first_name ?? '') . ' ' . ($st->middle_name ?? '') . ' ' . ($st->last_name ?? '')) }}"
+                                                                            data-admission="{{ $st->admission_number ?? '' }}"
+                                                                            title="View More Details">
                                                                         <i class="bi bi-eye"></i> View More
                                                                     </button>
                                                                 </td>
@@ -2750,8 +2758,8 @@
                                         
                                         // Filter by subclass if subclass is selected
                                         if ($subclassSelected && $selectedSubclass) {
-                                            $studentSubclassID = $student->subclassID ?? $student->oldSubclassID ?? null;
-                                            if ($studentSubclassID != $selectedSubclass->subclassID) {
+                                            $studentSubclassID = $student->subclassID ?? $student->old_subclassID ?? null;
+                                            if ((int) $studentSubclassID !== (int) $selectedSubclass->subclassID) {
                                                 continue;
                                             }
                                         }
@@ -3968,6 +3976,13 @@
         return 'Satisfactory performance. Keep putting in effort.';
     }
 
+    function getResultsClassFilter() {
+        return $('#class').val() || $('#lockedClassID').val() || '';
+    }
+    function getResultsSubclassFilter() {
+        return $('#subclass').val() || $('#lockedSubclassID').val() || '';
+    }
+
 $(document).ready(function() {
     console.log('Result Management page loaded');
     
@@ -4419,6 +4434,8 @@ $(document).ready(function() {
                 year: year,
                 type: 'report',
                 studentID: studentID,
+                class: getResultsClassFilter(),
+                subclass: getResultsSubclassFilter(),
                 getSubjectDetails: true,
                 rank_by: $('#rank_by').val() || 'average'
             },
@@ -4440,7 +4457,7 @@ $(document).ready(function() {
                     term: term,
                     termName: termName,
                     year: year,
-                    position: position,
+                    position: response.position || position,
                     totalStudentsCount: response.totalStudentsCount || 0,
                     averageMarks: response.averageMarks || 0,
                     grade: response.grade || gradeOrDivision,
@@ -4452,6 +4469,9 @@ $(document).ready(function() {
                     characterAssessment: response.characterAssessment || null,
                     teacher: response.teacher || null
                 };
+
+                const reportPositionText = (response.position || position || 'N/A') + ' out of ' + (response.totalStudentsCount || 0);
+                const reportGradeText = response.division || response.grade || gradeOrDivision;
                 
                 // Build content
                 let content = `
@@ -4467,8 +4487,8 @@ $(document).ready(function() {
                                     <p><strong>Year:</strong> ${year}</p>
                                 </div>
                                 <div class="col-md-6">
-                                    <p><strong>Position:</strong> <span class="badge badge-success">${position}</span></p>
-                                    <p><strong>${isSecondary ? 'Division' : 'Grade'}:</strong> ${gradeOrDivision}</p>
+                                    <p><strong>Position:</strong> <span class="badge badge-success">${reportPositionText}</span></p>
+                                    <p><strong>${isSecondary ? 'Division' : 'Grade'}:</strong> ${reportGradeText}</p>
                                 </div>
                             </div>
                         </div>
@@ -4481,9 +4501,9 @@ $(document).ready(function() {
                         <div class="card-body p-0">
                             <table class="table table-sm mb-0">
                                 <tbody>
-                                    <tr><td><strong>Position</strong></td><td>${position}</td></tr>
+                                    <tr><td><strong>Position</strong></td><td>${reportPositionText}</td></tr>
                                     <tr><td><strong>Average</strong></td><td>${average || 'N/A'}</td></tr>
-                                    <tr><td><strong>${isSecondary ? 'Division' : 'Grade'}</strong></td><td>${gradeOrDivision || 'N/A'}</td></tr>
+                                    <tr><td><strong>${isSecondary ? 'Division' : 'Grade'}</strong></td><td>${reportGradeText || 'N/A'}</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -4599,13 +4619,17 @@ $(document).ready(function() {
     $(document).on('click', '.view-student-details', function() {
         const studentID = $(this).data('student-id');
         const examID = $(this).data('exam-id');
-        const $row = $(this).closest('tr');
+        const $btn = $(this);
+        const $row = $btn.closest('tr');
         
-        // Get student info from the row
-        const studentName = $row.find('td').eq(2).text().trim();
-        const studentNumber = $row.find('td').eq(1).text().trim();
-        const gradeOrDivision = $row.find('td').eq(4).text().trim();
-        const position = $row.find('td').eq(0).text().trim();
+        const studentName = $btn.data('student-name') || $row.find('td').eq(2).text().trim();
+        const studentNumber = $btn.data('admission') || $row.find('td').eq(1).text().trim();
+        const gradeOrDivision = $btn.attr('data-board-division') || $row.find('td').eq(6).text().trim();
+        const boardPosition = $btn.attr('data-board-position') || $row.find('td').eq(0).text().trim();
+        const boardTotal = $btn.attr('data-board-total') || '';
+        const position = boardTotal
+            ? (String(boardPosition).replace(/\s+out of\s+\d+/i, '').trim() + ' out of ' + boardTotal)
+            : String(boardPosition).trim();
         
         // Show modal
         $('#studentDetailsModal').modal('show');
@@ -4699,7 +4723,8 @@ $(document).ready(function() {
                 year: $('#year').val(),
                 type: $('#type').val() || 'exam',
                 examID: examID,
-                class: $('#class').val(),
+                class: getResultsClassFilter(),
+                subclass: getResultsSubclassFilter(),
                 studentID: studentID,
                 getSubjectDetails: true,
                 rank_by: $('#rank_by').val() || 'average'
@@ -4720,7 +4745,11 @@ $(document).ready(function() {
                 
                 if (typeof response === 'object' && response.subjects) {
                     // JSON response with subject details
-                    const studentPosition = response.position || position;
+                    const studentPosition = response.position || boardPosition;
+                    const studentTotal = response.totalStudentsCount || boardTotal || 0;
+                    const positionText = studentTotal
+                        ? (studentPosition + ' out of ' + studentTotal)
+                        : String(studentPosition || position);
                     window.currentStudentData = {
                         studentID: response.student.studentID,
                         studentName: (response.student.first_name || '') + ' ' + (response.student.middle_name || '') + ' ' + (response.student.last_name || ''),
@@ -4735,7 +4764,7 @@ $(document).ready(function() {
                         grade: response.grade || null,
                         division: response.division || null,
                         isALevel: !!response.isALevel,
-                        totalStudentsCount: response.totalStudentsCount || 0,
+                        totalStudentsCount: studentTotal,
                         subjects: response.subjects || [],
                         characterAssessment: response.characterAssessment || null,
                         position: studentPosition,
@@ -4747,10 +4776,16 @@ $(document).ready(function() {
                     const displayGradeOrDivision = response.division || response.grade || gradeOrDivision;
                     content = content.replace(
                         `<p><strong>Position:</strong> <span class="badge badge-success">${position}</span></p>`,
-                        `<p><strong>Position:</strong> <span class="badge badge-success">${studentPosition} out of ${response.totalStudentsCount || 0}</span></p>`
+                        `<p><strong>Position:</strong> <span class="badge badge-success">${positionText}</span></p>`
+                    ).replace(
+                        `<tr><td><strong>Position</strong></td><td>${position}</td></tr>`,
+                        `<tr><td><strong>Position</strong></td><td>${positionText}</td></tr>`
                     ).replace(
                         `<p><strong>${schoolType === 'Primary' ? 'Grade' : 'Division'}:</strong> ${gradeOrDivision}</p>`,
                         `<p><strong>${schoolType === 'Primary' ? 'Grade' : 'Division'}:</strong> ${displayGradeOrDivision}</p>`
+                    ).replace(
+                        `<tr><td><strong>${schoolType === 'Primary' ? 'Grade' : 'Division'}</strong></td><td>${gradeOrDivision || 'N/A'}</td></tr>`,
+                        `<tr><td><strong>${schoolType === 'Primary' ? 'Grade' : 'Division'}</strong></td><td>${displayGradeOrDivision || 'N/A'}</td></tr>`
                     );
                     content += renderCharacterAssessmentHtml(response.characterAssessment);
                     
@@ -6675,6 +6710,11 @@ $(document).ready(function() {
             type: $('#type').val() || 'exam',
             status: $('#status').val() || 'Active',
             examID: examID || $('#examID').val() || '',
+            class: getResultsClassFilter(),
+            subclass: getResultsSubclassFilter(),
+            classID: getResultsClassFilter(),
+            subclassID: getResultsSubclassFilter(),
+            rank_by: $('#rank_by').val() || 'average',
             _btn: $btn
         };
 
@@ -6715,6 +6755,11 @@ $(document).ready(function() {
             type: 'report',
             status: $('#status').val() || 'Active',
             examID: $('#examID').val() || '',
+            class: getResultsClassFilter(),
+            subclass: getResultsSubclassFilter(),
+            classID: getResultsClassFilter(),
+            subclassID: getResultsSubclassFilter(),
+            rank_by: $('#rank_by').val() || 'average',
             _btn: $btn
         };
 
@@ -10397,7 +10442,10 @@ $(document).ready(function() {
                 examID: examID,
                 term: term,
                 year: year,
-                type: type
+                type: type,
+                class: getResultsClassFilter(),
+                subclass: getResultsSubclassFilter(),
+                rank_by: $('#rank_by').val() || 'average'
             },
             dataType: 'json',
             success: function(response) {

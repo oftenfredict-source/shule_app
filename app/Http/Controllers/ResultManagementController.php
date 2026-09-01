@@ -191,6 +191,14 @@ class ResultManagementController extends Controller
         $classFilter = $request->input("class", "");
         $subclassFilter = $request->input("subclass", "");
         $subclassIDParam = $request->input("subclassID", ""); // From classManagement link
+        if ($this->normalizeResultsSubclassFilter($subclassFilter) === null) {
+            $fromSubclassIdParam = $this->normalizeResultsSubclassFilter(
+                $subclassIDParam,
+            );
+            if ($fromSubclassIdParam !== null) {
+                $subclassFilter = (string) $fromSubclassIdParam;
+            }
+        }
         $classIDParam = $request->input("classID", ""); // From coordinator view
         $isCoordinatorView = $request->input("coordinator") === "true";
         $examFilter = $request->input("examID", ""); // Specific exam filter
@@ -1829,33 +1837,60 @@ class ResultManagementController extends Controller
                 $classTotal = count($kidatoList);
                 $classPosition = $findRank($kidatoList, $studentIDFilter);
 
+                $filteredSubclassId = $this->normalizeResultsSubclassFilter(
+                    $subclassFilter,
+                );
+                $streamIdForMchepuo = $filteredSubclassId
+                    ?: ($studentSubclassID ? (int) $studentSubclassID : null);
+
                 // Mchepuo = same subclass/stream (A-Level = combination e.g. PCM)
                 $mchepuoList = $classStudentsWithResults;
-                if ($studentSubclassID) {
-                    $mchepuoList = array_values(
-                        array_filter(
-                            $classStudentsWithResults,
-                            function ($row) use ($studentSubclassID) {
-                                $st = $row["student"];
-                                $sid =
-                                    $st->subclassID ??
-                                    ($st->old_subclassID ??
-                                        ($st->subclass->subclassID ??
-                                            ($st->oldSubclass->subclassID ??
-                                                null)));
-                                return (int) $sid === (int) $studentSubclassID;
-                            },
-                        ),
+                if ($streamIdForMchepuo) {
+                    $streamStudentIds = $enrollmentSvc->studentIDsInSubclass(
+                        (int) $streamIdForMchepuo,
+                        (int) $schoolID,
+                        "Active",
                     );
+                    if (!empty($streamStudentIds)) {
+                        $streamIdSet = array_fill_keys($streamStudentIds, true);
+                        $mchepuoList = array_values(
+                            array_filter(
+                                $classStudentsWithResults,
+                                function ($row) use ($streamIdSet) {
+                                    $id = (int) ($row["student"]->studentID ?? 0);
+                                    return isset($streamIdSet[$id]);
+                                },
+                            ),
+                        );
+                    } else {
+                        $mchepuoList = array_values(
+                            array_filter(
+                                $classStudentsWithResults,
+                                function ($row) use ($streamIdForMchepuo) {
+                                    return $this->studentResultStreamId(
+                                        $row["student"],
+                                    ) === (int) $streamIdForMchepuo;
+                                },
+                            ),
+                        );
+                    }
                 }
                 $sortRankList($mchepuoList);
                 $subclassTotal = count($mchepuoList);
                 $subclassPosition = $findRank($mchepuoList, $studentIDFilter);
 
-                // Primary position: A-Level = combination/subclass; O-Level = mchepuo (same structure fields)
-                $studentPosition = $subclassPosition ?? ($classPosition ?? 0);
-                $totalStudentsCount =
-                    $subclassTotal > 0 ? $subclassTotal : $classTotal;
+                // Board filter drives the headline Position:
+                // All subclasses → whole main class (all streams);
+                // a specific stream → that stream only.
+                if ($filteredSubclassId) {
+                    $studentPosition = $subclassPosition ?? ($classPosition ?? 0);
+                    $totalStudentsCount =
+                        $subclassTotal > 0 ? $subclassTotal : $classTotal;
+                } else {
+                    $studentPosition = $classPosition ?? ($subclassPosition ?? 0);
+                    $totalStudentsCount =
+                        $classTotal > 0 ? $classTotal : $subclassTotal;
+                }
             }
 
             // Get student photo path or placeholder
@@ -6876,6 +6911,36 @@ class ResultManagementController extends Controller
                 return ["grade" => "F", "division" => null];
             }
         }
+    }
+
+    /**
+     * Specific stream filter from manageResults (empty / 0 / all = All Subclasses).
+     */
+    private function normalizeResultsSubclassFilter($value): ?int
+    {
+        if (
+            $value === null ||
+            $value === "" ||
+            $value === "0" ||
+            strtolower((string) $value) === "all"
+        ) {
+            return null;
+        }
+        $id = filter_var($value, FILTER_VALIDATE_INT);
+        return $id === false ? null : (int) $id;
+    }
+
+    private function studentResultStreamId($student): ?int
+    {
+        $sid = $student->subclassID ?? ($student->old_subclassID ?? null);
+        if (!$sid && $student->subclass) {
+            $sid = $student->subclass->subclassID ?? null;
+        }
+        if (!$sid && $student->oldSubclass) {
+            $sid = $student->oldSubclass->subclassID ?? null;
+        }
+
+        return $sid ? (int) $sid : null;
     }
 
     /**
