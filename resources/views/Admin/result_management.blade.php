@@ -3992,7 +3992,7 @@
             classID: classID,
             subclassID: subclassID,
             option: option,
-            teacher_view: {{ !empty($isTeacherView) ? "'1'" : "'0'" }}
+            teacher_view: @json(!empty($isTeacherView) ? '1' : '0')
         };
     }
 
@@ -4024,42 +4024,54 @@ $(document).ready(function() {
     
     // Initialize DataTable for All Students Results table
     function initializeAllStudentsDataTable() {
-        // Destroy existing DataTable if it exists
-        if ($.fn.DataTable.isDataTable('#allStudentsTable')) {
-            $('#allStudentsTable').DataTable().destroy();
+        const $table = $('#allStudentsTable');
+        if (!$table.length || typeof $.fn.DataTable !== 'function') {
+            return;
         }
-        
-        // Initialize DataTable
-        if ($('#allStudentsTable').length > 0) {
-            $('#allStudentsTable').DataTable({
-                'paging': true,
-                'lengthChange': true,
-                'searching': true,
-                'ordering': true,
-                'info': true,
-                'autoWidth': false,
-                'pageLength': 5,
-                'lengthMenu': [[5, 10, 25, 50, -1], [5, 10, 25, 50, "All"]],
-                'language': {
-                    'search': 'Search:',
-                    'lengthMenu': 'Show _MENU_ entries',
-                    'info': 'Showing _START_ to _END_ of _TOTAL_ entries',
-                    'infoEmpty': 'No entries to show',
-                    'infoFiltered': '(filtered from _MAX_ total entries)',
-                    'paginate': {
-                        'first': 'First',
-                        'last': 'Last',
-                        'next': 'Next',
-                        'previous': 'Previous'
+
+        if ($.fn.DataTable.isDataTable($table)) {
+            $table.DataTable().destroy();
+        }
+
+        $table.DataTable({
+            paging: true,
+            lengthChange: true,
+            searching: true,
+            ordering: true,
+            info: true,
+            autoWidth: false,
+            destroy: true,
+            pageLength: 5,
+            lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, 'All']],
+            language: {
+                search: 'Search:',
+                lengthMenu: 'Show _MENU_ entries',
+                info: 'Showing _START_ to _END_ of _TOTAL_ entries',
+                infoEmpty: 'No entries to show',
+                infoFiltered: '(filtered from _MAX_ total entries)',
+                paginate: {
+                    first: 'First',
+                    last: 'Last',
+                    next: 'Next',
+                    previous: 'Previous'
+                }
+            },
+            order: [[0, 'asc']],
+            columnDefs: [
+                {
+                    targets: 0,
+                    type: 'num',
+                    render: function (data, type) {
+                        if (type === 'sort' || type === 'type') {
+                            var n = parseInt(String(data).replace(/[^\d]/g, ''), 10);
+                            return isNaN(n) ? 9999 : n;
+                        }
+                        return data;
                     }
                 },
-                'order': [[0, 'asc']], // Sort by Position column ascending
-                'columnDefs': [
-                    { 'orderable': true, 'targets': [0, 1, 2, 3, 4] }, // Position, Student Number, Student Name, Class, Grade/Division
-                    { 'orderable': false, 'targets': [5] } // Actions column
-                ]
-            });
-        }
+                { orderable: false, targets: -1 }
+            ]
+        });
     }
     
     // Initialize DataTable for Subject Performance Statistics table
