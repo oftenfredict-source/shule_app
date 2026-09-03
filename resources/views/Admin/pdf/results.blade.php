@@ -903,14 +903,6 @@
         body.board-pdf table.board-results th,
         body.board-pdf table.board-results td { font-size: {{ $sx(14) }}px !important; }
         body.board-pdf table.board-results thead th { font-size: {{ $sx(14) }}px !important; }
-        body.board-pdf table.board-results thead th.v,
-        body.board-pdf table.board-results thead th.v-subj,
-        body.board-pdf table.board-results thead th.v-stream,
-        body.board-pdf table.board-results thead th.v-trail,
-        body.board-pdf table.board-results .v-rot {
-            font-size: {{ $sx(10) }}px !important;
-            overflow: visible !important;
-        }
         body.board-pdf table.board-results th.sn-h,
         body.board-pdf table.board-results th.name-h,
         body.board-pdf table.board-results th.index-h { font-size: {{ $sx(14) }}px !important; }
