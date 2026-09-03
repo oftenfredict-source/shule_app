@@ -156,6 +156,9 @@
         font-size: 14px;
         line-height: 1.15;
     }
+    table.board-results thead th {
+        overflow: visible;
+    }
     /* Do NOT repeat column titles on following pages â€” first page only */
     table.board-results > thead {
         display: table-row-group;
@@ -181,24 +184,25 @@
         font-weight: bold;
         font-size: 14px;
     }
-    /* Vertical titles â€” base size; per-board height expands with longest subject name */
+    /* Vertical titles — full label visible, -90deg like Excel board */
     table.board-results th.v,
-    table.board-results th.v-subj {
-        height: 78px;
-        padding: 2px 2px;
+    table.board-results th.v-subj,
+    table.board-results th.v-stream,
+    table.board-results th.v-trail {
+        height: 130px;
+        padding: 3px 1px;
         vertical-align: middle;
         text-align: center;
-        overflow: hidden;
+        overflow: visible;
     }
     table.board-results th.v { width: 2.5%; }
-    /* COMBIE/COMBINATION: vertical header like SEX/POINT; column wide enough for horizontal codes (PMC) */
     table.board-results th.v-stream {
         width: 4.2%;
-        font-size: 14px;
-        vertical-align: bottom;
-        padding: 2px 1px 0 1px;
-        height: 78px;
-        overflow: hidden;
+        font-size: 12px;
+        vertical-align: middle;
+        padding: 3px 1px;
+        height: 130px;
+        overflow: visible;
     }
     table.board-results th.v-trail { width: 4%; }
     table.board-results th.v-trail.v-total { width: 5.8%; }
@@ -207,7 +211,7 @@
 
     table.board-results table.v-inner {
         width: 100%;
-        height: 72px;
+        height: 122px;
         border-collapse: collapse;
         margin: 0 auto;
     }
@@ -218,30 +222,30 @@
         text-align: center;
         vertical-align: middle;
         background: transparent;
-        overflow: hidden;
+        overflow: visible;
     }
     table.board-results .v-box {
-        width: 12px;
-        height: 70px;
+        width: 18px;
+        height: 118px;
         margin: 0 auto;
         position: relative;
-        overflow: hidden;
+        overflow: visible;
     }
     table.board-results th.v-subj .v-box {
-        width: 14px;
+        width: 20px;
     }
     table.board-results .v-rot {
         position: absolute;
-        left: 6px;
-        bottom: 0;
-        width: 70px;
+        left: 4px;
+        bottom: 4px;
+        width: 118px;
         white-space: nowrap;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: bold;
-        color: #940000;
-        line-height: 12px;
+        color: #940000 !important;
+        line-height: 1.15;
         text-align: center;
-        letter-spacing: 0.1px;
+        letter-spacing: 0.2px;
         transform: rotate(-90deg);
         transform-origin: left bottom;
     }
@@ -499,10 +503,14 @@
                 : ['A'=>1,'B'=>2,'C'=>3,'D'=>4,'F'=>5])
             : ['A'=>5,'B'=>4,'C'=>3,'D'=>2,'E'=>1,'F'=>0];
 
-        // Header row height from longest vertical title (subjects + fixed labels)
+        // Header row height from longest vertical title (subjects + SEX / COMBINATION / TOTAL…)
         $maxVertLen = 0;
-        foreach (['SEX', 'POINT', 'DIVISION', 'TOTAL', 'AVERAGE', 'POSITION', 'GRADE', 'COMBINATION', 'INDEX NO'] as $fixedLabel) {
+        foreach (['SEX', 'POINT', 'DIVISION', 'TOTAL', 'AVERAGE', 'POSITION', 'GRADE', 'COMBINATION'] as $fixedLabel) {
             $maxVertLen = max($maxVertLen, strlen($fixedLabel));
+        }
+        $streamLabel = strtoupper(trim((string) ($board['streamHeader'] ?? 'COMBINATION')));
+        if ($streamLabel !== '') {
+            $maxVertLen = max($maxVertLen, mb_strlen($streamLabel, 'UTF-8'));
         }
         foreach ($subjects as $subj) {
             $maxVertLen = max(
@@ -517,14 +525,14 @@
         if ($boardPdfScale > 1.4) {
             $boardPdfScale = 1.4;
         }
-        // ~7.2px per character at 11px bold vertical titles + padding; grow with download scale
-        $vHeaderH = (int) min(240, max(90, round(($maxVertLen * 7.2) + 12) * $boardPdfScale));
-        $vInnerH = max(78, $vHeaderH - 6);
-        $vBoxH = max(76, $vHeaderH - 8);
-        $vBoxW = (int) max(12, round(14 * $boardPdfScale));
-        $vFont = round(11 * $boardPdfScale, 2);
-        $vLine = round(12 * $boardPdfScale, 2);
-        $vLeft = (int) max(5, round(6 * $boardPdfScale));
+        // Bold uppercase ~8.8px/char at 12px so COMP/SCIEN, COMBINATION, ADV/MATHS are fully visible
+        $vFont = round(12 * $boardPdfScale, 2);
+        $vHeaderH = (int) min(280, max(120, round(($maxVertLen * 8.8 * $boardPdfScale) + 22)));
+        $vInnerH = max(110, $vHeaderH - 6);
+        $vBoxH = max(106, $vHeaderH - 10);
+        $vBoxW = (int) max(18, round(20 * $boardPdfScale));
+        $vLine = round(14 * $boardPdfScale, 2);
+        $vLeft = (int) max(4, round($vBoxW * 0.28));
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
@@ -534,15 +542,18 @@
         .{{ $boardCssId }} table.board-results th.v-stream,
         .{{ $boardCssId }} table.board-results th.v-trail {
             height: {{ $vHeaderH }}px !important;
-            overflow: hidden !important;
+            overflow: visible !important;
         }
         .{{ $boardCssId }} table.board-results table.v-inner {
             height: {{ $vInnerH }}px !important;
         }
+        .{{ $boardCssId }} table.board-results table.v-inner td {
+            overflow: visible !important;
+        }
         .{{ $boardCssId }} table.board-results .v-box {
             height: {{ $vBoxH }}px !important;
             width: {{ $vBoxW }}px !important;
-            overflow: hidden !important;
+            overflow: visible !important;
         }
         .{{ $boardCssId }} table.board-results th.v-subj .v-box {
             width: {{ $vBoxW + 2 }}px !important;
@@ -552,6 +563,9 @@
             font-size: {{ $vFont }}px !important;
             line-height: {{ $vLine }}px !important;
             left: {{ $vLeft }}px !important;
+            bottom: 6px !important;
+            color: #940000 !important;
+            overflow: visible !important;
         }
     </style>
 
