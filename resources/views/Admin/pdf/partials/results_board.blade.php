@@ -417,6 +417,12 @@
         padding: 1px 1px !important;
         text-align: center !important;
     }
+    table.board-results td.empty-subj {
+        background-color: #bdbdbd !important;
+        color: transparent !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
     table.board-results .sub-h {
         font-size: 5.5px;
         background: #fafafa;

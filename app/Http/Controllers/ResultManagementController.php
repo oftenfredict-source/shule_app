@@ -8681,6 +8681,36 @@ class ResultManagementController extends Controller
     }
 
     /**
+     * A-Level: student is assigned this subject via subclass offering or combination.
+     */
+    private function aLevelStudentAssignedSubject(
+        $student,
+        int $subjectID,
+        array $offeredBySubclass,
+    ): bool {
+        if ($this->studentTakesBoardSubject($student, $subjectID, $offeredBySubclass)) {
+            return true;
+        }
+
+        $sub = $student->subclass ?? ($student->oldSubclass ?? null);
+        $combie = $sub->combie ?? null;
+        if (!$combie) {
+            return false;
+        }
+
+        $subjects = $combie->relationLoaded("subjects")
+            ? $combie->subjects
+            : $combie->subjects()->get();
+        foreach ($subjects as $s) {
+            if ((int) ($s->subjectID ?? 0) === $subjectID) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Build one class board payload for PDF Export All (matches Excel board columns).
      */
     private function buildBoardPdfClassData(
@@ -8915,11 +8945,18 @@ class ResultManagementController extends Controller
                 $subj =
                     ($sid > 0 ? $subjectMapById[$sid] ?? null : null) ??
                     ($subjectMapByName[$name] ?? null);
+                $marksRaw = $subj["marks"] ?? null;
+                $hasPositiveMark =
+                    $subj &&
+                    $marksRaw !== null &&
+                    $marksRaw !== "" &&
+                    $marksRaw !== "incomplete" &&
+                    (float) $marksRaw > 0;
                 $notTaken =
                     $isALevelClass &&
                     $sid > 0 &&
-                    $offeredBySubclass !== [] &&
-                    !$this->studentTakesBoardSubject(
+                    !$hasPositiveMark &&
+                    !$this->aLevelStudentAssignedSubject(
                         $student,
                         $sid,
                         $offeredBySubclass,
@@ -9835,11 +9872,18 @@ class ResultManagementController extends Controller
                     ($sid > 0 ? $subjectMapById[$sid] ?? null : null) ??
                     ($subjectMapByName[$name] ?? null);
 
+                $marksRaw = $subj["marks"] ?? null;
+                $hasPositiveMark =
+                    $subj &&
+                    $marksRaw !== null &&
+                    $marksRaw !== "" &&
+                    $marksRaw !== "incomplete" &&
+                    (float) $marksRaw > 0;
                 $notTaken =
                     $isALevelClass &&
                     $sid > 0 &&
-                    $offeredBySubclass !== [] &&
-                    !$this->studentTakesBoardSubject(
+                    !$hasPositiveMark &&
+                    !$this->aLevelStudentAssignedSubject(
                         $student,
                         $sid,
                         $offeredBySubclass,
@@ -10055,13 +10099,36 @@ class ResultManagementController extends Controller
                 $subjectName = $boardSubj["subject_name"] ?? "N/A";
                 $subjectID = $boardSubj["subjectID"] ?? null;
 
-                if (
-                    ($expandToMainClassSubjects || $isALevel) &&
-                    !$this->studentTakesBoardSubject(
+                $resPeek =
+                    $subjectID && isset($byId[$subjectID])
+                        ? $byId[$subjectID]
+                        : ($byName[$subjectName] ?? null);
+                $marksPeek = $resPeek["marks"] ?? null;
+                $hasPositiveMark =
+                    $resPeek &&
+                    $marksPeek !== null &&
+                    $marksPeek !== "" &&
+                    $marksPeek !== "incomplete" &&
+                    (float) $marksPeek > 0;
+                $sidInt = (int) ($subjectID ?? 0);
+                $notTaken =
+                    $isALevel &&
+                    $sidInt > 0 &&
+                    !$hasPositiveMark &&
+                    !$this->aLevelStudentAssignedSubject(
                         $student,
-                        (int) ($subjectID ?? 0),
+                        $sidInt,
                         $offeredBySubclass,
-                    )
+                    );
+                if (
+                    $notTaken ||
+                    ($expandToMainClassSubjects &&
+                        $resPeek === null &&
+                        !$this->studentTakesBoardSubject(
+                            $student,
+                            $sidInt,
+                            $offeredBySubclass,
+                        ))
                 ) {
                     continue;
                 }
