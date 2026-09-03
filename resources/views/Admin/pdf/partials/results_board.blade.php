@@ -1,17 +1,22 @@
 {{-- Excel-like class board (landscape). Styles extend results.blade.php --}}
 @php
     if (!function_exists('pdfBoardVerticalLabel')) {
-        /** Excel-style vertical header, centred in cell (DomPDF-safe) */
-        function pdfBoardVerticalLabel(?string $text): string {
+        /** Excel-style vertical header with explicit size (DomPDF-safe) */
+        function pdfBoardVerticalLabel(?string $text, array $m = []): string {
             $text = strtoupper(trim((string) $text));
             if ($text === '') {
                 return '';
             }
             $safe = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
-            // Nested table + rotate: DomPDF centres better than absolute left:0
-            return '<table class="v-inner"><tr><td>'
-                . '<div class="v-box"><div class="v-rot">' . $safe . '</div></div>'
-                . '</td></tr></table>';
+            $h = max(80, (int) ($m['h'] ?? 140));
+            $w = max(10, (int) ($m['w'] ?? 12));
+            $font = isset($m['font']) ? (float) $m['font'] : 10;
+            $line = isset($m['line']) ? (float) $m['line'] : 12;
+            return '<table class="v-inner" style="width:100%;height:'.$h.'px;border-collapse:collapse;"><tr><td style="border:none;padding:0;margin:0;vertical-align:bottom;text-align:center;overflow:visible;">'
+                . '<div class="v-box" style="width:'.$w.'px;height:'.$h.'px;margin:0 auto;position:relative;overflow:visible;">'
+                . '<div class="v-rot" style="position:absolute;left:0;bottom:0;width:'.$h.'px;height:'.$line.'px;line-height:'.$line.'px;font-size:'.$font.'px;font-weight:bold;color:#940000;white-space:nowrap;text-align:left;letter-spacing:0;transform:rotate(-90deg);transform-origin:left bottom;">'
+                . $safe
+                . '</div></div></td></tr></table>';
         }
     }
 @endphp
@@ -144,13 +149,23 @@
         font-size: 14px;
         margin-bottom: 0;
     }
-    table.board-results th, table.board-results td {
+    table.board-results td {
         border: 1px solid #bbb;
         padding: 1px 1px;
         text-align: center;
         vertical-align: middle;
         word-wrap: break-word;
         overflow: hidden;
+        font-size: 14px;
+        line-height: 1.15;
+    }
+    table.board-results th {
+        border: 1px solid #bbb;
+        padding: 1px 1px;
+        text-align: center;
+        vertical-align: middle;
+        word-wrap: break-word;
+        overflow: visible;
         font-size: 14px;
         line-height: 1.15;
     }
@@ -182,11 +197,11 @@
     /* Vertical titles â€” base size; per-board height expands with longest subject name */
     table.board-results th.v,
     table.board-results th.v-subj {
-        height: 110px;
+        height: 180px;
         padding: 1px 0;
         vertical-align: bottom;
         text-align: center;
-        overflow: visible;
+        overflow: visible !important;
     }
     table.board-results th.v { width: 2.5%; }
     /* COMBIE/COMBINATION: vertical header like SEX/POINT; column wide enough for horizontal codes (PMC) */
@@ -195,17 +210,17 @@
         font-size: 14px;
         vertical-align: bottom;
         padding: 1px 0 0 0;
-        height: 110px;
-        overflow: visible;
+        height: 180px;
+        overflow: visible !important;
     }
-    table.board-results th.v-trail { width: 4%; }
+    table.board-results th.v-trail { width: 4%; height: 180px; overflow: visible !important; }
     table.board-results th.v-trail.v-total { width: 5.8%; }
     table.board-results th.v-trail.v-avg { width: 4.6%; }
     table.board-results th.v-subj { width: auto; }
 
     table.board-results table.v-inner {
         width: 100%;
-        height: 104px;
+        height: 176px;
         border-collapse: collapse;
         margin: 0 auto;
     }
@@ -220,7 +235,7 @@
     }
     table.board-results .v-box {
         width: 12px;
-        height: 102px;
+        height: 176px;
         margin: 0 auto;
         position: relative;
         overflow: visible;
@@ -232,17 +247,18 @@
         position: absolute;
         left: 0;
         bottom: 0;
-        width: 102px;
+        width: 176px;
         white-space: nowrap;
-        font-size: 10px;
+        font-size: 10px !important;
         font-weight: bold;
         color: #940000;
         line-height: 12px;
         height: 12px;
-        text-align: center;
+        text-align: left;
         letter-spacing: 0;
         transform: rotate(-90deg);
         transform-origin: left bottom;
+        overflow: visible;
     }
     table.board-results th.sn-h {
         width: 3%;
@@ -518,11 +534,18 @@
         }
         $vFont = round(10 * $boardPdfScale, 2);
         $vLine = round(12 * $boardPdfScale, 2);
-        // Enough height for the full rotated label (px per character at this font)
-        $vHeaderH = (int) min(280, max(110, round(($maxVertLen * ($vFont * 0.82)) + 18)));
-        $vInnerH = max(100, $vHeaderH - 4);
-        $vBoxH = max(98, $vHeaderH - 6);
+        // Helvetica Bold caps ~1em wide after rotation; pad so last letters are not clipped
+        $vHeaderH = (int) min(340, max(180, round($maxVertLen * $vFont * 1.05) + 36));
+        $vInnerH = $vHeaderH;
+        $vBoxH = $vHeaderH;
         $vBoxW = (int) max(12, round($vLine));
+        $vMetrics = [
+            'h' => $vBoxH,
+            'w' => $vBoxW,
+            'font' => $vFont,
+            'line' => $vLine,
+        ];
+        $vThStyle = 'height:'.$vHeaderH.'px;overflow:visible;vertical-align:bottom;';
         $boardCssId = 'board-dyn-' . (int) $boardIdx;
     @endphp
 
@@ -673,23 +696,23 @@
                     @if($board['showIndex'] ?? true)
                         <th class="index-h" style="width:{{ ($board['showName'] ?? true) ? '9%' : '14%' }};">INDEX NO</th>
                     @endif
-                    <th class="v">{!! pdfBoardVerticalLabel('SEX') !!}</th>
+                    <th class="v" style="{{ $vThStyle }}">{!! pdfBoardVerticalLabel('SEX', $vMetrics) !!}</th>
                     @if(!empty($board['showStream']))
-                        <th class="v v-stream">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION') !!}</th>
+                        <th class="v v-stream" style="{{ $vThStyle }}">{!! pdfBoardVerticalLabel($board['streamHeader'] ?? 'COMBINATION', $vMetrics) !!}</th>
                     @endif
                     @if($isSecondary)
-                        <th class="v">{!! pdfBoardVerticalLabel('POINT') !!}</th>
-                        <th class="v">{!! pdfBoardVerticalLabel('DIVISION') !!}</th>
+                        <th class="v" style="{{ $vThStyle }}">{!! pdfBoardVerticalLabel('POINT', $vMetrics) !!}</th>
+                        <th class="v" style="{{ $vThStyle }}">{!! pdfBoardVerticalLabel('DIVISION', $vMetrics) !!}</th>
                     @endif
                     @foreach($subjects as $subj)
-                        <th class="v-subj" colspan="2">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '') !!}</th>
+                        <th class="v-subj" colspan="2" style="{{ $vThStyle }}">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '', $vMetrics) !!}</th>
                     @endforeach
                     @foreach($board['trailingHeaders'] ?? [] as $th)
                         @php
                             $thUp = strtoupper(trim((string) $th));
                             $trailExtra = $thUp === 'TOTAL' ? 'v-total' : ($thUp === 'AVERAGE' ? 'v-avg' : '');
                         @endphp
-                        <th class="v v-trail {{ $trailExtra }}">{!! pdfBoardVerticalLabel($th) !!}</th>
+                        <th class="v v-trail {{ $trailExtra }}" style="{{ $vThStyle }}">{!! pdfBoardVerticalLabel($th, $vMetrics) !!}</th>
                     @endforeach
                 </tr>
             </thead>

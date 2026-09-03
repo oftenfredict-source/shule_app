@@ -903,6 +903,13 @@
         body.board-pdf table.board-results th,
         body.board-pdf table.board-results td { font-size: {{ $sx(14) }}px !important; }
         body.board-pdf table.board-results thead th { font-size: {{ $sx(14) }}px !important; }
+        body.board-pdf table.board-results .v-rot { font-size: {{ $sx(10) }}px !important; }
+        body.board-pdf table.board-results th.v,
+        body.board-pdf table.board-results th.v-subj,
+        body.board-pdf table.board-results th.v-stream,
+        body.board-pdf table.board-results th.v-trail {
+            overflow: visible !important;
+        }
         body.board-pdf table.board-results th.sn-h,
         body.board-pdf table.board-results th.name-h,
         body.board-pdf table.board-results th.index-h { font-size: {{ $sx(14) }}px !important; }
