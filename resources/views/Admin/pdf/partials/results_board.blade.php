@@ -418,8 +418,9 @@
         text-align: center !important;
     }
     table.board-results td.empty-subj {
-        background-color: #bdbdbd !important;
+        background-color: #e8e8e8 !important;
         color: transparent !important;
+        border: 1px solid #888 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }

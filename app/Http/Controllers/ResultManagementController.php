@@ -9978,7 +9978,7 @@ class ResultManagementController extends Controller
                 ->getFill()
                 ->setFillType(Fill::FILL_SOLID)
                 ->getStartColor()
-                ->setARGB("FFC5C5C5");
+                ->setARGB("FFE8E8E8");
         }
 
         $lastDataRow = $dataRow - 1;
