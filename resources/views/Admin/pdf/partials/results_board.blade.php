@@ -90,12 +90,12 @@
          * Column % from longest DATA string at a given font (Helvetica-ish).
          * 78.907 at 14px must get a cell wide enough for every glyph + padding.
          */
-        function pdfBoardDataColPct(int $len, float $fontPx = 14.0, float $padPx = 16.0): float {
+        function pdfBoardDataColPct(int $len, float $fontPx = 14.0, float $padPx = 6.0): float {
             $len = max(1, $len);
-            $px = ($len * $fontPx * 0.62) + $padPx;
+            $px = ($len * $fontPx * 0.56) + $padPx;
             $tablePx = 810.0;
 
-            return round(max(2.4, ($px / $tablePx) * 100), 2);
+            return round(max(2.0, ($px / $tablePx) * 100), 2);
         }
     }
 @endphp
@@ -248,6 +248,16 @@
         overflow: visible;
     }
     /* Do NOT repeat column titles on following pages â€” first page only */
+    table.board-results tr.board-col-sync th {
+        height: 0 !important;
+        max-height: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
+        overflow: hidden !important;
+        color: transparent !important;
+    }
     table.board-results > thead {
         display: table-row-group;
     }
@@ -355,7 +365,7 @@
     }
     table.board-results td.name-cell {
         text-align: left !important;
-        padding-left: 4px !important;
+        padding-left: 2px !important;
         padding-right: 2px !important;
         font-weight: bold;
         font-size: 12px;
@@ -374,7 +384,7 @@
         font-size: 11px;
         font-weight: bold;
         line-height: 1.1;
-        padding: 1px 4px;
+        padding: 1px 2px;
         text-align: center;
         white-space: nowrap !important;
         overflow: hidden !important;
@@ -390,12 +400,12 @@
         overflow: hidden !important;
         font-size: 14px !important;
         line-height: 1.15 !important;
-        padding: 1px 4px !important;
+        padding: 1px 1px !important;
         text-align: center !important;
     }
     table.board-results td.board-num-cell.board-total-cell {
         font-size: 12px !important;
-        padding: 1px 4px !important;
+        padding: 1px 1px !important;
     }
     table.board-results td.board-num-cell .board-num-keep {
         white-space: nowrap !important;
@@ -404,7 +414,7 @@
     table.board-results td.board-pos-cell {
         white-space: nowrap !important;
         overflow: hidden !important;
-        padding: 1px 4px !important;
+        padding: 1px 1px !important;
         text-align: center !important;
     }
     table.board-results .sub-h {
@@ -652,48 +662,48 @@
         $wAvgCol = 0;
         $wPosCol = 0;
 
-        $colW[] = pdfBoardDataColPct($lenSn, 14, 12);
+        $colW[] = pdfBoardDataColPct($lenSn, 14, 6);
         $wName = 0;
         $nameColIdx = null;
         if ($showNameCol) {
             $nameColIdx = count($colW);
-            $wName = pdfBoardDataColPct($lenName, 12, 16);
+            $wName = pdfBoardDataColPct($lenName, 12, 6);
             $colW[] = $wName;
             $protect[] = $nameColIdx;
         }
         if ($showIndexCol) {
-            $colW[] = pdfBoardDataColPct($lenIndex, 14, 12);
+            $colW[] = pdfBoardDataColPct($lenIndex, 14, 6);
         }
-        $colW[] = pdfBoardDataColPct($lenSex, 14, 12);
+        $colW[] = pdfBoardDataColPct($lenSex, 14, 6);
         if ($showStreamCol) {
             $protect[] = count($colW);
-            $wStreamCol = pdfBoardDataColPct(max($lenStream, 3), 11, 18);
+            $wStreamCol = pdfBoardDataColPct(max($lenStream, 3), 11, 6);
             $colW[] = $wStreamCol;
         }
         if ($isSecondary) {
-            $colW[] = pdfBoardDataColPct(max($lenPoint, 2), 14, 12);
-            $colW[] = pdfBoardDataColPct(max($lenDiv, 1), 14, 12);
+            $colW[] = pdfBoardDataColPct(max($lenPoint, 2), 14, 6);
+            $colW[] = pdfBoardDataColPct(max($lenDiv, 1), 14, 6);
         }
         for ($si = 0; $si < $nSubj; $si++) {
-            $colW[] = pdfBoardDataColPct((int) ($lenMarks[$si] ?? 1), 14, 12);
-            $colW[] = pdfBoardDataColPct((int) ($lenGrades[$si] ?? 1), 14, 12);
+            $colW[] = pdfBoardDataColPct((int) ($lenMarks[$si] ?? 1), 14, 6);
+            $colW[] = pdfBoardDataColPct((int) ($lenGrades[$si] ?? 1), 14, 6);
         }
         foreach ($board['trailingHeaders'] ?? [] as $th) {
             $thUp = strtoupper(trim((string) $th));
             $idx = count($colW);
             if ($thUp === 'TOTAL') {
                 $protect[] = $idx;
-                $wTotalCol = pdfBoardDataColPct(max($lenTotal, 3), 12, 18);
+                $wTotalCol = pdfBoardDataColPct(max($lenTotal, 3), 12, 6);
                 $colW[] = $wTotalCol;
             } elseif ($thUp === 'AVERAGE') {
                 $protect[] = $idx;
-                $wAvgCol = pdfBoardDataColPct(max($lenAvg, 5), 14, 22);
+                $wAvgCol = pdfBoardDataColPct(max($lenAvg, 5), 14, 6);
                 $colW[] = $wAvgCol;
             } elseif ($thUp === 'GRADE') {
-                $colW[] = pdfBoardDataColPct($lenPGrade, 14, 12);
+                $colW[] = pdfBoardDataColPct($lenPGrade, 14, 6);
             } else {
                 $protect[] = $idx;
-                $wPosCol = pdfBoardDataColPct(max($lenPos, 2), 14, 16);
+                $wPosCol = pdfBoardDataColPct(max($lenPos, 2), 14, 6);
                 $colW[] = $wPosCol;
             }
         }
@@ -916,6 +926,11 @@
                 @endforeach
             </colgroup>
             <thead>
+                <tr class="board-col-sync">
+                    @foreach($colW as $cw)
+                        <th style="width: {{ $cw }}%;">&nbsp;</th>
+                    @endforeach
+                </tr>
                 <tr>
                     <th class="sn-h">S/N</th>
                     @if($showNameCol)
@@ -933,8 +948,7 @@
                         <th class="v">{!! pdfBoardVerticalLabel('DIVISION') !!}</th>
                     @endif
                     @foreach($subjects as $subj)
-                        <th class="v-subj">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '') !!}</th>
-                        <th class="v-subj"></th>
+                        <th class="v-subj" colspan="2">{!! pdfBoardVerticalLabel($subj['subject_name'] ?? '') !!}</th>
                     @endforeach
                     @foreach($board['trailingHeaders'] ?? [] as $th)
                         @php
